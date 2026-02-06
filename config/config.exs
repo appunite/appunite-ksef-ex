@@ -9,7 +9,27 @@ import Config
 
 config :ksef_hub,
   ecto_repos: [KsefHub.Repo],
-  generators: [timestamp_type: :utc_datetime]
+  generators: [timestamp_type: :utc_datetime],
+  ksef_client: KsefHub.KsefClient.Live,
+  xades_signer: KsefHub.XadesSigner.Xmlsec1,
+  ksef_api_url: "https://ksef-test.mf.gov.pl"
+
+# Oban background jobs
+config :ksef_hub, Oban,
+  repo: KsefHub.Repo,
+  plugins: [
+    {Oban.Plugins.Cron,
+     crontab: [
+       {"*/15 * * * *", KsefHub.Sync.SyncWorker}
+     ]}
+  ],
+  queues: [sync: 1, default: 5]
+
+# Google OAuth
+config :ueberauth, Ueberauth,
+  providers: [
+    google: {Ueberauth.Strategy.Google, [default_scope: "email profile"]}
+  ]
 
 # Configures the endpoint
 config :ksef_hub, KsefHubWeb.Endpoint,

@@ -12,9 +12,7 @@ defmodule KsefHub.Application do
       KsefHub.Repo,
       {DNSCluster, query: Application.get_env(:ksef_hub, :dns_cluster_query) || :ignore},
       {Phoenix.PubSub, name: KsefHub.PubSub},
-      # Start a worker by calling: KsefHub.Worker.start_link(arg)
-      # {KsefHub.Worker, arg},
-      # Start to serve requests, typically the last entry
+      {Oban, Application.fetch_env!(:ksef_hub, Oban)},
       KsefHubWeb.Endpoint
     ]
 

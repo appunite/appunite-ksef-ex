@@ -20,6 +20,29 @@ if System.get_env("PHX_SERVER") do
   config :ksef_hub, KsefHubWeb.Endpoint, server: true
 end
 
+# Application-wide runtime config (all environments)
+if allowed_emails = System.get_env("ALLOWED_EMAILS") do
+  config :ksef_hub, :allowed_emails, allowed_emails
+end
+
+if google_client_id = System.get_env("GOOGLE_CLIENT_ID") do
+  config :ueberauth, Ueberauth.Strategy.Google.OAuth,
+    client_id: google_client_id,
+    client_secret: System.get_env("GOOGLE_CLIENT_SECRET")
+end
+
+if ksef_api_url = System.get_env("KSEF_API_URL") do
+  config :ksef_hub, :ksef_api_url, ksef_api_url
+end
+
+if gotenberg_url = System.get_env("GOTENBERG_URL") do
+  config :ksef_hub, :gotenberg_url, gotenberg_url
+end
+
+if gcp_secret_name = System.get_env("GCP_SECRET_NAME") do
+  config :ksef_hub, :gcp_secret_name, gcp_secret_name
+end
+
 if config_env() == :prod do
   database_url =
     System.get_env("DATABASE_URL") ||

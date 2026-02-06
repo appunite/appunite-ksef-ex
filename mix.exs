@@ -65,7 +65,16 @@ defmodule KsefHub.MixProject do
       {:gettext, "~> 0.26"},
       {:jason, "~> 1.2"},
       {:dns_cluster, "~> 0.2.0"},
-      {:bandit, "~> 1.5"}
+      {:bandit, "~> 1.5"},
+      # Background jobs
+      {:oban, "~> 2.18"},
+      # XML parsing
+      {:sweet_xml, "~> 0.7"},
+      # Google OAuth
+      {:ueberauth, "~> 0.10"},
+      {:ueberauth_google, "~> 0.12"},
+      # Test mocks
+      {:mox, "~> 1.1", only: :test}
     ]
   end
 
