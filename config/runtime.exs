@@ -1,21 +1,11 @@
 import Config
 
-# config/runtime.exs is executed for all environments, including
-# during releases. It is executed after compilation and before the
-# system starts, so it is typically used to load production configuration
-# and secrets from environment variables or elsewhere. Do not define
-# any compile-time configuration in here, as it won't be applied.
-# The block below contains prod specific runtime configuration.
+# Load .env file in dev and test environments.
+# In production, environment variables are set by the deployment platform.
+if config_env() in [:dev, :test] do
+  Dotenvy.source([".env", System.get_env()])
+end
 
-# ## Using releases
-#
-# If you use `mix release`, you need to explicitly enable the server
-# by passing the PHX_SERVER=true when you start it:
-#
-#     PHX_SERVER=true bin/ksef_hub start
-#
-# Alternatively, you can use `mix phx.gen.release` to generate a `bin/server`
-# script that automatically sets the env var above.
 if System.get_env("PHX_SERVER") do
   config :ksef_hub, KsefHubWeb.Endpoint, server: true
 end
