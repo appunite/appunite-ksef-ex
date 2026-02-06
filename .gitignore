@@ -35,6 +35,9 @@ ksef_hub-*.tar
 npm-debug.log
 /assets/node_modules/
 
+# Environment variables (secrets)
+.env
+
 # OS files
 .DS_Store
 

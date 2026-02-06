@@ -73,6 +73,8 @@ defmodule KsefHub.MixProject do
       # Google OAuth
       {:ueberauth, "~> 0.10"},
       {:ueberauth_google, "~> 0.12"},
+      # .env file loading
+      {:dotenvy, "~> 0.8"},
       # Test mocks
       {:mox, "~> 1.1", only: :test}
     ]
