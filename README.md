@@ -1,18 +1,121 @@
-# KsefHub
+# KSeF Hub
 
-To start your Phoenix server:
+Dedicated microservice for Poland's **National e-Invoice System (KSeF)**. Handles the complexity of KSeF integration — certificate authentication, XADES signing, FA(3) XML parsing, invoice sync, and PDF generation — exposing clean REST APIs for any consumer application.
 
-* Run `mix setup` to install and setup dependencies
-* Start Phoenix endpoint with `mix phx.server` or inside IEx with `iex -S mix phx.server`
+## Why
 
-Now you can visit [`localhost:4000`](http://localhost:4000) from your browser.
+Embedding KSeF complexity (certificate auth, XML parsing, rate limits, gov.pl stylesheets) into every consumer app is wrong. **KSeF Hub** owns it all in one place and provides simple APIs.
 
-Ready to run in production? Please [check our deployment guides](https://hexdocs.pm/phoenix/deployment.html).
+## Tech Stack
 
-## Learn more
+- **Elixir** + **Phoenix 1.8** (REST API + LiveView admin UI)
+- **PostgreSQL** via Supabase + Ecto
+- **xsltproc** — gov.pl XSL stylesheet transformation
+- **xmlsec1** — XADES certificate signing
+- **Gotenberg** — HTML to PDF conversion
+- **Tailwind CSS** + **DaisyUI** — admin UI styling
 
-* Official website: https://www.phoenixframework.org/
-* Guides: https://hexdocs.pm/phoenix/overview.html
-* Docs: https://hexdocs.pm/phoenix
-* Forum: https://elixirforum.com/c/phoenix-forum
-* Source: https://github.com/phoenixframework/phoenix
+## Getting Started
+
+### Prerequisites
+
+- Erlang 28+ / Elixir 1.18+ (see `.tool-versions`)
+- PostgreSQL (or Supabase)
+- `xsltproc` and `xmlsec1` for full functionality
+
+### Setup
+
+```bash
+mix setup          # deps, DB, assets
+mix phx.server     # http://localhost:4000
+```
+
+### Docker
+
+```bash
+make docker.build
+make docker.up     # starts app + Gotenberg sidecar
+```
+
+## Available Make Targets
+
+```
+make help          # list all targets
+make test          # run tests
+make fmt           # format code
+make lint          # credo --strict
+make precommit     # format + compile warnings + tests
+make server        # start dev server
+make db.setup      # create + migrate + seed
+make docker.build  # build Docker image
+```
+
+## API Overview
+
+### Expense Invoices
+
+```
+GET    /api/expenses          # list with filters
+GET    /api/expenses/:id      # invoice details
+POST   /api/expenses/:id/approve
+POST   /api/expenses/:id/reject
+GET    /api/expenses/:id/html # HTML preview
+GET    /api/expenses/:id/pdf  # PDF download
+```
+
+### Income Invoices
+
+```
+GET    /api/income            # list with filters
+GET    /api/income/:id        # invoice details
+```
+
+All API endpoints require a Bearer token. Tokens are generated via the admin UI.
+
+## Architecture
+
+```
+┌─────────────────────────────────────────────┐
+│              KSeF Hub (Phoenix)              │
+│                                             │
+│  LiveView UI    REST API    Sync Worker     │
+│  (admin)        (/api/*)    (15-min cron)   │
+└──────┬──────────────┬──────────────┬────────┘
+       │              │              │
+       ▼              ▼              ▼
+   Google OAuth   API Tokens    KSeF API
+                                (gov.pl)
+       │              │              │
+       └──────────────┴──────────────┘
+                      │
+                 PostgreSQL
+                 (Supabase)
+```
+
+**PDF pipeline:** FA(3) XML → xsltproc (gov.pl XSL) → HTML → Gotenberg → PDF
+
+## Project Structure
+
+```
+lib/
+├── ksef_hub/              # Business logic (contexts)
+│   ├── invoices/          # Invoice CRUD, parsing, approval
+│   ├── credentials/       # Certificate encryption & storage
+│   ├── ksef_client/       # KSeF API communication
+│   ├── pdf/               # PDF generation pipeline
+│   └── sync_worker.ex     # Background sync GenServer
+│
+└── ksef_hub_web/          # Web layer
+    ├── controllers/api/   # REST JSON endpoints
+    ├── live/              # LiveView admin pages
+    └── router.ex
+```
+
+## Documentation
+
+- [`docs/prd.md`](docs/prd.md) — Product Requirements Document
+- `docs/adr/` — Architecture Decision Records
+
+## License
+
+Private. All rights reserved.
