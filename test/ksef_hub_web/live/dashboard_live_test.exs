@@ -26,8 +26,10 @@ defmodule KsefHubWeb.DashboardLiveTest do
       create_invoice("income", "pending")
       create_invoice("expense", "pending")
 
-      {:ok, _view, html} = live(conn, ~p"/dashboard")
-      assert html =~ "Dashboard"
+      {:ok, view, _html} = live(conn, ~p"/dashboard")
+      assert has_element?(view, ".stat-value", "3")
+      assert has_element?(view, ".stat-value", "2")
+      assert has_element?(view, ".stat-value", "1")
     end
 
     test "shows sync status when no credential", %{conn: conn} do
@@ -40,12 +42,15 @@ defmodule KsefHubWeb.DashboardLiveTest do
     test "refreshes on sync completed event", %{conn: conn} do
       {:ok, view, _html} = live(conn, ~p"/dashboard")
 
+      # Verify zero counts initially
+      assert has_element?(view, ".stat-value", "0")
+
       # Create an invoice and broadcast sync
       create_invoice("income", "pending")
       send(view.pid, {:sync_completed, %{income: 1, expense: 0}})
 
-      html = render(view)
-      assert html =~ "Dashboard"
+      # Counts should update after sync event
+      assert has_element?(view, ".stat-value", "1")
     end
   end
 

@@ -53,6 +53,7 @@ defmodule KsefHubWeb.InvoiceLive.IndexTest do
       {:ok, view, _html} = live(conn, ~p"/invoices?status=pending")
       html = render(view)
       assert html =~ "FV/INC/001"
+      assert html =~ "FV/EXP/001"
     end
 
     test "filter change updates URL via push_patch", %{conn: conn} do
