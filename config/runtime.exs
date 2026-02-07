@@ -2,8 +2,10 @@ import Config
 
 # Load .env file in dev and test environments.
 # In production, environment variables are set by the deployment platform.
-if config_env() in [:dev, :test] do
-  Dotenvy.source([".env", System.get_env()])
+if config_env() == :dev do
+  for {k, v} <- Dotenvy.source!([".env", System.get_env()]) do
+    System.put_env(k, v)
+  end
 end
 
 if System.get_env("PHX_SERVER") do
