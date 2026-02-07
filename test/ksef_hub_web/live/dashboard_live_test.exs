@@ -19,6 +19,11 @@ defmodule KsefHubWeb.DashboardLiveTest do
       {:ok, view, html} = live(conn, ~p"/dashboard")
       assert html =~ "Dashboard"
       assert has_element?(view, "[class*=stat-value]", "0")
+      # Sidebar navigation rendered via app layout
+      assert html =~ "drawer"
+      assert html =~ "Invoices"
+      assert html =~ "Certificates"
+      assert html =~ "API Tokens"
     end
 
     test "shows invoice counts", %{conn: conn} do

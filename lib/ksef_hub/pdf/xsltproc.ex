@@ -28,16 +28,22 @@ defmodule KsefHub.Pdf.Xsltproc do
     xml_path = write_secure_temp(xml_content, "invoice.xml")
 
     try do
-      case System.cmd("xsltproc", ["--nonet", xsl_path, xml_path],
-             timeout: @cmd_timeout,
-             stderr_to_stdout: true
-           ) do
-        {output, 0} ->
+      task =
+        Task.async(fn ->
+          System.cmd("xsltproc", ["--nonet", xsl_path, xml_path], stderr_to_stdout: true)
+        end)
+
+      case Task.yield(task, @cmd_timeout) || Task.shutdown(task) do
+        {:ok, {output, 0}} ->
           {:ok, output}
 
-        {output, exit_code} ->
+        {:ok, {output, exit_code}} ->
           Logger.error("xsltproc failed (exit #{exit_code}): #{output}")
           {:error, {:xsltproc_failed, exit_code, output}}
+
+        nil ->
+          Logger.error("xsltproc timed out after #{@cmd_timeout}ms")
+          {:error, :timeout}
       end
     rescue
       e in ErlangError ->
