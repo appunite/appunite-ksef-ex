@@ -9,6 +9,8 @@ defmodule KsefHub.XadesSigner.Xmlsec1 do
 
   require Logger
 
+  alias KsefHub.XadesSigner.AuthTokenRequest
+
   @cmd_timeout 30_000
 
   @impl true
@@ -46,7 +48,7 @@ defmodule KsefHub.XadesSigner.Xmlsec1 do
   end
 
   defp build_auth_token_request(challenge, nip) do
-    KsefHub.XadesSigner.AuthTokenRequest.build(challenge, nip)
+    AuthTokenRequest.build(challenge, nip)
   end
 
   defp write_secure_temp(content, suffix) do

@@ -1,11 +1,14 @@
 defmodule KsefHubWeb.TokenLive do
+  @moduledoc """
+  LiveView for managing API tokens — create, view, and revoke bearer tokens.
+  """
   use KsefHubWeb, :live_view
 
   alias KsefHub.Accounts
 
   @impl true
   def mount(_params, _session, socket) do
-    tokens = Accounts.list_api_tokens()
+    tokens = Accounts.list_api_tokens(socket.assigns.current_user.id)
 
     {:ok,
      assign(socket,
@@ -29,15 +32,16 @@ defmodule KsefHubWeb.TokenLive do
 
   @impl true
   def handle_event("create", %{"token" => params}, socket) do
+    user_id = socket.assigns.current_user.id
+
     attrs = %{
       name: params["name"],
-      description: params["description"],
-      user_id: socket.assigns.current_user.id
+      description: params["description"]
     }
 
-    case Accounts.create_api_token(attrs) do
+    case Accounts.create_api_token(user_id, attrs) do
       {:ok, %{token: plain_token, api_token: _api_token}} ->
-        tokens = Accounts.list_api_tokens()
+        tokens = Accounts.list_api_tokens(socket.assigns.current_user.id)
 
         {:noreply,
          socket
@@ -64,9 +68,11 @@ defmodule KsefHubWeb.TokenLive do
 
   @impl true
   def handle_event("revoke", %{"id" => id}, socket) do
-    case Accounts.revoke_api_token(id) do
+    user_id = socket.assigns.current_user.id
+
+    case Accounts.revoke_api_token(user_id, id) do
       {:ok, _} ->
-        tokens = Accounts.list_api_tokens()
+        tokens = Accounts.list_api_tokens(user_id)
 
         {:noreply,
          socket
@@ -95,7 +101,7 @@ defmodule KsefHubWeb.TokenLive do
     </.header>
 
     <!-- Plaintext Token Alert -->
-    <div :if={@show_token} class="alert alert-warning mt-4">
+    <div :if={@show_token} class="alert alert-warning mt-4" role="alert">
       <.icon name="hero-exclamation-triangle" class="size-5" />
       <div class="flex-1">
         <p class="font-semibold">Copy your API token now. It won't be shown again.</p>

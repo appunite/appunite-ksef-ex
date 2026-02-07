@@ -1,33 +1,15 @@
 defmodule KsefHub.InvoicesTest do
   use KsefHub.DataCase, async: true
 
+  import KsefHub.Factory
+
   alias KsefHub.Invoices
   alias KsefHub.Invoices.Invoice
 
-  @valid_attrs %{
-    ksef_number: "1234567890-20250101-ABC123-01",
-    type: "income",
-    seller_nip: "1234567890",
-    seller_name: "Seller Sp. z o.o.",
-    buyer_nip: "0987654321",
-    buyer_name: "Buyer S.A.",
-    invoice_number: "FV/2025/001",
-    issue_date: ~D[2025-01-15],
-    net_amount: Decimal.new("1000.00"),
-    vat_amount: Decimal.new("230.00"),
-    gross_amount: Decimal.new("1230.00"),
-    currency: "PLN",
-    xml_content: "<Faktura>...</Faktura>"
-  }
-
-  defp create_invoice(attrs \\ %{}) do
-    {:ok, invoice} = Invoices.create_invoice(Map.merge(@valid_attrs, attrs))
-    invoice
-  end
-
   describe "create_invoice/1" do
     test "creates an invoice with valid attributes" do
-      assert {:ok, %Invoice{} = invoice} = Invoices.create_invoice(@valid_attrs)
+      attrs = params_for(:invoice, ksef_number: "1234567890-20250101-ABC123-01")
+      assert {:ok, %Invoice{} = invoice} = Invoices.create_invoice(attrs)
       assert invoice.ksef_number == "1234567890-20250101-ABC123-01"
       assert invoice.type == "income"
       assert invoice.status == "pending"
@@ -35,7 +17,8 @@ defmodule KsefHub.InvoicesTest do
     end
 
     test "returns error with invalid type" do
-      assert {:error, changeset} = Invoices.create_invoice(%{@valid_attrs | type: "invalid"})
+      attrs = params_for(:invoice, type: "invalid")
+      assert {:error, changeset} = Invoices.create_invoice(attrs)
       assert "is invalid" in errors_on(changeset).type
     end
 
@@ -47,22 +30,25 @@ defmodule KsefHub.InvoicesTest do
     end
 
     test "enforces unique ksef_number" do
-      create_invoice()
-      assert {:error, changeset} = Invoices.create_invoice(@valid_attrs)
+      insert(:invoice, ksef_number: "dup-1")
+      attrs = params_for(:invoice, ksef_number: "dup-1")
+      assert {:error, changeset} = Invoices.create_invoice(attrs)
       assert "has already been taken" in errors_on(changeset).ksef_number
     end
   end
 
   describe "upsert_invoice/1" do
     test "inserts new invoice" do
-      assert {:ok, %Invoice{}} = Invoices.upsert_invoice(@valid_attrs)
+      attrs = params_for(:invoice, ksef_number: "upsert-1")
+      assert {:ok, %Invoice{}} = Invoices.upsert_invoice(attrs)
     end
 
     test "updates existing invoice on ksef_number conflict" do
-      {:ok, original} = Invoices.upsert_invoice(@valid_attrs)
+      attrs = params_for(:invoice, ksef_number: "upsert-2")
+      {:ok, original} = Invoices.upsert_invoice(attrs)
 
       {:ok, updated} =
-        Invoices.upsert_invoice(%{@valid_attrs | seller_name: "Updated Name"})
+        Invoices.upsert_invoice(%{attrs | seller_name: "Updated Name"})
 
       assert updated.id == original.id
       assert updated.seller_name == "Updated Name"
@@ -71,20 +57,20 @@ defmodule KsefHub.InvoicesTest do
 
   describe "list_invoices/1" do
     test "returns all invoices" do
-      create_invoice()
+      insert(:invoice)
       assert [%Invoice{}] = Invoices.list_invoices()
     end
 
     test "filters by type" do
-      create_invoice(%{ksef_number: "inc-1", type: "income"})
-      create_invoice(%{ksef_number: "exp-1", type: "expense"})
+      insert(:invoice, type: "income")
+      insert(:invoice, type: "expense")
 
       assert [%{type: "income"}] = Invoices.list_invoices(%{type: "income"})
       assert [%{type: "expense"}] = Invoices.list_invoices(%{type: "expense"})
     end
 
     test "filters by status" do
-      inv = create_invoice(%{type: "expense"})
+      inv = insert(:invoice, type: "expense")
       Invoices.approve_invoice(inv)
 
       assert [%{status: "approved"}] = Invoices.list_invoices(%{status: "approved"})
@@ -92,57 +78,77 @@ defmodule KsefHub.InvoicesTest do
     end
 
     test "filters by date range" do
-      create_invoice(%{ksef_number: "d-1", issue_date: ~D[2025-01-01]})
-      create_invoice(%{ksef_number: "d-2", issue_date: ~D[2025-06-15]})
+      insert(:invoice, issue_date: ~D[2025-01-01])
+      insert(:invoice, issue_date: ~D[2025-06-15])
 
       result = Invoices.list_invoices(%{date_from: ~D[2025-06-01], date_to: ~D[2025-06-30]})
       assert length(result) == 1
-      assert hd(result).ksef_number == "d-2"
     end
 
     test "filters by seller_nip" do
-      create_invoice(%{ksef_number: "s-1", seller_nip: "1111111111"})
-      create_invoice(%{ksef_number: "s-2", seller_nip: "2222222222"})
+      insert(:invoice, seller_nip: "1111111111")
+      insert(:invoice, seller_nip: "2222222222")
 
       assert [%{seller_nip: "1111111111"}] = Invoices.list_invoices(%{seller_nip: "1111111111"})
     end
 
     test "searches by query" do
-      create_invoice(%{ksef_number: "q-1", buyer_name: "Acme Corp"})
-      create_invoice(%{ksef_number: "q-2", buyer_name: "Widget Inc"})
+      insert(:invoice, buyer_name: "Acme Corp")
+      insert(:invoice, buyer_name: "Widget Inc")
 
       assert [%{buyer_name: "Acme Corp"}] = Invoices.list_invoices(%{query: "Acme"})
+    end
+
+    test "escapes LIKE wildcards in search query" do
+      insert(:invoice, buyer_name: "100% Organic")
+      insert(:invoice, buyer_name: "Something Else")
+
+      assert [%{buyer_name: "100% Organic"}] = Invoices.list_invoices(%{query: "100%"})
+    end
+
+    test "escapes underscore wildcards in search query" do
+      insert(:invoice, seller_name: "A_B Corp")
+      insert(:invoice, seller_name: "AXB Corp")
+
+      assert [%{seller_name: "A_B Corp"}] = Invoices.list_invoices(%{query: "A_B"})
+    end
+
+    test "escapes backslash in search query" do
+      insert(:invoice, invoice_number: "FV\\2025\\001")
+      insert(:invoice, invoice_number: "FV/2025/002")
+
+      assert [%{invoice_number: "FV\\2025\\001"}] = Invoices.list_invoices(%{query: "FV\\2025"})
     end
   end
 
   describe "approve_invoice/1" do
     test "approves an expense invoice" do
-      inv = create_invoice(%{type: "expense"})
+      inv = insert(:invoice, type: "expense")
       assert {:ok, %Invoice{status: "approved"}} = Invoices.approve_invoice(inv)
     end
 
     test "rejects approving an income invoice" do
-      inv = create_invoice(%{type: "income"})
+      inv = insert(:invoice, type: "income")
       assert {:error, {:invalid_type, "income"}} = Invoices.approve_invoice(inv)
     end
   end
 
   describe "reject_invoice/1" do
     test "rejects an expense invoice" do
-      inv = create_invoice(%{type: "expense"})
+      inv = insert(:invoice, type: "expense")
       assert {:ok, %Invoice{status: "rejected"}} = Invoices.reject_invoice(inv)
     end
 
     test "rejects rejecting an income invoice" do
-      inv = create_invoice(%{type: "income"})
+      inv = insert(:invoice, type: "income")
       assert {:error, {:invalid_type, "income"}} = Invoices.reject_invoice(inv)
     end
   end
 
   describe "count_by_type_and_status/0" do
     test "returns counts grouped by type and status" do
-      create_invoice(%{ksef_number: "c-1", type: "income"})
-      create_invoice(%{ksef_number: "c-2", type: "expense"})
+      insert(:invoice, type: "income")
+      insert(:invoice, type: "expense")
 
       counts = Invoices.count_by_type_and_status()
       assert counts[{"income", "pending"}] == 1

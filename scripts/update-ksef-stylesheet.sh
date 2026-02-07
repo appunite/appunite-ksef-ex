@@ -8,7 +8,7 @@
 set -euo pipefail
 
 XSL_DIR="$(cd "$(dirname "$0")/../priv/xsl" && pwd)"
-BASE_URL="http://crd.gov.pl/wzor/2025/06/25/13775"
+BASE_URL="https://crd.gov.pl/wzor/2025/06/25/13775"
 
 echo "Fetching FA(3) stylesheet from gov.pl..."
 curl -fsSL "${BASE_URL}/styl.xsl" -o "${XSL_DIR}/fa3-styl.xsl.orig"
@@ -30,8 +30,8 @@ sed -E \
 
 echo "Validating stylesheet..."
 if command -v xsltproc &>/dev/null; then
-  # Quick validation: just parse the XSL (--nonet prevents remote fetches)
-  if xsltproc --nonet --version "${XSL_DIR}/fa3-styl.xsl" >/dev/null 2>&1; then
+  # Parse and compile the XSL against minimal XML input (--noout suppresses output)
+  if echo '<root/>' | xsltproc --nonet --noout "${XSL_DIR}/fa3-styl.xsl" - >/dev/null 2>&1; then
     echo "  Stylesheet is valid."
   else
     echo "  WARNING: Stylesheet may have issues. Check manually."

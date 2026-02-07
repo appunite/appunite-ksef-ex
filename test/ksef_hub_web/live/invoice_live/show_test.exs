@@ -7,6 +7,7 @@ defmodule KsefHubWeb.InvoiceLive.ShowTest do
   alias KsefHub.Accounts
   alias KsefHub.Invoices
 
+  setup :set_mox_from_context
   setup :verify_on_exit!
 
   setup %{conn: conn} do
@@ -69,8 +70,9 @@ defmodule KsefHubWeb.InvoiceLive.ShowTest do
 
       view |> element("button", "Approve") |> render_click()
 
-      html = render(view)
-      assert html =~ "approved"
+      assert has_element?(view, ".badge", "approved")
+      refute has_element?(view, "button", "Approve")
+      refute has_element?(view, "button", "Reject")
     end
 
     test "clicking reject updates status", %{conn: conn} do
@@ -82,8 +84,39 @@ defmodule KsefHubWeb.InvoiceLive.ShowTest do
 
       view |> element("button", "Reject") |> render_click()
 
-      html = render(view)
-      assert html =~ "rejected"
+      assert has_element?(view, ".badge", "rejected")
+      refute has_element?(view, "button", "Approve")
+      refute has_element?(view, "button", "Reject")
+    end
+
+    test "approve on income invoice is rejected", %{conn: conn} do
+      {:ok, invoice} = create_invoice("income")
+
+      stub(KsefHub.Pdf.Mock, :generate_html, fn _xml -> {:error, :no_xml} end)
+
+      {:ok, view, _html} = live(conn, ~p"/invoices/#{invoice.id}")
+
+      # Buttons aren't shown for income, but test the server-side guard via hook
+      render_hook(view, "approve", %{})
+
+      # Status should remain pending (not changed to approved)
+      assert has_element?(view, ".badge", "pending")
+      refute has_element?(view, ".badge", "approved")
+    end
+
+    test "approve on already-approved invoice hides buttons", %{conn: conn} do
+      {:ok, invoice} = create_invoice("expense")
+
+      stub(KsefHub.Pdf.Mock, :generate_html, fn _xml -> {:error, :no_xml} end)
+
+      {:ok, view, _html} = live(conn, ~p"/invoices/#{invoice.id}")
+
+      view |> element("button", "Approve") |> render_click()
+      assert has_element?(view, ".badge", "approved")
+
+      # Approve/Reject buttons should be gone after status change
+      refute has_element?(view, "button", "Approve")
+      refute has_element?(view, "button", "Reject")
     end
   end
 

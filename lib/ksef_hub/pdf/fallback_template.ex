@@ -23,9 +23,7 @@ defmodule KsefHub.Pdf.FallbackTemplate do
 
   defp build_html(invoice) do
     line_items_html =
-      invoice.line_items
-      |> Enum.map(&line_item_row/1)
-      |> Enum.join("\n")
+      Enum.map_join(invoice.line_items, "\n", &line_item_row/1)
 
     """
     <!DOCTYPE html>
@@ -96,7 +94,7 @@ defmodule KsefHub.Pdf.FallbackTemplate do
   defp line_item_row(item) do
     """
         <tr>
-          <td>#{item.line_number || ""}</td>
+          <td>#{escape(item.line_number)}</td>
           <td>#{escape(item.description || "")}</td>
           <td>#{escape(item.unit || "")}</td>
           <td class="num">#{format_amount(item.quantity)}</td>
@@ -116,7 +114,6 @@ defmodule KsefHub.Pdf.FallbackTemplate do
 
   defp format_date(nil), do: "-"
   defp format_date(%Date{} = date), do: Calendar.strftime(date, "%Y-%m-%d")
-  defp format_date(str) when is_binary(str), do: escape(str)
 
   defp format_amount(nil), do: "-"
   defp format_amount(%Decimal{} = d), do: Decimal.to_string(d, :normal)

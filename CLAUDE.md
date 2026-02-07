@@ -9,7 +9,7 @@ See `docs/prd.md` for full product requirements.
 | Layer | Technology |
 |-------|-----------|
 | Language | Elixir 1.16+ / OTP 26+ |
-| Framework | Phoenix 1.7 + LiveView |
+| Framework | Phoenix 1.8 + LiveView |
 | Database | PostgreSQL (Supabase) via Ecto |
 | Auth (UI) | Google Sign-In, email allowlist (`ALLOWED_EMAILS` env) |
 | Auth (API) | Bearer API tokens (hashed, revocable) |
@@ -208,9 +208,18 @@ def handle_response({:error, reason}), do: {:error, {:request_failed, reason}}
 
 - Modules: `PascalCase` (`KsefHub.Invoices.Parser`)
 - Functions/variables: `snake_case` (`fetch_invoice_headers`)
-- Boolean functions: prefix with `is_` or end with `?` (`expired?/1`)
+- Boolean functions: end with `?` (`expired?/1`); reserve `is_` prefix for guard-safe predicates (`is_nil/1`, `is_binary/1`)
 - Private functions: prefix with `do_` only when wrapping a public function (`defp do_parse/1`)
 - Test files: mirror source path (`test/ksef_hub/invoices_test.exs`)
+
+### Documentation & Typespecs
+
+Every module **must** have:
+
+- `@moduledoc` — describes the module's purpose
+- `@type t :: %__MODULE__{}` — on all Ecto schemas
+- `@doc` — on every public function
+- `@spec` — on every function (public and private)
 
 ### SOLID / DRY
 
@@ -250,6 +259,26 @@ defmodule KsefHub.Invoices.ParserTest do
   end
 end
 ```
+
+### Test data with ExMachina
+
+Use factories (`test/support/factory.ex`) for test data instead of inline `@valid_attrs` maps:
+
+```elixir
+import KsefHub.Factory
+
+# Insert a persisted record with defaults
+cred = insert(:credential)
+
+# Override specific fields
+cred = insert(:credential, nip: "9999999999", is_active: false)
+
+# Build attrs map without inserting (for testing context functions)
+attrs = params_for(:credential, nip: "1234567890")
+{:ok, cred} = Credentials.create_credential(attrs)
+```
+
+Keep explicit attrs only when testing validation logic (e.g., missing required fields, invalid formats).
 
 ### Mocking with Mox
 

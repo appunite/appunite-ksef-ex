@@ -4,8 +4,9 @@ defmodule KsefHub.Invoices do
   """
 
   import Ecto.Query
-  alias KsefHub.Repo
+
   alias KsefHub.Invoices.Invoice
+  alias KsefHub.Repo
 
   @doc """
   Returns a list of invoices matching the given filters.
@@ -19,6 +20,7 @@ defmodule KsefHub.Invoices do
     * `:buyer_nip` - filter by buyer NIP
     * `:query` - search across invoice_number, seller_name, buyer_name
   """
+  @spec list_invoices(map()) :: [Invoice.t()]
   def list_invoices(filters \\ %{}) do
     Invoice
     |> apply_filters(filters)
@@ -26,10 +28,13 @@ defmodule KsefHub.Invoices do
     |> Repo.all()
   end
 
+  @spec get_invoice!(Ecto.UUID.t()) :: Invoice.t()
   def get_invoice!(id), do: Repo.get!(Invoice, id)
 
+  @spec get_invoice(Ecto.UUID.t()) :: Invoice.t() | nil
   def get_invoice(id), do: Repo.get(Invoice, id)
 
+  @spec get_invoice_by_ksef_number(String.t()) :: Invoice.t() | nil
   def get_invoice_by_ksef_number(ksef_number) do
     Repo.get_by(Invoice, ksef_number: ksef_number)
   end
@@ -37,6 +42,7 @@ defmodule KsefHub.Invoices do
   @doc """
   Creates an invoice.
   """
+  @spec create_invoice(map()) :: {:ok, Invoice.t()} | {:error, Ecto.Changeset.t()}
   def create_invoice(attrs) do
     %Invoice{}
     |> Invoice.changeset(attrs)
@@ -46,6 +52,7 @@ defmodule KsefHub.Invoices do
   @doc """
   Upserts an invoice by ksef_number. Used during sync to avoid duplicates.
   """
+  @spec upsert_invoice(map()) :: {:ok, Invoice.t()} | {:error, Ecto.Changeset.t()}
   def upsert_invoice(attrs) do
     %Invoice{}
     |> Invoice.changeset(attrs)
@@ -76,6 +83,7 @@ defmodule KsefHub.Invoices do
   @doc """
   Updates an invoice.
   """
+  @spec update_invoice(Invoice.t(), map()) :: {:ok, Invoice.t()} | {:error, Ecto.Changeset.t()}
   def update_invoice(%Invoice{} = invoice, attrs) do
     invoice
     |> Invoice.changeset(attrs)
@@ -85,6 +93,10 @@ defmodule KsefHub.Invoices do
   @doc """
   Approves an expense invoice.
   """
+  @spec approve_invoice(Invoice.t()) ::
+          {:ok, Invoice.t()}
+          | {:error, Ecto.Changeset.t()}
+          | {:error, {:invalid_type, String.t()}}
   def approve_invoice(%Invoice{type: "expense"} = invoice) do
     update_invoice(invoice, %{status: "approved"})
   end
@@ -94,6 +106,10 @@ defmodule KsefHub.Invoices do
   @doc """
   Rejects an expense invoice.
   """
+  @spec reject_invoice(Invoice.t()) ::
+          {:ok, Invoice.t()}
+          | {:error, Ecto.Changeset.t()}
+          | {:error, {:invalid_type, String.t()}}
   def reject_invoice(%Invoice{type: "expense"} = invoice) do
     update_invoice(invoice, %{status: "rejected"})
   end
@@ -103,6 +119,7 @@ defmodule KsefHub.Invoices do
   @doc """
   Returns invoice counts grouped by type and status.
   """
+  @spec count_by_type_and_status() :: %{{String.t(), String.t()} => non_neg_integer()}
   def count_by_type_and_status do
     Invoice
     |> group_by([i], [i.type, i.status])
@@ -115,6 +132,7 @@ defmodule KsefHub.Invoices do
 
   # --- Private ---
 
+  @spec apply_filters(Ecto.Queryable.t(), map()) :: Ecto.Query.t()
   defp apply_filters(query, filters) do
     Enum.reduce(filters, query, fn
       {:type, type}, q when type in ~w(income expense) ->
@@ -136,14 +154,20 @@ defmodule KsefHub.Invoices do
         where(q, [i], i.buyer_nip == ^nip)
 
       {:query, search}, q when is_binary(search) and search != "" ->
-        term = "%#{search}%"
+        escaped =
+          search
+          |> String.replace("\\", "\\\\")
+          |> String.replace("%", "\\%")
+          |> String.replace("_", "\\_")
+
+        pattern = "%" <> escaped <> "%"
 
         where(
           q,
           [i],
-          ilike(i.invoice_number, ^term) or
-            ilike(i.seller_name, ^term) or
-            ilike(i.buyer_name, ^term)
+          fragment("? ILIKE ? ESCAPE '\\'", i.invoice_number, ^pattern) or
+            fragment("? ILIKE ? ESCAPE '\\'", i.seller_name, ^pattern) or
+            fragment("? ILIKE ? ESCAPE '\\'", i.buyer_name, ^pattern)
         )
 
       _, q ->

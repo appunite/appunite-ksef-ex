@@ -1,8 +1,11 @@
 defmodule KsefHubWeb.DashboardLive do
+  @moduledoc """
+  LiveView for the main dashboard showing invoice counts, expense breakdown, and sync status.
+  """
   use KsefHubWeb, :live_view
 
-  alias KsefHub.Invoices
   alias KsefHub.Credentials
+  alias KsefHub.Invoices
 
   @impl true
   def mount(_params, _session, socket) do
@@ -143,7 +146,7 @@ defmodule KsefHubWeb.DashboardLive do
 
     ~H"""
     <div class="stat bg-base-100 shadow-sm rounded-box">
-      <div class="stat-figure {assigns.color}">
+      <div class={"stat-figure #{@color}"}>
         <.icon name={@icon} class="size-6" />
       </div>
       <div class="stat-title">{@title}</div>

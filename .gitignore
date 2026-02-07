@@ -41,4 +41,5 @@ npm-debug.log
 # OS files
 .DS_Store
 
+# Certificate keys (PKCS12)
 /keys

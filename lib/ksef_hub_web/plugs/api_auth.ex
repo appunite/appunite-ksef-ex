@@ -17,8 +17,16 @@ defmodule KsefHubWeb.Plugs.ApiAuth do
       Accounts.track_token_usage(api_token.id)
       assign(conn, :api_token, api_token)
     else
+      {:error, :expired} ->
+        conn
+        |> put_resp_header("www-authenticate", "Bearer")
+        |> put_status(:unauthorized)
+        |> json(%{error: "API token has expired"})
+        |> halt()
+
       _ ->
         conn
+        |> put_resp_header("www-authenticate", "Bearer")
         |> put_status(:unauthorized)
         |> json(%{error: "Invalid or missing API token"})
         |> halt()

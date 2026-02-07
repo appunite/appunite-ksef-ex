@@ -12,6 +12,7 @@ defmodule KsefHub.KsefClient.TokenManager do
   require Logger
 
   alias KsefHub.Credentials
+  alias KsefHub.Credentials.{Credential, Encryption}
 
   @refresh_buffer_seconds 120
 
@@ -148,18 +149,12 @@ defmodule KsefHub.KsefClient.TokenManager do
   defp persist_to_db(%{credential_id: nil}), do: :ok
 
   defp persist_to_db(%{credential_id: cred_id} = state) do
-    case KsefHub.Repo.get(KsefHub.Credentials.Credential, cred_id) do
+    case KsefHub.Repo.get(Credential, cred_id) do
       nil ->
         :ok
 
       cred ->
-        encrypted_refresh =
-          if state.refresh_token do
-            case KsefHub.Credentials.Encryption.encrypt(state.refresh_token) do
-              {:ok, encrypted} -> encrypted
-              _ -> nil
-            end
-          end
+        encrypted_refresh = encrypt_refresh_token(state.refresh_token)
 
         Credentials.store_tokens(cred, %{
           access_token: state.access_token,
@@ -170,10 +165,17 @@ defmodule KsefHub.KsefClient.TokenManager do
     end
   end
 
+  defp encrypt_refresh_token(nil), do: nil
+
+  defp encrypt_refresh_token(token) do
+    {:ok, encrypted} = Encryption.encrypt(token)
+    encrypted
+  end
+
   defp decrypt_refresh_token(nil), do: nil
 
   defp decrypt_refresh_token(encrypted) do
-    case KsefHub.Credentials.Encryption.decrypt(encrypted) do
+    case Encryption.decrypt(encrypted) do
       {:ok, token} -> token
       {:error, _} -> nil
     end

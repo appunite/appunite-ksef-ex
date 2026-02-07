@@ -18,9 +18,16 @@ if allowed_emails = System.get_env("ALLOWED_EMAILS") do
 end
 
 if google_client_id = System.get_env("GOOGLE_CLIENT_ID") do
+  google_client_secret =
+    System.get_env("GOOGLE_CLIENT_SECRET") ||
+      raise """
+      environment variable GOOGLE_CLIENT_SECRET is missing.
+      GOOGLE_CLIENT_ID is set but GOOGLE_CLIENT_SECRET is required for OAuth to work.
+      """
+
   config :ueberauth, Ueberauth.Strategy.Google.OAuth,
     client_id: google_client_id,
-    client_secret: System.get_env("GOOGLE_CLIENT_SECRET")
+    client_secret: google_client_secret
 end
 
 if ksef_api_url = System.get_env("KSEF_API_URL") do
@@ -42,6 +49,24 @@ if config_env() == :prod do
       environment variable DATABASE_URL is missing.
       For example: ecto://USER:PASS@HOST/DATABASE
       """
+
+  ksef_api_url =
+    System.get_env("KSEF_API_URL") ||
+      raise """
+      environment variable KSEF_API_URL is missing.
+      Use https://ksef-test.mf.gov.pl for test or https://ksef.mf.gov.pl for production.
+      """
+
+  uri = URI.parse(ksef_api_url)
+
+  if uri.scheme != "https" do
+    raise """
+    KSEF_API_URL must use HTTPS in production.
+    Got: #{ksef_api_url}
+    """
+  end
+
+  config :ksef_hub, :ksef_api_url, ksef_api_url
 
   maybe_ipv6 = if System.get_env("ECTO_IPV6") in ~w(true 1), do: [:inet6], else: []
 

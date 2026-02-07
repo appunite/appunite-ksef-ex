@@ -76,7 +76,11 @@ defmodule KsefHub.MixProject do
       # .env file loading
       {:dotenvy, "~> 0.8"},
       # Test mocks
-      {:mox, "~> 1.1", only: :test}
+      {:mox, "~> 1.1", only: :test},
+      # Test factories
+      {:ex_machina, "~> 2.8", only: :test},
+      # Static analysis
+      {:credo, "~> 1.7", only: [:dev, :test], runtime: false}
     ]
   end
 

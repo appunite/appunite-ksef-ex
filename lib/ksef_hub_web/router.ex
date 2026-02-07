@@ -42,7 +42,7 @@ defmodule KsefHubWeb.Router do
   scope "/", KsefHubWeb do
     pipe_through [:browser, :require_auth]
 
-    live_session :authenticated, on_mount: [{KsefHubWeb.LiveAuth, :require_auth}] do
+    live_session :authenticated, on_mount: {KsefHubWeb.LiveAuth, :default} do
       live "/dashboard", DashboardLive
       live "/certificates", CertificateLive
       live "/invoices", InvoiceLive.Index

@@ -1,5 +1,5 @@
 defmodule KsefHub.Pdf.XsltprocTest do
-  use ExUnit.Case, async: true
+  use ExUnit.Case, async: false
 
   alias KsefHub.Pdf.Xsltproc
 
@@ -8,13 +8,9 @@ defmodule KsefHub.Pdf.XsltprocTest do
   describe "transform/1" do
     @tag :integration
     test "transforms FA(3) XML to HTML with xsltproc" do
-      xsl_path = Path.join(:code.priv_dir(:ksef_hub), "xsl/fa3-styl.xsl")
-
-      if File.exists?(xsl_path) and System.find_executable("xsltproc") do
-        assert {:ok, html} = Xsltproc.transform(@sample_xml)
-        assert html =~ "<html"
-        assert html =~ "FV/2025/001"
-      end
+      assert {:ok, html} = Xsltproc.transform(@sample_xml)
+      assert html =~ "<html"
+      assert html =~ "FV/2025/001"
     end
 
     test "returns error when XSL file not found" do
