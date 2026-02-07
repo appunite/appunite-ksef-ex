@@ -11,7 +11,8 @@ defmodule KsefHubWeb.LiveAuth do
 
   @doc """
   Assigns `:current_user` to the socket from the session's `user_id`.
-  Redirects to `/` if the user is not found or session is missing.
+  Validates the session value as a UUID before querying.
+  Redirects to `/` with an error flash if the user is not found or session is missing.
   """
   @spec on_mount(atom(), map(), map(), Phoenix.LiveView.Socket.t()) ::
           {:cont, Phoenix.LiveView.Socket.t()} | {:halt, Phoenix.LiveView.Socket.t()}
@@ -21,7 +22,13 @@ defmodule KsefHubWeb.LiveAuth do
          %{} = user <- Accounts.get_user(raw_id) do
       {:cont, assign(socket, :current_user, user)}
     else
-      _ -> {:halt, redirect(socket, to: "/")}
+      _ ->
+        socket =
+          socket
+          |> put_flash(:error, "You must be logged in to access this page.")
+          |> redirect(to: "/")
+
+        {:halt, socket}
     end
   end
 end
