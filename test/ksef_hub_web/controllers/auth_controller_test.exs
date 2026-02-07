@@ -125,7 +125,7 @@ defmodule KsefHubWeb.AuthControllerTest do
         |> assign(:ueberauth_auth, auth)
         |> get("/auth/google/callback")
 
-      assert redirected_to(conn) == "/"
+      assert redirected_to(conn) == "/dashboard"
       assert Phoenix.Flash.get(conn.assigns.flash, :info) =~ "Welcome"
       assert get_session(conn, :user_id)
     end
