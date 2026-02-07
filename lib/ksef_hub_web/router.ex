@@ -49,6 +49,8 @@ defmodule KsefHubWeb.Router do
       live "/invoices/:id", InvoiceLive.Show
       live "/tokens", TokenLive
     end
+
+    get "/invoices/:id/pdf", InvoicePdfController, :show
   end
 
   # API routes (bearer token auth)

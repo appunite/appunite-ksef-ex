@@ -60,6 +60,7 @@ defmodule KsefHub.Sync.SyncWorker do
     case {income_result, expense_result} do
       {{:ok, ic}, {:ok, ec}} ->
         Logger.info("Sync complete: #{ic} income, #{ec} expense invoices")
+        broadcast_sync_completed(%{income: ic, expense: ec})
         :ok
 
       {{:ok, ic}, {:error, reason}} ->
@@ -77,6 +78,10 @@ defmodule KsefHub.Sync.SyncWorker do
 
         {:error, income_reason}
     end
+  end
+
+  defp broadcast_sync_completed(stats) do
+    Phoenix.PubSub.broadcast(KsefHub.PubSub, "sync:status", {:sync_completed, stats})
   end
 
   defp sync_type(access_token, type, nip) do
