@@ -1,4 +1,9 @@
 defmodule KsefHubWeb.SyncLive do
+  @moduledoc """
+  LiveView page displaying KSeF sync history and manual sync trigger.
+  Subscribes to PubSub for real-time updates when syncs complete.
+  """
+
   use KsefHubWeb, :live_view
 
   alias KsefHub.Sync.History

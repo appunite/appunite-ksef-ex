@@ -93,7 +93,6 @@ defmodule KsefHub.Sync.SyncWorker do
     end
   end
 
-
   defp sync_type(access_token, type, nip) do
     checkpoint = Checkpoints.get_or_init(type, nip)
 
