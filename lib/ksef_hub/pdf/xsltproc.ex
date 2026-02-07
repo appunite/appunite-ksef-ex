@@ -16,7 +16,7 @@ defmodule KsefHub.Pdf.Xsltproc do
   def transform(xml_content) when is_binary(xml_content) do
     xsl_path = xsl_path()
 
-    if File.exists?(xsl_path) do
+    if is_binary(xsl_path) and File.exists?(xsl_path) do
       do_transform(xml_content, xsl_path)
     else
       {:error, :xsl_not_found}
