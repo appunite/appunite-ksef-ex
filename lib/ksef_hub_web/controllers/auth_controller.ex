@@ -38,7 +38,7 @@ defmodule KsefHubWeb.AuthController do
           |> configure_session(renew: true)
           |> put_session(:user_id, user.id)
           |> put_flash(:info, "Welcome, #{user.name || user.email}!")
-          |> redirect(to: ~p"/")
+          |> redirect(to: ~p"/dashboard")
 
         {:error, _reason} ->
           conn
