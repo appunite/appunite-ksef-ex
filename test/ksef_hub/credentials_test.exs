@@ -1,22 +1,15 @@
 defmodule KsefHub.CredentialsTest do
   use KsefHub.DataCase, async: true
 
+  import KsefHub.Factory
+
   alias KsefHub.Credentials
   alias KsefHub.Credentials.Credential
 
-  @valid_attrs %{
-    nip: "1234567890",
-    certificate_subject: "CN=Test Certificate"
-  }
-
-  defp create_credential(attrs \\ %{}) do
-    {:ok, credential} = Credentials.create_credential(Map.merge(@valid_attrs, attrs))
-    credential
-  end
-
   describe "create_credential/1" do
     test "creates a credential with valid NIP" do
-      assert {:ok, %Credential{} = cred} = Credentials.create_credential(@valid_attrs)
+      attrs = params_for(:credential, nip: "1234567890")
+      assert {:ok, %Credential{} = cred} = Credentials.create_credential(attrs)
       assert cred.nip == "1234567890"
       assert cred.is_active == true
     end
@@ -34,12 +27,12 @@ defmodule KsefHub.CredentialsTest do
 
   describe "get_active_credential/0" do
     test "returns active credential" do
-      create_credential()
+      insert(:credential)
       assert %Credential{is_active: true} = Credentials.get_active_credential()
     end
 
     test "returns nil when no active credential" do
-      cred = create_credential()
+      cred = insert(:credential)
       Credentials.deactivate_credential(cred)
       assert Credentials.get_active_credential() == nil
     end
@@ -47,14 +40,14 @@ defmodule KsefHub.CredentialsTest do
 
   describe "deactivate_credential/1" do
     test "sets is_active to false" do
-      cred = create_credential()
+      cred = insert(:credential)
       assert {:ok, %Credential{is_active: false}} = Credentials.deactivate_credential(cred)
     end
   end
 
   describe "update_last_sync/1" do
     test "sets last_sync_at to current time" do
-      cred = create_credential()
+      cred = insert(:credential)
       assert cred.last_sync_at == nil
 
       assert {:ok, updated} = Credentials.update_last_sync(cred)
@@ -64,7 +57,7 @@ defmodule KsefHub.CredentialsTest do
 
   describe "store_tokens/2" do
     test "stores token information" do
-      cred = create_credential()
+      cred = insert(:credential)
 
       assert {:ok, updated} =
                Credentials.store_tokens(cred, %{
@@ -78,8 +71,8 @@ defmodule KsefHub.CredentialsTest do
 
   describe "list_credentials/0" do
     test "returns all credentials" do
-      create_credential(%{nip: "1111111111"})
-      create_credential(%{nip: "2222222222"})
+      insert(:credential)
+      insert(:credential)
 
       assert length(Credentials.list_credentials()) == 2
     end

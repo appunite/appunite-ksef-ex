@@ -74,7 +74,9 @@ defmodule KsefHub.MixProject do
       {:ueberauth, "~> 0.10"},
       {:ueberauth_google, "~> 0.12"},
       # Test mocks
-      {:mox, "~> 1.1", only: :test}
+      {:mox, "~> 1.1", only: :test},
+      # Test factories
+      {:ex_machina, "~> 2.8", only: :test}
     ]
   end
 

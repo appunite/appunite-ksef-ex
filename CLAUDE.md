@@ -260,6 +260,26 @@ defmodule KsefHub.Invoices.ParserTest do
 end
 ```
 
+### Test data with ExMachina
+
+Use factories (`test/support/factory.ex`) for test data instead of inline `@valid_attrs` maps:
+
+```elixir
+import KsefHub.Factory
+
+# Insert a persisted record with defaults
+cred = insert(:credential)
+
+# Override specific fields
+cred = insert(:credential, nip: "9999999999", is_active: false)
+
+# Build attrs map without inserting (for testing context functions)
+attrs = params_for(:credential, nip: "1234567890")
+{:ok, cred} = Credentials.create_credential(attrs)
+```
+
+Keep explicit attrs only when testing validation logic (e.g., missing required fields, invalid formats).
+
 ### Mocking with Mox
 
 - Define behaviours for all external dependencies (KSeF API, Gotenberg, xmlsec1)
