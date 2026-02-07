@@ -1,0 +1,92 @@
+defmodule KsefHubWeb.SyncLiveTest do
+  use KsefHubWeb.ConnCase, async: true
+
+  import Phoenix.LiveViewTest
+
+  alias KsefHub.Accounts
+
+  setup %{conn: conn} do
+    {:ok, user} =
+      Accounts.find_or_create_user(%{uid: "g-sync-1", email: "test@example.com", name: "Test"})
+
+    conn = conn |> init_test_session(%{user_id: user.id})
+    %{conn: conn, user: user}
+  end
+
+  describe "mount" do
+    test "renders sync page with header and button", %{conn: conn} do
+      {:ok, _view, html} = live(conn, ~p"/syncs")
+      assert html =~ "Syncs"
+      assert html =~ "Sync Now"
+    end
+
+    test "shows empty state when no sync jobs", %{conn: conn} do
+      {:ok, _view, html} = live(conn, ~p"/syncs")
+      assert html =~ "No sync runs yet"
+    end
+
+    test "shows sync jobs in table", %{conn: conn} do
+      insert_oban_job(%{
+        state: "completed",
+        meta: %{"income_count" => 3, "expense_count" => 1}
+      })
+
+      {:ok, _view, html} = live(conn, ~p"/syncs")
+      assert html =~ "completed"
+      refute html =~ "No sync runs yet"
+    end
+  end
+
+  describe "PubSub" do
+    test "refreshes on sync completed event", %{conn: conn} do
+      {:ok, view, _html} = live(conn, ~p"/syncs")
+
+      # Insert a job and broadcast
+      insert_oban_job(%{
+        state: "completed",
+        meta: %{"income_count" => 2, "expense_count" => 0}
+      })
+
+      send(view.pid, {:sync_completed, %{income: 2, expense: 0}})
+
+      html = render(view)
+      assert html =~ "completed"
+    end
+  end
+
+  describe "trigger_sync" do
+    test "clicking Sync Now triggers a manual sync", %{conn: conn} do
+      {:ok, view, _html} = live(conn, ~p"/syncs")
+
+      view |> element("button", "Sync Now") |> render_click()
+
+      html = render(view)
+      assert html =~ "Manual sync triggered"
+    end
+
+    test "shows error when sync is already running", %{conn: conn} do
+      insert_oban_job(%{state: "executing"})
+
+      {:ok, view, _html} = live(conn, ~p"/syncs")
+
+      view |> element("button", "Sync Now") |> render_click()
+
+      html = render(view)
+      assert html =~ "already running"
+    end
+  end
+
+  defp insert_oban_job(attrs) do
+    defaults = %{
+      worker: "KsefHub.Sync.SyncWorker",
+      queue: "sync",
+      args: %{},
+      state: "available",
+      inserted_at: DateTime.utc_now(),
+      meta: %{}
+    }
+
+    merged = Map.merge(defaults, attrs)
+    KsefHub.Repo.insert!(struct(Oban.Job, merged))
+  end
+end
