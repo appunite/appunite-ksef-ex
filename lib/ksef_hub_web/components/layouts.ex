@@ -27,7 +27,7 @@ defmodule KsefHubWeb.Layouts do
         <!-- Mobile navbar -->
         <div class="navbar bg-base-100 border-b border-base-300 lg:hidden">
           <div class="flex-none">
-            <label for="sidebar-toggle" class="btn btn-square btn-ghost">
+            <label for="sidebar-toggle" aria-label="Toggle sidebar" class="btn btn-square btn-ghost">
               <.icon name="hero-bars-3" class="size-5" />
             </label>
           </div>
@@ -98,7 +98,7 @@ defmodule KsefHubWeb.Layouts do
               <div class="flex-1 truncate">
                 <p class="font-medium truncate">{@current_user.email}</p>
               </div>
-              <.link href={~p"/auth/logout"} method="delete" class="btn btn-ghost btn-xs">
+              <.link href={~p"/auth/logout"} method="delete" aria-label="Log out" class="btn btn-ghost btn-xs">
                 <.icon name="hero-arrow-right-on-rectangle" class="size-4" />
               </.link>
             </div>

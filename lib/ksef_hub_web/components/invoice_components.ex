@@ -39,6 +39,8 @@ defmodule KsefHubWeb.InvoiceComponents do
 
   def format_amount(nil), do: "-"
   def format_amount(%Decimal{} = d), do: Decimal.to_string(d, :normal)
+  def format_amount(n) when is_integer(n), do: n |> Decimal.new() |> Decimal.to_string(:normal)
+  def format_amount(f) when is_float(f), do: f |> Decimal.from_float() |> Decimal.to_string(:normal)
 
   def format_datetime(nil), do: "-"
   def format_datetime(dt), do: Calendar.strftime(dt, "%Y-%m-%d %H:%M UTC")
