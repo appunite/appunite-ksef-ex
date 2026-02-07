@@ -42,6 +42,10 @@ defmodule KsefHubWeb.InvoiceComponentsTest do
     test "formats a float" do
       assert InvoiceComponents.format_amount(99.99) == "99.99"
     end
+
+    test "returns dash for unexpected type" do
+      assert InvoiceComponents.format_amount("not a number") == "-"
+    end
   end
 
   describe "type_badge/1" do

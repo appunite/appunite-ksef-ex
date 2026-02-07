@@ -91,7 +91,7 @@ defmodule KsefHubWeb.Layouts do
               <div class="avatar placeholder">
                 <div class="bg-neutral text-neutral-content rounded-full w-8">
                   <span class="text-xs">
-                    {String.first(@current_user.email) |> String.upcase()}
+                    {initial(@current_user.email)}
                   </span>
                 </div>
               </div>
@@ -117,7 +117,7 @@ defmodule KsefHubWeb.Layouts do
   slot :inner_block, required: true
 
   defp nav_link(assigns) do
-    active = assigns.current && String.starts_with?(assigns.current, assigns.path)
+    active = assigns.current && (assigns.current == assigns.path || String.starts_with?(assigns.current, assigns.path <> "/"))
     assigns = assign(assigns, :active, active)
 
     ~H"""
@@ -127,6 +127,10 @@ defmodule KsefHubWeb.Layouts do
     </a>
     """
   end
+
+  defp initial(nil), do: "?"
+  defp initial(""), do: "?"
+  defp initial(email), do: email |> String.first() |> String.upcase()
 
   @doc """
   Shows the flash group with standard titles and content.

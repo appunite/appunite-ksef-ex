@@ -101,7 +101,7 @@ defmodule KsefHubWeb.TokenLive do
     </.header>
 
     <!-- Plaintext Token Alert -->
-    <div :if={@show_token} class="alert alert-warning mt-4">
+    <div :if={@show_token} class="alert alert-warning mt-4" role="alert">
       <.icon name="hero-exclamation-triangle" class="size-5" />
       <div class="flex-1">
         <p class="font-semibold">Copy your API token now. It won't be shown again.</p>
