@@ -24,7 +24,7 @@ defmodule KsefHubWeb.Plugs.RequireAuth do
           user = Accounts.get_user!(user_id)
           assign(conn, :current_user, user)
         rescue
-          Ecto.NoResultsError ->
+          _e in [Ecto.NoResultsError, Ecto.Query.CastError] ->
             conn
             |> configure_session(drop: true)
             |> put_flash(:error, "Session expired. Please log in again.")

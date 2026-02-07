@@ -6,17 +6,20 @@ defmodule KsefHubWeb.AuthController do
   alias KsefHub.Accounts
 
   def callback(%{assigns: %{ueberauth_auth: auth}} = conn, _params) do
-    user_info = %{
-      uid: auth.uid,
-      email: auth.info.email,
-      name: auth.info.name,
-      avatar_url: auth.info.image
-    }
+    email = auth.info.email
 
-    if Accounts.allowed_email?(user_info.email) do
+    if is_binary(email) and email != "" and Accounts.allowed_email?(email) do
+      user_info = %{
+        uid: auth.uid,
+        email: email,
+        name: auth.info.name,
+        avatar_url: auth.info.image
+      }
+
       case Accounts.find_or_create_user(user_info) do
         {:ok, user} ->
           conn
+          |> configure_session(renew: true)
           |> put_session(:user_id, user.id)
           |> put_flash(:info, "Welcome, #{user.name || user.email}!")
           |> redirect(to: ~p"/")

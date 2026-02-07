@@ -11,9 +11,9 @@ defmodule KsefHubWeb.Api.TokenController do
     json(conn, %{data: Enum.map(tokens, &token_json/1)})
   end
 
-  def create(conn, %{"name" => name} = params) do
+  def create(conn, params) do
     user_id = conn.assigns.api_token.created_by_id
-    attrs = %{name: name, description: params["description"]}
+    attrs = %{name: params["name"], description: params["description"]}
 
     case Accounts.create_api_token(user_id, attrs) do
       {:ok, %{token: plain_token, api_token: api_token}} ->

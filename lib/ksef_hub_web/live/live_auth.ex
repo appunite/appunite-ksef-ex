@@ -16,18 +16,12 @@ defmodule KsefHubWeb.LiveAuth do
   @spec on_mount(atom(), map(), map(), Phoenix.LiveView.Socket.t()) ::
           {:cont, Phoenix.LiveView.Socket.t()} | {:halt, Phoenix.LiveView.Socket.t()}
   def on_mount(:default, _params, session, socket) do
-    case session["user_id"] do
-      nil ->
-        {:halt, redirect(socket, to: "/")}
-
-      user_id ->
-        case Accounts.get_user(user_id) do
-          nil ->
-            {:halt, redirect(socket, to: "/")}
-
-          user ->
-            {:cont, assign(socket, :current_user, user)}
-        end
+    with raw_id when is_binary(raw_id) <- session["user_id"],
+         {:ok, _} <- Ecto.UUID.cast(raw_id),
+         %{} = user <- Accounts.get_user(raw_id) do
+      {:cont, assign(socket, :current_user, user)}
+    else
+      _ -> {:halt, redirect(socket, to: "/")}
     end
   end
 end
