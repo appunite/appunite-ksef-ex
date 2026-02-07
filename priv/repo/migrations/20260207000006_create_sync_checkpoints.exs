@@ -13,5 +13,6 @@ defmodule KsefHub.Repo.Migrations.CreateSyncCheckpoints do
     end
 
     create unique_index(:sync_checkpoints, [:checkpoint_type, :nip])
+    create index(:sync_checkpoints, [:nip])
   end
 end

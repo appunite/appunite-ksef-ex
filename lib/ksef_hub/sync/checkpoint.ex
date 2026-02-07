@@ -21,6 +21,7 @@ defmodule KsefHub.Sync.Checkpoint do
     |> cast(attrs, [:checkpoint_type, :last_seen_timestamp, :nip, :metadata])
     |> validate_required([:checkpoint_type, :last_seen_timestamp, :nip])
     |> validate_inclusion(:checkpoint_type, @valid_types)
+    |> validate_format(:nip, ~r/^\d{10}$/, message: "must be a 10-digit NIP")
     |> unique_constraint([:checkpoint_type, :nip])
   end
 end
