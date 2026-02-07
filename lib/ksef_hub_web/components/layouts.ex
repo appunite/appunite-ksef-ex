@@ -5,70 +5,126 @@ defmodule KsefHubWeb.Layouts do
   """
   use KsefHubWeb, :html
 
-  # Embed all files in layouts/* within this module.
-  # The default root.html.heex file contains the HTML
-  # skeleton of your application, namely HTML headers
-  # and other static content.
   embed_templates "layouts/*"
 
-  @doc """
-  Renders your app layout.
-
-  This function is typically invoked from every template,
-  and it often contains your application menu, sidebar,
-  or similar.
-
-  ## Examples
-
-      <Layouts.app flash={@flash}>
-        <h1>Content</h1>
-      </Layouts.app>
-
-  """
   attr :flash, :map, required: true, doc: "the map of flash messages"
 
   attr :current_scope, :map,
     default: nil,
     doc: "the current [scope](https://hexdocs.pm/phoenix/scopes.html)"
 
+  attr :current_user, :map, default: nil
+  attr :current_path, :string, default: nil
+
   slot :inner_block, required: true
 
   def app(assigns) do
     ~H"""
-    <header class="navbar px-4 sm:px-6 lg:px-8">
-      <div class="flex-1">
-        <a href="/" class="flex-1 flex w-fit items-center gap-2">
-          <img src={~p"/images/logo.svg"} width="36" />
-          <span class="text-sm font-semibold">v{Application.spec(:phoenix, :vsn)}</span>
-        </a>
-      </div>
-      <div class="flex-none">
-        <ul class="flex flex-column px-1 space-x-4 items-center">
-          <li>
-            <a href="https://phoenixframework.org/" class="btn btn-ghost">Website</a>
-          </li>
-          <li>
-            <a href="https://github.com/phoenixframework/phoenix" class="btn btn-ghost">GitHub</a>
-          </li>
-          <li>
-            <.theme_toggle />
-          </li>
-          <li>
-            <a href="https://hexdocs.pm/phoenix/overview.html" class="btn btn-primary">
-              Get Started <span aria-hidden="true">&rarr;</span>
-            </a>
-          </li>
-        </ul>
-      </div>
-    </header>
+    <div class="drawer lg:drawer-open">
+      <input id="sidebar-toggle" type="checkbox" class="drawer-toggle" />
 
-    <main class="px-4 py-20 sm:px-6 lg:px-8">
-      <div class="mx-auto max-w-2xl space-y-4">
-        {render_slot(@inner_block)}
+      <div class="drawer-content flex flex-col min-h-screen">
+        <!-- Mobile navbar -->
+        <div class="navbar bg-base-100 border-b border-base-300 lg:hidden">
+          <div class="flex-none">
+            <label for="sidebar-toggle" class="btn btn-square btn-ghost">
+              <.icon name="hero-bars-3" class="size-5" />
+            </label>
+          </div>
+          <div class="flex-1">
+            <span class="text-lg font-bold">KSeF Hub</span>
+          </div>
+        </div>
+        
+    <!-- Main content -->
+        <main class="flex-1 p-4 sm:p-6 lg:p-8">
+          <div class="mx-auto max-w-6xl">
+            {render_slot(@inner_block)}
+          </div>
+        </main>
       </div>
-    </main>
+      
+    <!-- Sidebar -->
+      <div class="drawer-side z-40">
+        <label for="sidebar-toggle" aria-label="close sidebar" class="drawer-overlay"></label>
+        <aside class="bg-base-200 min-h-full w-64 flex flex-col">
+          <!-- Logo -->
+          <div class="p-4 border-b border-base-300">
+            <a href={~p"/dashboard"} class="flex items-center gap-2">
+              <.icon name="hero-document-text" class="size-6 text-primary" />
+              <span class="text-xl font-bold">KSeF Hub</span>
+            </a>
+          </div>
+          
+    <!-- Navigation -->
+          <nav class="flex-1 p-4">
+            <ul class="menu gap-1">
+              <li>
+                <.nav_link path={~p"/dashboard"} current={@current_path} icon="hero-home">
+                  Dashboard
+                </.nav_link>
+              </li>
+              <li>
+                <.nav_link path={~p"/invoices"} current={@current_path} icon="hero-document-text">
+                  Invoices
+                </.nav_link>
+              </li>
+              <li>
+                <.nav_link path={~p"/certificates"} current={@current_path} icon="hero-shield-check">
+                  Certificates
+                </.nav_link>
+              </li>
+              <li>
+                <.nav_link path={~p"/tokens"} current={@current_path} icon="hero-key">
+                  API Tokens
+                </.nav_link>
+              </li>
+            </ul>
+          </nav>
+          
+    <!-- Footer: theme toggle + user -->
+          <div class="p-4 border-t border-base-300 space-y-3">
+            <div class="flex justify-center">
+              <.theme_toggle />
+            </div>
+            <div :if={@current_user} class="flex items-center gap-2 text-sm">
+              <div class="avatar placeholder">
+                <div class="bg-neutral text-neutral-content rounded-full w-8">
+                  <span class="text-xs">
+                    {String.first(@current_user.email) |> String.upcase()}
+                  </span>
+                </div>
+              </div>
+              <div class="flex-1 truncate">
+                <p class="font-medium truncate">{@current_user.email}</p>
+              </div>
+              <.link href={~p"/auth/logout"} method="delete" class="btn btn-ghost btn-xs">
+                <.icon name="hero-arrow-right-on-rectangle" class="size-4" />
+              </.link>
+            </div>
+          </div>
+        </aside>
+      </div>
+    </div>
 
     <.flash_group flash={@flash} />
+    """
+  end
+
+  attr :path, :string, required: true
+  attr :current, :string, default: nil
+  attr :icon, :string, required: true
+  slot :inner_block, required: true
+
+  defp nav_link(assigns) do
+    active = assigns.current && String.starts_with?(assigns.current, assigns.path)
+    assigns = assign(assigns, :active, active)
+
+    ~H"""
+    <a href={@path} class={[@active && "active"]}>
+      <.icon name={@icon} class="size-5" />
+      {render_slot(@inner_block)}
+    </a>
     """
   end
 
