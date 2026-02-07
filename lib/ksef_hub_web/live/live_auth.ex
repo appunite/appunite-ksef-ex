@@ -17,7 +17,17 @@ defmodule KsefHubWeb.LiveAuth do
       user_id ->
         try do
           user = Accounts.get_user!(user_id)
-          {:cont, assign(socket, :current_user, user)}
+
+          socket =
+            socket
+            |> assign(:current_user, user)
+            |> assign(:current_path, nil)
+            |> attach_hook(:set_current_path, :handle_params, fn _params, uri, socket ->
+              path = URI.parse(uri).path
+              {:cont, assign(socket, :current_path, path)}
+            end)
+
+          {:cont, socket}
         rescue
           Ecto.NoResultsError ->
             {:halt, redirect(socket, to: "/")}
