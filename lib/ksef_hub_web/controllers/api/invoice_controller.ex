@@ -4,6 +4,7 @@ defmodule KsefHubWeb.Api.InvoiceController do
   require Logger
 
   import KsefHubWeb.ChangesetHelpers
+  import KsefHubWeb.ErrorHelpers, only: [sanitize_error: 1]
 
   alias KsefHub.Invoices
 
@@ -67,7 +68,7 @@ defmodule KsefHubWeb.Api.InvoiceController do
         |> send_resp(200, html_content)
 
       {:error, reason} ->
-        Logger.error("HTML generation failed for invoice #{id}: #{inspect(reason)}")
+        Logger.error("HTML generation failed for invoice #{id}: #{sanitize_error(reason)}")
 
         conn
         |> put_status(:internal_server_error)
@@ -89,7 +90,7 @@ defmodule KsefHubWeb.Api.InvoiceController do
       |> send_resp(200, pdf_binary)
     else
       {:error, reason} ->
-        Logger.error("PDF generation failed for invoice #{id}: #{inspect(reason)}")
+        Logger.error("PDF generation failed for invoice #{id}: #{sanitize_error(reason)}")
 
         conn
         |> put_status(:internal_server_error)

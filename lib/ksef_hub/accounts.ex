@@ -12,15 +12,19 @@ defmodule KsefHub.Accounts do
 
   # --- Users ---
 
+  @doc "Fetches a user by UUID, returning `nil` if not found."
   @spec get_user(Ecto.UUID.t()) :: User.t() | nil
   def get_user(id), do: Repo.get(User, id)
 
+  @doc "Fetches a user by UUID, raising `Ecto.NoResultsError` if not found."
   @spec get_user!(Ecto.UUID.t()) :: User.t()
   def get_user!(id), do: Repo.get!(User, id)
 
+  @doc "Fetches a user by email address, returning `nil` if not found."
   @spec get_user_by_email(String.t()) :: User.t() | nil
   def get_user_by_email(email), do: Repo.get_by(User, email: email)
 
+  @doc "Fetches a user by Google UID, returning `nil` if not found."
   @spec get_user_by_google_uid(String.t()) :: User.t() | nil
   def get_user_by_google_uid(uid), do: Repo.get_by(User, google_uid: uid)
 

@@ -100,6 +100,11 @@ mix test test/ksef_hub/invoices_test.exs:42
 
 # Run with coverage
 mix test --cover
+
+# Run integration tests (excluded by default, requires KSeF credentials)
+mix test --include integration
+# or
+make test.integration
 ```
 
 ### Linting & formatting

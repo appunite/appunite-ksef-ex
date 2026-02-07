@@ -43,3 +43,6 @@ npm-debug.log
 
 # Certificate keys (PKCS12)
 /keys
+
+# Claude Code local settings (machine-specific)
+.claude/settings.local.json

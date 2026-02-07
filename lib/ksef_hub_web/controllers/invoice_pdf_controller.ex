@@ -6,6 +6,8 @@ defmodule KsefHubWeb.InvoicePdfController do
 
   require Logger
 
+  import KsefHubWeb.ErrorHelpers, only: [sanitize_error: 1]
+
   alias KsefHub.Invoices
 
   def show(conn, %{"id" => id}) do
@@ -38,7 +40,7 @@ defmodule KsefHubWeb.InvoicePdfController do
       |> send_resp(200, pdf_binary)
     else
       {:error, reason} ->
-        Logger.error("PDF generation failed for invoice #{invoice.id}: #{inspect(reason)}")
+        Logger.error("PDF generation failed for invoice #{invoice.id}: #{sanitize_error(reason)}")
 
         conn
         |> put_flash(:error, "PDF generation failed.")

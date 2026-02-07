@@ -5,29 +5,29 @@ defmodule KsefHub.PdfTest do
 
   @sample_xml File.read!("test/support/fixtures/sample_income.xml")
 
+  setup do
+    prev = Application.fetch_env(:ksef_hub, :xsl_path)
+    Application.put_env(:ksef_hub, :xsl_path, "/nonexistent/path.xsl")
+
+    on_exit(fn ->
+      case prev do
+        {:ok, val} -> Application.put_env(:ksef_hub, :xsl_path, val)
+        :error -> Application.delete_env(:ksef_hub, :xsl_path)
+      end
+    end)
+
+    :ok
+  end
+
   describe "generate_html/1" do
     test "falls back to template when xsltproc fails" do
-      # Xsltproc will fail because XSL path is configured to a non-existent path
-      # or xsltproc is not installed. The fallback template should work.
-      Application.put_env(:ksef_hub, :xsl_path, "/nonexistent/path.xsl")
-
-      try do
-        assert {:ok, html} = Pdf.generate_html(@sample_xml)
-        assert html =~ "FV/2025/001"
-        assert html =~ "Testowa Firma Sp. z o.o."
-      after
-        Application.delete_env(:ksef_hub, :xsl_path)
-      end
+      assert {:ok, html} = Pdf.generate_html(@sample_xml)
+      assert html =~ "FV/2025/001"
+      assert html =~ "Testowa Firma Sp. z o.o."
     end
 
     test "returns error for completely invalid XML" do
-      Application.put_env(:ksef_hub, :xsl_path, "/nonexistent/path.xsl")
-
-      try do
-        assert {:error, _} = Pdf.generate_html("")
-      after
-        Application.delete_env(:ksef_hub, :xsl_path)
-      end
+      assert {:error, _} = Pdf.generate_html("")
     end
   end
 

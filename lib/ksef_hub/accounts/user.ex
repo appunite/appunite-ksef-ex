@@ -25,7 +25,7 @@ defmodule KsefHub.Accounts.User do
   def changeset(user, attrs) do
     user
     |> cast(attrs, [:email, :name, :google_uid, :avatar_url])
-    |> update_change(:email, &String.downcase/1)
+    |> update_change(:email, fn v -> if is_binary(v), do: String.downcase(v), else: v end)
     |> validate_required([:email])
     |> validate_format(:email, ~r/^[^\s]+@[^\s]+$/)
     |> unique_constraint(:email)

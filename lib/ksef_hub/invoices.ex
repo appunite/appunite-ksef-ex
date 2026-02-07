@@ -28,12 +28,15 @@ defmodule KsefHub.Invoices do
     |> Repo.all()
   end
 
+  @doc "Fetches an invoice by UUID, raising `Ecto.NoResultsError` if not found."
   @spec get_invoice!(Ecto.UUID.t()) :: Invoice.t()
   def get_invoice!(id), do: Repo.get!(Invoice, id)
 
+  @doc "Fetches an invoice by UUID, returning `nil` if not found."
   @spec get_invoice(Ecto.UUID.t()) :: Invoice.t() | nil
   def get_invoice(id), do: Repo.get(Invoice, id)
 
+  @doc "Fetches an invoice by its KSeF reference number, returning `nil` if not found."
   @spec get_invoice_by_ksef_number(String.t()) :: Invoice.t() | nil
   def get_invoice_by_ksef_number(ksef_number) do
     Repo.get_by(Invoice, ksef_number: ksef_number)

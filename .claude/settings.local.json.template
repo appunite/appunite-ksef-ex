@@ -1,7 +1,6 @@
 {
   "permissions": {
     "allow": [
-      "Bash(git -C /Users/emil/Projects/others/au-payroll-v2/au-ksef-ex status)",
       "WebSearch",
       "Bash(gh pr create:*)",
       "Bash(git rebase:*)",

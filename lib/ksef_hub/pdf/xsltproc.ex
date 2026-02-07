@@ -30,7 +30,7 @@ defmodule KsefHub.Pdf.Xsltproc do
       xml_path = write_secure_temp(run_dir, xml_content, "invoice.xml")
 
       task =
-        Task.async(fn ->
+        Task.Supervisor.async_nolink(KsefHub.TaskSupervisor, fn ->
           System.cmd("xsltproc", ["--nonet", xsl_path, xml_path], stderr_to_stdout: true)
         end)
 
@@ -41,6 +41,10 @@ defmodule KsefHub.Pdf.Xsltproc do
         {:ok, {output, exit_code}} ->
           Logger.error("xsltproc failed (exit #{exit_code}, output: #{byte_size(output)} bytes)")
           {:error, {:xsltproc_failed, exit_code, output}}
+
+        {:exit, reason} ->
+          Logger.error("xsltproc task crashed: #{inspect(reason)}")
+          {:error, {:xsltproc_crashed, reason}}
 
         nil ->
           Logger.error("xsltproc timed out after #{@cmd_timeout}ms")

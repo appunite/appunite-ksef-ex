@@ -43,6 +43,12 @@ defmodule KsefHub.Pdf.Gotenberg do
   end
 
   defp safe_size(val) when is_binary(val), do: byte_size(val)
-  defp safe_size(val) when is_list(val), do: :erlang.iolist_size(val)
+
+  defp safe_size(val) when is_list(val) do
+    :erlang.iolist_size(val)
+  rescue
+    ArgumentError -> val |> inspect() |> byte_size()
+  end
+
   defp safe_size(val), do: val |> inspect() |> byte_size()
 end

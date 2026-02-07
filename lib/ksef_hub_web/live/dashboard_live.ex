@@ -7,7 +7,10 @@ defmodule KsefHubWeb.DashboardLive do
   alias KsefHub.Credentials
   alias KsefHub.Invoices
 
+  @doc "Subscribes to sync PubSub and loads dashboard data."
   @impl true
+  @spec mount(map(), map(), Phoenix.LiveView.Socket.t()) ::
+          {:ok, Phoenix.LiveView.Socket.t()}
   def mount(_params, _session, socket) do
     if connected?(socket) do
       Phoenix.PubSub.subscribe(KsefHub.PubSub, "sync:status")
@@ -16,11 +19,15 @@ defmodule KsefHubWeb.DashboardLive do
     {:ok, load_data(socket)}
   end
 
+  @doc "Reloads dashboard data when a sync completes."
   @impl true
+  @spec handle_info(term(), Phoenix.LiveView.Socket.t()) ::
+          {:noreply, Phoenix.LiveView.Socket.t()}
   def handle_info({:sync_completed, _stats}, socket) do
     {:noreply, load_data(socket)}
   end
 
+  @spec load_data(Phoenix.LiveView.Socket.t()) :: Phoenix.LiveView.Socket.t()
   defp load_data(socket) do
     counts = Invoices.count_by_type_and_status()
     credential = Credentials.get_active_credential()
@@ -46,6 +53,7 @@ defmodule KsefHubWeb.DashboardLive do
     )
   end
 
+  @spec count_type(map(), String.t()) :: non_neg_integer()
   defp count_type(counts, type) do
     counts
     |> Enum.filter(fn {{t, _s}, _c} -> t == type end)
@@ -155,12 +163,15 @@ defmodule KsefHubWeb.DashboardLive do
     """
   end
 
+  @spec format_datetime(DateTime.t() | nil) :: String.t()
   defp format_datetime(nil), do: "Never"
   defp format_datetime(dt), do: Calendar.strftime(dt, "%Y-%m-%d %H:%M UTC")
 
+  @spec format_date(Date.t() | nil) :: String.t()
   defp format_date(nil), do: "-"
   defp format_date(date), do: Calendar.strftime(date, "%Y-%m-%d")
 
+  @spec cert_expiry_class(Date.t() | nil) :: String.t()
   defp cert_expiry_class(nil), do: ""
 
   defp cert_expiry_class(date) do
