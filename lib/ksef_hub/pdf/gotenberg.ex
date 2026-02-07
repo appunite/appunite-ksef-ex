@@ -28,7 +28,7 @@ defmodule KsefHub.Pdf.Gotenberg do
             {:ok, body}
 
           {:ok, %{status: status, body: body}} ->
-            Logger.error("Gotenberg returned #{status} (body: #{byte_size(to_string(body))} bytes)")
+            Logger.error("Gotenberg returned #{status} (body: #{safe_size(body)} bytes)")
             {:error, {:gotenberg_error, status}}
 
           {:error, reason} ->
@@ -41,4 +41,8 @@ defmodule KsefHub.Pdf.Gotenberg do
   defp gotenberg_url do
     Application.get_env(:ksef_hub, :gotenberg_url)
   end
+
+  defp safe_size(val) when is_binary(val), do: byte_size(val)
+  defp safe_size(val) when is_list(val), do: :erlang.iolist_size(val)
+  defp safe_size(val), do: val |> inspect() |> byte_size()
 end
