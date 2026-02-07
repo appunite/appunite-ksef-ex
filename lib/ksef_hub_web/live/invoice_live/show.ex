@@ -10,22 +10,29 @@ defmodule KsefHubWeb.InvoiceLive.Show do
 
   @impl true
   def mount(%{"id" => id}, _session, socket) do
-    case Invoices.get_invoice(id) do
-      nil ->
-        {:ok,
-         socket
-         |> put_flash(:error, "Invoice not found.")
-         |> redirect(to: ~p"/invoices")}
+    if socket.assigns[:current_user] do
+      case Invoices.get_invoice(id) do
+        nil ->
+          {:ok,
+           socket
+           |> put_flash(:error, "Invoice not found.")
+           |> redirect(to: ~p"/invoices")}
 
-      invoice ->
-        html_preview = generate_preview(invoice)
+        invoice ->
+          html_preview = generate_preview(invoice)
 
-        {:ok,
-         assign(socket,
-           page_title: "Invoice #{invoice.invoice_number}",
-           invoice: invoice,
-           html_preview: html_preview
-         )}
+          {:ok,
+           assign(socket,
+             page_title: "Invoice #{invoice.invoice_number}",
+             invoice: invoice,
+             html_preview: html_preview
+           )}
+      end
+    else
+      {:ok,
+       socket
+       |> put_flash(:error, "You must be logged in to view invoices.")
+       |> redirect(to: ~p"/")}
     end
   end
 

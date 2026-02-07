@@ -72,12 +72,24 @@ defmodule KsefHub.Sync.SyncWorker do
 
       {{:ok, ic}, {:error, reason}} ->
         Logger.error("Expense sync failed: #{inspect(reason)} (#{ic} income invoices synced)")
-        store_meta(job, %{"income_count" => ic, "error" => inspect(reason)})
+
+        store_meta(job, %{
+          "income_count" => ic,
+          "error" => inspect(reason),
+          "failed_type" => "expense"
+        })
+
         {:ok, :partial, %{succeeded: :income, failed: {:expense, reason}}}
 
       {{:error, reason}, {:ok, ec}} ->
         Logger.error("Income sync failed: #{inspect(reason)} (#{ec} expense invoices synced)")
-        store_meta(job, %{"expense_count" => ec, "error" => inspect(reason)})
+
+        store_meta(job, %{
+          "expense_count" => ec,
+          "error" => inspect(reason),
+          "failed_type" => "income"
+        })
+
         {:ok, :partial, %{succeeded: :expense, failed: {:income, reason}}}
 
       {{:error, income_reason}, {:error, expense_reason}} ->

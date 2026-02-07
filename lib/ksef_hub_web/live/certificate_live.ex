@@ -14,7 +14,7 @@ defmodule KsefHubWeb.CertificateLive do
       |> assign(page_title: "Certificates")
       |> assign(form: to_form(%{"nip" => "", "password" => ""}, as: :credential))
       |> allow_upload(:certificate,
-        accept: ~w(application/x-pkcs12),
+        accept: ~w(application/x-pkcs12 .p12 .pfx),
         max_entries: 1,
         max_file_size: 1_000_000
       )
@@ -63,12 +63,17 @@ defmodule KsefHubWeb.CertificateLive do
   end
 
   defp uploaded_cert_data(socket) do
-    case consume_uploaded_entries(socket, :certificate, fn %{path: path}, _entry ->
-           File.read(path)
-         end) do
+    case consume_uploaded_entries(socket, :certificate, &read_upload/2) do
       [{:ok, data}] -> {:ok, data}
-      [{:error, reason}] -> {:error, {:file_read_failed, reason}}
+      [{:ok, {:error, reason}}] -> {:error, {:file_read_failed, reason}}
       [] -> {:error, :no_file}
+    end
+  end
+
+  defp read_upload(%{path: path}, _entry) do
+    case File.read(path) do
+      {:ok, data} -> {:ok, data}
+      {:error, reason} -> {:ok, {:error, reason}}
     end
   end
 

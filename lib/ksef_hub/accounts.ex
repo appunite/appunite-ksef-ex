@@ -12,25 +12,63 @@ defmodule KsefHub.Accounts do
 
   # --- Users ---
 
-  @doc "Fetches a user by UUID, returning `nil` if not found."
+  @doc """
+  Fetches a user by UUID, returning `nil` if not found.
+
+  ## Parameters
+    - `id` (`Ecto.UUID.t()`) — the user's primary key
+
+  ## Returns
+    - `User.t() | nil`
+  """
   @spec get_user(Ecto.UUID.t()) :: User.t() | nil
   def get_user(id), do: Repo.get(User, id)
 
-  @doc "Fetches a user by UUID, raising `Ecto.NoResultsError` if not found."
+  @doc """
+  Fetches a user by UUID, raising `Ecto.NoResultsError` if not found.
+
+  ## Parameters
+    - `id` (`Ecto.UUID.t()`) — the user's primary key
+
+  ## Returns
+    - `User.t()`
+  """
   @spec get_user!(Ecto.UUID.t()) :: User.t()
   def get_user!(id), do: Repo.get!(User, id)
 
-  @doc "Fetches a user by email address, returning `nil` if not found."
+  @doc """
+  Fetches a user by email address, returning `nil` if not found.
+
+  ## Parameters
+    - `email` (`String.t()`) — the user's email address
+
+  ## Returns
+    - `User.t() | nil`
+  """
   @spec get_user_by_email(String.t()) :: User.t() | nil
   def get_user_by_email(email), do: Repo.get_by(User, email: email)
 
-  @doc "Fetches a user by Google UID, returning `nil` if not found."
+  @doc """
+  Fetches a user by Google UID, returning `nil` if not found.
+
+  ## Parameters
+    - `uid` (`String.t()`) — the Google-issued unique identifier
+
+  ## Returns
+    - `User.t() | nil`
+  """
   @spec get_user_by_google_uid(String.t()) :: User.t() | nil
   def get_user_by_google_uid(uid), do: Repo.get_by(User, google_uid: uid)
 
   @doc """
   Finds a user by Google UID, or creates one from Google auth info.
-  Returns `{:ok, user}` or `{:error, changeset}`.
+
+  ## Parameters
+    - `info` (`map()`) — must contain `:uid` and `:email`; optionally `:name`, `:avatar_url`
+
+  ## Returns
+    - `{:ok, User.t()}` on success
+    - `{:error, Ecto.Changeset.t()}` on validation failure
   """
   @spec find_or_create_user(map()) :: {:ok, User.t()} | {:error, Ecto.Changeset.t()}
   def find_or_create_user(%{uid: uid, email: email} = info) do
