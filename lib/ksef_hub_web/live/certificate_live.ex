@@ -77,7 +77,7 @@ defmodule KsefHubWeb.CertificateLive do
          {:ok, encrypted_password} <- Encryption.encrypt(params["password"] || "") do
       attrs = %{
         nip: params["nip"],
-        certificate_data: encrypted_cert,
+        certificate_data_encrypted: encrypted_cert,
         certificate_password_encrypted: encrypted_password,
         is_active: true
       }

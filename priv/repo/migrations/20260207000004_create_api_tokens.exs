@@ -11,7 +11,6 @@ defmodule KsefHub.Repo.Migrations.CreateApiTokens do
       add :last_used_at, :utc_datetime_usec
       add :request_count, :integer, default: 0, null: false
       add :is_active, :boolean, default: true, null: false
-      add :expires_at, :utc_datetime_usec
       add :created_by_id, references(:users, type: :binary_id, on_delete: :nilify_all)
 
       timestamps()

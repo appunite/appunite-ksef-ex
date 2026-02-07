@@ -105,7 +105,7 @@ defmodule KsefHubWeb.TokenLive do
       <.icon name="hero-exclamation-triangle" class="size-5" />
       <div class="flex-1">
         <p class="font-semibold">Copy your API token now. It won't be shown again.</p>
-        <code class="block mt-2 p-2 bg-base-100 rounded text-sm font-mono break-all select-all">
+        <code class="block mt-2 p-2 bg-base-100 rounded text-sm font-mono break-all select-all text-base-content">
           {@show_token}
         </code>
       </div>
