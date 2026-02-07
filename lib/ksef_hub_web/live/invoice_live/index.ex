@@ -1,18 +1,188 @@
 defmodule KsefHubWeb.InvoiceLive.Index do
   use KsefHubWeb, :live_view
 
+  alias KsefHub.Invoices
+
   @impl true
   def mount(_params, _session, socket) do
-    {:ok, socket}
+    {:ok, assign(socket, page_title: "Invoices")}
   end
+
+  @impl true
+  def handle_params(params, _uri, socket) do
+    filters = parse_filters(params)
+
+    invoices = Invoices.list_invoices(filters)
+
+    {:noreply,
+     assign(socket,
+       invoices: invoices,
+       filters: filters,
+       type_filter: filters[:type] || "",
+       status_filter: filters[:status] || "",
+       date_from: (filters[:date_from] && Date.to_iso8601(filters[:date_from])) || "",
+       date_to: (filters[:date_to] && Date.to_iso8601(filters[:date_to])) || "",
+       search: filters[:query] || ""
+     )}
+  end
+
+  @impl true
+  def handle_event("filter", params, socket) do
+    query_params =
+      %{}
+      |> maybe_put("type", params["type"])
+      |> maybe_put("status", params["status"])
+      |> maybe_put("date_from", params["date_from"])
+      |> maybe_put("date_to", params["date_to"])
+      |> maybe_put("query", params["query"])
+
+    {:noreply, push_patch(socket, to: ~p"/invoices?#{query_params}")}
+  end
+
+  defp parse_filters(params) do
+    %{}
+    |> maybe_put_filter(:type, params["type"], ~w(income expense))
+    |> maybe_put_filter(:status, params["status"], ~w(pending approved rejected))
+    |> maybe_put_date(:date_from, params["date_from"])
+    |> maybe_put_date(:date_to, params["date_to"])
+    |> maybe_put_search(:query, params["query"])
+  end
+
+  defp maybe_put_filter(map, _key, nil, _valid), do: map
+  defp maybe_put_filter(map, _key, "", _valid), do: map
+
+  defp maybe_put_filter(map, key, value, valid) do
+    if value in valid, do: Map.put(map, key, value), else: map
+  end
+
+  defp maybe_put_date(map, _key, nil), do: map
+  defp maybe_put_date(map, _key, ""), do: map
+
+  defp maybe_put_date(map, key, value) do
+    case Date.from_iso8601(value) do
+      {:ok, date} -> Map.put(map, key, date)
+      _ -> map
+    end
+  end
+
+  defp maybe_put_search(map, _key, nil), do: map
+  defp maybe_put_search(map, _key, ""), do: map
+  defp maybe_put_search(map, key, value), do: Map.put(map, key, value)
+
+  defp maybe_put(map, _key, nil), do: map
+  defp maybe_put(map, _key, ""), do: map
+  defp maybe_put(map, key, value), do: Map.put(map, key, value)
 
   @impl true
   def render(assigns) do
     ~H"""
-    <div class="container mx-auto p-6">
-      <h1 class="text-2xl font-bold mb-4">Invoices</h1>
-      <p>Invoice browser — full implementation in Phase 6.</p>
+    <.header>
+      Invoices
+      <:subtitle>Browse and manage KSeF invoices</:subtitle>
+    </.header>
+
+    <!-- Filters -->
+    <form phx-change="filter" class="flex flex-wrap gap-3 mt-4 mb-6 items-end">
+      <div class="form-control w-32">
+        <label class="label"><span class="label-text text-xs">Type</span></label>
+        <select name="type" class="select select-sm select-bordered">
+          <option value="">All</option>
+          <option value="income" selected={@type_filter == "income"}>Income</option>
+          <option value="expense" selected={@type_filter == "expense"}>Expense</option>
+        </select>
+      </div>
+
+      <div class="form-control w-32">
+        <label class="label"><span class="label-text text-xs">Status</span></label>
+        <select name="status" class="select select-sm select-bordered">
+          <option value="">All</option>
+          <option value="pending" selected={@status_filter == "pending"}>Pending</option>
+          <option value="approved" selected={@status_filter == "approved"}>Approved</option>
+          <option value="rejected" selected={@status_filter == "rejected"}>Rejected</option>
+        </select>
+      </div>
+
+      <div class="form-control w-36">
+        <label class="label"><span class="label-text text-xs">From</span></label>
+        <input type="date" name="date_from" value={@date_from} class="input input-sm input-bordered" />
+      </div>
+
+      <div class="form-control w-36">
+        <label class="label"><span class="label-text text-xs">To</span></label>
+        <input type="date" name="date_to" value={@date_to} class="input input-sm input-bordered" />
+      </div>
+
+      <div class="form-control flex-1 min-w-48">
+        <label class="label"><span class="label-text text-xs">Search</span></label>
+        <input
+          type="text"
+          name="query"
+          value={@search}
+          placeholder="Invoice number, seller, buyer..."
+          phx-debounce="300"
+          class="input input-sm input-bordered"
+        />
+      </div>
+    </form>
+
+    <!-- Invoice Table -->
+    <div class="overflow-x-auto">
+      <.table id="invoices" rows={@invoices} row_id={fn inv -> "inv-#{inv.id}" end}>
+        <:col :let={inv} label="Number">
+          <.link navigate={~p"/invoices/#{inv.id}"} class="link link-primary">
+            {inv.invoice_number}
+          </.link>
+        </:col>
+        <:col :let={inv} label="Type">
+          <.type_badge type={inv.type} />
+        </:col>
+        <:col :let={inv} label="Seller">{inv.seller_name}</:col>
+        <:col :let={inv} label="Buyer">{inv.buyer_name}</:col>
+        <:col :let={inv} label="Date">{format_date(inv.issue_date)}</:col>
+        <:col :let={inv} label="Gross">
+          <span class="font-mono">{format_amount(inv.gross_amount)}</span>
+          <span class="text-xs text-base-content/60">{inv.currency}</span>
+        </:col>
+        <:col :let={inv} label="Status">
+          <.status_badge status={inv.status} />
+        </:col>
+      </.table>
     </div>
+
+    <p :if={@invoices == []} class="text-center text-base-content/60 py-8">
+      No invoices found matching your filters.
+    </p>
     """
   end
+
+  defp type_badge(assigns) do
+    ~H"""
+    <span class={[
+      "badge badge-sm",
+      @type == "income" && "badge-success badge-outline",
+      @type == "expense" && "badge-warning badge-outline"
+    ]}>
+      {@type}
+    </span>
+    """
+  end
+
+  defp status_badge(assigns) do
+    ~H"""
+    <span class={[
+      "badge badge-sm",
+      @status == "pending" && "badge-warning",
+      @status == "approved" && "badge-success",
+      @status == "rejected" && "badge-error"
+    ]}>
+      {@status}
+    </span>
+    """
+  end
+
+  defp format_date(nil), do: "-"
+  defp format_date(date), do: Calendar.strftime(date, "%Y-%m-%d")
+
+  defp format_amount(nil), do: "-"
+  defp format_amount(%Decimal{} = d), do: Decimal.to_string(d, :normal)
 end
