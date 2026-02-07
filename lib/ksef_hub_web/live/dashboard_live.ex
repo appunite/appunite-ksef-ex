@@ -143,7 +143,7 @@ defmodule KsefHubWeb.DashboardLive do
 
     ~H"""
     <div class="stat bg-base-100 shadow-sm rounded-box">
-      <div class="stat-figure {assigns.color}">
+      <div class={"stat-figure #{@color}"}>
         <.icon name={@icon} class="size-6" />
       </div>
       <div class="stat-title">{@title}</div>
