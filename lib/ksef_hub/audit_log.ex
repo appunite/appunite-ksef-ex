@@ -30,6 +30,7 @@ defmodule KsefHub.AuditLog do
     audit_log
     |> cast(attrs, [:action, :resource_type, :resource_id, :metadata, :user_id, :ip_address])
     |> validate_required([:action])
+    |> foreign_key_constraint(:user_id)
   end
 
   @doc """
@@ -52,11 +53,19 @@ defmodule KsefHub.AuditLog do
   @doc """
   Lists recent audit log entries.
   """
+  @max_limit 1000
+
   @spec list_recent(non_neg_integer()) :: [t()]
-  def list_recent(limit \\ 50) do
+  def list_recent(limit \\ 50)
+
+  def list_recent(limit) when is_integer(limit) and limit > 0 do
+    clamped = min(limit, @max_limit)
+
     __MODULE__
     |> order_by([a], desc: a.inserted_at)
-    |> limit(^limit)
+    |> limit(^clamped)
     |> Repo.all()
   end
+
+  def list_recent(_), do: list_recent(50)
 end

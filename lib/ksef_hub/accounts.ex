@@ -28,14 +28,22 @@ defmodule KsefHub.Accounts do
   def find_or_create_user(%{uid: uid, email: email} = info) do
     case get_user_by_google_uid(uid) do
       nil ->
-        %User{}
-        |> User.changeset(%{
-          google_uid: uid,
-          email: email,
-          name: Map.get(info, :name),
-          avatar_url: Map.get(info, :avatar_url)
-        })
-        |> Repo.insert()
+        changeset =
+          %User{}
+          |> User.changeset(%{
+            google_uid: uid,
+            email: email,
+            name: Map.get(info, :name),
+            avatar_url: Map.get(info, :avatar_url)
+          })
+
+        case Repo.insert(changeset, on_conflict: :nothing, conflict_target: :google_uid) do
+          {:ok, %User{id: nil}} ->
+            {:ok, get_user_by_google_uid(uid)}
+
+          result ->
+            result
+        end
 
       user ->
         {:ok, user}

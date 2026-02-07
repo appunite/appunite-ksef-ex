@@ -11,7 +11,7 @@ defmodule KsefHub.Credentials.Credential do
 
   schema "ksef_credentials" do
     field :nip, :string
-    field :certificate_data, :binary
+    field :certificate_data_encrypted, :binary
     field :certificate_password_encrypted, :binary
     field :certificate_expires_at, :date
     field :certificate_subject, :string
@@ -30,7 +30,7 @@ defmodule KsefHub.Credentials.Credential do
   def changeset(credential, attrs) do
     credential
     |> cast(attrs, [
-      :nip, :certificate_data, :certificate_password_encrypted,
+      :nip, :certificate_data_encrypted, :certificate_password_encrypted,
       :certificate_expires_at, :certificate_subject, :last_sync_at,
       :is_active, :refresh_token_encrypted, :refresh_token_expires_at,
       :access_token_encrypted, :access_token_expires_at

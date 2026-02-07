@@ -5,7 +5,7 @@ defmodule KsefHub.Repo.Migrations.CreateKsefCredentials do
     create table(:ksef_credentials, primary_key: false) do
       add :id, :binary_id, primary_key: true
       add :nip, :string, null: false
-      add :certificate_data, :binary
+      add :certificate_data_encrypted, :binary
       add :certificate_password_encrypted, :binary
       add :certificate_expires_at, :date
       add :certificate_subject, :string

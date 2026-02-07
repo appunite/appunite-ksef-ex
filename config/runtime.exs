@@ -65,6 +65,15 @@ if config_env() == :prod do
       Use https://ksef-test.mf.gov.pl for test or https://ksef.mf.gov.pl for production.
       """
 
+  uri = URI.parse(ksef_api_url)
+
+  if uri.scheme != "https" do
+    raise """
+    KSEF_API_URL must use HTTPS in production.
+    Got: #{ksef_api_url}
+    """
+  end
+
   config :ksef_hub, :ksef_api_url, ksef_api_url
 
   maybe_ipv6 = if System.get_env("ECTO_IPV6") in ~w(true 1), do: [:inet6], else: []
