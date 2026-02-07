@@ -212,6 +212,15 @@ def handle_response({:error, reason}), do: {:error, {:request_failed, reason}}
 - Private functions: prefix with `do_` only when wrapping a public function (`defp do_parse/1`)
 - Test files: mirror source path (`test/ksef_hub/invoices_test.exs`)
 
+### Documentation & Typespecs
+
+Every module **must** have:
+
+- `@moduledoc` — describes the module's purpose
+- `@type t :: %__MODULE__{}` — on all Ecto schemas
+- `@doc` — on every public function
+- `@spec` — on every function (public and private)
+
 ### SOLID / DRY
 
 - Single responsibility modules — one context per domain concept
