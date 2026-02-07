@@ -41,4 +41,3 @@ defmodule KsefHubWeb.LiveAuth do
     end
   end
 end
-
