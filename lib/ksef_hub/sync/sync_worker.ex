@@ -62,11 +62,20 @@ defmodule KsefHub.Sync.SyncWorker do
         Logger.info("Sync complete: #{ic} income, #{ec} expense invoices")
         :ok
 
-      {{:error, reason}, _} ->
-        {:error, reason}
+      {{:ok, ic}, {:error, reason}} ->
+        Logger.error("Expense sync failed: #{inspect(reason)} (#{ic} income invoices synced)")
+        :ok
 
-      {_, {:error, reason}} ->
-        {:error, reason}
+      {{:error, reason}, {:ok, ec}} ->
+        Logger.error("Income sync failed: #{inspect(reason)} (#{ec} expense invoices synced)")
+        :ok
+
+      {{:error, income_reason}, {:error, expense_reason}} ->
+        Logger.error(
+          "Both syncs failed — income: #{inspect(income_reason)}, expense: #{inspect(expense_reason)}"
+        )
+
+        {:error, income_reason}
     end
   end
 
