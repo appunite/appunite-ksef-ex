@@ -33,6 +33,9 @@ defmodule KsefHubWeb.CertificateLive do
 
       {:error, :no_file} ->
         {:noreply, put_flash(socket, :error, "Please upload a certificate file.")}
+
+      {:error, {:file_read_failed, _reason}} ->
+        {:noreply, put_flash(socket, :error, "Failed to read uploaded file.")}
     end
   end
 
@@ -58,22 +61,18 @@ defmodule KsefHubWeb.CertificateLive do
 
   defp uploaded_cert_data(socket) do
     case consume_uploaded_entries(socket, :certificate, fn %{path: path}, _entry ->
-           {:ok, File.read!(path)}
+           File.read(path)
          end) do
-      [data] -> {:ok, data}
+      [{:ok, data}] -> {:ok, data}
+      [{:error, reason}] -> {:error, {:file_read_failed, reason}}
       [] -> {:error, :no_file}
     end
   end
 
   defp save_credential(socket, params, cert_data) do
     with {:ok, encrypted_cert} <- Encryption.encrypt(cert_data),
-         {:ok, encrypted_password} <- Encryption.encrypt(params["password"] || "") do
-      # Deactivate any existing active credential
-      case Credentials.get_active_credential() do
-        nil -> :ok
-        existing -> Credentials.deactivate_credential(existing)
-      end
-
+         {:ok, encrypted_password} <- Encryption.encrypt(params["password"] || ""),
+         :ok <- deactivate_existing_credential() do
       attrs = %{
         nip: params["nip"],
         certificate_data: encrypted_cert,
@@ -96,8 +95,24 @@ defmodule KsefHubWeb.CertificateLive do
            |> assign(form: to_form(changeset, as: :credential))}
       end
     else
+      {:error, :deactivation_failed} ->
+        {:noreply, put_flash(socket, :error, "Failed to deactivate existing certificate.")}
+
       {:error, _} ->
         {:noreply, put_flash(socket, :error, "Encryption failed.")}
+    end
+  end
+
+  defp deactivate_existing_credential do
+    case Credentials.get_active_credential() do
+      nil ->
+        :ok
+
+      existing ->
+        case Credentials.deactivate_credential(existing) do
+          {:ok, _} -> :ok
+          {:error, _} -> {:error, :deactivation_failed}
+        end
     end
   end
 
