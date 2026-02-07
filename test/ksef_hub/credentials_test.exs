@@ -14,8 +14,18 @@ defmodule KsefHub.CredentialsTest do
       assert cred.is_active == true
     end
 
-    test "rejects invalid NIP format" do
+    test "rejects NIP that is too short" do
       assert {:error, changeset} = Credentials.create_credential(%{nip: "12345"})
+      assert "must be a 10-digit NIP" in errors_on(changeset).nip
+    end
+
+    test "rejects NIP that is too long" do
+      assert {:error, changeset} = Credentials.create_credential(%{nip: "12345678901"})
+      assert "must be a 10-digit NIP" in errors_on(changeset).nip
+    end
+
+    test "rejects NIP with non-digit characters" do
+      assert {:error, changeset} = Credentials.create_credential(%{nip: "123456789a"})
       assert "must be a 10-digit NIP" in errors_on(changeset).nip
     end
 

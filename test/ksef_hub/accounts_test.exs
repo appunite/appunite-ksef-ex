@@ -62,6 +62,21 @@ defmodule KsefHub.AccountsTest do
       assert Accounts.allowed_email?("admin@example.com")
       refute Accounts.allowed_email?("unauthorized@example.com")
     end
+
+    test "find_or_create_user/1 handles concurrent insert gracefully" do
+      # Pre-insert a user, then call find_or_create_user with same uid
+      # This simulates the race where the user was inserted between
+      # get_user_by_google_uid returning nil and Repo.insert
+      user = insert(:user, google_uid: "race-uid", email: "race@example.com")
+
+      assert {:ok, found} =
+               Accounts.find_or_create_user(%{
+                 uid: "race-uid",
+                 email: "race@example.com"
+               })
+
+      assert found.id == user.id
+    end
   end
 
   describe "api_tokens" do

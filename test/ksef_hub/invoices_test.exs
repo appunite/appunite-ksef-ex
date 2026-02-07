@@ -98,6 +98,27 @@ defmodule KsefHub.InvoicesTest do
 
       assert [%{buyer_name: "Acme Corp"}] = Invoices.list_invoices(%{query: "Acme"})
     end
+
+    test "escapes LIKE wildcards in search query" do
+      insert(:invoice, buyer_name: "100% Organic")
+      insert(:invoice, buyer_name: "Something Else")
+
+      assert [%{buyer_name: "100% Organic"}] = Invoices.list_invoices(%{query: "100%"})
+    end
+
+    test "escapes underscore wildcards in search query" do
+      insert(:invoice, seller_name: "A_B Corp")
+      insert(:invoice, seller_name: "AXB Corp")
+
+      assert [%{seller_name: "A_B Corp"}] = Invoices.list_invoices(%{query: "A_B"})
+    end
+
+    test "escapes backslash in search query" do
+      insert(:invoice, invoice_number: "FV\\2025\\001")
+      insert(:invoice, invoice_number: "FV/2025/002")
+
+      assert [%{invoice_number: "FV\\2025\\001"}] = Invoices.list_invoices(%{query: "FV\\2025"})
+    end
   end
 
   describe "approve_invoice/1" do
