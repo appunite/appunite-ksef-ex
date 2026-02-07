@@ -50,14 +50,14 @@ defmodule KsefHubWeb.CertificateLive do
       {:noreply, put_flash(socket, :error, "Certificate not found.")}
     else
       case Credentials.deactivate_credential(credential) do
-      {:ok, _} ->
-        {:noreply,
-         socket
-         |> put_flash(:info, "Certificate deactivated.")
-         |> load_credentials()}
+        {:ok, _} ->
+          {:noreply,
+           socket
+           |> put_flash(:info, "Certificate deactivated.")
+           |> load_credentials()}
 
-      {:error, _} ->
-        {:noreply, put_flash(socket, :error, "Failed to deactivate certificate.")}
+        {:error, _} ->
+          {:noreply, put_flash(socket, :error, "Failed to deactivate certificate.")}
       end
     end
   end
