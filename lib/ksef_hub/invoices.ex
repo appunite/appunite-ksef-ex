@@ -123,11 +123,12 @@ defmodule KsefHub.Invoices do
         where(q, [i], i.buyer_nip == ^nip)
 
       {:query, search}, q when is_binary(search) and search != "" ->
-        term = "%#{search}%"
+        escaped = search |> String.replace("\\", "\\\\") |> String.replace("%", "\\%") |> String.replace("_", "\\_")
+        pattern = "%" <> escaped <> "%"
         where(q, [i],
-          ilike(i.invoice_number, ^term) or
-          ilike(i.seller_name, ^term) or
-          ilike(i.buyer_name, ^term)
+          fragment("? ILIKE ? ESCAPE '\\\\'", i.invoice_number, ^pattern) or
+          fragment("? ILIKE ? ESCAPE '\\\\'", i.seller_name, ^pattern) or
+          fragment("? ILIKE ? ESCAPE '\\\\'", i.buyer_name, ^pattern)
         )
 
       _, q ->

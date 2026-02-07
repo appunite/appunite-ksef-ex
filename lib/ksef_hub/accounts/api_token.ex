@@ -21,8 +21,8 @@ defmodule KsefHub.Accounts.ApiToken do
 
   def changeset(api_token, attrs) do
     api_token
-    |> cast(attrs, [:name, :description, :token_hash, :token_prefix, :is_active, :created_by_id])
-    |> validate_required([:name, :token_hash, :token_prefix])
+    |> cast(attrs, [:name, :description, :is_active, :created_by_id])
+    |> validate_required([:name])
     |> unique_constraint(:token_hash)
   end
 end

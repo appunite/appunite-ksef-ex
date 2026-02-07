@@ -61,12 +61,13 @@ defmodule KsefHub.Accounts do
     token_hash = hash_token(plain_token)
     token_prefix = String.slice(plain_token, 0, 8)
 
-    attrs =
-      attrs
-      |> Map.put(:token_hash, token_hash)
-      |> Map.put(:token_prefix, token_prefix)
+    changeset =
+      %ApiToken{}
+      |> ApiToken.changeset(attrs)
+      |> Ecto.Changeset.put_change(:token_hash, token_hash)
+      |> Ecto.Changeset.put_change(:token_prefix, token_prefix)
 
-    case %ApiToken{} |> ApiToken.changeset(attrs) |> Repo.insert() do
+    case Repo.insert(changeset) do
       {:ok, api_token} ->
         {:ok, %{token: plain_token, api_token: api_token}}
 
@@ -103,26 +104,28 @@ defmodule KsefHub.Accounts do
   end
 
   @doc """
-  Lists all API tokens (without revealing hashes).
+  Lists all API tokens with sensitive fields redacted.
   """
   def list_api_tokens do
     ApiToken
     |> order_by([t], desc: t.inserted_at)
     |> Repo.all()
+    |> Enum.map(fn token -> %{token | token_hash: "**redacted**"} end)
   end
 
   @doc """
   Tracks usage of an API token (last_used_at, request_count).
+  Returns `:ok` if the token was found, `{:error, :not_found}` otherwise.
   """
   def track_token_usage(token_id) do
-    {1, _} =
-      from(t in ApiToken, where: t.id == ^token_id)
-      |> Repo.update_all(
-        set: [last_used_at: DateTime.utc_now()],
-        inc: [request_count: 1]
-      )
-
-    :ok
+    case from(t in ApiToken, where: t.id == ^token_id)
+         |> Repo.update_all(
+           set: [last_used_at: DateTime.utc_now()],
+           inc: [request_count: 1]
+         ) do
+      {1, _} -> :ok
+      {0, _} -> {:error, :not_found}
+    end
   end
 
   defp generate_token do

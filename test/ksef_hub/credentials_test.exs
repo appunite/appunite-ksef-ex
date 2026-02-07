@@ -68,11 +68,11 @@ defmodule KsefHub.CredentialsTest do
 
       assert {:ok, updated} =
                Credentials.store_tokens(cred, %{
-                 access_token: "access-123",
+                 access_token_encrypted: "encrypted-access-123",
                  access_token_expires_at: DateTime.utc_now()
                })
 
-      assert updated.access_token == "access-123"
+      assert updated.access_token_encrypted == "encrypted-access-123"
     end
   end
 

@@ -6,9 +6,11 @@ defmodule KsefHub.Sync.SyncWorker do
 
   use Oban.Worker, queue: :sync, max_attempts: 3
 
+  require Logger
+
   @impl Oban.Worker
-  def perform(%Oban.Job{}) do
-    # TODO: Implement in Phase 4
+  def perform(%Oban.Job{id: job_id}) do
+    Logger.warning("KSeF sync job ##{job_id} scheduled but not yet implemented")
     :ok
   end
 end

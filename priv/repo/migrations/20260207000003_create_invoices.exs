@@ -24,7 +24,7 @@ defmodule KsefHub.Repo.Migrations.CreateInvoices do
       timestamps()
     end
 
-    create unique_index(:invoices, [:ksef_number])
+    create unique_index(:invoices, [:ksef_number], where: "ksef_number IS NOT NULL")
     create index(:invoices, [:type, :status])
     create index(:invoices, [:seller_nip])
     create index(:invoices, [:buyer_nip])

@@ -17,6 +17,7 @@ defmodule KsefHub.Credentials do
   def get_active_credential do
     Credential
     |> where([c], c.is_active == true)
+    |> order_by([c], desc: c.inserted_at)
     |> limit(1)
     |> Repo.one()
   end

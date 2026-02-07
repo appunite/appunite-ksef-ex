@@ -15,7 +15,7 @@ defmodule KsefHub.Credentials.Credential do
     field :is_active, :boolean, default: true
     field :refresh_token_encrypted, :binary
     field :refresh_token_expires_at, :utc_datetime_usec
-    field :access_token, :string
+    field :access_token_encrypted, :binary
     field :access_token_expires_at, :utc_datetime_usec
 
     timestamps()
@@ -27,7 +27,7 @@ defmodule KsefHub.Credentials.Credential do
       :nip, :certificate_data, :certificate_password_encrypted,
       :certificate_expires_at, :certificate_subject, :last_sync_at,
       :is_active, :refresh_token_encrypted, :refresh_token_expires_at,
-      :access_token, :access_token_expires_at
+      :access_token_encrypted, :access_token_expires_at
     ])
     |> validate_required([:nip])
     |> validate_format(:nip, ~r/^\d{10}$/, message: "must be a 10-digit NIP")
