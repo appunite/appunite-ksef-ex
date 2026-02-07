@@ -16,8 +16,6 @@ defmodule KsefHubWeb.Layouts do
   attr :current_user, :map, default: nil
   attr :current_path, :string, default: nil
 
-  slot :inner_block, required: true
-
   def app(assigns) do
     ~H"""
     <div class="drawer lg:drawer-open">
@@ -39,7 +37,7 @@ defmodule KsefHubWeb.Layouts do
     <!-- Main content -->
         <main class="flex-1 p-4 sm:p-6 lg:p-8">
           <div class="mx-auto max-w-6xl">
-            {render_slot(@inner_block)}
+            {@inner_content}
           </div>
         </main>
       </div>
