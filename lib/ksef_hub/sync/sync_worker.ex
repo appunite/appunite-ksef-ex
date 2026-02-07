@@ -17,13 +17,14 @@ defmodule KsefHub.Sync.SyncWorker do
   def perform(%Oban.Job{}) do
     with {:ok, credential} <- load_active_credential(),
          {:ok, access_token} <- get_access_token() do
-      result = sync_all_types(access_token, credential.nip)
+      case sync_all_types(access_token, credential.nip) do
+        :ok ->
+          Credentials.update_last_sync(credential)
+          :ok
 
-      if result == :ok do
-        Credentials.update_last_sync(credential)
+        {:error, reason} ->
+          {:error, reason}
       end
-
-      result
     else
       {:error, :no_credential} ->
         Logger.info("Sync skipped: no active credential configured")
@@ -81,7 +82,10 @@ defmodule KsefHub.Sync.SyncWorker do
   end
 
   defp broadcast_sync_completed(stats) do
-    Phoenix.PubSub.broadcast(KsefHub.PubSub, "sync:status", {:sync_completed, stats})
+    case Phoenix.PubSub.broadcast(KsefHub.PubSub, "sync:status", {:sync_completed, stats}) do
+      :ok -> :ok
+      {:error, reason} -> Logger.warning("Failed to broadcast sync status: #{inspect(reason)}")
+    end
   end
 
   defp sync_type(access_token, type, nip) do
