@@ -28,7 +28,7 @@ defmodule KsefHub.Pdf.Gotenberg do
             {:ok, body}
 
           {:ok, %{status: status, body: body}} ->
-            Logger.error("Gotenberg returned #{status}: #{inspect(body)}")
+            Logger.error("Gotenberg returned #{status} (body: #{byte_size(to_string(body))} bytes)")
             {:error, {:gotenberg_error, status}}
 
           {:error, reason} ->
