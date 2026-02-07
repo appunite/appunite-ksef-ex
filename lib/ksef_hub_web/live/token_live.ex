@@ -1,4 +1,7 @@
 defmodule KsefHubWeb.TokenLive do
+  @moduledoc """
+  LiveView for managing API tokens — create, view, and revoke bearer tokens.
+  """
   use KsefHubWeb, :live_view
 
   alias KsefHub.Accounts
