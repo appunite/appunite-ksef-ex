@@ -1,4 +1,7 @@
 defmodule KsefHubWeb.InvoiceLive.Index do
+  @moduledoc """
+  LiveView for listing and filtering invoices by type and status.
+  """
   use KsefHubWeb, :live_view
 
   alias KsefHub.Invoices

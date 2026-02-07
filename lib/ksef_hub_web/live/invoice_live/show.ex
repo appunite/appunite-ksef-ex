@@ -1,4 +1,7 @@
 defmodule KsefHubWeb.InvoiceLive.Show do
+  @moduledoc """
+  LiveView for invoice detail page with HTML preview, metadata, and approve/reject actions.
+  """
   use KsefHubWeb, :live_view
 
   alias KsefHub.Invoices

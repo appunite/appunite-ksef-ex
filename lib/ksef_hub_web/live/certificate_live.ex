@@ -1,4 +1,7 @@
 defmodule KsefHubWeb.CertificateLive do
+  @moduledoc """
+  LiveView for managing PKCS12 certificates used for KSeF authentication.
+  """
   use KsefHubWeb, :live_view
 
   alias KsefHub.Credentials
