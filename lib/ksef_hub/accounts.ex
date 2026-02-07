@@ -98,6 +98,12 @@ defmodule KsefHub.Accounts do
 
   @doc """
   Checks if an email is in the allowlist.
+
+  ## Parameters
+    - `email` (`any()`) — the email to check; non-binary values return `false`
+
+  ## Returns
+    - `boolean()`
   """
   @spec allowed_email?(any()) :: boolean()
   def allowed_email?(email) when is_binary(email) do
@@ -125,6 +131,9 @@ defmodule KsefHub.Accounts do
 
   @doc """
   Clears the cached allowed emails list. Call when the config changes.
+
+  ## Returns
+    - `:ok`
   """
   @spec clear_allowed_emails_cache() :: :ok
   def clear_allowed_emails_cache do
@@ -136,6 +145,14 @@ defmodule KsefHub.Accounts do
 
   @doc """
   Creates a new API token owned by the given user. Returns the plaintext token exactly once.
+
+  ## Parameters
+    - `user_id` (`Ecto.UUID.t()`) — owner of the token
+    - `attrs` (`map()`) — token attributes (`:name`, `:description`, `:expires_at`)
+
+  ## Returns
+    - `{:ok, %{token: String.t(), api_token: ApiToken.t()}}` on success
+    - `{:error, Ecto.Changeset.t()}` on validation failure
   """
   @spec create_api_token(Ecto.UUID.t(), map()) ::
           {:ok, %{token: String.t(), api_token: ApiToken.t()}} | {:error, Ecto.Changeset.t()}
@@ -168,10 +185,18 @@ defmodule KsefHub.Accounts do
 
   @doc """
   Validates a plaintext API token. Returns the token record if valid and not expired.
+
+  ## Parameters
+    - `plain_token` (`String.t()`) — the plaintext Bearer token
+
+  ## Returns
+    - `{:ok, ApiToken.t()}` if valid and active
+    - `{:error, :invalid}` if not found or not a binary
+    - `{:error, :expired}` if past `expires_at`
   """
   @spec validate_api_token(String.t()) ::
           {:ok, ApiToken.t()} | {:error, :invalid} | {:error, :expired}
-  def validate_api_token(plain_token) do
+  def validate_api_token(plain_token) when is_binary(plain_token) do
     token_hash = hash_token(plain_token)
 
     case Repo.get_by(ApiToken, token_hash: token_hash, is_active: true) do
@@ -190,9 +215,19 @@ defmodule KsefHub.Accounts do
     end
   end
 
+  def validate_api_token(_), do: {:error, :invalid}
+
   @doc """
   Revokes an API token by ID, scoped to the given user.
-  Returns `{:error, :not_found}` if the token doesn't exist or doesn't belong to the user.
+
+  ## Parameters
+    - `user_id` (`Ecto.UUID.t()`) — the token owner's ID
+    - `token_id` (`Ecto.UUID.t()`) — the token to revoke
+
+  ## Returns
+    - `{:ok, ApiToken.t()}` on success
+    - `{:error, :not_found}` if the token doesn't exist or doesn't belong to the user
+    - `{:error, Ecto.Changeset.t()}` on update failure
   """
   @spec revoke_api_token(Ecto.UUID.t(), Ecto.UUID.t()) ::
           {:ok, ApiToken.t()} | {:error, :not_found} | {:error, Ecto.Changeset.t()}
@@ -210,6 +245,12 @@ defmodule KsefHub.Accounts do
 
   @doc """
   Lists API tokens for a given user with sensitive fields redacted.
+
+  ## Parameters
+    - `user_id` (`Ecto.UUID.t()`) — the token owner's ID
+
+  ## Returns
+    - `[ApiToken.t()]` — tokens with `token_hash` replaced by `"**redacted**"`
   """
   @spec list_api_tokens(Ecto.UUID.t()) :: [ApiToken.t()]
   def list_api_tokens(user_id) do
@@ -222,7 +263,13 @@ defmodule KsefHub.Accounts do
 
   @doc """
   Tracks usage of an API token (last_used_at, request_count).
-  Returns `:ok` if the token was found, `{:error, :not_found}` otherwise.
+
+  ## Parameters
+    - `token_id` (`Ecto.UUID.t()`) — the token to update
+
+  ## Returns
+    - `:ok` if the token was found and updated
+    - `{:error, :not_found}` if no matching token exists
   """
   @spec track_token_usage(Ecto.UUID.t()) :: :ok | {:error, :not_found}
   def track_token_usage(token_id) do

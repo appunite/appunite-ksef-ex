@@ -17,17 +17,9 @@ defmodule KsefHub.Sync.SyncWorker do
   def perform(%Oban.Job{} = job) do
     with {:ok, credential} <- load_active_credential(),
          {:ok, access_token} <- get_access_token() do
-      case sync_all_types(access_token, credential.nip, job) do
-        {:ok, :full} ->
-          Credentials.update_last_sync(credential)
-          :ok
-
-        {:ok, :partial, _details} ->
-          :ok
-
-        {:error, reason} ->
-          {:error, reason}
-      end
+      access_token
+      |> sync_all_types(credential.nip, job)
+      |> handle_sync_result(credential)
     else
       {:error, :no_credential} ->
         Logger.info("Sync skipped: no active credential configured")
@@ -51,6 +43,16 @@ defmodule KsefHub.Sync.SyncWorker do
       cred -> {:ok, cred}
     end
   end
+
+  defp handle_sync_result({:ok, :full}, credential) do
+    case Credentials.update_last_sync(credential) do
+      {:ok, _} -> :ok
+      {:error, reason} -> {:error, {:last_sync_update_failed, reason}}
+    end
+  end
+
+  defp handle_sync_result({:ok, :partial, _details}, _credential), do: :ok
+  defp handle_sync_result({:error, reason}, _credential), do: {:error, reason}
 
   defp get_access_token do
     case Process.whereis(TokenManager) do

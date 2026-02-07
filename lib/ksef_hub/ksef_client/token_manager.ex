@@ -165,6 +165,8 @@ defmodule KsefHub.KsefClient.TokenManager do
 
   defp encrypt_token(nil), do: nil
 
+  # Fail-safe: returns nil on encryption failure to avoid storing unencrypted tokens.
+  # Encryption.encrypt/1 only raises (never returns {:error, _}), so we rescue.
   defp encrypt_token(token) do
     {:ok, encrypted} = Encryption.encrypt(token)
     encrypted

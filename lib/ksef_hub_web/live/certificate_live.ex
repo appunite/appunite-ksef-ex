@@ -44,11 +44,8 @@ defmodule KsefHubWeb.CertificateLive do
 
   @impl true
   def handle_event("deactivate", %{"id" => id}, socket) do
-    credential = Credentials.get_credential(id)
-
-    if is_nil(credential) do
-      {:noreply, put_flash(socket, :error, "Certificate not found.")}
-    else
+    with {:ok, uuid} <- Ecto.UUID.cast(id),
+         %{} = credential <- Credentials.get_credential(uuid) do
       case Credentials.deactivate_credential(credential) do
         {:ok, _} ->
           {:noreply,
@@ -59,6 +56,8 @@ defmodule KsefHubWeb.CertificateLive do
         {:error, _} ->
           {:noreply, put_flash(socket, :error, "Failed to deactivate certificate.")}
       end
+    else
+      _ -> {:noreply, put_flash(socket, :error, "Certificate not found.")}
     end
   end
 
