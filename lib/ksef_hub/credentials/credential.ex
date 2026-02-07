@@ -44,5 +44,6 @@ defmodule KsefHub.Credentials.Credential do
     ])
     |> validate_required([:nip])
     |> validate_format(:nip, ~r/^\d{10}$/, message: "must be a 10-digit NIP")
+    |> unique_constraint(:nip)
   end
 end

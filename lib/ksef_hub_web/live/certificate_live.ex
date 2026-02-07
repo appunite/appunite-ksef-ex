@@ -74,8 +74,7 @@ defmodule KsefHubWeb.CertificateLive do
 
   defp save_credential(socket, params, cert_data) do
     with {:ok, encrypted_cert} <- Encryption.encrypt(cert_data),
-         {:ok, encrypted_password} <- Encryption.encrypt(params["password"] || ""),
-         :ok <- deactivate_existing_credential() do
+         {:ok, encrypted_password} <- Encryption.encrypt(params["password"] || "") do
       attrs = %{
         nip: params["nip"],
         certificate_data: encrypted_cert,
@@ -83,7 +82,7 @@ defmodule KsefHubWeb.CertificateLive do
         is_active: true
       }
 
-      case Credentials.create_credential(attrs) do
+      case Credentials.replace_active_credential(attrs) do
         {:ok, _credential} ->
           {:noreply,
            socket
@@ -98,24 +97,8 @@ defmodule KsefHubWeb.CertificateLive do
            |> assign(form: to_form(changeset, as: :credential))}
       end
     else
-      {:error, :deactivation_failed} ->
-        {:noreply, put_flash(socket, :error, "Failed to deactivate existing certificate.")}
-
       {:error, _} ->
         {:noreply, put_flash(socket, :error, "Encryption failed.")}
-    end
-  end
-
-  defp deactivate_existing_credential do
-    case Credentials.get_active_credential() do
-      nil ->
-        :ok
-
-      existing ->
-        case Credentials.deactivate_credential(existing) do
-          {:ok, _} -> :ok
-          {:error, _} -> {:error, :deactivation_failed}
-        end
     end
   end
 

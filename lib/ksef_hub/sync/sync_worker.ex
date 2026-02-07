@@ -82,8 +82,12 @@ defmodule KsefHub.Sync.SyncWorker do
           "Both syncs failed — income: #{inspect(income_reason)}, expense: #{inspect(expense_reason)}"
         )
 
-        store_meta(job, %{"error" => inspect(income_reason)})
-        {:error, income_reason}
+        store_meta(job, %{
+          "income_error" => inspect(income_reason),
+          "expense_error" => inspect(expense_reason)
+        })
+
+        {:error, {income_reason, expense_reason}}
     end
   end
 

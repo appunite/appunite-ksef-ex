@@ -5,6 +5,7 @@ defmodule KsefHub.Credentials do
 
   import Ecto.Query
 
+  alias Ecto.Multi
   alias KsefHub.Credentials.Credential
   alias KsefHub.Repo
 
@@ -44,6 +45,30 @@ defmodule KsefHub.Credentials do
     %Credential{}
     |> Credential.changeset(attrs)
     |> Repo.insert()
+  end
+
+  @doc """
+  Atomically deactivates any existing active credential and creates a new one.
+  If creation fails, the previously active credential remains unchanged.
+  """
+  @spec replace_active_credential(map()) ::
+          {:ok, Credential.t()} | {:error, Ecto.Changeset.t()}
+  def replace_active_credential(attrs) do
+    multi =
+      Multi.new()
+      |> Multi.run(:deactivate, fn _repo, _changes ->
+        case get_active_credential() do
+          nil -> {:ok, nil}
+          existing -> deactivate_credential(existing)
+        end
+      end)
+      |> Multi.insert(:credential, Credential.changeset(%Credential{}, attrs))
+
+    case Repo.transaction(multi) do
+      {:ok, %{credential: credential}} -> {:ok, credential}
+      {:error, :credential, changeset, _changes} -> {:error, changeset}
+      {:error, :deactivate, changeset, _changes} -> {:error, changeset}
+    end
   end
 
   @doc """
