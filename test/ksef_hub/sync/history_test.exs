@@ -1,9 +1,9 @@
 defmodule KsefHub.Sync.HistoryTest do
   use KsefHub.DataCase, async: true
 
-  alias KsefHub.Sync.History
+  import KsefHub.Factory
 
-  @worker "KsefHub.Sync.SyncWorker"
+  alias KsefHub.Sync.History
 
   describe "list_sync_jobs/1" do
     test "returns empty list when no sync jobs exist" do
@@ -14,8 +14,8 @@ defmodule KsefHub.Sync.HistoryTest do
       now = DateTime.utc_now()
       earlier = DateTime.add(now, -600, :second)
 
-      insert_oban_job(%{inserted_at: earlier, state: "completed"})
-      insert_oban_job(%{inserted_at: now, state: "completed"})
+      insert(:sync_job, inserted_at: earlier, state: "completed")
+      insert(:sync_job, inserted_at: now, state: "completed")
 
       jobs = History.list_sync_jobs()
       assert length(jobs) == 2
@@ -24,16 +24,16 @@ defmodule KsefHub.Sync.HistoryTest do
     end
 
     test "respects limit option" do
-      for _ <- 1..5, do: insert_oban_job(%{state: "completed"})
+      for _ <- 1..5, do: insert(:sync_job, state: "completed")
 
       assert length(History.list_sync_jobs(limit: 3)) == 3
     end
 
     test "extracts income and expense counts from meta" do
-      insert_oban_job(%{
+      insert(:sync_job,
         state: "completed",
         meta: %{"income_count" => 5, "expense_count" => 3}
-      })
+      )
 
       [job] = History.list_sync_jobs()
       assert job.income_count == 5
@@ -41,10 +41,10 @@ defmodule KsefHub.Sync.HistoryTest do
     end
 
     test "extracts error from meta" do
-      insert_oban_job(%{
+      insert(:sync_job,
         state: "discarded",
         meta: %{"error" => "connection timeout"}
-      })
+      )
 
       [job] = History.list_sync_jobs()
       assert job.error == "connection timeout"
@@ -53,18 +53,18 @@ defmodule KsefHub.Sync.HistoryTest do
     test "calculates duration from attempted_at to completed_at" do
       now = DateTime.utc_now()
 
-      insert_oban_job(%{
+      insert(:sync_job,
         state: "completed",
         attempted_at: DateTime.add(now, -30, :second),
         completed_at: now
-      })
+      )
 
       [job] = History.list_sync_jobs()
       assert job.duration == 30
     end
 
     test "only returns SyncWorker jobs" do
-      insert_oban_job(%{state: "completed"})
+      insert(:sync_job, state: "completed")
 
       Repo.insert!(%Oban.Job{
         worker: "SomeOtherWorker",
@@ -83,23 +83,9 @@ defmodule KsefHub.Sync.HistoryTest do
     end
 
     test "returns error when sync is already executing" do
-      insert_oban_job(%{state: "executing"})
+      insert(:sync_job, state: "executing")
 
       assert {:error, :already_running} = History.trigger_manual_sync()
     end
-  end
-
-  defp insert_oban_job(attrs) do
-    defaults = %{
-      worker: @worker,
-      queue: "sync",
-      args: %{},
-      state: "available",
-      inserted_at: DateTime.utc_now(),
-      meta: %{}
-    }
-
-    merged = Map.merge(defaults, attrs)
-    Repo.insert!(struct(Oban.Job, merged))
   end
 end

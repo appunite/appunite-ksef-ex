@@ -1,8 +1,25 @@
 defmodule KsefHub.AccountsTest do
   use KsefHub.DataCase, async: true
 
+  import KsefHub.Factory
+
   alias KsefHub.Accounts
-  alias KsefHub.Accounts.{User, ApiToken}
+  alias KsefHub.Accounts.{ApiToken, User}
+
+  setup do
+    Accounts.clear_allowed_emails_cache()
+    :ok
+  end
+
+  defp create_user do
+    insert(:user, google_uid: "uid-#{System.unique_integer([:positive])}")
+  end
+
+  defp create_api_token(user \\ nil, attrs \\ %{}) do
+    user = user || create_user()
+    {:ok, result} = Accounts.create_api_token(user.id, Map.merge(%{name: "Test Token"}, attrs))
+    result
+  end
 
   describe "users" do
     test "find_or_create_user/1 creates a new user" do
@@ -38,8 +55,7 @@ defmodule KsefHub.AccountsTest do
     end
 
     test "get_user_by_email/1 returns user" do
-      {:ok, user} =
-        Accounts.find_or_create_user(%{uid: "g-1", email: "find@example.com"})
+      user = insert(:user, email: "find@example.com")
 
       assert Accounts.get_user_by_email("find@example.com").id == user.id
       assert Accounts.get_user_by_email("missing@example.com") == nil
@@ -51,12 +67,26 @@ defmodule KsefHub.AccountsTest do
       assert Accounts.allowed_email?("admin@example.com")
       refute Accounts.allowed_email?("unauthorized@example.com")
     end
+
+    test "find_or_create_user/1 handles concurrent insert gracefully" do
+      # Pre-insert a user, then call find_or_create_user with same uid
+      # This simulates the race where the user was inserted between
+      # get_user_by_google_uid returning nil and Repo.insert
+      user = insert(:user, google_uid: "race-uid", email: "race@example.com")
+
+      assert {:ok, found} =
+               Accounts.find_or_create_user(%{
+                 uid: "race-uid",
+                 email: "race@example.com"
+               })
+
+      assert found.id == user.id
+    end
   end
 
   describe "api_tokens" do
-    test "create_api_token/1 returns plaintext token and persisted record" do
-      assert {:ok, %{token: token, api_token: %ApiToken{} = api_token}} =
-               Accounts.create_api_token(%{name: "My Token"})
+    test "create_api_token/2 returns plaintext token and persisted record" do
+      %{token: token, api_token: api_token} = create_api_token(nil, %{name: "My Token"})
 
       assert is_binary(token)
       assert String.length(token) > 20
@@ -67,8 +97,7 @@ defmodule KsefHub.AccountsTest do
     end
 
     test "validate_api_token/1 validates a correct token" do
-      {:ok, %{token: token, api_token: original}} =
-        Accounts.create_api_token(%{name: "Valid Token"})
+      %{token: token, api_token: original} = create_api_token()
 
       assert {:ok, %ApiToken{} = found} = Accounts.validate_api_token(token)
       assert found.id == original.id
@@ -78,32 +107,68 @@ defmodule KsefHub.AccountsTest do
       assert {:error, :invalid} = Accounts.validate_api_token("bogus-token")
     end
 
-    test "validate_api_token/1 rejects revoked token" do
-      {:ok, %{token: token, api_token: api_token}} =
-        Accounts.create_api_token(%{name: "Revoked Token"})
+    test "validate_api_token/1 accepts non-expired token" do
+      future = DateTime.add(DateTime.utc_now(), 3600, :second)
+      %{token: token} = create_api_token(nil, %{expires_at: future})
 
-      {:ok, _} = Accounts.revoke_api_token(api_token.id)
+      assert {:ok, %ApiToken{}} = Accounts.validate_api_token(token)
+    end
+
+    test "validate_api_token/1 rejects expired token" do
+      past = DateTime.add(DateTime.utc_now(), -3600, :second)
+      %{token: token} = create_api_token(nil, %{expires_at: past})
+
+      assert {:error, :expired} = Accounts.validate_api_token(token)
+    end
+
+    test "validate_api_token/1 accepts token with no expiry" do
+      %{token: token} = create_api_token()
+
+      assert {:ok, %ApiToken{expires_at: nil}} = Accounts.validate_api_token(token)
+    end
+
+    test "validate_api_token/1 rejects revoked token" do
+      user = create_user()
+      %{token: token, api_token: api_token} = create_api_token(user)
+      {:ok, _} = Accounts.revoke_api_token(user.id, api_token.id)
 
       assert {:error, :invalid} = Accounts.validate_api_token(token)
     end
 
-    test "revoke_api_token/1 deactivates a token" do
-      {:ok, %{api_token: api_token}} = Accounts.create_api_token(%{name: "To Revoke"})
+    test "revoke_api_token/2 deactivates a token" do
+      user = create_user()
+      %{api_token: api_token} = create_api_token(user)
 
-      assert {:ok, revoked} = Accounts.revoke_api_token(api_token.id)
+      assert {:ok, revoked} = Accounts.revoke_api_token(user.id, api_token.id)
       assert revoked.is_active == false
     end
 
-    test "list_api_tokens/0 returns all tokens" do
-      Accounts.create_api_token(%{name: "Token 1"})
-      Accounts.create_api_token(%{name: "Token 2"})
+    test "revoke_api_token/2 rejects token owned by another user" do
+      user1 = create_user()
+      user2 = create_user()
+      %{api_token: api_token} = create_api_token(user1)
 
-      tokens = Accounts.list_api_tokens()
-      assert length(tokens) >= 2
+      assert {:error, :not_found} = Accounts.revoke_api_token(user2.id, api_token.id)
+    end
+
+    test "list_api_tokens/1 returns only tokens for the given user" do
+      user1 = create_user()
+      user2 = create_user()
+      create_api_token(user1, %{name: "User1 Token"})
+      create_api_token(user2, %{name: "User2 Token"})
+
+      tokens = Accounts.list_api_tokens(user1.id)
+      assert length(tokens) == 1
+      assert hd(tokens).name == "User1 Token"
+      assert Enum.all?(tokens, &(&1.token_hash == "**redacted**"))
+    end
+
+    test "track_token_usage/1 returns error for non-existent token" do
+      assert {:error, :not_found} = Accounts.track_token_usage(Ecto.UUID.generate())
     end
 
     test "track_token_usage/1 increments count and updates timestamp" do
-      {:ok, %{api_token: api_token}} = Accounts.create_api_token(%{name: "Tracked"})
+      %{api_token: api_token} = create_api_token()
 
       assert api_token.request_count == 0
       assert api_token.last_used_at == nil

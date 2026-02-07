@@ -41,4 +41,8 @@ npm-debug.log
 # OS files
 .DS_Store
 
+# Certificate keys (PKCS12)
 /keys
+
+# Claude Code local settings (machine-specific)
+.claude/settings.local.json

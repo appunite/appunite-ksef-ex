@@ -12,6 +12,7 @@ defmodule KsefHub.KsefClient.TokenManager do
   require Logger
 
   alias KsefHub.Credentials
+  alias KsefHub.Credentials.{Credential, Encryption}
 
   @refresh_buffer_seconds 120
 
@@ -136,8 +137,8 @@ defmodule KsefHub.KsefClient.TokenManager do
 
       cred ->
         %{
-          access_token: cred.access_token,
-          refresh_token: decrypt_refresh_token(cred.refresh_token_encrypted),
+          access_token: decrypt_token(cred.access_token_encrypted),
+          refresh_token: decrypt_token(cred.refresh_token_encrypted),
           access_valid_until: cred.access_token_expires_at,
           refresh_valid_until: cred.refresh_token_expires_at,
           credential_id: cred.id
@@ -148,34 +149,43 @@ defmodule KsefHub.KsefClient.TokenManager do
   defp persist_to_db(%{credential_id: nil}), do: :ok
 
   defp persist_to_db(%{credential_id: cred_id} = state) do
-    case KsefHub.Repo.get(KsefHub.Credentials.Credential, cred_id) do
+    case KsefHub.Repo.get(Credential, cred_id) do
       nil ->
         :ok
 
       cred ->
-        encrypted_refresh =
-          if state.refresh_token do
-            case KsefHub.Credentials.Encryption.encrypt(state.refresh_token) do
-              {:ok, encrypted} -> encrypted
-              _ -> nil
-            end
-          end
-
         Credentials.store_tokens(cred, %{
-          access_token: state.access_token,
+          access_token_encrypted: encrypt_token(state.access_token),
           access_token_expires_at: state.access_valid_until,
-          refresh_token_encrypted: encrypted_refresh,
+          refresh_token_encrypted: encrypt_token(state.refresh_token),
           refresh_token_expires_at: state.refresh_valid_until
         })
     end
   end
 
-  defp decrypt_refresh_token(nil), do: nil
+  defp encrypt_token(nil), do: nil
 
-  defp decrypt_refresh_token(encrypted) do
-    case KsefHub.Credentials.Encryption.decrypt(encrypted) do
-      {:ok, token} -> token
-      {:error, _} -> nil
+  # Fail-safe: returns nil on encryption failure to avoid storing unencrypted tokens.
+  # Encryption.encrypt/1 only raises (never returns {:error, _}), so we rescue.
+  defp encrypt_token(token) do
+    {:ok, encrypted} = Encryption.encrypt(token)
+    encrypted
+  rescue
+    e ->
+      Logger.warning("Failed to encrypt token: #{Exception.message(e)}")
+      nil
+  end
+
+  defp decrypt_token(nil), do: nil
+
+  defp decrypt_token(encrypted) do
+    case Encryption.decrypt(encrypted) do
+      {:ok, token} ->
+        token
+
+      {:error, reason} ->
+        Logger.warning("Failed to decrypt token: #{inspect(reason)}")
+        nil
     end
   end
 

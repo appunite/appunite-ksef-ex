@@ -1,19 +1,39 @@
 defmodule KsefHubWeb.InvoiceLive.Show do
+  @moduledoc """
+  LiveView for invoice detail page with HTML preview, metadata, and approve/reject actions.
+  """
   use KsefHubWeb, :live_view
 
   alias KsefHub.Invoices
 
+  import KsefHubWeb.InvoiceComponents
+
   @impl true
   def mount(%{"id" => id}, _session, socket) do
-    invoice = Invoices.get_invoice!(id)
-    html_preview = generate_preview(invoice)
+    if socket.assigns[:current_user] do
+      case Invoices.get_invoice(id) do
+        nil ->
+          {:ok,
+           socket
+           |> put_flash(:error, "Invoice not found.")
+           |> redirect(to: ~p"/invoices")}
 
-    {:ok,
-     assign(socket,
-       page_title: "Invoice #{invoice.invoice_number}",
-       invoice: invoice,
-       html_preview: html_preview
-     )}
+        invoice ->
+          html_preview = generate_preview(invoice)
+
+          {:ok,
+           assign(socket,
+             page_title: "Invoice #{invoice.invoice_number}",
+             invoice: invoice,
+             html_preview: html_preview
+           )}
+      end
+    else
+      {:ok,
+       socket
+       |> put_flash(:error, "You must be logged in to view invoices.")
+       |> redirect(to: ~p"/")}
+    end
   end
 
   @impl true
@@ -145,7 +165,7 @@ defmodule KsefHubWeb.InvoiceLive.Show do
             <iframe
               srcdoc={@html_preview}
               class="w-full h-96 bg-white"
-              sandbox="allow-same-origin"
+              sandbox=""
               title="Invoice preview"
             >
             </iframe>
@@ -164,38 +184,4 @@ defmodule KsefHubWeb.InvoiceLive.Show do
     </div>
     """
   end
-
-  defp type_badge(assigns) do
-    ~H"""
-    <span class={[
-      "badge badge-sm",
-      @type == "income" && "badge-success badge-outline",
-      @type == "expense" && "badge-warning badge-outline"
-    ]}>
-      {@type}
-    </span>
-    """
-  end
-
-  defp status_badge(assigns) do
-    ~H"""
-    <span class={[
-      "badge badge-sm",
-      @status == "pending" && "badge-warning",
-      @status == "approved" && "badge-success",
-      @status == "rejected" && "badge-error"
-    ]}>
-      {@status}
-    </span>
-    """
-  end
-
-  defp format_date(nil), do: "-"
-  defp format_date(date), do: Calendar.strftime(date, "%Y-%m-%d")
-
-  defp format_amount(nil), do: "-"
-  defp format_amount(%Decimal{} = d), do: Decimal.to_string(d, :normal)
-
-  defp format_datetime(nil), do: "-"
-  defp format_datetime(dt), do: Calendar.strftime(dt, "%Y-%m-%d %H:%M UTC")
 end

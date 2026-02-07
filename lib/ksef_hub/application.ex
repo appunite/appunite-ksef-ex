@@ -1,17 +1,17 @@
 defmodule KsefHub.Application do
-  # See https://hexdocs.pm/elixir/Application.html
-  # for more information on OTP Applications
-  @moduledoc false
+  @moduledoc "OTP Application supervisor for KSeF Hub."
 
   use Application
 
   @impl true
+  @spec start(Application.start_type(), term()) :: {:ok, pid()} | {:error, term()}
   def start(_type, _args) do
     children = [
       KsefHubWeb.Telemetry,
       KsefHub.Repo,
       {DNSCluster, query: Application.get_env(:ksef_hub, :dns_cluster_query) || :ignore},
       {Phoenix.PubSub, name: KsefHub.PubSub},
+      {Task.Supervisor, name: KsefHub.TaskSupervisor},
       {Oban, Application.fetch_env!(:ksef_hub, Oban)},
       KsefHubWeb.Endpoint
     ]
@@ -22,9 +22,8 @@ defmodule KsefHub.Application do
     Supervisor.start_link(children, opts)
   end
 
-  # Tell Phoenix to update the endpoint configuration
-  # whenever the application is updated.
   @impl true
+  @spec config_change(keyword(), keyword(), [atom()]) :: :ok
   def config_change(changed, _new, removed) do
     KsefHubWeb.Endpoint.config_change(changed, removed)
     :ok

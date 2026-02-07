@@ -38,22 +38,22 @@ defmodule KsefHub.Sync.InvoiceFetcher do
       {:ok, %{invoices: [], has_more: false}} ->
         {:ok, count, max_ts}
 
-      {:ok, %{invoices: headers, has_more: has_more, is_truncated: is_truncated}} ->
+      {:ok, %{invoices: headers} = result} ->
         {new_count, new_max_ts} =
           process_invoices(access_token, headers, type, nip, count, max_ts)
 
-        cond do
-          is_truncated ->
-            # Narrow date range using last record's date, reset page offset
-            narrowed_from = new_max_ts || from
-            do_fetch(access_token, type, nip, narrowed_from, 0, new_count, new_max_ts)
+        next_action = decide_next_action(result, new_max_ts, max_ts)
 
-          has_more ->
-            do_fetch(access_token, type, nip, from, page_offset + 1, new_count, new_max_ts)
-
-          true ->
-            {:ok, new_count, new_max_ts}
-        end
+        handle_next_action(
+          next_action,
+          access_token,
+          type,
+          nip,
+          from,
+          page_offset,
+          new_count,
+          new_max_ts
+        )
 
       {:error, {:rate_limited, retry_after}} ->
         Logger.warning("Rate limited, waiting #{retry_after}s")
@@ -63,6 +63,51 @@ defmodule KsefHub.Sync.InvoiceFetcher do
       {:error, reason} ->
         {:error, reason}
     end
+  end
+
+  defp decide_next_action(%{is_truncated: true, has_more: true}, new_max_ts, old_max_ts)
+       when new_max_ts == nil or new_max_ts == old_max_ts do
+    :narrow_range
+  end
+
+  defp decide_next_action(%{is_truncated: true}, new_max_ts, old_max_ts)
+       when new_max_ts == nil or new_max_ts == old_max_ts do
+    :truncation_no_progress
+  end
+
+  defp decide_next_action(%{is_truncated: true}, _new_max_ts, _old_max_ts), do: :narrow_range
+  defp decide_next_action(%{has_more: true}, _new_max_ts, _old_max_ts), do: :next_page
+  defp decide_next_action(_result, _new_max_ts, _old_max_ts), do: :done
+
+  defp handle_next_action(
+         :truncation_no_progress,
+         _token,
+         _type,
+         _nip,
+         _from,
+         _offset,
+         _count,
+         _max_ts
+       ) do
+    Logger.error("Truncated response with no forward progress, aborting sync")
+    {:error, :truncation_no_progress}
+  end
+
+  defp handle_next_action(:narrow_range, _token, _type, _nip, _from, _offset, _count, nil) do
+    Logger.error("Cannot narrow range: max_ts is nil")
+    {:error, :truncation_no_progress}
+  end
+
+  defp handle_next_action(:narrow_range, token, type, nip, _from, _offset, count, max_ts) do
+    do_fetch(token, type, nip, max_ts, 0, count, max_ts)
+  end
+
+  defp handle_next_action(:next_page, token, type, nip, from, offset, count, max_ts) do
+    do_fetch(token, type, nip, from, offset + 1, count, max_ts)
+  end
+
+  defp handle_next_action(:done, _token, _type, _nip, _from, _offset, count, max_ts) do
+    {:ok, count, max_ts}
   end
 
   defp process_invoices(access_token, headers, type, nip, count, max_ts) do

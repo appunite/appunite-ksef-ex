@@ -3,9 +3,9 @@ defmodule KsefHub.Sync.SyncWorkerTest do
 
   import Mox
 
-  alias KsefHub.Sync.SyncWorker
   alias KsefHub.Credentials
   alias KsefHub.KsefClient.TokenManager
+  alias KsefHub.Sync.SyncWorker
 
   setup :verify_on_exit!
 

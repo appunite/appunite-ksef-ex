@@ -1,5 +1,5 @@
 defmodule KsefHub.Pdf.GotenbergTest do
-  use ExUnit.Case, async: true
+  use ExUnit.Case, async: false
 
   alias KsefHub.Pdf.Gotenberg
 
@@ -17,11 +17,9 @@ defmodule KsefHub.Pdf.GotenbergTest do
 
     @tag :integration
     test "converts HTML to PDF via Gotenberg sidecar" do
-      if Application.get_env(:ksef_hub, :gotenberg_url) do
-        html = "<html><body><h1>Test Invoice</h1></body></html>"
-        assert {:ok, pdf_binary} = Gotenberg.convert(html)
-        assert <<"%PDF", _rest::binary>> = pdf_binary
-      end
+      html = "<html><body><h1>Test Invoice</h1></body></html>"
+      assert {:ok, pdf_binary} = Gotenberg.convert(html)
+      assert <<"%PDF", _rest::binary>> = pdf_binary
     end
   end
 end

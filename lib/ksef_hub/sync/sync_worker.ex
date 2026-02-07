@@ -17,9 +17,9 @@ defmodule KsefHub.Sync.SyncWorker do
   def perform(%Oban.Job{} = job) do
     with {:ok, credential} <- load_active_credential(),
          {:ok, access_token} <- get_access_token() do
-      result = sync_all_types(access_token, credential.nip, job)
-      Credentials.update_last_sync(credential)
-      result
+      access_token
+      |> sync_all_types(credential.nip, job)
+      |> handle_sync_result(credential)
     else
       {:error, :no_credential} ->
         Logger.info("Sync skipped: no active credential configured")
@@ -28,7 +28,7 @@ defmodule KsefHub.Sync.SyncWorker do
       {:error, :reauth_required} ->
         Logger.warning("Sync skipped: XADES re-authentication required")
         store_meta(job, %{"error" => "reauth_required"})
-        {:error, :reauth_required}
+        {:cancel, :reauth_required}
 
       {:error, reason} ->
         Logger.error("Sync failed: #{inspect(reason)}")
@@ -43,6 +43,16 @@ defmodule KsefHub.Sync.SyncWorker do
       cred -> {:ok, cred}
     end
   end
+
+  defp handle_sync_result({:ok, :full}, credential) do
+    case Credentials.update_last_sync(credential) do
+      {:ok, _} -> :ok
+      {:error, reason} -> {:error, {:last_sync_update_failed, reason}}
+    end
+  end
+
+  defp handle_sync_result({:ok, :partial, _details}, _credential), do: :ok
+  defp handle_sync_result({:error, reason}, _credential), do: {:error, reason}
 
   defp get_access_token do
     case Process.whereis(TokenManager) do
@@ -60,20 +70,53 @@ defmodule KsefHub.Sync.SyncWorker do
         Logger.info("Sync complete: #{ic} income, #{ec} expense invoices")
         store_meta(job, %{"income_count" => ic, "expense_count" => ec})
         broadcast_sync_completed(%{income: ic, expense: ec})
-        :ok
+        {:ok, :full}
 
-      {{:error, reason}, _} ->
-        store_meta(job, %{"error" => inspect(reason)})
-        {:error, reason}
+      {{:ok, ic}, {:error, reason}} ->
+        Logger.error("Expense sync failed: #{inspect(reason)} (#{ic} income invoices synced)")
 
-      {_, {:error, reason}} ->
-        store_meta(job, %{"error" => inspect(reason)})
-        {:error, reason}
+        store_meta(job, %{
+          "income_count" => ic,
+          "error" => inspect(reason),
+          "failed_type" => "expense"
+        })
+
+        {:ok, :partial, %{succeeded: :income, failed: {:expense, reason}}}
+
+      {{:error, reason}, {:ok, ec}} ->
+        Logger.error("Income sync failed: #{inspect(reason)} (#{ec} expense invoices synced)")
+
+        store_meta(job, %{
+          "expense_count" => ec,
+          "error" => inspect(reason),
+          "failed_type" => "income"
+        })
+
+        {:ok, :partial, %{succeeded: :expense, failed: {:income, reason}}}
+
+      {{:error, income_reason}, {:error, expense_reason}} ->
+        Logger.error(
+          "Both syncs failed — income: #{inspect(income_reason)}, expense: #{inspect(expense_reason)}"
+        )
+
+        store_meta(job, %{
+          "income_error" => inspect(income_reason),
+          "expense_error" => inspect(expense_reason)
+        })
+
+        {:error, {income_reason, expense_reason}}
     end
   end
 
   defp broadcast_sync_completed(stats) do
-    Phoenix.PubSub.broadcast(KsefHub.PubSub, "sync:status", {:sync_completed, stats})
+    case Phoenix.PubSub.broadcast(KsefHub.PubSub, "sync:status", {:sync_completed, stats}) do
+      :ok ->
+        :ok
+
+      {:error, reason} ->
+        Logger.warning("Failed to broadcast sync status: #{inspect(reason)}")
+        :ok
+    end
   end
 
   defp sync_type(access_token, type, nip) do
@@ -84,8 +127,13 @@ defmodule KsefHub.Sync.SyncWorker do
         {:ok, count}
 
       {:ok, count, max_timestamp} ->
-        Checkpoints.advance(type, nip, max_timestamp)
-        {:ok, count}
+        case Checkpoints.advance(type, nip, max_timestamp) do
+          {:ok, _checkpoint} ->
+            {:ok, count}
+
+          {:error, reason} ->
+            {:error, {:checkpoint_advance_failed, reason}}
+        end
 
       {:error, reason} ->
         {:error, reason}

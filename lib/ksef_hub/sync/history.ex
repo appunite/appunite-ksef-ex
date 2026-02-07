@@ -6,6 +6,7 @@ defmodule KsefHub.Sync.History do
   import Ecto.Query
 
   alias KsefHub.Repo
+  alias KsefHub.Sync.SyncWorker
 
   @worker "KsefHub.Sync.SyncWorker"
 
@@ -42,7 +43,7 @@ defmodule KsefHub.Sync.History do
       {:error, :already_running}
     else
       %{manual: true}
-      |> KsefHub.Sync.SyncWorker.new()
+      |> SyncWorker.new()
       |> Oban.insert()
     end
   end

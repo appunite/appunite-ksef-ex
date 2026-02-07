@@ -1,4 +1,7 @@
 defmodule KsefHubWeb.CertificateLive do
+  @moduledoc """
+  LiveView for managing PKCS12 certificates used for KSeF authentication.
+  """
   use KsefHubWeb, :live_view
 
   alias KsefHub.Credentials
@@ -11,7 +14,7 @@ defmodule KsefHubWeb.CertificateLive do
       |> assign(page_title: "Certificates")
       |> assign(form: to_form(%{"nip" => "", "password" => ""}, as: :credential))
       |> allow_upload(:certificate,
-        accept: :any,
+        accept: ~w(application/x-pkcs12 .p12 .pfx),
         max_entries: 1,
         max_file_size: 1_000_000
       )
@@ -33,51 +36,57 @@ defmodule KsefHubWeb.CertificateLive do
 
       {:error, :no_file} ->
         {:noreply, put_flash(socket, :error, "Please upload a certificate file.")}
+
+      {:error, {:file_read_failed, _reason}} ->
+        {:noreply, put_flash(socket, :error, "Failed to read uploaded file.")}
     end
   end
 
   @impl true
   def handle_event("deactivate", %{"id" => id}, socket) do
-    credential = Credentials.get_credential!(id)
+    with {:ok, uuid} <- Ecto.UUID.cast(id),
+         %{} = credential <- Credentials.get_credential(uuid) do
+      case Credentials.deactivate_credential(credential) do
+        {:ok, _} ->
+          {:noreply,
+           socket
+           |> put_flash(:info, "Certificate deactivated.")
+           |> load_credentials()}
 
-    case Credentials.deactivate_credential(credential) do
-      {:ok, _} ->
-        {:noreply,
-         socket
-         |> put_flash(:info, "Certificate deactivated.")
-         |> load_credentials()}
-
-      {:error, _} ->
-        {:noreply, put_flash(socket, :error, "Failed to deactivate certificate.")}
+        {:error, _} ->
+          {:noreply, put_flash(socket, :error, "Failed to deactivate certificate.")}
+      end
+    else
+      _ -> {:noreply, put_flash(socket, :error, "Certificate not found.")}
     end
   end
 
   defp uploaded_cert_data(socket) do
-    case consume_uploaded_entries(socket, :certificate, fn %{path: path}, _entry ->
-           {:ok, File.read!(path)}
-         end) do
-      [data] -> {:ok, data}
+    case consume_uploaded_entries(socket, :certificate, &read_upload/2) do
+      [{:ok, data}] -> {:ok, data}
+      [{:ok, {:error, reason}}] -> {:error, {:file_read_failed, reason}}
       [] -> {:error, :no_file}
+    end
+  end
+
+  defp read_upload(%{path: path}, _entry) do
+    case File.read(path) do
+      {:ok, data} -> {:ok, data}
+      {:error, reason} -> {:ok, {:error, reason}}
     end
   end
 
   defp save_credential(socket, params, cert_data) do
     with {:ok, encrypted_cert} <- Encryption.encrypt(cert_data),
          {:ok, encrypted_password} <- Encryption.encrypt(params["password"] || "") do
-      # Deactivate any existing active credential
-      case Credentials.get_active_credential() do
-        nil -> :ok
-        existing -> Credentials.deactivate_credential(existing)
-      end
-
       attrs = %{
         nip: params["nip"],
-        certificate_data: encrypted_cert,
+        certificate_data_encrypted: encrypted_cert,
         certificate_password_encrypted: encrypted_password,
         is_active: true
       }
 
-      case Credentials.create_credential(attrs) do
+      case Credentials.replace_active_credential(attrs) do
         {:ok, _credential} ->
           {:noreply,
            socket

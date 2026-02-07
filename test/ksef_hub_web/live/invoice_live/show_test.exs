@@ -4,9 +4,11 @@ defmodule KsefHubWeb.InvoiceLive.ShowTest do
   import Phoenix.LiveViewTest
   import Mox
 
-  alias KsefHub.Accounts
-  alias KsefHub.Invoices
+  import KsefHub.Factory
 
+  alias KsefHub.Accounts
+
+  setup :set_mox_from_context
   setup :verify_on_exit!
 
   setup %{conn: conn} do
@@ -19,19 +21,19 @@ defmodule KsefHubWeb.InvoiceLive.ShowTest do
 
   describe "mount" do
     test "renders invoice detail page", %{conn: conn} do
-      {:ok, invoice} = create_invoice("income")
+      invoice = insert(:invoice, type: "income")
 
       stub(KsefHub.Pdf.Mock, :generate_html, fn _xml -> {:ok, "<html>preview</html>"} end)
 
       {:ok, _view, html} = live(conn, ~p"/invoices/#{invoice.id}")
       assert html =~ invoice.invoice_number
-      assert html =~ "Seller Co"
-      assert html =~ "Buyer Co"
+      assert html =~ invoice.seller_name
+      assert html =~ invoice.buyer_name
     end
 
     test "shows preview when xml_content is available", %{conn: conn} do
       xml = File.read!("test/support/fixtures/sample_income.xml")
-      {:ok, invoice} = create_invoice("income", xml)
+      invoice = insert(:invoice, type: "income", xml_content: xml)
 
       stub(KsefHub.Pdf.Mock, :generate_html, fn _xml -> {:ok, "<html>preview</html>"} end)
 
@@ -42,7 +44,7 @@ defmodule KsefHubWeb.InvoiceLive.ShowTest do
 
   describe "approve/reject" do
     test "approve button shown for pending expense invoices", %{conn: conn} do
-      {:ok, invoice} = create_invoice("expense")
+      invoice = insert(:invoice, type: "expense")
 
       stub(KsefHub.Pdf.Mock, :generate_html, fn _xml -> {:error, :no_xml} end)
 
@@ -52,7 +54,7 @@ defmodule KsefHubWeb.InvoiceLive.ShowTest do
     end
 
     test "approve button not shown for income invoices", %{conn: conn} do
-      {:ok, invoice} = create_invoice("income")
+      invoice = insert(:invoice, type: "income")
 
       stub(KsefHub.Pdf.Mock, :generate_html, fn _xml -> {:error, :no_xml} end)
 
@@ -61,7 +63,7 @@ defmodule KsefHubWeb.InvoiceLive.ShowTest do
     end
 
     test "clicking approve updates status", %{conn: conn} do
-      {:ok, invoice} = create_invoice("expense")
+      invoice = insert(:invoice, type: "expense")
 
       stub(KsefHub.Pdf.Mock, :generate_html, fn _xml -> {:error, :no_xml} end)
 
@@ -69,12 +71,13 @@ defmodule KsefHubWeb.InvoiceLive.ShowTest do
 
       view |> element("button", "Approve") |> render_click()
 
-      html = render(view)
-      assert html =~ "approved"
+      assert has_element?(view, ".badge", "approved")
+      refute has_element?(view, "button", "Approve")
+      refute has_element?(view, "button", "Reject")
     end
 
     test "clicking reject updates status", %{conn: conn} do
-      {:ok, invoice} = create_invoice("expense")
+      invoice = insert(:invoice, type: "expense")
 
       stub(KsefHub.Pdf.Mock, :generate_html, fn _xml -> {:error, :no_xml} end)
 
@@ -82,22 +85,36 @@ defmodule KsefHubWeb.InvoiceLive.ShowTest do
 
       view |> element("button", "Reject") |> render_click()
 
-      html = render(view)
-      assert html =~ "rejected"
+      assert has_element?(view, ".badge", "rejected")
+      refute has_element?(view, "button", "Approve")
+      refute has_element?(view, "button", "Reject")
     end
-  end
 
-  defp create_invoice(type, xml_content \\ nil) do
-    Invoices.create_invoice(%{
-      type: type,
-      status: "pending",
-      seller_nip: "1234567890",
-      seller_name: "Seller Co",
-      buyer_nip: "0987654321",
-      buyer_name: "Buyer Co",
-      invoice_number: "FV/#{System.unique_integer([:positive])}",
-      issue_date: Date.utc_today(),
-      xml_content: xml_content
-    })
+    test "approve on income invoice is rejected", %{conn: conn} do
+      invoice = insert(:invoice, type: "income")
+
+      stub(KsefHub.Pdf.Mock, :generate_html, fn _xml -> {:error, :no_xml} end)
+
+      {:ok, view, _html} = live(conn, ~p"/invoices/#{invoice.id}")
+
+      # Buttons aren't shown for income, but test the server-side guard via hook
+      render_hook(view, "approve", %{})
+
+      # Status should remain pending (not changed to approved)
+      assert has_element?(view, ".badge", "pending")
+      refute has_element?(view, ".badge", "approved")
+    end
+
+    test "already-approved invoice does not show action buttons", %{conn: conn} do
+      invoice = insert(:invoice, type: "expense", status: "approved")
+
+      stub(KsefHub.Pdf.Mock, :generate_html, fn _xml -> {:error, :no_xml} end)
+
+      {:ok, view, _html} = live(conn, ~p"/invoices/#{invoice.id}")
+
+      assert has_element?(view, ".badge", "approved")
+      refute has_element?(view, "button", "Approve")
+      refute has_element?(view, "button", "Reject")
+    end
   end
 end

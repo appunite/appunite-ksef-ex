@@ -1,6 +1,12 @@
 defmodule KsefHubWeb.Api.InvoiceController do
   use KsefHubWeb, :controller
 
+  require Logger
+
+  import KsefHubWeb.ChangesetHelpers
+  import KsefHubWeb.ErrorHelpers, only: [sanitize_error: 1]
+  import KsefHubWeb.FilenameHelpers, only: [sanitize_filename: 1]
+
   alias KsefHub.Invoices
 
   def index(conn, params) do
@@ -63,9 +69,11 @@ defmodule KsefHubWeb.Api.InvoiceController do
         |> send_resp(200, html_content)
 
       {:error, reason} ->
+        Logger.error("HTML generation failed for invoice #{id}: #{sanitize_error(reason)}")
+
         conn
         |> put_status(:internal_server_error)
-        |> json(%{error: "HTML generation failed: #{inspect(reason)}"})
+        |> json(%{error: "HTML generation failed"})
     end
   end
 
@@ -83,9 +91,11 @@ defmodule KsefHubWeb.Api.InvoiceController do
       |> send_resp(200, pdf_binary)
     else
       {:error, reason} ->
+        Logger.error("PDF generation failed for invoice #{id}: #{sanitize_error(reason)}")
+
         conn
         |> put_status(:internal_server_error)
-        |> json(%{error: "PDF generation failed: #{inspect(reason)}"})
+        |> json(%{error: "PDF generation failed"})
     end
   end
 
@@ -137,19 +147,5 @@ defmodule KsefHubWeb.Api.InvoiceController do
       inserted_at: invoice.inserted_at,
       updated_at: invoice.updated_at
     }
-  end
-
-  defp changeset_errors(changeset) do
-    Ecto.Changeset.traverse_errors(changeset, fn {msg, opts} ->
-      Regex.replace(~r"%{(\w+)}", msg, fn _, key ->
-        opts |> Keyword.get(String.to_existing_atom(key), key) |> to_string()
-      end)
-    end)
-  end
-
-  defp sanitize_filename(name) do
-    name
-    |> String.replace(~r/[^\w\.\-]/, "_")
-    |> String.slice(0, 200)
   end
 end

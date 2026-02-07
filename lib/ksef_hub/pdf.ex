@@ -6,13 +6,19 @@ defmodule KsefHub.Pdf do
 
   @behaviour KsefHub.Pdf.Behaviour
 
-  alias KsefHub.Pdf.{Xsltproc, Gotenberg, FallbackTemplate}
+  require Logger
+
+  alias KsefHub.Pdf.{FallbackTemplate, Gotenberg, Xsltproc}
 
   @impl true
   def generate_html(xml_content) do
     case Xsltproc.transform(xml_content) do
-      {:ok, html} -> {:ok, html}
-      {:error, _} -> FallbackTemplate.render(xml_content)
+      {:ok, html} ->
+        {:ok, html}
+
+      {:error, _reason} ->
+        Logger.debug("Xsltproc failed, using fallback template")
+        FallbackTemplate.render(xml_content)
     end
   end
 

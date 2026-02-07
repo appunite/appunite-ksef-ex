@@ -1,6 +1,7 @@
 defmodule KsefHubWeb.SyncLiveTest do
   use KsefHubWeb.ConnCase, async: true
 
+  import KsefHub.Factory
   import Phoenix.LiveViewTest
 
   alias KsefHub.Accounts
@@ -26,10 +27,10 @@ defmodule KsefHubWeb.SyncLiveTest do
     end
 
     test "shows sync jobs in table", %{conn: conn} do
-      insert_oban_job(%{
+      insert(:sync_job,
         state: "completed",
         meta: %{"income_count" => 3, "expense_count" => 1}
-      })
+      )
 
       {:ok, _view, html} = live(conn, ~p"/syncs")
       assert html =~ "completed"
@@ -42,10 +43,10 @@ defmodule KsefHubWeb.SyncLiveTest do
       {:ok, view, _html} = live(conn, ~p"/syncs")
 
       # Insert a job and broadcast
-      insert_oban_job(%{
+      insert(:sync_job,
         state: "completed",
         meta: %{"income_count" => 2, "expense_count" => 0}
-      })
+      )
 
       send(view.pid, {:sync_completed, %{income: 2, expense: 0}})
 
@@ -65,7 +66,7 @@ defmodule KsefHubWeb.SyncLiveTest do
     end
 
     test "shows error when sync is already running", %{conn: conn} do
-      insert_oban_job(%{state: "executing"})
+      insert(:sync_job, state: "executing")
 
       {:ok, view, _html} = live(conn, ~p"/syncs")
 
@@ -74,19 +75,5 @@ defmodule KsefHubWeb.SyncLiveTest do
       html = render(view)
       assert html =~ "already running"
     end
-  end
-
-  defp insert_oban_job(attrs) do
-    defaults = %{
-      worker: "KsefHub.Sync.SyncWorker",
-      queue: "sync",
-      args: %{},
-      state: "available",
-      inserted_at: DateTime.utc_now(),
-      meta: %{}
-    }
-
-    merged = Map.merge(defaults, attrs)
-    KsefHub.Repo.insert!(struct(Oban.Job, merged))
   end
 end

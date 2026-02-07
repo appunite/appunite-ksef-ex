@@ -19,7 +19,7 @@ defmodule KsefHub.Sync.Checkpoints do
         %Checkpoint{
           checkpoint_type: checkpoint_type,
           nip: nip,
-          last_seen_timestamp: DateTime.add(DateTime.utc_now(), -@default_lookback_days * 86400),
+          last_seen_timestamp: DateTime.add(DateTime.utc_now(), -@default_lookback_days * 86_400),
           metadata: %{}
         }
 

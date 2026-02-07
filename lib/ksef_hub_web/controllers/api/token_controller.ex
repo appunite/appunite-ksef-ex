@@ -1,20 +1,26 @@
 defmodule KsefHubWeb.Api.TokenController do
   use KsefHubWeb, :controller
 
+  import KsefHubWeb.ChangesetHelpers
+
   alias KsefHub.Accounts
 
   def index(conn, _params) do
-    tokens = Accounts.list_api_tokens()
+    user_id = conn.assigns.api_token.created_by_id
+    tokens = Accounts.list_api_tokens(user_id)
     json(conn, %{data: Enum.map(tokens, &token_json/1)})
   end
 
-  def create(conn, %{"name" => name} = params) do
+  def create(conn, params) do
+    user_id = conn.assigns.api_token.created_by_id
+
     attrs = %{
-      name: name,
-      description: params["description"]
+      name: params["name"],
+      description: params["description"],
+      expires_at: params["expires_at"]
     }
 
-    case Accounts.create_api_token(attrs) do
+    case Accounts.create_api_token(user_id, attrs) do
       {:ok, %{token: plain_token, api_token: api_token}} ->
         conn
         |> put_status(:created)
@@ -31,7 +37,9 @@ defmodule KsefHubWeb.Api.TokenController do
   end
 
   def delete(conn, %{"id" => id}) do
-    case Accounts.revoke_api_token(id) do
+    user_id = conn.assigns.api_token.created_by_id
+
+    case Accounts.revoke_api_token(user_id, id) do
       {:ok, _token} ->
         json(conn, %{message: "Token revoked successfully"})
 
@@ -48,18 +56,11 @@ defmodule KsefHubWeb.Api.TokenController do
       name: token.name,
       description: token.description,
       token_prefix: token.token_prefix,
+      expires_at: token.expires_at,
       last_used_at: token.last_used_at,
       request_count: token.request_count,
       is_active: token.is_active,
       inserted_at: token.inserted_at
     }
-  end
-
-  defp changeset_errors(changeset) do
-    Ecto.Changeset.traverse_errors(changeset, fn {msg, opts} ->
-      Regex.replace(~r"%{(\w+)}", msg, fn _, key ->
-        opts |> Keyword.get(String.to_existing_atom(key), key) |> to_string()
-      end)
-    end)
   end
 end

@@ -30,6 +30,23 @@ mix setup          # deps, DB, assets
 mix phx.server     # http://localhost:4000
 ```
 
+### Configuration
+
+Copy and configure environment variables:
+
+```bash
+cp .env.example .env
+# Edit .env with your credentials:
+# - DATABASE_URL
+# - SECRET_KEY_BASE
+# - KSEF_API_URL
+# - GOOGLE_CLIENT_ID / GOOGLE_CLIENT_SECRET
+# - GOTENBERG_URL
+# - GCP_SECRET_NAME
+```
+
+See the full list in [`CLAUDE.md`](CLAUDE.md#environment-variables).
+
 ### Docker
 
 ```bash
@@ -39,7 +56,7 @@ make docker.up     # starts app + Gotenberg sidecar
 
 ## Available Make Targets
 
-```
+```makefile
 make help          # list all targets
 make test          # run tests
 make fmt           # format code
@@ -54,7 +71,7 @@ make docker.build  # build Docker image
 
 ### Expense Invoices
 
-```
+```http
 GET    /api/expenses          # list with filters
 GET    /api/expenses/:id      # invoice details
 POST   /api/expenses/:id/approve
@@ -65,16 +82,32 @@ GET    /api/expenses/:id/pdf  # PDF download
 
 ### Income Invoices
 
-```
+```http
 GET    /api/income            # list with filters
 GET    /api/income/:id        # invoice details
 ```
 
-All API endpoints require a Bearer token. Tokens are generated via the admin UI.
+### Authentication
+
+All API endpoints require a Bearer token.
+
+**Getting a token:**
+
+1. Sign in to the admin UI at `http://localhost:4000` using your Google account
+2. Navigate to **Settings > API Tokens**
+3. Click **Generate Token**, give it a name, and copy the token immediately (it is shown only once)
+
+Tokens are scoped to full read access. Revoke tokens from the same settings page.
+
+**Using the token:**
+
+```bash
+curl -H "Authorization: Bearer <token>" http://localhost:4000/api/expenses
+```
 
 ## Architecture
 
-```
+```text
 ┌─────────────────────────────────────────────┐
 │              KSeF Hub (Phoenix)              │
 │                                             │
@@ -96,7 +129,7 @@ All API endpoints require a Bearer token. Tokens are generated via the admin UI.
 
 ## Project Structure
 
-```
+```text
 lib/
 ├── ksef_hub/              # Business logic (contexts)
 │   ├── invoices/          # Invoice CRUD, parsing, approval

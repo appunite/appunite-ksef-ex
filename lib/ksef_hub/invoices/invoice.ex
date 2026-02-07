@@ -1,6 +1,10 @@
 defmodule KsefHub.Invoices.Invoice do
+  @moduledoc "Invoice schema. Represents an income or expense invoice synced from KSeF."
+
   use Ecto.Schema
   import Ecto.Changeset
+
+  @type t :: %__MODULE__{}
 
   @primary_key {:id, :binary_id, autogenerate: true}
   @foreign_key_type :binary_id
@@ -29,6 +33,8 @@ defmodule KsefHub.Invoices.Invoice do
     timestamps()
   end
 
+  @doc "Builds a changeset for invoice creation/update."
+  @spec changeset(t(), map()) :: Ecto.Changeset.t()
   def changeset(invoice, attrs) do
     invoice
     |> cast(attrs, [
@@ -50,6 +56,8 @@ defmodule KsefHub.Invoices.Invoice do
       :permanent_storage_date
     ])
     |> validate_required([:type, :seller_nip, :seller_name, :invoice_number, :issue_date])
+    |> validate_format(:seller_nip, ~r/^\d{10}$/, message: "must be a 10-digit NIP")
+    |> validate_format(:buyer_nip, ~r/^\d{10}$/, message: "must be a 10-digit NIP")
     |> validate_inclusion(:type, @valid_types)
     |> validate_inclusion(:status, @valid_statuses)
     |> unique_constraint(:ksef_number)

@@ -3,8 +3,9 @@ defmodule KsefHubWeb.InvoiceLive.IndexTest do
 
   import Phoenix.LiveViewTest
 
+  import KsefHub.Factory
+
   alias KsefHub.Accounts
-  alias KsefHub.Invoices
 
   setup %{conn: conn} do
     {:ok, user} =
@@ -21,8 +22,8 @@ defmodule KsefHubWeb.InvoiceLive.IndexTest do
     end
 
     test "shows invoices in table", %{conn: conn} do
-      {:ok, _} = create_invoice("income", "FV/2025/001")
-      {:ok, _} = create_invoice("expense", "FV/2025/002")
+      insert(:invoice, type: "income", invoice_number: "FV/2025/001")
+      insert(:invoice, type: "expense", invoice_number: "FV/2025/002")
 
       {:ok, _view, html} = live(conn, ~p"/invoices")
       assert html =~ "FV/2025/001"
@@ -37,8 +38,8 @@ defmodule KsefHubWeb.InvoiceLive.IndexTest do
 
   describe "filters" do
     setup %{conn: conn} do
-      {:ok, income} = create_invoice("income", "FV/INC/001")
-      {:ok, expense} = create_invoice("expense", "FV/EXP/001")
+      income = insert(:invoice, type: "income", invoice_number: "FV/INC/001")
+      expense = insert(:invoice, type: "expense", invoice_number: "FV/EXP/001")
       %{conn: conn, income: income, expense: expense}
     end
 
@@ -53,6 +54,7 @@ defmodule KsefHubWeb.InvoiceLive.IndexTest do
       {:ok, view, _html} = live(conn, ~p"/invoices?status=pending")
       html = render(view)
       assert html =~ "FV/INC/001"
+      assert html =~ "FV/EXP/001"
     end
 
     test "filter change updates URL via push_patch", %{conn: conn} do
@@ -64,18 +66,5 @@ defmodule KsefHubWeb.InvoiceLive.IndexTest do
 
       assert_patched(view, "/invoices?type=income")
     end
-  end
-
-  defp create_invoice(type, number) do
-    Invoices.create_invoice(%{
-      type: type,
-      status: "pending",
-      seller_nip: "1234567890",
-      seller_name: "Seller Co",
-      buyer_nip: "0987654321",
-      buyer_name: "Buyer Co",
-      invoice_number: number,
-      issue_date: Date.utc_today()
-    })
   end
 end

@@ -1,4 +1,4 @@
-.PHONY: help setup build test fmt lint dialyzer precommit \
+.PHONY: help setup build test test.integration fmt lint dialyzer precommit \
        server console \
        docker.build docker.run docker.up docker.down \
        db.setup db.migrate db.reset db.rollback
@@ -28,8 +28,11 @@ console: ## Start Phoenix server with IEx
 
 # --- Quality ---
 
-test: ## Run all tests
+test: ## Run all tests (excludes @tag :integration)
 	mix test
+
+test.integration: ## Run integration tests (requires KSeF credentials)
+	mix test --include integration
 
 fmt: ## Format code
 	mix format
