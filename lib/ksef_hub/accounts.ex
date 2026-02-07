@@ -46,7 +46,7 @@ defmodule KsefHub.Accounts do
   Checks if an email is in the allowlist.
   """
   @spec allowed_email?(String.t()) :: boolean()
-  def allowed_email?(email) do
+  def allowed_email?(email) when is_binary(email) do
     allowed =
       Application.get_env(:ksef_hub, :allowed_emails, "")
       |> String.split(",", trim: true)

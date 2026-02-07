@@ -1,8 +1,15 @@
 defmodule KsefHub.AccountsTest do
   use KsefHub.DataCase, async: true
 
+  import KsefHub.Factory
+
   alias KsefHub.Accounts
   alias KsefHub.Accounts.{User, ApiToken}
+
+  defp create_api_token(attrs \\ %{}) do
+    {:ok, result} = Accounts.create_api_token(Map.merge(%{name: "Test Token"}, attrs))
+    result
+  end
 
   describe "users" do
     test "find_or_create_user/1 creates a new user" do
@@ -38,8 +45,7 @@ defmodule KsefHub.AccountsTest do
     end
 
     test "get_user_by_email/1 returns user" do
-      {:ok, user} =
-        Accounts.find_or_create_user(%{uid: "g-1", email: "find@example.com"})
+      user = insert(:user, email: "find@example.com")
 
       assert Accounts.get_user_by_email("find@example.com").id == user.id
       assert Accounts.get_user_by_email("missing@example.com") == nil
@@ -55,8 +61,7 @@ defmodule KsefHub.AccountsTest do
 
   describe "api_tokens" do
     test "create_api_token/1 returns plaintext token and persisted record" do
-      assert {:ok, %{token: token, api_token: %ApiToken{} = api_token}} =
-               Accounts.create_api_token(%{name: "My Token"})
+      %{token: token, api_token: api_token} = create_api_token(%{name: "My Token"})
 
       assert is_binary(token)
       assert String.length(token) > 20
@@ -67,8 +72,7 @@ defmodule KsefHub.AccountsTest do
     end
 
     test "validate_api_token/1 validates a correct token" do
-      {:ok, %{token: token, api_token: original}} =
-        Accounts.create_api_token(%{name: "Valid Token"})
+      %{token: token, api_token: original} = create_api_token()
 
       assert {:ok, %ApiToken{} = found} = Accounts.validate_api_token(token)
       assert found.id == original.id
@@ -79,31 +83,29 @@ defmodule KsefHub.AccountsTest do
     end
 
     test "validate_api_token/1 rejects revoked token" do
-      {:ok, %{token: token, api_token: api_token}} =
-        Accounts.create_api_token(%{name: "Revoked Token"})
-
+      %{token: token, api_token: api_token} = create_api_token()
       {:ok, _} = Accounts.revoke_api_token(api_token.id)
 
       assert {:error, :invalid} = Accounts.validate_api_token(token)
     end
 
     test "revoke_api_token/1 deactivates a token" do
-      {:ok, %{api_token: api_token}} = Accounts.create_api_token(%{name: "To Revoke"})
+      %{api_token: api_token} = create_api_token()
 
       assert {:ok, revoked} = Accounts.revoke_api_token(api_token.id)
       assert revoked.is_active == false
     end
 
     test "list_api_tokens/0 returns all tokens" do
-      Accounts.create_api_token(%{name: "Token 1"})
-      Accounts.create_api_token(%{name: "Token 2"})
+      create_api_token()
+      create_api_token()
 
       tokens = Accounts.list_api_tokens()
       assert length(tokens) >= 2
     end
 
     test "track_token_usage/1 increments count and updates timestamp" do
-      {:ok, %{api_token: api_token}} = Accounts.create_api_token(%{name: "Tracked"})
+      %{api_token: api_token} = create_api_token()
 
       assert api_token.request_count == 0
       assert api_token.last_used_at == nil

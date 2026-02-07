@@ -137,9 +137,9 @@ defmodule KsefHub.Invoices do
         escaped = search |> String.replace("\\", "\\\\") |> String.replace("%", "\\%") |> String.replace("_", "\\_")
         pattern = "%" <> escaped <> "%"
         where(q, [i],
-          fragment("? ILIKE ? ESCAPE '\\\\'", i.invoice_number, ^pattern) or
-          fragment("? ILIKE ? ESCAPE '\\\\'", i.seller_name, ^pattern) or
-          fragment("? ILIKE ? ESCAPE '\\\\'", i.buyer_name, ^pattern)
+          fragment("? ILIKE ? ESCAPE '\\'", i.invoice_number, ^pattern) or
+          fragment("? ILIKE ? ESCAPE '\\'", i.seller_name, ^pattern) or
+          fragment("? ILIKE ? ESCAPE '\\'", i.buyer_name, ^pattern)
         )
 
       _, q ->
