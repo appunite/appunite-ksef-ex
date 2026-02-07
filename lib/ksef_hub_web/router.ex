@@ -42,11 +42,13 @@ defmodule KsefHubWeb.Router do
   scope "/", KsefHubWeb do
     pipe_through [:browser, :require_auth]
 
-    live "/dashboard", DashboardLive
-    live "/certificates", CertificateLive
-    live "/invoices", InvoiceLive.Index
-    live "/invoices/:id", InvoiceLive.Show
-    live "/tokens", TokenLive
+    live_session :authenticated, on_mount: {KsefHubWeb.LiveAuth, :default} do
+      live "/dashboard", DashboardLive
+      live "/certificates", CertificateLive
+      live "/invoices", InvoiceLive.Index
+      live "/invoices/:id", InvoiceLive.Show
+      live "/tokens", TokenLive
+    end
   end
 
   # API routes (bearer token auth)

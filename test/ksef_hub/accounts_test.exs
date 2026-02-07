@@ -11,8 +11,13 @@ defmodule KsefHub.AccountsTest do
     :ok
   end
 
-  defp create_api_token(attrs \\ %{}) do
-    {:ok, result} = Accounts.create_api_token(Map.merge(%{name: "Test Token"}, attrs))
+  defp create_user do
+    insert(:user, google_uid: "uid-#{System.unique_integer([:positive])}")
+  end
+
+  defp create_api_token(user \\ nil, attrs \\ %{}) do
+    user = user || create_user()
+    {:ok, result} = Accounts.create_api_token(user.id, Map.merge(%{name: "Test Token"}, attrs))
     result
   end
 
@@ -80,8 +85,8 @@ defmodule KsefHub.AccountsTest do
   end
 
   describe "api_tokens" do
-    test "create_api_token/1 returns plaintext token and persisted record" do
-      %{token: token, api_token: api_token} = create_api_token(%{name: "My Token"})
+    test "create_api_token/2 returns plaintext token and persisted record" do
+      %{token: token, api_token: api_token} = create_api_token(nil, %{name: "My Token"})
 
       assert is_binary(token)
       assert String.length(token) > 20
@@ -102,26 +107,59 @@ defmodule KsefHub.AccountsTest do
       assert {:error, :invalid} = Accounts.validate_api_token("bogus-token")
     end
 
+    test "validate_api_token/1 accepts non-expired token" do
+      future = DateTime.add(DateTime.utc_now(), 3600, :second)
+      %{token: token} = create_api_token(nil, %{expires_at: future})
+
+      assert {:ok, %ApiToken{}} = Accounts.validate_api_token(token)
+    end
+
+    test "validate_api_token/1 rejects expired token" do
+      past = DateTime.add(DateTime.utc_now(), -3600, :second)
+      %{token: token} = create_api_token(nil, %{expires_at: past})
+
+      assert {:error, :expired} = Accounts.validate_api_token(token)
+    end
+
+    test "validate_api_token/1 accepts token with no expiry" do
+      %{token: token} = create_api_token()
+
+      assert {:ok, %ApiToken{expires_at: nil}} = Accounts.validate_api_token(token)
+    end
+
     test "validate_api_token/1 rejects revoked token" do
-      %{token: token, api_token: api_token} = create_api_token()
-      {:ok, _} = Accounts.revoke_api_token(api_token.id)
+      user = create_user()
+      %{token: token, api_token: api_token} = create_api_token(user)
+      {:ok, _} = Accounts.revoke_api_token(user.id, api_token.id)
 
       assert {:error, :invalid} = Accounts.validate_api_token(token)
     end
 
-    test "revoke_api_token/1 deactivates a token" do
-      %{api_token: api_token} = create_api_token()
+    test "revoke_api_token/2 deactivates a token" do
+      user = create_user()
+      %{api_token: api_token} = create_api_token(user)
 
-      assert {:ok, revoked} = Accounts.revoke_api_token(api_token.id)
+      assert {:ok, revoked} = Accounts.revoke_api_token(user.id, api_token.id)
       assert revoked.is_active == false
     end
 
-    test "list_api_tokens/0 returns all tokens with redacted hashes" do
-      create_api_token(%{name: "Token 1"})
-      create_api_token(%{name: "Token 2"})
+    test "revoke_api_token/2 rejects token owned by another user" do
+      user1 = create_user()
+      user2 = create_user()
+      %{api_token: api_token} = create_api_token(user1)
 
-      tokens = Accounts.list_api_tokens()
-      assert length(tokens) == 2
+      assert {:error, :not_found} = Accounts.revoke_api_token(user2.id, api_token.id)
+    end
+
+    test "list_api_tokens/1 returns only tokens for the given user" do
+      user1 = create_user()
+      user2 = create_user()
+      create_api_token(user1, %{name: "User1 Token"})
+      create_api_token(user2, %{name: "User2 Token"})
+
+      tokens = Accounts.list_api_tokens(user1.id)
+      assert length(tokens) == 1
+      assert hd(tokens).name == "User1 Token"
       assert Enum.all?(tokens, &(&1.token_hash == "**redacted**"))
     end
 

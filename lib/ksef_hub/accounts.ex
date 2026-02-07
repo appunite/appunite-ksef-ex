@@ -11,6 +11,9 @@ defmodule KsefHub.Accounts do
 
   # --- Users ---
 
+  @spec get_user(Ecto.UUID.t()) :: User.t() | nil
+  def get_user(id), do: Repo.get(User, id)
+
   @spec get_user!(Ecto.UUID.t()) :: User.t()
   def get_user!(id), do: Repo.get!(User, id)
 
@@ -87,10 +90,18 @@ defmodule KsefHub.Accounts do
   # --- API Tokens ---
 
   @doc """
-  Creates a new API token. Returns the plaintext token exactly once.
+  Creates a new API token owned by the given user. Returns the plaintext token exactly once.
   """
-  @spec create_api_token(map()) :: {:ok, %{token: String.t(), api_token: ApiToken.t()}} | {:error, Ecto.Changeset.t()}
-  def create_api_token(attrs) do
+  @spec create_api_token(Ecto.UUID.t(), map()) ::
+          {:ok, %{token: String.t(), api_token: ApiToken.t()}} | {:error, Ecto.Changeset.t()}
+  def create_api_token(user_id, attrs) do
+    attrs = Map.put(attrs, :created_by_id, user_id)
+    do_create_api_token(attrs)
+  end
+
+  @spec do_create_api_token(map()) ::
+          {:ok, %{token: String.t(), api_token: ApiToken.t()}} | {:error, Ecto.Changeset.t()}
+  defp do_create_api_token(attrs) do
     plain_token = generate_token()
     token_hash = hash_token(plain_token)
     token_prefix = String.slice(plain_token, 0, 8)
@@ -111,24 +122,37 @@ defmodule KsefHub.Accounts do
   end
 
   @doc """
-  Validates a plaintext API token. Returns the token record if valid.
+  Validates a plaintext API token. Returns the token record if valid and not expired.
   """
-  @spec validate_api_token(String.t()) :: {:ok, ApiToken.t()} | {:error, :invalid}
+  @spec validate_api_token(String.t()) ::
+          {:ok, ApiToken.t()} | {:error, :invalid} | {:error, :expired}
   def validate_api_token(plain_token) do
     token_hash = hash_token(plain_token)
 
     case Repo.get_by(ApiToken, token_hash: token_hash, is_active: true) do
-      nil -> {:error, :invalid}
-      api_token -> {:ok, api_token}
+      nil ->
+        {:error, :invalid}
+
+      %ApiToken{expires_at: expires_at} = api_token when not is_nil(expires_at) ->
+        if DateTime.compare(expires_at, DateTime.utc_now()) == :gt do
+          {:ok, api_token}
+        else
+          {:error, :expired}
+        end
+
+      api_token ->
+        {:ok, api_token}
     end
   end
 
   @doc """
-  Revokes an API token by ID.
+  Revokes an API token by ID, scoped to the given user.
+  Returns `{:error, :not_found}` if the token doesn't exist or doesn't belong to the user.
   """
-  @spec revoke_api_token(Ecto.UUID.t()) :: {:ok, ApiToken.t()} | {:error, :not_found} | {:error, Ecto.Changeset.t()}
-  def revoke_api_token(token_id) do
-    case Repo.get(ApiToken, token_id) do
+  @spec revoke_api_token(Ecto.UUID.t(), Ecto.UUID.t()) ::
+          {:ok, ApiToken.t()} | {:error, :not_found} | {:error, Ecto.Changeset.t()}
+  def revoke_api_token(user_id, token_id) do
+    case Repo.get_by(ApiToken, id: token_id, created_by_id: user_id) do
       nil ->
         {:error, :not_found}
 
@@ -140,11 +164,12 @@ defmodule KsefHub.Accounts do
   end
 
   @doc """
-  Lists all API tokens with sensitive fields redacted.
+  Lists API tokens for a given user with sensitive fields redacted.
   """
-  @spec list_api_tokens() :: [ApiToken.t()]
-  def list_api_tokens do
+  @spec list_api_tokens(Ecto.UUID.t()) :: [ApiToken.t()]
+  def list_api_tokens(user_id) do
     ApiToken
+    |> where([t], t.created_by_id == ^user_id)
     |> order_by([t], desc: t.inserted_at)
     |> Repo.all()
     |> Enum.map(fn token -> %{token | token_hash: "**redacted**"} end)

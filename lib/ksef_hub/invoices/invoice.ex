@@ -38,10 +38,22 @@ defmodule KsefHub.Invoices.Invoice do
   def changeset(invoice, attrs) do
     invoice
     |> cast(attrs, [
-      :ksef_number, :type, :xml_content, :seller_nip, :seller_name,
-      :buyer_nip, :buyer_name, :invoice_number, :issue_date,
-      :net_amount, :vat_amount, :gross_amount, :currency, :status,
-      :ksef_acquisition_date, :permanent_storage_date
+      :ksef_number,
+      :type,
+      :xml_content,
+      :seller_nip,
+      :seller_name,
+      :buyer_nip,
+      :buyer_name,
+      :invoice_number,
+      :issue_date,
+      :net_amount,
+      :vat_amount,
+      :gross_amount,
+      :currency,
+      :status,
+      :ksef_acquisition_date,
+      :permanent_storage_date
     ])
     |> validate_required([:type, :seller_nip, :seller_name, :invoice_number, :issue_date])
     |> validate_format(:seller_nip, ~r/^\d{10}$/, message: "must be a 10-digit NIP")

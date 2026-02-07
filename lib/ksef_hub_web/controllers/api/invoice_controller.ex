@@ -1,6 +1,8 @@
 defmodule KsefHubWeb.Api.InvoiceController do
   use KsefHubWeb, :controller
 
+  require Logger
+
   alias KsefHub.Invoices
 
   def index(conn, params) do
@@ -63,9 +65,11 @@ defmodule KsefHubWeb.Api.InvoiceController do
         |> send_resp(200, html_content)
 
       {:error, reason} ->
+        Logger.error("HTML generation failed for invoice #{id}: #{inspect(reason)}")
+
         conn
         |> put_status(:internal_server_error)
-        |> json(%{error: "HTML generation failed: #{inspect(reason)}"})
+        |> json(%{error: "HTML generation failed"})
     end
   end
 
@@ -83,9 +87,11 @@ defmodule KsefHubWeb.Api.InvoiceController do
       |> send_resp(200, pdf_binary)
     else
       {:error, reason} ->
+        Logger.error("PDF generation failed for invoice #{id}: #{inspect(reason)}")
+
         conn
         |> put_status(:internal_server_error)
-        |> json(%{error: "PDF generation failed: #{inspect(reason)}"})
+        |> json(%{error: "PDF generation failed"})
     end
   end
 

@@ -48,7 +48,8 @@ defmodule KsefHub.Credentials do
   @doc """
   Updates a credential.
   """
-  @spec update_credential(Credential.t(), map()) :: {:ok, Credential.t()} | {:error, Ecto.Changeset.t()}
+  @spec update_credential(Credential.t(), map()) ::
+          {:ok, Credential.t()} | {:error, Ecto.Changeset.t()}
   def update_credential(%Credential{} = credential, attrs) do
     credential
     |> Credential.changeset(attrs)
@@ -58,7 +59,8 @@ defmodule KsefHub.Credentials do
   @doc """
   Deactivates a credential.
   """
-  @spec deactivate_credential(Credential.t()) :: {:ok, Credential.t()} | {:error, Ecto.Changeset.t()}
+  @spec deactivate_credential(Credential.t()) ::
+          {:ok, Credential.t()} | {:error, Ecto.Changeset.t()}
   def deactivate_credential(%Credential{} = credential) do
     update_credential(credential, %{is_active: false})
   end
@@ -74,7 +76,8 @@ defmodule KsefHub.Credentials do
   @doc """
   Stores token information on a credential after KSeF authentication.
   """
-  @spec store_tokens(Credential.t(), map()) :: {:ok, Credential.t()} | {:error, Ecto.Changeset.t()}
+  @spec store_tokens(Credential.t(), map()) ::
+          {:ok, Credential.t()} | {:error, Ecto.Changeset.t()}
   def store_tokens(%Credential{} = credential, attrs) do
     update_credential(credential, attrs)
   end

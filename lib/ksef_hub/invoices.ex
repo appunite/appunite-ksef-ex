@@ -56,11 +56,24 @@ defmodule KsefHub.Invoices do
     %Invoice{}
     |> Invoice.changeset(attrs)
     |> Repo.insert(
-      on_conflict: {:replace, [
-        :xml_content, :seller_nip, :seller_name, :buyer_nip, :buyer_name,
-        :invoice_number, :issue_date, :net_amount, :vat_amount, :gross_amount,
-        :currency, :ksef_acquisition_date, :permanent_storage_date, :updated_at
-      ]},
+      on_conflict:
+        {:replace,
+         [
+           :xml_content,
+           :seller_nip,
+           :seller_name,
+           :buyer_nip,
+           :buyer_name,
+           :invoice_number,
+           :issue_date,
+           :net_amount,
+           :vat_amount,
+           :gross_amount,
+           :currency,
+           :ksef_acquisition_date,
+           :permanent_storage_date,
+           :updated_at
+         ]},
       conflict_target: :ksef_number,
       returning: true
     )
@@ -79,7 +92,10 @@ defmodule KsefHub.Invoices do
   @doc """
   Approves an expense invoice.
   """
-  @spec approve_invoice(Invoice.t()) :: {:ok, Invoice.t()} | {:error, Ecto.Changeset.t()} | {:error, {:invalid_type, String.t()}}
+  @spec approve_invoice(Invoice.t()) ::
+          {:ok, Invoice.t()}
+          | {:error, Ecto.Changeset.t()}
+          | {:error, {:invalid_type, String.t()}}
   def approve_invoice(%Invoice{type: "expense"} = invoice) do
     update_invoice(invoice, %{status: "approved"})
   end
@@ -89,7 +105,10 @@ defmodule KsefHub.Invoices do
   @doc """
   Rejects an expense invoice.
   """
-  @spec reject_invoice(Invoice.t()) :: {:ok, Invoice.t()} | {:error, Ecto.Changeset.t()} | {:error, {:invalid_type, String.t()}}
+  @spec reject_invoice(Invoice.t()) ::
+          {:ok, Invoice.t()}
+          | {:error, Ecto.Changeset.t()}
+          | {:error, {:invalid_type, String.t()}}
   def reject_invoice(%Invoice{type: "expense"} = invoice) do
     update_invoice(invoice, %{status: "rejected"})
   end
@@ -134,12 +153,20 @@ defmodule KsefHub.Invoices do
         where(q, [i], i.buyer_nip == ^nip)
 
       {:query, search}, q when is_binary(search) and search != "" ->
-        escaped = search |> String.replace("\\", "\\\\") |> String.replace("%", "\\%") |> String.replace("_", "\\_")
+        escaped =
+          search
+          |> String.replace("\\", "\\\\")
+          |> String.replace("%", "\\%")
+          |> String.replace("_", "\\_")
+
         pattern = "%" <> escaped <> "%"
-        where(q, [i],
+
+        where(
+          q,
+          [i],
           fragment("? ILIKE ? ESCAPE '\\'", i.invoice_number, ^pattern) or
-          fragment("? ILIKE ? ESCAPE '\\'", i.seller_name, ^pattern) or
-          fragment("? ILIKE ? ESCAPE '\\'", i.buyer_name, ^pattern)
+            fragment("? ILIKE ? ESCAPE '\\'", i.seller_name, ^pattern) or
+            fragment("? ILIKE ? ESCAPE '\\'", i.buyer_name, ^pattern)
         )
 
       _, q ->
