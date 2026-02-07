@@ -23,7 +23,7 @@ We use a two-stage pipeline:
 
 2. **Gotenberg** (HTML → PDF): A Docker-based service wrapping Chromium for HTML-to-PDF conversion. Runs as a sidecar container, accessed via HTTP multipart POST.
 
-3. **Fallback template**: When xsltproc is unavailable (development, CI without system deps), we use the existing `Invoices.Parser` to extract structured data and render a basic HTML template directly in Elixir.
+3. **Fallback template**: When xsltproc is unavailable (development, CI without system deps), `FallbackTemplate` uses the existing `Invoices.Parser` to extract structured data and renders a basic HTML template directly in Elixir.
 
 Key design choices:
 - Secure temp files with 0600 permissions for xsltproc input (same pattern as XADES signing)
