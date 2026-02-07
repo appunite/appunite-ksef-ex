@@ -9,7 +9,7 @@ See `docs/prd.md` for full product requirements.
 | Layer | Technology |
 |-------|-----------|
 | Language | Elixir 1.16+ / OTP 26+ |
-| Framework | Phoenix 1.7 + LiveView |
+| Framework | Phoenix 1.8 + LiveView |
 | Database | PostgreSQL (Supabase) via Ecto |
 | Auth (UI) | Google Sign-In, email allowlist (`ALLOWED_EMAILS` env) |
 | Auth (API) | Bearer API tokens (hashed, revocable) |
@@ -208,7 +208,7 @@ def handle_response({:error, reason}), do: {:error, {:request_failed, reason}}
 
 - Modules: `PascalCase` (`KsefHub.Invoices.Parser`)
 - Functions/variables: `snake_case` (`fetch_invoice_headers`)
-- Boolean functions: prefix with `is_` or end with `?` (`expired?/1`)
+- Boolean functions: end with `?` (`expired?/1`); reserve `is_` prefix for guard-safe predicates (`is_nil/1`, `is_binary/1`)
 - Private functions: prefix with `do_` only when wrapping a public function (`defp do_parse/1`)
 - Test files: mirror source path (`test/ksef_hub/invoices_test.exs`)
 
