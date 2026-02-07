@@ -43,7 +43,6 @@ defmodule KsefHubWeb.Router do
     pipe_through [:browser, :require_auth]
 
     live_session :authenticated, on_mount: {KsefHubWeb.LiveAuth, :default} do
-    live_session :authenticated, on_mount: [{KsefHubWeb.LiveAuth, :require_auth}] do
       live "/dashboard", DashboardLive
       live "/certificates", CertificateLive
       live "/invoices", InvoiceLive.Index
