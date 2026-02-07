@@ -32,6 +32,7 @@ config :ksef_hub, Oban, testing: :inline
 # Use mock implementations in tests
 config :ksef_hub, :ksef_client, KsefHub.KsefClient.Mock
 config :ksef_hub, :xades_signer, KsefHub.XadesSigner.Mock
+config :ksef_hub, :pdf_generator, KsefHub.Pdf.Mock
 
 # Test email allowlist
 config :ksef_hub, :allowed_emails, "test@example.com,admin@example.com"
