@@ -1,4 +1,4 @@
-ExUnit.start()
+ExUnit.start(exclude: [:integration])
 Ecto.Adapters.SQL.Sandbox.mode(KsefHub.Repo, :manual)
 
 # Define Mox mocks for external dependencies
