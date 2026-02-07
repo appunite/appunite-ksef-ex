@@ -50,11 +50,24 @@ defmodule KsefHub.Invoices do
     %Invoice{}
     |> Invoice.changeset(attrs)
     |> Repo.insert(
-      on_conflict: {:replace, [
-        :xml_content, :seller_nip, :seller_name, :buyer_nip, :buyer_name,
-        :invoice_number, :issue_date, :net_amount, :vat_amount, :gross_amount,
-        :currency, :ksef_acquisition_date, :permanent_storage_date, :updated_at
-      ]},
+      on_conflict:
+        {:replace,
+         [
+           :xml_content,
+           :seller_nip,
+           :seller_name,
+           :buyer_nip,
+           :buyer_name,
+           :invoice_number,
+           :issue_date,
+           :net_amount,
+           :vat_amount,
+           :gross_amount,
+           :currency,
+           :ksef_acquisition_date,
+           :permanent_storage_date,
+           :updated_at
+         ]},
       conflict_target: :ksef_number,
       returning: true
     )
@@ -124,10 +137,13 @@ defmodule KsefHub.Invoices do
 
       {:query, search}, q when is_binary(search) and search != "" ->
         term = "%#{search}%"
-        where(q, [i],
+
+        where(
+          q,
+          [i],
           ilike(i.invoice_number, ^term) or
-          ilike(i.seller_name, ^term) or
-          ilike(i.buyer_name, ^term)
+            ilike(i.seller_name, ^term) or
+            ilike(i.buyer_name, ^term)
         )
 
       _, q ->
