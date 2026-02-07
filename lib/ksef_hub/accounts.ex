@@ -55,13 +55,33 @@ defmodule KsefHub.Accounts do
   """
   @spec allowed_email?(String.t()) :: boolean()
   def allowed_email?(email) when is_binary(email) do
-    allowed =
+    String.downcase(email) in allowed_emails()
+  end
+
+  @spec allowed_emails() :: [String.t()]
+  defp allowed_emails do
+    :persistent_term.get({__MODULE__, :allowed_emails}, nil) || parse_and_cache_allowed_emails()
+  end
+
+  @spec parse_and_cache_allowed_emails() :: [String.t()]
+  defp parse_and_cache_allowed_emails do
+    list =
       Application.get_env(:ksef_hub, :allowed_emails, "")
       |> String.split(",", trim: true)
       |> Enum.map(&String.trim/1)
       |> Enum.map(&String.downcase/1)
 
-    String.downcase(email) in allowed
+    :persistent_term.put({__MODULE__, :allowed_emails}, list)
+    list
+  end
+
+  @doc """
+  Clears the cached allowed emails list. Call when the config changes.
+  """
+  @spec clear_allowed_emails_cache() :: :ok
+  def clear_allowed_emails_cache do
+    :persistent_term.erase({__MODULE__, :allowed_emails})
+    :ok
   end
 
   # --- API Tokens ---

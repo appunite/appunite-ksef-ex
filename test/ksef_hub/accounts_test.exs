@@ -6,6 +6,11 @@ defmodule KsefHub.AccountsTest do
   alias KsefHub.Accounts
   alias KsefHub.Accounts.{User, ApiToken}
 
+  setup do
+    Accounts.clear_allowed_emails_cache()
+    :ok
+  end
+
   defp create_api_token(attrs \\ %{}) do
     {:ok, result} = Accounts.create_api_token(Map.merge(%{name: "Test Token"}, attrs))
     result
@@ -96,12 +101,17 @@ defmodule KsefHub.AccountsTest do
       assert revoked.is_active == false
     end
 
-    test "list_api_tokens/0 returns all tokens" do
-      create_api_token()
-      create_api_token()
+    test "list_api_tokens/0 returns all tokens with redacted hashes" do
+      create_api_token(%{name: "Token 1"})
+      create_api_token(%{name: "Token 2"})
 
       tokens = Accounts.list_api_tokens()
-      assert length(tokens) >= 2
+      assert length(tokens) == 2
+      assert Enum.all?(tokens, &(&1.token_hash == "**redacted**"))
+    end
+
+    test "track_token_usage/1 returns error for non-existent token" do
+      assert {:error, :not_found} = Accounts.track_token_usage(Ecto.UUID.generate())
     end
 
     test "track_token_usage/1 increments count and updates timestamp" do
