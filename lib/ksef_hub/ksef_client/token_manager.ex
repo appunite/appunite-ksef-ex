@@ -15,8 +15,17 @@ defmodule KsefHub.KsefClient.TokenManager do
 
   @refresh_buffer_seconds 120
 
+  @type state :: %{
+          access_token: String.t() | nil,
+          refresh_token: String.t() | nil,
+          access_valid_until: DateTime.t() | nil,
+          refresh_valid_until: DateTime.t() | nil,
+          credential_id: Ecto.UUID.t() | nil
+        }
+
   # --- Client API ---
 
+  @spec start_link(keyword()) :: GenServer.on_start()
   def start_link(opts \\ []) do
     GenServer.start_link(__MODULE__, opts, name: __MODULE__)
   end
@@ -24,6 +33,7 @@ defmodule KsefHub.KsefClient.TokenManager do
   @doc """
   Returns a valid access token, refreshing if needed.
   """
+  @spec ensure_access_token() :: {:ok, String.t()} | {:error, :reauth_required | term()}
   def ensure_access_token do
     GenServer.call(__MODULE__, :ensure_access_token, 30_000)
   end
@@ -31,13 +41,18 @@ defmodule KsefHub.KsefClient.TokenManager do
   @doc """
   Stores new tokens after XADES authentication.
   """
+  @spec store_tokens(String.t(), String.t(), DateTime.t(), DateTime.t()) :: :ok
   def store_tokens(access_token, refresh_token, access_valid_until, refresh_valid_until) do
-    GenServer.call(__MODULE__, {:store_tokens, access_token, refresh_token, access_valid_until, refresh_valid_until})
+    GenServer.call(
+      __MODULE__,
+      {:store_tokens, access_token, refresh_token, access_valid_until, refresh_valid_until}
+    )
   end
 
   @doc """
   Returns the refresh token expiry for alerting.
   """
+  @spec refresh_token_expires_at() :: DateTime.t() | nil
   def refresh_token_expires_at do
     GenServer.call(__MODULE__, :refresh_token_expires_at)
   end
@@ -82,6 +97,7 @@ defmodule KsefHub.KsefClient.TokenManager do
 
   # --- Private ---
 
+  @spec ensure_valid_access(state()) :: {:ok, String.t(), state()} | {:error, term()}
   defp ensure_valid_access(state) do
     cond do
       state.access_token == nil ->
@@ -98,18 +114,22 @@ defmodule KsefHub.KsefClient.TokenManager do
     end
   end
 
+  @spec access_token_valid?(state()) :: boolean()
   defp access_token_valid?(%{access_valid_until: nil}), do: false
 
   defp access_token_valid?(%{access_valid_until: valid_until}) do
-    DateTime.compare(valid_until, DateTime.add(DateTime.utc_now(), @refresh_buffer_seconds)) == :gt
+    DateTime.compare(valid_until, DateTime.add(DateTime.utc_now(), @refresh_buffer_seconds)) ==
+      :gt
   end
 
+  @spec refresh_token_valid?(state()) :: boolean()
   defp refresh_token_valid?(%{refresh_valid_until: nil}), do: false
 
   defp refresh_token_valid?(%{refresh_valid_until: valid_until}) do
     DateTime.compare(valid_until, DateTime.utc_now()) == :gt
   end
 
+  @spec do_refresh(state()) :: {:ok, String.t(), state()} | {:error, term()}
   defp do_refresh(state) do
     ksef_client = Application.get_env(:ksef_hub, :ksef_client, KsefHub.KsefClient.Live)
 
@@ -125,6 +145,7 @@ defmodule KsefHub.KsefClient.TokenManager do
     end
   end
 
+  @spec load_from_db() :: state()
   defp load_from_db do
     case Credentials.get_active_credential() do
       nil ->
@@ -132,8 +153,8 @@ defmodule KsefHub.KsefClient.TokenManager do
 
       cred ->
         %{
-          access_token: cred.access_token,
-          refresh_token: decrypt_refresh_token(cred.refresh_token_encrypted),
+          access_token: decrypt_token(cred.access_token_encrypted),
+          refresh_token: decrypt_token(cred.refresh_token_encrypted),
           access_valid_until: cred.access_token_expires_at,
           refresh_valid_until: cred.refresh_token_expires_at,
           credential_id: cred.id
@@ -141,6 +162,8 @@ defmodule KsefHub.KsefClient.TokenManager do
     end
   end
 
+  @spec persist_to_db(state()) ::
+          :ok | {:ok, Credentials.Credential.t()} | {:error, Ecto.Changeset.t()}
   defp persist_to_db(%{credential_id: nil}), do: :ok
 
   defp persist_to_db(%{credential_id: cred_id} = state) do
@@ -149,32 +172,34 @@ defmodule KsefHub.KsefClient.TokenManager do
         :ok
 
       cred ->
-        encrypted_refresh =
-          if state.refresh_token do
-            case KsefHub.Credentials.Encryption.encrypt(state.refresh_token) do
-              {:ok, encrypted} -> encrypted
-              _ -> nil
-            end
-          end
-
         Credentials.store_tokens(cred, %{
-          access_token: state.access_token,
+          access_token_encrypted: encrypt_token(state.access_token),
           access_token_expires_at: state.access_valid_until,
-          refresh_token_encrypted: encrypted_refresh,
+          refresh_token_encrypted: encrypt_token(state.refresh_token),
           refresh_token_expires_at: state.refresh_valid_until
         })
     end
   end
 
-  defp decrypt_refresh_token(nil), do: nil
+  @spec encrypt_token(String.t() | nil) :: binary() | nil
+  defp encrypt_token(nil), do: nil
 
-  defp decrypt_refresh_token(encrypted) do
+  defp encrypt_token(plaintext) do
+    {:ok, encrypted} = KsefHub.Credentials.Encryption.encrypt(plaintext)
+    encrypted
+  end
+
+  @spec decrypt_token(binary() | nil) :: String.t() | nil
+  defp decrypt_token(nil), do: nil
+
+  defp decrypt_token(encrypted) do
     case KsefHub.Credentials.Encryption.decrypt(encrypted) do
       {:ok, token} -> token
       {:error, _} -> nil
     end
   end
 
+  @spec empty_state() :: state()
   defp empty_state do
     %{
       access_token: nil,

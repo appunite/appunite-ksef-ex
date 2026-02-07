@@ -10,8 +10,12 @@ defmodule KsefHub.KsefClient.Auth do
   @poll_interval_ms 2_000
   @max_poll_attempts 30
 
+  @spec ksef_client() :: module()
   defp ksef_client, do: Application.get_env(:ksef_hub, :ksef_client, KsefHub.KsefClient.Live)
-  defp xades_signer, do: Application.get_env(:ksef_hub, :xades_signer, KsefHub.XadesSigner.Xmlsec1)
+
+  @spec xades_signer() :: module()
+  defp xades_signer,
+    do: Application.get_env(:ksef_hub, :xades_signer, KsefHub.XadesSigner.Xmlsec1)
 
   @doc """
   Performs full XADES authentication flow:
@@ -23,13 +27,16 @@ defmodule KsefHub.KsefClient.Auth do
 
   Returns `{:ok, tokens}` or `{:error, reason}`.
   """
+  @spec authenticate(String.t(), binary(), binary()) :: {:ok, map()} | {:error, term()}
   def authenticate(nip, certificate_data, certificate_password) do
-    with {:ok, %{challenge: challenge}} <- ksef_client().get_challenge(),
-         {:ok, signed_xml} <- xades_signer().sign_challenge(challenge, nip, certificate_data, certificate_password),
-         {:ok, %{reference_number: ref, operation_token: op_token}} <- ksef_client().authenticate_xades(signed_xml),
+    with {:ok, %{challenge: challenge}} <- ksef_client().get_challenge(nip),
+         {:ok, signed_xml} <-
+           xades_signer().sign_challenge(challenge, nip, certificate_data, certificate_password),
+         {:ok, %{reference_number: ref, operation_token: op_token}} <-
+           ksef_client().authenticate_xades(signed_xml),
          :ok <- poll_until_ready(ref, op_token),
          {:ok, tokens} <- ksef_client().redeem_tokens(op_token) do
-      Logger.info("KSeF XADES authentication successful for NIP #{nip}")
+      Logger.info("KSeF XADES authentication successful")
       {:ok, tokens}
     else
       {:error, reason} = error ->
@@ -38,6 +45,7 @@ defmodule KsefHub.KsefClient.Auth do
     end
   end
 
+  @spec poll_until_ready(String.t(), String.t(), non_neg_integer()) :: :ok | {:error, term()}
   defp poll_until_ready(reference_number, operation_token, attempt \\ 0)
 
   defp poll_until_ready(_reference_number, _operation_token, attempt)

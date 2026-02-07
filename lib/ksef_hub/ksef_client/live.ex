@@ -6,21 +6,24 @@ defmodule KsefHub.KsefClient.Live do
 
   @behaviour KsefHub.KsefClient.Behaviour
 
+  @spec base_url() :: String.t()
   defp base_url, do: Application.get_env(:ksef_hub, :ksef_api_url, "https://ksef-test.mf.gov.pl")
 
+  @spec api_url(String.t()) :: String.t()
   defp api_url(path), do: "#{base_url()}/api/online#{path}"
 
   @impl true
-  def get_challenge do
+  def get_challenge(nip) do
     url = api_url("/Session/AuthorisationChallenge")
-    body = %{"contextIdentifier" => %{"type" => "onip", "identifier" => "placeholder"}}
+    body = %{"contextIdentifier" => %{"type" => "onip", "identifier" => nip}}
 
     case Req.post(url, json: body) do
       {:ok, %{status: 200, body: body}} ->
-        {:ok, %{
-          challenge: body["challenge"],
-          timestamp: body["timestamp"]
-        }}
+        {:ok,
+         %{
+           challenge: body["challenge"],
+           timestamp: body["timestamp"]
+         }}
 
       {:ok, %{status: status, body: body}} ->
         {:error, {:ksef_error, status, body}}
@@ -36,10 +39,11 @@ defmodule KsefHub.KsefClient.Live do
 
     case Req.post(url, body: signed_xml, headers: [{"content-type", "application/octet-stream"}]) do
       {:ok, %{status: 200, body: body}} ->
-        {:ok, %{
-          reference_number: body["referenceNumber"],
-          operation_token: body["operationToken"]
-        }}
+        {:ok,
+         %{
+           reference_number: body["referenceNumber"],
+           operation_token: body["operationToken"]
+         }}
 
       {:ok, %{status: status, body: body}} ->
         {:error, {:ksef_error, status, body}}
@@ -74,12 +78,13 @@ defmodule KsefHub.KsefClient.Live do
 
     case Req.post(url, json: %{"operationToken" => operation_token}) do
       {:ok, %{status: 200, body: body}} ->
-        {:ok, %{
-          access_token: body["accessToken"],
-          refresh_token: body["refreshToken"],
-          access_valid_until: parse_datetime(body["accessTokenValidUntil"]),
-          refresh_valid_until: parse_datetime(body["refreshTokenValidUntil"])
-        }}
+        {:ok,
+         %{
+           access_token: body["accessToken"],
+           refresh_token: body["refreshToken"],
+           access_valid_until: parse_datetime(body["accessTokenValidUntil"]),
+           refresh_valid_until: parse_datetime(body["refreshTokenValidUntil"])
+         }}
 
       {:ok, %{status: status, body: body}} ->
         {:error, {:ksef_error, status, body}}
@@ -95,10 +100,11 @@ defmodule KsefHub.KsefClient.Live do
 
     case Req.post(url, json: %{"refreshToken" => refresh_token}) do
       {:ok, %{status: 200, body: body}} ->
-        {:ok, %{
-          access_token: body["accessToken"],
-          valid_until: parse_datetime(body["accessTokenValidUntil"])
-        }}
+        {:ok,
+         %{
+           access_token: body["accessToken"],
+           valid_until: parse_datetime(body["accessTokenValidUntil"])
+         }}
 
       {:ok, %{status: status, body: body}} ->
         {:error, {:ksef_error, status, body}}
@@ -123,11 +129,12 @@ defmodule KsefHub.KsefClient.Live do
 
     case Req.post(url, json: body, headers: headers) do
       {:ok, %{status: 200, body: body}} ->
-        {:ok, %{
-          invoices: body["invoiceHeaderList"] || [],
-          has_more: body["hasMore"] || false,
-          is_truncated: body["isTruncated"] || false
-        }}
+        {:ok,
+         %{
+           invoices: body["invoiceHeaderList"] || [],
+           has_more: body["hasMore"] || false,
+           is_truncated: body["isTruncated"] || false
+         }}
 
       {:ok, %{status: 429} = resp} ->
         retry_after = get_retry_after(resp)
@@ -176,33 +183,26 @@ defmodule KsefHub.KsefClient.Live do
 
   # --- Private ---
 
+  @spec build_query_criteria(map()) :: map()
   defp build_query_criteria(filters) do
-    criteria = %{}
-
-    criteria =
-      if filters[:type] do
-        Map.put(criteria, "subjectType", if(filters[:type] == "income", do: "subject1", else: "subject2"))
-      else
-        criteria
-      end
-
-    criteria =
-      if filters[:date_from] do
-        Map.put(criteria, "acquisitionTimestampThresholdFrom", DateTime.to_iso8601(filters[:date_from]))
-      else
-        criteria
-      end
-
-    criteria =
-      if filters[:date_to] do
-        Map.put(criteria, "acquisitionTimestampThresholdTo", DateTime.to_iso8601(filters[:date_to]))
-      else
-        criteria
-      end
-
-    criteria
+    []
+    |> maybe_put(:type, filters[:type], fn type ->
+      {"subjectType", if(type == "income", do: "subject1", else: "subject2")}
+    end)
+    |> maybe_put(:date_from, filters[:date_from], fn dt ->
+      {"acquisitionTimestampThresholdFrom", DateTime.to_iso8601(dt)}
+    end)
+    |> maybe_put(:date_to, filters[:date_to], fn dt ->
+      {"acquisitionTimestampThresholdTo", DateTime.to_iso8601(dt)}
+    end)
+    |> Map.new()
   end
 
+  @spec maybe_put(list(), atom(), term(), (term() -> {String.t(), String.t()})) :: list()
+  defp maybe_put(acc, _key, nil, _fun), do: acc
+  defp maybe_put(acc, _key, value, fun), do: [fun.(value) | acc]
+
+  @spec parse_datetime(String.t() | nil) :: DateTime.t() | nil
   defp parse_datetime(nil), do: nil
 
   defp parse_datetime(str) when is_binary(str) do
@@ -212,10 +212,11 @@ defmodule KsefHub.KsefClient.Live do
     end
   end
 
-  defp get_retry_after(%{headers: headers}) do
-    case List.keyfind(headers, "retry-after", 0) do
-      {_, value} -> String.to_integer(value)
-      nil -> 5
+  @spec get_retry_after(Req.Response.t()) :: non_neg_integer()
+  defp get_retry_after(%{headers: headers}) when is_map(headers) do
+    case headers["retry-after"] do
+      [value | _] -> String.to_integer(value)
+      _ -> 5
     end
   rescue
     _ -> 5

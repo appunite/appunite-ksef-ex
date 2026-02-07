@@ -3,7 +3,7 @@ defmodule KsefHub.KsefClient.Behaviour do
   Behaviour for KSeF API client. Implementations: Live (HTTP) and Mock (test).
   """
 
-  @callback get_challenge() ::
+  @callback get_challenge(nip :: String.t()) ::
               {:ok, %{challenge: String.t(), timestamp: String.t()}} | {:error, term()}
 
   @callback authenticate_xades(signed_xml :: String.t()) ::

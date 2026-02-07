@@ -19,10 +19,10 @@ defmodule KsefHub.KsefClient.RateLimiterTest do
       assert :ok = RateLimiter.wait_for_slot(:download)
     end
 
-    test "records requests" do
-      RateLimiter.record_request(:download)
-      RateLimiter.record_request(:download)
+    test "tracks multiple requests without blocking" do
       assert :ok = RateLimiter.wait_for_slot(:download)
+      assert :ok = RateLimiter.wait_for_slot(:download)
+      assert :ok = RateLimiter.wait_for_slot(:metadata)
     end
   end
 

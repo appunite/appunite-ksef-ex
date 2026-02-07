@@ -7,6 +7,7 @@ defmodule KsefHub.XadesSigner.AuthTokenRequest do
   @doc """
   Builds an AuthTokenRequest XML string with the given challenge and NIP.
   """
+  @spec build(String.t(), String.t()) :: String.t()
   def build(challenge, nip) do
     """
     <?xml version="1.0" encoding="UTF-8"?>
@@ -20,6 +21,7 @@ defmodule KsefHub.XadesSigner.AuthTokenRequest do
     """
   end
 
+  @spec escape_xml(String.t()) :: String.t()
   defp escape_xml(str) when is_binary(str) do
     str
     |> String.replace("&", "&amp;")

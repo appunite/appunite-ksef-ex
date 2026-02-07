@@ -23,9 +23,12 @@ defmodule KsefHub.XadesSigner.Xmlsec1 do
     try do
       args = [
         "--sign",
-        "--pkcs12", cert_path,
-        "--pwd-file", password_path,
-        "--output", signed_path,
+        "--pkcs12",
+        cert_path,
+        "--pwd-file",
+        password_path,
+        "--output",
+        signed_path,
         xml_path
       ]
 
@@ -42,22 +45,29 @@ defmodule KsefHub.XadesSigner.Xmlsec1 do
     end
   end
 
+  @spec build_auth_token_request(String.t(), String.t()) :: String.t()
   defp build_auth_token_request(challenge, nip) do
     KsefHub.XadesSigner.AuthTokenRequest.build(challenge, nip)
   end
 
+  @spec write_secure_temp(binary(), String.t()) :: Path.t()
   defp write_secure_temp(content, suffix) do
     path = temp_path(suffix)
-    File.write!(path, content)
+    # Random path makes TOCTOU risk negligible; chmod before content write
+    # ensures the file is never readable by others with sensitive data.
+    File.touch!(path)
     File.chmod!(path, 0o600)
+    File.write!(path, content)
     path
   end
 
+  @spec temp_path(String.t()) :: Path.t()
   defp temp_path(suffix) do
     random = Base.url_encode64(:crypto.strong_rand_bytes(8), padding: false)
     Path.join(System.tmp_dir!(), "ksef_#{random}_#{suffix}")
   end
 
+  @spec secure_delete(Path.t()) :: :ok
   defp secure_delete(path) do
     if File.exists?(path) do
       # Overwrite with zeros before deletion

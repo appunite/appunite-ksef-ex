@@ -12,6 +12,7 @@ defmodule KsefHub.Credentials.Encryption do
   Encrypts plaintext with AES-256-GCM.
   Returns `{:ok, ciphertext}` where ciphertext includes IV + tag + encrypted data.
   """
+  @spec encrypt(binary()) :: {:ok, binary()}
   def encrypt(plaintext) when is_binary(plaintext) do
     key = get_encryption_key()
     iv = :crypto.strong_rand_bytes(@iv_bytes)
@@ -26,6 +27,7 @@ defmodule KsefHub.Credentials.Encryption do
   Decrypts ciphertext encrypted with `encrypt/1`.
   Returns `{:ok, plaintext}` or `{:error, :decryption_failed}`.
   """
+  @spec decrypt(binary()) :: {:ok, binary()} | {:error, :decryption_failed | :invalid_ciphertext}
   def decrypt(<<iv::binary-size(@iv_bytes), tag::binary-size(@tag_bytes), ciphertext::binary>>) do
     key = get_encryption_key()
 
@@ -37,6 +39,7 @@ defmodule KsefHub.Credentials.Encryption do
 
   def decrypt(_), do: {:error, :invalid_ciphertext}
 
+  @spec get_encryption_key() :: binary()
   defp get_encryption_key do
     case Application.get_env(:ksef_hub, :encryption_key) do
       nil ->

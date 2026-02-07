@@ -10,7 +10,7 @@ defmodule KsefHub.KsefClient.AuthTest do
   describe "authenticate/3" do
     test "successful XADES auth flow" do
       KsefHub.KsefClient.Mock
-      |> expect(:get_challenge, fn ->
+      |> expect(:get_challenge, fn "1234567890" ->
         {:ok, %{challenge: "test-challenge-123", timestamp: "2025-01-15T12:00:00Z"}}
       end)
 
@@ -31,12 +31,13 @@ defmodule KsefHub.KsefClient.AuthTest do
 
       KsefHub.KsefClient.Mock
       |> expect(:redeem_tokens, fn "op-token-456" ->
-        {:ok, %{
-          access_token: "access-tok",
-          refresh_token: "refresh-tok",
-          access_valid_until: DateTime.add(DateTime.utc_now(), 900),
-          refresh_valid_until: DateTime.add(DateTime.utc_now(), 48 * 24 * 3600)
-        }}
+        {:ok,
+         %{
+           access_token: "access-tok",
+           refresh_token: "refresh-tok",
+           access_valid_until: DateTime.add(DateTime.utc_now(), 900),
+           refresh_valid_until: DateTime.add(DateTime.utc_now(), 48 * 24 * 3600)
+         }}
       end)
 
       assert {:ok, tokens} = Auth.authenticate("1234567890", "cert-data", "cert-pass")
@@ -46,7 +47,7 @@ defmodule KsefHub.KsefClient.AuthTest do
 
     test "handles challenge failure" do
       KsefHub.KsefClient.Mock
-      |> expect(:get_challenge, fn ->
+      |> expect(:get_challenge, fn "1234567890" ->
         {:error, {:ksef_error, 500, "Internal Server Error"}}
       end)
 
@@ -56,7 +57,7 @@ defmodule KsefHub.KsefClient.AuthTest do
 
     test "handles signing failure" do
       KsefHub.KsefClient.Mock
-      |> expect(:get_challenge, fn ->
+      |> expect(:get_challenge, fn "1234567890" ->
         {:ok, %{challenge: "challenge", timestamp: "2025-01-15T12:00:00Z"}}
       end)
 
