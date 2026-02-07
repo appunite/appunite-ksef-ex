@@ -1,6 +1,10 @@
 defmodule KsefHub.Accounts.ApiToken do
+  @moduledoc "API token schema. Tokens authenticate external API consumers."
+
   use Ecto.Schema
   import Ecto.Changeset
+
+  @type t :: %__MODULE__{}
 
   @primary_key {:id, :binary_id, autogenerate: true}
   @foreign_key_type :binary_id
@@ -19,6 +23,8 @@ defmodule KsefHub.Accounts.ApiToken do
     timestamps()
   end
 
+  @doc "Builds a changeset for token creation/update."
+  @spec changeset(t(), map()) :: Ecto.Changeset.t()
   def changeset(api_token, attrs) do
     api_token
     |> cast(attrs, [:name, :description, :is_active, :created_by_id])

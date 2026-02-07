@@ -1,9 +1,13 @@
 defmodule KsefHub.AuditLog do
+  @moduledoc "Audit log schema and helpers. Records security-relevant actions."
+
   use Ecto.Schema
   import Ecto.Changeset
   import Ecto.Query
 
   alias KsefHub.Repo
+
+  @type t :: %__MODULE__{}
 
   @primary_key {:id, :binary_id, autogenerate: true}
   @foreign_key_type :binary_id
@@ -20,6 +24,8 @@ defmodule KsefHub.AuditLog do
     timestamps(updated_at: false)
   end
 
+  @doc "Builds a changeset for an audit log entry."
+  @spec changeset(t(), map()) :: Ecto.Changeset.t()
   def changeset(audit_log, attrs) do
     audit_log
     |> cast(attrs, [:action, :resource_type, :resource_id, :metadata, :user_id, :ip_address])
@@ -29,6 +35,7 @@ defmodule KsefHub.AuditLog do
   @doc """
   Creates an audit log entry.
   """
+  @spec log(String.t(), keyword()) :: {:ok, t()} | {:error, Ecto.Changeset.t()}
   def log(action, opts \\ []) do
     %__MODULE__{}
     |> changeset(%{
@@ -45,6 +52,7 @@ defmodule KsefHub.AuditLog do
   @doc """
   Lists recent audit log entries.
   """
+  @spec list_recent(non_neg_integer()) :: [t()]
   def list_recent(limit \\ 50) do
     __MODULE__
     |> order_by([a], desc: a.inserted_at)

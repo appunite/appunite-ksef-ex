@@ -9,6 +9,7 @@ defmodule KsefHub.Sync.SyncWorker do
   require Logger
 
   @impl Oban.Worker
+  @spec perform(Oban.Job.t()) :: :ok
   def perform(%Oban.Job{id: job_id}) do
     Logger.warning("KSeF sync job ##{job_id} scheduled but not yet implemented")
     :ok

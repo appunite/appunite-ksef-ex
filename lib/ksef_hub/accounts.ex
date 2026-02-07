@@ -11,16 +11,20 @@ defmodule KsefHub.Accounts do
 
   # --- Users ---
 
+  @spec get_user!(Ecto.UUID.t()) :: User.t()
   def get_user!(id), do: Repo.get!(User, id)
 
+  @spec get_user_by_email(String.t()) :: User.t() | nil
   def get_user_by_email(email), do: Repo.get_by(User, email: email)
 
+  @spec get_user_by_google_uid(String.t()) :: User.t() | nil
   def get_user_by_google_uid(uid), do: Repo.get_by(User, google_uid: uid)
 
   @doc """
   Finds a user by Google UID, or creates one from Google auth info.
   Returns `{:ok, user}` or `{:error, changeset}`.
   """
+  @spec find_or_create_user(map()) :: {:ok, User.t()} | {:error, Ecto.Changeset.t()}
   def find_or_create_user(%{uid: uid, email: email} = info) do
     case get_user_by_google_uid(uid) do
       nil ->
@@ -41,6 +45,7 @@ defmodule KsefHub.Accounts do
   @doc """
   Checks if an email is in the allowlist.
   """
+  @spec allowed_email?(String.t()) :: boolean()
   def allowed_email?(email) do
     allowed =
       Application.get_env(:ksef_hub, :allowed_emails, "")
@@ -56,6 +61,7 @@ defmodule KsefHub.Accounts do
   @doc """
   Creates a new API token. Returns the plaintext token exactly once.
   """
+  @spec create_api_token(map()) :: {:ok, %{token: String.t(), api_token: ApiToken.t()}} | {:error, Ecto.Changeset.t()}
   def create_api_token(attrs) do
     plain_token = generate_token()
     token_hash = hash_token(plain_token)
@@ -79,6 +85,7 @@ defmodule KsefHub.Accounts do
   @doc """
   Validates a plaintext API token. Returns the token record if valid.
   """
+  @spec validate_api_token(String.t()) :: {:ok, ApiToken.t()} | {:error, :invalid}
   def validate_api_token(plain_token) do
     token_hash = hash_token(plain_token)
 
@@ -91,6 +98,7 @@ defmodule KsefHub.Accounts do
   @doc """
   Revokes an API token by ID.
   """
+  @spec revoke_api_token(Ecto.UUID.t()) :: {:ok, ApiToken.t()} | {:error, :not_found} | {:error, Ecto.Changeset.t()}
   def revoke_api_token(token_id) do
     case Repo.get(ApiToken, token_id) do
       nil ->
@@ -106,6 +114,7 @@ defmodule KsefHub.Accounts do
   @doc """
   Lists all API tokens with sensitive fields redacted.
   """
+  @spec list_api_tokens() :: [ApiToken.t()]
   def list_api_tokens do
     ApiToken
     |> order_by([t], desc: t.inserted_at)
@@ -117,6 +126,7 @@ defmodule KsefHub.Accounts do
   Tracks usage of an API token (last_used_at, request_count).
   Returns `:ok` if the token was found, `{:error, :not_found}` otherwise.
   """
+  @spec track_token_usage(Ecto.UUID.t()) :: :ok | {:error, :not_found}
   def track_token_usage(token_id) do
     case from(t in ApiToken, where: t.id == ^token_id)
          |> Repo.update_all(
@@ -128,12 +138,14 @@ defmodule KsefHub.Accounts do
     end
   end
 
+  @spec generate_token() :: String.t()
   defp generate_token do
     @token_bytes
     |> :crypto.strong_rand_bytes()
     |> Base.url_encode64(padding: false)
   end
 
+  @spec hash_token(String.t()) :: String.t()
   defp hash_token(token) do
     :crypto.hash(:sha256, token)
     |> Base.encode16(case: :lower)

@@ -1,6 +1,10 @@
 defmodule KsefHub.Sync.Checkpoint do
+  @moduledoc "Sync checkpoint schema. Tracks the last synced timestamp per NIP and direction."
+
   use Ecto.Schema
   import Ecto.Changeset
+
+  @type t :: %__MODULE__{}
 
   @primary_key {:id, :binary_id, autogenerate: true}
   @foreign_key_type :binary_id
@@ -16,6 +20,8 @@ defmodule KsefHub.Sync.Checkpoint do
     timestamps()
   end
 
+  @doc "Builds a changeset for checkpoint creation/update."
+  @spec changeset(t(), map()) :: Ecto.Changeset.t()
   def changeset(checkpoint, attrs) do
     checkpoint
     |> cast(attrs, [:checkpoint_type, :last_seen_timestamp, :nip, :metadata])

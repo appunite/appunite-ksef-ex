@@ -1,6 +1,10 @@
 defmodule KsefHub.Invoices.Invoice do
+  @moduledoc "Invoice schema. Represents an income or expense invoice synced from KSeF."
+
   use Ecto.Schema
   import Ecto.Changeset
+
+  @type t :: %__MODULE__{}
 
   @primary_key {:id, :binary_id, autogenerate: true}
   @foreign_key_type :binary_id
@@ -29,6 +33,8 @@ defmodule KsefHub.Invoices.Invoice do
     timestamps()
   end
 
+  @doc "Builds a changeset for invoice creation/update."
+  @spec changeset(t(), map()) :: Ecto.Changeset.t()
   def changeset(invoice, attrs) do
     invoice
     |> cast(attrs, [

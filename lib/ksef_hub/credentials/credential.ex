@@ -1,6 +1,10 @@
 defmodule KsefHub.Credentials.Credential do
+  @moduledoc "KSeF credential schema. Stores certificate data and session tokens."
+
   use Ecto.Schema
   import Ecto.Changeset
+
+  @type t :: %__MODULE__{}
 
   @primary_key {:id, :binary_id, autogenerate: true}
   @foreign_key_type :binary_id
@@ -21,6 +25,8 @@ defmodule KsefHub.Credentials.Credential do
     timestamps()
   end
 
+  @doc "Builds a changeset for credential creation/update."
+  @spec changeset(t(), map()) :: Ecto.Changeset.t()
   def changeset(credential, attrs) do
     credential
     |> cast(attrs, [
