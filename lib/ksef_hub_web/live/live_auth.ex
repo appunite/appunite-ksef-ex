@@ -20,7 +20,16 @@ defmodule KsefHubWeb.LiveAuth do
     with raw_id when is_binary(raw_id) <- session["user_id"],
          {:ok, _} <- Ecto.UUID.cast(raw_id),
          %{} = user <- Accounts.get_user(raw_id) do
-      {:cont, assign(socket, :current_user, user)}
+      socket =
+        socket
+        |> assign(:current_user, user)
+        |> assign(:current_path, nil)
+        |> attach_hook(:set_current_path, :handle_params, fn _params, uri, socket ->
+          path = URI.parse(uri).path
+          {:cont, assign(socket, :current_path, path)}
+        end)
+
+      {:cont, socket}
     else
       _ ->
         socket =
