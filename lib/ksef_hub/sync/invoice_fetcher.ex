@@ -44,9 +44,14 @@ defmodule KsefHub.Sync.InvoiceFetcher do
 
         cond do
           is_truncated ->
-            # Narrow date range using last record's date, reset page offset
-            narrowed_from = new_max_ts || from
-            do_fetch(access_token, type, nip, narrowed_from, 0, new_count, new_max_ts)
+            # Detect stalled progress — abort if max_ts didn't advance
+            if new_max_ts == nil or new_max_ts == max_ts do
+              Logger.error("Truncated response with no forward progress, aborting sync")
+              {:error, :truncation_no_progress}
+            else
+              # Narrow date range using last record's date, reset page offset
+              do_fetch(access_token, type, nip, new_max_ts, 0, new_count, new_max_ts)
+            end
 
           has_more ->
             do_fetch(access_token, type, nip, from, page_offset + 1, new_count, new_max_ts)

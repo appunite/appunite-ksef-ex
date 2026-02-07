@@ -18,7 +18,11 @@ defmodule KsefHub.Sync.SyncWorker do
     with {:ok, credential} <- load_active_credential(),
          {:ok, access_token} <- get_access_token() do
       result = sync_all_types(access_token, credential.nip)
-      Credentials.update_last_sync(credential)
+
+      if result == :ok do
+        Credentials.update_last_sync(credential)
+      end
+
       result
     else
       {:error, :no_credential} ->
@@ -27,7 +31,7 @@ defmodule KsefHub.Sync.SyncWorker do
 
       {:error, :reauth_required} ->
         Logger.warning("Sync skipped: XADES re-authentication required")
-        {:error, :reauth_required}
+        {:cancel, :reauth_required}
 
       {:error, reason} ->
         Logger.error("Sync failed: #{inspect(reason)}")
