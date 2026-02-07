@@ -88,6 +88,10 @@ defmodule KsefHub.Sync.SyncWorker do
     end
   end
 
+  defp broadcast_sync_completed(stats) do
+    Phoenix.PubSub.broadcast(KsefHub.PubSub, "sync:status", {:sync_completed, stats})
+  end
+
   defp sync_type(access_token, type, nip) do
     checkpoint = Checkpoints.get_or_init(type, nip)
 
