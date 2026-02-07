@@ -61,10 +61,12 @@ defmodule KsefHub.Accounts do
   @doc """
   Checks if an email is in the allowlist.
   """
-  @spec allowed_email?(String.t()) :: boolean()
+  @spec allowed_email?(any()) :: boolean()
   def allowed_email?(email) when is_binary(email) do
     String.downcase(email) in allowed_emails()
   end
+
+  def allowed_email?(_), do: false
 
   @spec allowed_emails() :: [String.t()]
   defp allowed_emails do

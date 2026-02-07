@@ -87,7 +87,7 @@ defmodule KsefHubWeb.InvoiceLive.Show do
         <div class="flex gap-2">
           <.link
             :if={@invoice.xml_content}
-            href={~p"/api/invoices/#{@invoice.id}/pdf"}
+            href={~p"/invoices/#{@invoice.id}/pdf"}
             class="btn btn-sm btn-outline"
           >
             <.icon name="hero-arrow-down-tray" class="size-4" /> PDF

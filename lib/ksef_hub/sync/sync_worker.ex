@@ -18,8 +18,11 @@ defmodule KsefHub.Sync.SyncWorker do
     with {:ok, credential} <- load_active_credential(),
          {:ok, access_token} <- get_access_token() do
       case sync_all_types(access_token, credential.nip, job) do
-        :ok ->
+        {:ok, :full} ->
           Credentials.update_last_sync(credential)
+          :ok
+
+        {:ok, :partial, _details} ->
           :ok
 
         {:error, reason} ->
@@ -65,17 +68,17 @@ defmodule KsefHub.Sync.SyncWorker do
         Logger.info("Sync complete: #{ic} income, #{ec} expense invoices")
         store_meta(job, %{"income_count" => ic, "expense_count" => ec})
         broadcast_sync_completed(%{income: ic, expense: ec})
-        :ok
+        {:ok, :full}
 
       {{:ok, ic}, {:error, reason}} ->
         Logger.error("Expense sync failed: #{inspect(reason)} (#{ic} income invoices synced)")
         store_meta(job, %{"income_count" => ic, "error" => inspect(reason)})
-        :ok
+        {:ok, :partial, %{succeeded: :income, failed: {:expense, reason}}}
 
       {{:error, reason}, {:ok, ec}} ->
         Logger.error("Income sync failed: #{inspect(reason)} (#{ec} expense invoices synced)")
         store_meta(job, %{"expense_count" => ec, "error" => inspect(reason)})
-        :ok
+        {:ok, :partial, %{succeeded: :expense, failed: {:income, reason}}}
 
       {{:error, income_reason}, {:error, expense_reason}} ->
         Logger.error(
@@ -93,8 +96,12 @@ defmodule KsefHub.Sync.SyncWorker do
 
   defp broadcast_sync_completed(stats) do
     case Phoenix.PubSub.broadcast(KsefHub.PubSub, "sync:status", {:sync_completed, stats}) do
-      :ok -> :ok
-      {:error, reason} -> Logger.warning("Failed to broadcast sync status: #{inspect(reason)}")
+      :ok ->
+        :ok
+
+      {:error, reason} ->
+        Logger.warning("Failed to broadcast sync status: #{inspect(reason)}")
+        :ok
     end
   end
 

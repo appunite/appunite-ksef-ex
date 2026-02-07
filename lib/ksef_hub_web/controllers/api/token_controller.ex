@@ -56,6 +56,7 @@ defmodule KsefHubWeb.Api.TokenController do
       name: token.name,
       description: token.description,
       token_prefix: token.token_prefix,
+      expires_at: token.expires_at,
       last_used_at: token.last_used_at,
       request_count: token.request_count,
       is_active: token.is_active,

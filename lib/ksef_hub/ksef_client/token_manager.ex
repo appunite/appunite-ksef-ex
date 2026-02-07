@@ -170,14 +170,22 @@ defmodule KsefHub.KsefClient.TokenManager do
   defp encrypt_refresh_token(token) do
     {:ok, encrypted} = Encryption.encrypt(token)
     encrypted
+  rescue
+    e ->
+      Logger.warning("Failed to encrypt refresh token: #{Exception.message(e)}")
+      nil
   end
 
   defp decrypt_refresh_token(nil), do: nil
 
   defp decrypt_refresh_token(encrypted) do
     case Encryption.decrypt(encrypted) do
-      {:ok, token} -> token
-      {:error, _} -> nil
+      {:ok, token} ->
+        token
+
+      {:error, reason} ->
+        Logger.warning("Failed to decrypt refresh token: #{inspect(reason)}")
+        nil
     end
   end
 

@@ -7,10 +7,11 @@ defmodule KsefHubWeb.InvoicePdfController do
   require Logger
 
   import KsefHubWeb.ErrorHelpers, only: [sanitize_error: 1]
+  import KsefHubWeb.FilenameHelpers, only: [sanitize_filename: 1]
 
   alias KsefHub.Invoices
 
-  def show(conn, %{"id" => id}) do
+  def show(%{assigns: %{current_user: %{id: _}}} = conn, %{"id" => id}) do
     case Invoices.get_invoice(id) do
       nil ->
         conn
@@ -25,6 +26,12 @@ defmodule KsefHubWeb.InvoicePdfController do
       invoice ->
         generate_and_send_pdf(conn, invoice)
     end
+  end
+
+  def show(conn, _params) do
+    conn
+    |> put_flash(:error, "You must be logged in to download invoices.")
+    |> redirect(to: ~p"/invoices")
   end
 
   defp generate_and_send_pdf(conn, invoice) do
@@ -46,11 +53,5 @@ defmodule KsefHubWeb.InvoicePdfController do
         |> put_flash(:error, "PDF generation failed.")
         |> redirect(to: ~p"/invoices/#{invoice.id}")
     end
-  end
-
-  defp sanitize_filename(name) do
-    name
-    |> String.replace(~r/[^\w\.\-]/u, "_")
-    |> String.slice(0, 200)
   end
 end

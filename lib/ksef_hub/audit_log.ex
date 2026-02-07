@@ -55,8 +55,10 @@ defmodule KsefHub.AuditLog do
   """
   @max_limit 1000
 
-  @spec list_recent(pos_integer()) :: [t()]
+  @spec list_recent(non_neg_integer()) :: [t()]
   def list_recent(limit \\ 50)
+
+  def list_recent(0), do: []
 
   def list_recent(limit) when is_integer(limit) and limit > 0 do
     clamped = min(limit, @max_limit)

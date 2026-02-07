@@ -5,6 +5,7 @@ defmodule KsefHubWeb.Api.InvoiceController do
 
   import KsefHubWeb.ChangesetHelpers
   import KsefHubWeb.ErrorHelpers, only: [sanitize_error: 1]
+  import KsefHubWeb.FilenameHelpers, only: [sanitize_filename: 1]
 
   alias KsefHub.Invoices
 
@@ -146,11 +147,5 @@ defmodule KsefHubWeb.Api.InvoiceController do
       inserted_at: invoice.inserted_at,
       updated_at: invoice.updated_at
     }
-  end
-
-  defp sanitize_filename(name) do
-    name
-    |> String.replace(~r/[^\w\.\-]/, "_")
-    |> String.slice(0, 200)
   end
 end

@@ -5,6 +5,14 @@ defmodule KsefHub.AuditLogTest do
 
   alias KsefHub.AuditLog
 
+  describe "changeset/2" do
+    test "requires action" do
+      changeset = AuditLog.changeset(%AuditLog{}, %{})
+      refute changeset.valid?
+      assert "can't be blank" in errors_on(changeset).action
+    end
+  end
+
   describe "log/2" do
     test "creates an audit log entry" do
       assert {:ok, %AuditLog{} = entry} = AuditLog.log("user.login")
@@ -60,10 +68,10 @@ defmodule KsefHub.AuditLogTest do
       assert length(AuditLog.list_recent(-1)) == 1
     end
 
-    test "clamps zero limit to default" do
+    test "returns empty list for zero limit" do
       {:ok, _} = AuditLog.log("action.one")
 
-      assert length(AuditLog.list_recent(0)) == 1
+      assert AuditLog.list_recent(0) == []
     end
 
     test "clamps huge limit to max" do

@@ -102,7 +102,7 @@ Tokens are scoped to full read access. Revoke tokens from the same settings page
 **Using the token:**
 
 ```bash
-curl -H "Authorization: Bearer YOUR_TOKEN" http://localhost:4000/api/expenses
+curl -H "Authorization: Bearer <token>" http://localhost:4000/api/expenses
 ```
 
 ## Architecture

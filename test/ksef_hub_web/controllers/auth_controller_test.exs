@@ -11,6 +11,9 @@ defmodule KsefHubWeb.AuthControllerTest do
           email: "test@example.com",
           name: "Test User",
           image: "https://example.com/avatar.png"
+        },
+        extra: %Ueberauth.Auth.Extra{
+          raw_info: %{user: %{"email_verified" => true}}
         }
       }
 
@@ -84,6 +87,26 @@ defmodule KsefHubWeb.AuthControllerTest do
       refute get_session(conn, :user_id)
     end
 
+    test "rejects user when email_verified is nil (missing from provider)", %{conn: conn} do
+      auth = %Ueberauth.Auth{
+        uid: "google-nil-verified",
+        info: %Ueberauth.Auth.Info{
+          email: "test@example.com",
+          name: "Nil Verified User",
+          image: nil
+        }
+      }
+
+      conn =
+        conn
+        |> assign(:ueberauth_auth, auth)
+        |> get("/auth/google/callback")
+
+      assert redirected_to(conn) == "/"
+      assert Phoenix.Flash.get(conn.assigns.flash, :error) =~ "not authorized"
+      refute get_session(conn, :user_id)
+    end
+
     test "rejects user with unverified email", %{conn: conn} do
       auth = %Ueberauth.Auth{
         uid: "google-unverified",
@@ -137,6 +160,9 @@ defmodule KsefHubWeb.AuthControllerTest do
           email: "test@example.com",
           name: "Renew User",
           image: nil
+        },
+        extra: %Ueberauth.Auth.Extra{
+          raw_info: %{user: %{"email_verified" => true}}
         }
       }
 

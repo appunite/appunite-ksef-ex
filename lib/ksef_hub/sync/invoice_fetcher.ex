@@ -65,6 +65,11 @@ defmodule KsefHub.Sync.InvoiceFetcher do
     end
   end
 
+  defp decide_next_action(%{is_truncated: true, has_more: true}, new_max_ts, old_max_ts)
+       when new_max_ts == nil or new_max_ts == old_max_ts do
+    :narrow_range
+  end
+
   defp decide_next_action(%{is_truncated: true}, new_max_ts, old_max_ts)
        when new_max_ts == nil or new_max_ts == old_max_ts do
     :truncation_no_progress

@@ -17,14 +17,15 @@ defmodule KsefHubWeb.AuthController do
   allowlist, and blank/nil emails. Renews the session on successful login
   to prevent session fixation.
   """
+  @spec callback(Plug.Conn.t(), map()) :: Plug.Conn.t()
   def callback(%{assigns: %{ueberauth_auth: auth}} = conn, _params) do
     email = auth.info.email
 
     email_verified =
       get_in(auth, [Access.key(:extra), Access.key(:raw_info), :user, "email_verified"])
 
-    # Allow nil email_verified (missing from provider response) but reject explicit false
-    if is_binary(email) and email != "" and email_verified != false and
+    # Require explicit email verification from provider
+    if is_binary(email) and email != "" and email_verified == true and
          Accounts.allowed_email?(email) do
       user_info = %{
         uid: auth.uid,
@@ -59,6 +60,8 @@ defmodule KsefHubWeb.AuthController do
     |> redirect(to: ~p"/")
   end
 
+  @doc "Logs the user out by dropping the session."
+  @spec logout(Plug.Conn.t(), any()) :: Plug.Conn.t()
   def logout(conn, _params) do
     conn
     |> configure_session(drop: true)

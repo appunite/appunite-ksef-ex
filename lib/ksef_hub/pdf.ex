@@ -16,8 +16,8 @@ defmodule KsefHub.Pdf do
       {:ok, html} ->
         {:ok, html}
 
-      {:error, reason} ->
-        Logger.debug("Xsltproc failed (#{inspect(reason)}), using fallback template")
+      {:error, _reason} ->
+        Logger.debug("Xsltproc failed, using fallback template")
         FallbackTemplate.render(xml_content)
     end
   end

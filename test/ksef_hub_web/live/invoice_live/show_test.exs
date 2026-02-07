@@ -105,17 +105,14 @@ defmodule KsefHubWeb.InvoiceLive.ShowTest do
       refute has_element?(view, ".badge", "approved")
     end
 
-    test "approve on already-approved invoice hides buttons", %{conn: conn} do
-      invoice = insert(:invoice, type: "expense")
+    test "already-approved invoice does not show action buttons", %{conn: conn} do
+      invoice = insert(:invoice, type: "expense", status: "approved")
 
       stub(KsefHub.Pdf.Mock, :generate_html, fn _xml -> {:error, :no_xml} end)
 
       {:ok, view, _html} = live(conn, ~p"/invoices/#{invoice.id}")
 
-      view |> element("button", "Approve") |> render_click()
       assert has_element?(view, ".badge", "approved")
-
-      # Approve/Reject buttons should be gone after status change
       refute has_element?(view, "button", "Approve")
       refute has_element?(view, "button", "Reject")
     end
