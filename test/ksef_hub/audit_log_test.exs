@@ -49,7 +49,7 @@ defmodule KsefHub.AuditLogTest do
     end
 
     test "respects limit" do
-      for i <- 1..5, do: AuditLog.log("action.#{i}")
+      Enum.each(1..5, fn i -> AuditLog.log("action.#{i}") end)
 
       assert length(AuditLog.list_recent(3)) == 3
     end

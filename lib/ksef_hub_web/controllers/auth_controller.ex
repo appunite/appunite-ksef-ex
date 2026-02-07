@@ -23,6 +23,7 @@ defmodule KsefHubWeb.AuthController do
     email_verified =
       get_in(auth, [Access.key(:extra), Access.key(:raw_info), :user, "email_verified"])
 
+    # Allow nil email_verified (missing from provider response) but reject explicit false
     if is_binary(email) and email != "" and email_verified != false and
          Accounts.allowed_email?(email) do
       user_info = %{

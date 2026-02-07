@@ -50,7 +50,7 @@ defmodule KsefHubWeb.InvoicePdfController do
 
   defp sanitize_filename(name) do
     name
-    |> String.replace(~r/[^\w\.\-]/, "_")
+    |> String.replace(~r/[^\w\.\-]/u, "_")
     |> String.slice(0, 200)
   end
 end

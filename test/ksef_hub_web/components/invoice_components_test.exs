@@ -60,6 +60,14 @@ defmodule KsefHubWeb.InvoiceComponentsTest do
       assert html =~ "badge-warning"
       assert html =~ "expense"
     end
+
+    test "renders unknown type with base badge only" do
+      html = render_component(&InvoiceComponents.type_badge/1, type: "unknown")
+      assert html =~ "badge badge-sm"
+      assert html =~ "unknown"
+      refute html =~ "badge-success"
+      refute html =~ "badge-warning"
+    end
   end
 
   describe "status_badge/1" do
@@ -79,6 +87,15 @@ defmodule KsefHubWeb.InvoiceComponentsTest do
       html = render_component(&InvoiceComponents.status_badge/1, status: "rejected")
       assert html =~ "badge-error"
       assert html =~ "rejected"
+    end
+
+    test "renders unknown status with base badge only" do
+      html = render_component(&InvoiceComponents.status_badge/1, status: "cancelled")
+      assert html =~ "badge badge-sm"
+      assert html =~ "cancelled"
+      refute html =~ "badge-warning"
+      refute html =~ "badge-success"
+      refute html =~ "badge-error"
     end
   end
 end

@@ -3,8 +3,9 @@ defmodule KsefHubWeb.DashboardLiveTest do
 
   import Phoenix.LiveViewTest
 
+  import KsefHub.Factory
+
   alias KsefHub.Accounts
-  alias KsefHub.Invoices
 
   setup %{conn: conn} do
     {:ok, user} =
@@ -27,9 +28,9 @@ defmodule KsefHubWeb.DashboardLiveTest do
     end
 
     test "shows invoice counts", %{conn: conn} do
-      create_invoice("income", "pending")
-      create_invoice("income", "pending")
-      create_invoice("expense", "pending")
+      insert(:invoice, type: "income", status: "pending")
+      insert(:invoice, type: "income", status: "pending")
+      insert(:invoice, type: "expense", status: "pending")
 
       {:ok, view, _html} = live(conn, ~p"/dashboard")
       assert has_element?(view, ".stat-value", "3")
@@ -51,24 +52,11 @@ defmodule KsefHubWeb.DashboardLiveTest do
       assert has_element?(view, ".stat-value", "0")
 
       # Create an invoice and broadcast sync
-      create_invoice("income", "pending")
+      insert(:invoice, type: "income", status: "pending")
       send(view.pid, {:sync_completed, %{income: 1, expense: 0}})
 
       # Counts should update after sync event
       assert has_element?(view, ".stat-value", "1")
     end
-  end
-
-  defp create_invoice(type, status) do
-    Invoices.create_invoice(%{
-      type: type,
-      status: status,
-      seller_nip: "1234567890",
-      seller_name: "Seller",
-      buyer_nip: "0987654321",
-      buyer_name: "Buyer",
-      invoice_number: "FV/#{System.unique_integer([:positive])}",
-      issue_date: Date.utc_today()
-    })
   end
 end
