@@ -40,7 +40,7 @@ defmodule KsefHub.Pdf.Xsltproc do
           {:ok, output}
 
         {:ok, {output, exit_code}} ->
-          Logger.error("xsltproc failed (exit #{exit_code}): #{output}")
+          Logger.error("xsltproc failed (exit #{exit_code}, output: #{byte_size(output)} bytes)")
           {:error, {:xsltproc_failed, exit_code, output}}
 
         nil ->
@@ -49,7 +49,7 @@ defmodule KsefHub.Pdf.Xsltproc do
       end
     rescue
       e in ErlangError ->
-        Logger.error("xsltproc not available: #{inspect(e)}")
+        Logger.error("xsltproc not available: #{Exception.message(e)}")
         {:error, :xsltproc_not_available}
     after
       secure_delete_dir(run_dir)
