@@ -1,6 +1,8 @@
 defmodule KsefHubWeb.Api.TokenController do
   use KsefHubWeb, :controller
 
+  import KsefHubWeb.ChangesetHelpers
+
   alias KsefHub.Accounts
 
   def index(conn, _params) do
@@ -54,13 +56,5 @@ defmodule KsefHubWeb.Api.TokenController do
       is_active: token.is_active,
       inserted_at: token.inserted_at
     }
-  end
-
-  defp changeset_errors(changeset) do
-    Ecto.Changeset.traverse_errors(changeset, fn {msg, opts} ->
-      Regex.replace(~r"%{(\w+)}", msg, fn _, key ->
-        opts |> Keyword.get(String.to_existing_atom(key), key) |> to_string()
-      end)
-    end)
   end
 end

@@ -71,6 +71,7 @@ defmodule KsefHubWeb.AuthControllerTest do
 
       assert redirected_to(conn) == "/"
       assert Phoenix.Flash.get(conn.assigns.flash, :info) =~ "Logged out"
+      assert conn.private[:plug_session_info] == :drop
     end
   end
 end

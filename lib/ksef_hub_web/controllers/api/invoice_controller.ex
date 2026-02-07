@@ -3,6 +3,8 @@ defmodule KsefHubWeb.Api.InvoiceController do
 
   require Logger
 
+  import KsefHubWeb.ChangesetHelpers
+
   alias KsefHub.Invoices
 
   def index(conn, params) do
@@ -143,14 +145,6 @@ defmodule KsefHubWeb.Api.InvoiceController do
       inserted_at: invoice.inserted_at,
       updated_at: invoice.updated_at
     }
-  end
-
-  defp changeset_errors(changeset) do
-    Ecto.Changeset.traverse_errors(changeset, fn {msg, opts} ->
-      Regex.replace(~r"%{(\w+)}", msg, fn _, key ->
-        opts |> Keyword.get(String.to_existing_atom(key), key) |> to_string()
-      end)
-    end)
   end
 
   defp sanitize_filename(name) do
