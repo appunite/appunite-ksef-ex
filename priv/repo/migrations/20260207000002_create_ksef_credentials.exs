@@ -19,7 +19,7 @@ defmodule KsefHub.Repo.Migrations.CreateKsefCredentials do
       timestamps()
     end
 
-    create index(:ksef_credentials, [:nip])
+    create unique_index(:ksef_credentials, [:nip])
     create index(:ksef_credentials, [:is_active])
   end
 end
