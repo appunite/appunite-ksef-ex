@@ -87,8 +87,13 @@ defmodule KsefHub.Sync.SyncWorker do
         {:ok, count}
 
       {:ok, count, max_timestamp} ->
-        Checkpoints.advance(type, nip, max_timestamp)
-        {:ok, count}
+        case Checkpoints.advance(type, nip, max_timestamp) do
+          {:ok, _checkpoint} ->
+            {:ok, count}
+
+          {:error, reason} ->
+            {:error, {:checkpoint_advance_failed, reason}}
+        end
 
       {:error, reason} ->
         {:error, reason}
