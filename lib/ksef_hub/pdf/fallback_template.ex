@@ -96,7 +96,7 @@ defmodule KsefHub.Pdf.FallbackTemplate do
   defp line_item_row(item) do
     """
         <tr>
-          <td>#{item.line_number || ""}</td>
+          <td>#{escape(item.line_number)}</td>
           <td>#{escape(item.description || "")}</td>
           <td>#{escape(item.unit || "")}</td>
           <td class="num">#{format_amount(item.quantity)}</td>
