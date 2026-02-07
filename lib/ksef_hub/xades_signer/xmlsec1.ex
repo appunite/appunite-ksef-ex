@@ -23,9 +23,12 @@ defmodule KsefHub.XadesSigner.Xmlsec1 do
     try do
       args = [
         "--sign",
-        "--pkcs12", cert_path,
-        "--pwd-file", password_path,
-        "--output", signed_path,
+        "--pkcs12",
+        cert_path,
+        "--pwd-file",
+        password_path,
+        "--output",
+        signed_path,
         xml_path
       ]
 

@@ -62,15 +62,18 @@ defmodule KsefHub.Sync.SyncWorkerTest do
       # Income query returns one invoice header
       KsefHub.KsefClient.Mock
       |> expect(:query_invoice_metadata, fn "access-tok", %{type: "income"}, _opts ->
-        {:ok, %{
-          invoices: [%{
-            "ksefReferenceNumber" => "KSEF-INCOME-001",
-            "acquisitionTimestamp" => storage_date,
-            "permanentStorageDate" => storage_date
-          }],
-          has_more: false,
-          is_truncated: false
-        }}
+        {:ok,
+         %{
+           invoices: [
+             %{
+               "ksefReferenceNumber" => "KSEF-INCOME-001",
+               "acquisitionTimestamp" => storage_date,
+               "permanentStorageDate" => storage_date
+             }
+           ],
+           has_more: false,
+           is_truncated: false
+         }}
       end)
 
       # Expense query returns empty

@@ -24,15 +24,18 @@ defmodule KsefHub.Sync.InvoiceFetcherTest do
 
       KsefHub.KsefClient.Mock
       |> expect(:query_invoice_metadata, fn _token, _filters, _opts ->
-        {:ok, %{
-          invoices: [%{
-            "ksefReferenceNumber" => "FETCH-001",
-            "acquisitionTimestamp" => storage_date,
-            "permanentStorageDate" => storage_date
-          }],
-          has_more: false,
-          is_truncated: false
-        }}
+        {:ok,
+         %{
+           invoices: [
+             %{
+               "ksefReferenceNumber" => "FETCH-001",
+               "acquisitionTimestamp" => storage_date,
+               "permanentStorageDate" => storage_date
+             }
+           ],
+           has_more: false,
+           is_truncated: false
+         }}
       end)
 
       KsefHub.KsefClient.Mock
@@ -57,15 +60,18 @@ defmodule KsefHub.Sync.InvoiceFetcherTest do
       |> expect(:query_invoice_metadata, fn _t, _f, opts ->
         case Keyword.get(opts, :page_offset) do
           0 ->
-            {:ok, %{
-              invoices: [%{
-                "ksefReferenceNumber" => "PAGE-001",
-                "acquisitionTimestamp" => storage_date,
-                "permanentStorageDate" => storage_date
-              }],
-              has_more: true,
-              is_truncated: false
-            }}
+            {:ok,
+             %{
+               invoices: [
+                 %{
+                   "ksefReferenceNumber" => "PAGE-001",
+                   "acquisitionTimestamp" => storage_date,
+                   "permanentStorageDate" => storage_date
+                 }
+               ],
+               has_more: true,
+               is_truncated: false
+             }}
         end
       end)
 

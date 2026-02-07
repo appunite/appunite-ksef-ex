@@ -31,12 +31,13 @@ defmodule KsefHub.KsefClient.AuthTest do
 
       KsefHub.KsefClient.Mock
       |> expect(:redeem_tokens, fn "op-token-456" ->
-        {:ok, %{
-          access_token: "access-tok",
-          refresh_token: "refresh-tok",
-          access_valid_until: DateTime.add(DateTime.utc_now(), 900),
-          refresh_valid_until: DateTime.add(DateTime.utc_now(), 48 * 24 * 3600)
-        }}
+        {:ok,
+         %{
+           access_token: "access-tok",
+           refresh_token: "refresh-tok",
+           access_valid_until: DateTime.add(DateTime.utc_now(), 900),
+           refresh_valid_until: DateTime.add(DateTime.utc_now(), 48 * 24 * 3600)
+         }}
       end)
 
       assert {:ok, tokens} = Auth.authenticate("1234567890", "cert-data", "cert-pass")

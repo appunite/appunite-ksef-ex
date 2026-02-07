@@ -17,10 +17,11 @@ defmodule KsefHub.KsefClient.Live do
 
     case Req.post(url, json: body) do
       {:ok, %{status: 200, body: body}} ->
-        {:ok, %{
-          challenge: body["challenge"],
-          timestamp: body["timestamp"]
-        }}
+        {:ok,
+         %{
+           challenge: body["challenge"],
+           timestamp: body["timestamp"]
+         }}
 
       {:ok, %{status: status, body: body}} ->
         {:error, {:ksef_error, status, body}}
@@ -36,10 +37,11 @@ defmodule KsefHub.KsefClient.Live do
 
     case Req.post(url, body: signed_xml, headers: [{"content-type", "application/octet-stream"}]) do
       {:ok, %{status: 200, body: body}} ->
-        {:ok, %{
-          reference_number: body["referenceNumber"],
-          operation_token: body["operationToken"]
-        }}
+        {:ok,
+         %{
+           reference_number: body["referenceNumber"],
+           operation_token: body["operationToken"]
+         }}
 
       {:ok, %{status: status, body: body}} ->
         {:error, {:ksef_error, status, body}}
@@ -74,12 +76,13 @@ defmodule KsefHub.KsefClient.Live do
 
     case Req.post(url, json: %{"operationToken" => operation_token}) do
       {:ok, %{status: 200, body: body}} ->
-        {:ok, %{
-          access_token: body["accessToken"],
-          refresh_token: body["refreshToken"],
-          access_valid_until: parse_datetime(body["accessTokenValidUntil"]),
-          refresh_valid_until: parse_datetime(body["refreshTokenValidUntil"])
-        }}
+        {:ok,
+         %{
+           access_token: body["accessToken"],
+           refresh_token: body["refreshToken"],
+           access_valid_until: parse_datetime(body["accessTokenValidUntil"]),
+           refresh_valid_until: parse_datetime(body["refreshTokenValidUntil"])
+         }}
 
       {:ok, %{status: status, body: body}} ->
         {:error, {:ksef_error, status, body}}
@@ -95,10 +98,11 @@ defmodule KsefHub.KsefClient.Live do
 
     case Req.post(url, json: %{"refreshToken" => refresh_token}) do
       {:ok, %{status: 200, body: body}} ->
-        {:ok, %{
-          access_token: body["accessToken"],
-          valid_until: parse_datetime(body["accessTokenValidUntil"])
-        }}
+        {:ok,
+         %{
+           access_token: body["accessToken"],
+           valid_until: parse_datetime(body["accessTokenValidUntil"])
+         }}
 
       {:ok, %{status: status, body: body}} ->
         {:error, {:ksef_error, status, body}}
@@ -123,11 +127,12 @@ defmodule KsefHub.KsefClient.Live do
 
     case Req.post(url, json: body, headers: headers) do
       {:ok, %{status: 200, body: body}} ->
-        {:ok, %{
-          invoices: body["invoiceHeaderList"] || [],
-          has_more: body["hasMore"] || false,
-          is_truncated: body["isTruncated"] || false
-        }}
+        {:ok,
+         %{
+           invoices: body["invoiceHeaderList"] || [],
+           has_more: body["hasMore"] || false,
+           is_truncated: body["isTruncated"] || false
+         }}
 
       {:ok, %{status: 429} = resp} ->
         retry_after = get_retry_after(resp)
@@ -181,21 +186,33 @@ defmodule KsefHub.KsefClient.Live do
 
     criteria =
       if filters[:type] do
-        Map.put(criteria, "subjectType", if(filters[:type] == "income", do: "subject1", else: "subject2"))
+        Map.put(
+          criteria,
+          "subjectType",
+          if(filters[:type] == "income", do: "subject1", else: "subject2")
+        )
       else
         criteria
       end
 
     criteria =
       if filters[:date_from] do
-        Map.put(criteria, "acquisitionTimestampThresholdFrom", DateTime.to_iso8601(filters[:date_from]))
+        Map.put(
+          criteria,
+          "acquisitionTimestampThresholdFrom",
+          DateTime.to_iso8601(filters[:date_from])
+        )
       else
         criteria
       end
 
     criteria =
       if filters[:date_to] do
-        Map.put(criteria, "acquisitionTimestampThresholdTo", DateTime.to_iso8601(filters[:date_to]))
+        Map.put(
+          criteria,
+          "acquisitionTimestampThresholdTo",
+          DateTime.to_iso8601(filters[:date_to])
+        )
       else
         criteria
       end

@@ -32,7 +32,10 @@ defmodule KsefHub.KsefClient.TokenManager do
   Stores new tokens after XADES authentication.
   """
   def store_tokens(access_token, refresh_token, access_valid_until, refresh_valid_until) do
-    GenServer.call(__MODULE__, {:store_tokens, access_token, refresh_token, access_valid_until, refresh_valid_until})
+    GenServer.call(
+      __MODULE__,
+      {:store_tokens, access_token, refresh_token, access_valid_until, refresh_valid_until}
+    )
   end
 
   @doc """
@@ -101,7 +104,8 @@ defmodule KsefHub.KsefClient.TokenManager do
   defp access_token_valid?(%{access_valid_until: nil}), do: false
 
   defp access_token_valid?(%{access_valid_until: valid_until}) do
-    DateTime.compare(valid_until, DateTime.add(DateTime.utc_now(), @refresh_buffer_seconds)) == :gt
+    DateTime.compare(valid_until, DateTime.add(DateTime.utc_now(), @refresh_buffer_seconds)) ==
+      :gt
   end
 
   defp refresh_token_valid?(%{refresh_valid_until: nil}), do: false
