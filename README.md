@@ -30,6 +30,23 @@ mix setup          # deps, DB, assets
 mix phx.server     # http://localhost:4000
 ```
 
+### Configuration
+
+Copy and configure environment variables:
+
+```bash
+cp .env.example .env
+# Edit .env with your credentials:
+# - DATABASE_URL
+# - SECRET_KEY_BASE
+# - KSEF_API_URL
+# - GOOGLE_CLIENT_ID / GOOGLE_CLIENT_SECRET
+# - GOTENBERG_URL
+# - GCP_SECRET_NAME
+```
+
+See the full list in [`CLAUDE.md`](CLAUDE.md#environment-variables).
+
 ### Docker
 
 ```bash
