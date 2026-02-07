@@ -48,6 +48,7 @@ defmodule KsefHubWeb.Router do
       live "/invoices", InvoiceLive.Index
       live "/invoices/:id", InvoiceLive.Show
       live "/tokens", TokenLive
+      live "/syncs", SyncLive
     end
 
     get "/invoices/:id/pdf", InvoicePdfController, :show

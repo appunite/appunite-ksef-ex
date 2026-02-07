@@ -77,6 +77,11 @@ defmodule KsefHubWeb.Layouts do
                   API Tokens
                 </.nav_link>
               </li>
+              <li>
+                <.nav_link path={~p"/syncs"} current={@current_path} icon="hero-arrow-path">
+                  Syncs
+                </.nav_link>
+              </li>
             </ul>
           </nav>
           
