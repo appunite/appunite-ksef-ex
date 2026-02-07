@@ -54,7 +54,7 @@ defmodule KsefHub.KsefClient.Live do
   end
 
   @impl true
-  def poll_auth_status(reference_number, _operation_token) do
+  def poll_auth_status(reference_number) do
     url = api_url("/Session/Status/#{reference_number}")
 
     case Req.get(url) do

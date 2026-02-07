@@ -10,7 +10,7 @@ defmodule KsefHub.KsefClient.Behaviour do
               {:ok, %{reference_number: String.t(), operation_token: String.t()}}
               | {:error, term()}
 
-  @callback poll_auth_status(reference_number :: String.t(), operation_token :: String.t()) ::
+  @callback poll_auth_status(reference_number :: String.t()) ::
               {:ok, :success} | {:ok, :pending} | {:error, term()}
 
   @callback redeem_tokens(operation_token :: String.t()) ::

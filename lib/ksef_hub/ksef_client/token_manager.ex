@@ -172,21 +172,27 @@ defmodule KsefHub.KsefClient.TokenManager do
         :ok
 
       cred ->
-        Credentials.store_tokens(cred, %{
-          access_token_encrypted: encrypt_token(state.access_token),
-          access_token_expires_at: state.access_valid_until,
-          refresh_token_encrypted: encrypt_token(state.refresh_token),
-          refresh_token_expires_at: state.refresh_valid_until
-        })
+        with {:ok, enc_access} <- encrypt_token(state.access_token),
+             {:ok, enc_refresh} <- encrypt_token(state.refresh_token) do
+          Credentials.store_tokens(cred, %{
+            access_token_encrypted: enc_access,
+            access_token_expires_at: state.access_valid_until,
+            refresh_token_encrypted: enc_refresh,
+            refresh_token_expires_at: state.refresh_valid_until
+          })
+        else
+          {:error, reason} ->
+            Logger.error("Token encryption failed, skipping DB persist: #{inspect(reason)}")
+            :ok
+        end
     end
   end
 
-  @spec encrypt_token(String.t() | nil) :: binary() | nil
-  defp encrypt_token(nil), do: nil
+  @spec encrypt_token(String.t() | nil) :: {:ok, binary() | nil} | {:error, term()}
+  defp encrypt_token(nil), do: {:ok, nil}
 
   defp encrypt_token(plaintext) do
-    {:ok, encrypted} = KsefHub.Credentials.Encryption.encrypt(plaintext)
-    encrypted
+    KsefHub.Credentials.Encryption.encrypt(plaintext)
   end
 
   @spec decrypt_token(binary() | nil) :: String.t() | nil

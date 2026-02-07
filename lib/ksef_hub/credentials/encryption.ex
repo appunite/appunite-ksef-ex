@@ -51,7 +51,16 @@ defmodule KsefHub.Credentials.Encryption do
         key
 
       base64_key when is_binary(base64_key) ->
-        Base.decode64!(base64_key)
+        case Base.decode64(base64_key) do
+          {:ok, decoded} when byte_size(decoded) == 32 ->
+            decoded
+
+          {:ok, decoded} ->
+            raise "Encryption key has invalid size: expected 32 bytes, got #{byte_size(decoded)}"
+
+          :error ->
+            raise "Encryption key is not valid Base64"
+        end
     end
   end
 end

@@ -36,7 +36,7 @@ defmodule KsefHub.KsefClient.RateLimiter do
   """
   @spec wait_for_slot(:metadata | :download) :: :ok
   def wait_for_slot(operation_type \\ :download) do
-    wait_ms = GenServer.call(__MODULE__, {:acquire, operation_type}, 60_000)
+    wait_ms = GenServer.call(__MODULE__, {:acquire, operation_type}, :infinity)
 
     if wait_ms > 0 do
       Process.sleep(wait_ms)

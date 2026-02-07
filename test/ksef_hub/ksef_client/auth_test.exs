@@ -5,6 +5,7 @@ defmodule KsefHub.KsefClient.AuthTest do
 
   alias KsefHub.KsefClient.Auth
 
+  setup :set_mox_from_context
   setup :verify_on_exit!
 
   describe "authenticate/3" do
@@ -25,7 +26,7 @@ defmodule KsefHub.KsefClient.AuthTest do
       end)
 
       KsefHub.KsefClient.Mock
-      |> expect(:poll_auth_status, fn "ref-123", "op-token-456" ->
+      |> expect(:poll_auth_status, fn "ref-123" ->
         {:ok, :success}
       end)
 

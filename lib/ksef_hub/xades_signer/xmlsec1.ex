@@ -2,7 +2,8 @@ defmodule KsefHub.XadesSigner.Xmlsec1 do
   @moduledoc """
   Production XADES signer using xmlsec1 CLI.
   Only called during initial auth and re-auth (~every 48 days).
-  Uses secure temp files with 0600 permissions, cleaned up after use.
+  Uses a private per-run temp directory (mode 0700) with files at mode 0600,
+  securely cleaned up after use.
   """
 
   @behaviour KsefHub.XadesSigner.Behaviour
@@ -14,11 +15,12 @@ defmodule KsefHub.XadesSigner.Xmlsec1 do
   @impl true
   def sign_challenge(challenge, nip, certificate_data, certificate_password) do
     xml_template = build_auth_token_request(challenge, nip)
+    tmp_dir = create_secure_tmp_dir()
 
-    cert_path = write_secure_temp(certificate_data, "cert.p12")
-    password_path = write_secure_temp(certificate_password, "password.txt")
-    xml_path = write_secure_temp(xml_template, "request.xml")
-    signed_path = temp_path("signed.xml")
+    cert_path = write_secure_file(tmp_dir, "cert.p12", certificate_data)
+    password_path = write_secure_file(tmp_dir, "password.txt", certificate_password)
+    xml_path = write_secure_file(tmp_dir, "request.xml", xml_template)
+    signed_path = Path.join(tmp_dir, "signed.xml")
 
     try do
       args = [
@@ -41,7 +43,7 @@ defmodule KsefHub.XadesSigner.Xmlsec1 do
           {:error, {:xmlsec1_failed, exit_code, output}}
       end
     after
-      Enum.each([cert_path, password_path, xml_path, signed_path], &secure_delete/1)
+      secure_delete_dir(tmp_dir)
     end
   end
 
@@ -50,21 +52,40 @@ defmodule KsefHub.XadesSigner.Xmlsec1 do
     KsefHub.XadesSigner.AuthTokenRequest.build(challenge, nip)
   end
 
-  @spec write_secure_temp(binary(), String.t()) :: Path.t()
-  defp write_secure_temp(content, suffix) do
-    path = temp_path(suffix)
-    # Random path makes TOCTOU risk negligible; chmod before content write
-    # ensures the file is never readable by others with sensitive data.
+  @spec create_secure_tmp_dir() :: Path.t()
+  defp create_secure_tmp_dir do
+    random = Base.url_encode64(:crypto.strong_rand_bytes(16), padding: false)
+    dir = Path.join(System.tmp_dir!(), "ksef_sign_#{random}")
+    File.mkdir_p!(dir)
+    File.chmod!(dir, 0o700)
+    dir
+  end
+
+  @spec write_secure_file(Path.t(), String.t(), binary()) :: Path.t()
+  defp write_secure_file(dir, filename, content) do
+    path = Path.join(dir, filename)
+    # Create empty file with restrictive permissions before writing content
     File.touch!(path)
     File.chmod!(path, 0o600)
     File.write!(path, content)
     path
   end
 
-  @spec temp_path(String.t()) :: Path.t()
-  defp temp_path(suffix) do
-    random = Base.url_encode64(:crypto.strong_rand_bytes(8), padding: false)
-    Path.join(System.tmp_dir!(), "ksef_#{random}_#{suffix}")
+  @spec secure_delete_dir(Path.t()) :: :ok
+  defp secure_delete_dir(dir) do
+    case File.ls(dir) do
+      {:ok, files} ->
+        Enum.each(files, fn file ->
+          secure_delete(Path.join(dir, file))
+        end)
+
+        File.rmdir(dir)
+
+      _ ->
+        :ok
+    end
+  rescue
+    _ -> :ok
   end
 
   @spec secure_delete(Path.t()) :: :ok
