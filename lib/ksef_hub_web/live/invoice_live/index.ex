@@ -3,6 +3,8 @@ defmodule KsefHubWeb.InvoiceLive.Index do
 
   alias KsefHub.Invoices
 
+  import KsefHubWeb.InvoiceComponents
+
   @impl true
   def mount(_params, _session, socket) do
     {:ok, assign(socket, page_title: "Invoices")}
@@ -155,34 +157,4 @@ defmodule KsefHubWeb.InvoiceLive.Index do
     """
   end
 
-  defp type_badge(assigns) do
-    ~H"""
-    <span class={[
-      "badge badge-sm",
-      @type == "income" && "badge-success badge-outline",
-      @type == "expense" && "badge-warning badge-outline"
-    ]}>
-      {@type}
-    </span>
-    """
-  end
-
-  defp status_badge(assigns) do
-    ~H"""
-    <span class={[
-      "badge badge-sm",
-      @status == "pending" && "badge-warning",
-      @status == "approved" && "badge-success",
-      @status == "rejected" && "badge-error"
-    ]}>
-      {@status}
-    </span>
-    """
-  end
-
-  defp format_date(nil), do: "-"
-  defp format_date(date), do: Calendar.strftime(date, "%Y-%m-%d")
-
-  defp format_amount(nil), do: "-"
-  defp format_amount(%Decimal{} = d), do: Decimal.to_string(d, :normal)
 end

@@ -52,7 +52,7 @@ defmodule KsefHubWeb.TokenLiveTest do
   describe "revoke token" do
     test "revokes a token", %{conn: conn, user: user} do
       {:ok, %{api_token: _token}} =
-        Accounts.create_api_token(%{name: "Revoke Test", user_id: user.id})
+        Accounts.create_api_token(user.id, %{name: "Revoke Test"})
 
       {:ok, view, _html} = live(conn, ~p"/tokens")
 

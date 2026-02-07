@@ -1,0 +1,45 @@
+defmodule KsefHubWeb.InvoiceComponents do
+  @moduledoc """
+  Shared UI components for invoice display across LiveViews.
+  """
+
+  use Phoenix.Component
+
+  attr :type, :string, required: true
+
+  def type_badge(assigns) do
+    ~H"""
+    <span class={[
+      "badge badge-sm",
+      @type == "income" && "badge-success badge-outline",
+      @type == "expense" && "badge-warning badge-outline"
+    ]}>
+      {@type}
+    </span>
+    """
+  end
+
+  attr :status, :string, required: true
+
+  def status_badge(assigns) do
+    ~H"""
+    <span class={[
+      "badge badge-sm",
+      @status == "pending" && "badge-warning",
+      @status == "approved" && "badge-success",
+      @status == "rejected" && "badge-error"
+    ]}>
+      {@status}
+    </span>
+    """
+  end
+
+  def format_date(nil), do: "-"
+  def format_date(date), do: Calendar.strftime(date, "%Y-%m-%d")
+
+  def format_amount(nil), do: "-"
+  def format_amount(%Decimal{} = d), do: Decimal.to_string(d, :normal)
+
+  def format_datetime(nil), do: "-"
+  def format_datetime(dt), do: Calendar.strftime(dt, "%Y-%m-%d %H:%M UTC")
+end

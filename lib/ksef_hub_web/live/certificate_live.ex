@@ -11,7 +11,7 @@ defmodule KsefHubWeb.CertificateLive do
       |> assign(page_title: "Certificates")
       |> assign(form: to_form(%{"nip" => "", "password" => ""}, as: :credential))
       |> allow_upload(:certificate,
-        accept: :any,
+        accept: ~w(application/x-pkcs12),
         max_entries: 1,
         max_file_size: 1_000_000
       )
@@ -38,9 +38,12 @@ defmodule KsefHubWeb.CertificateLive do
 
   @impl true
   def handle_event("deactivate", %{"id" => id}, socket) do
-    credential = Credentials.get_credential!(id)
+    credential = Credentials.get_credential(id)
 
-    case Credentials.deactivate_credential(credential) do
+    if is_nil(credential) do
+      {:noreply, put_flash(socket, :error, "Certificate not found.")}
+    else
+      case Credentials.deactivate_credential(credential) do
       {:ok, _} ->
         {:noreply,
          socket
@@ -49,6 +52,7 @@ defmodule KsefHubWeb.CertificateLive do
 
       {:error, _} ->
         {:noreply, put_flash(socket, :error, "Failed to deactivate certificate.")}
+      end
     end
   end
 

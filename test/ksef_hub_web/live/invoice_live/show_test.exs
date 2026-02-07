@@ -7,6 +7,7 @@ defmodule KsefHubWeb.InvoiceLive.ShowTest do
   alias KsefHub.Accounts
   alias KsefHub.Invoices
 
+  setup :set_mox_from_context
   setup :verify_on_exit!
 
   setup %{conn: conn} do

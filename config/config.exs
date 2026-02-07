@@ -7,6 +7,11 @@
 # General application configuration
 import Config
 
+# Register PKCS12 MIME type for certificate upload validation
+config :mime, :types, %{
+  "application/x-pkcs12" => ["p12", "pfx"]
+}
+
 config :ksef_hub,
   ecto_repos: [KsefHub.Repo],
   generators: [timestamp_type: :utc_datetime],
