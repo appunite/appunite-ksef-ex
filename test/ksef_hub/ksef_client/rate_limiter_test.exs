@@ -19,10 +19,14 @@ defmodule KsefHub.KsefClient.RateLimiterTest do
       assert :ok = RateLimiter.wait_for_slot(:download)
     end
 
-    test "tracks multiple requests without blocking" do
+    test "records slots in GenServer state" do
       assert :ok = RateLimiter.wait_for_slot(:download)
       assert :ok = RateLimiter.wait_for_slot(:download)
       assert :ok = RateLimiter.wait_for_slot(:metadata)
+
+      state = :sys.get_state(RateLimiter)
+      assert length(state.download) == 2
+      assert length(state.metadata) == 1
     end
   end
 

@@ -86,7 +86,12 @@ defmodule KsefHub.KsefClient.TokenManager do
         refresh_valid_until: refresh_until
     }
 
-    persist_to_db(new_state)
+    case persist_to_db(new_state) do
+      {:ok, _} -> :ok
+      :ok -> :ok
+      {:error, reason} -> Logger.warning("Failed to persist tokens: #{inspect(reason)}")
+    end
+
     {:reply, :ok, new_state}
   end
 
@@ -200,8 +205,12 @@ defmodule KsefHub.KsefClient.TokenManager do
 
   defp decrypt_token(encrypted) do
     case KsefHub.Credentials.Encryption.decrypt(encrypted) do
-      {:ok, token} -> token
-      {:error, _} -> nil
+      {:ok, token} ->
+        token
+
+      {:error, reason} ->
+        Logger.warning("Failed to decrypt token: #{inspect(reason)}")
+        nil
     end
   end
 
