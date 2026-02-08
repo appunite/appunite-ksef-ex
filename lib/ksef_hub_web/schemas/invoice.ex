@@ -19,7 +19,11 @@ defmodule KsefHubWeb.Schemas.Invoice do
         description: "KSeF reference number assigned by the government system."
       },
       type: %Schema{type: :string, enum: ["income", "expense"]},
-      seller_nip: %Schema{type: :string, pattern: "^\\d{10}$", description: "Seller 10-digit NIP."},
+      seller_nip: %Schema{
+        type: :string,
+        pattern: "^\\d{10}$",
+        description: "Seller 10-digit NIP."
+      },
       seller_name: %Schema{type: :string},
       buyer_nip: %Schema{type: :string, pattern: "^\\d{10}$", description: "Buyer 10-digit NIP."},
       buyer_name: %Schema{type: :string},

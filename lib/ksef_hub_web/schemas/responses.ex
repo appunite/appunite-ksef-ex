@@ -56,7 +56,8 @@ defmodule KsefHubWeb.Schemas.Responses do
 
     OpenApiSpex.schema(%{
       title: "TokenCreatedResponse",
-      description: "Response after creating a new token. Contains the plain token shown only once.",
+      description:
+        "Response after creating a new token. Contains the plain token shown only once.",
       type: :object,
       properties: %{
         data: %Schema{
