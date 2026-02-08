@@ -15,8 +15,8 @@ defmodule KsefHubWeb.Api.TokenController do
     summary: "List API tokens",
     description: "Returns all API tokens belonging to the authenticated user.",
     responses: %{
-      200 => {"Token list", "application/json", Schemas.Responses.TokenListResponse},
-      401 => {"Unauthorized", "application/json", Schemas.Responses.ErrorResponse}
+      200 => {"Token list", "application/json", Schemas.TokenListResponse},
+      401 => {"Unauthorized", "application/json", Schemas.ErrorResponse}
     }
   )
 
@@ -47,9 +47,9 @@ defmodule KsefHubWeb.Api.TokenController do
          required: [:name]
        }},
     responses: %{
-      201 => {"Created token", "application/json", Schemas.Responses.TokenCreatedResponse},
-      401 => {"Unauthorized", "application/json", Schemas.Responses.ErrorResponse},
-      422 => {"Validation error", "application/json", Schemas.Responses.ErrorResponse}
+      201 => {"Created token", "application/json", Schemas.TokenCreatedResponse},
+      401 => {"Unauthorized", "application/json", Schemas.ErrorResponse},
+      422 => {"Validation error", "application/json", Schemas.ErrorResponse}
     }
   )
 
@@ -85,9 +85,9 @@ defmodule KsefHubWeb.Api.TokenController do
       id: [in: :path, description: "Token UUID.", schema: %Schema{type: :string, format: :uuid}]
     ],
     responses: %{
-      200 => {"Token revoked", "application/json", Schemas.Responses.MessageResponse},
-      401 => {"Unauthorized", "application/json", Schemas.Responses.ErrorResponse},
-      404 => {"Not found", "application/json", Schemas.Responses.ErrorResponse}
+      200 => {"Token revoked", "application/json", Schemas.MessageResponse},
+      401 => {"Unauthorized", "application/json", Schemas.ErrorResponse},
+      404 => {"Not found", "application/json", Schemas.ErrorResponse}
     }
   )
 

@@ -62,9 +62,9 @@ defmodule KsefHubWeb.Api.InvoiceController do
       ]
     ],
     responses: %{
-      200 => {"Invoice list", "application/json", Schemas.Responses.InvoiceListResponse},
-      400 => {"Bad request", "application/json", Schemas.Responses.ErrorResponse},
-      401 => {"Unauthorized", "application/json", Schemas.Responses.ErrorResponse}
+      200 => {"Invoice list", "application/json", Schemas.InvoiceListResponse},
+      400 => {"Bad request", "application/json", Schemas.ErrorResponse},
+      401 => {"Unauthorized", "application/json", Schemas.ErrorResponse}
     }
   )
 
@@ -89,10 +89,10 @@ defmodule KsefHubWeb.Api.InvoiceController do
       ]
     ],
     responses: %{
-      200 => {"Invoice", "application/json", Schemas.Responses.InvoiceResponse},
-      400 => {"Bad request", "application/json", Schemas.Responses.ErrorResponse},
-      401 => {"Unauthorized", "application/json", Schemas.Responses.ErrorResponse},
-      404 => {"Not found", "application/json", Schemas.Responses.ErrorResponse}
+      200 => {"Invoice", "application/json", Schemas.InvoiceResponse},
+      400 => {"Bad request", "application/json", Schemas.ErrorResponse},
+      401 => {"Unauthorized", "application/json", Schemas.ErrorResponse},
+      404 => {"Not found", "application/json", Schemas.ErrorResponse}
     }
   )
 
@@ -120,11 +120,11 @@ defmodule KsefHubWeb.Api.InvoiceController do
       ]
     ],
     responses: %{
-      200 => {"Approved invoice", "application/json", Schemas.Responses.InvoiceResponse},
-      400 => {"Bad request", "application/json", Schemas.Responses.ErrorResponse},
-      401 => {"Unauthorized", "application/json", Schemas.Responses.ErrorResponse},
-      404 => {"Not found", "application/json", Schemas.Responses.ErrorResponse},
-      422 => {"Unprocessable entity", "application/json", Schemas.Responses.ErrorResponse}
+      200 => {"Approved invoice", "application/json", Schemas.InvoiceResponse},
+      400 => {"Bad request", "application/json", Schemas.ErrorResponse},
+      401 => {"Unauthorized", "application/json", Schemas.ErrorResponse},
+      404 => {"Not found", "application/json", Schemas.ErrorResponse},
+      422 => {"Unprocessable entity", "application/json", Schemas.ErrorResponse}
     }
   )
 
@@ -166,11 +166,11 @@ defmodule KsefHubWeb.Api.InvoiceController do
       ]
     ],
     responses: %{
-      200 => {"Rejected invoice", "application/json", Schemas.Responses.InvoiceResponse},
-      400 => {"Bad request", "application/json", Schemas.Responses.ErrorResponse},
-      401 => {"Unauthorized", "application/json", Schemas.Responses.ErrorResponse},
-      404 => {"Not found", "application/json", Schemas.Responses.ErrorResponse},
-      422 => {"Unprocessable entity", "application/json", Schemas.Responses.ErrorResponse}
+      200 => {"Rejected invoice", "application/json", Schemas.InvoiceResponse},
+      400 => {"Bad request", "application/json", Schemas.ErrorResponse},
+      401 => {"Unauthorized", "application/json", Schemas.ErrorResponse},
+      404 => {"Not found", "application/json", Schemas.ErrorResponse},
+      422 => {"Unprocessable entity", "application/json", Schemas.ErrorResponse}
     }
   )
 
@@ -214,10 +214,10 @@ defmodule KsefHubWeb.Api.InvoiceController do
     ],
     responses: %{
       200 => {"HTML content", "text/html", %Schema{type: :string}},
-      400 => {"Bad request", "application/json", Schemas.Responses.ErrorResponse},
-      401 => {"Unauthorized", "application/json", Schemas.Responses.ErrorResponse},
-      404 => {"Not found", "application/json", Schemas.Responses.ErrorResponse},
-      500 => {"Generation failed", "application/json", Schemas.Responses.ErrorResponse}
+      400 => {"Bad request", "application/json", Schemas.ErrorResponse},
+      401 => {"Unauthorized", "application/json", Schemas.ErrorResponse},
+      404 => {"Not found", "application/json", Schemas.ErrorResponse},
+      500 => {"Generation failed", "application/json", Schemas.ErrorResponse}
     }
   )
 
@@ -261,10 +261,10 @@ defmodule KsefHubWeb.Api.InvoiceController do
     ],
     responses: %{
       200 => {"PDF file", "application/pdf", %Schema{type: :string, format: :binary}},
-      400 => {"Bad request", "application/json", Schemas.Responses.ErrorResponse},
-      401 => {"Unauthorized", "application/json", Schemas.Responses.ErrorResponse},
-      404 => {"Not found", "application/json", Schemas.Responses.ErrorResponse},
-      500 => {"Generation failed", "application/json", Schemas.Responses.ErrorResponse}
+      400 => {"Bad request", "application/json", Schemas.ErrorResponse},
+      401 => {"Unauthorized", "application/json", Schemas.ErrorResponse},
+      404 => {"Not found", "application/json", Schemas.ErrorResponse},
+      500 => {"Generation failed", "application/json", Schemas.ErrorResponse}
     }
   )
 

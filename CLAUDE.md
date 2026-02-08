@@ -328,8 +328,8 @@ operation(:index,
     id: [in: :path, description: "Resource UUID.", schema: %Schema{type: :string, format: :uuid}]
   ],
   responses: %{
-    200 => {"Success", "application/json", Schemas.Responses.SomeResponse},
-    401 => {"Unauthorized", "application/json", Schemas.Responses.ErrorResponse}
+    200 => {"Success", "application/json", Schemas.SomeResponse},
+    401 => {"Unauthorized", "application/json", Schemas.ErrorResponse}
   }
 )
 
