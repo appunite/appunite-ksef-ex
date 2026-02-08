@@ -50,23 +50,18 @@ if config_env() == :prod do
       For example: ecto://USER:PASS@HOST/DATABASE
       """
 
-  ksef_api_url =
-    System.get_env("KSEF_API_URL") ||
+  if ksef_api_url = System.get_env("KSEF_API_URL") do
+    uri = URI.parse(ksef_api_url)
+
+    if uri.scheme != "https" do
       raise """
-      environment variable KSEF_API_URL is missing.
-      Use https://ksef-test.mf.gov.pl for test or https://ksef.mf.gov.pl for production.
+      KSEF_API_URL must use HTTPS in production.
+      Got: #{ksef_api_url}
       """
+    end
 
-  uri = URI.parse(ksef_api_url)
-
-  if uri.scheme != "https" do
-    raise """
-    KSEF_API_URL must use HTTPS in production.
-    Got: #{ksef_api_url}
-    """
+    config :ksef_hub, :ksef_api_url, ksef_api_url
   end
-
-  config :ksef_hub, :ksef_api_url, ksef_api_url
 
   maybe_ipv6 = if System.get_env("ECTO_IPV6") in ~w(true 1), do: [:inet6], else: []
 
