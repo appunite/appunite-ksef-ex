@@ -42,7 +42,7 @@ defmodule KsefHubWeb.Schemas.Invoice do
       },
       permanent_storage_date: %Schema{
         type: :string,
-        format: :date,
+        format: :"date-time",
         nullable: true,
         description: "When the invoice entered permanent KSeF storage."
       },
@@ -66,7 +66,7 @@ defmodule KsefHubWeb.Schemas.Invoice do
       currency: "PLN",
       status: "pending",
       ksef_acquisition_date: "2024-01-15T10:30:00Z",
-      permanent_storage_date: "2024-01-16",
+      permanent_storage_date: "2024-01-16T00:00:00Z",
       inserted_at: "2024-01-15T10:35:00Z",
       updated_at: "2024-01-15T10:35:00Z"
     }
