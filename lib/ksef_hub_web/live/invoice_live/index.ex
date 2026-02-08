@@ -17,7 +17,8 @@ defmodule KsefHubWeb.InvoiceLive.Index do
   def handle_params(params, _uri, socket) do
     filters = parse_filters(params)
 
-    invoices = Invoices.list_invoices(filters)
+    company = socket.assigns.current_company
+    invoices = if company, do: Invoices.list_invoices(company.id, filters), else: []
 
     {:noreply,
      assign(socket,

@@ -3,6 +3,8 @@ defmodule KsefHub.Sync.SyncWorkerTest do
 
   import Mox
 
+  import KsefHub.Factory
+
   alias KsefHub.Credentials
   alias KsefHub.KsefClient.TokenManager
   alias KsefHub.Sync.SyncWorker
@@ -10,30 +12,33 @@ defmodule KsefHub.Sync.SyncWorkerTest do
   setup :verify_on_exit!
 
   setup do
-    # Stop any existing TokenManager
-    case GenServer.whereis(TokenManager) do
-      nil -> :ok
-      pid -> GenServer.stop(pid)
-    end
-
-    {:ok, pid} = TokenManager.start_link()
-    Mox.allow(KsefHub.KsefClient.Mock, self(), pid)
-    :ok
+    company = insert(:company, nip: "1234567890")
+    %{company: company}
   end
 
   describe "perform/1" do
-    test "skips sync when no active credential" do
-      assert :ok = SyncWorker.perform(%Oban.Job{})
+    test "skips sync when no active credential", %{company: company} do
+      assert :ok = SyncWorker.perform(%Oban.Job{args: %{"company_id" => company.id}})
     end
 
-    test "syncs invoices when credential and tokens are available" do
+    test "syncs invoices when credential and tokens are available", %{company: company} do
       # Create credential
-      {:ok, cred} = Credentials.create_credential(%{nip: "1234567890"})
+      {:ok, cred} =
+        Credentials.create_credential(%{
+          nip: company.nip,
+          company_id: company.id,
+          is_active: true
+        })
 
-      # Store valid tokens
+      # Store valid tokens via TokenManager
       future = DateTime.add(DateTime.utc_now(), 600)
       refresh_future = DateTime.add(DateTime.utc_now(), 48 * 24 * 3600)
-      :ok = TokenManager.store_tokens("access-tok", "refresh-tok", future, refresh_future)
+
+      {:ok, pid} = TokenManager.ensure_started(company.id)
+      Mox.allow(KsefHub.KsefClient.Mock, self(), pid)
+
+      :ok =
+        TokenManager.store_tokens(company.id, "access-tok", "refresh-tok", future, refresh_future)
 
       # Mock empty query results (no invoices to sync)
       KsefHub.KsefClient.Mock
@@ -41,21 +46,31 @@ defmodule KsefHub.Sync.SyncWorkerTest do
         {:ok, %{invoices: [], has_more: false, is_truncated: false}}
       end)
 
-      assert :ok = SyncWorker.perform(%Oban.Job{})
+      assert :ok = SyncWorker.perform(%Oban.Job{args: %{"company_id" => company.id}})
 
       # Verify last_sync_at was updated
       updated = Repo.get!(Credentials.Credential, cred.id)
       assert updated.last_sync_at != nil
     end
 
-    test "downloads and upserts invoices from KSeF" do
+    test "downloads and upserts invoices from KSeF", %{company: company} do
       xml = File.read!("test/support/fixtures/sample_income.xml")
 
-      {:ok, _cred} = Credentials.create_credential(%{nip: "1234567890"})
+      {:ok, _cred} =
+        Credentials.create_credential(%{
+          nip: company.nip,
+          company_id: company.id,
+          is_active: true
+        })
 
       future = DateTime.add(DateTime.utc_now(), 600)
       refresh_future = DateTime.add(DateTime.utc_now(), 48 * 24 * 3600)
-      :ok = TokenManager.store_tokens("access-tok", "refresh-tok", future, refresh_future)
+
+      {:ok, pid} = TokenManager.ensure_started(company.id)
+      Mox.allow(KsefHub.KsefClient.Mock, self(), pid)
+
+      :ok =
+        TokenManager.store_tokens(company.id, "access-tok", "refresh-tok", future, refresh_future)
 
       storage_date = DateTime.to_iso8601(DateTime.utc_now())
 
@@ -88,10 +103,10 @@ defmodule KsefHub.Sync.SyncWorkerTest do
         {:ok, xml}
       end)
 
-      assert :ok = SyncWorker.perform(%Oban.Job{})
+      assert :ok = SyncWorker.perform(%Oban.Job{args: %{"company_id" => company.id}})
 
       # Verify invoice was created
-      invoice = KsefHub.Invoices.get_invoice_by_ksef_number("KSEF-INCOME-001")
+      invoice = KsefHub.Invoices.get_invoice_by_ksef_number(company.id, "KSEF-INCOME-001")
       assert invoice != nil
       assert invoice.type == "income"
       assert invoice.seller_nip == "1234567890"

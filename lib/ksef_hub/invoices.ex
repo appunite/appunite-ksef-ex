@@ -131,7 +131,9 @@ defmodule KsefHub.Invoices do
   @doc """
   Returns invoice counts grouped by type and status for a company.
   """
-  @spec count_by_type_and_status(Ecto.UUID.t()) :: %{{String.t(), String.t()} => non_neg_integer()}
+  @spec count_by_type_and_status(Ecto.UUID.t()) :: %{
+          {String.t(), String.t()} => non_neg_integer()
+        }
   def count_by_type_and_status(company_id) do
     Invoice
     |> where([i], i.company_id == ^company_id)

@@ -10,8 +10,10 @@ defmodule KsefHubWeb.SyncLiveTest do
     {:ok, user} =
       Accounts.find_or_create_user(%{uid: "g-sync-1", email: "test@example.com", name: "Test"})
 
-    conn = conn |> init_test_session(%{user_id: user.id})
-    %{conn: conn, user: user}
+    company = insert(:company)
+
+    conn = conn |> init_test_session(%{user_id: user.id, current_company_id: company.id})
+    %{conn: conn, user: user, company: company}
   end
 
   describe "mount" do
@@ -26,10 +28,11 @@ defmodule KsefHubWeb.SyncLiveTest do
       assert html =~ "No sync runs yet"
     end
 
-    test "shows sync jobs in table", %{conn: conn} do
+    test "shows sync jobs in table", %{conn: conn, company: company} do
       insert(:sync_job,
         state: "completed",
-        meta: %{"income_count" => 3, "expense_count" => 1}
+        meta: %{"income_count" => 3, "expense_count" => 1},
+        args: %{"company_id" => company.id}
       )
 
       {:ok, _view, html} = live(conn, ~p"/syncs")
@@ -39,13 +42,14 @@ defmodule KsefHubWeb.SyncLiveTest do
   end
 
   describe "PubSub" do
-    test "refreshes on sync completed event", %{conn: conn} do
+    test "refreshes on sync completed event", %{conn: conn, company: company} do
       {:ok, view, _html} = live(conn, ~p"/syncs")
 
       # Insert a job and broadcast
       insert(:sync_job,
         state: "completed",
-        meta: %{"income_count" => 2, "expense_count" => 0}
+        meta: %{"income_count" => 2, "expense_count" => 0},
+        args: %{"company_id" => company.id}
       )
 
       send(view.pid, {:sync_completed, %{income: 2, expense: 0}})
@@ -65,8 +69,11 @@ defmodule KsefHubWeb.SyncLiveTest do
       assert html =~ "Manual sync triggered"
     end
 
-    test "shows error when sync is already running", %{conn: conn} do
-      insert(:sync_job, state: "executing")
+    test "shows error when sync is already running", %{conn: conn, company: company} do
+      insert(:sync_job,
+        state: "executing",
+        args: %{"company_id" => company.id}
+      )
 
       {:ok, view, _html} = live(conn, ~p"/syncs")
 

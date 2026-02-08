@@ -64,10 +64,15 @@ defmodule KsefHubWeb.Layouts do
                 <span class="flex-1 text-left truncate">{@current_company.name}</span>
                 <.icon name="hero-chevron-down" class="size-3" />
               </div>
-              <ul tabindex="0" class="dropdown-content z-50 menu p-2 shadow bg-base-100 rounded-box w-56">
+              <ul
+                tabindex="0"
+                class="dropdown-content z-50 menu p-2 shadow bg-base-100 rounded-box w-56"
+              >
                 <li :for={company <- @companies}>
                   <.link
-                    href={~p"/switch-company/#{company.id}?return_to=#{@current_path || "/dashboard"}"}
+                    href={
+                      ~p"/switch-company/#{company.id}?return_to=#{@current_path || "/dashboard"}"
+                    }
                     method="post"
                     class={[company.id == @current_company.id && "active"]}
                   >
@@ -78,7 +83,7 @@ defmodule KsefHubWeb.Layouts do
               </ul>
             </div>
           </div>
-
+          
     <!-- Navigation -->
           <nav class="flex-1 p-4">
             <ul class="menu gap-1">

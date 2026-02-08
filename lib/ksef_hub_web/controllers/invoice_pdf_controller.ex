@@ -12,7 +12,9 @@ defmodule KsefHubWeb.InvoicePdfController do
   alias KsefHub.Invoices
 
   def show(%{assigns: %{current_user: %{id: _}}} = conn, %{"id" => id}) do
-    case Invoices.get_invoice(id) do
+    company_id = get_session(conn, :current_company_id)
+
+    case Invoices.get_invoice(company_id, id) do
       nil ->
         conn
         |> put_flash(:error, "Invoice not found.")

@@ -12,7 +12,7 @@ defmodule KsefHubWeb.CertificateLive do
     socket =
       socket
       |> assign(page_title: "Certificates")
-      |> assign(form: to_form(%{"nip" => "", "password" => ""}, as: :credential))
+      |> assign(form: to_form(%{"password" => ""}, as: :credential))
       |> allow_upload(:certificate,
         accept: ~w(application/x-pkcs12 .p12 .pfx),
         max_entries: 1,
@@ -77,21 +77,22 @@ defmodule KsefHubWeb.CertificateLive do
   end
 
   defp save_credential(socket, params, cert_data) do
+    company = socket.assigns.current_company
+
     with {:ok, encrypted_cert} <- Encryption.encrypt(cert_data),
          {:ok, encrypted_password} <- Encryption.encrypt(params["password"] || "") do
       attrs = %{
-        nip: params["nip"],
         certificate_data_encrypted: encrypted_cert,
         certificate_password_encrypted: encrypted_password,
         is_active: true
       }
 
-      case Credentials.replace_active_credential(attrs) do
+      case Credentials.replace_active_credential(company.id, attrs) do
         {:ok, _credential} ->
           {:noreply,
            socket
            |> put_flash(:info, "Certificate uploaded successfully.")
-           |> assign(form: to_form(%{"nip" => "", "password" => ""}, as: :credential))
+           |> assign(form: to_form(%{"password" => ""}, as: :credential))
            |> load_credentials()}
 
         {:error, changeset} ->
@@ -107,13 +108,19 @@ defmodule KsefHubWeb.CertificateLive do
   end
 
   defp load_credentials(socket) do
-    credentials = Credentials.list_credentials()
-    active = Credentials.get_active_credential()
+    case socket.assigns.current_company do
+      nil ->
+        assign(socket, credentials: [], active_credential: nil)
 
-    assign(socket,
-      credentials: credentials,
-      active_credential: active
-    )
+      company ->
+        credentials = Credentials.list_credentials(company.id)
+        active = Credentials.get_active_credential(company.id)
+
+        assign(socket,
+          credentials: credentials,
+          active_credential: active
+        )
+    end
   end
 
   @impl true
@@ -151,8 +158,6 @@ defmodule KsefHubWeb.CertificateLive do
       <div class="card-body">
         <h2 class="card-title text-base">Upload New Certificate</h2>
         <form phx-submit="save" phx-change="validate" class="space-y-4 mt-2">
-          <.input field={@form[:nip]} label="NIP (10 digits)" placeholder="1234567890" required />
-
           <div class="form-control">
             <label class="label">
               <span class="label-text">Certificate File (.p12 / .pfx)</span>

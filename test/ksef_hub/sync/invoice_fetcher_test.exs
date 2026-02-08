@@ -3,22 +3,31 @@ defmodule KsefHub.Sync.InvoiceFetcherTest do
 
   import Mox
 
+  import KsefHub.Factory
+
   alias KsefHub.Sync.InvoiceFetcher
 
   setup :verify_on_exit!
 
-  describe "fetch_all/4" do
-    test "returns zero count when no invoices found" do
+  setup do
+    company = insert(:company, nip: "1234567890")
+    %{company: company}
+  end
+
+  describe "fetch_all/5" do
+    test "returns zero count when no invoices found", %{company: company} do
       KsefHub.KsefClient.Mock
       |> expect(:query_invoice_metadata, fn _token, _filters, _opts ->
         {:ok, %{invoices: [], has_more: false, is_truncated: false}}
       end)
 
       from = DateTime.add(DateTime.utc_now(), -3600)
-      assert {:ok, 0, nil} = InvoiceFetcher.fetch_all("token", "income", "1234567890", from)
+
+      assert {:ok, 0, nil} =
+               InvoiceFetcher.fetch_all("token", "income", company.nip, company.id, from)
     end
 
-    test "fetches and upserts invoices" do
+    test "fetches and upserts invoices", %{company: company} do
       xml = File.read!("test/support/fixtures/sample_income.xml")
       storage_date = DateTime.to_iso8601(DateTime.utc_now())
 
@@ -44,14 +53,16 @@ defmodule KsefHub.Sync.InvoiceFetcherTest do
       end)
 
       from = DateTime.add(DateTime.utc_now(), -3600)
-      assert {:ok, 1, _max_ts} = InvoiceFetcher.fetch_all("token", "income", "1234567890", from)
 
-      invoice = KsefHub.Invoices.get_invoice_by_ksef_number("FETCH-001")
+      assert {:ok, 1, _max_ts} =
+               InvoiceFetcher.fetch_all("token", "income", company.nip, company.id, from)
+
+      invoice = KsefHub.Invoices.get_invoice_by_ksef_number(company.id, "FETCH-001")
       assert invoice != nil
       assert invoice.seller_nip == "1234567890"
     end
 
-    test "handles pagination (has_more)" do
+    test "handles pagination (has_more)", %{company: company} do
       xml = File.read!("test/support/fixtures/sample_income.xml")
       storage_date = DateTime.to_iso8601(DateTime.utc_now())
 
@@ -86,10 +97,12 @@ defmodule KsefHub.Sync.InvoiceFetcherTest do
       |> expect(:download_invoice, fn _t, "PAGE-001" -> {:ok, xml} end)
 
       from = DateTime.add(DateTime.utc_now(), -3600)
-      assert {:ok, 1, _} = InvoiceFetcher.fetch_all("token", "income", "1234567890", from)
+
+      assert {:ok, 1, _} =
+               InvoiceFetcher.fetch_all("token", "income", company.nip, company.id, from)
     end
 
-    test "handles rate limiting with retry" do
+    test "handles rate limiting with retry", %{company: company} do
       KsefHub.KsefClient.Mock
       |> expect(:query_invoice_metadata, fn _t, _f, _o ->
         {:error, {:rate_limited, 1}}
@@ -102,7 +115,9 @@ defmodule KsefHub.Sync.InvoiceFetcherTest do
       end)
 
       from = DateTime.add(DateTime.utc_now(), -3600)
-      assert {:ok, 0, nil} = InvoiceFetcher.fetch_all("token", "income", "1234567890", from)
+
+      assert {:ok, 0, nil} =
+               InvoiceFetcher.fetch_all("token", "income", company.nip, company.id, from)
     end
   end
 end

@@ -4,6 +4,7 @@ defmodule KsefHub.Repo.Migrations.AddCompanyIdToCheckpoints do
   def change do
     alter table(:sync_checkpoints) do
       add :company_id, references(:companies, type: :binary_id, on_delete: :restrict)
+      modify :nip, :string, null: true
     end
 
     # Drop old unique index on (checkpoint_type, nip)

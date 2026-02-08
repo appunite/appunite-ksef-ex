@@ -38,7 +38,13 @@ defmodule KsefHub.KsefClient.TokenManager do
   Stores new tokens after XADES authentication for a company.
   """
   @spec store_tokens(Ecto.UUID.t(), String.t(), String.t(), DateTime.t(), DateTime.t()) :: :ok
-  def store_tokens(company_id, access_token, refresh_token, access_valid_until, refresh_valid_until) do
+  def store_tokens(
+        company_id,
+        access_token,
+        refresh_token,
+        access_valid_until,
+        refresh_valid_until
+      ) do
     case ensure_started(company_id) do
       {:ok, pid} ->
         GenServer.call(

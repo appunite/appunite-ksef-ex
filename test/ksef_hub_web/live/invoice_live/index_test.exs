@@ -11,8 +11,10 @@ defmodule KsefHubWeb.InvoiceLive.IndexTest do
     {:ok, user} =
       Accounts.find_or_create_user(%{uid: "g-inv-1", email: "test@example.com", name: "Test"})
 
-    conn = conn |> init_test_session(%{user_id: user.id})
-    %{conn: conn, user: user}
+    company = insert(:company)
+
+    conn = conn |> init_test_session(%{user_id: user.id, current_company_id: company.id})
+    %{conn: conn, user: user, company: company}
   end
 
   describe "mount" do
@@ -21,9 +23,9 @@ defmodule KsefHubWeb.InvoiceLive.IndexTest do
       assert html =~ "Invoices"
     end
 
-    test "shows invoices in table", %{conn: conn} do
-      insert(:invoice, type: "income", invoice_number: "FV/2025/001")
-      insert(:invoice, type: "expense", invoice_number: "FV/2025/002")
+    test "shows invoices in table", %{conn: conn, company: company} do
+      insert(:invoice, type: "income", invoice_number: "FV/2025/001", company: company)
+      insert(:invoice, type: "expense", invoice_number: "FV/2025/002", company: company)
 
       {:ok, _view, html} = live(conn, ~p"/invoices")
       assert html =~ "FV/2025/001"
@@ -37,9 +39,9 @@ defmodule KsefHubWeb.InvoiceLive.IndexTest do
   end
 
   describe "filters" do
-    setup %{conn: conn} do
-      income = insert(:invoice, type: "income", invoice_number: "FV/INC/001")
-      expense = insert(:invoice, type: "expense", invoice_number: "FV/EXP/001")
+    setup %{conn: conn, company: company} do
+      income = insert(:invoice, type: "income", invoice_number: "FV/INC/001", company: company)
+      expense = insert(:invoice, type: "expense", invoice_number: "FV/EXP/001", company: company)
       %{conn: conn, income: income, expense: expense}
     end
 

@@ -97,12 +97,32 @@ defmodule KsefHub.Sync.InvoiceFetcher do
     {:error, :truncation_no_progress}
   end
 
-  defp handle_next_action(:narrow_range, _token, _type, _nip, _company_id, _from, _offset, _count, nil) do
+  defp handle_next_action(
+         :narrow_range,
+         _token,
+         _type,
+         _nip,
+         _company_id,
+         _from,
+         _offset,
+         _count,
+         nil
+       ) do
     Logger.error("Cannot narrow range: max_ts is nil")
     {:error, :truncation_no_progress}
   end
 
-  defp handle_next_action(:narrow_range, token, type, nip, company_id, _from, _offset, count, max_ts) do
+  defp handle_next_action(
+         :narrow_range,
+         token,
+         type,
+         nip,
+         company_id,
+         _from,
+         _offset,
+         count,
+         max_ts
+       ) do
     do_fetch(token, type, nip, company_id, max_ts, 0, count, max_ts)
   end
 

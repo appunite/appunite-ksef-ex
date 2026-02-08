@@ -11,9 +11,9 @@ defmodule KsefHub.Repo.Migrations.AddCompanyIdToCredentials do
 
     # New: only one active credential per company
     create unique_index(:ksef_credentials, [:company_id],
-      where: "is_active = true",
-      name: :ksef_credentials_company_id_active_index
-    )
+             where: "is_active = true",
+             name: :ksef_credentials_company_id_active_index
+           )
 
     create index(:ksef_credentials, [:company_id])
   end

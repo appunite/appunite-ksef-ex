@@ -58,7 +58,14 @@ defmodule KsefHub.Invoices.Invoice do
       :permanent_storage_date,
       :company_id
     ])
-    |> validate_required([:type, :seller_nip, :seller_name, :invoice_number, :issue_date, :company_id])
+    |> validate_required([
+      :type,
+      :seller_nip,
+      :seller_name,
+      :invoice_number,
+      :issue_date,
+      :company_id
+    ])
     |> validate_format(:seller_nip, ~r/^\d{10}$/, message: "must be a 10-digit NIP")
     |> validate_format(:buyer_nip, ~r/^\d{10}$/, message: "must be a 10-digit NIP")
     |> validate_inclusion(:type, @valid_types)

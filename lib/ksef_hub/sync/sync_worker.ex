@@ -69,7 +69,10 @@ defmodule KsefHub.Sync.SyncWorker do
 
     case {income_result, expense_result} do
       {{:ok, ic}, {:ok, ec}} ->
-        Logger.info("Sync complete for company #{company_id}: #{ic} income, #{ec} expense invoices")
+        Logger.info(
+          "Sync complete for company #{company_id}: #{ic} income, #{ec} expense invoices"
+        )
+
         store_meta(job, %{"income_count" => ic, "expense_count" => ec})
         broadcast_sync_completed(company_id, %{income: ic, expense: ec})
         {:ok, :full}
@@ -132,7 +135,13 @@ defmodule KsefHub.Sync.SyncWorker do
   defp sync_type(access_token, type, nip, company_id) do
     checkpoint = Checkpoints.get_or_init(type, company_id)
 
-    case InvoiceFetcher.fetch_all(access_token, type, nip, company_id, checkpoint.last_seen_timestamp) do
+    case InvoiceFetcher.fetch_all(
+           access_token,
+           type,
+           nip,
+           company_id,
+           checkpoint.last_seen_timestamp
+         ) do
       {:ok, count, nil} ->
         {:ok, count}
 

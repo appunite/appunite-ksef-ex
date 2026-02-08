@@ -10,28 +10,36 @@ defmodule KsefHubWeb.SyncLive do
 
   @impl true
   def mount(_params, _session, socket) do
-    if connected?(socket) do
-      Phoenix.PubSub.subscribe(KsefHub.PubSub, "sync:status")
+    company = socket.assigns.current_company
+
+    if connected?(socket) && company do
+      Phoenix.PubSub.subscribe(KsefHub.PubSub, "sync:status:#{company.id}")
     end
+
+    jobs = if company, do: History.list_sync_jobs(company.id), else: []
 
     {:ok,
      assign(socket,
        page_title: "Syncs",
-       jobs: History.list_sync_jobs()
+       jobs: jobs
      )}
   end
 
   @impl true
   def handle_info({:sync_completed, _stats}, socket) do
-    {:noreply, assign(socket, jobs: History.list_sync_jobs())}
+    company = socket.assigns.current_company
+    jobs = if company, do: History.list_sync_jobs(company.id), else: []
+    {:noreply, assign(socket, jobs: jobs)}
   end
 
   @impl true
   def handle_event("trigger_sync", _params, socket) do
-    case History.trigger_manual_sync() do
+    company = socket.assigns.current_company
+
+    case History.trigger_manual_sync(company.id) do
       {:ok, _job} ->
         # Reload immediately to show the scheduled/executing job
-        jobs = History.list_sync_jobs()
+        jobs = History.list_sync_jobs(company.id)
         {:noreply, socket |> assign(jobs: jobs) |> put_flash(:info, "Manual sync triggered.")}
 
       {:error, :already_running} ->

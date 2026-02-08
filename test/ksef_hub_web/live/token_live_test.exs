@@ -3,14 +3,18 @@ defmodule KsefHubWeb.TokenLiveTest do
 
   import Phoenix.LiveViewTest
 
+  import KsefHub.Factory
+
   alias KsefHub.Accounts
 
   setup %{conn: conn} do
     {:ok, user} =
       Accounts.find_or_create_user(%{uid: "g-tok-1", email: "test@example.com", name: "Test"})
 
-    conn = conn |> init_test_session(%{user_id: user.id})
-    %{conn: conn, user: user}
+    company = insert(:company)
+
+    conn = conn |> init_test_session(%{user_id: user.id, current_company_id: company.id})
+    %{conn: conn, user: user, company: company}
   end
 
   describe "mount" do
