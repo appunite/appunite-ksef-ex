@@ -116,19 +116,26 @@ jobs:
 
       - name: Run database migrations
         run: |
-          gcloud run jobs execute ksef-hub-migrate \
-            --region "${GCP_REGION}" \
-            --wait \
-            --args "eval,KsefHub.Release.migrate()" \
-            2>/dev/null || \
-          gcloud run jobs create ksef-hub-migrate \
-            --region "${GCP_REGION}" \
-            --image "${IMAGE_NAME}:${{ github.sha }}" \
-            --set-secrets "DATABASE_URL=database-url:latest,SECRET_KEY_BASE=secret-key-base:latest" \
-            --service-account "ksef-hub-runner@${GCP_PROJECT_ID}.iam.gserviceaccount.com" \
-            --execute-now \
-            --wait \
-            --args "eval,KsefHub.Release.migrate()"
+          MIGRATE_ARGS=(
+            --region "${GCP_REGION}"
+            --image "${IMAGE_NAME}:${{ github.sha }}"
+            --set-secrets "DATABASE_URL=database-url:latest,SECRET_KEY_BASE=secret-key-base:latest"
+            --service-account "ksef-hub-runner@${GCP_PROJECT_ID}.iam.gserviceaccount.com"
+          )
+
+          if gcloud run jobs describe ksef-hub-migrate --region "${GCP_REGION}" > /dev/null 2>&1; then
+            gcloud run jobs update ksef-hub-migrate "${MIGRATE_ARGS[@]}"
+            gcloud run jobs execute ksef-hub-migrate \
+              --region "${GCP_REGION}" \
+              --wait \
+              --args "eval,KsefHub.Release.migrate()"
+          else
+            gcloud run jobs create ksef-hub-migrate \
+              "${MIGRATE_ARGS[@]}" \
+              --execute-now \
+              --wait \
+              --args "eval,KsefHub.Release.migrate()"
+          fi
 
       - name: Deploy to Cloud Run
         run: |
@@ -139,8 +146,12 @@ jobs:
 
       - name: Ensure service allows traffic
         run: |
-          gcloud run services add-iam-policy-binding "${SERVICE_NAME}" \
+          if ! gcloud run services get-iam-policy "${SERVICE_NAME}" \
             --region "${GCP_REGION}" \
-            --member="allUsers" \
-            --role="roles/run.invoker" \
-            --quiet 2>/dev/null || true
+            --format="value(bindings.members)" 2>/dev/null | grep -q "allUsers"; then
+            gcloud run services add-iam-policy-binding "${SERVICE_NAME}" \
+              --region "${GCP_REGION}" \
+              --member="allUsers" \
+              --role="roles/run.invoker" \
+              --quiet
+          fi
