@@ -64,7 +64,7 @@ defmodule KsefHubWeb.CompanyLive.Index do
         {:noreply,
          socket
          |> put_flash(:info, "Company created.")
-         |> push_navigate(to: ~p"/switch-company/#{company.id}?return_to=/dashboard")}
+         |> redirect(to: ~p"/switch-company/#{company.id}?return_to=/dashboard")}
 
       {:error, changeset} ->
         {:noreply, assign(socket, form: to_form(changeset))}
