@@ -23,24 +23,15 @@ defmodule KsefHubWeb.ApiSpecTest do
   describe "route coverage" do
     test "every API route has a corresponding OpenAPI operation", %{spec: spec} do
       missing =
-        api_routes()
-        |> Enum.reject(fn {path, _verb, _plug, _action} -> path in @excluded_routes end)
-        |> Enum.reject(fn {path, verb, _plug, _action} ->
-          openapi_path = phoenix_path_to_openapi(path)
-
-          case Map.get(spec.paths, openapi_path) do
-            nil -> false
-            path_item -> Map.has_key?(path_item, verb)
-          end
+        Enum.reject(api_routes(), fn {path, verb, _plug, _action} ->
+          path in @excluded_routes or has_operation?(spec, path, verb)
         end)
 
       if missing != [] do
         missing_details =
-          missing
-          |> Enum.map(fn {path, verb, plug, action} ->
+          Enum.map_join(missing, "\n", fn {path, verb, plug, action} ->
             "  #{String.upcase(to_string(verb))} #{path} (#{inspect(plug)}.#{action})"
           end)
-          |> Enum.join("\n")
 
         flunk("""
         The following API routes have no OpenAPI operation spec.
@@ -97,13 +88,7 @@ defmodule KsefHubWeb.ApiSpecTest do
         end)
 
       if missing != [] do
-        details =
-          missing
-          |> Enum.map(fn {id, path, verb, _op} ->
-            "  #{String.upcase(to_string(verb))} #{path} (#{id})"
-          end)
-          |> Enum.join("\n")
-
+        details = format_operation_list(missing)
         flunk("Operations missing a success (2xx) response:\n#{details}")
       end
     end
@@ -121,13 +106,7 @@ defmodule KsefHubWeb.ApiSpecTest do
         end)
 
       if missing != [] do
-        details =
-          missing
-          |> Enum.map(fn {id, path, verb, _op} ->
-            "  #{String.upcase(to_string(verb))} #{path} (#{id})"
-          end)
-          |> Enum.join("\n")
-
+        details = format_operation_list(missing)
         flunk("Operations missing an error (4xx/5xx) response:\n#{details}")
       end
     end
@@ -140,13 +119,7 @@ defmodule KsefHubWeb.ApiSpecTest do
         end)
 
       if missing != [] do
-        details =
-          missing
-          |> Enum.map(fn {id, path, verb, _op} ->
-            "  #{String.upcase(to_string(verb))} #{path} (#{id})"
-          end)
-          |> Enum.join("\n")
-
+        details = format_operation_list(missing)
         flunk("Operations missing a summary:\n#{details}")
       end
     end
@@ -169,6 +142,22 @@ defmodule KsefHubWeb.ApiSpecTest do
   defp phoenix_path_to_openapi(path) do
     # Phoenix uses :param, OpenAPI uses {param}
     Regex.replace(~r/:([a-zA-Z_]+)/, path, "{\\1}")
+  end
+
+  @spec has_operation?(OpenApiSpex.OpenApi.t(), String.t(), atom()) :: boolean()
+  defp has_operation?(spec, path, verb) do
+    case Map.get(spec.paths, phoenix_path_to_openapi(path)) do
+      nil -> false
+      path_item -> Map.has_key?(path_item, verb)
+    end
+  end
+
+  @spec format_operation_list([{String.t(), String.t(), atom(), OpenApiSpex.Operation.t()}]) ::
+          String.t()
+  defp format_operation_list(operations) do
+    Enum.map_join(operations, "\n", fn {id, path, verb, _op} ->
+      "  #{String.upcase(to_string(verb))} #{path} (#{id})"
+    end)
   end
 
   @spec all_operations(OpenApiSpex.OpenApi.t()) :: [
