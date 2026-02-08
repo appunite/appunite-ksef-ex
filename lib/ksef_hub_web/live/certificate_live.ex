@@ -118,17 +118,18 @@ defmodule KsefHubWeb.CertificateLive do
 
   @spec load_credentials(Phoenix.LiveView.Socket.t()) :: Phoenix.LiveView.Socket.t()
   defp load_credentials(%{assigns: %{current_company: nil}} = socket) do
-    assign(socket, credentials: [], active_credential: nil)
+    socket
+    |> assign(has_credentials: false, active_credential: nil)
+    |> stream(:credentials, [], reset: true)
   end
 
   defp load_credentials(%{assigns: %{current_company: company}} = socket) do
     credentials = Credentials.list_credentials(company.id)
     active = Credentials.get_active_credential(company.id)
 
-    assign(socket,
-      credentials: credentials,
-      active_credential: active
-    )
+    socket
+    |> assign(has_credentials: credentials != [], active_credential: active)
+    |> stream(:credentials, credentials, reset: true)
   end
 
   @impl true
@@ -202,10 +203,15 @@ defmodule KsefHubWeb.CertificateLive do
     </div>
 
     <!-- All Certificates -->
-    <div :if={@credentials != []} class="mt-6">
+    <div :if={@has_credentials} class="mt-6">
       <h2 class="text-lg font-semibold mb-3">All Certificates</h2>
       <div class="overflow-x-auto">
-        <.table id="credentials" rows={@credentials} row_id={fn c -> "cred-#{c.id}" end}>
+        <.table
+          id="credentials"
+          rows={@streams.credentials}
+          row_id={fn {id, _} -> id end}
+          row_item={fn {_id, item} -> item end}
+        >
           <:col :let={cred} label="NIP">{cred.nip}</:col>
           <:col :let={cred} label="Subject">{cred.certificate_subject || "-"}</:col>
           <:col :let={cred} label="Expires">
@@ -234,18 +240,17 @@ defmodule KsefHubWeb.CertificateLive do
   end
 
   @spec active_badge(map()) :: Phoenix.LiveView.Rendered.t()
-  defp active_badge(assigns) do
+  defp active_badge(%{active: true} = assigns) do
     ~H"""
-    <span
-      :if={@active}
-      class="inline-flex items-center px-2 py-0.5 rounded-md text-xs font-medium border bg-success/10 text-success border-success/20"
-    >
+    <span class="inline-flex items-center px-2 py-0.5 rounded-md text-xs font-medium border bg-success/10 text-success border-success/20">
       Active
     </span>
-    <span
-      :if={!@active}
-      class="inline-flex items-center px-2 py-0.5 rounded-md text-xs font-medium border bg-base-200 text-base-content/60 border-base-300"
-    >
+    """
+  end
+
+  defp active_badge(%{active: active} = assigns) when active in [false, nil] do
+    ~H"""
+    <span class="inline-flex items-center px-2 py-0.5 rounded-md text-xs font-medium border bg-base-200 text-base-content/60 border-base-300">
       Inactive
     </span>
     """
