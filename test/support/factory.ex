@@ -46,13 +46,16 @@ defmodule KsefHub.Factory do
     }
   end
 
-  @doc "Builds a `Credential` with a sequenced NIP and active status."
+  @doc "Builds a `Credential` with a sequenced NIP, active status, and associated company."
   @spec credential_factory() :: Credential.t()
   def credential_factory do
+    company = build(:company)
+
     %Credential{
-      nip: sequence(:nip, &String.pad_leading("#{&1}", 10, "0")),
+      nip: company.nip,
       certificate_subject: "CN=Test Certificate",
-      is_active: true
+      is_active: true,
+      company: company
     }
   end
 

@@ -22,6 +22,8 @@ defmodule KsefHub.Credentials.Credential do
     field :access_token_encrypted, :binary
     field :access_token_expires_at, :utc_datetime_usec
 
+    belongs_to :company, KsefHub.Companies.Company
+
     timestamps()
   end
 
@@ -40,10 +42,15 @@ defmodule KsefHub.Credentials.Credential do
       :refresh_token_encrypted,
       :refresh_token_expires_at,
       :access_token_encrypted,
-      :access_token_expires_at
+      :access_token_expires_at,
+      :company_id
     ])
-    |> validate_required([:nip])
+    |> validate_required([:nip, :company_id])
     |> validate_format(:nip, ~r/^\d{10}$/, message: "must be a 10-digit NIP")
-    |> unique_constraint(:nip)
+    |> foreign_key_constraint(:company_id)
+    |> unique_constraint(:company_id,
+      name: :ksef_credentials_company_id_active_index,
+      message: "already has an active credential"
+    )
   end
 end
