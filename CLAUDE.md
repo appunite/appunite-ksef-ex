@@ -16,6 +16,7 @@ See `docs/prd.md` for full product requirements.
 | PDF pipeline | xsltproc (gov.pl XSL) + Gotenberg (HTML to PDF) |
 | XADES signing | xmlsec1 (CLI, called via System.cmd) |
 | Background sync | GenServer worker, 15-min cron |
+| API docs | open_api_spex (OpenAPI 3.0 + SwaggerUI) |
 | UI styling | Tailwind CSS + DaisyUI |
 | Deployment | Docker, GCP Cloud Run |
 
@@ -298,6 +299,50 @@ Keep explicit attrs only when testing validation logic (e.g., missing required f
 Store sample FA(3) XML files in `test/support/fixtures/`. Include both valid invoices and edge cases (missing fields, multiple line items, different date formats).
 
 ## Project Conventions
+
+### OpenAPI Documentation (required for every API endpoint)
+
+Every REST API controller action **must** have an `open_api_spex` operation spec. This is NOT automatic — you must manually annotate each action.
+
+When adding a new API endpoint:
+
+1. Add `use OpenApiSpex.ControllerSpecs` to the controller (if not already present)
+2. Define an `operation(:action_name, ...)` block above each action function
+3. Create or reuse schemas under `lib/ksef_hub_web/schemas/` for request/response bodies
+4. Verify the spec renders correctly at `/dev/swaggerui` (dev only)
+
+```elixir
+# In the controller:
+use OpenApiSpex.ControllerSpecs
+
+alias KsefHubWeb.Schemas
+alias OpenApiSpex.Schema
+
+tags(["TagName"])
+security([%{"bearer" => []}])
+
+operation(:index,
+  summary: "Short summary",
+  description: "Longer description of what this endpoint does.",
+  parameters: [
+    id: [in: :path, description: "Resource UUID.", schema: %Schema{type: :string, format: :uuid}]
+  ],
+  responses: %{
+    200 => {"Success", "application/json", Schemas.SomeResponse},
+    401 => {"Unauthorized", "application/json", Schemas.ErrorResponse}
+  }
+)
+
+def index(conn, params) do
+  # ...
+end
+```
+
+Key files:
+- `lib/ksef_hub_web/api_spec.ex` — root OpenAPI spec (info, security, servers)
+- `lib/ksef_hub_web/schemas/` — reusable API schemas (Invoice, Token, response wrappers)
+- Spec served at: `GET /api/openapi` (JSON)
+- SwaggerUI at: `GET /dev/swaggerui` (dev only)
 
 ### ADR (Architecture Decision Records)
 

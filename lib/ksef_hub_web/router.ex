@@ -16,6 +16,7 @@ defmodule KsefHubWeb.Router do
 
   pipeline :api do
     plug :accepts, ["json"]
+    plug OpenApiSpex.Plug.PutApiSpec, module: KsefHubWeb.ApiSpec
   end
 
   pipeline :api_auth do
@@ -64,21 +65,27 @@ defmodule KsefHubWeb.Router do
     get "/invoices/:id/pdf", InvoicePdfController, :show
   end
 
+  # OpenAPI spec (public, no auth required)
+  scope "/api" do
+    pipe_through :api
+
+    get "/openapi", OpenApiSpex.Plug.RenderSpec, []
+  end
+
   # API routes (bearer token auth)
   scope "/api", KsefHubWeb.Api do
     pipe_through [:api, :api_auth]
 
-    resources "/invoices", InvoiceController, only: [:index, :show] do
-      post "/approve", InvoiceController, :approve
-      post "/reject", InvoiceController, :reject
-      get "/html", InvoiceController, :html
-      get "/pdf", InvoiceController, :pdf
-    end
+    resources "/invoices", InvoiceController, only: [:index, :show]
+    post "/invoices/:id/approve", InvoiceController, :approve
+    post "/invoices/:id/reject", InvoiceController, :reject
+    get "/invoices/:id/html", InvoiceController, :html
+    get "/invoices/:id/pdf", InvoiceController, :pdf
 
     resources "/tokens", TokenController, only: [:index, :create, :delete]
   end
 
-  # Enable LiveDashboard and Swoosh mailbox preview in development
+  # Enable LiveDashboard, Swoosh mailbox, and SwaggerUI in development
   if Application.compile_env(:ksef_hub, :dev_routes) do
     import Phoenix.LiveDashboard.Router
 
@@ -87,6 +94,8 @@ defmodule KsefHubWeb.Router do
 
       live_dashboard "/dashboard", metrics: KsefHubWeb.Telemetry
       forward "/mailbox", Plug.Swoosh.MailboxPreview
+
+      get "/swaggerui", OpenApiSpex.Plug.SwaggerUI, path: "/api/openapi"
     end
   end
 end

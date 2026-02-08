@@ -1,15 +1,57 @@
 defmodule KsefHubWeb.Api.TokenController do
   use KsefHubWeb, :controller
+  use OpenApiSpex.ControllerSpecs
 
   import KsefHubWeb.ChangesetHelpers
 
   alias KsefHub.Accounts
+  alias KsefHubWeb.Schemas
+  alias OpenApiSpex.Schema
+
+  tags(["Tokens"])
+  security([%{"bearer" => []}])
+
+  operation(:index,
+    summary: "List API tokens",
+    description: "Returns all API tokens belonging to the authenticated user.",
+    responses: %{
+      200 => {"Token list", "application/json", Schemas.TokenListResponse},
+      401 => {"Unauthorized", "application/json", Schemas.ErrorResponse}
+    }
+  )
 
   def index(conn, _params) do
     user_id = conn.assigns.api_token.created_by_id
     tokens = Accounts.list_api_tokens(user_id)
     json(conn, %{data: Enum.map(tokens, &token_json/1)})
   end
+
+  operation(:create,
+    summary: "Create API token",
+    description:
+      "Creates a new API token. The full token value is returned only once in the response.",
+    request_body:
+      {"Token params", "application/json",
+       %Schema{
+         type: :object,
+         properties: %{
+           name: %Schema{type: :string, description: "Human-readable token name."},
+           description: %Schema{type: :string, nullable: true},
+           expires_at: %Schema{
+             type: :string,
+             format: :"date-time",
+             nullable: true,
+             description: "Optional expiration timestamp. Null means no expiry."
+           }
+         },
+         required: [:name]
+       }},
+    responses: %{
+      201 => {"Created token", "application/json", Schemas.TokenCreatedResponse},
+      401 => {"Unauthorized", "application/json", Schemas.ErrorResponse},
+      422 => {"Validation error", "application/json", Schemas.ErrorResponse}
+    }
+  )
 
   def create(conn, params) do
     user_id = conn.assigns.api_token.created_by_id
@@ -35,6 +77,19 @@ defmodule KsefHubWeb.Api.TokenController do
         |> json(%{error: changeset_errors(changeset)})
     end
   end
+
+  operation(:delete,
+    summary: "Revoke API token",
+    description: "Permanently revokes an API token. This cannot be undone.",
+    parameters: [
+      id: [in: :path, description: "Token UUID.", schema: %Schema{type: :string, format: :uuid}]
+    ],
+    responses: %{
+      200 => {"Token revoked", "application/json", Schemas.MessageResponse},
+      401 => {"Unauthorized", "application/json", Schemas.ErrorResponse},
+      404 => {"Not found", "application/json", Schemas.ErrorResponse}
+    }
+  )
 
   def delete(conn, %{"id" => id}) do
     user_id = conn.assigns.api_token.created_by_id
