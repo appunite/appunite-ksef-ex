@@ -116,7 +116,7 @@ defmodule KsefHubWeb.TokenLive do
     <div :if={@show_create_form} class="card bg-base-100 border border-base-300 mt-6">
       <div class="p-5">
         <h2 class="text-base font-semibold">Create New Token</h2>
-        <form phx-submit="create" phx-change="validate" class="space-y-4 mt-2">
+        <.form for={@form} phx-submit="create" phx-change="validate" class="space-y-4 mt-2" id="create-token-form">
           <.input field={@form[:name]} label="Name" placeholder="e.g. CI/CD Pipeline" required />
           <.input
             field={@form[:description]}
@@ -128,7 +128,7 @@ defmodule KsefHubWeb.TokenLive do
             <button type="submit" class="btn btn-primary btn-sm">Create Token</button>
             <button type="button" phx-click="toggle_form" class="btn btn-ghost btn-sm">Cancel</button>
           </div>
-        </form>
+        </.form>
       </div>
     </div>
 
@@ -169,6 +169,7 @@ defmodule KsefHubWeb.TokenLive do
     """
   end
 
+  @spec format_datetime(DateTime.t() | NaiveDateTime.t() | nil) :: String.t()
   defp format_datetime(nil), do: "Never"
   defp format_datetime(dt), do: Calendar.strftime(dt, "%Y-%m-%d %H:%M")
 end

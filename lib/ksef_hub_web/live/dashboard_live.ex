@@ -159,6 +159,7 @@ defmodule KsefHubWeb.DashboardLive do
     """
   end
 
+  @spec stat_card(map()) :: Phoenix.LiveView.Rendered.t()
   defp stat_card(assigns) do
     assigns = assign_new(assigns, :color, fn -> "text-base-content" end)
 
