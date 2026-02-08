@@ -44,7 +44,7 @@ defmodule KsefHubWeb.TokenLiveTest do
       view |> element("button", "New Token") |> render_click()
 
       view
-      |> element("form")
+      |> element("form[phx-submit=create]")
       |> render_submit(%{token: %{name: "My Token", description: "For testing"}})
 
       html = render(view)
@@ -75,7 +75,7 @@ defmodule KsefHubWeb.TokenLiveTest do
       view |> element("button", "New Token") |> render_click()
 
       view
-      |> element("form")
+      |> element("form[phx-submit=create]")
       |> render_submit(%{token: %{name: "Dismiss Test", description: ""}})
 
       # Token should be visible

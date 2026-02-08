@@ -44,7 +44,7 @@ defmodule KsefHubWeb.CertificateLiveTest do
       {:ok, view, _html} = live(conn, ~p"/certificates")
 
       view
-      |> element("form")
+      |> element("form[phx-change=validate]")
       |> render_change(%{credential: %{password: "pass"}})
 
       # Form should still render (validation is server-side on submit)

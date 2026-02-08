@@ -69,16 +69,21 @@ defmodule KsefHubWeb.Layouts do
                 class="dropdown-content z-50 menu p-2 shadow bg-base-100 rounded-box w-56"
               >
                 <li :for={company <- @companies}>
-                  <.link
-                    href={
-                      ~p"/switch-company/#{company.id}?return_to=#{@current_path || "/dashboard"}"
-                    }
-                    method="post"
-                    class={[company.id == @current_company.id && "active"]}
-                  >
-                    <span class="truncate">{company.name}</span>
-                    <span class="text-xs text-base-content/50">{company.nip}</span>
-                  </.link>
+                  <form method="post" action={~p"/switch-company/#{company.id}"}>
+                    <input
+                      type="hidden"
+                      name="_csrf_token"
+                      value={Plug.CSRFProtection.get_csrf_token()}
+                    />
+                    <input type="hidden" name="return_to" value={@current_path || "/dashboard"} />
+                    <button
+                      type="submit"
+                      class={["w-full text-left", company.id == @current_company.id && "active"]}
+                    >
+                      <span class="truncate">{company.name}</span>
+                      <span class="text-xs text-base-content/50">{company.nip}</span>
+                    </button>
+                  </form>
                 </li>
               </ul>
             </div>

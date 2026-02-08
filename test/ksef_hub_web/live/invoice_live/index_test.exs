@@ -63,7 +63,7 @@ defmodule KsefHubWeb.InvoiceLive.IndexTest do
       {:ok, view, _html} = live(conn, ~p"/invoices")
 
       view
-      |> element("form")
+      |> element("form[phx-change=filter]")
       |> render_change(%{"type" => "income"})
 
       assert_patched(view, "/invoices?type=income")
