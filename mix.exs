@@ -79,6 +79,8 @@ defmodule KsefHub.MixProject do
       {:mox, "~> 1.1", only: :test},
       # Test factories
       {:ex_machina, "~> 2.8", only: :test},
+      # OpenAPI documentation
+      {:open_api_spex, "~> 3.22"},
       # Static analysis
       {:credo, "~> 1.7", only: [:dev, :test], runtime: false}
     ]
