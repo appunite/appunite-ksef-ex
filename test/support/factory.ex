@@ -9,6 +9,7 @@ defmodule KsefHub.Factory do
   use ExMachina.Ecto, repo: KsefHub.Repo
 
   alias KsefHub.Accounts.{ApiToken, User}
+  alias KsefHub.Companies.Company
   alias KsefHub.Credentials.Credential
   alias KsefHub.Invoices.Invoice
   alias KsefHub.Sync.Checkpoint
@@ -20,6 +21,16 @@ defmodule KsefHub.Factory do
       email: sequence(:email, &"user#{&1}@example.com"),
       name: "Test User",
       google_uid: sequence(:google_uid, &"google-uid-#{&1}")
+    }
+  end
+
+  @doc "Builds a `Company` with a sequenced name and NIP."
+  @spec company_factory() :: Company.t()
+  def company_factory do
+    %Company{
+      name: sequence(:company_name, &"Company #{&1}"),
+      nip: sequence(:company_nip, &String.pad_leading("#{&1}", 10, "0")),
+      is_active: true
     }
   end
 
