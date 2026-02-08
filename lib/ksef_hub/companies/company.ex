@@ -14,6 +14,7 @@ defmodule KsefHub.Companies.Company do
     field :nip, :string
     field :address, :string
     field :is_active, :boolean, default: true
+    field :has_active_credential, :boolean, virtual: true
 
     timestamps()
   end
