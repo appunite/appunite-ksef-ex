@@ -1,5 +1,5 @@
 # === Build stage ===
-FROM hexpm/elixir:1.18.4-erlang-28.0.2-debian-bookworm-20250407-slim AS build
+FROM hexpm/elixir:1.18.4-erlang-28.0.2-debian-bookworm-20260202-slim AS build
 
 RUN apt-get update -y && \
     apt-get install -y build-essential git curl && \
@@ -18,15 +18,16 @@ RUN mkdir config
 COPY config/config.exs config/prod.exs config/
 RUN mix deps.compile
 
-# Build assets
+# Copy source and compile (must happen before assets.deploy
+# so phoenix-colocated hooks are generated for esbuild)
 COPY priv priv
 COPY assets assets
 COPY lib lib
-RUN mix assets.deploy
-
-# Compile application
 COPY config/runtime.exs config/
 RUN mix compile
+
+# Build assets
+RUN mix assets.deploy
 
 # Build release
 RUN mix release
