@@ -49,8 +49,12 @@ defmodule KsefHubWeb.Router do
       live "/invoices/:id", InvoiceLive.Show
       live "/tokens", TokenLive
       live "/syncs", SyncLive
+      live "/companies", CompanyLive.Index
+      live "/companies/new", CompanyLive.Index, :new
+      live "/companies/:id/edit", CompanyLive.Index, :edit
     end
 
+    post "/switch-company/:id", CompanySwitchController, :update
     get "/invoices/:id/pdf", InvoicePdfController, :show
   end
 
