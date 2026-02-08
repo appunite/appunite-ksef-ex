@@ -6,8 +6,8 @@ defmodule KsefHubWeb.CompanyLive.Index do
 
   alias KsefHub.Companies
   alias KsefHub.Companies.Company
-  alias KsefHub.Credentials
 
+  @doc "Loads companies with credential status on mount."
   @impl true
   def mount(_params, _session, socket) do
     {:ok,
@@ -16,11 +16,13 @@ defmodule KsefHubWeb.CompanyLive.Index do
      |> load_companies()}
   end
 
+  @doc "Applies the current live_action (:index, :new, :edit) to the socket."
   @impl true
   def handle_params(params, _uri, socket) do
     {:noreply, apply_action(socket, socket.assigns.live_action, params)}
   end
 
+  @spec apply_action(Phoenix.LiveView.Socket.t(), atom(), map()) :: Phoenix.LiveView.Socket.t()
   defp apply_action(socket, :new, _params) do
     socket
     |> assign(:page_title, "New Company")
@@ -43,6 +45,7 @@ defmodule KsefHubWeb.CompanyLive.Index do
     |> assign(:form, nil)
   end
 
+  @doc "Handles form validation and save events."
   @impl true
   def handle_event("validate", %{"company" => params}, socket) do
     changeset =
@@ -58,6 +61,8 @@ defmodule KsefHubWeb.CompanyLive.Index do
     save_company(socket, socket.assigns.live_action, params)
   end
 
+  @spec save_company(Phoenix.LiveView.Socket.t(), atom(), map()) ::
+          {:noreply, Phoenix.LiveView.Socket.t()}
   defp save_company(socket, :new, params) do
     case Companies.create_company(params) do
       {:ok, company} ->
@@ -84,17 +89,12 @@ defmodule KsefHubWeb.CompanyLive.Index do
     end
   end
 
+  @spec load_companies(Phoenix.LiveView.Socket.t()) :: Phoenix.LiveView.Socket.t()
   defp load_companies(socket) do
-    companies =
-      Companies.list_companies()
-      |> Enum.map(fn company ->
-        credential = Credentials.get_active_credential(company.id)
-        Map.put(company, :active_credential, credential)
-      end)
-
-    assign(socket, :companies_with_creds, companies)
+    assign(socket, :companies_with_creds, Companies.list_companies_with_credential_status())
   end
 
+  @doc "Renders the company list page with create/edit form."
   @impl true
   def render(assigns) do
     ~H"""
@@ -146,8 +146,8 @@ defmodule KsefHubWeb.CompanyLive.Index do
           <span class="font-mono">{company.nip}</span>
         </:col>
         <:col :let={company} label="Certificate">
-          <span :if={company.active_credential} class="badge badge-success badge-sm">Active</span>
-          <span :if={!company.active_credential} class="badge badge-ghost badge-sm">None</span>
+          <span :if={company.has_active_credential} class="badge badge-success badge-sm">Active</span>
+          <span :if={!company.has_active_credential} class="badge badge-ghost badge-sm">None</span>
         </:col>
         <:col :let={company} label="Status">
           <span :if={company.is_active} class="badge badge-success badge-sm">Active</span>

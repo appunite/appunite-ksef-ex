@@ -51,11 +51,15 @@ defmodule KsefHub.Credentials do
   end
 
   @doc """
-  Creates a new credential.
+  Creates a new credential. The `company_id` key in attrs is set server-side
+  via `put_change` to prevent mass assignment.
   """
   @spec create_credential(map()) :: {:ok, Credential.t()} | {:error, Ecto.Changeset.t()}
   def create_credential(attrs) do
+    company_id = attrs[:company_id] || attrs["company_id"]
+
     %Credential{}
+    |> Ecto.Changeset.change(%{company_id: company_id})
     |> Credential.changeset(attrs)
     |> Repo.insert()
   end
@@ -68,7 +72,12 @@ defmodule KsefHub.Credentials do
           {:ok, Credential.t()} | {:error, Ecto.Changeset.t()}
   def replace_active_credential(company_id, attrs) do
     company = KsefHub.Companies.get_company!(company_id)
-    attrs = Map.merge(attrs, %{company_id: company_id, nip: company.nip})
+    attrs = Map.merge(attrs, %{nip: company.nip})
+
+    changeset =
+      %Credential{}
+      |> Ecto.Changeset.change(%{company_id: company_id})
+      |> Credential.changeset(attrs)
 
     multi =
       Multi.new()
@@ -78,7 +87,7 @@ defmodule KsefHub.Credentials do
           existing -> deactivate_credential(existing)
         end
       end)
-      |> Multi.insert(:credential, Credential.changeset(%Credential{}, attrs))
+      |> Multi.insert(:credential, changeset)
 
     case Repo.transaction(multi) do
       {:ok, %{credential: credential}} -> {:ok, credential}

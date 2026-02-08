@@ -5,9 +5,11 @@ defmodule KsefHubWeb.InvoiceLive.Show do
   use KsefHubWeb, :live_view
 
   alias KsefHub.Invoices
+  alias KsefHub.Invoices.Invoice
 
   import KsefHubWeb.InvoiceComponents
 
+  @doc "Loads invoice by ID scoped to current company, generates HTML preview."
   @impl true
   def mount(%{"id" => id}, _session, socket) do
     company = socket.assigns.current_company
@@ -46,6 +48,7 @@ defmodule KsefHubWeb.InvoiceLive.Show do
     end
   end
 
+  @doc "Handles approve and reject actions for expense invoices."
   @impl true
   def handle_event("approve", _params, socket) do
     case Invoices.approve_invoice(socket.assigns.invoice) do
@@ -80,6 +83,7 @@ defmodule KsefHubWeb.InvoiceLive.Show do
     end
   end
 
+  @spec generate_preview(Invoice.t()) :: String.t() | nil
   defp generate_preview(invoice) do
     if invoice.xml_content do
       pdf_mod = Application.get_env(:ksef_hub, :pdf_generator, KsefHub.Pdf)
@@ -91,6 +95,7 @@ defmodule KsefHubWeb.InvoiceLive.Show do
     end
   end
 
+  @doc "Renders invoice detail page with metadata, preview, and action buttons."
   @impl true
   def render(assigns) do
     ~H"""

@@ -37,7 +37,8 @@ defmodule KsefHub.KsefClient.TokenManager do
   @doc """
   Stores new tokens after XADES authentication for a company.
   """
-  @spec store_tokens(Ecto.UUID.t(), String.t(), String.t(), DateTime.t(), DateTime.t()) :: :ok
+  @spec store_tokens(Ecto.UUID.t(), String.t(), String.t(), DateTime.t(), DateTime.t()) ::
+          :ok | {:error, term()}
   def store_tokens(
         company_id,
         access_token,

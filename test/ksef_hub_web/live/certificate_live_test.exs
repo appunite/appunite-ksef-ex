@@ -33,9 +33,9 @@ defmodule KsefHubWeb.CertificateLiveTest do
           company_id: company.id
         })
 
-      {:ok, _view, html} = live(conn, ~p"/certificates")
-      assert html =~ "Active Certificate"
-      assert html =~ company.nip
+      {:ok, view, _html} = live(conn, ~p"/certificates")
+      assert has_element?(view, "#active-certificate")
+      assert render(view) =~ company.nip
     end
   end
 

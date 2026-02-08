@@ -62,6 +62,7 @@ defmodule KsefHubWeb.LiveAuth do
     end
   end
 
+  @spec resolve_company([map()], Ecto.UUID.t() | nil) :: map() | nil
   defp resolve_company([], _), do: nil
   defp resolve_company(_companies, nil), do: nil
 
@@ -69,6 +70,7 @@ defmodule KsefHubWeb.LiveAuth do
     Enum.find(companies, fn c -> c.id == company_id end)
   end
 
+  @spec company_route?(Phoenix.LiveView.Socket.t()) :: boolean()
   defp company_route?(socket) do
     socket.view in [KsefHubWeb.CompanyLive.Index]
   end

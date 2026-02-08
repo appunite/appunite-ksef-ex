@@ -56,7 +56,10 @@ defmodule KsefHub.Invoices do
   """
   @spec create_invoice(map()) :: {:ok, Invoice.t()} | {:error, Ecto.Changeset.t()}
   def create_invoice(attrs) do
+    company_id = attrs[:company_id] || attrs["company_id"]
+
     %Invoice{}
+    |> Ecto.Changeset.change(%{company_id: company_id})
     |> Invoice.changeset(attrs)
     |> Repo.insert()
   end
@@ -66,7 +69,10 @@ defmodule KsefHub.Invoices do
   """
   @spec upsert_invoice(map()) :: {:ok, Invoice.t()} | {:error, Ecto.Changeset.t()}
   def upsert_invoice(attrs) do
+    company_id = attrs[:company_id] || attrs["company_id"]
+
     %Invoice{}
+    |> Ecto.Changeset.change(%{company_id: company_id})
     |> Invoice.changeset(attrs)
     |> Repo.insert(
       on_conflict:

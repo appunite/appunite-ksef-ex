@@ -28,7 +28,7 @@ defmodule KsefHub.Credentials.Credential do
   end
 
   @doc "Builds a changeset for credential creation/update."
-  @spec changeset(t(), map()) :: Ecto.Changeset.t()
+  @spec changeset(t() | Ecto.Changeset.t(), map()) :: Ecto.Changeset.t()
   def changeset(credential, attrs) do
     credential
     |> cast(attrs, [
@@ -42,8 +42,7 @@ defmodule KsefHub.Credentials.Credential do
       :refresh_token_encrypted,
       :refresh_token_expires_at,
       :access_token_encrypted,
-      :access_token_expires_at,
-      :company_id
+      :access_token_expires_at
     ])
     |> validate_required([:nip, :company_id])
     |> validate_format(:nip, ~r/^\d{10}$/, message: "must be a 10-digit NIP")

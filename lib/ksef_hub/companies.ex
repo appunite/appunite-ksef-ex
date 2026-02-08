@@ -16,6 +16,25 @@ defmodule KsefHub.Companies do
     |> Repo.all()
   end
 
+  @doc """
+  Lists all companies with a boolean `has_active_credential` virtual field.
+  Uses a single query with a subquery instead of N+1 credential lookups.
+  """
+  @spec list_companies_with_credential_status() :: [map()]
+  def list_companies_with_credential_status do
+    active_cred_subquery =
+      from(cr in KsefHub.Credentials.Credential,
+        where: cr.company_id == parent_as(:company).id and cr.is_active == true,
+        select: 1
+      )
+
+    Company
+    |> from(as: :company)
+    |> order_by([c], asc: c.name)
+    |> select_merge([c], %{has_active_credential: exists(subquery(active_cred_subquery))})
+    |> Repo.all()
+  end
+
   @doc "Fetches a company by ID, raising if not found."
   @spec get_company!(Ecto.UUID.t()) :: Company.t()
   def get_company!(id), do: Repo.get!(Company, id)

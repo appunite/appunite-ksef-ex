@@ -81,6 +81,10 @@ defmodule KsefHubWeb.CertificateLive do
 
   @spec save_credential(Phoenix.LiveView.Socket.t(), map(), binary()) ::
           {:noreply, Phoenix.LiveView.Socket.t()}
+  defp save_credential(%{assigns: %{current_company: nil}} = socket, _params, _cert_data) do
+    {:noreply, socket |> put_flash(:error, "No company selected.") |> load_credentials()}
+  end
+
   defp save_credential(socket, params, cert_data) do
     company = socket.assigns.current_company
 
@@ -138,7 +142,7 @@ defmodule KsefHubWeb.CertificateLive do
     </.header>
 
     <!-- Active Certificate -->
-    <div :if={@active_credential} class="card bg-base-100 shadow-sm mt-6">
+    <div :if={@active_credential} id="active-certificate" class="card bg-base-100 shadow-sm mt-6">
       <div class="card-body">
         <div class="flex items-center justify-between">
           <h2 class="card-title text-base">Active Certificate</h2>

@@ -36,7 +36,7 @@ defmodule KsefHub.Invoices.Invoice do
   end
 
   @doc "Builds a changeset for invoice creation/update."
-  @spec changeset(t(), map()) :: Ecto.Changeset.t()
+  @spec changeset(t() | Ecto.Changeset.t(), map()) :: Ecto.Changeset.t()
   def changeset(invoice, attrs) do
     invoice
     |> cast(attrs, [
@@ -55,8 +55,7 @@ defmodule KsefHub.Invoices.Invoice do
       :currency,
       :status,
       :ksef_acquisition_date,
-      :permanent_storage_date,
-      :company_id
+      :permanent_storage_date
     ])
     |> validate_required([
       :type,

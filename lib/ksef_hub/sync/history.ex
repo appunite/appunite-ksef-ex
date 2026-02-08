@@ -35,7 +35,8 @@ defmodule KsefHub.Sync.History do
 
   Returns `{:ok, job}` or `{:error, :already_running}`.
   """
-  @spec trigger_manual_sync(Ecto.UUID.t()) :: {:ok, Oban.Job.t()} | {:error, :already_running}
+  @spec trigger_manual_sync(Ecto.UUID.t()) ::
+          {:ok, Oban.Job.t()} | {:error, :already_running | Ecto.Changeset.t()}
   def trigger_manual_sync(company_id) do
     executing =
       Oban.Job

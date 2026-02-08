@@ -54,7 +54,7 @@ defmodule KsefHub.CompaniesTest do
   end
 
   describe "list_companies/0" do
-    test "returns all active companies" do
+    test "returns all companies ordered by name" do
       insert(:company, name: "Company A")
       insert(:company, name: "Company B")
 
