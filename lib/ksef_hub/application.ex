@@ -12,6 +12,8 @@ defmodule KsefHub.Application do
       {DNSCluster, query: Application.get_env(:ksef_hub, :dns_cluster_query) || :ignore},
       {Phoenix.PubSub, name: KsefHub.PubSub},
       {Task.Supervisor, name: KsefHub.TaskSupervisor},
+      {Registry, keys: :unique, name: KsefHub.TokenManagerRegistry},
+      {DynamicSupervisor, name: KsefHub.TokenManagerSupervisor, strategy: :one_for_one},
       {Oban, Application.fetch_env!(:ksef_hub, Oban)},
       KsefHubWeb.Endpoint
     ]
