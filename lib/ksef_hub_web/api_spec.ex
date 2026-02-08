@@ -18,31 +18,54 @@ defmodule KsefHubWeb.ApiSpec do
   @impl OpenApi
   @spec spec() :: OpenApi.t()
   def spec do
-    %OpenApi{
-      info: %Info{
-        title: "KSeF Hub API",
-        version: "1.0.0",
-        description: """
-        REST API for Poland's National e-Invoice System (KSeF).
-        Provides invoice querying, approval workflows, PDF generation,
-        and API token management.
-        """
-      },
-      servers: [
-        %Server{url: "/", description: "Current server"}
-      ],
-      paths: Paths.from_router(KsefHubWeb.Router),
-      components: %OpenApiSpex.Components{
-        securitySchemes: %{
-          "bearer" => %SecurityScheme{
-            type: "http",
-            scheme: "bearer",
-            description: "API token obtained from the Tokens endpoint or admin UI."
-          }
-        }
-      },
-      security: [%{"bearer" => []}]
-    }
+    build_spec()
     |> OpenApiSpex.resolve_schema_modules()
+  end
+
+  @spec build_spec() :: OpenApi.t()
+  defp build_spec do
+    %OpenApi{
+      info: info(),
+      servers: servers(),
+      paths: Paths.from_router(KsefHubWeb.Router),
+      components: components(),
+      security: security()
+    }
+  end
+
+  @spec info() :: Info.t()
+  defp info do
+    %Info{
+      title: "KSeF Hub API",
+      version: "1.0.0",
+      description: """
+      REST API for Poland's National e-Invoice System (KSeF).
+      Provides invoice querying, approval workflows, PDF generation,
+      and API token management.
+      """
+    }
+  end
+
+  @spec servers() :: [Server.t()]
+  defp servers do
+    [%Server{url: "/", description: "Current server"}]
+  end
+
+  @spec components() :: OpenApiSpex.Components.t()
+  defp components do
+    %OpenApiSpex.Components{
+      securitySchemes: %{
+        "bearer" => %SecurityScheme{
+          type: "http",
+          scheme: "bearer",
+          description: "API token obtained from the Tokens endpoint or admin UI."
+        }
+      }
+    }
+  end
+
+  @spec security() :: [map()]
+  defp security do
+    [%{"bearer" => []}]
   end
 end
