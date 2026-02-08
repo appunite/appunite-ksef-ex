@@ -3,7 +3,7 @@ defmodule KsefHub.Repo.Migrations.AddCompanyIdToCredentials do
 
   def change do
     alter table(:ksef_credentials) do
-      add :company_id, references(:companies, type: :binary_id, on_delete: :restrict)
+      add :company_id, references(:companies, type: :binary_id, on_delete: :restrict), null: false
     end
 
     # Drop old unique index on nip
