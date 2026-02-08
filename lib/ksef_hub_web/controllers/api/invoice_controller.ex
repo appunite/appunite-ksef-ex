@@ -1,5 +1,6 @@
 defmodule KsefHubWeb.Api.InvoiceController do
   use KsefHubWeb, :controller
+  use OpenApiSpex.ControllerSpecs
 
   require Logger
 
@@ -8,6 +9,64 @@ defmodule KsefHubWeb.Api.InvoiceController do
   import KsefHubWeb.FilenameHelpers, only: [sanitize_filename: 1]
 
   alias KsefHub.Invoices
+  alias KsefHubWeb.Schemas
+  alias OpenApiSpex.Schema
+
+  tags(["Invoices"])
+  security([%{"bearer" => []}])
+
+  operation(:index,
+    summary: "List invoices",
+    description: "Returns invoices for the given company, with optional filtering.",
+    parameters: [
+      company_id: [
+        in: :query,
+        description: "Company UUID (required).",
+        schema: %Schema{type: :string, format: :uuid},
+        required: true
+      ],
+      type: [
+        in: :query,
+        description: "Filter by invoice type.",
+        schema: %Schema{type: :string, enum: ["income", "expense"]}
+      ],
+      status: [
+        in: :query,
+        description: "Filter by approval status.",
+        schema: %Schema{type: :string, enum: ["pending", "approved", "rejected"]}
+      ],
+      seller_nip: [
+        in: :query,
+        description: "Filter by seller NIP.",
+        schema: %Schema{type: :string}
+      ],
+      buyer_nip: [
+        in: :query,
+        description: "Filter by buyer NIP.",
+        schema: %Schema{type: :string}
+      ],
+      query: [
+        in: :query,
+        description: "Free-text search across invoice fields.",
+        schema: %Schema{type: :string}
+      ],
+      date_from: [
+        in: :query,
+        description: "Filter invoices issued on or after this date (ISO 8601).",
+        schema: %Schema{type: :string, format: :date}
+      ],
+      date_to: [
+        in: :query,
+        description: "Filter invoices issued on or before this date (ISO 8601).",
+        schema: %Schema{type: :string, format: :date}
+      ]
+    ],
+    responses: %{
+      200 => {"Invoice list", "application/json", Schemas.Responses.InvoiceListResponse},
+      400 => {"Bad request", "application/json", Schemas.Responses.ErrorResponse},
+      401 => {"Unauthorized", "application/json", Schemas.Responses.ErrorResponse}
+    }
+  )
 
   def index(conn, params) do
     with {:ok, company_id} <- require_company_id(conn, params) do
@@ -17,12 +76,57 @@ defmodule KsefHubWeb.Api.InvoiceController do
     end
   end
 
+  operation(:show,
+    summary: "Get invoice",
+    description: "Returns a single invoice by ID.",
+    parameters: [
+      id: [in: :path, description: "Invoice UUID.", schema: %Schema{type: :string, format: :uuid}],
+      company_id: [
+        in: :query,
+        description: "Company UUID (required).",
+        schema: %Schema{type: :string, format: :uuid},
+        required: true
+      ]
+    ],
+    responses: %{
+      200 => {"Invoice", "application/json", Schemas.Responses.InvoiceResponse},
+      400 => {"Bad request", "application/json", Schemas.Responses.ErrorResponse},
+      401 => {"Unauthorized", "application/json", Schemas.Responses.ErrorResponse},
+      404 => {"Not found", "application/json", Schemas.Responses.ErrorResponse}
+    }
+  )
+
   def show(conn, %{"id" => id} = params) do
     with {:ok, company_id} <- require_company_id(conn, params) do
       invoice = Invoices.get_invoice!(company_id, id)
       json(conn, %{data: invoice_json(invoice)})
     end
   end
+
+  operation(:approve,
+    summary: "Approve expense invoice",
+    description: "Marks an expense invoice as approved. Only expense invoices can be approved.",
+    parameters: [
+      invoice_id: [
+        in: :path,
+        description: "Invoice UUID.",
+        schema: %Schema{type: :string, format: :uuid}
+      ],
+      company_id: [
+        in: :query,
+        description: "Company UUID (required).",
+        schema: %Schema{type: :string, format: :uuid},
+        required: true
+      ]
+    ],
+    responses: %{
+      200 => {"Approved invoice", "application/json", Schemas.Responses.InvoiceResponse},
+      400 => {"Bad request", "application/json", Schemas.Responses.ErrorResponse},
+      401 => {"Unauthorized", "application/json", Schemas.Responses.ErrorResponse},
+      404 => {"Not found", "application/json", Schemas.Responses.ErrorResponse},
+      422 => {"Unprocessable entity", "application/json", Schemas.Responses.ErrorResponse}
+    }
+  )
 
   def approve(conn, %{"invoice_id" => id} = params) do
     with {:ok, company_id} <- require_company_id(conn, params) do
@@ -45,6 +149,31 @@ defmodule KsefHubWeb.Api.InvoiceController do
     end
   end
 
+  operation(:reject,
+    summary: "Reject expense invoice",
+    description: "Marks an expense invoice as rejected. Only expense invoices can be rejected.",
+    parameters: [
+      invoice_id: [
+        in: :path,
+        description: "Invoice UUID.",
+        schema: %Schema{type: :string, format: :uuid}
+      ],
+      company_id: [
+        in: :query,
+        description: "Company UUID (required).",
+        schema: %Schema{type: :string, format: :uuid},
+        required: true
+      ]
+    ],
+    responses: %{
+      200 => {"Rejected invoice", "application/json", Schemas.Responses.InvoiceResponse},
+      400 => {"Bad request", "application/json", Schemas.Responses.ErrorResponse},
+      401 => {"Unauthorized", "application/json", Schemas.Responses.ErrorResponse},
+      404 => {"Not found", "application/json", Schemas.Responses.ErrorResponse},
+      422 => {"Unprocessable entity", "application/json", Schemas.Responses.ErrorResponse}
+    }
+  )
+
   def reject(conn, %{"invoice_id" => id} = params) do
     with {:ok, company_id} <- require_company_id(conn, params) do
       invoice = Invoices.get_invoice!(company_id, id)
@@ -66,6 +195,32 @@ defmodule KsefHubWeb.Api.InvoiceController do
     end
   end
 
+  operation(:html,
+    summary: "Get invoice HTML preview",
+    description:
+      "Generates an HTML rendering of the invoice from its FA(3) XML using the gov.pl stylesheet.",
+    parameters: [
+      invoice_id: [
+        in: :path,
+        description: "Invoice UUID.",
+        schema: %Schema{type: :string, format: :uuid}
+      ],
+      company_id: [
+        in: :query,
+        description: "Company UUID (required).",
+        schema: %Schema{type: :string, format: :uuid},
+        required: true
+      ]
+    ],
+    responses: %{
+      200 => {"HTML content", "text/html", %Schema{type: :string}},
+      400 => {"Bad request", "application/json", Schemas.Responses.ErrorResponse},
+      401 => {"Unauthorized", "application/json", Schemas.Responses.ErrorResponse},
+      404 => {"Not found", "application/json", Schemas.Responses.ErrorResponse},
+      500 => {"Generation failed", "application/json", Schemas.Responses.ErrorResponse}
+    }
+  )
+
   def html(conn, %{"invoice_id" => id} = params) do
     with {:ok, company_id} <- require_company_id(conn, params) do
       invoice = Invoices.get_invoice!(company_id, id)
@@ -86,6 +241,32 @@ defmodule KsefHubWeb.Api.InvoiceController do
       end
     end
   end
+
+  operation(:pdf,
+    summary: "Download invoice PDF",
+    description:
+      "Generates a PDF rendering of the invoice from its FA(3) XML via xsltproc and Gotenberg.",
+    parameters: [
+      invoice_id: [
+        in: :path,
+        description: "Invoice UUID.",
+        schema: %Schema{type: :string, format: :uuid}
+      ],
+      company_id: [
+        in: :query,
+        description: "Company UUID (required).",
+        schema: %Schema{type: :string, format: :uuid},
+        required: true
+      ]
+    ],
+    responses: %{
+      200 => {"PDF file", "application/pdf", %Schema{type: :string, format: :binary}},
+      400 => {"Bad request", "application/json", Schemas.Responses.ErrorResponse},
+      401 => {"Unauthorized", "application/json", Schemas.Responses.ErrorResponse},
+      404 => {"Not found", "application/json", Schemas.Responses.ErrorResponse},
+      500 => {"Generation failed", "application/json", Schemas.Responses.ErrorResponse}
+    }
+  )
 
   def pdf(conn, %{"invoice_id" => id} = params) do
     with {:ok, company_id} <- require_company_id(conn, params) do
