@@ -15,7 +15,11 @@ defmodule KsefHubWeb.Layouts do
 
   attr :current_user, :map, default: nil
   attr :current_path, :string, default: nil
+  attr :current_company, :map, default: nil
+  attr :companies, :list, default: []
 
+  @doc "Renders the main application layout with sidebar navigation."
+  @spec app(map()) :: Phoenix.LiveView.Rendered.t()
   def app(assigns) do
     ~H"""
     <div class="drawer lg:drawer-open">
@@ -54,6 +58,39 @@ defmodule KsefHubWeb.Layouts do
             </a>
           </div>
           
+    <!-- Company Selector -->
+          <div :if={@current_company} class="p-4 border-b border-base-300">
+            <div class="dropdown w-full">
+              <div tabindex="0" role="button" class="btn btn-ghost btn-sm w-full justify-start gap-2">
+                <.icon name="hero-building-office-2" class="size-4" />
+                <span class="flex-1 text-left truncate">{@current_company.name}</span>
+                <.icon name="hero-chevron-down" class="size-3" />
+              </div>
+              <ul
+                tabindex="0"
+                class="dropdown-content z-50 menu p-2 shadow bg-base-100 rounded-box w-56"
+              >
+                <li :for={company <- @companies}>
+                  <form method="post" action={~p"/switch-company/#{company.id}"}>
+                    <input
+                      type="hidden"
+                      name="_csrf_token"
+                      value={Plug.CSRFProtection.get_csrf_token()}
+                    />
+                    <input type="hidden" name="return_to" value={@current_path || "/dashboard"} />
+                    <button
+                      type="submit"
+                      class={["w-full text-left", company.id == @current_company.id && "active"]}
+                    >
+                      <span class="truncate">{company.name}</span>
+                      <span class="text-xs text-base-content/50">{company.nip}</span>
+                    </button>
+                  </form>
+                </li>
+              </ul>
+            </div>
+          </div>
+          
     <!-- Navigation -->
           <nav class="flex-1 p-4">
             <ul class="menu gap-1">
@@ -80,6 +117,11 @@ defmodule KsefHubWeb.Layouts do
               <li>
                 <.nav_link path={~p"/syncs"} current={@current_path} icon="hero-arrow-path">
                   Syncs
+                </.nav_link>
+              </li>
+              <li>
+                <.nav_link path={~p"/companies"} current={@current_path} icon="hero-building-office-2">
+                  Companies
                 </.nav_link>
               </li>
             </ul>
@@ -124,6 +166,7 @@ defmodule KsefHubWeb.Layouts do
   attr :icon, :string, required: true
   slot :inner_block, required: true
 
+  @spec nav_link(map()) :: Phoenix.LiveView.Rendered.t()
   defp nav_link(assigns) do
     active =
       assigns.current &&
@@ -140,6 +183,7 @@ defmodule KsefHubWeb.Layouts do
     """
   end
 
+  @spec initial(String.t() | nil) :: String.t()
   defp initial(nil), do: "?"
   defp initial(""), do: "?"
   defp initial(email), do: email |> String.first() |> String.upcase()
@@ -154,6 +198,7 @@ defmodule KsefHubWeb.Layouts do
   attr :flash, :map, required: true, doc: "the map of flash messages"
   attr :id, :string, default: "flash-group", doc: "the optional id of flash container"
 
+  @spec flash_group(map()) :: Phoenix.LiveView.Rendered.t()
   def flash_group(assigns) do
     ~H"""
     <div id={@id} aria-live="polite">
@@ -192,6 +237,7 @@ defmodule KsefHubWeb.Layouts do
 
   See <head> in root.html.heex which applies the theme before page load.
   """
+  @spec theme_toggle(map()) :: Phoenix.LiveView.Rendered.t()
   def theme_toggle(assigns) do
     ~H"""
     <div class="card relative flex flex-row items-center border-2 border-base-300 bg-base-300 rounded-full">

@@ -3,6 +3,8 @@ defmodule KsefHubWeb.CertificateLiveTest do
 
   import Phoenix.LiveViewTest
 
+  import KsefHub.Factory
+
   alias KsefHub.Accounts
   alias KsefHub.Credentials
 
@@ -10,8 +12,10 @@ defmodule KsefHubWeb.CertificateLiveTest do
     {:ok, user} =
       Accounts.find_or_create_user(%{uid: "g-cert-1", email: "test@example.com", name: "Test"})
 
-    conn = conn |> init_test_session(%{user_id: user.id})
-    %{conn: conn, user: user}
+    company = insert(:company)
+
+    conn = conn |> init_test_session(%{user_id: user.id, current_company_id: company.id})
+    %{conn: conn, user: user, company: company}
   end
 
   describe "mount" do
@@ -21,22 +25,22 @@ defmodule KsefHubWeb.CertificateLiveTest do
       assert html =~ "Upload New Certificate"
     end
 
-    test "shows active credential when exists", %{conn: conn} do
-      {:ok, _} = Credentials.create_credential(%{nip: "1234567890", is_active: true})
+    test "shows active credential when exists", %{conn: conn, company: company} do
+      insert(:credential, company: company, nip: company.nip, is_active: true)
 
-      {:ok, _view, html} = live(conn, ~p"/certificates")
-      assert html =~ "Active Certificate"
-      assert html =~ "1234567890"
+      {:ok, view, _html} = live(conn, ~p"/certificates")
+      assert has_element?(view, "#active-certificate")
+      assert render(view) =~ company.nip
     end
   end
 
   describe "form validation" do
-    test "validates NIP on change", %{conn: conn} do
+    test "validates on change", %{conn: conn} do
       {:ok, view, _html} = live(conn, ~p"/certificates")
 
       view
-      |> element("form")
-      |> render_change(%{credential: %{nip: "123", password: "pass"}})
+      |> element("form[phx-change=validate]")
+      |> render_change(%{credential: %{password: "pass"}})
 
       # Form should still render (validation is server-side on submit)
       assert render(view) =~ "Certificates"
@@ -44,8 +48,8 @@ defmodule KsefHubWeb.CertificateLiveTest do
   end
 
   describe "deactivate" do
-    test "deactivates a credential", %{conn: conn} do
-      {:ok, cred} = Credentials.create_credential(%{nip: "1234567890", is_active: true})
+    test "deactivates a credential", %{conn: conn, company: company} do
+      cred = insert(:credential, company: company, nip: company.nip, is_active: true)
 
       {:ok, view, _html} = live(conn, ~p"/certificates")
 

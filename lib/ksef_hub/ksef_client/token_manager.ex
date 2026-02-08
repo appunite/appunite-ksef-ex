@@ -1,10 +1,13 @@
 defmodule KsefHub.KsefClient.TokenManager do
   @moduledoc """
-  GenServer that manages KSeF access/refresh token lifecycle.
+  Per-company GenServer that manages KSeF access/refresh token lifecycle.
+  Uses Registry + DynamicSupervisor for per-company instances.
+
   - Holds current access_token and refresh_token with expiry times
   - Auto-refreshes access_token before expiry
   - Persists refresh_token encrypted in DB for restart recovery
   - Returns {:error, :reauth_required} when refresh_token expires
+  - Idle timeout (30 min) to clean up unused instances
   """
 
   use GenServer
@@ -15,53 +18,107 @@ defmodule KsefHub.KsefClient.TokenManager do
   alias KsefHub.Credentials.{Credential, Encryption}
 
   @refresh_buffer_seconds 120
+  @idle_timeout :timer.minutes(30)
 
   # --- Client API ---
 
-  def start_link(opts \\ []) do
-    GenServer.start_link(__MODULE__, opts, name: __MODULE__)
+  @doc """
+  Returns a valid access token for the given company, refreshing if needed.
+  Starts the instance if not already running.
+  """
+  @spec ensure_access_token(Ecto.UUID.t()) :: {:ok, String.t()} | {:error, term()}
+  def ensure_access_token(company_id) do
+    case ensure_started(company_id) do
+      {:ok, pid} -> GenServer.call(pid, :ensure_access_token, 30_000)
+      {:error, reason} -> {:error, reason}
+    end
   end
 
   @doc """
-  Returns a valid access token, refreshing if needed.
+  Stores new tokens after XADES authentication for a company.
   """
-  def ensure_access_token do
-    GenServer.call(__MODULE__, :ensure_access_token, 30_000)
-  end
+  @spec store_tokens(Ecto.UUID.t(), String.t(), String.t(), DateTime.t(), DateTime.t()) ::
+          :ok | {:error, term()}
+  def store_tokens(
+        company_id,
+        access_token,
+        refresh_token,
+        access_valid_until,
+        refresh_valid_until
+      ) do
+    case ensure_started(company_id) do
+      {:ok, pid} ->
+        GenServer.call(
+          pid,
+          {:store_tokens, access_token, refresh_token, access_valid_until, refresh_valid_until}
+        )
 
-  @doc """
-  Stores new tokens after XADES authentication.
-  """
-  def store_tokens(access_token, refresh_token, access_valid_until, refresh_valid_until) do
-    GenServer.call(
-      __MODULE__,
-      {:store_tokens, access_token, refresh_token, access_valid_until, refresh_valid_until}
-    )
+      {:error, reason} ->
+        Logger.warning("Failed to store tokens for company #{company_id}: #{inspect(reason)}")
+        {:error, reason}
+    end
   end
 
   @doc """
   Returns the refresh token expiry for alerting.
   """
-  def refresh_token_expires_at do
-    GenServer.call(__MODULE__, :refresh_token_expires_at)
+  @spec refresh_token_expires_at(Ecto.UUID.t()) :: DateTime.t() | nil
+  def refresh_token_expires_at(company_id) do
+    case ensure_started(company_id) do
+      {:ok, pid} -> GenServer.call(pid, :refresh_token_expires_at)
+      {:error, _} -> nil
+    end
   end
+
+  @doc """
+  Starts a TokenManager instance for the given company if not running.
+  """
+  @spec ensure_started(Ecto.UUID.t()) :: {:ok, pid()} | {:error, term()}
+  def ensure_started(company_id) do
+    case Registry.lookup(KsefHub.TokenManagerRegistry, company_id) do
+      [{pid, _}] ->
+        {:ok, pid}
+
+      [] ->
+        DynamicSupervisor.start_child(
+          KsefHub.TokenManagerSupervisor,
+          {__MODULE__, company_id}
+        )
+        |> case do
+          {:ok, pid} -> {:ok, pid}
+          {:error, {:already_started, pid}} -> {:ok, pid}
+          {:error, reason} -> {:error, reason}
+        end
+    end
+  end
+
+  @doc """
+  Starts a TokenManager GenServer for the given company.
+  """
+  @spec start_link(Ecto.UUID.t()) :: GenServer.on_start()
+  def start_link(company_id) do
+    GenServer.start_link(__MODULE__, company_id, name: via(company_id))
+  end
+
+  @spec via(Ecto.UUID.t()) :: {:via, module(), {module(), Ecto.UUID.t()}}
+  defp via(company_id), do: {:via, Registry, {KsefHub.TokenManagerRegistry, company_id}}
 
   # --- Server Callbacks ---
 
   @impl true
-  def init(_opts) do
-    state = load_from_db()
-    {:ok, state}
+  def init(company_id) do
+    state = load_from_db(company_id)
+    {:ok, state, @idle_timeout}
   end
 
   @impl true
   def handle_call(:ensure_access_token, _from, state) do
     case ensure_valid_access(state) do
       {:ok, access_token, new_state} ->
-        {:reply, {:ok, access_token}, new_state}
+        {:reply, {:ok, access_token}, new_state, @idle_timeout}
 
       {:error, reason} ->
-        {:reply, {:error, reason}, state}
+        {:reply, {:error, reason}, state, @idle_timeout}
     end
   end
 
@@ -76,16 +133,23 @@ defmodule KsefHub.KsefClient.TokenManager do
     }
 
     persist_to_db(new_state)
-    {:reply, :ok, new_state}
+    {:reply, :ok, new_state, @idle_timeout}
   end
 
   @impl true
   def handle_call(:refresh_token_expires_at, _from, state) do
-    {:reply, state.refresh_valid_until, state}
+    {:reply, state.refresh_valid_until, state, @idle_timeout}
+  end
+
+  @impl true
+  def handle_info(:timeout, state) do
+    Logger.debug("TokenManager for company #{state.company_id} idle timeout, stopping")
+    {:stop, :normal, state}
   end
 
   # --- Private ---
 
+  @spec ensure_valid_access(map()) :: {:ok, String.t(), map()} | {:error, term()}
   defp ensure_valid_access(state) do
     cond do
       state.access_token == nil ->
@@ -102,6 +166,7 @@ defmodule KsefHub.KsefClient.TokenManager do
     end
   end
 
+  @spec access_token_valid?(map()) :: boolean()
   defp access_token_valid?(%{access_valid_until: nil}), do: false
 
   defp access_token_valid?(%{access_valid_until: valid_until}) do
@@ -109,12 +174,14 @@ defmodule KsefHub.KsefClient.TokenManager do
       :gt
   end
 
+  @spec refresh_token_valid?(map()) :: boolean()
   defp refresh_token_valid?(%{refresh_valid_until: nil}), do: false
 
   defp refresh_token_valid?(%{refresh_valid_until: valid_until}) do
     DateTime.compare(valid_until, DateTime.utc_now()) == :gt
   end
 
+  @spec do_refresh(map()) :: {:ok, String.t(), map()} | {:error, term()}
   defp do_refresh(state) do
     ksef_client = Application.get_env(:ksef_hub, :ksef_client, KsefHub.KsefClient.Live)
 
@@ -130,13 +197,15 @@ defmodule KsefHub.KsefClient.TokenManager do
     end
   end
 
-  defp load_from_db do
-    case Credentials.get_active_credential() do
+  @spec load_from_db(Ecto.UUID.t()) :: map()
+  defp load_from_db(company_id) do
+    case Credentials.get_active_credential(company_id) do
       nil ->
-        empty_state()
+        empty_state(company_id)
 
       cred ->
         %{
+          company_id: company_id,
           access_token: decrypt_token(cred.access_token_encrypted),
           refresh_token: decrypt_token(cred.refresh_token_encrypted),
           access_valid_until: cred.access_token_expires_at,
@@ -146,6 +215,7 @@ defmodule KsefHub.KsefClient.TokenManager do
     end
   end
 
+  @spec persist_to_db(map()) :: :ok | {:ok, Credential.t()} | {:error, term()}
   defp persist_to_db(%{credential_id: nil}), do: :ok
 
   defp persist_to_db(%{credential_id: cred_id} = state) do
@@ -163,10 +233,9 @@ defmodule KsefHub.KsefClient.TokenManager do
     end
   end
 
+  @spec encrypt_token(String.t() | nil) :: String.t() | nil
   defp encrypt_token(nil), do: nil
 
-  # Fail-safe: returns nil on encryption failure to avoid storing unencrypted tokens.
-  # Encryption.encrypt/1 only raises (never returns {:error, _}), so we rescue.
   defp encrypt_token(token) do
     {:ok, encrypted} = Encryption.encrypt(token)
     encrypted
@@ -176,6 +245,7 @@ defmodule KsefHub.KsefClient.TokenManager do
       nil
   end
 
+  @spec decrypt_token(String.t() | nil) :: String.t() | nil
   defp decrypt_token(nil), do: nil
 
   defp decrypt_token(encrypted) do
@@ -189,8 +259,10 @@ defmodule KsefHub.KsefClient.TokenManager do
     end
   end
 
-  defp empty_state do
+  @spec empty_state(Ecto.UUID.t()) :: map()
+  defp empty_state(company_id) do
     %{
+      company_id: company_id,
       access_token: nil,
       refresh_token: nil,
       access_valid_until: nil,

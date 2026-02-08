@@ -1,18 +1,18 @@
 defmodule KsefHubWeb.LiveAuth do
   @moduledoc """
-  LiveView on_mount hook that loads the current user into socket assigns.
+  LiveView on_mount hook that loads the current user and company into socket assigns.
   Redirects unauthenticated users to the home page.
+  Redirects users with no companies to the company creation page.
   """
 
   import Phoenix.LiveView
   import Phoenix.Component
 
   alias KsefHub.Accounts
+  alias KsefHub.Companies
 
   @doc """
-  Assigns `:current_user` to the socket from the session's `user_id`.
-  Validates the session value as a UUID before querying.
-  Redirects to `/` with an error flash if the user is not found or session is missing.
+  Assigns `:current_user`, `:current_company`, and `:companies` to the socket.
   """
   @spec on_mount(atom(), map(), map(), Phoenix.LiveView.Socket.t()) ::
           {:cont, Phoenix.LiveView.Socket.t()} | {:halt, Phoenix.LiveView.Socket.t()}
@@ -20,16 +20,9 @@ defmodule KsefHubWeb.LiveAuth do
     with raw_id when is_binary(raw_id) <- session["user_id"],
          {:ok, _} <- Ecto.UUID.cast(raw_id),
          %{} = user <- Accounts.get_user(raw_id) do
-      socket =
-        socket
-        |> assign(:current_user, user)
-        |> assign(:current_path, nil)
-        |> attach_hook(:set_current_path, :handle_params, fn _params, uri, socket ->
-          path = URI.parse(uri).path
-          {:cont, assign(socket, :current_path, path)}
-        end)
-
-      {:cont, socket}
+      socket
+      |> assign_user_and_companies(user, session)
+      |> maybe_redirect_for_company()
     else
       _ ->
         socket =
@@ -39,5 +32,44 @@ defmodule KsefHubWeb.LiveAuth do
 
         {:halt, socket}
     end
+  end
+
+  @spec assign_user_and_companies(Phoenix.LiveView.Socket.t(), map(), map()) ::
+          Phoenix.LiveView.Socket.t()
+  defp assign_user_and_companies(socket, user, session) do
+    companies = Companies.list_companies()
+    current_company = resolve_company(companies, session["current_company_id"])
+
+    socket
+    |> assign(:current_user, user)
+    |> assign(:companies, companies)
+    |> assign(:current_company, current_company || List.first(companies))
+    |> assign(:current_path, nil)
+    |> attach_hook(:set_current_path, :handle_params, fn _params, uri, socket ->
+      {:cont, assign(socket, :current_path, URI.parse(uri).path)}
+    end)
+  end
+
+  @spec maybe_redirect_for_company(Phoenix.LiveView.Socket.t()) ::
+          {:cont, Phoenix.LiveView.Socket.t()} | {:halt, Phoenix.LiveView.Socket.t()}
+  defp maybe_redirect_for_company(socket) do
+    if socket.assigns.companies == [] && !company_route?(socket) do
+      {:halt, redirect(socket, to: "/companies/new")}
+    else
+      {:cont, socket}
+    end
+  end
+
+  @spec resolve_company([map()], Ecto.UUID.t() | nil) :: map() | nil
+  defp resolve_company([], _), do: nil
+  defp resolve_company(_companies, nil), do: nil
+
+  defp resolve_company(companies, company_id) do
+    Enum.find(companies, fn c -> c.id == company_id end)
+  end
+
+  @spec company_route?(Phoenix.LiveView.Socket.t()) :: boolean()
+  defp company_route?(socket) do
+    socket.view in [KsefHubWeb.CompanyLive.Index]
   end
 end

@@ -9,6 +9,7 @@ defmodule KsefHub.Factory do
   use ExMachina.Ecto, repo: KsefHub.Repo
 
   alias KsefHub.Accounts.{ApiToken, User}
+  alias KsefHub.Companies.Company
   alias KsefHub.Credentials.Credential
   alias KsefHub.Invoices.Invoice
   alias KsefHub.Sync.Checkpoint
@@ -20,6 +21,16 @@ defmodule KsefHub.Factory do
       email: sequence(:email, &"user#{&1}@example.com"),
       name: "Test User",
       google_uid: sequence(:google_uid, &"google-uid-#{&1}")
+    }
+  end
+
+  @doc "Builds a `Company` with a sequenced name and NIP."
+  @spec company_factory() :: Company.t()
+  def company_factory do
+    %Company{
+      name: sequence(:company_name, &"Company #{&1}"),
+      nip: sequence(:company_nip, &String.pad_leading("#{&1}", 10, "0")),
+      is_active: true
     }
   end
 
@@ -35,17 +46,20 @@ defmodule KsefHub.Factory do
     }
   end
 
-  @doc "Builds a `Credential` with a sequenced NIP and active status."
+  @doc "Builds a `Credential` with a sequenced NIP, active status, and associated company."
   @spec credential_factory() :: Credential.t()
   def credential_factory do
+    company = build(:company)
+
     %Credential{
-      nip: sequence(:nip, &String.pad_leading("#{&1}", 10, "0")),
+      nip: company.nip,
       certificate_subject: "CN=Test Certificate",
-      is_active: true
+      is_active: true,
+      company: company
     }
   end
 
-  @doc "Builds an `Invoice` with default income type and sample seller/buyer data."
+  @doc "Builds an `Invoice` with default income type, sample seller/buyer data, and associated company."
   @spec invoice_factory() :: Invoice.t()
   def invoice_factory do
     %Invoice{
@@ -60,7 +74,8 @@ defmodule KsefHub.Factory do
       vat_amount: Decimal.new("230.00"),
       gross_amount: Decimal.new("1230.00"),
       currency: "PLN",
-      status: "pending"
+      status: "pending",
+      company: build(:company)
     }
   end
 
@@ -77,13 +92,13 @@ defmodule KsefHub.Factory do
     }
   end
 
-  @doc "Builds a `Checkpoint` with income type and current timestamp."
+  @doc "Builds a `Checkpoint` with income type, current timestamp, and associated company."
   @spec checkpoint_factory() :: Checkpoint.t()
   def checkpoint_factory do
     %Checkpoint{
       checkpoint_type: "income",
       last_seen_timestamp: DateTime.utc_now(),
-      nip: sequence(:checkpoint_nip, &String.pad_leading("#{&1}", 10, "0"))
+      company: build(:company)
     }
   end
 end

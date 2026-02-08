@@ -28,10 +28,11 @@ defmodule KsefHubWeb.LiveAuthTest do
 
     test "assigns current_user for valid session", %{conn: conn} do
       user = insert(:user)
+      company = insert(:company)
 
       {:ok, _view, html} =
         conn
-        |> init_test_session(%{user_id: user.id})
+        |> init_test_session(%{user_id: user.id, current_company_id: company.id})
         |> live("/dashboard")
 
       assert html =~ "Dashboard"

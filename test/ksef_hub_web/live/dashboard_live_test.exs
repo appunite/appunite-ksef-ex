@@ -11,8 +11,10 @@ defmodule KsefHubWeb.DashboardLiveTest do
     {:ok, user} =
       Accounts.find_or_create_user(%{uid: "g-dash-1", email: "test@example.com", name: "Test"})
 
-    conn = conn |> init_test_session(%{user_id: user.id})
-    %{conn: conn, user: user}
+    company = insert(:company)
+
+    conn = conn |> init_test_session(%{user_id: user.id, current_company_id: company.id})
+    %{conn: conn, user: user, company: company}
   end
 
   describe "mount" do
@@ -27,10 +29,10 @@ defmodule KsefHubWeb.DashboardLiveTest do
       assert html =~ "API Tokens"
     end
 
-    test "shows invoice counts", %{conn: conn} do
-      insert(:invoice, type: "income", status: "pending")
-      insert(:invoice, type: "income", status: "pending")
-      insert(:invoice, type: "expense", status: "pending")
+    test "shows invoice counts", %{conn: conn, company: company} do
+      insert(:invoice, type: "income", status: "pending", company: company)
+      insert(:invoice, type: "income", status: "pending", company: company)
+      insert(:invoice, type: "expense", status: "pending", company: company)
 
       {:ok, view, _html} = live(conn, ~p"/dashboard")
       assert has_element?(view, ".stat-value", "3")
@@ -45,14 +47,14 @@ defmodule KsefHubWeb.DashboardLiveTest do
   end
 
   describe "PubSub" do
-    test "refreshes on sync completed event", %{conn: conn} do
+    test "refreshes on sync completed event", %{conn: conn, company: company} do
       {:ok, view, _html} = live(conn, ~p"/dashboard")
 
       # Verify zero counts initially
       assert has_element?(view, ".stat-value", "0")
 
       # Create an invoice and broadcast sync
-      insert(:invoice, type: "income", status: "pending")
+      insert(:invoice, type: "income", status: "pending", company: company)
       send(view.pid, {:sync_completed, %{income: 1, expense: 0}})
 
       # Counts should update after sync event

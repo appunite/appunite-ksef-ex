@@ -9,60 +9,87 @@ defmodule KsefHub.Credentials do
   alias KsefHub.Credentials.Credential
   alias KsefHub.Repo
 
+  @doc "Fetches a credential by ID, raising if not found."
   @spec get_credential!(Ecto.UUID.t()) :: Credential.t()
   def get_credential!(id), do: Repo.get!(Credential, id)
 
+  @doc "Fetches a credential by ID, returning nil if not found."
   @spec get_credential(Ecto.UUID.t()) :: Credential.t() | nil
   def get_credential(id), do: Repo.get(Credential, id)
 
   @doc """
-  Returns the active credential, if any.
+  Returns the active credential for a given company, if any.
   """
-  @spec get_active_credential() :: Credential.t() | nil
-  def get_active_credential do
+  @spec get_active_credential(Ecto.UUID.t()) :: Credential.t() | nil
+  def get_active_credential(company_id) do
     Credential
-    |> where([c], c.is_active == true)
+    |> where([c], c.company_id == ^company_id and c.is_active == true)
     |> order_by([c], desc: c.inserted_at)
     |> limit(1)
     |> Repo.one()
   end
 
   @doc """
-  Lists all credentials.
+  Lists all credentials for a given company.
   """
-  @spec list_credentials() :: [Credential.t()]
-  def list_credentials do
+  @spec list_credentials(Ecto.UUID.t()) :: [Credential.t()]
+  def list_credentials(company_id) do
     Credential
+    |> where([c], c.company_id == ^company_id)
     |> order_by([c], desc: c.inserted_at)
     |> Repo.all()
   end
 
   @doc """
-  Creates a new credential.
+  Lists all active credentials across all companies.
+  Used by SyncDispatcher to find companies that need syncing.
+  """
+  @spec list_active_credentials() :: [Credential.t()]
+  def list_active_credentials do
+    Credential
+    |> where([c], c.is_active == true)
+    |> preload(:company)
+    |> Repo.all()
+  end
+
+  @doc """
+  Creates a new credential. The `company_id` key in attrs is set server-side
+  via `put_change` to prevent mass assignment.
   """
   @spec create_credential(map()) :: {:ok, Credential.t()} | {:error, Ecto.Changeset.t()}
   def create_credential(attrs) do
+    company_id = attrs[:company_id] || attrs["company_id"]
+
     %Credential{}
+    |> Ecto.Changeset.change(%{company_id: company_id})
     |> Credential.changeset(attrs)
     |> Repo.insert()
   end
 
   @doc """
-  Atomically deactivates any existing active credential and creates a new one.
-  If creation fails, the previously active credential remains unchanged.
+  Atomically deactivates any existing active credential for the company
+  and creates a new one. NIP is auto-populated from the company.
   """
-  @spec replace_active_credential(map()) ::
+  @spec replace_active_credential(Ecto.UUID.t(), map()) ::
           {:ok, Credential.t()} | {:error, Ecto.Changeset.t()}
-  def replace_active_credential(attrs) do
+  def replace_active_credential(company_id, attrs) do
+    company = KsefHub.Companies.get_company!(company_id)
+    attrs = Map.merge(attrs, %{nip: company.nip})
+
+    changeset =
+      %Credential{}
+      |> Ecto.Changeset.change(%{company_id: company_id})
+      |> Credential.changeset(attrs)
+
     multi =
       Multi.new()
       |> Multi.run(:deactivate, fn _repo, _changes ->
-        case get_active_credential() do
+        case get_active_credential(company_id) do
           nil -> {:ok, nil}
           existing -> deactivate_credential(existing)
         end
       end)
-      |> Multi.insert(:credential, Credential.changeset(%Credential{}, attrs))
+      |> Multi.insert(:credential, changeset)
 
     case Repo.transaction(multi) do
       {:ok, %{credential: credential}} -> {:ok, credential}

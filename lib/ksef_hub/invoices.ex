@@ -9,7 +9,7 @@ defmodule KsefHub.Invoices do
   alias KsefHub.Repo
 
   @doc """
-  Returns a list of invoices matching the given filters.
+  Returns a list of invoices for a company matching the given filters.
 
   ## Filters
     * `:type` - "income" or "expense"
@@ -20,26 +20,35 @@ defmodule KsefHub.Invoices do
     * `:buyer_nip` - filter by buyer NIP
     * `:query` - search across invoice_number, seller_name, buyer_name
   """
-  @spec list_invoices(map()) :: [Invoice.t()]
-  def list_invoices(filters \\ %{}) do
+  @spec list_invoices(Ecto.UUID.t(), map()) :: [Invoice.t()]
+  def list_invoices(company_id, filters \\ %{}) do
     Invoice
+    |> where([i], i.company_id == ^company_id)
     |> apply_filters(filters)
     |> order_by([i], desc: i.issue_date, desc: i.inserted_at)
     |> Repo.all()
   end
 
-  @doc "Fetches an invoice by UUID, raising `Ecto.NoResultsError` if not found."
-  @spec get_invoice!(Ecto.UUID.t()) :: Invoice.t()
-  def get_invoice!(id), do: Repo.get!(Invoice, id)
+  @doc "Fetches an invoice by UUID scoped to a company, raising if not found."
+  @spec get_invoice!(Ecto.UUID.t(), Ecto.UUID.t()) :: Invoice.t()
+  def get_invoice!(company_id, id) do
+    Invoice
+    |> where([i], i.company_id == ^company_id and i.id == ^id)
+    |> Repo.one!()
+  end
 
-  @doc "Fetches an invoice by UUID, returning `nil` if not found."
-  @spec get_invoice(Ecto.UUID.t()) :: Invoice.t() | nil
-  def get_invoice(id), do: Repo.get(Invoice, id)
+  @doc "Fetches an invoice by UUID scoped to a company, returning nil if not found."
+  @spec get_invoice(Ecto.UUID.t(), Ecto.UUID.t()) :: Invoice.t() | nil
+  def get_invoice(company_id, id) do
+    Invoice
+    |> where([i], i.company_id == ^company_id and i.id == ^id)
+    |> Repo.one()
+  end
 
-  @doc "Fetches an invoice by its KSeF reference number, returning `nil` if not found."
-  @spec get_invoice_by_ksef_number(String.t()) :: Invoice.t() | nil
-  def get_invoice_by_ksef_number(ksef_number) do
-    Repo.get_by(Invoice, ksef_number: ksef_number)
+  @doc "Fetches an invoice by its KSeF reference number within a company."
+  @spec get_invoice_by_ksef_number(Ecto.UUID.t(), String.t()) :: Invoice.t() | nil
+  def get_invoice_by_ksef_number(company_id, ksef_number) do
+    Repo.get_by(Invoice, company_id: company_id, ksef_number: ksef_number)
   end
 
   @doc """
@@ -47,17 +56,23 @@ defmodule KsefHub.Invoices do
   """
   @spec create_invoice(map()) :: {:ok, Invoice.t()} | {:error, Ecto.Changeset.t()}
   def create_invoice(attrs) do
+    company_id = attrs[:company_id] || attrs["company_id"]
+
     %Invoice{}
+    |> Ecto.Changeset.change(%{company_id: company_id})
     |> Invoice.changeset(attrs)
     |> Repo.insert()
   end
 
   @doc """
-  Upserts an invoice by ksef_number. Used during sync to avoid duplicates.
+  Upserts an invoice by (company_id, ksef_number). Used during sync to avoid duplicates.
   """
   @spec upsert_invoice(map()) :: {:ok, Invoice.t()} | {:error, Ecto.Changeset.t()}
   def upsert_invoice(attrs) do
+    company_id = attrs[:company_id] || attrs["company_id"]
+
     %Invoice{}
+    |> Ecto.Changeset.change(%{company_id: company_id})
     |> Invoice.changeset(attrs)
     |> Repo.insert(
       on_conflict:
@@ -78,7 +93,7 @@ defmodule KsefHub.Invoices do
            :permanent_storage_date,
            :updated_at
          ]},
-      conflict_target: :ksef_number,
+      conflict_target: [:company_id, :ksef_number],
       returning: true
     )
   end
@@ -120,11 +135,14 @@ defmodule KsefHub.Invoices do
   def reject_invoice(%Invoice{type: type}), do: {:error, {:invalid_type, type}}
 
   @doc """
-  Returns invoice counts grouped by type and status.
+  Returns invoice counts grouped by type and status for a company.
   """
-  @spec count_by_type_and_status() :: %{{String.t(), String.t()} => non_neg_integer()}
-  def count_by_type_and_status do
+  @spec count_by_type_and_status(Ecto.UUID.t()) :: %{
+          {String.t(), String.t()} => non_neg_integer()
+        }
+  def count_by_type_and_status(company_id) do
     Invoice
+    |> where([i], i.company_id == ^company_id)
     |> group_by([i], [i.type, i.status])
     |> select([i], {i.type, i.status, count(i.id)})
     |> Repo.all()

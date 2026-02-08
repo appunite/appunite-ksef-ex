@@ -12,7 +12,7 @@ defmodule KsefHubWeb.CertificateLive do
     socket =
       socket
       |> assign(page_title: "Certificates")
-      |> assign(form: to_form(%{"nip" => "", "password" => ""}, as: :credential))
+      |> assign(form: to_form(%{"password" => ""}, as: :credential))
       |> allow_upload(:certificate,
         accept: ~w(application/x-pkcs12 .p12 .pfx),
         max_entries: 1,
@@ -61,6 +61,8 @@ defmodule KsefHubWeb.CertificateLive do
     end
   end
 
+  @spec uploaded_cert_data(Phoenix.LiveView.Socket.t()) ::
+          {:ok, binary()} | {:error, :no_file | {:file_read_failed, term()}}
   defp uploaded_cert_data(socket) do
     case consume_uploaded_entries(socket, :certificate, &read_upload/2) do
       [{:ok, data}] -> {:ok, data}
@@ -69,6 +71,7 @@ defmodule KsefHubWeb.CertificateLive do
     end
   end
 
+  @spec read_upload(map(), map()) :: {:ok, binary() | {:error, term()}}
   defp read_upload(%{path: path}, _entry) do
     case File.read(path) do
       {:ok, data} -> {:ok, data}
@@ -76,22 +79,29 @@ defmodule KsefHubWeb.CertificateLive do
     end
   end
 
+  @spec save_credential(Phoenix.LiveView.Socket.t(), map(), binary()) ::
+          {:noreply, Phoenix.LiveView.Socket.t()}
+  defp save_credential(%{assigns: %{current_company: nil}} = socket, _params, _cert_data) do
+    {:noreply, socket |> put_flash(:error, "No company selected.") |> load_credentials()}
+  end
+
   defp save_credential(socket, params, cert_data) do
+    company = socket.assigns.current_company
+
     with {:ok, encrypted_cert} <- Encryption.encrypt(cert_data),
          {:ok, encrypted_password} <- Encryption.encrypt(params["password"] || "") do
       attrs = %{
-        nip: params["nip"],
         certificate_data_encrypted: encrypted_cert,
         certificate_password_encrypted: encrypted_password,
         is_active: true
       }
 
-      case Credentials.replace_active_credential(attrs) do
+      case Credentials.replace_active_credential(company.id, attrs) do
         {:ok, _credential} ->
           {:noreply,
            socket
            |> put_flash(:info, "Certificate uploaded successfully.")
-           |> assign(form: to_form(%{"nip" => "", "password" => ""}, as: :credential))
+           |> assign(form: to_form(%{"password" => ""}, as: :credential))
            |> load_credentials()}
 
         {:error, changeset} ->
@@ -106,9 +116,14 @@ defmodule KsefHubWeb.CertificateLive do
     end
   end
 
-  defp load_credentials(socket) do
-    credentials = Credentials.list_credentials()
-    active = Credentials.get_active_credential()
+  @spec load_credentials(Phoenix.LiveView.Socket.t()) :: Phoenix.LiveView.Socket.t()
+  defp load_credentials(%{assigns: %{current_company: nil}} = socket) do
+    assign(socket, credentials: [], active_credential: nil)
+  end
+
+  defp load_credentials(%{assigns: %{current_company: company}} = socket) do
+    credentials = Credentials.list_credentials(company.id)
+    active = Credentials.get_active_credential(company.id)
 
     assign(socket,
       credentials: credentials,
@@ -125,7 +140,7 @@ defmodule KsefHubWeb.CertificateLive do
     </.header>
 
     <!-- Active Certificate -->
-    <div :if={@active_credential} class="card bg-base-100 shadow-sm mt-6">
+    <div :if={@active_credential} id="active-certificate" class="card bg-base-100 shadow-sm mt-6">
       <div class="card-body">
         <div class="flex items-center justify-between">
           <h2 class="card-title text-base">Active Certificate</h2>
@@ -151,8 +166,6 @@ defmodule KsefHubWeb.CertificateLive do
       <div class="card-body">
         <h2 class="card-title text-base">Upload New Certificate</h2>
         <form phx-submit="save" phx-change="validate" class="space-y-4 mt-2">
-          <.input field={@form[:nip]} label="NIP (10 digits)" placeholder="1234567890" required />
-
           <div class="form-control">
             <label class="label">
               <span class="label-text">Certificate File (.p12 / .pfx)</span>
@@ -217,9 +230,11 @@ defmodule KsefHubWeb.CertificateLive do
     """
   end
 
+  @spec format_bytes(non_neg_integer()) :: String.t()
   defp format_bytes(bytes) when bytes < 1024, do: "#{bytes} B"
   defp format_bytes(bytes), do: "#{Float.round(bytes / 1024, 1)} KB"
 
+  @spec error_to_string(atom()) :: String.t()
   defp error_to_string(:too_large), do: "File is too large (max 1 MB)."
   defp error_to_string(:not_accepted), do: "Invalid file type. Please upload a .p12 or .pfx file."
   defp error_to_string(:too_many_files), do: "Only one file allowed."

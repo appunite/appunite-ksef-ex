@@ -25,7 +25,7 @@ config :ksef_hub, Oban,
   plugins: [
     {Oban.Plugins.Cron,
      crontab: [
-       {"*/15 * * * *", KsefHub.Sync.SyncWorker}
+       {"*/15 * * * *", KsefHub.Sync.SyncDispatcher}
      ]}
   ],
   queues: [sync: 1, default: 5]

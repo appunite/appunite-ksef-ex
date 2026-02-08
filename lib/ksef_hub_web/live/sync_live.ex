@@ -6,39 +6,64 @@ defmodule KsefHubWeb.SyncLive do
 
   use KsefHubWeb, :live_view
 
+  require Logger
+
   alias KsefHub.Sync.History
 
+  @doc "Subscribes to sync PubSub topic and loads sync job history."
   @impl true
   def mount(_params, _session, socket) do
-    if connected?(socket) do
-      Phoenix.PubSub.subscribe(KsefHub.PubSub, "sync:status")
+    company = socket.assigns.current_company
+
+    if connected?(socket) && company do
+      Phoenix.PubSub.subscribe(KsefHub.PubSub, "sync:status:#{company.id}")
     end
 
+    jobs = if company, do: History.list_sync_jobs(company.id), else: []
+
     {:ok,
-     assign(socket,
-       page_title: "Syncs",
-       jobs: History.list_sync_jobs()
-     )}
+     socket
+     |> assign(page_title: "Syncs", jobs_count: length(jobs))
+     |> stream(:jobs, jobs)}
   end
 
+  @doc "Handles PubSub sync completion events by refreshing the job list."
   @impl true
   def handle_info({:sync_completed, _stats}, socket) do
-    {:noreply, assign(socket, jobs: History.list_sync_jobs())}
+    company = socket.assigns.current_company
+    jobs = if company, do: History.list_sync_jobs(company.id), else: []
+    {:noreply, socket |> assign(jobs_count: length(jobs)) |> stream(:jobs, jobs, reset: true)}
   end
 
+  @doc "Handles manual sync trigger with nil company guard and full error handling."
   @impl true
+  def handle_event("trigger_sync", _params, %{assigns: %{current_company: nil}} = socket) do
+    {:noreply, put_flash(socket, :error, "No company selected.")}
+  end
+
   def handle_event("trigger_sync", _params, socket) do
-    case History.trigger_manual_sync() do
+    company = socket.assigns.current_company
+
+    case History.trigger_manual_sync(company.id) do
       {:ok, _job} ->
-        # Reload immediately to show the scheduled/executing job
-        jobs = History.list_sync_jobs()
-        {:noreply, socket |> assign(jobs: jobs) |> put_flash(:info, "Manual sync triggered.")}
+        jobs = History.list_sync_jobs(company.id)
+
+        {:noreply,
+         socket
+         |> assign(jobs_count: length(jobs))
+         |> stream(:jobs, jobs, reset: true)
+         |> put_flash(:info, "Manual sync triggered.")}
 
       {:error, :already_running} ->
         {:noreply, put_flash(socket, :error, "A sync is already running.")}
+
+      {:error, reason} ->
+        Logger.error("Manual sync failed: #{inspect(reason)}")
+        {:noreply, put_flash(socket, :error, "Manual sync failed.")}
     end
   end
 
+  @doc "Renders the sync history page with job table and manual trigger button."
   @impl true
   def render(assigns) do
     ~H"""
@@ -53,25 +78,25 @@ defmodule KsefHubWeb.SyncLive do
     </.header>
 
     <div class="mt-6 overflow-x-auto">
-      <.table id="syncs" rows={@jobs} row_id={fn j -> "sync-#{j.id}" end}>
-        <:col :let={job} label="Time">
+      <.table id="syncs" rows={@streams.jobs} row_id={fn {id, _} -> id end}>
+        <:col :let={{_id, job}} label="Time">
           {format_datetime(job.inserted_at)}
         </:col>
-        <:col :let={job} label="Duration">
+        <:col :let={{_id, job}} label="Duration">
           {format_duration(job.duration)}
         </:col>
-        <:col :let={job} label="Status">
+        <:col :let={{_id, job}} label="Status">
           <span class={["badge badge-sm", status_badge(job.state)]}>
             {job.state}
           </span>
         </:col>
-        <:col :let={job} label="Income">
+        <:col :let={{_id, job}} label="Income">
           <span class="font-mono">{job.income_count || "-"}</span>
         </:col>
-        <:col :let={job} label="Expense">
+        <:col :let={{_id, job}} label="Expense">
           <span class="font-mono">{job.expense_count || "-"}</span>
         </:col>
-        <:col :let={job} label="Error">
+        <:col :let={{_id, job}} label="Error">
           <span
             :if={job.error}
             class="text-error text-xs truncate max-w-xs inline-block"
@@ -83,15 +108,17 @@ defmodule KsefHubWeb.SyncLive do
       </.table>
     </div>
 
-    <p :if={@jobs == []} class="text-center text-base-content/60 py-8">
+    <p :if={@jobs_count == 0} class="text-center text-base-content/60 py-8">
       No sync runs yet.
     </p>
     """
   end
 
+  @spec format_datetime(DateTime.t() | nil) :: String.t()
   defp format_datetime(nil), do: "-"
   defp format_datetime(dt), do: Calendar.strftime(dt, "%Y-%m-%d %H:%M")
 
+  @spec format_duration(integer() | nil) :: String.t()
   defp format_duration(nil), do: "-"
 
   defp format_duration(seconds) when seconds < 60 do
@@ -104,6 +131,7 @@ defmodule KsefHubWeb.SyncLive do
     "#{minutes}m #{secs}s"
   end
 
+  @spec status_badge(String.t()) :: String.t()
   defp status_badge("completed"), do: "badge-success"
   defp status_badge("executing"), do: "badge-info"
   defp status_badge("retryable"), do: "badge-warning"
@@ -112,6 +140,7 @@ defmodule KsefHubWeb.SyncLive do
   defp status_badge("available"), do: "badge-ghost"
   defp status_badge(_), do: "badge-ghost"
 
+  @spec truncate(String.t(), non_neg_integer()) :: String.t()
   defp truncate(str, max) when byte_size(str) > max do
     String.slice(str, 0, max) <> "..."
   end

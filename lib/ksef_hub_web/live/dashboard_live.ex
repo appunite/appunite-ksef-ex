@@ -12,8 +12,10 @@ defmodule KsefHubWeb.DashboardLive do
   @spec mount(map(), map(), Phoenix.LiveView.Socket.t()) ::
           {:ok, Phoenix.LiveView.Socket.t()}
   def mount(_params, _session, socket) do
-    if connected?(socket) do
-      Phoenix.PubSub.subscribe(KsefHub.PubSub, "sync:status")
+    company = socket.assigns.current_company
+
+    if connected?(socket) && company do
+      Phoenix.PubSub.subscribe(KsefHub.PubSub, "sync:status:#{company.id}")
     end
 
     {:ok, load_data(socket)}
@@ -29,28 +31,46 @@ defmodule KsefHubWeb.DashboardLive do
 
   @spec load_data(Phoenix.LiveView.Socket.t()) :: Phoenix.LiveView.Socket.t()
   defp load_data(socket) do
-    counts = Invoices.count_by_type_and_status()
-    credential = Credentials.get_active_credential()
+    case socket.assigns.current_company do
+      nil ->
+        assign(socket,
+          page_title: "Dashboard",
+          total_income: 0,
+          total_expense: 0,
+          total_invoices: 0,
+          pending_expense: 0,
+          approved_expense: 0,
+          rejected_expense: 0,
+          credential: nil,
+          last_sync_at: nil,
+          cert_expires_at: nil,
+          cert_active: false
+        )
 
-    total_income = count_type(counts, "income")
-    total_expense = count_type(counts, "expense")
-    pending_expense = Map.get(counts, {"expense", "pending"}, 0)
-    approved_expense = Map.get(counts, {"expense", "approved"}, 0)
-    rejected_expense = Map.get(counts, {"expense", "rejected"}, 0)
+      company ->
+        counts = Invoices.count_by_type_and_status(company.id)
+        credential = Credentials.get_active_credential(company.id)
 
-    assign(socket,
-      page_title: "Dashboard",
-      total_income: total_income,
-      total_expense: total_expense,
-      total_invoices: total_income + total_expense,
-      pending_expense: pending_expense,
-      approved_expense: approved_expense,
-      rejected_expense: rejected_expense,
-      credential: credential,
-      last_sync_at: credential && credential.last_sync_at,
-      cert_expires_at: credential && credential.certificate_expires_at,
-      cert_active: credential != nil && credential.is_active
-    )
+        total_income = count_type(counts, "income")
+        total_expense = count_type(counts, "expense")
+        pending_expense = Map.get(counts, {"expense", "pending"}, 0)
+        approved_expense = Map.get(counts, {"expense", "approved"}, 0)
+        rejected_expense = Map.get(counts, {"expense", "rejected"}, 0)
+
+        assign(socket,
+          page_title: "Dashboard",
+          total_income: total_income,
+          total_expense: total_expense,
+          total_invoices: total_income + total_expense,
+          pending_expense: pending_expense,
+          approved_expense: approved_expense,
+          rejected_expense: rejected_expense,
+          credential: credential,
+          last_sync_at: credential && credential.last_sync_at,
+          cert_expires_at: credential && credential.certificate_expires_at,
+          cert_active: credential != nil && credential.is_active
+        )
+    end
   end
 
   @spec count_type(map(), String.t()) :: non_neg_integer()

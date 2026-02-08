@@ -5,37 +5,50 @@ defmodule KsefHubWeb.InvoiceLive.Show do
   use KsefHubWeb, :live_view
 
   alias KsefHub.Invoices
+  alias KsefHub.Invoices.Invoice
 
   import KsefHubWeb.InvoiceComponents
 
+  @doc "Loads invoice by ID scoped to current company, generates HTML preview."
   @impl true
   def mount(%{"id" => id}, _session, socket) do
-    if socket.assigns[:current_user] do
-      case Invoices.get_invoice(id) do
-        nil ->
-          {:ok,
-           socket
-           |> put_flash(:error, "Invoice not found.")
-           |> redirect(to: ~p"/invoices")}
+    company = socket.assigns.current_company
 
-        invoice ->
-          html_preview = generate_preview(invoice)
+    cond do
+      !socket.assigns[:current_user] ->
+        {:ok,
+         socket
+         |> put_flash(:error, "You must be logged in to view invoices.")
+         |> redirect(to: ~p"/")}
 
-          {:ok,
-           assign(socket,
-             page_title: "Invoice #{invoice.invoice_number}",
-             invoice: invoice,
-             html_preview: html_preview
-           )}
-      end
-    else
-      {:ok,
-       socket
-       |> put_flash(:error, "You must be logged in to view invoices.")
-       |> redirect(to: ~p"/")}
+      !company ->
+        {:ok,
+         socket
+         |> put_flash(:error, "No company selected.")
+         |> redirect(to: ~p"/companies")}
+
+      true ->
+        case Invoices.get_invoice(company.id, id) do
+          nil ->
+            {:ok,
+             socket
+             |> put_flash(:error, "Invoice not found.")
+             |> redirect(to: ~p"/invoices")}
+
+          invoice ->
+            html_preview = generate_preview(invoice)
+
+            {:ok,
+             assign(socket,
+               page_title: "Invoice #{invoice.invoice_number}",
+               invoice: invoice,
+               html_preview: html_preview
+             )}
+        end
     end
   end
 
+  @doc "Handles approve and reject actions for expense invoices."
   @impl true
   def handle_event("approve", _params, socket) do
     case Invoices.approve_invoice(socket.assigns.invoice) do
@@ -70,6 +83,7 @@ defmodule KsefHubWeb.InvoiceLive.Show do
     end
   end
 
+  @spec generate_preview(Invoice.t()) :: String.t() | nil
   defp generate_preview(invoice) do
     if invoice.xml_content do
       pdf_mod = Application.get_env(:ksef_hub, :pdf_generator, KsefHub.Pdf)
@@ -81,6 +95,7 @@ defmodule KsefHubWeb.InvoiceLive.Show do
     end
   end
 
+  @doc "Renders invoice detail page with metadata, preview, and action buttons."
   @impl true
   def render(assigns) do
     ~H"""

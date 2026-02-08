@@ -1,5 +1,5 @@
 defmodule KsefHub.Sync.Checkpoint do
-  @moduledoc "Sync checkpoint schema. Tracks the last synced timestamp per NIP and direction."
+  @moduledoc "Sync checkpoint schema. Tracks the last synced timestamp per company and direction."
 
   use Ecto.Schema
   import Ecto.Changeset
@@ -17,6 +17,8 @@ defmodule KsefHub.Sync.Checkpoint do
     field :nip, :string
     field :metadata, :map, default: %{}
 
+    belongs_to :company, KsefHub.Companies.Company
+
     timestamps()
   end
 
@@ -24,10 +26,10 @@ defmodule KsefHub.Sync.Checkpoint do
   @spec changeset(t(), map()) :: Ecto.Changeset.t()
   def changeset(checkpoint, attrs) do
     checkpoint
-    |> cast(attrs, [:checkpoint_type, :last_seen_timestamp, :nip, :metadata])
-    |> validate_required([:checkpoint_type, :last_seen_timestamp, :nip])
+    |> cast(attrs, [:checkpoint_type, :last_seen_timestamp, :nip, :metadata, :company_id])
+    |> validate_required([:checkpoint_type, :last_seen_timestamp, :company_id])
     |> validate_inclusion(:checkpoint_type, @valid_types)
-    |> validate_format(:nip, ~r/^\d{10}$/, message: "must be a 10-digit NIP")
-    |> unique_constraint([:checkpoint_type, :nip])
+    |> foreign_key_constraint(:company_id)
+    |> unique_constraint([:checkpoint_type, :company_id])
   end
 end
