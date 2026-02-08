@@ -9,6 +9,12 @@ defmodule KsefHubWeb.ApiSpec do
 
   @behaviour OpenApi
 
+  @doc """
+  Returns the OpenAPI 3.0 specification for the KSeF Hub REST API.
+
+  Called by `OpenApiSpex.Plug.PutApiSpec` on each request through the `:api` pipeline.
+  The result is cached by the plug after the first call.
+  """
   @impl OpenApi
   @spec spec() :: OpenApi.t()
   def spec do
