@@ -91,10 +91,15 @@ defmodule KsefHub.KsefClient.TokenManager do
     end
   end
 
+  @doc """
+  Starts a TokenManager GenServer for the given company.
+  """
+  @spec start_link(Ecto.UUID.t()) :: GenServer.on_start()
   def start_link(company_id) do
     GenServer.start_link(__MODULE__, company_id, name: via(company_id))
   end
 
+  @spec via(Ecto.UUID.t()) :: {:via, module(), {module(), Ecto.UUID.t()}}
   defp via(company_id), do: {:via, Registry, {KsefHub.TokenManagerRegistry, company_id}}
 
   # --- Server Callbacks ---
@@ -143,6 +148,7 @@ defmodule KsefHub.KsefClient.TokenManager do
 
   # --- Private ---
 
+  @spec ensure_valid_access(map()) :: {:ok, String.t(), map()} | {:error, term()}
   defp ensure_valid_access(state) do
     cond do
       state.access_token == nil ->
@@ -159,6 +165,7 @@ defmodule KsefHub.KsefClient.TokenManager do
     end
   end
 
+  @spec access_token_valid?(map()) :: boolean()
   defp access_token_valid?(%{access_valid_until: nil}), do: false
 
   defp access_token_valid?(%{access_valid_until: valid_until}) do
@@ -166,12 +173,14 @@ defmodule KsefHub.KsefClient.TokenManager do
       :gt
   end
 
+  @spec refresh_token_valid?(map()) :: boolean()
   defp refresh_token_valid?(%{refresh_valid_until: nil}), do: false
 
   defp refresh_token_valid?(%{refresh_valid_until: valid_until}) do
     DateTime.compare(valid_until, DateTime.utc_now()) == :gt
   end
 
+  @spec do_refresh(map()) :: {:ok, String.t(), map()} | {:error, term()}
   defp do_refresh(state) do
     ksef_client = Application.get_env(:ksef_hub, :ksef_client, KsefHub.KsefClient.Live)
 
@@ -187,6 +196,7 @@ defmodule KsefHub.KsefClient.TokenManager do
     end
   end
 
+  @spec load_from_db(Ecto.UUID.t()) :: map()
   defp load_from_db(company_id) do
     case Credentials.get_active_credential(company_id) do
       nil ->
@@ -204,6 +214,7 @@ defmodule KsefHub.KsefClient.TokenManager do
     end
   end
 
+  @spec persist_to_db(map()) :: :ok | {:ok, Credential.t()} | {:error, term()}
   defp persist_to_db(%{credential_id: nil}), do: :ok
 
   defp persist_to_db(%{credential_id: cred_id} = state) do
@@ -221,6 +232,7 @@ defmodule KsefHub.KsefClient.TokenManager do
     end
   end
 
+  @spec encrypt_token(String.t() | nil) :: String.t() | nil
   defp encrypt_token(nil), do: nil
 
   defp encrypt_token(token) do
@@ -232,6 +244,7 @@ defmodule KsefHub.KsefClient.TokenManager do
       nil
   end
 
+  @spec decrypt_token(String.t() | nil) :: String.t() | nil
   defp decrypt_token(nil), do: nil
 
   defp decrypt_token(encrypted) do
@@ -245,6 +258,7 @@ defmodule KsefHub.KsefClient.TokenManager do
     end
   end
 
+  @spec empty_state(Ecto.UUID.t()) :: map()
   defp empty_state(company_id) do
     %{
       company_id: company_id,

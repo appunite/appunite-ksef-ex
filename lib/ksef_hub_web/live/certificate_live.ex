@@ -61,6 +61,8 @@ defmodule KsefHubWeb.CertificateLive do
     end
   end
 
+  @spec uploaded_cert_data(Phoenix.LiveView.Socket.t()) ::
+          {:ok, binary()} | {:error, :no_file | {:file_read_failed, term()}}
   defp uploaded_cert_data(socket) do
     case consume_uploaded_entries(socket, :certificate, &read_upload/2) do
       [{:ok, data}] -> {:ok, data}
@@ -69,6 +71,7 @@ defmodule KsefHubWeb.CertificateLive do
     end
   end
 
+  @spec read_upload(map(), map()) :: {:ok, binary() | {:error, term()}}
   defp read_upload(%{path: path}, _entry) do
     case File.read(path) do
       {:ok, data} -> {:ok, data}
@@ -76,6 +79,8 @@ defmodule KsefHubWeb.CertificateLive do
     end
   end
 
+  @spec save_credential(Phoenix.LiveView.Socket.t(), map(), binary()) ::
+          {:noreply, Phoenix.LiveView.Socket.t()}
   defp save_credential(socket, params, cert_data) do
     company = socket.assigns.current_company
 
@@ -107,6 +112,7 @@ defmodule KsefHubWeb.CertificateLive do
     end
   end
 
+  @spec load_credentials(Phoenix.LiveView.Socket.t()) :: Phoenix.LiveView.Socket.t()
   defp load_credentials(socket) do
     case socket.assigns.current_company do
       nil ->
@@ -222,9 +228,11 @@ defmodule KsefHubWeb.CertificateLive do
     """
   end
 
+  @spec format_bytes(non_neg_integer()) :: String.t()
   defp format_bytes(bytes) when bytes < 1024, do: "#{bytes} B"
   defp format_bytes(bytes), do: "#{Float.round(bytes / 1024, 1)} KB"
 
+  @spec error_to_string(atom()) :: String.t()
   defp error_to_string(:too_large), do: "File is too large (max 1 MB)."
   defp error_to_string(:not_accepted), do: "Invalid file type. Please upload a .p12 or .pfx file."
   defp error_to_string(:too_many_files), do: "Only one file allowed."

@@ -18,6 +18,8 @@ defmodule KsefHubWeb.Layouts do
   attr :current_company, :map, default: nil
   attr :companies, :list, default: []
 
+  @doc "Renders the main application layout with sidebar navigation."
+  @spec app(map()) :: Phoenix.LiveView.Rendered.t()
   def app(assigns) do
     ~H"""
     <div class="drawer lg:drawer-open">
@@ -164,6 +166,7 @@ defmodule KsefHubWeb.Layouts do
   attr :icon, :string, required: true
   slot :inner_block, required: true
 
+  @spec nav_link(map()) :: Phoenix.LiveView.Rendered.t()
   defp nav_link(assigns) do
     active =
       assigns.current &&
@@ -180,6 +183,7 @@ defmodule KsefHubWeb.Layouts do
     """
   end
 
+  @spec initial(String.t() | nil) :: String.t()
   defp initial(nil), do: "?"
   defp initial(""), do: "?"
   defp initial(email), do: email |> String.first() |> String.upcase()
@@ -194,6 +198,7 @@ defmodule KsefHubWeb.Layouts do
   attr :flash, :map, required: true, doc: "the map of flash messages"
   attr :id, :string, default: "flash-group", doc: "the optional id of flash container"
 
+  @spec flash_group(map()) :: Phoenix.LiveView.Rendered.t()
   def flash_group(assigns) do
     ~H"""
     <div id={@id} aria-live="polite">
@@ -232,6 +237,7 @@ defmodule KsefHubWeb.Layouts do
 
   See <head> in root.html.heex which applies the theme before page load.
   """
+  @spec theme_toggle(map()) :: Phoenix.LiveView.Rendered.t()
   def theme_toggle(assigns) do
     ~H"""
     <div class="card relative flex flex-row items-center border-2 border-base-300 bg-base-300 rounded-full">

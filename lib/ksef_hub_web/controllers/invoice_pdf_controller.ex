@@ -11,6 +11,8 @@ defmodule KsefHubWeb.InvoicePdfController do
 
   alias KsefHub.Invoices
 
+  @doc "Downloads a PDF rendering of the invoice's FA(3) XML."
+  @spec show(Plug.Conn.t(), map()) :: Plug.Conn.t()
   def show(%{assigns: %{current_user: %{id: _}}} = conn, %{"id" => id}) do
     company_id = get_session(conn, :current_company_id)
 
@@ -36,6 +38,7 @@ defmodule KsefHubWeb.InvoicePdfController do
     |> redirect(to: ~p"/invoices")
   end
 
+  @spec generate_and_send_pdf(Plug.Conn.t(), map()) :: Plug.Conn.t()
   defp generate_and_send_pdf(conn, invoice) do
     pdf_mod = Application.get_env(:ksef_hub, :pdf_generator, KsefHub.Pdf)
 
