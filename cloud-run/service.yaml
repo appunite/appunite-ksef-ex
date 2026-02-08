@@ -1,0 +1,101 @@
+apiVersion: serving.knative.dev/v1
+kind: Service
+metadata:
+  name: ksef-hub
+  labels:
+    cloud.googleapis.com/location: europe-central2
+  annotations:
+    run.googleapis.com/launch-stage: BETA
+spec:
+  template:
+    metadata:
+      annotations:
+        autoscaling.knative.dev/minScale: "0"
+        autoscaling.knative.dev/maxScale: "3"
+        run.googleapis.com/container-dependencies: '{"ksef-hub":["gotenberg"]}'
+        run.googleapis.com/startup-cpu-boost: "true"
+    spec:
+      containerConcurrency: 80
+      serviceAccountName: ksef-hub-runner@au-ksef-ex.iam.gserviceaccount.com
+      containers:
+        # --- Main application (ingress) ---
+        - name: ksef-hub
+          image: IMAGE_PLACEHOLDER
+          ports:
+            - name: http1
+              containerPort: 4000
+          resources:
+            limits:
+              memory: 512Mi
+              cpu: "1"
+          startupProbe:
+            httpGet:
+              path: /healthz
+              port: 4000
+            initialDelaySeconds: 5
+            periodSeconds: 5
+            failureThreshold: 10
+          livenessProbe:
+            httpGet:
+              path: /healthz
+              port: 4000
+            periodSeconds: 30
+            failureThreshold: 3
+          env:
+            - name: PORT
+              value: "4000"
+            - name: PHX_SERVER
+              value: "true"
+            - name: PHX_HOST
+              value: "ksef-hub.appunite.com"
+            - name: KSEF_API_URL
+              value: "https://ksef-test.mf.gov.pl"
+            - name: GOTENBERG_URL
+              value: "http://localhost:3000"
+            - name: POOL_SIZE
+              value: "10"
+            - name: DATABASE_URL
+              valueFrom:
+                secretKeyRef:
+                  key: latest
+                  name: database-url
+            - name: SECRET_KEY_BASE
+              valueFrom:
+                secretKeyRef:
+                  key: latest
+                  name: secret-key-base
+            - name: GOOGLE_CLIENT_ID
+              valueFrom:
+                secretKeyRef:
+                  key: latest
+                  name: google-client-id
+            - name: GOOGLE_CLIENT_SECRET
+              valueFrom:
+                secretKeyRef:
+                  key: latest
+                  name: google-client-secret
+            - name: ALLOWED_EMAILS
+              valueFrom:
+                secretKeyRef:
+                  key: latest
+                  name: allowed-emails
+            - name: GCP_SECRET_NAME
+              valueFrom:
+                secretKeyRef:
+                  key: latest
+                  name: ksef-encryption-key
+
+        # --- Gotenberg sidecar (PDF generation) ---
+        - name: gotenberg
+          image: gotenberg/gotenberg:8
+          resources:
+            limits:
+              memory: 256Mi
+              cpu: "0.5"
+          startupProbe:
+            httpGet:
+              path: /health
+              port: 3000
+            initialDelaySeconds: 3
+            periodSeconds: 3
+            failureThreshold: 5

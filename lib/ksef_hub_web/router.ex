@@ -22,6 +22,11 @@ defmodule KsefHubWeb.Router do
     plug KsefHubWeb.Plugs.ApiAuth
   end
 
+  # Health check (no pipeline — used by Cloud Run probes)
+  scope "/healthz" do
+    get "/", KsefHubWeb.HealthController, :index
+  end
+
   # Public browser routes
   scope "/", KsefHubWeb do
     pipe_through :browser

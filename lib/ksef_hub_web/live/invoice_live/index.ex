@@ -23,16 +23,20 @@ defmodule KsefHubWeb.InvoiceLive.Index do
         _ -> []
       end
 
-    {:noreply,
-     assign(socket,
-       invoices: invoices,
-       filters: filters,
-       type_filter: filters[:type] || "",
-       status_filter: filters[:status] || "",
-       date_from: (filters[:date_from] && Date.to_iso8601(filters[:date_from])) || "",
-       date_to: (filters[:date_to] && Date.to_iso8601(filters[:date_to])) || "",
-       search: filters[:query] || ""
-     )}
+    {:noreply, assign(socket, filter_assigns(filters, invoices))}
+  end
+
+  @spec filter_assigns(map(), list()) :: keyword()
+  defp filter_assigns(filters, invoices) do
+    [
+      invoices: invoices,
+      filters: filters,
+      type_filter: filters[:type] || "",
+      status_filter: filters[:status] || "",
+      date_from: (filters[:date_from] && Date.to_iso8601(filters[:date_from])) || "",
+      date_to: (filters[:date_to] && Date.to_iso8601(filters[:date_to])) || "",
+      search: filters[:query] || ""
+    ]
   end
 
   @impl true

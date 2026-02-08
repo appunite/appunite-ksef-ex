@@ -118,17 +118,18 @@ defmodule KsefHubWeb.CertificateLive do
 
   @spec load_credentials(Phoenix.LiveView.Socket.t()) :: Phoenix.LiveView.Socket.t()
   defp load_credentials(%{assigns: %{current_company: nil}} = socket) do
-    assign(socket, credentials: [], active_credential: nil)
+    socket
+    |> assign(has_credentials: false, active_credential: nil)
+    |> stream(:credentials, [], reset: true)
   end
 
   defp load_credentials(%{assigns: %{current_company: company}} = socket) do
     credentials = Credentials.list_credentials(company.id)
     active = Credentials.get_active_credential(company.id)
 
-    assign(socket,
-      credentials: credentials,
-      active_credential: active
-    )
+    socket
+    |> assign(has_credentials: credentials != [], active_credential: active)
+    |> stream(:credentials, credentials, reset: true)
   end
 
   @impl true
@@ -140,11 +141,15 @@ defmodule KsefHubWeb.CertificateLive do
     </.header>
 
     <!-- Active Certificate -->
-    <div :if={@active_credential} id="active-certificate" class="card bg-base-100 border border-base-300 mt-6">
+    <div
+      :if={@active_credential}
+      id="active-certificate"
+      class="card bg-base-100 border border-base-300 mt-6"
+    >
       <div class="p-5">
         <div class="flex items-center justify-between">
           <h2 class="text-base font-semibold">Active Certificate</h2>
-          <span class="inline-flex items-center px-2 py-0.5 rounded-md text-xs font-medium border bg-success/10 text-success border-success/20">Active</span>
+          <.active_badge active={true} />
         </div>
         <.list>
           <:item title="NIP">{@active_credential.nip}</:item>
@@ -198,10 +203,15 @@ defmodule KsefHubWeb.CertificateLive do
     </div>
 
     <!-- All Certificates -->
-    <div :if={@credentials != []} class="mt-6">
+    <div :if={@has_credentials} class="mt-6">
       <h2 class="text-lg font-semibold mb-3">All Certificates</h2>
       <div class="overflow-x-auto">
-        <.table id="credentials" rows={@credentials} row_id={fn c -> "cred-#{c.id}" end}>
+        <.table
+          id="credentials"
+          rows={@streams.credentials}
+          row_id={fn {id, _} -> id end}
+          row_item={fn {_id, item} -> item end}
+        >
           <:col :let={cred} label="NIP">{cred.nip}</:col>
           <:col :let={cred} label="Subject">{cred.certificate_subject || "-"}</:col>
           <:col :let={cred} label="Expires">
@@ -210,8 +220,7 @@ defmodule KsefHubWeb.CertificateLive do
               else: "-"}
           </:col>
           <:col :let={cred} label="Status">
-            <span :if={cred.is_active} class="inline-flex items-center px-2 py-0.5 rounded-md text-xs font-medium border bg-success/10 text-success border-success/20">Active</span>
-            <span :if={!cred.is_active} class="inline-flex items-center px-2 py-0.5 rounded-md text-xs font-medium border bg-base-200 text-base-content/60 border-base-300">Inactive</span>
+            <.active_badge active={cred.is_active} />
           </:col>
           <:action :let={cred}>
             <button
@@ -227,6 +236,23 @@ defmodule KsefHubWeb.CertificateLive do
         </.table>
       </div>
     </div>
+    """
+  end
+
+  @spec active_badge(map()) :: Phoenix.LiveView.Rendered.t()
+  defp active_badge(%{active: true} = assigns) do
+    ~H"""
+    <span class="inline-flex items-center px-2 py-0.5 rounded-md text-xs font-medium border bg-success/10 text-success border-success/20">
+      Active
+    </span>
+    """
+  end
+
+  defp active_badge(%{active: active} = assigns) when active in [false, nil] do
+    ~H"""
+    <span class="inline-flex items-center px-2 py-0.5 rounded-md text-xs font-medium border bg-base-200 text-base-content/60 border-base-300">
+      Inactive
+    </span>
     """
   end
 

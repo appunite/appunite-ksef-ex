@@ -1,0 +1,84 @@
+name: Deploy
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+concurrency:
+  group: deploy-production
+  cancel-in-progress: false
+
+env:
+  GCP_PROJECT_ID: au-ksef-ex
+  GCP_REGION: europe-central2
+  AR_REPO: ksef-hub
+  SERVICE_NAME: ksef-hub
+  IMAGE_NAME: europe-central2-docker.pkg.dev/au-ksef-ex/ksef-hub/ksef-hub
+
+permissions:
+  contents: read
+  id-token: write
+
+jobs:
+  deploy:
+    name: Build & Deploy
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Authenticate to Google Cloud
+        uses: google-github-actions/auth@v2
+        with:
+          workload_identity_provider: ${{ secrets.GCP_WIF_PROVIDER }}
+          service_account: ${{ secrets.GCP_SERVICE_ACCOUNT }}
+
+      - name: Set up Cloud SDK
+        uses: google-github-actions/setup-gcloud@v2
+
+      - name: Configure Docker for Artifact Registry
+        run: gcloud auth configure-docker "${GCP_REGION}-docker.pkg.dev" --quiet
+
+      - name: Build Docker image
+        run: |
+          docker build \
+            -t "${IMAGE_NAME}:${{ github.sha }}" \
+            -t "${IMAGE_NAME}:latest" \
+            .
+
+      - name: Push Docker image
+        run: |
+          docker push "${IMAGE_NAME}:${{ github.sha }}"
+          docker push "${IMAGE_NAME}:latest"
+
+      - name: Run database migrations
+        run: |
+          gcloud run jobs execute ksef-hub-migrate \
+            --region "${GCP_REGION}" \
+            --wait \
+            --args "eval,KsefHub.Release.migrate()" \
+            2>/dev/null || \
+          gcloud run jobs create ksef-hub-migrate \
+            --region "${GCP_REGION}" \
+            --image "${IMAGE_NAME}:${{ github.sha }}" \
+            --set-secrets "DATABASE_URL=database-url:latest,SECRET_KEY_BASE=secret-key-base:latest" \
+            --service-account "ksef-hub-runner@${GCP_PROJECT_ID}.iam.gserviceaccount.com" \
+            --execute-now \
+            --wait \
+            --args "eval,KsefHub.Release.migrate()"
+
+      - name: Deploy to Cloud Run
+        run: |
+          sed "s|IMAGE_PLACEHOLDER|${IMAGE_NAME}:${{ github.sha }}|g" \
+            cloud-run/service.yaml | \
+          gcloud run services replace - \
+            --region "${GCP_REGION}"
+
+      - name: Ensure service allows traffic
+        run: |
+          gcloud run services add-iam-policy-binding "${SERVICE_NAME}" \
+            --region "${GCP_REGION}" \
+            --member="allUsers" \
+            --role="roles/run.invoker" \
+            --quiet 2>/dev/null || true

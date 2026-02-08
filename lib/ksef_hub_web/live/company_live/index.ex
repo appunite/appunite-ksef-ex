@@ -146,12 +146,32 @@ defmodule KsefHubWeb.CompanyLive.Index do
           <span class="font-mono">{company.nip}</span>
         </:col>
         <:col :let={company} label="Certificate">
-          <span :if={company.has_active_credential} class="inline-flex items-center px-2 py-0.5 rounded-md text-xs font-medium border bg-success/10 text-success border-success/20">Active</span>
-          <span :if={!company.has_active_credential} class="inline-flex items-center px-2 py-0.5 rounded-md text-xs font-medium border bg-base-200 text-base-content/60 border-base-300">None</span>
+          <span
+            :if={company.has_active_credential}
+            class="inline-flex items-center px-2 py-0.5 rounded-md text-xs font-medium border bg-success/10 text-success border-success/20"
+          >
+            Active
+          </span>
+          <span
+            :if={!company.has_active_credential}
+            class="inline-flex items-center px-2 py-0.5 rounded-md text-xs font-medium border bg-base-200 text-base-content/60 border-base-300"
+          >
+            None
+          </span>
         </:col>
         <:col :let={company} label="Status">
-          <span :if={company.is_active} class="inline-flex items-center px-2 py-0.5 rounded-md text-xs font-medium border bg-success/10 text-success border-success/20">Active</span>
-          <span :if={!company.is_active} class="inline-flex items-center px-2 py-0.5 rounded-md text-xs font-medium border bg-base-200 text-base-content/60 border-base-300">Inactive</span>
+          <span
+            :if={company.is_active}
+            class="inline-flex items-center px-2 py-0.5 rounded-md text-xs font-medium border bg-success/10 text-success border-success/20"
+          >
+            Active
+          </span>
+          <span
+            :if={!company.is_active}
+            class="inline-flex items-center px-2 py-0.5 rounded-md text-xs font-medium border bg-base-200 text-base-content/60 border-base-300"
+          >
+            Inactive
+          </span>
         </:col>
         <:action :let={company}>
           <.link navigate={~p"/companies/#{company.id}/edit"} class="btn btn-ghost btn-xs">

@@ -90,7 +90,7 @@ defmodule KsefHubWeb.Layouts do
               </ul>
             </div>
           </div>
-    <!-- Navigation -->
+          <!-- Navigation -->
           <nav class="flex-1 p-4">
             <ul class="menu gap-1">
               <li>
