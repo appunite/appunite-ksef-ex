@@ -81,10 +81,7 @@ defmodule KsefHubWeb.ApiSpecTest do
         |> Enum.reject(fn {_id, _path, _verb, operation} ->
           operation.responses
           |> Map.keys()
-          |> Enum.any?(fn code ->
-            code_int = if is_integer(code), do: code, else: String.to_integer("#{code}")
-            code_int >= 200 and code_int < 300
-          end)
+          |> Enum.any?(&success_code?/1)
         end)
 
       if missing != [] do
@@ -99,10 +96,7 @@ defmodule KsefHubWeb.ApiSpecTest do
         |> Enum.reject(fn {_id, _path, _verb, operation} ->
           operation.responses
           |> Map.keys()
-          |> Enum.any?(fn code ->
-            code_int = if is_integer(code), do: code, else: String.to_integer("#{code}")
-            code_int >= 400
-          end)
+          |> Enum.any?(&error_code?/1)
         end)
 
       if missing != [] do
@@ -141,7 +135,7 @@ defmodule KsefHubWeb.ApiSpecTest do
   @spec phoenix_path_to_openapi(String.t()) :: String.t()
   defp phoenix_path_to_openapi(path) do
     # Phoenix uses :param, OpenAPI uses {param}
-    Regex.replace(~r/:([a-zA-Z_]+)/, path, "{\\1}")
+    Regex.replace(~r/:([a-zA-Z_][a-zA-Z0-9_]*)/, path, "{\\1}")
   end
 
   @spec has_operation?(OpenApiSpex.OpenApi.t(), String.t(), atom()) :: boolean()
@@ -158,6 +152,39 @@ defmodule KsefHubWeb.ApiSpecTest do
     Enum.map_join(operations, "\n", fn {id, path, verb, _op} ->
       "  #{String.upcase(to_string(verb))} #{path} (#{id})"
     end)
+  end
+
+  @spec success_code?(integer() | atom() | String.t()) :: boolean()
+  defp success_code?(code) when is_integer(code), do: code >= 200 and code < 300
+
+  defp success_code?(code) do
+    case parse_status_code(code) do
+      {:ok, int} -> int >= 200 and int < 300
+      :default -> true
+      :error -> false
+    end
+  end
+
+  @spec error_code?(integer() | atom() | String.t()) :: boolean()
+  defp error_code?(code) when is_integer(code), do: code >= 400
+
+  defp error_code?(code) do
+    case parse_status_code(code) do
+      {:ok, int} -> int >= 400
+      :default -> true
+      :error -> false
+    end
+  end
+
+  @spec parse_status_code(atom() | String.t()) :: {:ok, integer()} | :default | :error
+  defp parse_status_code(:default), do: :default
+  defp parse_status_code("default"), do: :default
+
+  defp parse_status_code(code) do
+    case Integer.parse("#{code}") do
+      {int, ""} -> {:ok, int}
+      _ -> :error
+    end
   end
 
   @spec all_operations(OpenApiSpex.OpenApi.t()) :: [
