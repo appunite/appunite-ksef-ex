@@ -8,10 +8,11 @@ defmodule KsefHub.Companies do
   alias KsefHub.Companies.Company
   alias KsefHub.Repo
 
-  @doc "Lists all companies ordered by name."
+  @doc "Lists all active companies ordered by name."
   @spec list_companies() :: [Company.t()]
   def list_companies do
     Company
+    |> where([c], c.is_active == true)
     |> order_by([c], asc: c.name)
     |> Repo.all()
   end

@@ -26,12 +26,7 @@ defmodule KsefHubWeb.CertificateLiveTest do
     end
 
     test "shows active credential when exists", %{conn: conn, company: company} do
-      {:ok, _} =
-        Credentials.create_credential(%{
-          nip: company.nip,
-          is_active: true,
-          company_id: company.id
-        })
+      insert(:credential, company: company, nip: company.nip, is_active: true)
 
       {:ok, view, _html} = live(conn, ~p"/certificates")
       assert has_element?(view, "#active-certificate")
@@ -54,12 +49,7 @@ defmodule KsefHubWeb.CertificateLiveTest do
 
   describe "deactivate" do
     test "deactivates a credential", %{conn: conn, company: company} do
-      {:ok, cred} =
-        Credentials.create_credential(%{
-          nip: company.nip,
-          is_active: true,
-          company_id: company.id
-        })
+      cred = insert(:credential, company: company, nip: company.nip, is_active: true)
 
       {:ok, view, _html} = live(conn, ~p"/certificates")
 

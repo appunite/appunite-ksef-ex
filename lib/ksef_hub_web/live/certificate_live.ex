@@ -117,20 +117,18 @@ defmodule KsefHubWeb.CertificateLive do
   end
 
   @spec load_credentials(Phoenix.LiveView.Socket.t()) :: Phoenix.LiveView.Socket.t()
-  defp load_credentials(socket) do
-    case socket.assigns.current_company do
-      nil ->
-        assign(socket, credentials: [], active_credential: nil)
+  defp load_credentials(%{assigns: %{current_company: nil}} = socket) do
+    assign(socket, credentials: [], active_credential: nil)
+  end
 
-      company ->
-        credentials = Credentials.list_credentials(company.id)
-        active = Credentials.get_active_credential(company.id)
+  defp load_credentials(%{assigns: %{current_company: company}} = socket) do
+    credentials = Credentials.list_credentials(company.id)
+    active = Credentials.get_active_credential(company.id)
 
-        assign(socket,
-          credentials: credentials,
-          active_credential: active
-        )
-    end
+    assign(socket,
+      credentials: credentials,
+      active_credential: active
+    )
   end
 
   @impl true

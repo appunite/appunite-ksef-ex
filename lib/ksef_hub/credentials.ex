@@ -9,9 +9,11 @@ defmodule KsefHub.Credentials do
   alias KsefHub.Credentials.Credential
   alias KsefHub.Repo
 
+  @doc "Fetches a credential by ID, raising if not found."
   @spec get_credential!(Ecto.UUID.t()) :: Credential.t()
   def get_credential!(id), do: Repo.get!(Credential, id)
 
+  @doc "Fetches a credential by ID, returning nil if not found."
   @spec get_credential(Ecto.UUID.t()) :: Credential.t() | nil
   def get_credential(id), do: Repo.get(Credential, id)
 

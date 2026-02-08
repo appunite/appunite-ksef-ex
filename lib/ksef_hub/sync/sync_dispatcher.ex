@@ -13,15 +13,24 @@ defmodule KsefHub.Sync.SyncDispatcher do
   alias KsefHub.Sync.SyncWorker
 
   @impl Oban.Worker
+  @spec perform(Oban.Job.t()) :: :ok
   def perform(%Oban.Job{}) do
     credentials = Credentials.list_active_credentials()
 
     Logger.info("SyncDispatcher: dispatching sync for #{length(credentials)} companies")
 
     Enum.each(credentials, fn credential ->
-      %{company_id: credential.company_id}
-      |> SyncWorker.new(unique: [period: 300, fields: [:args, :queue, :worker]])
-      |> Oban.insert()
+      case %{company_id: credential.company_id}
+           |> SyncWorker.new(unique: [period: 300, fields: [:args, :queue, :worker]])
+           |> Oban.insert() do
+        {:ok, _job} ->
+          :ok
+
+        {:error, reason} ->
+          Logger.warning(
+            "Failed to enqueue sync for company #{credential.company_id}: #{inspect(reason)}"
+          )
+      end
     end)
 
     :ok

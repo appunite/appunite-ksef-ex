@@ -53,6 +53,7 @@ defmodule KsefHub.Sync.History do
     end
   end
 
+  @spec format_job(Oban.Job.t()) :: map()
   defp format_job(%Oban.Job{} = job) do
     %{
       id: job.id,
@@ -67,6 +68,7 @@ defmodule KsefHub.Sync.History do
     }
   end
 
+  @spec duration(DateTime.t() | nil, DateTime.t() | nil) :: non_neg_integer() | nil
   defp duration(nil, _), do: nil
   defp duration(_, nil), do: nil
 
@@ -74,6 +76,7 @@ defmodule KsefHub.Sync.History do
     DateTime.diff(completed_at, attempted_at, :second)
   end
 
+  @spec format_errors(list() | term()) :: String.t() | nil
   defp format_errors([]), do: nil
 
   defp format_errors(errors) when is_list(errors) do

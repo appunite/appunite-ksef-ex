@@ -20,37 +20,9 @@ defmodule KsefHubWeb.LiveAuth do
     with raw_id when is_binary(raw_id) <- session["user_id"],
          {:ok, _} <- Ecto.UUID.cast(raw_id),
          %{} = user <- Accounts.get_user(raw_id) do
-      companies = Companies.list_companies()
-      current_company = resolve_company(companies, session["current_company_id"])
-
-      socket =
-        socket
-        |> assign(:current_user, user)
-        |> assign(:companies, companies)
-        |> assign(:current_company, current_company)
-        |> assign(:current_path, nil)
-        |> attach_hook(:set_current_path, :handle_params, fn _params, uri, socket ->
-          path = URI.parse(uri).path
-          {:cont, assign(socket, :current_path, path)}
-        end)
-
-      cond do
-        companies == [] && !company_route?(socket) ->
-          {:halt, redirect(socket, to: "/companies/new")}
-
-        current_company == nil && companies != [] && !company_route?(socket) ->
-          # Auto-select first company
-          first = hd(companies)
-
-          socket =
-            socket
-            |> assign(:current_company, first)
-
-          {:cont, socket}
-
-        true ->
-          {:cont, socket}
-      end
+      socket
+      |> assign_user_and_companies(user, session)
+      |> maybe_redirect_for_company()
     else
       _ ->
         socket =
@@ -59,6 +31,32 @@ defmodule KsefHubWeb.LiveAuth do
           |> redirect(to: "/")
 
         {:halt, socket}
+    end
+  end
+
+  @spec assign_user_and_companies(Phoenix.LiveView.Socket.t(), map(), map()) ::
+          Phoenix.LiveView.Socket.t()
+  defp assign_user_and_companies(socket, user, session) do
+    companies = Companies.list_companies()
+    current_company = resolve_company(companies, session["current_company_id"])
+
+    socket
+    |> assign(:current_user, user)
+    |> assign(:companies, companies)
+    |> assign(:current_company, current_company || List.first(companies))
+    |> assign(:current_path, nil)
+    |> attach_hook(:set_current_path, :handle_params, fn _params, uri, socket ->
+      {:cont, assign(socket, :current_path, URI.parse(uri).path)}
+    end)
+  end
+
+  @spec maybe_redirect_for_company(Phoenix.LiveView.Socket.t()) ::
+          {:cont, Phoenix.LiveView.Socket.t()} | {:halt, Phoenix.LiveView.Socket.t()}
+  defp maybe_redirect_for_company(socket) do
+    if socket.assigns.companies == [] && !company_route?(socket) do
+      {:halt, redirect(socket, to: "/companies/new")}
+    else
+      {:cont, socket}
     end
   end
 

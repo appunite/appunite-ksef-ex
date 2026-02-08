@@ -54,12 +54,14 @@ defmodule KsefHub.CompaniesTest do
   end
 
   describe "list_companies/0" do
-    test "returns all companies ordered by name" do
+    test "returns all active companies ordered by name" do
       insert(:company, name: "Company A")
       insert(:company, name: "Company B")
+      insert(:company, name: "Company C", is_active: false)
 
       companies = Companies.list_companies()
       assert length(companies) == 2
+      assert [%{name: "Company A"}, %{name: "Company B"}] = companies
     end
 
     test "returns empty list when no companies" do
