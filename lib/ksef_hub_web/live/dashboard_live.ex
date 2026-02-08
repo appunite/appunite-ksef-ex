@@ -109,44 +109,34 @@ defmodule KsefHubWeb.DashboardLive do
     <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 mt-8">
       <!-- Expense Breakdown -->
       <div class="card bg-base-100 border border-base-300">
-        <div class="card-body">
-          <h2 class="card-title text-base">Expense Status</h2>
-          <div class="overflow-x-auto">
-            <table class="table table-sm">
-              <tbody>
-                <tr>
-                  <td>
-                    <span class="badge badge-warning badge-sm">Pending</span>
-                  </td>
-                  <td class="text-right font-mono">{@pending_expense}</td>
-                </tr>
-                <tr>
-                  <td>
-                    <span class="badge badge-success badge-sm">Approved</span>
-                  </td>
-                  <td class="text-right font-mono">{@approved_expense}</td>
-                </tr>
-                <tr>
-                  <td>
-                    <span class="badge badge-error badge-sm">Rejected</span>
-                  </td>
-                  <td class="text-right font-mono">{@rejected_expense}</td>
-                </tr>
-              </tbody>
-            </table>
+        <div class="p-5">
+          <h2 class="text-base font-semibold mb-3">Expense Status</h2>
+          <div class="space-y-2.5">
+            <div class="flex items-center justify-between">
+              <span class="inline-flex items-center px-2 py-0.5 rounded-md text-xs font-medium border bg-warning/10 text-warning border-warning/20">Pending</span>
+              <span class="font-mono text-sm">{@pending_expense}</span>
+            </div>
+            <div class="flex items-center justify-between">
+              <span class="inline-flex items-center px-2 py-0.5 rounded-md text-xs font-medium border bg-success/10 text-success border-success/20">Approved</span>
+              <span class="font-mono text-sm">{@approved_expense}</span>
+            </div>
+            <div class="flex items-center justify-between">
+              <span class="inline-flex items-center px-2 py-0.5 rounded-md text-xs font-medium border bg-error/10 text-error border-error/20">Rejected</span>
+              <span class="font-mono text-sm">{@rejected_expense}</span>
+            </div>
           </div>
         </div>
       </div>
       
     <!-- Sync Status -->
       <div class="card bg-base-100 border border-base-300">
-        <div class="card-body">
-          <h2 class="card-title text-base">Sync Status</h2>
+        <div class="p-5">
+          <h2 class="text-base font-semibold mb-3">Sync Status</h2>
           <div class="space-y-3">
             <div class="flex justify-between items-center">
               <span class="text-sm text-base-content/70">Certificate</span>
-              <span :if={@cert_active} class="badge badge-success badge-sm">Active</span>
-              <span :if={!@cert_active} class="badge badge-error badge-sm">Not configured</span>
+              <span :if={@cert_active} class="inline-flex items-center px-2 py-0.5 rounded-md text-xs font-medium border bg-success/10 text-success border-success/20">Active</span>
+              <span :if={!@cert_active} class="inline-flex items-center px-2 py-0.5 rounded-md text-xs font-medium border bg-error/10 text-error border-error/20">Not configured</span>
             </div>
             <div :if={@credential} class="flex justify-between items-center">
               <span class="text-sm text-base-content/70">NIP</span>
@@ -175,7 +165,7 @@ defmodule KsefHubWeb.DashboardLive do
     ~H"""
     <div class="border border-base-300 rounded-box p-4 flex items-center justify-between">
       <div>
-        <div class="text-sm text-base-content/60">{@title}</div>
+        <div class="text-sm text-base-content/50">{@title}</div>
         <div class={"text-2xl font-bold #{@color}"}>{@value}</div>
       </div>
       <div class={@color}>

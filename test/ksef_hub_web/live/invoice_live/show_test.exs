@@ -73,7 +73,7 @@ defmodule KsefHubWeb.InvoiceLive.ShowTest do
 
       view |> element("button", "Approve") |> render_click()
 
-      assert has_element?(view, ".badge", "approved")
+      assert has_element?(view, "[class*=rounded-md]", "approved")
       refute has_element?(view, "button", "Approve")
       refute has_element?(view, "button", "Reject")
     end
@@ -87,7 +87,7 @@ defmodule KsefHubWeb.InvoiceLive.ShowTest do
 
       view |> element("button", "Reject") |> render_click()
 
-      assert has_element?(view, ".badge", "rejected")
+      assert has_element?(view, "[class*=rounded-md]", "rejected")
       refute has_element?(view, "button", "Approve")
       refute has_element?(view, "button", "Reject")
     end
@@ -103,8 +103,8 @@ defmodule KsefHubWeb.InvoiceLive.ShowTest do
       render_hook(view, "approve", %{})
 
       # Status should remain pending (not changed to approved)
-      assert has_element?(view, ".badge", "pending")
-      refute has_element?(view, ".badge", "approved")
+      assert has_element?(view, "[class*=rounded-md]", "pending")
+      refute has_element?(view, "[class*=rounded-md]", "approved")
     end
 
     test "already-approved invoice does not show action buttons", %{conn: conn, company: company} do
@@ -114,7 +114,7 @@ defmodule KsefHubWeb.InvoiceLive.ShowTest do
 
       {:ok, view, _html} = live(conn, ~p"/invoices/#{invoice.id}")
 
-      assert has_element?(view, ".badge", "approved")
+      assert has_element?(view, "[class*=rounded-md]", "approved")
       refute has_element?(view, "button", "Approve")
       refute has_element?(view, "button", "Reject")
     end

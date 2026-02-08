@@ -135,8 +135,8 @@ defmodule KsefHubWeb.InvoiceLive.Show do
     <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 mt-6">
       <!-- Invoice Metadata -->
       <div class="card bg-base-100 border border-base-300">
-        <div class="card-body">
-          <h2 class="card-title text-base mb-2">Details</h2>
+        <div class="p-5">
+          <h2 class="text-base font-semibold mb-2">Details</h2>
           <.list>
             <:item title="Invoice Number">{@invoice.invoice_number}</:item>
             <:item title="Type"><.type_badge type={@invoice.type} /></:item>
@@ -174,8 +174,8 @@ defmodule KsefHubWeb.InvoiceLive.Show do
       
     <!-- HTML Preview -->
       <div class="card bg-base-100 border border-base-300">
-        <div class="card-body">
-          <h2 class="card-title text-base mb-2">Preview</h2>
+        <div class="p-5">
+          <h2 class="text-base font-semibold mb-2">Preview</h2>
           <div :if={@html_preview} class="border border-base-300 rounded-lg overflow-hidden">
             <iframe
               srcdoc={@html_preview}

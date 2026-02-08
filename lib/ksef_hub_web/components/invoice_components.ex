@@ -10,9 +10,9 @@ defmodule KsefHubWeb.InvoiceComponents do
   def type_badge(assigns) do
     ~H"""
     <span class={[
-      "badge badge-sm",
-      @type == "income" && "badge-success badge-outline",
-      @type == "expense" && "badge-warning badge-outline"
+      "inline-flex items-center px-2 py-0.5 rounded-md text-xs font-medium border",
+      @type == "income" && "bg-success/10 text-success border-success/20",
+      @type == "expense" && "bg-warning/10 text-warning border-warning/20"
     ]}>
       {@type}
     </span>
@@ -24,10 +24,10 @@ defmodule KsefHubWeb.InvoiceComponents do
   def status_badge(assigns) do
     ~H"""
     <span class={[
-      "badge badge-sm",
-      @status == "pending" && "badge-warning",
-      @status == "approved" && "badge-success",
-      @status == "rejected" && "badge-error"
+      "inline-flex items-center px-2 py-0.5 rounded-md text-xs font-medium border",
+      @status == "pending" && "bg-warning/10 text-warning border-warning/20",
+      @status == "approved" && "bg-success/10 text-success border-success/20",
+      @status == "rejected" && "bg-error/10 text-error border-error/20"
     ]}>
       {@status}
     </span>

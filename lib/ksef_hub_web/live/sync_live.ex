@@ -86,7 +86,7 @@ defmodule KsefHubWeb.SyncLive do
           {format_duration(job.duration)}
         </:col>
         <:col :let={{_id, job}} label="Status">
-          <span class={["badge badge-sm", status_badge(job.state)]}>
+          <span class={["inline-flex items-center px-2 py-0.5 rounded-md text-xs font-medium border", status_classes(job.state)]}>
             {job.state}
           </span>
         </:col>
@@ -99,7 +99,7 @@ defmodule KsefHubWeb.SyncLive do
         <:col :let={{_id, job}} label="Error">
           <span
             :if={job.error}
-            class="text-error text-xs truncate max-w-xs inline-block"
+            class="text-error/80 text-xs truncate max-w-xs inline-block"
             title={job.error}
           >
             {truncate(job.error, 80)}
@@ -108,9 +108,10 @@ defmodule KsefHubWeb.SyncLive do
       </.table>
     </div>
 
-    <p :if={@jobs_count == 0} class="text-center text-base-content/60 py-8">
-      No sync runs yet.
-    </p>
+    <div :if={@jobs_count == 0} class="text-center py-12">
+      <.icon name="hero-arrow-path" class="size-8 text-base-content/20 mx-auto mb-2" />
+      <p class="text-base-content/60">No sync runs yet.</p>
+    </div>
     """
   end
 
@@ -131,14 +132,12 @@ defmodule KsefHubWeb.SyncLive do
     "#{minutes}m #{secs}s"
   end
 
-  @spec status_badge(String.t()) :: String.t()
-  defp status_badge("completed"), do: "badge-success"
-  defp status_badge("executing"), do: "badge-info"
-  defp status_badge("retryable"), do: "badge-warning"
-  defp status_badge("discarded"), do: "badge-error"
-  defp status_badge("scheduled"), do: "badge-ghost"
-  defp status_badge("available"), do: "badge-ghost"
-  defp status_badge(_), do: "badge-ghost"
+  @spec status_classes(String.t()) :: String.t()
+  defp status_classes("completed"), do: "bg-success/10 text-success border-success/20"
+  defp status_classes("executing"), do: "bg-info/10 text-info border-info/20"
+  defp status_classes("retryable"), do: "bg-warning/10 text-warning border-warning/20"
+  defp status_classes("discarded"), do: "bg-error/10 text-error border-error/20"
+  defp status_classes(_), do: "bg-base-200 text-base-content/60 border-base-300"
 
   @spec truncate(String.t(), non_neg_integer()) :: String.t()
   defp truncate(str, max) when byte_size(str) > max do

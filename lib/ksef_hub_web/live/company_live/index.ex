@@ -110,8 +110,8 @@ defmodule KsefHubWeb.CompanyLive.Index do
 
     <!-- Company Form Modal -->
     <div :if={@form} class="card bg-base-100 border border-base-300 mt-6">
-      <div class="card-body">
-        <h2 class="card-title text-base">
+      <div class="p-5">
+        <h2 class="text-base font-semibold">
           {if @live_action == :new, do: "Create New Company", else: "Edit Company"}
         </h2>
         <form phx-submit="save" phx-change="validate" class="space-y-4 mt-2">
@@ -146,12 +146,12 @@ defmodule KsefHubWeb.CompanyLive.Index do
           <span class="font-mono">{company.nip}</span>
         </:col>
         <:col :let={company} label="Certificate">
-          <span :if={company.has_active_credential} class="badge badge-success badge-sm">Active</span>
-          <span :if={!company.has_active_credential} class="badge badge-ghost badge-sm">None</span>
+          <span :if={company.has_active_credential} class="inline-flex items-center px-2 py-0.5 rounded-md text-xs font-medium border bg-success/10 text-success border-success/20">Active</span>
+          <span :if={!company.has_active_credential} class="inline-flex items-center px-2 py-0.5 rounded-md text-xs font-medium border bg-base-200 text-base-content/60 border-base-300">None</span>
         </:col>
         <:col :let={company} label="Status">
-          <span :if={company.is_active} class="badge badge-success badge-sm">Active</span>
-          <span :if={!company.is_active} class="badge badge-ghost badge-sm">Inactive</span>
+          <span :if={company.is_active} class="inline-flex items-center px-2 py-0.5 rounded-md text-xs font-medium border bg-success/10 text-success border-success/20">Active</span>
+          <span :if={!company.is_active} class="inline-flex items-center px-2 py-0.5 rounded-md text-xs font-medium border bg-base-200 text-base-content/60 border-base-300">Inactive</span>
         </:col>
         <:action :let={company}>
           <.link navigate={~p"/companies/#{company.id}/edit"} class="btn btn-ghost btn-xs">

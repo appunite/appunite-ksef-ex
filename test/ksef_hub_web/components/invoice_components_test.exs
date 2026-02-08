@@ -51,51 +51,51 @@ defmodule KsefHubWeb.InvoiceComponentsTest do
   describe "type_badge/1" do
     test "renders income badge with success style" do
       html = render_component(&InvoiceComponents.type_badge/1, type: "income")
-      assert html =~ "badge-success"
+      assert html =~ "text-success"
       assert html =~ "income"
     end
 
     test "renders expense badge with warning style" do
       html = render_component(&InvoiceComponents.type_badge/1, type: "expense")
-      assert html =~ "badge-warning"
+      assert html =~ "text-warning"
       assert html =~ "expense"
     end
 
     test "renders unknown type with base badge only" do
       html = render_component(&InvoiceComponents.type_badge/1, type: "unknown")
-      assert html =~ "badge badge-sm"
+      assert html =~ "rounded-md"
       assert html =~ "unknown"
-      refute html =~ "badge-success"
-      refute html =~ "badge-warning"
+      refute html =~ "text-success"
+      refute html =~ "text-warning"
     end
   end
 
   describe "status_badge/1" do
     test "renders pending badge" do
       html = render_component(&InvoiceComponents.status_badge/1, status: "pending")
-      assert html =~ "badge-warning"
+      assert html =~ "text-warning"
       assert html =~ "pending"
     end
 
     test "renders approved badge" do
       html = render_component(&InvoiceComponents.status_badge/1, status: "approved")
-      assert html =~ "badge-success"
+      assert html =~ "text-success"
       assert html =~ "approved"
     end
 
     test "renders rejected badge" do
       html = render_component(&InvoiceComponents.status_badge/1, status: "rejected")
-      assert html =~ "badge-error"
+      assert html =~ "text-error"
       assert html =~ "rejected"
     end
 
     test "renders unknown status with base badge only" do
       html = render_component(&InvoiceComponents.status_badge/1, status: "cancelled")
-      assert html =~ "badge badge-sm"
+      assert html =~ "rounded-md"
       assert html =~ "cancelled"
-      refute html =~ "badge-warning"
-      refute html =~ "badge-success"
-      refute html =~ "badge-error"
+      refute html =~ "text-warning"
+      refute html =~ "text-success"
+      refute html =~ "text-error"
     end
   end
 end

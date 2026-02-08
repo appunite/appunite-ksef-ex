@@ -21,7 +21,7 @@ defmodule KsefHubWeb.DashboardLiveTest do
     test "renders dashboard with zero counts", %{conn: conn} do
       {:ok, view, html} = live(conn, ~p"/dashboard")
       assert html =~ "Dashboard"
-      assert has_element?(view, "[class*=stat-value]", "0")
+      assert has_element?(view, "[class*='text-2xl font-bold']", "0")
       # Sidebar navigation rendered via app layout
       assert html =~ "drawer"
       assert html =~ "Invoices"
@@ -35,9 +35,9 @@ defmodule KsefHubWeb.DashboardLiveTest do
       insert(:invoice, type: "expense", status: "pending", company: company)
 
       {:ok, view, _html} = live(conn, ~p"/dashboard")
-      assert has_element?(view, ".stat-value", "3")
-      assert has_element?(view, ".stat-value", "2")
-      assert has_element?(view, ".stat-value", "1")
+      assert has_element?(view, "[class*='text-2xl font-bold']", "3")
+      assert has_element?(view, "[class*='text-2xl font-bold']", "2")
+      assert has_element?(view, "[class*='text-2xl font-bold']", "1")
     end
 
     test "shows sync status when no credential", %{conn: conn} do
@@ -51,14 +51,14 @@ defmodule KsefHubWeb.DashboardLiveTest do
       {:ok, view, _html} = live(conn, ~p"/dashboard")
 
       # Verify zero counts initially
-      assert has_element?(view, ".stat-value", "0")
+      assert has_element?(view, "[class*='text-2xl font-bold']", "0")
 
       # Create an invoice and broadcast sync
       insert(:invoice, type: "income", status: "pending", company: company)
       send(view.pid, {:sync_completed, %{income: 1, expense: 0}})
 
       # Counts should update after sync event
-      assert has_element?(view, ".stat-value", "1")
+      assert has_element?(view, "[class*='text-2xl font-bold']", "1")
     end
   end
 end

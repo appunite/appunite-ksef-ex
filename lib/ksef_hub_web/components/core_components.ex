@@ -61,12 +61,12 @@ defmodule KsefHubWeb.CoreComponents do
       {@rest}
     >
       <div class={[
-        "alert w-80 sm:w-96 max-w-80 sm:max-w-96 text-wrap",
-        @kind == :info && "alert-info",
-        @kind == :error && "alert-error"
+        "w-80 sm:w-96 max-w-80 sm:max-w-96 text-wrap rounded-lg p-4 flex gap-3 items-start shadow-sm",
+        @kind == :info && "bg-base-100 border border-base-300",
+        @kind == :error && "bg-error/5 border border-error/20"
       ]}>
-        <.icon :if={@kind == :info} name="hero-information-circle" class="size-5 shrink-0" />
-        <.icon :if={@kind == :error} name="hero-exclamation-circle" class="size-5 shrink-0" />
+        <.icon :if={@kind == :info} name="hero-information-circle" class="size-5 shrink-0 text-base-content/50" />
+        <.icon :if={@kind == :error} name="hero-exclamation-circle" class="size-5 shrink-0 text-error/70" />
         <div>
           <p :if={@title} class="font-semibold">{@title}</p>
           <p>{msg}</p>
@@ -273,7 +273,7 @@ defmodule KsefHubWeb.CoreComponents do
   # Helper used by inputs to generate form errors
   defp error(assigns) do
     ~H"""
-    <p class="mt-1.5 flex gap-2 items-center text-sm text-error">
+    <p class="mt-1.5 flex gap-2 items-center text-sm text-error/80">
       <.icon name="hero-exclamation-circle" class="size-5" />
       {render_slot(@inner_block)}
     </p>
@@ -289,9 +289,9 @@ defmodule KsefHubWeb.CoreComponents do
 
   def header(assigns) do
     ~H"""
-    <header class={[@actions != [] && "flex items-center justify-between gap-6", "pb-4"]}>
+    <header class={[@actions != [] && "flex items-center justify-between gap-6", "pb-4 border-b border-base-300"]}>
       <div>
-        <h1 class="text-lg font-semibold leading-8">
+        <h1 class="text-xl font-semibold leading-8">
           {render_slot(@inner_block)}
         </h1>
         <p :if={@subtitle != []} class="text-sm text-base-content/70">
@@ -335,25 +335,25 @@ defmodule KsefHubWeb.CoreComponents do
       end
 
     ~H"""
-    <table class="table table-zebra">
+    <table class="w-full text-sm">
       <thead>
-        <tr>
-          <th :for={col <- @col}>{col[:label]}</th>
-          <th :if={@action != []}>
+        <tr class="border-b border-base-300">
+          <th :for={col <- @col} class="text-left py-3 px-2 text-xs font-medium text-base-content/60 uppercase tracking-wide">{col[:label]}</th>
+          <th :if={@action != []} class="py-3 px-2">
             <span class="sr-only">{gettext("Actions")}</span>
           </th>
         </tr>
       </thead>
       <tbody id={@id} phx-update={is_struct(@rows, Phoenix.LiveView.LiveStream) && "stream"}>
-        <tr :for={row <- @rows} id={@row_id && @row_id.(row)}>
+        <tr :for={row <- @rows} id={@row_id && @row_id.(row)} class="border-b border-base-300/50 hover:bg-base-200/50 transition-colors">
           <td
             :for={col <- @col}
             phx-click={@row_click && @row_click.(row)}
-            class={@row_click && "hover:cursor-pointer"}
+            class={["py-3 px-2", @row_click && "hover:cursor-pointer"]}
           >
             {render_slot(col, @row_item.(row))}
           </td>
-          <td :if={@action != []} class="w-0 font-semibold">
+          <td :if={@action != []} class="w-0 py-3 px-2 font-semibold">
             <div class="flex gap-4">
               <%= for action <- @action do %>
                 {render_slot(action, @row_item.(row))}
@@ -382,14 +382,12 @@ defmodule KsefHubWeb.CoreComponents do
 
   def list(assigns) do
     ~H"""
-    <ul class="list">
-      <li :for={item <- @item} class="list-row">
-        <div class="list-col-grow">
-          <div class="font-bold">{item.title}</div>
-          <div>{render_slot(item)}</div>
-        </div>
-      </li>
-    </ul>
+    <dl class="space-y-0 divide-y divide-base-300">
+      <div :for={item <- @item} class="flex justify-between gap-4 py-2.5">
+        <dt class="text-sm font-medium text-base-content/60">{item.title}</dt>
+        <dd class="text-sm text-right">{render_slot(item)}</dd>
+      </div>
+    </dl>
     """
   end
 
