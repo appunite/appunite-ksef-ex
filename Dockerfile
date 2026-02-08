@@ -1,5 +1,5 @@
 # === Build stage ===
-FROM hexpm/elixir:1.18.4-erlang-28.0.2-debian-bookworm-20250407-slim AS build
+FROM hexpm/elixir:1.18.4-erlang-28.0.2-debian-bookworm-20260202-slim AS build
 
 RUN apt-get update -y && \
     apt-get install -y build-essential git curl && \
