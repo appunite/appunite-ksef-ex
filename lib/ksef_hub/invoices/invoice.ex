@@ -30,6 +30,8 @@ defmodule KsefHub.Invoices.Invoice do
     field :ksef_acquisition_date, :utc_datetime_usec
     field :permanent_storage_date, :utc_datetime_usec
 
+    belongs_to :company, KsefHub.Companies.Company
+
     timestamps()
   end
 
@@ -53,13 +55,15 @@ defmodule KsefHub.Invoices.Invoice do
       :currency,
       :status,
       :ksef_acquisition_date,
-      :permanent_storage_date
+      :permanent_storage_date,
+      :company_id
     ])
-    |> validate_required([:type, :seller_nip, :seller_name, :invoice_number, :issue_date])
+    |> validate_required([:type, :seller_nip, :seller_name, :invoice_number, :issue_date, :company_id])
     |> validate_format(:seller_nip, ~r/^\d{10}$/, message: "must be a 10-digit NIP")
     |> validate_format(:buyer_nip, ~r/^\d{10}$/, message: "must be a 10-digit NIP")
     |> validate_inclusion(:type, @valid_types)
     |> validate_inclusion(:status, @valid_statuses)
-    |> unique_constraint(:ksef_number)
+    |> foreign_key_constraint(:company_id)
+    |> unique_constraint([:company_id, :ksef_number])
   end
 end

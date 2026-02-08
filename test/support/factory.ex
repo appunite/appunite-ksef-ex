@@ -59,7 +59,7 @@ defmodule KsefHub.Factory do
     }
   end
 
-  @doc "Builds an `Invoice` with default income type and sample seller/buyer data."
+  @doc "Builds an `Invoice` with default income type, sample seller/buyer data, and associated company."
   @spec invoice_factory() :: Invoice.t()
   def invoice_factory do
     %Invoice{
@@ -74,7 +74,8 @@ defmodule KsefHub.Factory do
       vat_amount: Decimal.new("230.00"),
       gross_amount: Decimal.new("1230.00"),
       currency: "PLN",
-      status: "pending"
+      status: "pending",
+      company: build(:company)
     }
   end
 
