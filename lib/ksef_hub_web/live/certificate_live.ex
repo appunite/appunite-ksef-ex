@@ -140,11 +140,17 @@ defmodule KsefHubWeb.CertificateLive do
     </.header>
 
     <!-- Active Certificate -->
-    <div :if={@active_credential} id="active-certificate" class="card bg-base-100 border border-base-300 mt-6">
+    <div
+      :if={@active_credential}
+      id="active-certificate"
+      class="card bg-base-100 border border-base-300 mt-6"
+    >
       <div class="p-5">
         <div class="flex items-center justify-between">
           <h2 class="text-base font-semibold">Active Certificate</h2>
-          <span class="inline-flex items-center px-2 py-0.5 rounded-md text-xs font-medium border bg-success/10 text-success border-success/20">Active</span>
+          <span class="inline-flex items-center px-2 py-0.5 rounded-md text-xs font-medium border bg-success/10 text-success border-success/20">
+            Active
+          </span>
         </div>
         <.list>
           <:item title="NIP">{@active_credential.nip}</:item>
@@ -210,8 +216,18 @@ defmodule KsefHubWeb.CertificateLive do
               else: "-"}
           </:col>
           <:col :let={cred} label="Status">
-            <span :if={cred.is_active} class="inline-flex items-center px-2 py-0.5 rounded-md text-xs font-medium border bg-success/10 text-success border-success/20">Active</span>
-            <span :if={!cred.is_active} class="inline-flex items-center px-2 py-0.5 rounded-md text-xs font-medium border bg-base-200 text-base-content/60 border-base-300">Inactive</span>
+            <span
+              :if={cred.is_active}
+              class="inline-flex items-center px-2 py-0.5 rounded-md text-xs font-medium border bg-success/10 text-success border-success/20"
+            >
+              Active
+            </span>
+            <span
+              :if={!cred.is_active}
+              class="inline-flex items-center px-2 py-0.5 rounded-md text-xs font-medium border bg-base-200 text-base-content/60 border-base-300"
+            >
+              Inactive
+            </span>
           </:col>
           <:action :let={cred}>
             <button

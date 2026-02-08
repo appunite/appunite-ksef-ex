@@ -65,8 +65,16 @@ defmodule KsefHubWeb.CoreComponents do
         @kind == :info && "bg-base-100 border border-base-300",
         @kind == :error && "bg-error/5 border border-error/20"
       ]}>
-        <.icon :if={@kind == :info} name="hero-information-circle" class="size-5 shrink-0 text-base-content/50" />
-        <.icon :if={@kind == :error} name="hero-exclamation-circle" class="size-5 shrink-0 text-error/70" />
+        <.icon
+          :if={@kind == :info}
+          name="hero-information-circle"
+          class="size-5 shrink-0 text-base-content/50"
+        />
+        <.icon
+          :if={@kind == :error}
+          name="hero-exclamation-circle"
+          class="size-5 shrink-0 text-error/70"
+        />
         <div>
           <p :if={@title} class="font-semibold">{@title}</p>
           <p>{msg}</p>
@@ -290,7 +298,10 @@ defmodule KsefHubWeb.CoreComponents do
 
   def header(assigns) do
     ~H"""
-    <header class={[@actions != [] && "flex items-center justify-between gap-6", "pb-4 border-b border-base-300"]}>
+    <header class={[
+      @actions != [] && "flex items-center justify-between gap-6",
+      "pb-4 border-b border-base-300"
+    ]}>
       <div>
         <h1 class="text-xl font-semibold leading-8">
           {render_slot(@inner_block)}
@@ -339,14 +350,23 @@ defmodule KsefHubWeb.CoreComponents do
     <table class="w-full text-sm">
       <thead>
         <tr class="border-b border-base-300">
-          <th :for={col <- @col} class="text-left py-3 px-2 text-xs font-medium text-base-content/60 uppercase tracking-wide">{col[:label]}</th>
+          <th
+            :for={col <- @col}
+            class="text-left py-3 px-2 text-xs font-medium text-base-content/60 uppercase tracking-wide"
+          >
+            {col[:label]}
+          </th>
           <th :if={@action != []} class="py-3 px-2">
             <span class="sr-only">{gettext("Actions")}</span>
           </th>
         </tr>
       </thead>
       <tbody id={@id} phx-update={is_struct(@rows, Phoenix.LiveView.LiveStream) && "stream"}>
-        <tr :for={row <- @rows} id={@row_id && @row_id.(row)} class="border-b border-base-300/50 hover:bg-base-200/50 transition-colors">
+        <tr
+          :for={row <- @rows}
+          id={@row_id && @row_id.(row)}
+          class="border-b border-base-300/50 hover:bg-base-200/50 transition-colors"
+        >
           <td
             :for={col <- @col}
             phx-click={@row_click && @row_click.(row)}

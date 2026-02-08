@@ -101,7 +101,11 @@ defmodule KsefHubWeb.TokenLive do
     </.header>
 
     <!-- Plaintext Token Alert -->
-    <div :if={@show_token} class="border border-warning/20 bg-warning/5 rounded-lg p-4 mt-4 flex gap-3 items-start" role="alert">
+    <div
+      :if={@show_token}
+      class="border border-warning/20 bg-warning/5 rounded-lg p-4 mt-4 flex gap-3 items-start"
+      role="alert"
+    >
       <.icon name="hero-exclamation-triangle" class="size-5 text-warning/70 shrink-0 mt-0.5" />
       <div class="flex-1">
         <p class="font-semibold text-sm">Copy your API token now. It won't be shown again.</p>
@@ -116,7 +120,13 @@ defmodule KsefHubWeb.TokenLive do
     <div :if={@show_create_form} class="card bg-base-100 border border-base-300 mt-6">
       <div class="p-5">
         <h2 class="text-base font-semibold">Create New Token</h2>
-        <.form for={@form} phx-submit="create" phx-change="validate" class="space-y-4 mt-2" id="create-token-form">
+        <.form
+          for={@form}
+          phx-submit="create"
+          phx-change="validate"
+          class="space-y-4 mt-2"
+          id="create-token-form"
+        >
           <.input field={@form[:name]} label="Name" placeholder="e.g. CI/CD Pipeline" required />
           <.input
             field={@form[:description]}
@@ -146,8 +156,18 @@ defmodule KsefHubWeb.TokenLive do
           <span class="font-mono">{token.request_count}</span>
         </:col>
         <:col :let={token} label="Status">
-          <span :if={token.is_active} class="inline-flex items-center px-2 py-0.5 rounded-md text-xs font-medium border bg-success/10 text-success border-success/20">Active</span>
-          <span :if={!token.is_active} class="inline-flex items-center px-2 py-0.5 rounded-md text-xs font-medium border bg-base-200 text-base-content/60 border-base-300">Revoked</span>
+          <span
+            :if={token.is_active}
+            class="inline-flex items-center px-2 py-0.5 rounded-md text-xs font-medium border bg-success/10 text-success border-success/20"
+          >
+            Active
+          </span>
+          <span
+            :if={!token.is_active}
+            class="inline-flex items-center px-2 py-0.5 rounded-md text-xs font-medium border bg-base-200 text-base-content/60 border-base-300"
+          >
+            Revoked
+          </span>
         </:col>
         <:action :let={token}>
           <button
