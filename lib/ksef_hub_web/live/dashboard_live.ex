@@ -108,7 +108,7 @@ defmodule KsefHubWeb.DashboardLive do
 
     <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 mt-8">
       <!-- Expense Breakdown -->
-      <div class="card bg-base-100 shadow-sm">
+      <div class="card bg-base-100 border border-base-300">
         <div class="card-body">
           <h2 class="card-title text-base">Expense Status</h2>
           <div class="overflow-x-auto">
@@ -139,7 +139,7 @@ defmodule KsefHubWeb.DashboardLive do
       </div>
       
     <!-- Sync Status -->
-      <div class="card bg-base-100 shadow-sm">
+      <div class="card bg-base-100 border border-base-300">
         <div class="card-body">
           <h2 class="card-title text-base">Sync Status</h2>
           <div class="space-y-3">
@@ -173,12 +173,14 @@ defmodule KsefHubWeb.DashboardLive do
     assigns = assign_new(assigns, :color, fn -> "text-base-content" end)
 
     ~H"""
-    <div class="stat bg-base-100 shadow-sm rounded-box">
-      <div class={"stat-figure #{@color}"}>
+    <div class="border border-base-300 rounded-box p-4 flex items-center justify-between">
+      <div>
+        <div class="text-sm text-base-content/60">{@title}</div>
+        <div class={"text-2xl font-bold #{@color}"}>{@value}</div>
+      </div>
+      <div class={@color}>
         <.icon name={@icon} class="size-6" />
       </div>
-      <div class="stat-title">{@title}</div>
-      <div class={"stat-value #{@color}"}>{@value}</div>
     </div>
     """
   end

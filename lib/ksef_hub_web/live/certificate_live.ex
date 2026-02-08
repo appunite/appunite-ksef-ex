@@ -140,7 +140,7 @@ defmodule KsefHubWeb.CertificateLive do
     </.header>
 
     <!-- Active Certificate -->
-    <div :if={@active_credential} id="active-certificate" class="card bg-base-100 shadow-sm mt-6">
+    <div :if={@active_credential} id="active-certificate" class="card bg-base-100 border border-base-300 mt-6">
       <div class="card-body">
         <div class="flex items-center justify-between">
           <h2 class="card-title text-base">Active Certificate</h2>
@@ -162,7 +162,7 @@ defmodule KsefHubWeb.CertificateLive do
     </div>
 
     <!-- Upload Form -->
-    <div class="card bg-base-100 shadow-sm mt-6">
+    <div class="card bg-base-100 border border-base-300 mt-6">
       <div class="card-body">
         <h2 class="card-title text-base">Upload New Certificate</h2>
         <form phx-submit="save" phx-change="validate" class="space-y-4 mt-2">

@@ -113,7 +113,7 @@ defmodule KsefHubWeb.TokenLive do
     </div>
 
     <!-- Create Form -->
-    <div :if={@show_create_form} class="card bg-base-100 shadow-sm mt-6">
+    <div :if={@show_create_form} class="card bg-base-100 border border-base-300 mt-6">
       <div class="card-body">
         <h2 class="card-title text-base">Create New Token</h2>
         <form phx-submit="create" phx-change="validate" class="space-y-4 mt-2">

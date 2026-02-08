@@ -68,7 +68,7 @@ defmodule KsefHubWeb.Layouts do
               </div>
               <ul
                 tabindex="0"
-                class="dropdown-content z-50 menu p-2 shadow bg-base-100 rounded-box w-56"
+                class="dropdown-content z-50 menu p-2 border border-base-300 bg-base-100 rounded-box w-56"
               >
                 <li :for={company <- @companies}>
                   <form method="post" action={~p"/switch-company/#{company.id}"}>
@@ -90,7 +90,6 @@ defmodule KsefHubWeb.Layouts do
               </ul>
             </div>
           </div>
-          
     <!-- Navigation -->
           <nav class="flex-1 p-4">
             <ul class="menu gap-1">

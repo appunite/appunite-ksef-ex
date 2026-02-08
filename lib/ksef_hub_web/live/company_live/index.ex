@@ -109,7 +109,7 @@ defmodule KsefHubWeb.CompanyLive.Index do
     </.header>
 
     <!-- Company Form Modal -->
-    <div :if={@form} class="card bg-base-100 shadow-sm mt-6">
+    <div :if={@form} class="card bg-base-100 border border-base-300 mt-6">
       <div class="card-body">
         <h2 class="card-title text-base">
           {if @live_action == :new, do: "Create New Company", else: "Edit Company"}
