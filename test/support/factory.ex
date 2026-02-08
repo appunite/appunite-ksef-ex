@@ -92,13 +92,13 @@ defmodule KsefHub.Factory do
     }
   end
 
-  @doc "Builds a `Checkpoint` with income type and current timestamp."
+  @doc "Builds a `Checkpoint` with income type, current timestamp, and associated company."
   @spec checkpoint_factory() :: Checkpoint.t()
   def checkpoint_factory do
     %Checkpoint{
       checkpoint_type: "income",
       last_seen_timestamp: DateTime.utc_now(),
-      nip: sequence(:checkpoint_nip, &String.pad_leading("#{&1}", 10, "0"))
+      company: build(:company)
     }
   end
 end

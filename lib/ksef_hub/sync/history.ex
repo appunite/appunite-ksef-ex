@@ -11,17 +11,19 @@ defmodule KsefHub.Sync.History do
   @worker "KsefHub.Sync.SyncWorker"
 
   @doc """
-  Lists recent sync jobs, most recent first.
+  Lists recent sync jobs for a company, most recent first.
 
   ## Options
 
     * `:limit` — max rows to return (default 50)
   """
-  def list_sync_jobs(opts \\ []) do
+  @spec list_sync_jobs(Ecto.UUID.t(), keyword()) :: [map()]
+  def list_sync_jobs(company_id, opts \\ []) do
     limit = Keyword.get(opts, :limit, 50)
 
     Oban.Job
     |> where([j], j.worker == @worker)
+    |> where([j], fragment("?->>'company_id' = ?", j.args, ^company_id))
     |> order_by([j], desc: j.inserted_at)
     |> limit(^limit)
     |> Repo.all()
@@ -29,20 +31,22 @@ defmodule KsefHub.Sync.History do
   end
 
   @doc """
-  Inserts a manual sync job if no sync is currently executing.
+  Inserts a manual sync job for a company if no sync is currently executing.
 
   Returns `{:ok, job}` or `{:error, :already_running}`.
   """
-  def trigger_manual_sync do
+  @spec trigger_manual_sync(Ecto.UUID.t()) :: {:ok, Oban.Job.t()} | {:error, :already_running}
+  def trigger_manual_sync(company_id) do
     executing =
       Oban.Job
       |> where([j], j.worker == @worker and j.state == "executing")
+      |> where([j], fragment("?->>'company_id' = ?", j.args, ^company_id))
       |> Repo.exists?()
 
     if executing do
       {:error, :already_running}
     else
-      %{manual: true}
+      %{company_id: company_id, manual: true}
       |> SyncWorker.new()
       |> Oban.insert()
     end
