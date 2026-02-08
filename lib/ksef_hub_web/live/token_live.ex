@@ -11,13 +11,15 @@ defmodule KsefHubWeb.TokenLive do
     tokens = Accounts.list_api_tokens(socket.assigns.current_user.id)
 
     {:ok,
-     assign(socket,
+     socket
+     |> assign(
        page_title: "API Tokens",
-       tokens: tokens,
+       tokens_count: length(tokens),
        form: to_form(%{"name" => "", "description" => ""}, as: :token),
        show_token: nil,
        show_create_form: false
-     )}
+     )
+     |> stream(:tokens, tokens)}
   end
 
   @impl true
@@ -40,17 +42,16 @@ defmodule KsefHubWeb.TokenLive do
     }
 
     case Accounts.create_api_token(user_id, attrs) do
-      {:ok, %{token: plain_token, api_token: _api_token}} ->
-        tokens = Accounts.list_api_tokens(socket.assigns.current_user.id)
-
+      {:ok, %{token: plain_token, api_token: api_token}} ->
         {:noreply,
          socket
          |> assign(
-           tokens: tokens,
+           tokens_count: socket.assigns.tokens_count + 1,
            show_token: plain_token,
            show_create_form: false,
            form: to_form(%{"name" => "", "description" => ""}, as: :token)
          )
+         |> stream_insert(:tokens, api_token, at: 0)
          |> put_flash(:info, "Token created. Copy it now — it won't be shown again.")}
 
       {:error, changeset} ->
@@ -71,12 +72,10 @@ defmodule KsefHubWeb.TokenLive do
     user_id = socket.assigns.current_user.id
 
     case Accounts.revoke_api_token(user_id, id) do
-      {:ok, _} ->
-        tokens = Accounts.list_api_tokens(user_id)
-
+      {:ok, revoked_token} ->
         {:noreply,
          socket
-         |> assign(tokens: tokens)
+         |> stream_insert(:tokens, revoked_token)
          |> put_flash(:info, "Token revoked.")}
 
       {:error, :not_found} ->
@@ -144,7 +143,12 @@ defmodule KsefHubWeb.TokenLive do
 
     <!-- Token Table -->
     <div class="mt-6 overflow-x-auto">
-      <.table id="tokens" rows={@tokens} row_id={fn t -> "token-#{t.id}" end}>
+      <.table
+        id="tokens"
+        rows={@streams.tokens}
+        row_id={fn {id, _} -> id end}
+        row_item={fn {_id, item} -> item end}
+      >
         <:col :let={token} label="Name">{token.name}</:col>
         <:col :let={token} label="Prefix">
           <code class="font-mono text-sm">{token.token_prefix}****</code>
@@ -183,7 +187,7 @@ defmodule KsefHubWeb.TokenLive do
       </.table>
     </div>
 
-    <p :if={@tokens == []} class="text-center text-base-content/60 py-8">
+    <p :if={@tokens_count == 0} class="text-center text-base-content/60 py-8">
       No API tokens yet. Create one to get started.
     </p>
     """
