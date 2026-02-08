@@ -15,6 +15,8 @@ defmodule KsefHubWeb.Layouts do
 
   attr :current_user, :map, default: nil
   attr :current_path, :string, default: nil
+  attr :current_company, :map, default: nil
+  attr :companies, :list, default: []
 
   def app(assigns) do
     ~H"""
@@ -54,6 +56,29 @@ defmodule KsefHubWeb.Layouts do
             </a>
           </div>
           
+    <!-- Company Selector -->
+          <div :if={@current_company} class="p-4 border-b border-base-300">
+            <div class="dropdown w-full">
+              <div tabindex="0" role="button" class="btn btn-ghost btn-sm w-full justify-start gap-2">
+                <.icon name="hero-building-office-2" class="size-4" />
+                <span class="flex-1 text-left truncate">{@current_company.name}</span>
+                <.icon name="hero-chevron-down" class="size-3" />
+              </div>
+              <ul tabindex="0" class="dropdown-content z-50 menu p-2 shadow bg-base-100 rounded-box w-56">
+                <li :for={company <- @companies}>
+                  <.link
+                    href={~p"/switch-company/#{company.id}?return_to=#{@current_path || "/dashboard"}"}
+                    method="post"
+                    class={[company.id == @current_company.id && "active"]}
+                  >
+                    <span class="truncate">{company.name}</span>
+                    <span class="text-xs text-base-content/50">{company.nip}</span>
+                  </.link>
+                </li>
+              </ul>
+            </div>
+          </div>
+
     <!-- Navigation -->
           <nav class="flex-1 p-4">
             <ul class="menu gap-1">
@@ -80,6 +105,11 @@ defmodule KsefHubWeb.Layouts do
               <li>
                 <.nav_link path={~p"/syncs"} current={@current_path} icon="hero-arrow-path">
                   Syncs
+                </.nav_link>
+              </li>
+              <li>
+                <.nav_link path={~p"/companies"} current={@current_path} icon="hero-building-office-2">
+                  Companies
                 </.nav_link>
               </li>
             </ul>
