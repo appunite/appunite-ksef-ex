@@ -107,7 +107,7 @@ defmodule KsefHubWeb.Api.InvoiceController do
     summary: "Approve expense invoice",
     description: "Marks an expense invoice as approved. Only expense invoices can be approved.",
     parameters: [
-      invoice_id: [
+      id: [
         in: :path,
         description: "Invoice UUID.",
         schema: %Schema{type: :string, format: :uuid}
@@ -128,7 +128,7 @@ defmodule KsefHubWeb.Api.InvoiceController do
     }
   )
 
-  def approve(conn, %{"invoice_id" => id} = params) do
+  def approve(conn, %{"id" => id} = params) do
     with {:ok, company_id} <- require_company_id(conn, params) do
       invoice = Invoices.get_invoice!(company_id, id)
 
@@ -153,7 +153,7 @@ defmodule KsefHubWeb.Api.InvoiceController do
     summary: "Reject expense invoice",
     description: "Marks an expense invoice as rejected. Only expense invoices can be rejected.",
     parameters: [
-      invoice_id: [
+      id: [
         in: :path,
         description: "Invoice UUID.",
         schema: %Schema{type: :string, format: :uuid}
@@ -174,7 +174,7 @@ defmodule KsefHubWeb.Api.InvoiceController do
     }
   )
 
-  def reject(conn, %{"invoice_id" => id} = params) do
+  def reject(conn, %{"id" => id} = params) do
     with {:ok, company_id} <- require_company_id(conn, params) do
       invoice = Invoices.get_invoice!(company_id, id)
 
@@ -200,7 +200,7 @@ defmodule KsefHubWeb.Api.InvoiceController do
     description:
       "Generates an HTML rendering of the invoice from its FA(3) XML using the gov.pl stylesheet.",
     parameters: [
-      invoice_id: [
+      id: [
         in: :path,
         description: "Invoice UUID.",
         schema: %Schema{type: :string, format: :uuid}
@@ -221,7 +221,7 @@ defmodule KsefHubWeb.Api.InvoiceController do
     }
   )
 
-  def html(conn, %{"invoice_id" => id} = params) do
+  def html(conn, %{"id" => id} = params) do
     with {:ok, company_id} <- require_company_id(conn, params) do
       invoice = Invoices.get_invoice!(company_id, id)
       pdf_mod = Application.get_env(:ksef_hub, :pdf_generator, KsefHub.Pdf)
@@ -247,7 +247,7 @@ defmodule KsefHubWeb.Api.InvoiceController do
     description:
       "Generates a PDF rendering of the invoice from its FA(3) XML via xsltproc and Gotenberg.",
     parameters: [
-      invoice_id: [
+      id: [
         in: :path,
         description: "Invoice UUID.",
         schema: %Schema{type: :string, format: :uuid}
@@ -268,7 +268,7 @@ defmodule KsefHubWeb.Api.InvoiceController do
     }
   )
 
-  def pdf(conn, %{"invoice_id" => id} = params) do
+  def pdf(conn, %{"id" => id} = params) do
     with {:ok, company_id} <- require_company_id(conn, params) do
       invoice = Invoices.get_invoice!(company_id, id)
       pdf_mod = Application.get_env(:ksef_hub, :pdf_generator, KsefHub.Pdf)

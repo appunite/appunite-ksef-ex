@@ -76,12 +76,11 @@ defmodule KsefHubWeb.Router do
   scope "/api", KsefHubWeb.Api do
     pipe_through [:api, :api_auth]
 
-    resources "/invoices", InvoiceController, only: [:index, :show] do
-      post "/approve", InvoiceController, :approve
-      post "/reject", InvoiceController, :reject
-      get "/html", InvoiceController, :html
-      get "/pdf", InvoiceController, :pdf
-    end
+    resources "/invoices", InvoiceController, only: [:index, :show]
+    post "/invoices/:id/approve", InvoiceController, :approve
+    post "/invoices/:id/reject", InvoiceController, :reject
+    get "/invoices/:id/html", InvoiceController, :html
+    get "/invoices/:id/pdf", InvoiceController, :pdf
 
     resources "/tokens", TokenController, only: [:index, :create, :delete]
   end
