@@ -18,7 +18,21 @@ defmodule KsefHubWeb.CertificateLive do
       |> assign(page_title: "Certificates")
       |> assign(upload_mode: :p12)
       |> assign(form: to_form(%{"password" => ""}, as: :credential))
-      |> allow_p12_upload()
+      |> allow_upload(:certificate,
+        accept: ~w(application/x-pkcs12 .p12 .pfx),
+        max_entries: 1,
+        max_file_size: 1_000_000
+      )
+      |> allow_upload(:private_key,
+        accept: :any,
+        max_entries: 1,
+        max_file_size: 1_000_000
+      )
+      |> allow_upload(:certificate_crt,
+        accept: :any,
+        max_entries: 1,
+        max_file_size: 1_000_000
+      )
       |> load_credentials()
 
     {:ok, socket}
@@ -35,10 +49,8 @@ defmodule KsefHubWeb.CertificateLive do
 
     socket =
       socket
-      |> cancel_pending_uploads()
       |> assign(upload_mode: new_mode)
       |> assign(form: to_form(%{"password" => ""}, as: :credential))
-      |> configure_uploads(new_mode)
 
     {:noreply, socket}
   end
@@ -168,47 +180,6 @@ defmodule KsefHubWeb.CertificateLive do
       {:error, _} ->
         {:noreply, put_flash(socket, :error, "Encryption failed.")}
     end
-  end
-
-  @spec cancel_pending_uploads(Phoenix.LiveView.Socket.t()) :: Phoenix.LiveView.Socket.t()
-  defp cancel_pending_uploads(socket) do
-    socket.assigns.uploads
-    |> Map.keys()
-    |> Enum.reduce(socket, fn upload_name, acc ->
-      acc.assigns.uploads[upload_name].entries
-      |> Enum.reduce(acc, fn entry, inner_acc ->
-        cancel_upload(inner_acc, upload_name, entry.ref)
-      end)
-    end)
-  end
-
-  @spec configure_uploads(Phoenix.LiveView.Socket.t(), :p12 | :key_crt) ::
-          Phoenix.LiveView.Socket.t()
-  defp configure_uploads(socket, :p12), do: allow_p12_upload(socket)
-  defp configure_uploads(socket, :key_crt), do: allow_key_crt_uploads(socket)
-
-  @spec allow_p12_upload(Phoenix.LiveView.Socket.t()) :: Phoenix.LiveView.Socket.t()
-  defp allow_p12_upload(socket) do
-    allow_upload(socket, :certificate,
-      accept: ~w(application/x-pkcs12 .p12 .pfx),
-      max_entries: 1,
-      max_file_size: 1_000_000
-    )
-  end
-
-  @spec allow_key_crt_uploads(Phoenix.LiveView.Socket.t()) :: Phoenix.LiveView.Socket.t()
-  defp allow_key_crt_uploads(socket) do
-    socket
-    |> allow_upload(:private_key,
-      accept: ~w(.key .pem),
-      max_entries: 1,
-      max_file_size: 1_000_000
-    )
-    |> allow_upload(:certificate_crt,
-      accept: ~w(.crt .pem .cer),
-      max_entries: 1,
-      max_file_size: 1_000_000
-    )
   end
 
   @spec non_empty_or_nil(String.t() | nil) :: String.t() | nil
