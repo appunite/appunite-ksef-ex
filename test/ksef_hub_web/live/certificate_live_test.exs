@@ -99,13 +99,15 @@ defmodule KsefHubWeb.CertificateLiveTest do
       |> element(~s(button[phx-value-mode="key_crt"]))
       |> render_click()
 
-      key_input = file_input(view, "form[phx-submit=save]", :private_key, [
-        %{name: "test.key", content: "fake-key-data", type: "application/x-pem-file"}
-      ])
+      key_input =
+        file_input(view, "form[phx-submit=save]", :private_key, [
+          %{name: "test.key", content: "fake-key-data", type: "application/x-pem-file"}
+        ])
 
-      crt_input = file_input(view, "form[phx-submit=save]", :certificate_crt, [
-        %{name: "test.crt", content: "fake-crt-data", type: "application/x-pem-file"}
-      ])
+      crt_input =
+        file_input(view, "form[phx-submit=save]", :certificate_crt, [
+          %{name: "test.crt", content: "fake-crt-data", type: "application/x-pem-file"}
+        ])
 
       render_upload(key_input, "test.key")
       render_upload(crt_input, "test.crt")
@@ -130,13 +132,15 @@ defmodule KsefHubWeb.CertificateLiveTest do
       |> element(~s(button[phx-value-mode="key_crt"]))
       |> render_click()
 
-      key_input = file_input(view, "form[phx-submit=save]", :private_key, [
-        %{name: "test.key", content: "fake-key", type: "application/x-pem-file"}
-      ])
+      key_input =
+        file_input(view, "form[phx-submit=save]", :private_key, [
+          %{name: "test.key", content: "fake-key", type: "application/x-pem-file"}
+        ])
 
-      crt_input = file_input(view, "form[phx-submit=save]", :certificate_crt, [
-        %{name: "test.crt", content: "fake-crt", type: "application/x-pem-file"}
-      ])
+      crt_input =
+        file_input(view, "form[phx-submit=save]", :certificate_crt, [
+          %{name: "test.crt", content: "fake-crt", type: "application/x-pem-file"}
+        ])
 
       render_upload(key_input, "test.key")
       render_upload(crt_input, "test.crt")
@@ -174,13 +178,15 @@ defmodule KsefHubWeb.CertificateLiveTest do
       |> element(~s(button[phx-value-mode="key_crt"]))
       |> render_click()
 
-      key_input = file_input(view, "form[phx-submit=save]", :private_key, [
-        %{name: "test.key", content: "key-data", type: "application/x-pem-file"}
-      ])
+      key_input =
+        file_input(view, "form[phx-submit=save]", :private_key, [
+          %{name: "test.key", content: "key-data", type: "application/x-pem-file"}
+        ])
 
-      crt_input = file_input(view, "form[phx-submit=save]", :certificate_crt, [
-        %{name: "test.crt", content: "crt-data", type: "application/x-pem-file"}
-      ])
+      crt_input =
+        file_input(view, "form[phx-submit=save]", :certificate_crt, [
+          %{name: "test.crt", content: "crt-data", type: "application/x-pem-file"}
+        ])
 
       render_upload(key_input, "test.key")
       render_upload(crt_input, "test.crt")

@@ -118,7 +118,8 @@ defmodule KsefHubWeb.CertificateLive do
       end
     else
       {:error, :no_file} ->
-        {:noreply, put_flash(socket, :error, "Please upload both private key and certificate files.")}
+        {:noreply,
+         put_flash(socket, :error, "Please upload both private key and certificate files.")}
 
       {:error, {:file_read_failed, _reason}} ->
         {:noreply, put_flash(socket, :error, "Failed to read uploaded file.")}
@@ -249,8 +250,8 @@ defmodule KsefHubWeb.CertificateLive do
     <div class="card bg-base-100 border border-base-300 mt-6">
       <div class="p-5">
         <h2 class="text-base font-semibold">Upload New Certificate</h2>
-
-        <!-- Mode Toggle -->
+        
+    <!-- Mode Toggle -->
         <div class="flex gap-2 mt-3 mb-4" id="upload-mode-toggle">
           <button
             type="button"
@@ -296,8 +297,8 @@ defmodule KsefHubWeb.CertificateLive do
               </p>
             </div>
           </div>
-
-          <!-- Key + CRT upload -->
+          
+    <!-- Key + CRT upload -->
           <div :if={@upload_mode == :key_crt} class="space-y-4">
             <div class="form-control">
               <label class="label">
@@ -355,8 +356,8 @@ defmodule KsefHubWeb.CertificateLive do
               label="Key Passphrase (leave empty if unencrypted)"
             />
           </div>
-
-          <!-- Password field for P12 mode -->
+          
+    <!-- Password field for P12 mode -->
           <div :if={@upload_mode == :p12}>
             <.input
               field={@form[:password]}
