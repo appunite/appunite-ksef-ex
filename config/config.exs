@@ -17,6 +17,7 @@ config :ksef_hub,
   generators: [timestamp_type: :utc_datetime],
   ksef_client: KsefHub.KsefClient.Live,
   xades_signer: KsefHub.XadesSigner.Xmlsec1,
+  pkcs12_converter: KsefHub.Credentials.Pkcs12Converter.Openssl,
   ksef_api_url: "https://ksef-test.mf.gov.pl"
 
 # Oban background jobs
