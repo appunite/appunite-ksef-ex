@@ -51,7 +51,7 @@ spec:
             - name: GOTENBERG_URL
               value: "http://localhost:3000"
             - name: POOL_SIZE
-              value: "10"
+              value: "5"
             - name: DATABASE_URL
               valueFrom:
                 secretKeyRef:
