@@ -42,8 +42,6 @@ spec:
             periodSeconds: 30
             failureThreshold: 3
           env:
-            - name: PORT
-              value: "4000"
             - name: PHX_SERVER
               value: "true"
             - name: PHX_HOST
