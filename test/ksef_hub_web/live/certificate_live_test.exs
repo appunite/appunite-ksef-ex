@@ -2,11 +2,15 @@ defmodule KsefHubWeb.CertificateLiveTest do
   use KsefHubWeb.ConnCase, async: true
 
   import Phoenix.LiveViewTest
+  import Mox
 
   import KsefHub.Factory
 
   alias KsefHub.Accounts
   alias KsefHub.Credentials
+
+  setup :set_mox_from_context
+  setup :verify_on_exit!
 
   setup %{conn: conn} do
     {:ok, user} =
@@ -32,6 +36,42 @@ defmodule KsefHubWeb.CertificateLiveTest do
       assert has_element?(view, "#active-certificate")
       assert render(view) =~ company.nip
     end
+
+    test "defaults to p12 upload mode", %{conn: conn} do
+      {:ok, view, _html} = live(conn, ~p"/certificates")
+      assert has_element?(view, "#p12-certificate-label")
+    end
+  end
+
+  describe "upload mode toggle" do
+    test "switches to key_crt mode", %{conn: conn} do
+      {:ok, view, _html} = live(conn, ~p"/certificates")
+
+      html =
+        view
+        |> element(~s(button[phx-value-mode="key_crt"]))
+        |> render_click()
+
+      assert html =~ "Private Key File (.key / .pem)"
+      assert html =~ "Certificate File (.crt / .pem / .cer)"
+      assert html =~ "Key Passphrase"
+    end
+
+    test "switches back to p12 mode", %{conn: conn} do
+      {:ok, view, _html} = live(conn, ~p"/certificates")
+
+      view
+      |> element(~s(button[phx-value-mode="key_crt"]))
+      |> render_click()
+
+      html =
+        view
+        |> element(~s(button[phx-value-mode="p12"]))
+        |> render_click()
+
+      assert html =~ "Certificate File (.p12 / .pfx)"
+      refute html =~ "Private Key File"
+    end
   end
 
   describe "form validation" do
@@ -44,6 +84,123 @@ defmodule KsefHubWeb.CertificateLiveTest do
 
       # Form should still render (validation is server-side on submit)
       assert render(view) =~ "Certificates"
+    end
+  end
+
+  describe "save with key_crt mode" do
+    test "converts and saves credential", %{conn: conn, company: company} do
+      KsefHub.Credentials.Pkcs12Converter.Mock
+      |> expect(:convert, fn _key, _crt, nil ->
+        {:ok, %{p12_data: "fake-p12-binary", p12_password: "generated-pass"}}
+      end)
+
+      {:ok, view, _html} = live(conn, ~p"/certificates")
+
+      view
+      |> element(~s(button[phx-value-mode="key_crt"]))
+      |> render_click()
+
+      key_input =
+        file_input(view, "form[phx-submit=save]", :private_key, [
+          %{name: "test.key", content: "fake-key-data", type: "application/x-pem-file"}
+        ])
+
+      crt_input =
+        file_input(view, "form[phx-submit=save]", :certificate_crt, [
+          %{name: "test.crt", content: "fake-crt-data", type: "application/x-pem-file"}
+        ])
+
+      render_upload(key_input, "test.key")
+      render_upload(crt_input, "test.crt")
+
+      view
+      |> form("form[phx-submit=save]", credential: %{key_passphrase: ""})
+      |> render_submit()
+
+      assert has_element?(view, "#flash-info", "Certificate uploaded successfully.")
+      assert Credentials.get_active_credential(company.id)
+    end
+
+    test "shows error when converter fails", %{conn: conn} do
+      KsefHub.Credentials.Pkcs12Converter.Mock
+      |> expect(:convert, fn _key, _crt, nil ->
+        {:error, {:openssl_failed, 1}}
+      end)
+
+      {:ok, view, _html} = live(conn, ~p"/certificates")
+
+      view
+      |> element(~s(button[phx-value-mode="key_crt"]))
+      |> render_click()
+
+      key_input =
+        file_input(view, "form[phx-submit=save]", :private_key, [
+          %{name: "test.key", content: "fake-key", type: "application/x-pem-file"}
+        ])
+
+      crt_input =
+        file_input(view, "form[phx-submit=save]", :certificate_crt, [
+          %{name: "test.crt", content: "fake-crt", type: "application/x-pem-file"}
+        ])
+
+      render_upload(key_input, "test.key")
+      render_upload(crt_input, "test.crt")
+
+      view
+      |> form("form[phx-submit=save]", credential: %{key_passphrase: ""})
+      |> render_submit()
+
+      assert has_element?(view, "#flash-error")
+    end
+
+    test "shows error when files missing", %{conn: conn} do
+      {:ok, view, _html} = live(conn, ~p"/certificates")
+
+      view
+      |> element(~s(button[phx-value-mode="key_crt"]))
+      |> render_click()
+
+      view
+      |> form("form[phx-submit=save]", credential: %{key_passphrase: ""})
+      |> render_submit()
+
+      assert has_element?(
+               view,
+               "#flash-error",
+               "Please upload both private key and certificate files."
+             )
+    end
+
+    test "passes key passphrase to converter", %{conn: conn} do
+      KsefHub.Credentials.Pkcs12Converter.Mock
+      |> expect(:convert, fn _key, _crt, "my-secret" ->
+        {:ok, %{p12_data: "fake-p12", p12_password: "generated"}}
+      end)
+
+      {:ok, view, _html} = live(conn, ~p"/certificates")
+
+      view
+      |> element(~s(button[phx-value-mode="key_crt"]))
+      |> render_click()
+
+      key_input =
+        file_input(view, "form[phx-submit=save]", :private_key, [
+          %{name: "test.key", content: "key-data", type: "application/x-pem-file"}
+        ])
+
+      crt_input =
+        file_input(view, "form[phx-submit=save]", :certificate_crt, [
+          %{name: "test.crt", content: "crt-data", type: "application/x-pem-file"}
+        ])
+
+      render_upload(key_input, "test.key")
+      render_upload(crt_input, "test.crt")
+
+      view
+      |> form("form[phx-submit=save]", credential: %{key_passphrase: "my-secret"})
+      |> render_submit()
+
+      assert has_element?(view, "#flash-info", "Certificate uploaded successfully.")
     end
   end
 

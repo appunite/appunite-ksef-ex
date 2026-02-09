@@ -9,18 +9,17 @@ defmodule KsefHub.XadesSigner.Xmlsec1 do
 
   require Logger
 
+  alias KsefHub.SecureTemp
   alias KsefHub.XadesSigner.AuthTokenRequest
-
-  @cmd_timeout 30_000
 
   @impl true
   def sign_challenge(challenge, nip, certificate_data, certificate_password) do
     xml_template = build_auth_token_request(challenge, nip)
 
-    cert_path = write_secure_temp(certificate_data, "cert.p12")
-    password_path = write_secure_temp(certificate_password, "password.txt")
-    xml_path = write_secure_temp(xml_template, "request.xml")
-    signed_path = temp_path("signed.xml")
+    cert_path = SecureTemp.write(certificate_data, "cert.p12")
+    password_path = SecureTemp.write(certificate_password, "password.txt")
+    xml_path = SecureTemp.write(xml_template, "request.xml")
+    signed_path = SecureTemp.path("signed.xml")
 
     try do
       args = [
@@ -34,49 +33,27 @@ defmodule KsefHub.XadesSigner.Xmlsec1 do
         xml_path
       ]
 
-      case System.cmd("xmlsec1", args, timeout: @cmd_timeout, stderr_to_stdout: true) do
-        {_output, 0} ->
+      task = Task.async(fn -> System.cmd("xmlsec1", args, stderr_to_stdout: true) end)
+
+      case Task.yield(task, 30_000) || Task.shutdown(task, :brutal_kill) do
+        {:ok, {_output, 0}} ->
           {:ok, File.read!(signed_path)}
 
-        {output, exit_code} ->
+        {:ok, {output, exit_code}} ->
           Logger.error("xmlsec1 failed (exit #{exit_code}): #{output}")
           {:error, {:xmlsec1_failed, exit_code, output}}
+
+        nil ->
+          Logger.error("xmlsec1 timed out after 30s")
+          {:error, :timeout}
       end
     after
-      Enum.each([cert_path, password_path, xml_path, signed_path], &secure_delete/1)
+      Enum.each([cert_path, password_path, xml_path, signed_path], &SecureTemp.delete/1)
     end
   end
 
+  @spec build_auth_token_request(String.t(), String.t()) :: String.t()
   defp build_auth_token_request(challenge, nip) do
     AuthTokenRequest.build(challenge, nip)
-  end
-
-  defp write_secure_temp(content, suffix) do
-    path = temp_path(suffix)
-    File.write!(path, content)
-    File.chmod!(path, 0o600)
-    path
-  end
-
-  defp temp_path(suffix) do
-    random = Base.url_encode64(:crypto.strong_rand_bytes(8), padding: false)
-    Path.join(System.tmp_dir!(), "ksef_#{random}_#{suffix}")
-  end
-
-  defp secure_delete(path) do
-    if File.exists?(path) do
-      # Overwrite with zeros before deletion
-      case File.stat(path) do
-        {:ok, %{size: size}} when size > 0 ->
-          File.write(path, :binary.copy(<<0>>, size))
-
-        _ ->
-          :ok
-      end
-
-      File.rm(path)
-    end
-  rescue
-    _ -> :ok
   end
 end
