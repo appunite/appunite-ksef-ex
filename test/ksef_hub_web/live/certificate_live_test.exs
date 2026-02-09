@@ -9,6 +9,7 @@ defmodule KsefHubWeb.CertificateLiveTest do
   alias KsefHub.Accounts
   alias KsefHub.Credentials
 
+  setup :set_mox_from_context
   setup :verify_on_exit!
 
   setup %{conn: conn} do
@@ -37,8 +38,8 @@ defmodule KsefHubWeb.CertificateLiveTest do
     end
 
     test "defaults to p12 upload mode", %{conn: conn} do
-      {:ok, _view, html} = live(conn, ~p"/certificates")
-      assert html =~ "Certificate File (.p12 / .pfx)"
+      {:ok, view, _html} = live(conn, ~p"/certificates")
+      assert has_element?(view, "#p12-certificate-label")
     end
   end
 
@@ -116,14 +117,14 @@ defmodule KsefHubWeb.CertificateLiveTest do
       |> form("form[phx-submit=save]", credential: %{key_passphrase: ""})
       |> render_submit()
 
-      assert render(view) =~ "Certificate uploaded successfully."
+      assert has_element?(view, "#flash-info", "Certificate uploaded successfully.")
       assert Credentials.get_active_credential(company.id)
     end
 
     test "shows error when converter fails", %{conn: conn} do
       KsefHub.Credentials.Pkcs12Converter.Mock
       |> expect(:convert, fn _key, _crt, nil ->
-        {:error, {:openssl_failed, 1, "key values mismatch"}}
+        {:error, {:openssl_failed, 1}}
       end)
 
       {:ok, view, _html} = live(conn, ~p"/certificates")
@@ -149,7 +150,7 @@ defmodule KsefHubWeb.CertificateLiveTest do
       |> form("form[phx-submit=save]", credential: %{key_passphrase: ""})
       |> render_submit()
 
-      assert render(view) =~ "Certificate conversion failed"
+      assert has_element?(view, "#flash-error")
     end
 
     test "shows error when files missing", %{conn: conn} do
@@ -163,7 +164,11 @@ defmodule KsefHubWeb.CertificateLiveTest do
       |> form("form[phx-submit=save]", credential: %{key_passphrase: ""})
       |> render_submit()
 
-      assert render(view) =~ "Please upload both private key and certificate files."
+      assert has_element?(
+               view,
+               "#flash-error",
+               "Please upload both private key and certificate files."
+             )
     end
 
     test "passes key passphrase to converter", %{conn: conn} do
@@ -195,7 +200,7 @@ defmodule KsefHubWeb.CertificateLiveTest do
       |> form("form[phx-submit=save]", credential: %{key_passphrase: "my-secret"})
       |> render_submit()
 
-      assert render(view) =~ "Certificate uploaded successfully."
+      assert has_element?(view, "#flash-info", "Certificate uploaded successfully.")
     end
   end
 

@@ -33,13 +33,19 @@ defmodule KsefHub.XadesSigner.Xmlsec1 do
         xml_path
       ]
 
-      case System.cmd("xmlsec1", args, stderr_to_stdout: true) do
-        {_output, 0} ->
+      task = Task.async(fn -> System.cmd("xmlsec1", args, stderr_to_stdout: true) end)
+
+      case Task.yield(task, 30_000) || Task.shutdown(task, :brutal_kill) do
+        {:ok, {_output, 0}} ->
           {:ok, File.read!(signed_path)}
 
-        {output, exit_code} ->
+        {:ok, {output, exit_code}} ->
           Logger.error("xmlsec1 failed (exit #{exit_code}): #{output}")
           {:error, {:xmlsec1_failed, exit_code, output}}
+
+        nil ->
+          Logger.error("xmlsec1 timed out after 30s")
+          {:error, :timeout}
       end
     after
       Enum.each([cert_path, password_path, xml_path, signed_path], &SecureTemp.delete/1)

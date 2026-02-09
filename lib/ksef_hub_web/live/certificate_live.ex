@@ -11,6 +11,8 @@ defmodule KsefHubWeb.CertificateLive do
   alias KsefHub.Credentials
   alias KsefHub.Credentials.Encryption
 
+  @doc "Initializes the certificate management LiveView with upload configurations."
+  @spec mount(map(), map(), Phoenix.LiveView.Socket.t()) :: {:ok, Phoenix.LiveView.Socket.t()}
   @impl true
   def mount(_params, _session, socket) do
     socket =
@@ -38,6 +40,9 @@ defmodule KsefHubWeb.CertificateLive do
     {:ok, socket}
   end
 
+  @doc "Handles form validation, upload mode toggle, save, and deactivate events."
+  @spec handle_event(String.t(), map(), Phoenix.LiveView.Socket.t()) ::
+          {:noreply, Phoenix.LiveView.Socket.t()}
   @impl true
   def handle_event("validate", %{"credential" => params}, socket) do
     {:noreply, assign(socket, form: to_form(params, as: :credential))}
@@ -45,7 +50,12 @@ defmodule KsefHubWeb.CertificateLive do
 
   @impl true
   def handle_event("toggle_upload_mode", %{"mode" => mode}, socket) do
-    new_mode = String.to_existing_atom(mode)
+    new_mode =
+      case mode do
+        "p12" -> :p12
+        "key_crt" -> :key_crt
+        _ -> socket.assigns.upload_mode
+      end
 
     socket =
       socket
@@ -189,9 +199,10 @@ defmodule KsefHubWeb.CertificateLive do
   defp non_empty_or_nil(value), do: value
 
   @spec format_error(term()) :: String.t()
-  defp format_error({:openssl_failed, _code, output}), do: String.slice(output, 0, 200)
+  defp format_error({:openssl_failed, code}), do: "openssl exited with code #{code}"
   defp format_error(reason), do: inspect(reason)
 
+  @spec pkcs12_converter() :: module()
   defp pkcs12_converter do
     Application.get_env(:ksef_hub, :pkcs12_converter, KsefHub.Credentials.Pkcs12Converter.Openssl)
   end
@@ -212,6 +223,8 @@ defmodule KsefHubWeb.CertificateLive do
     |> stream(:credentials, credentials, reset: true)
   end
 
+  @doc "Renders the certificate management view."
+  @spec render(map()) :: Phoenix.LiveView.Rendered.t()
   @impl true
   def render(assigns) do
     ~H"""
@@ -271,11 +284,19 @@ defmodule KsefHubWeb.CertificateLive do
           </button>
         </div>
 
-        <form phx-submit="save" phx-change="validate" class="space-y-4">
+        <.form
+          for={@form}
+          phx-submit="save"
+          phx-change="validate"
+          class="space-y-4"
+          id="certificate-upload"
+        >
           <!-- P12 upload -->
           <div :if={@upload_mode == :p12} class="form-control">
             <label class="label">
-              <span class="label-text">Certificate File (.p12 / .pfx)</span>
+              <span id="p12-certificate-label" class="label-text">
+                Certificate File (.p12 / .pfx)
+              </span>
             </label>
             <div
               class="border-2 border-dashed border-base-300 rounded-lg p-6 text-center"
@@ -370,7 +391,7 @@ defmodule KsefHubWeb.CertificateLive do
           <button type="submit" class="btn btn-primary">
             <.icon name="hero-arrow-up-tray" class="size-4" /> Upload Certificate
           </button>
-        </form>
+        </.form>
       </div>
     </div>
 
