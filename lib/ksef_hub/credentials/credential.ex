@@ -1,5 +1,10 @@
 defmodule KsefHub.Credentials.Credential do
-  @moduledoc "KSeF credential schema. Stores certificate data and session tokens."
+  @moduledoc """
+  KSeF credential schema. Stores company-level sync configuration and session tokens.
+
+  Certificate data has been moved to `UserCertificate` (user-scoped) per ADR 0012.
+  This table retains the NIP, token state, and sync timestamps.
+  """
 
   use Ecto.Schema
   import Ecto.Changeset
@@ -11,10 +16,6 @@ defmodule KsefHub.Credentials.Credential do
 
   schema "ksef_credentials" do
     field :nip, :string
-    field :certificate_data_encrypted, :binary
-    field :certificate_password_encrypted, :binary
-    field :certificate_expires_at, :date
-    field :certificate_subject, :string
     field :last_sync_at, :utc_datetime_usec
     field :is_active, :boolean, default: true
     field :refresh_token_encrypted, :binary
@@ -27,23 +28,21 @@ defmodule KsefHub.Credentials.Credential do
     timestamps()
   end
 
+  @cast_fields [
+    :nip,
+    :last_sync_at,
+    :is_active,
+    :refresh_token_encrypted,
+    :refresh_token_expires_at,
+    :access_token_encrypted,
+    :access_token_expires_at
+  ]
+
   @doc "Builds a changeset for credential creation/update."
   @spec changeset(t() | Ecto.Changeset.t(), map()) :: Ecto.Changeset.t()
   def changeset(credential, attrs) do
     credential
-    |> cast(attrs, [
-      :nip,
-      :certificate_data_encrypted,
-      :certificate_password_encrypted,
-      :certificate_expires_at,
-      :certificate_subject,
-      :last_sync_at,
-      :is_active,
-      :refresh_token_encrypted,
-      :refresh_token_expires_at,
-      :access_token_encrypted,
-      :access_token_expires_at
-    ])
+    |> cast(attrs, @cast_fields)
     |> validate_required([:nip, :company_id])
     |> validate_format(:nip, ~r/^\d{10}$/, message: "must be a 10-digit NIP")
     |> foreign_key_constraint(:company_id)

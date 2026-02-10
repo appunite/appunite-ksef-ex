@@ -153,18 +153,18 @@ defmodule KsefHubWeb.CompanyLive.Index do
         <:col :let={company} label="NIP">
           <span class="font-mono">{company.nip}</span>
         </:col>
-        <:col :let={company} label="Certificate">
+        <:col :let={company} label="KSeF Sync">
           <span
             :if={company.has_active_credential}
             class="inline-flex items-center px-2 py-0.5 rounded-md text-xs font-medium border bg-success/10 text-success border-success/20"
           >
-            Active
+            Configured
           </span>
           <span
             :if={!company.has_active_credential}
             class="inline-flex items-center px-2 py-0.5 rounded-md text-xs font-medium border bg-base-200 text-base-content/60 border-base-300"
           >
-            None
+            Not configured
           </span>
         </:col>
         <:col :let={company} label="Status">

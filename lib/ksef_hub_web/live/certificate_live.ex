@@ -2,6 +2,10 @@ defmodule KsefHubWeb.CertificateLive do
   @moduledoc """
   LiveView for managing PKCS12 certificates used for KSeF authentication.
 
+  Certificates are stored at the user level (user_certificates table) since
+  a KSeF person certificate is tied to the individual, not a company.
+  The credential (company-level) stores only sync config (NIP, tokens).
+
   Supports two upload modes:
   - `:p12` — upload a single .p12/.pfx file (existing flow)
   - `:key_crt` — upload separate .key + .crt files (server-side conversion to PKCS12)
@@ -11,7 +15,7 @@ defmodule KsefHubWeb.CertificateLive do
   require Logger
 
   alias KsefHub.Credentials
-  alias KsefHub.Credentials.Encryption
+  alias KsefHub.Credentials.{Encryption, UserCertificate}
   alias KsefHub.KsefClient.AuthWorker
 
   @doc "Initializes the certificate management LiveView with upload configurations."
@@ -38,7 +42,7 @@ defmodule KsefHubWeb.CertificateLive do
         max_entries: 1,
         max_file_size: 1_000_000
       )
-      |> load_credentials()
+      |> load_certificate_data()
 
     {:ok, socket}
   end
@@ -82,24 +86,24 @@ defmodule KsefHubWeb.CertificateLive do
   end
 
   @impl true
-  def handle_event("remove_certificate", %{"id" => id}, socket) do
-    company_id = socket.assigns.current_company && socket.assigns.current_company.id
+  def handle_event("remove_certificate", _params, socket) do
+    user = socket.assigns.current_user
 
-    with {:ok, uuid} <- Ecto.UUID.cast(id),
-         %{} = credential <- Credentials.get_credential(uuid),
-         true <- credential.company_id == company_id do
-      case Credentials.deactivate_credential(credential) do
-        {:ok, _} ->
-          {:noreply,
-           socket
-           |> put_flash(:info, "Certificate removed.")
-           |> load_credentials()}
+    case Credentials.get_active_user_certificate(user.id) do
+      nil ->
+        {:noreply, put_flash(socket, :error, "No active certificate found.")}
 
-        {:error, _} ->
-          {:noreply, put_flash(socket, :error, "Failed to remove certificate.")}
-      end
-    else
-      _ -> {:noreply, put_flash(socket, :error, "Certificate not found.")}
+      cert ->
+        case Credentials.deactivate_user_certificate(cert) do
+          {:ok, _} ->
+            {:noreply,
+             socket
+             |> put_flash(:info, "Certificate removed.")
+             |> load_certificate_data()}
+
+          {:error, _} ->
+            {:noreply, put_flash(socket, :error, "Failed to remove certificate.")}
+        end
     end
   end
 
@@ -110,7 +114,7 @@ defmodule KsefHubWeb.CertificateLive do
   defp save_p12(socket, params) do
     case consume_single_upload(socket, :certificate) do
       {:ok, cert_data} ->
-        save_credential(socket, cert_data, params["password"] || "")
+        save_certificate(socket, cert_data, params["password"] || "")
 
       {:error, :no_file} ->
         {:noreply, put_flash(socket, :error, "Please upload a certificate file.")}
@@ -131,7 +135,7 @@ defmodule KsefHubWeb.CertificateLive do
 
       case pkcs12_converter().convert(key_data, crt_data, key_passphrase) do
         {:ok, %{p12_data: p12_data, p12_password: p12_password}} ->
-          save_credential(socket, p12_data, p12_password)
+          save_certificate(socket, p12_data, p12_password)
 
         {:error, reason} ->
           {:noreply, put_flash(socket, :error, format_error(reason))}
@@ -166,13 +170,14 @@ defmodule KsefHubWeb.CertificateLive do
     end
   end
 
-  @spec save_credential(Phoenix.LiveView.Socket.t(), binary(), String.t()) ::
+  @spec save_certificate(Phoenix.LiveView.Socket.t(), binary(), String.t()) ::
           {:noreply, Phoenix.LiveView.Socket.t()}
-  defp save_credential(%{assigns: %{current_company: nil}} = socket, _cert_data, _password) do
-    {:noreply, socket |> put_flash(:error, "No company selected.") |> load_credentials()}
+  defp save_certificate(%{assigns: %{current_company: nil}} = socket, _cert_data, _password) do
+    {:noreply, socket |> put_flash(:error, "No company selected.") |> load_certificate_data()}
   end
 
-  defp save_credential(socket, cert_data, password) do
+  defp save_certificate(socket, cert_data, password) do
+    user = socket.assigns.current_user
     company = socket.assigns.current_company
     cert_meta = extract_certificate_info(cert_data, password)
 
@@ -181,13 +186,13 @@ defmodule KsefHubWeb.CertificateLive do
       attrs =
         %{
           certificate_data_encrypted: encrypted_cert,
-          certificate_password_encrypted: encrypted_password,
-          is_active: true
+          certificate_password_encrypted: encrypted_password
         }
         |> Map.merge(cert_meta)
 
-      case Credentials.replace_active_credential(company.id, attrs) do
-        {:ok, _credential} ->
+      case Credentials.replace_active_user_certificate(user.id, attrs) do
+        {:ok, _user_cert} ->
+          ensure_credential_exists(company)
           enqueue_auth(company.id)
 
           {:noreply,
@@ -195,17 +200,35 @@ defmodule KsefHubWeb.CertificateLive do
            |> put_flash(:info, "Certificate uploaded successfully.")
            |> assign(form: to_form(%{"password" => ""}, as: :credential))
            |> assign(show_upload_form: false)
-           |> load_credentials()}
+           |> load_certificate_data()}
 
-        {:error, changeset} ->
-          {:noreply,
-           socket
-           |> put_flash(:error, "Failed to save certificate.")
-           |> assign(form: to_form(changeset, as: :credential))}
+        {:error, _changeset} ->
+          {:noreply, put_flash(socket, :error, "Failed to save certificate.")}
       end
     else
       {:error, _} ->
         {:noreply, put_flash(socket, :error, "Encryption failed.")}
+    end
+  end
+
+  @spec ensure_credential_exists(KsefHub.Companies.Company.t()) :: :ok
+  defp ensure_credential_exists(company) do
+    case Credentials.get_active_credential(company.id) do
+      nil ->
+        case Credentials.replace_active_credential(company.id, %{}) do
+          {:ok, _credential} ->
+            :ok
+
+          {:error, changeset} ->
+            Logger.warning(
+              "Failed to create credential for company #{company.id}: #{inspect(changeset.errors)}"
+            )
+
+            :ok
+        end
+
+      _credential ->
+        :ok
     end
   end
 
@@ -228,14 +251,20 @@ defmodule KsefHubWeb.CertificateLive do
   @spec extract_certificate_info(binary(), String.t()) :: map()
   defp extract_certificate_info(cert_data, password) do
     case certificate_info().extract(cert_data, password) do
-      {:ok, %{subject: subject, expires_at: expires_at}} ->
-        %{certificate_subject: subject, certificate_expires_at: expires_at}
+      {:ok, info} ->
+        %{certificate_subject: info.subject}
+        |> put_if_present(:not_before, Map.get(info, :not_before))
+        |> put_if_present(:not_after, Map.get(info, :expires_at))
 
       {:error, _reason} ->
         Logger.warning("Failed to extract certificate info")
         %{}
     end
   end
+
+  @spec put_if_present(map(), atom(), term()) :: map()
+  defp put_if_present(map, _key, nil), do: map
+  defp put_if_present(map, key, value), do: Map.put(map, key, value)
 
   @spec pkcs12_converter() :: module()
   defp pkcs12_converter do
@@ -259,18 +288,25 @@ defmodule KsefHubWeb.CertificateLive do
     end
   end
 
-  @spec load_credentials(Phoenix.LiveView.Socket.t()) :: Phoenix.LiveView.Socket.t()
-  defp load_credentials(%{assigns: %{current_company: nil}} = socket) do
+  @spec load_certificate_data(Phoenix.LiveView.Socket.t()) :: Phoenix.LiveView.Socket.t()
+  defp load_certificate_data(%{assigns: %{current_company: nil}} = socket) do
     socket
-    |> assign(active_credential: nil, show_upload_form: true)
+    |> assign(user_certificate: nil, active_credential: nil, show_upload_form: true)
   end
 
-  defp load_credentials(%{assigns: %{current_company: company}} = socket) do
-    active = Credentials.get_active_credential(company.id)
-    show_form = socket.assigns[:show_upload_form] || is_nil(active)
+  defp load_certificate_data(socket) do
+    user = socket.assigns.current_user
+    company = socket.assigns.current_company
+    user_cert = Credentials.get_active_user_certificate(user.id)
+    credential = Credentials.get_active_credential(company.id)
+    show_form = socket.assigns[:show_upload_form] || is_nil(user_cert)
 
     socket
-    |> assign(active_credential: active, show_upload_form: show_form)
+    |> assign(
+      user_certificate: user_cert,
+      active_credential: credential,
+      show_upload_form: show_form
+    )
   end
 
   @doc "Renders the certificate management view."
@@ -279,33 +315,43 @@ defmodule KsefHubWeb.CertificateLive do
   def render(assigns) do
     ~H"""
     <.header>
-      Certificates
-      <:subtitle>Manage KSeF certificates for authentication</:subtitle>
+      Certificate
+      <:subtitle>Your personal KSeF certificate — used for all your companies</:subtitle>
     </.header>
 
     <!-- Current Certificate -->
     <div
-      :if={@active_credential}
+      :if={@user_certificate}
       id="current-certificate"
       class="card bg-base-100 border border-base-300 mt-6"
     >
       <div class="p-5">
-        <h2 class="text-base font-semibold">Current Certificate</h2>
+        <h2 id="cert-heading" class="text-base font-semibold">Your Certificate</h2>
         <.list>
-          <:item title="NIP">{@active_credential.nip}</:item>
-          <:item :if={@active_credential.certificate_subject} title="Subject">
-            {@active_credential.certificate_subject}
+          <:item title="Issued To">
+            <span id="cert-subject">{cert_display_subject(@user_certificate)}</span>
           </:item>
-          <:item :if={@active_credential.certificate_expires_at} title="Expires">
-            {Calendar.strftime(@active_credential.certificate_expires_at, "%Y-%m-%d")}
+          <:item title="Valid From">
+            {format_cert_date(@user_certificate.not_before)}
           </:item>
-          <:item :if={@active_credential.last_sync_at} title="Last Sync">
-            {Calendar.strftime(@active_credential.last_sync_at, "%Y-%m-%d %H:%M UTC")}
+          <:item title="Valid Until">
+            <span class={cert_expiry_class(@user_certificate.not_after)}>
+              {format_cert_date(@user_certificate.not_after)}
+            </span>
+          </:item>
+          <:item :if={@user_certificate.fingerprint} title="Fingerprint">
+            <span class="font-mono text-xs">{@user_certificate.fingerprint}</span>
           </:item>
           <:item title="Uploaded">
-            {Calendar.strftime(@active_credential.inserted_at, "%Y-%m-%d %H:%M UTC")}
+            {Calendar.strftime(@user_certificate.inserted_at, "%Y-%m-%d %H:%M UTC")}
           </:item>
         </.list>
+        <p
+          :if={is_nil(@user_certificate.certificate_subject)}
+          class="text-xs text-base-content/50 mt-2"
+        >
+          Certificate details incomplete — replace to refresh metadata.
+        </p>
         <div class="flex gap-2 mt-4">
           <button
             type="button"
@@ -318,7 +364,6 @@ defmodule KsefHubWeb.CertificateLive do
           <button
             type="button"
             phx-click="remove_certificate"
-            phx-value-id={@active_credential.id}
             data-confirm="Are you sure you want to remove this certificate? This will disable KSeF sync."
             class="btn btn-sm btn-ghost text-error"
           >
@@ -330,7 +375,7 @@ defmodule KsefHubWeb.CertificateLive do
 
     <!-- Empty State -->
     <div
-      :if={!@active_credential}
+      :if={!@user_certificate}
       id="no-certificate"
       class="card bg-base-100 border border-base-300 mt-6"
     >
@@ -477,6 +522,27 @@ defmodule KsefHubWeb.CertificateLive do
       </div>
     </div>
     """
+  end
+
+  @spec cert_display_subject(UserCertificate.t()) :: String.t()
+  defp cert_display_subject(%{certificate_subject: nil}), do: "—"
+  defp cert_display_subject(%{certificate_subject: subject}), do: subject
+
+  @spec format_cert_date(Date.t() | nil) :: String.t()
+  defp format_cert_date(nil), do: "—"
+  defp format_cert_date(date), do: Calendar.strftime(date, "%Y-%m-%d")
+
+  @spec cert_expiry_class(Date.t() | nil) :: String.t()
+  defp cert_expiry_class(nil), do: ""
+
+  defp cert_expiry_class(date) do
+    days_left = Date.diff(date, Date.utc_today())
+
+    cond do
+      days_left < 0 -> "text-error font-bold"
+      days_left < 30 -> "text-warning font-semibold"
+      true -> ""
+    end
   end
 
   @spec format_bytes(non_neg_integer()) :: String.t()

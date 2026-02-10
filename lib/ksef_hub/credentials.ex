@@ -6,7 +6,9 @@ defmodule KsefHub.Credentials do
   import Ecto.Query
 
   alias Ecto.Multi
-  alias KsefHub.Credentials.Credential
+  alias KsefHub.Accounts.User
+  alias KsefHub.Companies.Membership
+  alias KsefHub.Credentials.{Credential, UserCertificate}
   alias KsefHub.Repo
 
   @doc "Fetches a credential by ID, raising if not found."
@@ -133,5 +135,86 @@ defmodule KsefHub.Credentials do
           {:ok, Credential.t()} | {:error, Ecto.Changeset.t()}
   def store_tokens(%Credential{} = credential, attrs) do
     update_credential(credential, attrs)
+  end
+
+  # ---------------------------------------------------------------------------
+  # User Certificates
+  # ---------------------------------------------------------------------------
+
+  @doc "Returns the active user certificate for a user, or nil."
+  @spec get_active_user_certificate(Ecto.UUID.t()) :: UserCertificate.t() | nil
+  def get_active_user_certificate(user_id) do
+    UserCertificate
+    |> where([uc], uc.user_id == ^user_id and uc.is_active == true)
+    |> order_by([uc], desc: uc.inserted_at)
+    |> limit(1)
+    |> Repo.one()
+  end
+
+  @doc """
+  Creates a user certificate. The `user_id` is set from the user struct
+  to prevent mass assignment.
+  """
+  @spec create_user_certificate(User.t(), map()) ::
+          {:ok, UserCertificate.t()} | {:error, Ecto.Changeset.t()}
+  def create_user_certificate(%User{} = user, attrs) do
+    %UserCertificate{user_id: user.id}
+    |> UserCertificate.changeset(attrs)
+    |> Repo.insert()
+  end
+
+  @doc """
+  Atomically deactivates any existing active certificate for the user
+  and creates a new active one.
+  """
+  @spec replace_active_user_certificate(Ecto.UUID.t(), map()) ::
+          {:ok, UserCertificate.t()} | {:error, Ecto.Changeset.t()}
+  def replace_active_user_certificate(user_id, attrs) do
+    attrs = Map.put(attrs, :is_active, true)
+
+    changeset =
+      %UserCertificate{user_id: user_id}
+      |> UserCertificate.changeset(attrs)
+
+    multi =
+      Multi.new()
+      |> Multi.run(:deactivate, fn _repo, _changes ->
+        case get_active_user_certificate(user_id) do
+          nil -> {:ok, nil}
+          existing -> deactivate_user_certificate(existing)
+        end
+      end)
+      |> Multi.insert(:certificate, changeset)
+
+    case Repo.transaction(multi) do
+      {:ok, %{certificate: certificate}} -> {:ok, certificate}
+      {:error, :certificate, changeset, _changes} -> {:error, changeset}
+      {:error, :deactivate, changeset, _changes} -> {:error, changeset}
+    end
+  end
+
+  @doc """
+  Finds the active certificate for a company by joining through memberships
+  to the company's owner's user certificate.
+  """
+  @spec get_certificate_for_company(Ecto.UUID.t()) :: UserCertificate.t() | nil
+  def get_certificate_for_company(company_id) do
+    UserCertificate
+    |> join(:inner, [uc], m in Membership,
+      on: m.user_id == uc.user_id and m.company_id == ^company_id and m.role == "owner"
+    )
+    |> where([uc], uc.is_active == true)
+    |> order_by([uc], desc: uc.inserted_at)
+    |> limit(1)
+    |> Repo.one()
+  end
+
+  @doc "Deactivates a user certificate."
+  @spec deactivate_user_certificate(UserCertificate.t()) ::
+          {:ok, UserCertificate.t()} | {:error, Ecto.Changeset.t()}
+  def deactivate_user_certificate(%UserCertificate{} = cert) do
+    cert
+    |> UserCertificate.changeset(%{is_active: false})
+    |> Repo.update()
   end
 end

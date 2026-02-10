@@ -68,17 +68,36 @@ defmodule KsefHubWeb.CertificateLiveTest do
       assert has_element?(view, "#upload-form")
     end
 
-    test "shows current certificate when exists", %{conn: conn, company: company} do
-      insert(:credential, company: company, nip: company.nip, is_active: true)
+    test "shows current certificate when user has active cert", %{conn: conn, user: user} do
+      insert(:user_certificate,
+        user: user,
+        is_active: true,
+        certificate_subject: "CN=Test Cert"
+      )
 
       {:ok, view, _html} = live(conn, ~p"/certificates")
       assert has_element?(view, "#current-certificate")
-      assert render(view) =~ "Current Certificate"
-      assert render(view) =~ company.nip
+      assert has_element?(view, "#cert-heading", "Your Certificate")
+      assert has_element?(view, "#cert-subject", "CN=Test Cert")
     end
 
-    test "hides upload form when certificate exists", %{conn: conn, company: company} do
-      insert(:credential, company: company, nip: company.nip, is_active: true)
+    test "shows refresh hint when certificate has no metadata", %{conn: conn, user: user} do
+      insert(:user_certificate,
+        user: user,
+        is_active: true,
+        certificate_subject: nil,
+        not_before: nil,
+        not_after: nil,
+        fingerprint: nil
+      )
+
+      {:ok, view, _html} = live(conn, ~p"/certificates")
+      assert has_element?(view, "#current-certificate")
+      assert render(view) =~ "replace to refresh metadata"
+    end
+
+    test "hides upload form when user has active certificate", %{conn: conn, user: user} do
+      insert(:user_certificate, user: user, is_active: true)
 
       {:ok, view, _html} = live(conn, ~p"/certificates")
       refute has_element?(view, "#upload-form")
@@ -122,8 +141,8 @@ defmodule KsefHubWeb.CertificateLiveTest do
   end
 
   describe "toggle upload form" do
-    test "shows upload form when Replace Certificate clicked", %{conn: conn, company: company} do
-      insert(:credential, company: company, nip: company.nip, is_active: true)
+    test "shows upload form when Replace Certificate clicked", %{conn: conn, user: user} do
+      insert(:user_certificate, user: user, is_active: true)
 
       {:ok, view, _html} = live(conn, ~p"/certificates")
       refute has_element?(view, "#upload-form")
@@ -135,8 +154,8 @@ defmodule KsefHubWeb.CertificateLiveTest do
       assert has_element?(view, "#upload-form")
     end
 
-    test "hides upload form when Cancel clicked", %{conn: conn, company: company} do
-      insert(:credential, company: company, nip: company.nip, is_active: true)
+    test "hides upload form when Cancel clicked", %{conn: conn, user: user} do
+      insert(:user_certificate, user: user, is_active: true)
 
       {:ok, view, _html} = live(conn, ~p"/certificates")
 
@@ -170,7 +189,7 @@ defmodule KsefHubWeb.CertificateLiveTest do
   end
 
   describe "save with key_crt mode" do
-    test "converts and saves credential", %{conn: conn, company: company} do
+    test "converts and saves user certificate", %{conn: conn, user: user} do
       KsefHub.Credentials.Pkcs12Converter.Mock
       |> expect(:convert, fn _key, _crt, nil ->
         {:ok, %{p12_data: "fake-p12-binary", p12_password: "generated-pass"}}
@@ -202,10 +221,10 @@ defmodule KsefHubWeb.CertificateLiveTest do
 
       assert has_element?(view, "#flash-info", "Certificate uploaded successfully.")
 
-      cred = Credentials.get_active_credential(company.id)
-      assert cred
-      assert cred.certificate_subject == "CN=Test, O=TestOrg"
-      assert cred.certificate_expires_at == ~D[2026-12-31]
+      cert = Credentials.get_active_user_certificate(user.id)
+      assert cert
+      assert cert.certificate_subject == "CN=Test, O=TestOrg"
+      assert cert.not_after == ~D[2026-12-31]
     end
 
     test "hides upload form after successful upload", %{conn: conn} do
@@ -324,8 +343,8 @@ defmodule KsefHubWeb.CertificateLiveTest do
   end
 
   describe "remove certificate" do
-    test "removes a credential", %{conn: conn, company: company} do
-      cred = insert(:credential, company: company, nip: company.nip, is_active: true)
+    test "deactivates the user certificate", %{conn: conn, user: user} do
+      cert = insert(:user_certificate, user: user, is_active: true)
 
       {:ok, view, _html} = live(conn, ~p"/certificates")
 
@@ -333,8 +352,9 @@ defmodule KsefHubWeb.CertificateLiveTest do
       |> element(~s(button[phx-click="remove_certificate"]))
       |> render_click()
 
-      updated = Credentials.get_credential!(cred.id)
-      refute updated.is_active
+      # Certificate should be deactivated
+      reloaded = KsefHub.Repo.get!(Credentials.UserCertificate, cert.id)
+      refute reloaded.is_active
 
       assert has_element?(view, "#no-certificate")
       refute has_element?(view, "#current-certificate")

@@ -25,18 +25,19 @@ defmodule KsefHub.Credentials.CertificateInfo.Openssl do
   alias KsefHub.SecureTemp
 
   @doc """
-  Extracts the subject and expiry date from a PKCS12 binary.
+  Extracts certificate metadata (subject, validity start, expiry) from a PKCS12 binary.
 
   Writes the PKCS12 data and password to secure temp files, invokes
   `openssl pkcs12` to extract the PEM certificate, then parses it
   with Erlang's `:public_key` module.
 
-  Returns `{:ok, %{subject: String.t(), expires_at: Date.t()}}` on success,
+  Returns `{:ok, %{subject: String.t(), not_before: Date.t(), expires_at: Date.t()}}` on success,
   or `{:error, term()}` on failure.
   """
   @impl true
   @spec extract(binary(), String.t()) ::
-          {:ok, %{subject: String.t(), expires_at: Date.t()}} | {:error, term()}
+          {:ok, %{subject: String.t(), not_before: Date.t(), expires_at: Date.t()}}
+          | {:error, term()}
   def extract(p12_data, password) do
     p12_path = SecureTemp.write(p12_data, "cert.p12")
     pass_path = SecureTemp.write(password, "pass.txt")
@@ -97,18 +98,20 @@ defmodule KsefHub.Credentials.CertificateInfo.Openssl do
   end
 
   @spec parse_certificate(:public_key.der_encoded()) ::
-          {:ok, %{subject: String.t(), expires_at: Date.t()}} | {:error, term()}
+          {:ok, %{subject: String.t(), not_before: Date.t(), expires_at: Date.t()}}
+          | {:error, term()}
   defp parse_certificate(der) do
     cert = :public_key.pkix_decode_cert(der, :otp)
     tbs = otp_certificate(cert, :tbsCertificate)
     validity = otp_tbscertificate(tbs, :validity)
     subject = otp_tbscertificate(tbs, :subject)
 
-    {:Validity, _not_before, not_after} = validity
+    {:Validity, not_before_raw, not_after_raw} = validity
     subject_string = format_subject(subject)
-    expires_at = parse_validity_time(not_after)
+    not_before = parse_validity_time(not_before_raw)
+    expires_at = parse_validity_time(not_after_raw)
 
-    {:ok, %{subject: subject_string, expires_at: expires_at}}
+    {:ok, %{subject: subject_string, not_before: not_before, expires_at: expires_at}}
   rescue
     _e ->
       Logger.warning("Failed to parse certificate")

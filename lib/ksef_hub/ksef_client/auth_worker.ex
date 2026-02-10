@@ -19,8 +19,9 @@ defmodule KsefHub.KsefClient.AuthWorker do
   @spec perform(Oban.Job.t()) :: :ok | {:error, term()} | {:cancel, term()}
   def perform(%Oban.Job{args: %{"company_id" => company_id}}) do
     with {:ok, credential} <- load_credential(company_id),
-         {:ok, cert_data} <- Encryption.decrypt(credential.certificate_data_encrypted),
-         {:ok, password} <- Encryption.decrypt(credential.certificate_password_encrypted),
+         {:ok, user_cert} <- load_certificate(company_id),
+         {:ok, cert_data} <- Encryption.decrypt(user_cert.certificate_data_encrypted),
+         {:ok, password} <- Encryption.decrypt(user_cert.certificate_password_encrypted),
          {:ok, tokens} <- Auth.authenticate(credential.nip, cert_data, password) do
       TokenManager.store_tokens(
         company_id,
@@ -37,6 +38,11 @@ defmodule KsefHub.KsefClient.AuthWorker do
         Logger.warning("AuthWorker: no active credential for company #{company_id}, cancelling")
         {:cancel, :no_credential}
 
+      {:error, :no_certificate} ->
+        Logger.warning("AuthWorker: no owner certificate for company #{company_id}, cancelling")
+
+        {:cancel, :no_certificate}
+
       {:error, reason} ->
         Logger.error(
           "AuthWorker: authentication failed for company #{company_id}: #{inspect(reason)}"
@@ -52,6 +58,15 @@ defmodule KsefHub.KsefClient.AuthWorker do
     case Credentials.get_active_credential(company_id) do
       nil -> {:error, :no_credential}
       credential -> {:ok, credential}
+    end
+  end
+
+  @spec load_certificate(Ecto.UUID.t()) ::
+          {:ok, Credentials.UserCertificate.t()} | {:error, :no_certificate}
+  defp load_certificate(company_id) do
+    case Credentials.get_certificate_for_company(company_id) do
+      nil -> {:error, :no_certificate}
+      cert -> {:ok, cert}
     end
   end
 end

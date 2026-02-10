@@ -6,6 +6,7 @@ defmodule KsefHub.Sync.SyncWorkerTest do
   import KsefHub.Factory
 
   alias KsefHub.Credentials
+  alias KsefHub.Credentials.Encryption
   alias KsefHub.KsefClient.TokenManager
   alias KsefHub.Sync.SyncWorker
 
@@ -13,7 +14,9 @@ defmodule KsefHub.Sync.SyncWorkerTest do
 
   setup do
     company = insert(:company, nip: "1234567890")
-    %{company: company}
+    user = insert(:user)
+    insert(:membership, user: user, company: company, role: "owner")
+    %{company: company, user: user}
   end
 
   describe "perform/1" do
@@ -21,14 +24,37 @@ defmodule KsefHub.Sync.SyncWorkerTest do
       assert :ok = SyncWorker.perform(%Oban.Job{args: %{"company_id" => company.id}})
     end
 
-    test "syncs invoices when credential and tokens are available", %{company: company} do
-      # Create credential
+    test "skips sync when no owner certificate", %{company: company} do
+      {:ok, _cred} =
+        Credentials.create_credential(%{
+          nip: company.nip,
+          company_id: company.id,
+          is_active: true
+        })
+
+      assert :ok = SyncWorker.perform(%Oban.Job{args: %{"company_id" => company.id}})
+    end
+
+    test "syncs invoices when credential, certificate, and tokens are available", %{
+      company: company,
+      user: user
+    } do
+      {:ok, encrypted_cert} = Encryption.encrypt("cert-data")
+      {:ok, encrypted_pass} = Encryption.encrypt("cert-pass")
+
       {:ok, cred} =
         Credentials.create_credential(%{
           nip: company.nip,
           company_id: company.id,
           is_active: true
         })
+
+      insert(:user_certificate,
+        user: user,
+        certificate_data_encrypted: encrypted_cert,
+        certificate_password_encrypted: encrypted_pass,
+        is_active: true
+      )
 
       # Store valid tokens via TokenManager
       future = DateTime.add(DateTime.utc_now(), 600)
@@ -53,8 +79,10 @@ defmodule KsefHub.Sync.SyncWorkerTest do
       assert updated.last_sync_at != nil
     end
 
-    test "downloads and upserts invoices from KSeF", %{company: company} do
+    test "downloads and upserts invoices from KSeF", %{company: company, user: user} do
       xml = File.read!("test/support/fixtures/sample_income.xml")
+      {:ok, encrypted_cert} = Encryption.encrypt("cert-data")
+      {:ok, encrypted_pass} = Encryption.encrypt("cert-pass")
 
       {:ok, _cred} =
         Credentials.create_credential(%{
@@ -62,6 +90,13 @@ defmodule KsefHub.Sync.SyncWorkerTest do
           company_id: company.id,
           is_active: true
         })
+
+      insert(:user_certificate,
+        user: user,
+        certificate_data_encrypted: encrypted_cert,
+        certificate_password_encrypted: encrypted_pass,
+        is_active: true
+      )
 
       future = DateTime.add(DateTime.utc_now(), 600)
       refresh_future = DateTime.add(DateTime.utc_now(), 48 * 24 * 3600)
