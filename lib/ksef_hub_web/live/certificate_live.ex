@@ -15,7 +15,7 @@ defmodule KsefHubWeb.CertificateLive do
   require Logger
 
   alias KsefHub.Credentials
-  alias KsefHub.Credentials.Encryption
+  alias KsefHub.Credentials.{Encryption, UserCertificate}
   alias KsefHub.KsefClient.AuthWorker
 
   @doc "Initializes the certificate management LiveView with upload configurations."
@@ -328,15 +328,15 @@ defmodule KsefHubWeb.CertificateLive do
       <div class="p-5">
         <h2 class="text-base font-semibold">Your Certificate</h2>
         <.list>
-          <:item :if={@user_certificate.certificate_subject} title="Issued To">
-            {@user_certificate.certificate_subject}
+          <:item title="Issued To">
+            {cert_display_subject(@user_certificate)}
           </:item>
-          <:item :if={@user_certificate.not_before} title="Valid From">
-            {Calendar.strftime(@user_certificate.not_before, "%Y-%m-%d")}
+          <:item title="Valid From">
+            {format_cert_date(@user_certificate.not_before)}
           </:item>
-          <:item :if={@user_certificate.not_after} title="Valid Until">
+          <:item title="Valid Until">
             <span class={cert_expiry_class(@user_certificate.not_after)}>
-              {Calendar.strftime(@user_certificate.not_after, "%Y-%m-%d")}
+              {format_cert_date(@user_certificate.not_after)}
             </span>
           </:item>
           <:item :if={@user_certificate.fingerprint} title="Fingerprint">
@@ -346,6 +346,12 @@ defmodule KsefHubWeb.CertificateLive do
             {Calendar.strftime(@user_certificate.inserted_at, "%Y-%m-%d %H:%M UTC")}
           </:item>
         </.list>
+        <p
+          :if={is_nil(@user_certificate.certificate_subject)}
+          class="text-xs text-base-content/50 mt-2"
+        >
+          Certificate details incomplete — replace to refresh metadata.
+        </p>
         <div class="flex gap-2 mt-4">
           <button
             type="button"
@@ -517,6 +523,14 @@ defmodule KsefHubWeb.CertificateLive do
     </div>
     """
   end
+
+  @spec cert_display_subject(UserCertificate.t()) :: String.t()
+  defp cert_display_subject(%{certificate_subject: nil}), do: "—"
+  defp cert_display_subject(%{certificate_subject: subject}), do: subject
+
+  @spec format_cert_date(Date.t() | nil) :: String.t()
+  defp format_cert_date(nil), do: "—"
+  defp format_cert_date(date), do: Calendar.strftime(date, "%Y-%m-%d")
 
   @spec cert_expiry_class(Date.t() | nil) :: String.t()
   defp cert_expiry_class(nil), do: ""

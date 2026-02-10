@@ -81,6 +81,21 @@ defmodule KsefHubWeb.CertificateLiveTest do
       assert render(view) =~ "CN=Test Cert"
     end
 
+    test "shows refresh hint when certificate has no metadata", %{conn: conn, user: user} do
+      insert(:user_certificate,
+        user: user,
+        is_active: true,
+        certificate_subject: nil,
+        not_before: nil,
+        not_after: nil,
+        fingerprint: nil
+      )
+
+      {:ok, view, _html} = live(conn, ~p"/certificates")
+      assert has_element?(view, "#current-certificate")
+      assert render(view) =~ "replace to refresh metadata"
+    end
+
     test "hides upload form when user has active certificate", %{conn: conn, user: user} do
       insert(:user_certificate, user: user, is_active: true)
 
