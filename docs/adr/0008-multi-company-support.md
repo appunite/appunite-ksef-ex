@@ -4,7 +4,7 @@ Date: 2026-02-08
 
 ## Status
 
-Accepted
+Accepted — access model superseded by [ADR 0011](0011-per-company-rbac.md) (per-company RBAC), certificate model superseded by [ADR 0012](0012-user-scoped-certificates.md) (user-scoped certificates)
 
 ## Context
 
