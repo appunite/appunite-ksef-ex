@@ -25,11 +25,9 @@ defmodule KsefHub.KsefClient.AuthWorkerTest do
 
       # Create credential (sync config) and user certificate separately
       {:ok, _cred} =
-        Credentials.create_credential(%{
-          nip: company.nip,
-          company_id: company.id,
-          is_active: true
-        })
+        Credentials.create_credential(
+          params_for(:credential, nip: company.nip, company_id: company.id, is_active: true)
+        )
 
       insert(:user_certificate,
         user: user,
@@ -92,11 +90,9 @@ defmodule KsefHub.KsefClient.AuthWorkerTest do
 
     test "cancels when no owner certificate exists", %{company: company} do
       {:ok, _cred} =
-        Credentials.create_credential(%{
-          nip: company.nip,
-          company_id: company.id,
-          is_active: true
-        })
+        Credentials.create_credential(
+          params_for(:credential, nip: company.nip, company_id: company.id, is_active: true)
+        )
 
       assert {:cancel, :no_certificate} =
                AuthWorker.perform(%Oban.Job{args: %{"company_id" => company.id}})
@@ -110,11 +106,9 @@ defmodule KsefHub.KsefClient.AuthWorkerTest do
       {:ok, encrypted_pass} = Encryption.encrypt("cert-pass")
 
       {:ok, _cred} =
-        Credentials.create_credential(%{
-          nip: company.nip,
-          company_id: company.id,
-          is_active: true
-        })
+        Credentials.create_credential(
+          params_for(:credential, nip: company.nip, company_id: company.id, is_active: true)
+        )
 
       insert(:user_certificate,
         user: user,

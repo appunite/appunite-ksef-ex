@@ -202,6 +202,8 @@ defmodule KsefHub.Credentials do
       on: m.user_id == uc.user_id and m.company_id == ^company_id and m.role == "owner"
     )
     |> where([uc], uc.is_active == true)
+    |> order_by([uc], desc: uc.inserted_at)
+    |> limit(1)
     |> Repo.one()
   end
 

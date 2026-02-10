@@ -69,7 +69,7 @@ defmodule KsefHubWeb.DashboardLive do
           credential: credential,
           last_sync_at: credential && credential.last_sync_at,
           cert_expires_at: user_cert && user_cert.not_after,
-          cert_active: credential != nil && credential.is_active
+          cert_active: credential != nil && credential.is_active && user_cert != nil
         )
     end
   end

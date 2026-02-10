@@ -181,15 +181,16 @@ defmodule KsefHub.CredentialsTest do
 
   describe "create_user_certificate/2" do
     test "creates a certificate for the user", %{user: user} do
-      attrs = %{
-        certificate_data_encrypted: "enc-data",
-        certificate_password_encrypted: "enc-pass",
-        certificate_subject: "CN=Test",
-        not_before: ~D[2026-01-01],
-        not_after: ~D[2028-01-01],
-        fingerprint: "AA:BB",
-        is_active: true
-      }
+      attrs =
+        :user_certificate
+        |> params_for()
+        |> Map.drop([:user_id])
+        |> Map.merge(%{
+          certificate_subject: "CN=Test",
+          not_before: ~D[2026-01-01],
+          not_after: ~D[2028-01-01],
+          fingerprint: "AA:BB"
+        })
 
       assert {:ok, %UserCertificate{} = cert} =
                Credentials.create_user_certificate(user, attrs)
@@ -202,11 +203,10 @@ defmodule KsefHub.CredentialsTest do
     test "rejects if user already has an active certificate", %{user: user} do
       insert(:user_certificate, user: user, is_active: true)
 
-      attrs = %{
-        certificate_data_encrypted: "other-data",
-        certificate_password_encrypted: "other-pass",
-        is_active: true
-      }
+      attrs =
+        :user_certificate
+        |> params_for()
+        |> Map.drop([:user_id])
 
       assert {:error, changeset} = Credentials.create_user_certificate(user, attrs)
       assert %{user_id: ["already has an active certificate"]} = errors_on(changeset)
@@ -215,11 +215,11 @@ defmodule KsefHub.CredentialsTest do
     test "does not allow mass-assignment of user_id", %{user: user} do
       other_user = insert(:user)
 
-      attrs = %{
-        certificate_data_encrypted: "data",
-        certificate_password_encrypted: "pass",
-        user_id: other_user.id
-      }
+      attrs =
+        :user_certificate
+        |> params_for()
+        |> Map.drop([:user_id])
+        |> Map.put(:user_id, other_user.id)
 
       assert {:ok, cert} = Credentials.create_user_certificate(user, attrs)
       assert cert.user_id == user.id
@@ -228,11 +228,11 @@ defmodule KsefHub.CredentialsTest do
 
   describe "replace_active_user_certificate/2" do
     test "creates new active cert when no existing cert", %{user: user} do
-      attrs = %{
-        certificate_data_encrypted: "data",
-        certificate_password_encrypted: "pass",
-        certificate_subject: "CN=New"
-      }
+      attrs =
+        :user_certificate
+        |> params_for()
+        |> Map.drop([:user_id])
+        |> Map.put(:certificate_subject, "CN=New")
 
       assert {:ok, %UserCertificate{} = cert} =
                Credentials.replace_active_user_certificate(user.id, attrs)
@@ -244,11 +244,11 @@ defmodule KsefHub.CredentialsTest do
     test "deactivates old cert and creates new one", %{user: user} do
       old = insert(:user_certificate, user: user, is_active: true)
 
-      attrs = %{
-        certificate_data_encrypted: "new-data",
-        certificate_password_encrypted: "new-pass",
-        certificate_subject: "CN=Replacement"
-      }
+      attrs =
+        :user_certificate
+        |> params_for()
+        |> Map.drop([:user_id])
+        |> Map.put(:certificate_subject, "CN=Replacement")
 
       assert {:ok, %UserCertificate{} = new_cert} =
                Credentials.replace_active_user_certificate(user.id, attrs)

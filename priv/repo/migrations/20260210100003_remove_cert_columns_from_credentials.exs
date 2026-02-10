@@ -9,10 +9,10 @@ defmodule KsefHub.Repo.Migrations.RemoveCertColumnsFromCredentials do
 
   def change do
     alter table(:ksef_credentials) do
-      remove :certificate_data_encrypted, :binary
-      remove :certificate_password_encrypted, :binary
-      remove :certificate_subject, :string
-      remove :certificate_expires_at, :date
+      remove(:certificate_data_encrypted, :binary, null: true)
+      remove(:certificate_password_encrypted, :binary, null: true)
+      remove(:certificate_subject, :string, null: true)
+      remove(:certificate_expires_at, :date, null: true)
     end
   end
 end

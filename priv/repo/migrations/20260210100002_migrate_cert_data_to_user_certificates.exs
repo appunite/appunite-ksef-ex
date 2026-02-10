@@ -23,6 +23,7 @@ defmodule KsefHub.Repo.Migrations.MigrateCertDataToUserCertificates do
     FROM ksef_credentials kc
     JOIN memberships m ON m.company_id = kc.company_id AND m.role = 'owner'
     WHERE kc.certificate_data_encrypted IS NOT NULL
+      AND kc.certificate_password_encrypted IS NOT NULL
       AND kc.is_active = true
       AND NOT EXISTS (
         SELECT 1 FROM user_certificates uc

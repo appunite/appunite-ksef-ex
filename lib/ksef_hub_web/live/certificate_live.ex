@@ -215,8 +215,17 @@ defmodule KsefHubWeb.CertificateLive do
   defp ensure_credential_exists(company) do
     case Credentials.get_active_credential(company.id) do
       nil ->
-        Credentials.replace_active_credential(company.id, %{})
-        :ok
+        case Credentials.replace_active_credential(company.id, %{}) do
+          {:ok, _credential} ->
+            :ok
+
+          {:error, changeset} ->
+            Logger.warning(
+              "Failed to create credential for company #{company.id}: #{inspect(changeset.errors)}"
+            )
+
+            :ok
+        end
 
       _credential ->
         :ok
