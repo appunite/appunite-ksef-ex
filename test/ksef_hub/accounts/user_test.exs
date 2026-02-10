@@ -21,7 +21,9 @@ defmodule KsefHub.Accounts.UserTest do
     end
 
     test "validates email format" do
-      changeset = User.registration_changeset(%User{}, %{email: "nope", password: "valid_password123"})
+      changeset =
+        User.registration_changeset(%User{}, %{email: "nope", password: "valid_password123"})
+
       assert %{email: ["must have the @ sign and no spaces"]} = errors_on(changeset)
     end
 

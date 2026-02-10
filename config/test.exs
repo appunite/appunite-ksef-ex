@@ -36,9 +36,6 @@ config :ksef_hub, :pdf_generator, KsefHub.Pdf.Mock
 config :ksef_hub, :pkcs12_converter, KsefHub.Credentials.Pkcs12Converter.Mock
 config :ksef_hub, :certificate_info, KsefHub.Credentials.CertificateInfo.Mock
 
-# Test email allowlist
-config :ksef_hub, :allowed_emails, "test@example.com,admin@example.com"
-
 # Print only warnings and errors during test
 config :logger, level: :warning
 

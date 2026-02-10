@@ -4,12 +4,7 @@ defmodule KsefHub.AccountsTest do
   import KsefHub.Factory
 
   alias KsefHub.Accounts
-  alias KsefHub.Accounts.{ApiToken, User}
-
-  setup do
-    Accounts.clear_allowed_emails_cache()
-    :ok
-  end
+  alias KsefHub.Accounts.{ApiToken, User, UserToken}
 
   defp create_user do
     insert(:user, google_uid: "uid-#{System.unique_integer([:positive])}")
@@ -22,65 +17,11 @@ defmodule KsefHub.AccountsTest do
   end
 
   describe "users" do
-    test "find_or_create_user/1 creates a new user" do
-      assert {:ok, %User{} = user} =
-               Accounts.find_or_create_user(%{
-                 uid: "google-123",
-                 email: "test@example.com",
-                 name: "Test User",
-                 avatar_url: "https://example.com/avatar.png"
-               })
-
-      assert user.email == "test@example.com"
-      assert user.google_uid == "google-123"
-      assert user.name == "Test User"
-    end
-
-    test "find_or_create_user/1 returns existing user" do
-      {:ok, original} =
-        Accounts.find_or_create_user(%{
-          uid: "google-456",
-          email: "existing@example.com",
-          name: "Existing User"
-        })
-
-      {:ok, found} =
-        Accounts.find_or_create_user(%{
-          uid: "google-456",
-          email: "existing@example.com",
-          name: "Existing User"
-        })
-
-      assert original.id == found.id
-    end
-
     test "get_user_by_email/1 returns user" do
       user = insert(:user, email: "find@example.com")
 
       assert Accounts.get_user_by_email("find@example.com").id == user.id
       assert Accounts.get_user_by_email("missing@example.com") == nil
-    end
-
-    test "allowed_email?/1 checks against configured allowlist" do
-      assert Accounts.allowed_email?("test@example.com")
-      assert Accounts.allowed_email?("TEST@EXAMPLE.COM")
-      assert Accounts.allowed_email?("admin@example.com")
-      refute Accounts.allowed_email?("unauthorized@example.com")
-    end
-
-    test "find_or_create_user/1 handles concurrent insert gracefully" do
-      # Pre-insert a user, then call find_or_create_user with same uid
-      # This simulates the race where the user was inserted between
-      # get_user_by_google_uid returning nil and Repo.insert
-      user = insert(:user, google_uid: "race-uid", email: "race@example.com")
-
-      assert {:ok, found} =
-               Accounts.find_or_create_user(%{
-                 uid: "race-uid",
-                 email: "race@example.com"
-               })
-
-      assert found.id == user.id
     end
   end
 
@@ -100,7 +41,8 @@ defmodule KsefHub.AccountsTest do
     end
 
     test "returns error with duplicate email" do
-      {:ok, _} = Accounts.register_user(%{email: "dup@example.com", password: "valid_password123"})
+      {:ok, _} =
+        Accounts.register_user(%{email: "dup@example.com", password: "valid_password123"})
 
       assert {:error, changeset} =
                Accounts.register_user(%{email: "dup@example.com", password: "valid_password123"})
@@ -114,7 +56,9 @@ defmodule KsefHub.AccountsTest do
       {:ok, user} =
         Accounts.register_user(%{email: "auth@example.com", password: "valid_password123"})
 
-      assert found = Accounts.get_user_by_email_and_password("auth@example.com", "valid_password123")
+      assert found =
+               Accounts.get_user_by_email_and_password("auth@example.com", "valid_password123")
+
       assert found.id == user.id
     end
 
@@ -284,7 +228,7 @@ defmodule KsefHub.AccountsTest do
       _token = Accounts.generate_user_session_token(user)
       {:ok, _} = Accounts.reset_user_password(user, %{password: "new_password12345"})
 
-      refute Repo.one(KsefHub.Accounts.UserToken.by_user_and_contexts_query(user, :all))
+      refute Repo.one(UserToken.by_user_and_contexts_query(user, :all))
     end
   end
 

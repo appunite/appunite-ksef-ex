@@ -61,42 +61,6 @@ defmodule KsefHub.Accounts do
   def get_user_by_google_uid(uid), do: Repo.get_by(User, google_uid: uid)
 
   @doc """
-  Finds a user by Google UID, or creates one from Google auth info.
-
-  ## Parameters
-    - `info` (`map()`) — must contain `:uid` and `:email`; optionally `:name`, `:avatar_url`
-
-  ## Returns
-    - `{:ok, User.t()}` on success
-    - `{:error, Ecto.Changeset.t()}` on validation failure
-  """
-  @spec find_or_create_user(map()) :: {:ok, User.t()} | {:error, Ecto.Changeset.t()}
-  def find_or_create_user(%{uid: uid, email: email} = info) do
-    case get_user_by_google_uid(uid) do
-      nil ->
-        changeset =
-          %User{}
-          |> User.changeset(%{
-            google_uid: uid,
-            email: email,
-            name: Map.get(info, :name),
-            avatar_url: Map.get(info, :avatar_url)
-          })
-
-        case Repo.insert(changeset, on_conflict: :nothing, conflict_target: :google_uid) do
-          {:ok, %User{id: nil}} ->
-            {:ok, get_user_by_google_uid(uid)}
-
-          result ->
-            result
-        end
-
-      user ->
-        {:ok, user}
-    end
-  end
-
-  @doc """
   Fetches a user by email and verifies the password.
 
   Returns `nil` if no user found or password is invalid.
@@ -116,6 +80,22 @@ defmodule KsefHub.Accounts do
     %User{}
     |> User.registration_changeset(attrs)
     |> Repo.insert()
+  end
+
+  @doc """
+  Returns an `%Ecto.Changeset{}` for tracking user registration changes.
+  """
+  @spec change_registration(User.t(), map()) :: Ecto.Changeset.t()
+  def change_registration(%User{} = user, attrs \\ %{}) do
+    User.registration_changeset(user, attrs, hash_password: false, validate_email: false)
+  end
+
+  @doc """
+  Returns an `%Ecto.Changeset{}` for changing the user password.
+  """
+  @spec change_user_password(User.t(), map()) :: Ecto.Changeset.t()
+  def change_user_password(%User{} = user, attrs \\ %{}) do
+    User.password_changeset(user, attrs, hash_password: false)
   end
 
   @doc """
@@ -278,53 +258,6 @@ defmodule KsefHub.Accounts do
       {:ok, %{user: user}} -> {:ok, user}
       {:error, :user, changeset, _} -> {:error, changeset}
     end
-  end
-
-  # --- Allowed Emails (legacy) ---
-
-  @doc """
-  Checks if an email is in the allowlist.
-
-  ## Parameters
-    - `email` (`any()`) — the email to check; non-binary values return `false`
-
-  ## Returns
-    - `boolean()`
-  """
-  @spec allowed_email?(any()) :: boolean()
-  def allowed_email?(email) when is_binary(email) do
-    String.downcase(email) in allowed_emails()
-  end
-
-  def allowed_email?(_), do: false
-
-  @spec allowed_emails() :: [String.t()]
-  defp allowed_emails do
-    :persistent_term.get({__MODULE__, :allowed_emails}, nil) || parse_and_cache_allowed_emails()
-  end
-
-  @spec parse_and_cache_allowed_emails() :: [String.t()]
-  defp parse_and_cache_allowed_emails do
-    list =
-      Application.get_env(:ksef_hub, :allowed_emails, "")
-      |> String.split(",", trim: true)
-      |> Enum.map(&String.trim/1)
-      |> Enum.map(&String.downcase/1)
-
-    :persistent_term.put({__MODULE__, :allowed_emails}, list)
-    list
-  end
-
-  @doc """
-  Clears the cached allowed emails list. Call when the config changes.
-
-  ## Returns
-    - `:ok`
-  """
-  @spec clear_allowed_emails_cache() :: :ok
-  def clear_allowed_emails_cache do
-    :persistent_term.erase({__MODULE__, :allowed_emails})
-    :ok
   end
 
   # --- API Tokens ---

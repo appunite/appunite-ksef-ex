@@ -13,10 +13,6 @@ if System.get_env("PHX_SERVER") do
 end
 
 # Application-wide runtime config (all environments)
-if allowed_emails = System.get_env("ALLOWED_EMAILS") do
-  config :ksef_hub, :allowed_emails, allowed_emails
-end
-
 if google_client_id = System.get_env("GOOGLE_CLIENT_ID") do
   google_client_secret =
     System.get_env("GOOGLE_CLIENT_SECRET") ||

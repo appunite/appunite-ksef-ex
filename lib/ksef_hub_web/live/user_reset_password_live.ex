@@ -98,8 +98,7 @@ defmodule KsefHubWeb.UserResetPasswordLive do
 
           <p class="text-center text-sm mt-4">
             <.link navigate={~p"/users/register"} class="link link-primary">Register</.link>
-            |
-            <.link navigate={~p"/users/log-in"} class="link link-primary">Log in</.link>
+            | <.link navigate={~p"/users/log-in"} class="link link-primary">Log in</.link>
           </p>
         </div>
       </div>
