@@ -194,16 +194,18 @@ defmodule KsefHub.Accounts do
   Returns `nil` if the token is invalid or expired.
   """
   @spec get_user_by_session_token(binary()) :: User.t() | nil
-  def get_user_by_session_token(token) do
+  def get_user_by_session_token(token) when is_binary(token) do
     {:ok, query} = UserToken.verify_session_token_query(token)
     Repo.one(query)
   end
+
+  def get_user_by_session_token(_), do: nil
 
   @doc """
   Deletes the given session token from the database.
   """
   @spec delete_user_session_token(binary()) :: :ok
-  def delete_user_session_token(token) do
+  def delete_user_session_token(token) when is_binary(token) do
     hashed_token = :crypto.hash(:sha256, token)
 
     from(t in UserToken, where: t.token == ^hashed_token and t.context == "session")
@@ -211,6 +213,8 @@ defmodule KsefHub.Accounts do
 
     :ok
   end
+
+  def delete_user_session_token(_), do: :ok
 
   # --- Email Confirmation ---
 
