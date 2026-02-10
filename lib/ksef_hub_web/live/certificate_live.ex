@@ -83,8 +83,11 @@ defmodule KsefHubWeb.CertificateLive do
 
   @impl true
   def handle_event("remove_certificate", %{"id" => id}, socket) do
+    company_id = socket.assigns.current_company && socket.assigns.current_company.id
+
     with {:ok, uuid} <- Ecto.UUID.cast(id),
-         %{} = credential <- Credentials.get_credential(uuid) do
+         %{} = credential <- Credentials.get_credential(uuid),
+         true <- credential.company_id == company_id do
       case Credentials.deactivate_credential(credential) do
         {:ok, _} ->
           {:noreply,
