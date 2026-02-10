@@ -20,7 +20,7 @@ defmodule KsefHubWeb.CertificateLive do
     socket =
       socket
       |> assign(page_title: "Certificates")
-      |> assign(upload_mode: :p12)
+      |> assign(upload_mode: :key_crt)
       |> assign(form: to_form(%{"password" => ""}, as: :credential))
       |> allow_upload(:certificate,
         accept: ~w(application/x-pkcs12 .p12 .pfx),
@@ -297,18 +297,18 @@ defmodule KsefHubWeb.CertificateLive do
           <button
             type="button"
             phx-click="toggle_upload_mode"
-            phx-value-mode="p12"
-            class={"btn btn-sm #{if @upload_mode == :p12, do: "btn-primary", else: "btn-ghost"}"}
-          >
-            .p12 / .pfx
-          </button>
-          <button
-            type="button"
-            phx-click="toggle_upload_mode"
             phx-value-mode="key_crt"
             class={"btn btn-sm #{if @upload_mode == :key_crt, do: "btn-primary", else: "btn-ghost"}"}
           >
             .key + .crt
+          </button>
+          <button
+            type="button"
+            phx-click="toggle_upload_mode"
+            phx-value-mode="p12"
+            class={"btn btn-sm #{if @upload_mode == :p12, do: "btn-primary", else: "btn-ghost"}"}
+          >
+            .p12 / .pfx
           </button>
         </div>
 

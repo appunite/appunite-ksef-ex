@@ -38,15 +38,31 @@ defmodule KsefHubWeb.CertificateLiveTest do
       assert render(view) =~ company.nip
     end
 
-    test "defaults to p12 upload mode", %{conn: conn} do
-      {:ok, view, _html} = live(conn, ~p"/certificates")
-      assert has_element?(view, "#p12-certificate-label")
+    test "defaults to key_crt upload mode", %{conn: conn} do
+      {:ok, _view, html} = live(conn, ~p"/certificates")
+      assert html =~ "Private Key File"
     end
   end
 
   describe "upload mode toggle" do
-    test "switches to key_crt mode", %{conn: conn} do
+    test "switches to p12 mode", %{conn: conn} do
       {:ok, view, _html} = live(conn, ~p"/certificates")
+
+      html =
+        view
+        |> element(~s(button[phx-value-mode="p12"]))
+        |> render_click()
+
+      assert html =~ "Certificate File (.p12 / .pfx)"
+      refute html =~ "Private Key File"
+    end
+
+    test "switches back to key_crt mode", %{conn: conn} do
+      {:ok, view, _html} = live(conn, ~p"/certificates")
+
+      view
+      |> element(~s(button[phx-value-mode="p12"]))
+      |> render_click()
 
       html =
         view
@@ -56,22 +72,6 @@ defmodule KsefHubWeb.CertificateLiveTest do
       assert html =~ "Private Key File (.key / .pem)"
       assert html =~ "Certificate File (.crt / .pem / .cer)"
       assert html =~ "Key Passphrase"
-    end
-
-    test "switches back to p12 mode", %{conn: conn} do
-      {:ok, view, _html} = live(conn, ~p"/certificates")
-
-      view
-      |> element(~s(button[phx-value-mode="key_crt"]))
-      |> render_click()
-
-      html =
-        view
-        |> element(~s(button[phx-value-mode="p12"]))
-        |> render_click()
-
-      assert html =~ "Certificate File (.p12 / .pfx)"
-      refute html =~ "Private Key File"
     end
   end
 
@@ -101,10 +101,6 @@ defmodule KsefHubWeb.CertificateLiveTest do
       end)
 
       {:ok, view, _html} = live(conn, ~p"/certificates")
-
-      view
-      |> element(~s(button[phx-value-mode="key_crt"]))
-      |> render_click()
 
       key_input =
         file_input(view, "form[phx-submit=save]", :private_key, [
@@ -139,10 +135,6 @@ defmodule KsefHubWeb.CertificateLiveTest do
 
       {:ok, view, _html} = live(conn, ~p"/certificates")
 
-      view
-      |> element(~s(button[phx-value-mode="key_crt"]))
-      |> render_click()
-
       key_input =
         file_input(view, "form[phx-submit=save]", :private_key, [
           %{name: "test.key", content: "fake-key", type: "application/x-pem-file"}
@@ -171,10 +163,6 @@ defmodule KsefHubWeb.CertificateLiveTest do
       {:ok, view, _html} = live(conn, ~p"/certificates")
 
       view
-      |> element(~s(button[phx-value-mode="key_crt"]))
-      |> render_click()
-
-      view
       |> form("form[phx-submit=save]", credential: %{key_passphrase: ""})
       |> render_submit()
 
@@ -197,10 +185,6 @@ defmodule KsefHubWeb.CertificateLiveTest do
       end)
 
       {:ok, view, _html} = live(conn, ~p"/certificates")
-
-      view
-      |> element(~s(button[phx-value-mode="key_crt"]))
-      |> render_click()
 
       key_input =
         file_input(view, "form[phx-submit=save]", :private_key, [
