@@ -14,7 +14,8 @@ defmodule KsefHubWeb.CompanySwitchController do
   def update(conn, %{"id" => id} = params) do
     user_id = get_session(conn, :user_id)
 
-    with {:ok, uuid} <- Ecto.UUID.cast(id),
+    with user_id when is_binary(user_id) <- user_id,
+         {:ok, uuid} <- Ecto.UUID.cast(id),
          %{} <- Companies.get_membership(user_id, uuid) do
       conn
       |> put_session(:current_company_id, uuid)

@@ -39,14 +39,15 @@ defmodule KsefHubWeb.LiveAuth do
           Phoenix.LiveView.Socket.t()
   defp assign_user_and_companies(socket, user, session) do
     companies = Companies.list_companies_for_user(user.id)
-    current_company = resolve_company(companies, session["current_company_id"])
+    resolved = resolve_company(companies, session["current_company_id"])
+    current_company = resolved || List.first(companies)
     current_role = resolve_role(user.id, current_company)
 
     socket
     |> assign(:current_user, user)
     |> assign(:companies, companies)
-    |> assign(:current_company, current_company || List.first(companies))
-    |> assign(:current_role, current_role || resolve_role(user.id, List.first(companies)))
+    |> assign(:current_company, current_company)
+    |> assign(:current_role, current_role)
     |> assign(:current_path, nil)
     |> attach_hook(:set_current_path, :handle_params, fn _params, uri, socket ->
       {:cont, assign(socket, :current_path, URI.parse(uri).path)}
