@@ -120,6 +120,32 @@ defmodule KsefHub.Companies do
   # Membership queries
   # ---------------------------------------------------------------------------
 
+  @doc "Lists all memberships for a company with preloaded users, ordered by role then name."
+  @spec list_members(Ecto.UUID.t()) :: [Membership.t()]
+  def list_members(company_id) do
+    Membership
+    |> where([m], m.company_id == ^company_id)
+    |> join(:inner, [m], u in assoc(m, :user))
+    |> order_by([m, u], asc: m.role, asc: u.name)
+    |> preload([m, u], user: u)
+    |> Repo.all()
+  end
+
+  @doc "Deletes a membership."
+  @spec delete_membership(Membership.t()) :: {:ok, Membership.t()} | {:error, Ecto.Changeset.t()}
+  def delete_membership(%Membership{} = membership) do
+    Repo.delete(membership)
+  end
+
+  @doc "Updates the role of a membership."
+  @spec update_membership_role(Membership.t(), String.t()) ::
+          {:ok, Membership.t()} | {:error, Ecto.Changeset.t()}
+  def update_membership_role(%Membership{} = membership, role) do
+    membership
+    |> Membership.changeset(%{role: role})
+    |> Repo.update()
+  end
+
   @doc "Fetches the membership for a user+company pair, returning nil if none exists."
   @spec get_membership(Ecto.UUID.t(), Ecto.UUID.t()) :: Membership.t() | nil
   def get_membership(user_id, company_id) do

@@ -300,6 +300,65 @@ defmodule KsefHub.CompaniesTest do
     end
   end
 
+  describe "list_members/1" do
+    test "returns memberships with preloaded users for a company" do
+      company = insert(:company)
+      user1 = insert(:user, name: "Alice")
+      user2 = insert(:user, name: "Bob")
+      insert(:membership, user: user1, company: company, role: "owner")
+      insert(:membership, user: user2, company: company, role: "accountant")
+
+      members = Companies.list_members(company.id)
+      assert length(members) == 2
+      names = Enum.map(members, & &1.user.name) |> Enum.sort()
+      assert names == ["Alice", "Bob"]
+    end
+
+    test "does not include members from other companies" do
+      company = insert(:company)
+      other_company = insert(:company)
+      user1 = insert(:user)
+      user2 = insert(:user)
+      insert(:membership, user: user1, company: company, role: "owner")
+      insert(:membership, user: user2, company: other_company, role: "owner")
+
+      members = Companies.list_members(company.id)
+      assert length(members) == 1
+      assert hd(members).user_id == user1.id
+    end
+  end
+
+  describe "delete_membership/1" do
+    test "deletes a membership" do
+      company = insert(:company)
+      user = insert(:user)
+      membership = insert(:membership, user: user, company: company, role: "accountant")
+
+      assert {:ok, _deleted} = Companies.delete_membership(membership)
+      assert is_nil(Companies.get_membership(user.id, company.id))
+    end
+  end
+
+  describe "update_membership_role/2" do
+    test "updates the role of a membership" do
+      company = insert(:company)
+      user = insert(:user)
+      membership = insert(:membership, user: user, company: company, role: "accountant")
+
+      assert {:ok, updated} = Companies.update_membership_role(membership, "invoice_reviewer")
+      assert updated.role == "invoice_reviewer"
+    end
+
+    test "rejects invalid role" do
+      company = insert(:company)
+      user = insert(:user)
+      membership = insert(:membership, user: user, company: company, role: "accountant")
+
+      assert {:error, changeset} = Companies.update_membership_role(membership, "superadmin")
+      assert "is invalid" in errors_on(changeset)[:role]
+    end
+  end
+
   describe "has_role?/3" do
     test "returns true when user has the specified role" do
       user = insert(:user)
