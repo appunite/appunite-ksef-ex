@@ -11,10 +11,13 @@ defmodule KsefHubWeb.UserLoginLive do
   @doc false
   @spec mount(map(), map(), Phoenix.LiveView.Socket.t()) ::
           {:ok, Phoenix.LiveView.Socket.t()}
-  def mount(_params, _session, socket) do
+  def mount(params, _session, socket) do
     email = Phoenix.Flash.get(socket.assigns.flash, :email)
+    return_to = sanitize_return_to(params["return_to"])
     form = to_form(%{"email" => email}, as: "user")
-    {:ok, assign(socket, form: form, trigger_submit: false), temporary_assigns: [form: nil]}
+
+    {:ok, assign(socket, form: form, trigger_submit: false, return_to: return_to),
+     temporary_assigns: [form: nil]}
   end
 
   @doc false
@@ -33,6 +36,20 @@ defmodule KsefHubWeb.UserLoginLive do
 
   @doc false
   @spec render(map()) :: Phoenix.LiveView.Rendered.t()
+  @spec sanitize_return_to(String.t() | nil) :: String.t() | nil
+  defp sanitize_return_to(nil), do: nil
+  defp sanitize_return_to(""), do: nil
+
+  defp sanitize_return_to(path) when is_binary(path) do
+    uri = URI.parse(path)
+
+    if is_nil(uri.host) && String.starts_with?(path, "/") do
+      path
+    else
+      nil
+    end
+  end
+
   def render(assigns) do
     ~H"""
     <div class="min-h-screen flex items-center justify-center">
@@ -48,6 +65,7 @@ defmodule KsefHubWeb.UserLoginLive do
             phx-submit="save"
             phx-trigger-action={@trigger_submit}
           >
+            <input :if={@return_to} type="hidden" name="user[return_to]" value={@return_to} />
             <.input field={@form[:email]} type="email" label="Email" required />
             <.input field={@form[:password]} type="password" label="Password" required />
 

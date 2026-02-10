@@ -17,11 +17,13 @@ defmodule KsefHubWeb.UserSessionController do
   Called via `phx-trigger-action` from UserLoginLive.
   """
   @spec create(Plug.Conn.t(), map()) :: Plug.Conn.t()
-  def create(conn, %{"user" => %{"email" => email, "password" => password}}) do
+  def create(conn, %{"user" => user_params}) do
+    %{"email" => email, "password" => password} = user_params
+
     if user = Accounts.get_user_by_email_and_password(email, password) do
       conn
       |> put_flash(:info, "Welcome back!")
-      |> UserAuth.log_in_user(user)
+      |> UserAuth.log_in_user(user, %{return_to: user_params["return_to"]})
     else
       conn
       |> put_flash(:error, "Invalid email or password.")

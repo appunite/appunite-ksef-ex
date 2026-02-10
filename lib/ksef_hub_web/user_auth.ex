@@ -18,15 +18,16 @@ defmodule KsefHubWeb.UserAuth do
   and redirecting to the appropriate path.
   """
   @spec log_in_user(Plug.Conn.t(), KsefHub.Accounts.User.t(), map()) :: Plug.Conn.t()
-  def log_in_user(conn, user, _params \\ %{}) do
+  def log_in_user(conn, user, params \\ %{}) do
     token = Accounts.generate_user_session_token(user)
+    return_to = sanitize_return_to(params[:return_to] || params["return_to"])
 
     conn
     |> configure_session(renew: true)
     |> clear_session()
     |> put_session(:user_token, token)
     |> put_session(:live_socket_id, "users_sessions:#{Base.url_encode64(token)}")
-    |> redirect(to: signed_in_path(user))
+    |> redirect(to: return_to || signed_in_path(user))
   end
 
   @doc """
@@ -58,5 +59,19 @@ defmodule KsefHubWeb.UserAuth do
   @spec signed_in_path(KsefHub.Accounts.User.t()) :: String.t()
   def signed_in_path(_user) do
     ~p"/dashboard"
+  end
+
+  @spec sanitize_return_to(String.t() | nil) :: String.t() | nil
+  defp sanitize_return_to(nil), do: nil
+  defp sanitize_return_to(""), do: nil
+
+  defp sanitize_return_to(path) when is_binary(path) do
+    uri = URI.parse(path)
+
+    if is_nil(uri.host) && String.starts_with?(path, "/") do
+      path
+    else
+      nil
+    end
   end
 end

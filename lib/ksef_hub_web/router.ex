@@ -59,6 +59,7 @@ defmodule KsefHubWeb.Router do
       on_mount: [{KsefHubWeb.LiveAuth, :mount_current_user}] do
       live "/users/confirm/:token", UserConfirmationLive
       live "/users/confirm", UserConfirmationInstructionsLive
+      live "/invitations/accept/:token", InvitationAcceptLive
     end
 
     post "/users/log-in", UserSessionController, :create
@@ -79,6 +80,7 @@ defmodule KsefHubWeb.Router do
       live "/companies", CompanyLive.Index
       live "/companies/new", CompanyLive.Index, :new
       live "/companies/:id/edit", CompanyLive.Index, :edit
+      live "/team", TeamLive
     end
 
     post "/switch-company/:id", CompanySwitchController, :update
