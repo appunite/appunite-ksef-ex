@@ -146,6 +146,8 @@ defmodule KsefHub.Credentials do
   def get_active_user_certificate(user_id) do
     UserCertificate
     |> where([uc], uc.user_id == ^user_id and uc.is_active == true)
+    |> order_by([uc], desc: uc.inserted_at)
+    |> limit(1)
     |> Repo.one()
   end
 

@@ -326,10 +326,10 @@ defmodule KsefHubWeb.CertificateLive do
       class="card bg-base-100 border border-base-300 mt-6"
     >
       <div class="p-5">
-        <h2 class="text-base font-semibold">Your Certificate</h2>
+        <h2 id="cert-heading" class="text-base font-semibold">Your Certificate</h2>
         <.list>
           <:item title="Issued To">
-            {cert_display_subject(@user_certificate)}
+            <span id="cert-subject">{cert_display_subject(@user_certificate)}</span>
           </:item>
           <:item title="Valid From">
             {format_cert_date(@user_certificate.not_before)}

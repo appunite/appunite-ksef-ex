@@ -25,18 +25,19 @@ defmodule KsefHub.Credentials.CertificateInfo.Openssl do
   alias KsefHub.SecureTemp
 
   @doc """
-  Extracts the subject and expiry date from a PKCS12 binary.
+  Extracts certificate metadata (subject, validity start, expiry) from a PKCS12 binary.
 
   Writes the PKCS12 data and password to secure temp files, invokes
   `openssl pkcs12` to extract the PEM certificate, then parses it
   with Erlang's `:public_key` module.
 
-  Returns `{:ok, %{subject: String.t(), expires_at: Date.t()}}` on success,
+  Returns `{:ok, %{subject: String.t(), not_before: Date.t(), expires_at: Date.t()}}` on success,
   or `{:error, term()}` on failure.
   """
   @impl true
   @spec extract(binary(), String.t()) ::
-          {:ok, %{subject: String.t(), expires_at: Date.t()}} | {:error, term()}
+          {:ok, %{subject: String.t(), not_before: Date.t(), expires_at: Date.t()}}
+          | {:error, term()}
   def extract(p12_data, password) do
     p12_path = SecureTemp.write(p12_data, "cert.p12")
     pass_path = SecureTemp.write(password, "pass.txt")

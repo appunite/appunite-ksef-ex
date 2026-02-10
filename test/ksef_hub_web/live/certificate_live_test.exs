@@ -77,8 +77,8 @@ defmodule KsefHubWeb.CertificateLiveTest do
 
       {:ok, view, _html} = live(conn, ~p"/certificates")
       assert has_element?(view, "#current-certificate")
-      assert render(view) =~ "Your Certificate"
-      assert render(view) =~ "CN=Test Cert"
+      assert has_element?(view, "#cert-heading", "Your Certificate")
+      assert has_element?(view, "#cert-subject", "CN=Test Cert")
     end
 
     test "shows refresh hint when certificate has no metadata", %{conn: conn, user: user} do

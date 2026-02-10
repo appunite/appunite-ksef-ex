@@ -34,6 +34,9 @@ defmodule KsefHub.Repo.Migrations.MigrateCertDataToUserCertificates do
   end
 
   def down do
-    execute("DELETE FROM user_certificates")
+    raise Ecto.MigrationError,
+      message:
+        "Cannot reverse data migration: rolling back would delete user certificates " <>
+          "that may have been created after migration. Manual intervention required."
   end
 end
