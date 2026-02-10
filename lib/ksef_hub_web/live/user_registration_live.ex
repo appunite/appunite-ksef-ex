@@ -29,7 +29,12 @@ defmodule KsefHubWeb.UserRegistrationLive do
   def handle_event("save", %{"user" => user_params}, socket) do
     case Accounts.register_user(user_params) do
       {:ok, user} ->
-        Invitations.accept_pending_invitations_for_email(user)
+        {:ok, memberships} = Invitations.accept_pending_invitations_for_email(user)
+
+        if memberships != [] do
+          require Logger
+          Logger.info("Auto-accepted #{length(memberships)} invitation(s) for user #{user.id}")
+        end
 
         case Accounts.deliver_user_confirmation_instructions(
                user,

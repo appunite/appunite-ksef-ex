@@ -22,6 +22,9 @@ defmodule KsefHubWeb.TeamLive do
        socket
        |> assign(page_title: "Team")
        |> assign(invite_form: to_form(%{"email" => "", "role" => "accountant"}, as: :invitation))
+       |> assign(has_pending_invitations: false)
+       |> stream(:members, [])
+       |> stream(:pending_invitations, [])
        |> load_team_data()}
     else
       {:ok,
@@ -51,11 +54,15 @@ defmodule KsefHubWeb.TeamLive do
 
     case Invitations.create_invitation(user.id, company.id, attrs) do
       {:ok, %{invitation: invitation, token: token}} ->
-        send_invitation_email(invitation, token, company)
+        flash =
+          case send_invitation_email(invitation, token, company) do
+            :ok -> {:info, "Invitation sent to #{invitation.email}."}
+            :email_failed -> {:error, "Invitation created but email delivery failed."}
+          end
 
         {:noreply,
          socket
-         |> put_flash(:info, "Invitation sent to #{invitation.email}.")
+         |> put_flash(elem(flash, 0), elem(flash, 1))
          |> assign(
            invite_form: to_form(%{"email" => "", "role" => "accountant"}, as: :invitation)
          )
@@ -97,6 +104,9 @@ defmodule KsefHubWeb.TeamLive do
       nil ->
         {:noreply, put_flash(socket, :error, "Member not found.")}
 
+      %{role: "owner"} ->
+        {:noreply, put_flash(socket, :error, "Cannot remove company owner.")}
+
       membership ->
         case Companies.delete_membership(membership) do
           {:ok, _} ->
@@ -120,10 +130,13 @@ defmodule KsefHubWeb.TeamLive do
     pending_invitations = Invitations.list_pending_invitations(company.id)
 
     socket
-    |> assign(members: members, pending_invitations: pending_invitations)
+    |> assign(has_pending_invitations: pending_invitations != [])
+    |> stream(:members, members, reset: true)
+    |> stream(:pending_invitations, pending_invitations, reset: true)
   end
 
-  @spec send_invitation_email(Invitations.Invitation.t(), String.t(), Company.t()) :: :ok
+  @spec send_invitation_email(Invitations.Invitation.t(), String.t(), Company.t()) ::
+          :ok | :email_failed
   defp send_invitation_email(invitation, token, company) do
     url = url(~p"/invitations/accept/#{token}")
 
@@ -140,7 +153,7 @@ defmodule KsefHubWeb.TeamLive do
           "Failed to deliver invitation email to #{invitation.email}: #{inspect(reason)}"
         )
 
-        :ok
+        :email_failed
     end
   end
 
@@ -200,7 +213,7 @@ defmodule KsefHubWeb.TeamLive do
     </div>
 
     <!-- Pending Invitations -->
-    <div :if={@pending_invitations != []} class="card bg-base-100 border border-base-300 mt-6">
+    <div :if={@has_pending_invitations} class="card bg-base-100 border border-base-300 mt-6">
       <div class="p-5">
         <h2 class="text-base font-semibold mb-3">Pending invitations</h2>
         <div class="overflow-x-auto">
@@ -213,8 +226,8 @@ defmodule KsefHubWeb.TeamLive do
                 <th></th>
               </tr>
             </thead>
-            <tbody>
-              <tr :for={inv <- @pending_invitations} id={"invitation-#{inv.id}"}>
+            <tbody id="pending-invitations-list" phx-update="stream">
+              <tr :for={{dom_id, inv} <- @streams.pending_invitations} id={dom_id}>
                 <td>{inv.email}</td>
                 <td><span class="badge badge-sm badge-outline">{inv.role}</span></td>
                 <td class="text-sm text-base-content/60">
@@ -252,8 +265,8 @@ defmodule KsefHubWeb.TeamLive do
                 <th></th>
               </tr>
             </thead>
-            <tbody>
-              <tr :for={member <- @members} id={"member-#{member.user.id}"}>
+            <tbody id="members-list" phx-update="stream">
+              <tr :for={{dom_id, member} <- @streams.members} id={dom_id}>
                 <td>{member.user.name || "—"}</td>
                 <td>{member.user.email}</td>
                 <td><span class="badge badge-sm badge-outline">{member.role}</span></td>

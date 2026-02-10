@@ -8,12 +8,14 @@ defmodule KsefHubWeb.UserLoginLive do
 
   use KsefHubWeb, :live_view
 
+  alias KsefHubWeb.UrlHelpers
+
   @doc false
   @spec mount(map(), map(), Phoenix.LiveView.Socket.t()) ::
           {:ok, Phoenix.LiveView.Socket.t()}
   def mount(params, _session, socket) do
     email = Phoenix.Flash.get(socket.assigns.flash, :email)
-    return_to = sanitize_return_to(params["return_to"])
+    return_to = UrlHelpers.sanitize_return_to(params["return_to"])
     form = to_form(%{"email" => email}, as: "user")
 
     {:ok, assign(socket, form: form, trigger_submit: false, return_to: return_to),
@@ -32,20 +34,6 @@ defmodule KsefHubWeb.UserLoginLive do
     # The form will POST to the session controller via phx-trigger-action
     form = to_form(user_params, as: "user")
     {:noreply, assign(socket, form: form, trigger_submit: true)}
-  end
-
-  @spec sanitize_return_to(String.t() | nil) :: String.t() | nil
-  defp sanitize_return_to(nil), do: nil
-  defp sanitize_return_to(""), do: nil
-
-  defp sanitize_return_to(path) when is_binary(path) do
-    uri = URI.parse(path)
-
-    if is_nil(uri.host) && String.starts_with?(path, "/") do
-      path
-    else
-      nil
-    end
   end
 
   @doc false

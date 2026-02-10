@@ -13,14 +13,14 @@ defmodule KsefHub.Invitations.InvitationTest do
       invitation = %Invitation{
         company_id: company.id,
         invited_by_id: user.id,
-        token_hash: "abc123hash"
+        token_hash: "abc123hash",
+        status: "pending",
+        expires_at: DateTime.add(DateTime.utc_now(), 7 * 24 * 3600)
       }
 
       attrs = %{
         email: "invitee@example.com",
-        role: "accountant",
-        status: "pending",
-        expires_at: DateTime.add(DateTime.utc_now(), 7 * 24 * 3600)
+        role: "accountant"
       }
 
       changeset = Invitation.changeset(invitation, attrs)
@@ -44,33 +44,39 @@ defmodule KsefHub.Invitations.InvitationTest do
         %Invitation{
           company_id: Ecto.UUID.generate(),
           invited_by_id: Ecto.UUID.generate(),
-          token_hash: "hash"
+          token_hash: "hash",
+          status: "pending",
+          expires_at: DateTime.add(DateTime.utc_now(), 7 * 24 * 3600)
         }
         |> Invitation.changeset(%{
           email: "test@example.com",
-          role: "owner",
-          status: "pending",
-          expires_at: DateTime.add(DateTime.utc_now(), 7 * 24 * 3600)
+          role: "owner"
         })
 
       assert %{role: ["is invalid"]} = errors_on(changeset)
     end
 
-    test "validates status is pending, accepted, or cancelled" do
+    test "does not cast status or expires_at from attrs" do
       changeset =
         %Invitation{
           company_id: Ecto.UUID.generate(),
           invited_by_id: Ecto.UUID.generate(),
-          token_hash: "hash"
+          token_hash: "hash",
+          status: "pending",
+          expires_at: DateTime.add(DateTime.utc_now(), 7 * 24 * 3600)
         }
         |> Invitation.changeset(%{
           email: "test@example.com",
           role: "accountant",
-          status: "bogus",
-          expires_at: DateTime.add(DateTime.utc_now(), 7 * 24 * 3600)
+          status: "accepted",
+          expires_at: DateTime.add(DateTime.utc_now(), -3600)
         })
 
-      assert %{status: ["is invalid"]} = errors_on(changeset)
+      # Status and expires_at should remain as set on the struct
+      assert Ecto.Changeset.get_field(changeset, :status) == "pending"
+
+      assert DateTime.diff(Ecto.Changeset.get_field(changeset, :expires_at), DateTime.utc_now()) >
+               6 * 24 * 3600
     end
 
     test "validates email format" do
@@ -78,13 +84,13 @@ defmodule KsefHub.Invitations.InvitationTest do
         %Invitation{
           company_id: Ecto.UUID.generate(),
           invited_by_id: Ecto.UUID.generate(),
-          token_hash: "hash"
+          token_hash: "hash",
+          status: "pending",
+          expires_at: DateTime.add(DateTime.utc_now(), 7 * 24 * 3600)
         }
         |> Invitation.changeset(%{
           email: "not-an-email",
-          role: "accountant",
-          status: "pending",
-          expires_at: DateTime.add(DateTime.utc_now(), 7 * 24 * 3600)
+          role: "accountant"
         })
 
       assert %{email: ["must be a valid email address"]} = errors_on(changeset)
@@ -95,46 +101,51 @@ defmodule KsefHub.Invitations.InvitationTest do
         %Invitation{
           company_id: Ecto.UUID.generate(),
           invited_by_id: Ecto.UUID.generate(),
-          token_hash: "hash"
+          token_hash: "hash",
+          status: "pending",
+          expires_at: DateTime.add(DateTime.utc_now(), 7 * 24 * 3600)
         }
         |> Invitation.changeset(%{
           email: "UPPER@Example.COM",
-          role: "accountant",
-          status: "pending",
-          expires_at: DateTime.add(DateTime.utc_now(), 7 * 24 * 3600)
+          role: "accountant"
         })
 
       assert Ecto.Changeset.get_change(changeset, :email) == "upper@example.com"
     end
 
-    test "does not allow mass-assignment of company_id, invited_by_id, or token_hash" do
+    test "does not allow mass-assignment of company_id, invited_by_id, token_hash, status, or expires_at" do
       original_company = insert(:company)
       original_user = insert(:user)
       attacker_company = insert(:company)
       attacker_user = insert(:user)
+      original_expires = DateTime.add(DateTime.utc_now(), 7 * 24 * 3600)
 
       invitation = %Invitation{
         company_id: original_company.id,
         invited_by_id: original_user.id,
-        token_hash: "original-hash"
+        token_hash: "original-hash",
+        status: "pending",
+        expires_at: original_expires
       }
 
-      # Attempt to overwrite foreign keys via attrs
+      # Attempt to overwrite protected fields via attrs
       changeset =
         Invitation.changeset(invitation, %{
           email: "test@example.com",
           role: "accountant",
-          status: "pending",
-          expires_at: DateTime.add(DateTime.utc_now(), 7 * 24 * 3600),
           company_id: attacker_company.id,
           invited_by_id: attacker_user.id,
-          token_hash: "attacker-hash"
+          token_hash: "attacker-hash",
+          status: "accepted",
+          expires_at: DateTime.add(DateTime.utc_now(), -3600)
         })
 
-      # Foreign keys should remain as set on the struct, not overwritten
+      # All protected fields should remain as set on the struct
       assert Ecto.Changeset.get_field(changeset, :company_id) == original_company.id
       assert Ecto.Changeset.get_field(changeset, :invited_by_id) == original_user.id
       assert Ecto.Changeset.get_field(changeset, :token_hash) == "original-hash"
+      assert Ecto.Changeset.get_field(changeset, :status) == "pending"
+      assert Ecto.Changeset.get_field(changeset, :expires_at) == original_expires
     end
 
     test "enforces unique pending invitation per company+email" do
@@ -152,13 +163,14 @@ defmodule KsefHub.Invitations.InvitationTest do
         %Invitation{
           company_id: company.id,
           invited_by_id: user.id,
-          token_hash: "different-hash"
+          token_hash: "different-hash",
+          status: "pending",
+          expires_at:
+            DateTime.add(DateTime.utc_now(), 7 * 24 * 3600) |> DateTime.truncate(:second)
         }
         |> Invitation.changeset(%{
           email: "dupe@example.com",
-          role: "accountant",
-          status: "pending",
-          expires_at: DateTime.add(DateTime.utc_now(), 7 * 24 * 3600)
+          role: "accountant"
         })
         |> Repo.insert()
 

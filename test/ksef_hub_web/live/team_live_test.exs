@@ -127,6 +127,15 @@ defmodule KsefHubWeb.TeamLiveTest do
   end
 
   describe "remove member" do
+    test "cannot remove the owner via server-side event", %{conn: conn, owner: owner} do
+      {:ok, view, _html} = live(conn, ~p"/team")
+
+      # Simulate sending the event directly (bypassing UI guard)
+      render_click(view, "remove_member", %{"user-id" => owner.id})
+
+      assert has_element?(view, "#flash-error", "Cannot remove company owner")
+    end
+
     test "owner can remove a non-owner member", %{conn: conn, company: company} do
       member = insert(:user, name: "Remove Me", email: "removeme@example.com")
       insert(:membership, user: member, company: company, role: "accountant")

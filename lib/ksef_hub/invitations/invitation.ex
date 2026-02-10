@@ -47,16 +47,16 @@ defmodule KsefHub.Invitations.Invitation do
   def statuses, do: @statuses
 
   @doc """
-  Builds a changeset for invitation creation/update.
+  Builds a changeset for invitation creation.
 
-  The `company_id`, `invited_by_id`, and `token_hash` must be set directly
-  on the struct before calling this function to prevent mass-assignment.
-  Only `:email`, `:role`, `:status`, and `:expires_at` are cast from attrs.
+  The `company_id`, `invited_by_id`, `token_hash`, `status`, and `expires_at`
+  must be set directly on the struct before calling this function to prevent
+  mass-assignment. Only `:email` and `:role` are cast from attrs.
   """
   @spec changeset(t(), map()) :: Ecto.Changeset.t()
   def changeset(invitation, attrs) do
     invitation
-    |> cast(attrs, [:email, :role, :status, :expires_at])
+    |> cast(attrs, [:email, :role])
     |> validate_required([
       :email,
       :role,
@@ -67,7 +67,6 @@ defmodule KsefHub.Invitations.Invitation do
       :token_hash
     ])
     |> validate_inclusion(:role, @invitable_roles)
-    |> validate_inclusion(:status, @statuses)
     |> validate_email()
     |> normalize_email()
     |> foreign_key_constraint(:company_id)

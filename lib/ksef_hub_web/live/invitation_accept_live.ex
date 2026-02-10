@@ -57,6 +57,12 @@ defmodule KsefHubWeb.InvitationAcceptLive do
          socket
          |> put_flash(:info, "You're already a member of this company.")
          |> redirect(to: "/dashboard")}
+
+      {:error, %Ecto.Changeset{}} ->
+        {:ok,
+         socket
+         |> put_flash(:error, "Something went wrong while accepting the invitation.")
+         |> redirect(to: "/dashboard")}
     end
   end
 

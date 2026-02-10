@@ -41,28 +41,45 @@ defmodule KsefHub.Invitations do
           | {:error, Ecto.Changeset.t()}
   def create_invitation(user_id, company_id, attrs) do
     email = normalize_email(attrs[:email] || attrs["email"] || "")
+    raw_token = generate_token()
+    token_hash = hash_token(raw_token)
 
-    with {:ok, _membership} <- Companies.authorize(user_id, company_id, ["owner"]),
-         :ok <- check_not_already_member(company_id, email) do
-      raw_token = generate_token()
-      token_hash = hash_token(raw_token)
+    expires_at =
+      DateTime.add(DateTime.utc_now(), @expiry_days * 24 * 3600) |> DateTime.truncate(:second)
 
-      expires_at =
-        DateTime.add(DateTime.utc_now(), @expiry_days * 24 * 3600) |> DateTime.truncate(:second)
-
-      result =
-        %Invitation{
-          company_id: company_id,
-          invited_by_id: user_id,
-          token_hash: token_hash
-        }
-        |> Invitation.changeset(Map.merge(attrs, %{expires_at: expires_at, status: "pending"}))
-        |> Repo.insert()
-
-      case result do
-        {:ok, invitation} -> {:ok, %{invitation: invitation, token: raw_token}}
-        {:error, changeset} -> {:error, changeset}
+    Multi.new()
+    |> Multi.run(:authorize, fn _repo, _changes ->
+      Companies.authorize(user_id, company_id, ["owner"])
+    end)
+    |> Multi.run(:check_member, fn _repo, _changes ->
+      case check_not_already_member(company_id, email) do
+        :ok -> {:ok, :not_member}
+        {:error, :already_member} -> {:error, :already_member}
       end
+    end)
+    |> Multi.insert(:invitation, fn _changes ->
+      %Invitation{
+        company_id: company_id,
+        invited_by_id: user_id,
+        token_hash: token_hash,
+        status: "pending",
+        expires_at: expires_at
+      }
+      |> Invitation.changeset(attrs)
+    end)
+    |> Repo.transaction()
+    |> case do
+      {:ok, %{invitation: invitation}} ->
+        {:ok, %{invitation: invitation, token: raw_token}}
+
+      {:error, :authorize, :unauthorized, _changes} ->
+        {:error, :unauthorized}
+
+      {:error, :check_member, :already_member, _changes} ->
+        {:error, :already_member}
+
+      {:error, :invitation, changeset, _changes} ->
+        {:error, changeset}
     end
   end
 
@@ -83,6 +100,7 @@ defmodule KsefHub.Invitations do
           | {:error, :not_found}
           | {:error, :expired}
           | {:error, :already_member}
+          | {:error, Ecto.Changeset.t()}
   def accept_invitation(raw_token, %User{} = user) do
     token_hash = hash_token(raw_token)
 
@@ -108,7 +126,7 @@ defmodule KsefHub.Invitations do
       {:error, :already_member}
     else
       Multi.new()
-      |> Multi.update(:invitation, Invitation.changeset(invitation, %{status: "accepted"}))
+      |> Multi.update(:invitation, Ecto.Changeset.change(invitation, status: "accepted"))
       |> Multi.insert(:membership, fn _changes ->
         %Membership{user_id: user.id, company_id: invitation.company_id}
         |> Membership.changeset(%{role: invitation.role})
@@ -138,20 +156,30 @@ defmodule KsefHub.Invitations do
   @spec cancel_invitation(Ecto.UUID.t(), Ecto.UUID.t()) ::
           {:ok, Invitation.t()} | {:error, :unauthorized} | {:error, :not_found}
   def cancel_invitation(user_id, invitation_id) do
-    case Repo.get(Invitation, invitation_id) do
-      %Invitation{status: "pending"} = invitation ->
-        case Companies.authorize(user_id, invitation.company_id, ["owner"]) do
-          {:ok, _membership} ->
-            invitation
-            |> Invitation.changeset(%{status: "cancelled"})
-            |> Repo.update()
+    with %Invitation{status: "pending"} = invitation <- Repo.get(Invitation, invitation_id),
+         {:ok, _membership} <- Companies.authorize(user_id, invitation.company_id, ["owner"]) do
+      do_atomic_cancel(invitation_id)
+    else
+      %Invitation{} -> {:error, :not_found}
+      nil -> {:error, :not_found}
+      {:error, :unauthorized} -> {:error, :unauthorized}
+    end
+  end
 
-          {:error, :unauthorized} ->
-            {:error, :unauthorized}
-        end
+  @spec do_atomic_cancel(Ecto.UUID.t()) :: {:ok, Invitation.t()} | {:error, :not_found}
+  defp do_atomic_cancel(invitation_id) do
+    now = DateTime.utc_now() |> DateTime.truncate(:second)
 
-      _ ->
-        {:error, :not_found}
+    {count, _} =
+      from(i in Invitation,
+        where: i.id == ^invitation_id and i.status == "pending"
+      )
+      |> Repo.update_all(set: [status: "cancelled", updated_at: now])
+
+    if count == 1 do
+      {:ok, Repo.get!(Invitation, invitation_id)}
+    else
+      {:error, :not_found}
     end
   end
 

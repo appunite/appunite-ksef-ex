@@ -74,6 +74,27 @@ defmodule KsefHubWeb.InvitationAcceptLiveTest do
       {:ok, view, _html} = live(conn, ~p"/invitations/accept/bogus-token")
       assert has_element?(view, "h2", "Invalid invitation")
     end
+
+    test "redirects when user is already a member", %{conn: conn, company: company, owner: owner} do
+      already_member = insert(:user, email: "already@example.com")
+
+      # Create invitation BEFORE adding membership, to avoid :already_member check
+      {:ok, %{token: token}} =
+        Invitations.create_invitation(owner.id, company.id, %{
+          email: "already@example.com",
+          role: "invoice_reviewer"
+        })
+
+      # Now add membership, simulating the user joined through another path
+      insert(:membership, user: already_member, company: company, role: "accountant")
+
+      already_conn = log_in_user(conn, already_member)
+
+      assert {:error, {:redirect, %{to: "/dashboard", flash: flash}}} =
+               live(already_conn, ~p"/invitations/accept/#{token}")
+
+      assert flash["info"] =~ "already a member"
+    end
   end
 
   describe "unauthenticated user" do
