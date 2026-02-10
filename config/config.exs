@@ -7,9 +7,11 @@
 # General application configuration
 import Config
 
-# Register PKCS12 MIME type for certificate upload validation
+# Register certificate-related MIME types for upload validation
 config :mime, :types, %{
-  "application/x-pkcs12" => ["p12", "pfx"]
+  "application/x-pkcs12" => ["p12", "pfx"],
+  "application/x-pem-file" => ["pem", "key"],
+  "application/x-x509-ca-cert" => ["crt", "cer"]
 }
 
 config :ksef_hub,
