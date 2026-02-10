@@ -42,6 +42,7 @@ defmodule KsefHubWeb.CompanySwitchControllerTest do
 
       assert redirected_to(conn) == "/dashboard"
       assert Phoenix.Flash.get(conn.assigns.flash, :error) == "Company not found."
+      assert is_nil(get_session(conn, :current_company_id))
     end
 
     test "respects return_to parameter", %{conn: conn} do

@@ -16,7 +16,7 @@ defmodule KsefHubWeb.Layouts do
   attr :current_user, :map, default: nil
   attr :current_path, :string, default: nil
   attr :current_company, :map, default: nil
-  attr :current_role, :string, default: nil
+  attr :current_role, :string, default: nil, doc: "the user's role for the current company membership"
   attr :companies, :list, default: []
 
   @doc "Renders the main application layout with sidebar navigation."
