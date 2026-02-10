@@ -15,6 +15,7 @@ defmodule KsefHub.Sync.SyncWorker do
   @impl Oban.Worker
   def perform(%Oban.Job{args: %{"company_id" => company_id}} = job) do
     with {:ok, credential} <- load_active_credential(company_id),
+         :ok <- verify_owner_certificate(company_id),
          {:ok, access_token} <- get_access_token(company_id) do
       access_token
       |> sync_all_types(credential.nip, company_id, job)
@@ -22,6 +23,10 @@ defmodule KsefHub.Sync.SyncWorker do
     else
       {:error, :no_credential} ->
         Logger.info("Sync skipped for company #{company_id}: no active credential configured")
+        :ok
+
+      {:error, :no_certificate} ->
+        Logger.info("Sync skipped for company #{company_id}: no owner certificate uploaded")
         :ok
 
       {:error, :reauth_required} ->
@@ -42,10 +47,20 @@ defmodule KsefHub.Sync.SyncWorker do
     :ok
   end
 
+  @spec load_active_credential(Ecto.UUID.t()) ::
+          {:ok, Credentials.Credential.t()} | {:error, :no_credential}
   defp load_active_credential(company_id) do
     case Credentials.get_active_credential(company_id) do
       nil -> {:error, :no_credential}
       cred -> {:ok, cred}
+    end
+  end
+
+  @spec verify_owner_certificate(Ecto.UUID.t()) :: :ok | {:error, :no_certificate}
+  defp verify_owner_certificate(company_id) do
+    case Credentials.get_certificate_for_company(company_id) do
+      nil -> {:error, :no_certificate}
+      _cert -> :ok
     end
   end
 
