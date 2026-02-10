@@ -228,8 +228,8 @@ defmodule KsefHubWeb.CertificateLive do
       {:ok, %{subject: subject, expires_at: expires_at}} ->
         %{certificate_subject: subject, certificate_expires_at: expires_at}
 
-      {:error, reason} ->
-        Logger.warning("Failed to extract certificate info: #{inspect(reason)}")
+      {:error, _reason} ->
+        Logger.warning("Failed to extract certificate info")
         %{}
     end
   end
@@ -244,11 +244,16 @@ defmodule KsefHubWeb.CertificateLive do
     Application.get_env(:ksef_hub, :certificate_info, KsefHub.Credentials.CertificateInfo.Openssl)
   end
 
-  @spec enqueue_auth(Ecto.UUID.t()) :: {:ok, Oban.Job.t()} | {:error, term()}
+  @spec enqueue_auth(Ecto.UUID.t()) :: :ok
   defp enqueue_auth(company_id) do
-    %{company_id: company_id}
-    |> AuthWorker.new()
-    |> Oban.insert()
+    case %{company_id: company_id} |> AuthWorker.new() |> Oban.insert() do
+      {:ok, _job} ->
+        :ok
+
+      {:error, _reason} ->
+        Logger.error("Failed to enqueue auth job for company #{company_id}")
+        :ok
+    end
   end
 
   @spec load_credentials(Phoenix.LiveView.Socket.t()) :: Phoenix.LiveView.Socket.t()

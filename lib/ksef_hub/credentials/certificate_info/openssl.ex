@@ -54,45 +54,23 @@ defmodule KsefHub.Credentials.CertificateInfo.Openssl do
 
   @spec extract_pem(String.t(), String.t()) :: {:ok, String.t()} | {:error, term()}
   defp extract_pem(p12_path, pass_path) do
-    args = [
-      "pkcs12",
-      "-in",
-      p12_path,
-      "-passin",
-      "file:#{pass_path}",
-      "-clcerts",
-      "-nokeys",
-      "-legacy"
-    ]
+    base_args = ["pkcs12", "-in", p12_path, "-passin", "file:#{pass_path}", "-clcerts", "-nokeys"]
 
-    task = Task.async(fn -> System.cmd("openssl", args, stderr_to_stdout: true) end)
-
-    case Task.yield(task, 30_000) || Task.shutdown(task, :brutal_kill) do
-      {:ok, {output, 0}} ->
+    case run_openssl(base_args ++ ["-legacy"]) do
+      {:ok, output} ->
         {:ok, output}
 
-      {:ok, {_output, _exit_code}} ->
+      {:error, {:openssl_failed, _}} ->
         # Retry without -legacy flag for older OpenSSL versions
-        retry_without_legacy(p12_path, pass_path)
+        run_openssl(base_args)
 
-      nil ->
-        Logger.warning("openssl pkcs12 info extraction timed out")
-        {:error, :timeout}
+      {:error, _} = error ->
+        error
     end
   end
 
-  @spec retry_without_legacy(String.t(), String.t()) :: {:ok, String.t()} | {:error, term()}
-  defp retry_without_legacy(p12_path, pass_path) do
-    args = [
-      "pkcs12",
-      "-in",
-      p12_path,
-      "-passin",
-      "file:#{pass_path}",
-      "-clcerts",
-      "-nokeys"
-    ]
-
+  @spec run_openssl([String.t()]) :: {:ok, String.t()} | {:error, term()}
+  defp run_openssl(args) do
     task = Task.async(fn -> System.cmd("openssl", args, stderr_to_stdout: true) end)
 
     case Task.yield(task, 30_000) || Task.shutdown(task, :brutal_kill) do
@@ -132,8 +110,8 @@ defmodule KsefHub.Credentials.CertificateInfo.Openssl do
 
     {:ok, %{subject: subject_string, expires_at: expires_at}}
   rescue
-    e ->
-      Logger.warning("Failed to parse certificate: #{inspect(e)}")
+    _e ->
+      Logger.warning("Failed to parse certificate")
       {:error, :parse_failed}
   end
 
