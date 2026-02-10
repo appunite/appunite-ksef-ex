@@ -3,6 +3,7 @@ defmodule KsefHubWeb.LiveAuth do
   LiveView on_mount hook that loads the current user and company into socket assigns.
   Redirects unauthenticated users to the home page.
   Redirects users with no companies to the company creation page.
+  Assigns `:current_role` from the user's membership for the current company.
   """
 
   import Phoenix.LiveView
@@ -12,7 +13,7 @@ defmodule KsefHubWeb.LiveAuth do
   alias KsefHub.Companies
 
   @doc """
-  Assigns `:current_user`, `:current_company`, and `:companies` to the socket.
+  Assigns `:current_user`, `:current_company`, `:companies`, and `:current_role` to the socket.
   """
   @spec on_mount(atom(), map(), map(), Phoenix.LiveView.Socket.t()) ::
           {:cont, Phoenix.LiveView.Socket.t()} | {:halt, Phoenix.LiveView.Socket.t()}
@@ -37,17 +38,29 @@ defmodule KsefHubWeb.LiveAuth do
   @spec assign_user_and_companies(Phoenix.LiveView.Socket.t(), map(), map()) ::
           Phoenix.LiveView.Socket.t()
   defp assign_user_and_companies(socket, user, session) do
-    companies = Companies.list_companies()
+    companies = Companies.list_companies_for_user(user.id)
     current_company = resolve_company(companies, session["current_company_id"])
+    current_role = resolve_role(user.id, current_company)
 
     socket
     |> assign(:current_user, user)
     |> assign(:companies, companies)
     |> assign(:current_company, current_company || List.first(companies))
+    |> assign(:current_role, current_role || resolve_role(user.id, List.first(companies)))
     |> assign(:current_path, nil)
     |> attach_hook(:set_current_path, :handle_params, fn _params, uri, socket ->
       {:cont, assign(socket, :current_path, URI.parse(uri).path)}
     end)
+  end
+
+  @spec resolve_role(Ecto.UUID.t(), map() | nil) :: String.t() | nil
+  defp resolve_role(_user_id, nil), do: nil
+
+  defp resolve_role(user_id, company) do
+    case Companies.get_membership(user_id, company.id) do
+      %{role: role} -> role
+      nil -> nil
+    end
   end
 
   @spec maybe_redirect_for_company(Phoenix.LiveView.Socket.t()) ::

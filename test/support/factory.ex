@@ -9,7 +9,7 @@ defmodule KsefHub.Factory do
   use ExMachina.Ecto, repo: KsefHub.Repo
 
   alias KsefHub.Accounts.{ApiToken, User}
-  alias KsefHub.Companies.Company
+  alias KsefHub.Companies.{Company, Membership}
   alias KsefHub.Credentials.Credential
   alias KsefHub.Invoices.Invoice
   alias KsefHub.Sync.Checkpoint
@@ -31,6 +31,16 @@ defmodule KsefHub.Factory do
       name: sequence(:company_name, &"Company #{&1}"),
       nip: sequence(:company_nip, &String.pad_leading("#{&1}", 10, "0")),
       is_active: true
+    }
+  end
+
+  @doc "Builds a `Membership` linking a user to a company with a default owner role."
+  @spec membership_factory() :: Membership.t()
+  def membership_factory do
+    %Membership{
+      role: "owner",
+      user: build(:user),
+      company: build(:company)
     }
   end
 

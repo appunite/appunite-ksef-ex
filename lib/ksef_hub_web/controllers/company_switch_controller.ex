@@ -1,7 +1,8 @@
 defmodule KsefHubWeb.CompanySwitchController do
   @moduledoc """
   Controller for switching the current company context.
-  Stores the selected company_id in the session and redirects back.
+  Verifies the user has a membership for the target company,
+  stores the selected company_id in the session, and redirects back.
   """
 
   use KsefHubWeb, :controller
@@ -11,8 +12,10 @@ defmodule KsefHubWeb.CompanySwitchController do
   @doc "Switches the current company context and redirects."
   @spec update(Plug.Conn.t(), map()) :: Plug.Conn.t()
   def update(conn, %{"id" => id} = params) do
+    user_id = get_session(conn, :user_id)
+
     with {:ok, uuid} <- Ecto.UUID.cast(id),
-         %{} <- Companies.get_company(uuid) do
+         %{} <- Companies.get_membership(user_id, uuid) do
       conn
       |> put_session(:current_company_id, uuid)
       |> redirect(to: safe_return_to(params["return_to"]))

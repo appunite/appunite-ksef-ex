@@ -4,7 +4,7 @@ defmodule KsefHub.CompaniesTest do
   import KsefHub.Factory
 
   alias KsefHub.Companies
-  alias KsefHub.Companies.Company
+  alias KsefHub.Companies.{Company, Membership}
 
   describe "create_company/1" do
     test "creates a company with valid attributes" do
@@ -111,6 +111,254 @@ defmodule KsefHub.CompaniesTest do
       company = insert(:company, nip: "2222222222")
       assert {:error, changeset} = Companies.update_company(company, %{nip: "1111111111"})
       assert "has already been taken" in errors_on(changeset).nip
+    end
+  end
+
+  describe "list_companies_for_user/1" do
+    test "returns only companies where user has membership" do
+      user = insert(:user)
+      company_a = insert(:company, name: "Alpha")
+      company_b = insert(:company, name: "Beta")
+      _company_c = insert(:company, name: "Gamma")
+
+      insert(:membership, user: user, company: company_a, role: "owner")
+      insert(:membership, user: user, company: company_b, role: "accountant")
+
+      companies = Companies.list_companies_for_user(user.id)
+      assert length(companies) == 2
+      assert Enum.map(companies, & &1.name) == ["Alpha", "Beta"]
+    end
+
+    test "returns empty list for user with no memberships" do
+      user = insert(:user)
+      _company = insert(:company)
+
+      assert Companies.list_companies_for_user(user.id) == []
+    end
+
+    test "does not return inactive companies" do
+      user = insert(:user)
+      company = insert(:company, is_active: false)
+      insert(:membership, user: user, company: company)
+
+      assert Companies.list_companies_for_user(user.id) == []
+    end
+
+    test "does not return other users' companies" do
+      user_a = insert(:user)
+      user_b = insert(:user)
+      company = insert(:company)
+
+      insert(:membership, user: user_a, company: company)
+
+      assert Companies.list_companies_for_user(user_b.id) == []
+    end
+  end
+
+  describe "list_companies_for_user_with_credential_status/1" do
+    test "returns companies with credential status for user" do
+      user = insert(:user)
+      company = insert(:company, name: "WithCred")
+      insert(:membership, user: user, company: company)
+      insert(:credential, company: company, is_active: true)
+
+      companies = Companies.list_companies_for_user_with_credential_status(user.id)
+      assert length(companies) == 1
+      assert hd(companies).has_active_credential == true
+    end
+
+    test "returns false for company without credential" do
+      user = insert(:user)
+      company = insert(:company, name: "NoCred")
+      insert(:membership, user: user, company: company)
+
+      companies = Companies.list_companies_for_user_with_credential_status(user.id)
+      assert length(companies) == 1
+      assert hd(companies).has_active_credential == false
+    end
+
+    test "returns only user's companies" do
+      user = insert(:user)
+      other_user = insert(:user)
+      company_a = insert(:company)
+      company_b = insert(:company)
+      insert(:membership, user: user, company: company_a)
+      insert(:membership, user: other_user, company: company_b)
+
+      companies = Companies.list_companies_for_user_with_credential_status(user.id)
+      assert length(companies) == 1
+      assert hd(companies).id == company_a.id
+    end
+  end
+
+  describe "get_membership/2" do
+    test "returns membership for user and company" do
+      user = insert(:user)
+      company = insert(:company)
+      membership = insert(:membership, user: user, company: company, role: "accountant")
+
+      assert %Membership{} = found = Companies.get_membership(user.id, company.id)
+      assert found.id == membership.id
+      assert found.role == "accountant"
+    end
+
+    test "returns nil when no membership exists" do
+      user = insert(:user)
+      company = insert(:company)
+
+      assert Companies.get_membership(user.id, company.id) == nil
+    end
+  end
+
+  describe "get_membership!/2" do
+    test "returns membership for user and company" do
+      user = insert(:user)
+      company = insert(:company)
+      insert(:membership, user: user, company: company, role: "owner")
+
+      assert %Membership{} = Companies.get_membership!(user.id, company.id)
+    end
+
+    test "raises when no membership exists" do
+      user = insert(:user)
+      company = insert(:company)
+
+      assert_raise Ecto.NoResultsError, fn ->
+        Companies.get_membership!(user.id, company.id)
+      end
+    end
+  end
+
+  describe "create_membership/1" do
+    test "creates a membership with valid attrs" do
+      user = insert(:user)
+      company = insert(:company)
+
+      assert {:ok, %Membership{} = membership} =
+               Companies.create_membership(%{
+                 user_id: user.id,
+                 company_id: company.id,
+                 role: "accountant"
+               })
+
+      assert membership.role == "accountant"
+      assert membership.user_id == user.id
+      assert membership.company_id == company.id
+    end
+
+    test "rejects duplicate user+company pair" do
+      user = insert(:user)
+      company = insert(:company)
+      insert(:membership, user: user, company: company)
+
+      assert {:error, changeset} =
+               Companies.create_membership(%{
+                 user_id: user.id,
+                 company_id: company.id,
+                 role: "accountant"
+               })
+
+      assert "already a member of this company" in errors_on(changeset).user_id
+    end
+  end
+
+  describe "create_company_with_owner/2" do
+    test "atomically creates company and owner membership" do
+      user = insert(:user)
+      attrs = %{name: "New Co", nip: "1234567890"}
+
+      assert {:ok, %{company: company, membership: membership}} =
+               Companies.create_company_with_owner(user, attrs)
+
+      assert company.name == "New Co"
+      assert company.nip == "1234567890"
+      assert membership.user_id == user.id
+      assert membership.company_id == company.id
+      assert membership.role == "owner"
+    end
+
+    test "rolls back if company creation fails" do
+      user = insert(:user)
+      attrs = %{name: "Bad Co", nip: "bad"}
+
+      assert {:error, :company, changeset, _changes} =
+               Companies.create_company_with_owner(user, attrs)
+
+      assert errors_on(changeset).nip
+      assert Companies.list_companies_for_user(user.id) == []
+    end
+
+    test "rolls back if NIP already taken" do
+      insert(:company, nip: "1111111111")
+      user = insert(:user)
+      attrs = %{name: "Dupe Co", nip: "1111111111"}
+
+      assert {:error, :company, changeset, _changes} =
+               Companies.create_company_with_owner(user, attrs)
+
+      assert "has already been taken" in errors_on(changeset).nip
+    end
+  end
+
+  describe "has_role?/3" do
+    test "returns true when user has the specified role" do
+      user = insert(:user)
+      company = insert(:company)
+      insert(:membership, user: user, company: company, role: "owner")
+
+      assert Companies.has_role?(user.id, company.id, "owner")
+    end
+
+    test "returns false when user has a different role" do
+      user = insert(:user)
+      company = insert(:company)
+      insert(:membership, user: user, company: company, role: "accountant")
+
+      refute Companies.has_role?(user.id, company.id, "owner")
+    end
+
+    test "returns false when user has no membership" do
+      user = insert(:user)
+      company = insert(:company)
+
+      refute Companies.has_role?(user.id, company.id, "owner")
+    end
+
+    test "accepts a list of roles" do
+      user = insert(:user)
+      company = insert(:company)
+      insert(:membership, user: user, company: company, role: "accountant")
+
+      assert Companies.has_role?(user.id, company.id, ~w(owner accountant))
+      refute Companies.has_role?(user.id, company.id, ~w(owner invoice_reviewer))
+    end
+  end
+
+  describe "authorize/3" do
+    test "returns {:ok, membership} when user has required role" do
+      user = insert(:user)
+      company = insert(:company)
+      insert(:membership, user: user, company: company, role: "owner")
+
+      assert {:ok, %Membership{role: "owner"}} =
+               Companies.authorize(user.id, company.id, ~w(owner))
+    end
+
+    test "returns {:error, :unauthorized} when user has wrong role" do
+      user = insert(:user)
+      company = insert(:company)
+      insert(:membership, user: user, company: company, role: "invoice_reviewer")
+
+      assert {:error, :unauthorized} =
+               Companies.authorize(user.id, company.id, ~w(owner))
+    end
+
+    test "returns {:error, :unauthorized} when user has no membership" do
+      user = insert(:user)
+      company = insert(:company)
+
+      assert {:error, :unauthorized} =
+               Companies.authorize(user.id, company.id, ~w(owner))
     end
   end
 end
