@@ -10,7 +10,7 @@ defmodule KsefHub.Factory do
 
   alias KsefHub.Accounts.{ApiToken, User}
   alias KsefHub.Companies.{Company, Membership}
-  alias KsefHub.Credentials.Credential
+  alias KsefHub.Credentials.{Credential, UserCertificate}
   alias KsefHub.Invoices.Invoice
   alias KsefHub.Sync.Checkpoint
 
@@ -66,6 +66,21 @@ defmodule KsefHub.Factory do
       certificate_subject: "CN=Test Certificate",
       is_active: true,
       company: company
+    }
+  end
+
+  @doc "Builds a `UserCertificate` with encrypted placeholder data, associated to a user."
+  @spec user_certificate_factory() :: UserCertificate.t()
+  def user_certificate_factory do
+    %UserCertificate{
+      certificate_data_encrypted: "encrypted-cert-data",
+      certificate_password_encrypted: "encrypted-cert-pass",
+      certificate_subject: "CN=Test User, PESEL=12345678901",
+      not_before: ~D[2026-01-01],
+      not_after: ~D[2028-01-01],
+      fingerprint: "AA:BB:CC:DD:EE:FF",
+      is_active: true,
+      user: build(:user)
     }
   end
 
