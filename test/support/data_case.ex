@@ -43,6 +43,40 @@ defmodule KsefHub.DataCase do
   end
 
   @doc """
+  Captures the token from an email-sending function.
+
+  Use this to extract tokens from functions like `deliver_user_confirmation_instructions/2`.
+  The passed-in function receives a URL-builder callback (`String.t() -> String.t()`)
+  and should return `{:ok, Swoosh.Email.t()}`.
+
+  ## Parameters
+
+    - `fun` (`((String.t() -> String.t()) -> {:ok, Swoosh.Email.t()})`) — a
+      function that receives a URL-building callback and triggers email delivery.
+      The URL-building callback has the shape `String.t() -> String.t()`.
+
+  ## Returns
+
+    `{String.t(), Swoosh.Email.t()}` — the encoded token and the captured email
+
+  ## Example
+
+      {encoded_token, _} =
+        extract_user_token(fn url ->
+          Accounts.deliver_user_confirmation_instructions(user, url)
+        end)
+  """
+  @spec extract_user_token(((String.t() -> String.t()) -> {:ok, Swoosh.Email.t()})) ::
+          {String.t(), Swoosh.Email.t()}
+  def extract_user_token(fun) do
+    {:ok, captured} = fun.(&"[TOKEN]#{&1}[/TOKEN]")
+    %{text_body: body} = captured
+    [_, token_and_rest | _] = String.split(body, "[TOKEN]")
+    [token | _] = String.split(token_and_rest, "[/TOKEN]")
+    {token, captured}
+  end
+
+  @doc """
   A helper that transforms changeset errors into a map of messages.
 
       assert {:error, changeset} = Accounts.create_user(%{password: "short"})

@@ -155,7 +155,7 @@ defmodule KsefHubWeb.Layouts do
                 <p class="font-medium truncate">{@current_user.email}</p>
               </div>
               <.link
-                href={~p"/auth/logout"}
+                href={~p"/users/log-out"}
                 method="delete"
                 aria-label="Log out"
                 class="btn btn-ghost btn-xs"

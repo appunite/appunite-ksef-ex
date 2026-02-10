@@ -41,7 +41,28 @@ defmodule KsefHubWeb.Router do
 
     get "/:provider", AuthController, :request
     get "/:provider/callback", AuthController, :callback
-    delete "/logout", AuthController, :logout
+  end
+
+  # Auth routes (email/password)
+  scope "/", KsefHubWeb do
+    pipe_through :browser
+
+    live_session :redirect_if_authenticated,
+      on_mount: [{KsefHubWeb.LiveAuth, :redirect_if_authenticated}] do
+      live "/users/register", UserRegistrationLive
+      live "/users/log-in", UserLoginLive
+      live "/users/reset-password", UserForgotPasswordLive
+      live "/users/reset-password/:token", UserResetPasswordLive
+    end
+
+    live_session :confirm_user,
+      on_mount: [{KsefHubWeb.LiveAuth, :mount_current_user}] do
+      live "/users/confirm/:token", UserConfirmationLive
+      live "/users/confirm", UserConfirmationInstructionsLive
+    end
+
+    post "/users/log-in", UserSessionController, :create
+    delete "/users/log-out", UserSessionController, :delete
   end
 
   # Protected browser routes (LiveView admin UI)

@@ -13,12 +13,16 @@ defmodule KsefHubWeb.InvoiceLive.ShowTest do
 
   setup %{conn: conn} do
     {:ok, user} =
-      Accounts.find_or_create_user(%{uid: "g-show-1", email: "test@example.com", name: "Test"})
+      Accounts.get_or_create_google_user(%{
+        uid: "g-show-1",
+        email: "test@example.com",
+        name: "Test"
+      })
 
     company = insert(:company)
     insert(:membership, user: user, company: company, role: "owner")
 
-    conn = conn |> init_test_session(%{user_id: user.id, current_company_id: company.id})
+    conn = conn |> log_in_user(user, %{current_company_id: company.id})
     %{conn: conn, user: user, company: company}
   end
 

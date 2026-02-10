@@ -35,4 +35,47 @@ defmodule KsefHubWeb.ConnCase do
     KsefHub.DataCase.setup_sandbox(tags)
     {:ok, conn: Phoenix.ConnTest.build_conn()}
   end
+
+  @doc """
+  Captures the token from an email-sending function.
+
+  Delegates to `KsefHub.DataCase.extract_user_token/1`.
+
+  ## Parameters
+
+    - `fun` (`((String.t() -> String.t()) -> {:ok, Swoosh.Email.t()})`) — a
+      function that receives a URL-building callback and triggers email delivery.
+      The URL-building callback has the shape `String.t() -> String.t()`.
+
+  ## Returns
+
+    `{String.t(), Swoosh.Email.t()}` — the encoded token and the captured email
+  """
+  @spec extract_user_token(((String.t() -> String.t()) -> {:ok, Swoosh.Email.t()})) ::
+          {String.t(), Swoosh.Email.t()}
+  defdelegate extract_user_token(fun), to: KsefHub.DataCase
+
+  @doc """
+  Sets up a logged-in connection by generating a session token for the user.
+
+  ## Parameters
+
+    - `conn` (`Plug.Conn.t()`) — the test connection
+    - `user` (`KsefHub.Accounts.User.t()`) — the user to log in
+    - `extra_session` (`map()`) — optional extra session keys
+      (e.g., `%{current_company_id: uuid}`)
+
+  ## Returns
+
+    `Plug.Conn.t()` — conn with `:user_token` (and any extra keys) in session
+  """
+  @spec log_in_user(Plug.Conn.t(), KsefHub.Accounts.User.t(), map()) :: Plug.Conn.t()
+  def log_in_user(conn, user, extra_session \\ %{}) do
+    token = KsefHub.Accounts.generate_user_session_token(user)
+
+    session = extra_session |> Map.put(:user_token, token)
+
+    conn
+    |> Phoenix.ConnTest.init_test_session(session)
+  end
 end

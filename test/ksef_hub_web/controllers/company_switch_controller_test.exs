@@ -11,7 +11,7 @@ defmodule KsefHubWeb.CompanySwitchControllerTest do
 
       conn =
         conn
-        |> init_test_session(%{user_id: user.id})
+        |> log_in_user(user)
         |> post(~p"/switch-company/#{company.id}")
 
       assert redirected_to(conn) == "/dashboard"
@@ -24,7 +24,7 @@ defmodule KsefHubWeb.CompanySwitchControllerTest do
 
       conn =
         conn
-        |> init_test_session(%{user_id: user.id})
+        |> log_in_user(user)
         |> post(~p"/switch-company/#{company.id}")
 
       assert redirected_to(conn) == "/dashboard"
@@ -37,7 +37,7 @@ defmodule KsefHubWeb.CompanySwitchControllerTest do
 
       conn =
         conn
-        |> init_test_session(%{user_id: user.id})
+        |> log_in_user(user)
         |> post(~p"/switch-company/#{Ecto.UUID.generate()}")
 
       assert redirected_to(conn) == "/dashboard"
@@ -52,7 +52,7 @@ defmodule KsefHubWeb.CompanySwitchControllerTest do
 
       conn =
         conn
-        |> init_test_session(%{user_id: user.id})
+        |> log_in_user(user)
         |> post(~p"/switch-company/#{company.id}", %{return_to: "/invoices"})
 
       assert redirected_to(conn) == "/invoices"
@@ -65,7 +65,7 @@ defmodule KsefHubWeb.CompanySwitchControllerTest do
 
       conn =
         conn
-        |> init_test_session(%{user_id: user.id})
+        |> log_in_user(user)
         |> post(~p"/switch-company/#{company.id}", %{return_to: "https://evil.com"})
 
       assert redirected_to(conn) == "/dashboard"
@@ -78,7 +78,7 @@ defmodule KsefHubWeb.CompanySwitchControllerTest do
 
       conn =
         conn
-        |> init_test_session(%{user_id: user.id})
+        |> log_in_user(user)
         |> post(~p"/switch-company/#{company.id}", %{return_to: "//evil.com"})
 
       assert redirected_to(conn) == "/dashboard"

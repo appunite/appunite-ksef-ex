@@ -81,6 +81,8 @@ defmodule KsefHub.MixProject do
       {:ex_machina, "~> 2.8", only: :test},
       # OpenAPI documentation
       {:open_api_spex, "~> 3.22"},
+      # Password hashing
+      {:bcrypt_elixir, "~> 3.0"},
       # Static analysis
       {:credo, "~> 1.7", only: [:dev, :test], runtime: false}
     ]

@@ -149,7 +149,9 @@ defmodule KsefHubWeb.CompanyLive.Index do
         rows={@companies_with_creds}
         row_id={fn c -> "company-#{c.id}" end}
       >
-        <:col :let={company} label="Name">{company.name}</:col>
+        <:col :let={company} label="Name">
+          <span data-testid="company-name">{company.name}</span>
+        </:col>
         <:col :let={company} label="NIP">
           <span class="font-mono">{company.nip}</span>
         </:col>
