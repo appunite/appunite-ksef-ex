@@ -28,12 +28,12 @@ defmodule KsefHubWeb.CertificateLive do
         max_file_size: 1_000_000
       )
       |> allow_upload(:private_key,
-        accept: :any,
+        accept: ~w(.key .pem),
         max_entries: 1,
         max_file_size: 1_000_000
       )
       |> allow_upload(:certificate_crt,
-        accept: :any,
+        accept: ~w(.crt .pem .cer),
         max_entries: 1,
         max_file_size: 1_000_000
       )
