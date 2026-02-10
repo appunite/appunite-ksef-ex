@@ -433,6 +433,8 @@ For every checklist item:
 
 Lessons learned from PR review rounds. Apply these proactively when implementing new features.
 
+> **Living document:** After each PR review cycle, add new lessons here. This compounds over time — later PRs benefit from all prior review feedback, reducing review rounds and improving first-pass quality.
+
 ### Changesets & Security
 
 - **Never cast foreign key IDs in changesets.** Set `user_id`, `company_id`, etc. on the struct before calling `changeset/2`. Only cast fields the user should control (e.g., `:role`). This prevents mass-assignment attacks.
