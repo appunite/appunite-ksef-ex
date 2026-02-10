@@ -100,10 +100,8 @@ defmodule KsefHub.CredentialsTest do
 
   describe "replace_active_credential/2" do
     test "creates credential with NIP from company", %{company: company} do
-      attrs = %{certificate_subject: "CN=Test"}
-
       assert {:ok, %Credential{} = cred} =
-               Credentials.replace_active_credential(company.id, attrs)
+               Credentials.replace_active_credential(company.id, %{})
 
       assert cred.nip == company.nip
       assert cred.company_id == company.id
@@ -112,8 +110,7 @@ defmodule KsefHub.CredentialsTest do
     test "deactivates existing active credential", %{company: company} do
       old = insert(:credential, company: company, nip: company.nip)
 
-      {:ok, new} =
-        Credentials.replace_active_credential(company.id, %{certificate_subject: "CN=New"})
+      {:ok, new} = Credentials.replace_active_credential(company.id, %{})
 
       assert Credentials.get_credential!(old.id).is_active == false
       assert new.is_active == true

@@ -13,22 +13,30 @@ defmodule KsefHub.KsefClient.AuthWorkerTest do
 
   setup do
     company = insert(:company, nip: "1234567890")
-    %{company: company}
+    user = insert(:user)
+    insert(:membership, user: user, company: company, role: "owner")
+    %{company: company, user: user}
   end
 
   describe "perform/1" do
-    test "authenticates and stores tokens on success", %{company: company} do
+    test "authenticates and stores tokens on success", %{company: company, user: user} do
       {:ok, encrypted_cert} = Encryption.encrypt("cert-binary-data")
       {:ok, encrypted_pass} = Encryption.encrypt("cert-password")
 
+      # Create credential (sync config) and user certificate separately
       {:ok, _cred} =
         Credentials.create_credential(%{
           nip: company.nip,
           company_id: company.id,
-          is_active: true,
-          certificate_data_encrypted: encrypted_cert,
-          certificate_password_encrypted: encrypted_pass
+          is_active: true
         })
+
+      insert(:user_certificate,
+        user: user,
+        certificate_data_encrypted: encrypted_cert,
+        certificate_password_encrypted: encrypted_pass,
+        is_active: true
+      )
 
       access_until = DateTime.add(DateTime.utc_now(), 900)
       refresh_until = DateTime.add(DateTime.utc_now(), 48 * 24 * 3600)
@@ -82,7 +90,22 @@ defmodule KsefHub.KsefClient.AuthWorkerTest do
                AuthWorker.perform(%Oban.Job{args: %{"company_id" => company.id}})
     end
 
-    test "returns error when authentication fails for Oban retry", %{company: company} do
+    test "cancels when no owner certificate exists", %{company: company} do
+      {:ok, _cred} =
+        Credentials.create_credential(%{
+          nip: company.nip,
+          company_id: company.id,
+          is_active: true
+        })
+
+      assert {:cancel, :no_certificate} =
+               AuthWorker.perform(%Oban.Job{args: %{"company_id" => company.id}})
+    end
+
+    test "returns error when authentication fails for Oban retry", %{
+      company: company,
+      user: user
+    } do
       {:ok, encrypted_cert} = Encryption.encrypt("cert-data")
       {:ok, encrypted_pass} = Encryption.encrypt("cert-pass")
 
@@ -90,10 +113,15 @@ defmodule KsefHub.KsefClient.AuthWorkerTest do
         Credentials.create_credential(%{
           nip: company.nip,
           company_id: company.id,
-          is_active: true,
-          certificate_data_encrypted: encrypted_cert,
-          certificate_password_encrypted: encrypted_pass
+          is_active: true
         })
+
+      insert(:user_certificate,
+        user: user,
+        certificate_data_encrypted: encrypted_cert,
+        certificate_password_encrypted: encrypted_pass,
+        is_active: true
+      )
 
       KsefHub.KsefClient.Mock
       |> expect(:get_challenge, fn ->

@@ -63,7 +63,6 @@ defmodule KsefHub.Factory do
 
     %Credential{
       nip: company.nip,
-      certificate_subject: "CN=Test Certificate",
       is_active: true,
       company: company
     }

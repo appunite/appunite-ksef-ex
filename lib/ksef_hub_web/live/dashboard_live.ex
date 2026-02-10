@@ -50,6 +50,7 @@ defmodule KsefHubWeb.DashboardLive do
       company ->
         counts = Invoices.count_by_type_and_status(company.id)
         credential = Credentials.get_active_credential(company.id)
+        user_cert = Credentials.get_certificate_for_company(company.id)
 
         total_income = count_type(counts, "income")
         total_expense = count_type(counts, "expense")
@@ -67,7 +68,7 @@ defmodule KsefHubWeb.DashboardLive do
           rejected_expense: rejected_expense,
           credential: credential,
           last_sync_at: credential && credential.last_sync_at,
-          cert_expires_at: credential && credential.certificate_expires_at,
+          cert_expires_at: user_cert && user_cert.not_after,
           cert_active: credential != nil && credential.is_active
         )
     end
