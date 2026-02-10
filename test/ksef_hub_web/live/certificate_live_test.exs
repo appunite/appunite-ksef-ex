@@ -160,7 +160,11 @@ defmodule KsefHubWeb.CertificateLiveTest do
       |> form("form[phx-submit=save]", credential: %{key_passphrase: ""})
       |> render_submit()
 
-      assert has_element?(view, "#flash-error")
+      assert has_element?(
+               view,
+               "#flash-error",
+               "Invalid key passphrase or mismatched key/certificate. Please check your files and try again."
+             )
     end
 
     test "shows error when files missing", %{conn: conn} do

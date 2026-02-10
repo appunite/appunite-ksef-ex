@@ -125,8 +125,7 @@ defmodule KsefHubWeb.CertificateLive do
           save_credential(socket, p12_data, p12_password)
 
         {:error, reason} ->
-          {:noreply,
-           put_flash(socket, :error, "Certificate conversion failed: #{format_error(reason)}")}
+          {:noreply, put_flash(socket, :error, format_error(reason))}
       end
     else
       {:error, :no_file} ->
@@ -204,8 +203,15 @@ defmodule KsefHubWeb.CertificateLive do
   defp non_empty_or_nil(value), do: value
 
   @spec format_error(term()) :: String.t()
-  defp format_error({:openssl_failed, code}), do: "openssl exited with code #{code}"
-  defp format_error(reason), do: inspect(reason)
+  defp format_error({:openssl_failed, 1}),
+    do:
+      "Invalid key passphrase or mismatched key/certificate. Please check your files and try again."
+
+  defp format_error({:openssl_failed, code}),
+    do: "Certificate processing failed (error #{code}). Please verify your files."
+
+  defp format_error(:timeout), do: "Certificate processing timed out. Please try again."
+  defp format_error(reason), do: "Certificate processing failed: #{inspect(reason)}"
 
   @spec extract_certificate_info(binary(), String.t()) :: map()
   defp extract_certificate_info(cert_data, password) do
