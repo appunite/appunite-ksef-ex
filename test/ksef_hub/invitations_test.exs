@@ -200,6 +200,23 @@ defmodule KsefHub.InvitationsTest do
       assert {:error, :unauthorized} = Invitations.cancel_invitation(non_owner.id, invitation.id)
     end
 
+    test "owner of another company cannot cancel invitation (cross-tenant)" do
+      company_a = insert(:company)
+      company_b = insert(:company)
+      owner_a = insert(:user)
+      owner_b = insert(:user)
+      insert(:membership, user: owner_a, company: company_a, role: "owner")
+      insert(:membership, user: owner_b, company: company_b, role: "owner")
+
+      {:ok, %{invitation: invitation}} =
+        Invitations.create_invitation(owner_a.id, company_a.id, %{
+          email: "cross-tenant@example.com",
+          role: "accountant"
+        })
+
+      assert {:error, :unauthorized} = Invitations.cancel_invitation(owner_b.id, invitation.id)
+    end
+
     test "cannot cancel non-pending invitation" do
       company = insert(:company)
       owner = insert(:user)

@@ -107,6 +107,36 @@ defmodule KsefHub.Invitations.InvitationTest do
       assert Ecto.Changeset.get_change(changeset, :email) == "upper@example.com"
     end
 
+    test "does not allow mass-assignment of company_id, invited_by_id, or token_hash" do
+      original_company = insert(:company)
+      original_user = insert(:user)
+      attacker_company = insert(:company)
+      attacker_user = insert(:user)
+
+      invitation = %Invitation{
+        company_id: original_company.id,
+        invited_by_id: original_user.id,
+        token_hash: "original-hash"
+      }
+
+      # Attempt to overwrite foreign keys via attrs
+      changeset =
+        Invitation.changeset(invitation, %{
+          email: "test@example.com",
+          role: "accountant",
+          status: "pending",
+          expires_at: DateTime.add(DateTime.utc_now(), 7 * 24 * 3600),
+          company_id: attacker_company.id,
+          invited_by_id: attacker_user.id,
+          token_hash: "attacker-hash"
+        })
+
+      # Foreign keys should remain as set on the struct, not overwritten
+      assert Ecto.Changeset.get_field(changeset, :company_id) == original_company.id
+      assert Ecto.Changeset.get_field(changeset, :invited_by_id) == original_user.id
+      assert Ecto.Changeset.get_field(changeset, :token_hash) == "original-hash"
+    end
+
     test "enforces unique pending invitation per company+email" do
       company = insert(:company)
       user = insert(:user)

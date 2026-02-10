@@ -24,9 +24,9 @@ defmodule KsefHubWeb.TeamLiveTest do
 
   describe "mount" do
     test "renders team page for owner", %{conn: conn} do
-      {:ok, _view, html} = live(conn, ~p"/team")
-      assert html =~ "Team"
-      assert html =~ "Members"
+      {:ok, view, _html} = live(conn, ~p"/team")
+      assert has_element?(view, "h1", "Team")
+      assert has_element?(view, "h2", "Members")
     end
 
     test "non-owner cannot access team page", %{conn: conn, company: company} do
@@ -54,8 +54,8 @@ defmodule KsefHubWeb.TeamLiveTest do
 
       {:ok, view, _html} = live(conn, ~p"/team")
       assert has_element?(view, "[data-testid='member-list']")
-      assert render(view) =~ "Owner"
-      assert render(view) =~ "Bob Accountant"
+      assert has_element?(view, "[data-testid='member-list'] td", "Owner")
+      assert has_element?(view, "[data-testid='member-list'] td", "Bob Accountant")
     end
   end
 
@@ -70,7 +70,7 @@ defmodule KsefHubWeb.TeamLiveTest do
       |> render_submit()
 
       assert has_element?(view, "#flash-info", "Invitation sent")
-      assert render(view) =~ "newmember@example.com"
+      assert has_element?(view, "[data-testid='pending-invitations'] td", "newmember@example.com")
     end
 
     test "shows error when inviting existing member", %{conn: conn, company: company} do
@@ -98,8 +98,8 @@ defmodule KsefHubWeb.TeamLiveTest do
         })
 
       {:ok, view, _html} = live(conn, ~p"/team")
-      assert render(view) =~ "pending@example.com"
-      assert render(view) =~ "invoice_reviewer"
+      assert has_element?(view, "[data-testid='pending-invitations'] td", "pending@example.com")
+      assert has_element?(view, "[data-testid='pending-invitations'] .badge", "invoice_reviewer")
     end
 
     test "owner can cancel pending invitation", %{conn: conn, company: company, owner: owner} do
@@ -110,14 +110,19 @@ defmodule KsefHubWeb.TeamLiveTest do
         })
 
       {:ok, view, _html} = live(conn, ~p"/team")
-      assert render(view) =~ "cancel-me@example.com"
+      assert has_element?(view, "[data-testid='pending-invitations'] td", "cancel-me@example.com")
 
       view
       |> element("[data-testid='cancel-invitation-#{invitation.id}']")
       |> render_click()
 
       assert has_element?(view, "#flash-info", "Invitation cancelled")
-      refute render(view) =~ "cancel-me@example.com"
+
+      refute has_element?(
+               view,
+               "[data-testid='pending-invitations'] td",
+               "cancel-me@example.com"
+             )
     end
   end
 
@@ -127,14 +132,14 @@ defmodule KsefHubWeb.TeamLiveTest do
       insert(:membership, user: member, company: company, role: "accountant")
 
       {:ok, view, _html} = live(conn, ~p"/team")
-      assert render(view) =~ "Remove Me"
+      assert has_element?(view, "[data-testid='member-list'] td", "Remove Me")
 
       view
       |> element("[data-testid='remove-member-#{member.id}']")
       |> render_click()
 
       assert has_element?(view, "#flash-info", "Member removed")
-      refute render(view) =~ "Remove Me"
+      refute has_element?(view, "[data-testid='member-list'] td", "Remove Me")
     end
   end
 end

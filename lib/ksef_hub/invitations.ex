@@ -102,6 +102,7 @@ defmodule KsefHub.Invitations do
   @spec do_accept_invitation(Invitation.t(), User.t()) ::
           {:ok, %{invitation: Invitation.t(), membership: Membership.t()}}
           | {:error, :already_member}
+          | {:error, Ecto.Changeset.t()}
   defp do_accept_invitation(invitation, user) do
     if Companies.get_membership(user.id, invitation.company_id) do
       {:error, :already_member}

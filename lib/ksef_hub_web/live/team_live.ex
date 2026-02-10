@@ -6,7 +6,10 @@ defmodule KsefHubWeb.TeamLive do
 
   use KsefHubWeb, :live_view
 
+  require Logger
+
   alias KsefHub.Companies
+  alias KsefHub.Companies.Company
   alias KsefHub.Invitations
   alias KsefHub.Invitations.InvitationNotifier
 
@@ -120,17 +123,25 @@ defmodule KsefHubWeb.TeamLive do
     |> assign(members: members, pending_invitations: pending_invitations)
   end
 
-  @spec send_invitation_email(Invitations.Invitation.t(), String.t(), map()) :: :ok
+  @spec send_invitation_email(Invitations.Invitation.t(), String.t(), Company.t()) :: :ok
   defp send_invitation_email(invitation, token, company) do
     url = url(~p"/invitations/accept/#{token}")
 
-    InvitationNotifier.deliver_invitation(
-      invitation.email,
-      url,
-      %{company_name: company.name, role: invitation.role}
-    )
+    case InvitationNotifier.deliver_invitation(
+           invitation.email,
+           url,
+           %{company_name: company.name, role: invitation.role}
+         ) do
+      {:ok, _email} ->
+        :ok
 
-    :ok
+      {:error, reason} ->
+        Logger.warning(
+          "Failed to deliver invitation email to #{invitation.email}: #{inspect(reason)}"
+        )
+
+        :ok
+    end
   end
 
   @spec format_changeset_errors(Ecto.Changeset.t()) :: String.t()

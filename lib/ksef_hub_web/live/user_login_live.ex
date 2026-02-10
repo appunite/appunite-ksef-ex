@@ -34,8 +34,6 @@ defmodule KsefHubWeb.UserLoginLive do
     {:noreply, assign(socket, form: form, trigger_submit: true)}
   end
 
-  @doc false
-  @spec render(map()) :: Phoenix.LiveView.Rendered.t()
   @spec sanitize_return_to(String.t() | nil) :: String.t() | nil
   defp sanitize_return_to(nil), do: nil
   defp sanitize_return_to(""), do: nil
@@ -50,6 +48,8 @@ defmodule KsefHubWeb.UserLoginLive do
     end
   end
 
+  @doc false
+  @spec render(map()) :: Phoenix.LiveView.Rendered.t()
   def render(assigns) do
     ~H"""
     <div class="min-h-screen flex items-center justify-center">

@@ -66,13 +66,13 @@ defmodule KsefHubWeb.InvitationAcceptLiveTest do
           KsefHub.Repo.get_by!(KsefHub.Accounts.User, email: "expired-accept@example.com")
         )
 
-      {:ok, _view, html} = live(expired_conn, ~p"/invitations/accept/#{expired_token}")
-      assert html =~ "expired"
+      {:ok, view, _html} = live(expired_conn, ~p"/invitations/accept/#{expired_token}")
+      assert has_element?(view, "h2", "Invitation expired")
     end
 
     test "shows error for invalid token", %{conn: conn} do
-      {:ok, _view, html} = live(conn, ~p"/invitations/accept/bogus-token")
-      assert html =~ "invalid"
+      {:ok, view, _html} = live(conn, ~p"/invitations/accept/bogus-token")
+      assert has_element?(view, "h2", "Invalid invitation")
     end
   end
 
