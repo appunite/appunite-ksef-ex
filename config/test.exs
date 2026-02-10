@@ -34,7 +34,6 @@ config :ksef_hub, :ksef_client, KsefHub.KsefClient.Mock
 config :ksef_hub, :xades_signer, KsefHub.XadesSigner.Mock
 config :ksef_hub, :pdf_generator, KsefHub.Pdf.Mock
 config :ksef_hub, :pkcs12_converter, KsefHub.Credentials.Pkcs12Converter.Mock
-config :ksef_hub, :certificate_info, KsefHub.Credentials.CertificateInfo.Mock
 
 # Test email allowlist
 config :ksef_hub, :allowed_emails, "test@example.com,admin@example.com"
