@@ -73,6 +73,8 @@ defmodule KsefHub.Accounts do
     if User.valid_password?(user, password), do: user
   end
 
+  def get_user_by_email_and_password(_, _), do: nil
+
   @doc """
   Registers a new user with email and password.
   """
@@ -111,31 +113,64 @@ defmodule KsefHub.Accounts do
   def get_or_create_google_user(%{uid: uid, email: email} = info) do
     normalized_email = String.downcase(email || "")
 
-    case get_user_by_google_uid(uid) do
-      %User{} = user ->
+    Ecto.Multi.new()
+    |> Ecto.Multi.run(:user, fn repo, _changes ->
+      find_or_upsert_google_user(repo, uid, normalized_email, info)
+    end)
+    |> Repo.transaction()
+    |> case do
+      {:ok, %{user: user}} ->
         {:ok, user}
 
-      nil ->
-        case get_user_by_email(normalized_email) do
-          %User{} = user ->
-            user
-            |> User.changeset(%{
-              google_uid: uid,
-              name: Map.get(info, :name) || user.name,
-              avatar_url: Map.get(info, :avatar_url) || user.avatar_url
-            })
-            |> Repo.update()
+      {:error, :user, changeset, _changes} ->
+        resolve_google_user_conflict(uid, normalized_email, changeset)
+    end
+  end
 
-          nil ->
-            %User{}
-            |> User.changeset(%{
-              google_uid: uid,
-              email: normalized_email,
-              name: Map.get(info, :name),
-              avatar_url: Map.get(info, :avatar_url)
-            })
-            |> Repo.insert()
-        end
+  @spec find_or_upsert_google_user(Ecto.Repo.t(), String.t(), String.t(), map()) ::
+          {:ok, User.t()} | {:error, Ecto.Changeset.t()}
+  defp find_or_upsert_google_user(repo, uid, email, info) do
+    case repo.get_by(User, google_uid: uid) do
+      %User{} = user -> {:ok, user}
+      nil -> link_or_create_google_user(repo, uid, email, info)
+    end
+  end
+
+  @spec link_or_create_google_user(Ecto.Repo.t(), String.t(), String.t(), map()) ::
+          {:ok, User.t()} | {:error, Ecto.Changeset.t()}
+  defp link_or_create_google_user(repo, uid, email, info) do
+    case repo.get_by(User, email: email) do
+      %User{} = user ->
+        user
+        |> User.changeset(%{
+          google_uid: uid,
+          name: Map.get(info, :name) || user.name,
+          avatar_url: Map.get(info, :avatar_url) || user.avatar_url
+        })
+        |> repo.update()
+
+      nil ->
+        %User{}
+        |> User.changeset(%{
+          google_uid: uid,
+          email: email,
+          name: Map.get(info, :name),
+          avatar_url: Map.get(info, :avatar_url)
+        })
+        |> repo.insert()
+    end
+  end
+
+  @spec resolve_google_user_conflict(String.t(), String.t(), Ecto.Changeset.t()) ::
+          {:ok, User.t()} | {:error, Ecto.Changeset.t()}
+  defp resolve_google_user_conflict(uid, email, %Ecto.Changeset{errors: errors} = changeset) do
+    if Keyword.has_key?(errors, :email) or Keyword.has_key?(errors, :google_uid) do
+      case get_user_by_google_uid(uid) || get_user_by_email(email) do
+        %User{} = user -> {:ok, user}
+        nil -> {:error, changeset}
+      end
+    else
+      {:error, changeset}
     end
   end
 

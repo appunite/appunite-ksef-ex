@@ -43,14 +43,15 @@ defmodule KsefHubWeb.ConnCase do
 
   ## Parameters
 
-    - `fun` (`(String.t() -> {:ok, Swoosh.Email.t()})`) — a function that
-      receives a URL-building callback and triggers email delivery
+    - `fun` (`((String.t() -> String.t()) -> {:ok, Swoosh.Email.t()})`) — a
+      function that receives a URL-building callback and triggers email delivery.
+      The URL-building callback has the shape `String.t() -> String.t()`.
 
   ## Returns
 
     `{String.t(), Swoosh.Email.t()}` — the encoded token and the captured email
   """
-  @spec extract_user_token((function() -> {:ok, Swoosh.Email.t()})) ::
+  @spec extract_user_token(((String.t() -> String.t()) -> {:ok, Swoosh.Email.t()})) ::
           {String.t(), Swoosh.Email.t()}
   defdelegate extract_user_token(fun), to: KsefHub.DataCase
 
@@ -72,7 +73,7 @@ defmodule KsefHubWeb.ConnCase do
   def log_in_user(conn, user, extra_session \\ %{}) do
     token = KsefHub.Accounts.generate_user_session_token(user)
 
-    session = Map.merge(%{user_token: token}, extra_session)
+    session = extra_session |> Map.put(:user_token, token)
 
     conn
     |> Phoenix.ConnTest.init_test_session(session)
