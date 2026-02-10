@@ -50,6 +50,8 @@ defmodule KsefHubWeb.ConnCase do
 
     `{String.t(), Swoosh.Email.t()}` — the encoded token and the captured email
   """
+  @spec extract_user_token((function() -> {:ok, Swoosh.Email.t()})) ::
+          {String.t(), Swoosh.Email.t()}
   defdelegate extract_user_token(fun), to: KsefHub.DataCase
 
   @doc """
@@ -66,6 +68,7 @@ defmodule KsefHubWeb.ConnCase do
 
     `Plug.Conn.t()` — conn with `:user_token` (and any extra keys) in session
   """
+  @spec log_in_user(Plug.Conn.t(), KsefHub.Accounts.User.t(), map()) :: Plug.Conn.t()
   def log_in_user(conn, user, extra_session \\ %{}) do
     token = KsefHub.Accounts.generate_user_session_token(user)
 

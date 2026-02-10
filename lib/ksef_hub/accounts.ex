@@ -109,12 +109,14 @@ defmodule KsefHub.Accounts do
   """
   @spec get_or_create_google_user(map()) :: {:ok, User.t()} | {:error, Ecto.Changeset.t()}
   def get_or_create_google_user(%{uid: uid, email: email} = info) do
+    normalized_email = String.downcase(email || "")
+
     case get_user_by_google_uid(uid) do
       %User{} = user ->
         {:ok, user}
 
       nil ->
-        case get_user_by_email(email) do
+        case get_user_by_email(normalized_email) do
           %User{} = user ->
             user
             |> User.changeset(%{
@@ -128,7 +130,7 @@ defmodule KsefHub.Accounts do
             %User{}
             |> User.changeset(%{
               google_uid: uid,
-              email: email,
+              email: normalized_email,
               name: Map.get(info, :name),
               avatar_url: Map.get(info, :avatar_url)
             })
@@ -183,7 +185,7 @@ defmodule KsefHub.Accounts do
   Returns `{:error, :already_confirmed}` if the user has already been confirmed.
   """
   @spec deliver_user_confirmation_instructions(User.t(), (String.t() -> String.t())) ::
-          {:ok, Swoosh.Email.t()} | {:error, :already_confirmed}
+          {:ok, Swoosh.Email.t()} | {:error, :already_confirmed} | {:error, term()}
   def deliver_user_confirmation_instructions(%User{} = user, confirmation_url_fun)
       when is_function(confirmation_url_fun, 1) do
     if user.confirmed_at do
@@ -224,7 +226,7 @@ defmodule KsefHub.Accounts do
   Delivers reset password instructions to the user.
   """
   @spec deliver_user_reset_password_instructions(User.t(), (String.t() -> String.t())) ::
-          {:ok, Swoosh.Email.t()}
+          {:ok, Swoosh.Email.t()} | {:error, term()}
   def deliver_user_reset_password_instructions(%User{} = user, reset_password_url_fun)
       when is_function(reset_password_url_fun, 1) do
     {token, user_token} = UserToken.build_email_token(user, "reset_password")

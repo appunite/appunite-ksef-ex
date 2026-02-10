@@ -35,9 +35,9 @@ defmodule KsefHubWeb.UserRegistrationLive do
           {:ok, _} ->
             :ok
 
-          {:error, reason} ->
+          {:error, _reason} ->
             require Logger
-            Logger.error("Failed to deliver confirmation email: #{inspect(reason)}")
+            Logger.error("Failed to deliver confirmation email")
         end
 
         changeset = Accounts.change_registration(user)
