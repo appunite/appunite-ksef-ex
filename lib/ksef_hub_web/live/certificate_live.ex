@@ -42,7 +42,7 @@ defmodule KsefHubWeb.CertificateLive do
     {:ok, socket}
   end
 
-  @doc "Handles form validation, upload mode toggle, save, and deactivate events."
+  @doc "Handles form validation, upload mode toggle, save, toggle_upload_form, and remove_certificate events."
   @spec handle_event(String.t(), map(), Phoenix.LiveView.Socket.t()) ::
           {:noreply, Phoenix.LiveView.Socket.t()}
   @impl true
@@ -68,6 +68,11 @@ defmodule KsefHubWeb.CertificateLive do
   end
 
   @impl true
+  def handle_event("toggle_upload_form", _params, socket) do
+    {:noreply, assign(socket, show_upload_form: !socket.assigns.show_upload_form)}
+  end
+
+  @impl true
   def handle_event("save", %{"credential" => params}, socket) do
     case socket.assigns.upload_mode do
       :p12 -> save_p12(socket, params)
@@ -76,18 +81,18 @@ defmodule KsefHubWeb.CertificateLive do
   end
 
   @impl true
-  def handle_event("deactivate", %{"id" => id}, socket) do
+  def handle_event("remove_certificate", %{"id" => id}, socket) do
     with {:ok, uuid} <- Ecto.UUID.cast(id),
          %{} = credential <- Credentials.get_credential(uuid) do
       case Credentials.deactivate_credential(credential) do
         {:ok, _} ->
           {:noreply,
            socket
-           |> put_flash(:info, "Certificate deactivated.")
+           |> put_flash(:info, "Certificate removed.")
            |> load_credentials()}
 
         {:error, _} ->
-          {:noreply, put_flash(socket, :error, "Failed to deactivate certificate.")}
+          {:noreply, put_flash(socket, :error, "Failed to remove certificate.")}
       end
     else
       _ -> {:noreply, put_flash(socket, :error, "Certificate not found.")}
@@ -183,6 +188,7 @@ defmodule KsefHubWeb.CertificateLive do
            socket
            |> put_flash(:info, "Certificate uploaded successfully.")
            |> assign(form: to_form(%{"password" => ""}, as: :credential))
+           |> assign(show_upload_form: false)
            |> load_credentials()}
 
         {:error, changeset} ->
@@ -238,17 +244,15 @@ defmodule KsefHubWeb.CertificateLive do
   @spec load_credentials(Phoenix.LiveView.Socket.t()) :: Phoenix.LiveView.Socket.t()
   defp load_credentials(%{assigns: %{current_company: nil}} = socket) do
     socket
-    |> assign(has_credentials: false, active_credential: nil)
-    |> stream(:credentials, [], reset: true)
+    |> assign(active_credential: nil, show_upload_form: true)
   end
 
   defp load_credentials(%{assigns: %{current_company: company}} = socket) do
-    credentials = Credentials.list_credentials(company.id)
     active = Credentials.get_active_credential(company.id)
+    show_form = socket.assigns[:show_upload_form] || is_nil(active)
 
     socket
-    |> assign(has_credentials: credentials != [], active_credential: active)
-    |> stream(:credentials, credentials, reset: true)
+    |> assign(active_credential: active, show_upload_form: show_form)
   end
 
   @doc "Renders the certificate management view."
@@ -261,17 +265,14 @@ defmodule KsefHubWeb.CertificateLive do
       <:subtitle>Manage KSeF certificates for authentication</:subtitle>
     </.header>
 
-    <!-- Active Certificate -->
+    <!-- Current Certificate -->
     <div
       :if={@active_credential}
-      id="active-certificate"
+      id="current-certificate"
       class="card bg-base-100 border border-base-300 mt-6"
     >
       <div class="p-5">
-        <div class="flex items-center justify-between">
-          <h2 class="text-base font-semibold">Active Certificate</h2>
-          <.active_badge active={true} />
-        </div>
+        <h2 class="text-base font-semibold">Current Certificate</h2>
         <.list>
           <:item title="NIP">{@active_credential.nip}</:item>
           <:item :if={@active_credential.certificate_subject} title="Subject">
@@ -283,14 +284,51 @@ defmodule KsefHubWeb.CertificateLive do
           <:item :if={@active_credential.last_sync_at} title="Last Sync">
             {Calendar.strftime(@active_credential.last_sync_at, "%Y-%m-%d %H:%M UTC")}
           </:item>
+          <:item title="Uploaded">
+            {Calendar.strftime(@active_credential.inserted_at, "%Y-%m-%d %H:%M UTC")}
+          </:item>
         </.list>
+        <div class="flex gap-2 mt-4">
+          <button
+            type="button"
+            phx-click="toggle_upload_form"
+            class="btn btn-sm btn-outline"
+          >
+            <.icon name="hero-arrow-path" class="size-4" />
+            {if @show_upload_form, do: "Cancel", else: "Replace Certificate"}
+          </button>
+          <button
+            type="button"
+            phx-click="remove_certificate"
+            phx-value-id={@active_credential.id}
+            data-confirm="Are you sure you want to remove this certificate? This will disable KSeF sync."
+            class="btn btn-sm btn-ghost text-error"
+          >
+            <.icon name="hero-trash" class="size-4" /> Remove
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Empty State -->
+    <div
+      :if={!@active_credential}
+      id="no-certificate"
+      class="card bg-base-100 border border-base-300 mt-6"
+    >
+      <div class="p-8 text-center">
+        <.icon name="hero-shield-exclamation" class="size-12 text-base-content/30 mx-auto" />
+        <h2 class="text-base font-semibold mt-3">No Certificate Configured</h2>
+        <p class="text-sm text-base-content/60 mt-1">
+          Upload a certificate to enable KSeF synchronization.
+        </p>
       </div>
     </div>
 
     <!-- Upload Form -->
-    <div class="card bg-base-100 border border-base-300 mt-6">
+    <div :if={@show_upload_form} id="upload-form" class="card bg-base-100 border border-base-300 mt-6">
       <div class="p-5">
-        <h2 class="text-base font-semibold">Upload New Certificate</h2>
+        <h2 class="text-base font-semibold">Upload Certificate</h2>
         
     <!-- Mode Toggle -->
         <div class="flex gap-2 mt-3 mb-4" id="upload-mode-toggle">
@@ -322,9 +360,7 @@ defmodule KsefHubWeb.CertificateLive do
           <!-- P12 upload -->
           <div :if={@upload_mode == :p12} class="form-control">
             <label class="label">
-              <span id="p12-certificate-label" class="label-text">
-                Certificate File (.p12 / .pfx)
-              </span>
+              <span class="label-text">Certificate File (.p12 / .pfx)</span>
             </label>
             <div
               class="border-2 border-dashed border-base-300 rounded-lg p-6 text-center"
@@ -422,58 +458,6 @@ defmodule KsefHubWeb.CertificateLive do
         </.form>
       </div>
     </div>
-
-    <!-- All Certificates -->
-    <div :if={@has_credentials} class="mt-6">
-      <h2 class="text-lg font-semibold mb-3">All Certificates</h2>
-      <div class="overflow-x-auto">
-        <.table
-          id="credentials"
-          rows={@streams.credentials}
-          row_id={fn {id, _} -> id end}
-          row_item={fn {_id, item} -> item end}
-        >
-          <:col :let={cred} label="NIP">{cred.nip}</:col>
-          <:col :let={cred} label="Subject">{cred.certificate_subject || "-"}</:col>
-          <:col :let={cred} label="Expires">
-            {if cred.certificate_expires_at,
-              do: Calendar.strftime(cred.certificate_expires_at, "%Y-%m-%d"),
-              else: "-"}
-          </:col>
-          <:col :let={cred} label="Status">
-            <.active_badge active={cred.is_active} />
-          </:col>
-          <:action :let={cred}>
-            <button
-              :if={cred.is_active}
-              phx-click="deactivate"
-              phx-value-id={cred.id}
-              data-confirm="Are you sure you want to deactivate this certificate?"
-              class="btn btn-ghost btn-xs text-error"
-            >
-              Deactivate
-            </button>
-          </:action>
-        </.table>
-      </div>
-    </div>
-    """
-  end
-
-  @spec active_badge(map()) :: Phoenix.LiveView.Rendered.t()
-  defp active_badge(%{active: true} = assigns) do
-    ~H"""
-    <span class="inline-flex items-center px-2 py-0.5 rounded-md text-xs font-medium border bg-success/10 text-success border-success/20">
-      Active
-    </span>
-    """
-  end
-
-  defp active_badge(%{active: active} = assigns) when active in [false, nil] do
-    ~H"""
-    <span class="inline-flex items-center px-2 py-0.5 rounded-md text-xs font-medium border bg-base-200 text-base-content/60 border-base-300">
-      Inactive
-    </span>
     """
   end
 

@@ -32,9 +32,8 @@ defmodule KsefHub.Credentials.CertificateInfo.Openssl do
 
     try do
       with {:ok, pem_output} <- extract_pem(p12_path, pass_path),
-           {:ok, cert} <- decode_pem_certificate(pem_output),
-           {:ok, info} <- parse_certificate(cert) do
-        {:ok, info}
+           {:ok, cert} <- decode_pem_certificate(pem_output) do
+        parse_certificate(cert)
       end
     after
       SecureTemp.delete(p12_path)
