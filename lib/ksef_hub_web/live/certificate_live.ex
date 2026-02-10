@@ -367,7 +367,7 @@ defmodule KsefHubWeb.CertificateLive do
     <div :if={@show_upload_form} id="upload-form" class="card bg-base-100 border border-base-300 mt-6">
       <div class="p-5">
         <h2 class="text-base font-semibold">Upload Certificate</h2>
-
+        
     <!-- Mode Toggle -->
         <div class="flex gap-2 mt-3 mb-4" id="upload-mode-toggle">
           <button
@@ -420,7 +420,7 @@ defmodule KsefHubWeb.CertificateLive do
               </p>
             </div>
           </div>
-
+          
     <!-- Key + CRT upload -->
           <div :if={@upload_mode == :key_crt} class="space-y-4">
             <div class="form-control">
@@ -479,7 +479,7 @@ defmodule KsefHubWeb.CertificateLive do
               label="Key Passphrase (leave empty if unencrypted)"
             />
           </div>
-
+          
     <!-- Password field for P12 mode -->
           <div :if={@upload_mode == :p12}>
             <.input

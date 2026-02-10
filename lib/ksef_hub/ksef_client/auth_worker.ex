@@ -39,9 +39,7 @@ defmodule KsefHub.KsefClient.AuthWorker do
         {:cancel, :no_credential}
 
       {:error, :no_certificate} ->
-        Logger.warning(
-          "AuthWorker: no owner certificate for company #{company_id}, cancelling"
-        )
+        Logger.warning("AuthWorker: no owner certificate for company #{company_id}, cancelling")
 
         {:cancel, :no_certificate}
 

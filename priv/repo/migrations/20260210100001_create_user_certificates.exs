@@ -19,8 +19,8 @@ defmodule KsefHub.Repo.Migrations.CreateUserCertificates do
     create index(:user_certificates, [:user_id])
 
     create unique_index(:user_certificates, [:user_id],
-      where: "is_active = true",
-      name: :user_certificates_user_id_active_index
-    )
+             where: "is_active = true",
+             name: :user_certificates_user_id_active_index
+           )
   end
 end
