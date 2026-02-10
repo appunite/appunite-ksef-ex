@@ -205,9 +205,10 @@ defmodule KsefHub.Credentials do
     |> Repo.one()
   end
 
+  @doc "Deactivates a user certificate."
   @spec deactivate_user_certificate(UserCertificate.t()) ::
           {:ok, UserCertificate.t()} | {:error, Ecto.Changeset.t()}
-  defp deactivate_user_certificate(%UserCertificate{} = cert) do
+  def deactivate_user_certificate(%UserCertificate{} = cert) do
     cert
     |> UserCertificate.changeset(%{is_active: false})
     |> Repo.update()
