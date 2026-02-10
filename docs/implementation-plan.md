@@ -458,10 +458,25 @@ Lessons learned from PR review rounds. Apply these proactively when implementing
 - **Always add language identifiers to fenced code blocks** in markdown files. Use ` ```text `, ` ```elixir `, ` ```sql `, etc. — never bare ` ``` `.
 - **Differentiate role descriptions** in schema moduledocs. Don't just list role names — explain what each role can do.
 
-### Database
+### Database & Queries
 
 - **Add explicit indexes for query patterns** even when a composite index exists with the right leading column. A dedicated single-column index on `user_id` is still valuable for queries that only filter by user.
 - **Test data isolation.** When updating `on_mount` hooks or context functions to scope by user/company, ensure all existing tests create the necessary association records (e.g., memberships). A single missing `insert(:membership)` in setup will cascade into redirect-based test failures.
+- **Always add `order_by` + `limit(1)` to `Repo.one()` queries that join through associations.** Joins can produce multiple rows (e.g., multiple owner memberships). Without `limit(1)`, `Repo.one()` raises `Ecto.MultipleResultsError`. Pick a deterministic order (e.g., `desc: inserted_at`).
+- **Guard nullable columns in data migration SQL.** When `INSERT INTO ... SELECT` copies data between tables, add `IS NOT NULL` checks for every non-nullable target column — even if the source "should" always have data. Prevents migration failures on dirty data.
+- **Make data migrations irreversible.** A `down/0` that does `DELETE FROM table` will destroy post-migration user data. Either `raise Ecto.MigrationError` in `down/0` or track migrated rows with a source column so rollback only removes originally migrated records.
+- **Use 3-arity `remove/3` in column-removal migrations.** `remove :col, :type` is irreversible. `remove(:col, :type, null: true)` gives Ecto enough info to recreate the column on rollback.
+
+### Factories & Test Data
+
+- **Use `params_for/2` from ExMachina instead of inline attribute maps.** Inline maps drift from factory defaults over time. Use `params_for(:factory) |> Map.merge(%{override: value})` to keep test data consistent and centralized.
+- **Keep `@spec` and `@doc` return types in sync with implementation.** When a function starts returning a new field (e.g., adding `not_before` to a certificate info map), update the `@spec` and `@doc` immediately — stale specs mislead callers.
+
+### LiveView & UI
+
+- **Don't silently discard errors in helper functions.** If a side-effect like credential creation can fail, at minimum `Logger.warning` the error. Silent `:ok` returns hide broken state.
+- **Handle nil metadata gracefully in templates.** When displaying records that may have been created before new fields were added, always show the field labels with fallback text (e.g., "—") rather than hiding them with `:if` guards. An empty card with just "Uploaded" is confusing.
+- **Keep dashboard status indicators consistent with the data model.** When the data model changes (e.g., certificates move from company-level to user-level), update all status indicators. A `cert_active` flag that only checks credential existence but ignores the actual certificate misleads users.
 
 ---
 
