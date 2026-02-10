@@ -119,52 +119,52 @@ Create `user_certificates` table at user level. Strip cert data from `ksef_crede
 ### Checklist
 
 #### 2.1 UserCertificate schema + migration
-- [ ] Write test: `test/ksef_hub/credentials/user_certificate_test.exs` — changeset validations
-- [ ] Create migration: `create_user_certificates` table (id, user_id FK cascade, certificate_data_encrypted, certificate_password_encrypted, certificate_subject, not_before, not_after, fingerprint, is_active, timestamps). Index on user_id. Unique index on `[:user_id]` where `is_active = true` (one active cert per user).
-- [ ] Create schema: `lib/ksef_hub/credentials/user_certificate.ex`
-- [ ] Add factory: `:user_certificate` in factory.ex
-- [ ] Run tests green
+- [x] Write test: `test/ksef_hub/credentials/user_certificate_test.exs` — changeset validations
+- [x] Create migration: `create_user_certificates` table (id, user_id FK cascade, certificate_data_encrypted, certificate_password_encrypted, certificate_subject, not_before, not_after, fingerprint, is_active, timestamps). Index on user_id. Unique index on `[:user_id]` where `is_active = true` (one active cert per user).
+- [x] Create schema: `lib/ksef_hub/credentials/user_certificate.ex`
+- [x] Add factory: `:user_certificate` in factory.ex
+- [x] Run tests green
 
 #### 2.2 Credentials context — user certificate functions
-- [ ] Write tests in `test/ksef_hub/credentials_test.exs`:
+- [x] Write tests in `test/ksef_hub/credentials_test.exs`:
   - `get_active_user_certificate(user_id)` — returns active cert or nil
   - `create_user_certificate(user, attrs)` — encrypts and stores
   - `replace_active_user_certificate(user_id, attrs)` — deactivate old, create new (Multi)
   - `get_certificate_for_company(company_id)` — finds owner via membership, returns their cert
-- [ ] Implement in `lib/ksef_hub/credentials.ex`:
+- [x] Implement in `lib/ksef_hub/credentials.ex`:
   - User certificate CRUD functions
   - `get_certificate_for_company(company_id)` — join: company → membership(owner) → user → user_certificate(active)
-- [ ] Run tests green
+- [x] Run tests green
 
 #### 2.3 Migration — move cert data from ksef_credentials to user_certificates
-- [ ] Create data migration: for each credential with cert data, create user_certificate for the company's owner
-- [ ] Create migration: remove `certificate_data_encrypted`, `certificate_password_encrypted`, `certificate_subject`, `certificate_expires_at` columns from `ksef_credentials`
-- [ ] Run tests green
+- [x] Create data migration: for each credential with cert data, create user_certificate for the company's owner
+- [x] Create migration: remove `certificate_data_encrypted`, `certificate_password_encrypted`, `certificate_subject`, `certificate_expires_at` columns from `ksef_credentials`
+- [x] Run tests green
 
 #### 2.4 Sync worker — load cert via membership
-- [ ] Write/update test: `test/ksef_hub/sync/sync_worker_test.exs`
+- [x] Write/update test: `test/ksef_hub/sync/sync_worker_test.exs`
   - Worker loads owner's cert for the company
   - Worker fails gracefully if no owner cert exists
-- [ ] Update `lib/ksef_hub/sync/sync_worker.ex` — replace `load_active_credential` to use `Credentials.get_certificate_for_company(company_id)` for cert data, keep credential for NIP/sync state
-- [ ] Run tests green
+- [x] Update `lib/ksef_hub/sync/sync_worker.ex` — replace `load_active_credential` to use `Credentials.get_certificate_for_company(company_id)` for cert data, keep credential for NIP/sync state
+- [x] Run tests green
 
 #### 2.5 CertificateLive — user-level upload
-- [ ] Write/update test: `test/ksef_hub_web/live/certificate_live_test.exs`
+- [x] Write/update test: `test/ksef_hub_web/live/certificate_live_test.exs`
   - Owner can upload cert (stored at user level)
   - Non-owner cannot access page
   - Cert info displayed from user_certificate
-- [ ] Update `lib/ksef_hub_web/live/certificate_live.ex` — upload writes to `user_certificates`, display reads from `user_certificates`, owner-only access check on mount
-- [ ] Run tests green
+- [x] Update `lib/ksef_hub_web/live/certificate_live.ex` — upload writes to `user_certificates`, display reads from `user_certificates`, owner-only access check on mount
+- [x] Run tests green
 
 #### 2.6 Credential schema cleanup
-- [ ] Update `lib/ksef_hub/credentials/credential.ex` — remove cert fields from schema
-- [ ] Update any remaining references to cert fields on credentials
-- [ ] Run tests green
+- [x] Update `lib/ksef_hub/credentials/credential.ex` — remove cert fields from schema
+- [x] Update any remaining references to cert fields on credentials
+- [x] Run tests green
 
 #### 2.7 Final verification
-- [ ] `mix test` — all green
-- [ ] `mix format --check-formatted`
-- [ ] `mix credo --strict`
+- [x] `mix test` — all green
+- [x] `mix format --check-formatted`
+- [x] `mix credo --strict`
 
 ---
 
@@ -381,7 +381,7 @@ When starting work on a PR, update the status below. This lets a new LLM context
 | PR | Branch | Status | Notes |
 |----|--------|--------|-------|
 | 1 | `feat/memberships-rbac` | DONE | |
-| 2 | `feat/user-scoped-certificates` | NOT STARTED | Blocked by PR 1 |
+| 2 | `feat/user-scoped-certificates` | DONE | |
 | 3 | `feat/email-password-auth` | NOT STARTED | Blocked by PR 1 |
 | 4 | `feat/company-invitations` | NOT STARTED | Blocked by PR 1 + PR 3 |
 | 5 | `feat/api-token-scoping` | NOT STARTED | Blocked by PR 1 |
