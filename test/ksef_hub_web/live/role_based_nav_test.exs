@@ -12,7 +12,7 @@ defmodule KsefHubWeb.RoleBasedNavTest do
 
       {:ok, view, _html} =
         conn
-        |> init_test_session(%{user_id: user.id, current_company_id: company.id})
+        |> log_in_user(user, %{current_company_id: company.id})
         |> live("/dashboard")
 
       assert has_element?(view, "a[href='/dashboard']")
@@ -28,7 +28,7 @@ defmodule KsefHubWeb.RoleBasedNavTest do
 
       {:ok, view, _html} =
         conn
-        |> init_test_session(%{user_id: user.id, current_company_id: company.id})
+        |> log_in_user(user, %{current_company_id: company.id})
         |> live("/dashboard")
 
       assert has_element?(view, "a[href='/dashboard']")
@@ -44,7 +44,7 @@ defmodule KsefHubWeb.RoleBasedNavTest do
 
       {:ok, view, _html} =
         conn
-        |> init_test_session(%{user_id: user.id, current_company_id: company.id})
+        |> log_in_user(user, %{current_company_id: company.id})
         |> live("/dashboard")
 
       assert has_element?(view, "a[href='/dashboard']")

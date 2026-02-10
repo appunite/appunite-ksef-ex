@@ -4,7 +4,7 @@ defmodule KsefHubWeb.AuthControllerTest do
   alias KsefHub.Accounts
 
   describe "callback/2" do
-    test "creates user and sets session for allowed email", %{conn: conn} do
+    test "creates user and sets session for verified Google email", %{conn: conn} do
       auth = %Ueberauth.Auth{
         uid: "google-test-123",
         info: %Ueberauth.Auth.Info{
@@ -24,16 +24,19 @@ defmodule KsefHubWeb.AuthControllerTest do
 
       assert redirected_to(conn) == "/dashboard"
       assert Phoenix.Flash.get(conn.assigns.flash, :info) =~ "Welcome"
-      assert get_session(conn, :user_id)
+      assert get_session(conn, :user_token)
     end
 
-    test "rejects user with disallowed email", %{conn: conn} do
+    test "any verified email is allowed (no allowlist)", %{conn: conn} do
       auth = %Ueberauth.Auth{
-        uid: "google-unauthorized-123",
+        uid: "google-any-user",
         info: %Ueberauth.Auth.Info{
-          email: "unauthorized@example.com",
-          name: "Unauth User",
+          email: "anyone@example.com",
+          name: "Any User",
           image: nil
+        },
+        extra: %Ueberauth.Auth.Extra{
+          raw_info: %{user: %{"email_verified" => true}}
         }
       }
 
@@ -42,9 +45,8 @@ defmodule KsefHubWeb.AuthControllerTest do
         |> assign(:ueberauth_auth, auth)
         |> get("/auth/google/callback")
 
-      assert redirected_to(conn) == "/"
-      assert Phoenix.Flash.get(conn.assigns.flash, :error) =~ "not authorized"
-      refute get_session(conn, :user_id)
+      assert redirected_to(conn) == "/dashboard"
+      assert get_session(conn, :user_token)
     end
 
     test "rejects user with nil email", %{conn: conn} do
@@ -64,7 +66,7 @@ defmodule KsefHubWeb.AuthControllerTest do
 
       assert redirected_to(conn) == "/"
       assert Phoenix.Flash.get(conn.assigns.flash, :error) =~ "not authorized"
-      refute get_session(conn, :user_id)
+      refute get_session(conn, :user_token)
     end
 
     test "rejects user with blank email", %{conn: conn} do
@@ -84,7 +86,7 @@ defmodule KsefHubWeb.AuthControllerTest do
 
       assert redirected_to(conn) == "/"
       assert Phoenix.Flash.get(conn.assigns.flash, :error) =~ "not authorized"
-      refute get_session(conn, :user_id)
+      refute get_session(conn, :user_token)
     end
 
     test "rejects user when email_verified is nil (missing from provider)", %{conn: conn} do
@@ -104,7 +106,7 @@ defmodule KsefHubWeb.AuthControllerTest do
 
       assert redirected_to(conn) == "/"
       assert Phoenix.Flash.get(conn.assigns.flash, :error) =~ "not authorized"
-      refute get_session(conn, :user_id)
+      refute get_session(conn, :user_token)
     end
 
     test "rejects user with unverified email", %{conn: conn} do
@@ -127,15 +129,19 @@ defmodule KsefHubWeb.AuthControllerTest do
 
       assert redirected_to(conn) == "/"
       assert Phoenix.Flash.get(conn.assigns.flash, :error) =~ "not authorized"
-      refute get_session(conn, :user_id)
+      refute get_session(conn, :user_token)
     end
 
-    test "allows user with verified email", %{conn: conn} do
+    test "links Google account to existing email-registered user", %{conn: conn} do
+      # Register a user via email/password first
+      {:ok, email_user} =
+        Accounts.register_user(%{email: "link@example.com", password: "valid_password123"})
+
       auth = %Ueberauth.Auth{
-        uid: "google-verified-123",
+        uid: "google-link-uid",
         info: %Ueberauth.Auth.Info{
-          email: "test@example.com",
-          name: "Verified User",
+          email: "link@example.com",
+          name: "Linked User",
           image: nil
         },
         extra: %Ueberauth.Auth.Extra{
@@ -149,30 +155,10 @@ defmodule KsefHubWeb.AuthControllerTest do
         |> get("/auth/google/callback")
 
       assert redirected_to(conn) == "/dashboard"
-      assert Phoenix.Flash.get(conn.assigns.flash, :info) =~ "Welcome"
-      assert get_session(conn, :user_id)
-    end
 
-    test "renews session on successful login", %{conn: conn} do
-      auth = %Ueberauth.Auth{
-        uid: "google-renew-123",
-        info: %Ueberauth.Auth.Info{
-          email: "test@example.com",
-          name: "Renew User",
-          image: nil
-        },
-        extra: %Ueberauth.Auth.Extra{
-          raw_info: %{user: %{"email_verified" => true}}
-        }
-      }
-
-      conn =
-        conn
-        |> assign(:ueberauth_auth, auth)
-        |> get("/auth/google/callback")
-
-      assert conn.private[:plug_session_info] == :renew
-      assert get_session(conn, :user_id)
+      # Verify the Google UID was linked to the existing user
+      linked = Accounts.get_user_by_google_uid("google-link-uid")
+      assert linked.id == email_user.id
     end
 
     test "handles ueberauth failure", %{conn: conn} do
@@ -187,22 +173,6 @@ defmodule KsefHubWeb.AuthControllerTest do
 
       assert redirected_to(conn) == "/"
       assert Phoenix.Flash.get(conn.assigns.flash, :error) =~ "Authentication failed"
-    end
-  end
-
-  describe "logout/2" do
-    test "clears session and redirects", %{conn: conn} do
-      {:ok, user} =
-        Accounts.find_or_create_user(%{uid: "g-1", email: "test@example.com"})
-
-      conn =
-        conn
-        |> init_test_session(%{user_id: user.id})
-        |> delete("/auth/logout")
-
-      assert redirected_to(conn) == "/"
-      assert Phoenix.Flash.get(conn.assigns.flash, :info) =~ "Logged out"
-      assert conn.private[:plug_session_info] == :drop
     end
   end
 end

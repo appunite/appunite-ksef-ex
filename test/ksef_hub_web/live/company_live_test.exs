@@ -15,7 +15,7 @@ defmodule KsefHubWeb.CompanyLiveTest do
 
       {:ok, view, _html} =
         conn
-        |> init_test_session(%{user_id: user.id, current_company_id: existing.id})
+        |> log_in_user(user, %{current_company_id: existing.id})
         |> live("/companies/new")
 
       view
@@ -39,7 +39,7 @@ defmodule KsefHubWeb.CompanyLiveTest do
 
       {:ok, _view, html} =
         conn
-        |> init_test_session(%{user_id: user.id, current_company_id: company.id})
+        |> log_in_user(user, %{current_company_id: company.id})
         |> live("/companies")
 
       assert html =~ "My Visible Co"

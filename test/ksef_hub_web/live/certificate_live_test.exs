@@ -47,7 +47,7 @@ defmodule KsefHubWeb.CertificateLiveTest do
        }}
     end)
 
-    conn = conn |> init_test_session(%{user_id: user.id, current_company_id: company.id})
+    conn = conn |> log_in_user(user, %{current_company_id: company.id})
     %{conn: conn, user: user, company: company}
   end
 

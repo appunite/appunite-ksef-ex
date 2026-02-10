@@ -35,4 +35,20 @@ defmodule KsefHubWeb.ConnCase do
     KsefHub.DataCase.setup_sandbox(tags)
     {:ok, conn: Phoenix.ConnTest.build_conn()}
   end
+
+  @doc """
+  Sets up a logged-in connection by generating a session token for the user.
+
+  Accepts optional extra session params (e.g., `current_company_id`).
+
+  Returns the conn with the `:user_token` session key set.
+  """
+  def log_in_user(conn, user, extra_session \\ %{}) do
+    token = KsefHub.Accounts.generate_user_session_token(user)
+
+    session = Map.merge(%{user_token: token}, extra_session)
+
+    conn
+    |> Phoenix.ConnTest.init_test_session(session)
+  end
 end

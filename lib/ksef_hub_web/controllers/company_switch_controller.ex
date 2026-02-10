@@ -12,11 +12,10 @@ defmodule KsefHubWeb.CompanySwitchController do
   @doc "Switches the current company context and redirects."
   @spec update(Plug.Conn.t(), map()) :: Plug.Conn.t()
   def update(conn, %{"id" => id} = params) do
-    user_id = get_session(conn, :user_id)
+    user = conn.assigns.current_user
 
-    with user_id when is_binary(user_id) <- user_id,
-         {:ok, uuid} <- Ecto.UUID.cast(id),
-         %{} <- Companies.get_membership(user_id, uuid) do
+    with {:ok, uuid} <- Ecto.UUID.cast(id),
+         %{} <- Companies.get_membership(user.id, uuid) do
       conn
       |> put_session(:current_company_id, uuid)
       |> redirect(to: safe_return_to(params["return_to"]))

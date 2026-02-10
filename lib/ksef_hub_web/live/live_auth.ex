@@ -19,21 +19,48 @@ defmodule KsefHubWeb.LiveAuth do
   @spec on_mount(atom(), map(), map(), Phoenix.LiveView.Socket.t()) ::
           {:cont, Phoenix.LiveView.Socket.t()} | {:halt, Phoenix.LiveView.Socket.t()}
   def on_mount(:default, _params, session, socket) do
-    with raw_id when is_binary(raw_id) <- session["user_id"],
-         {:ok, _} <- Ecto.UUID.cast(raw_id),
-         %{} = user <- Accounts.get_user(raw_id) do
-      socket
-      |> assign_user_and_companies(user, session)
-      |> maybe_redirect_for_company()
-    else
-      _ ->
-        socket =
-          socket
-          |> put_flash(:error, "You must be logged in to access this page.")
-          |> redirect(to: "/")
+    user_token = session["user_token"]
 
-        {:halt, socket}
+    if is_binary(user_token) do
+      case Accounts.get_user_by_session_token(user_token) do
+        %{} = user ->
+          socket
+          |> assign_user_and_companies(user, session)
+          |> maybe_redirect_for_company()
+
+        nil ->
+          {:halt,
+           socket
+           |> put_flash(:error, "Session expired. Please log in again.")
+           |> redirect(to: "/")}
+      end
+    else
+      {:halt,
+       socket
+       |> put_flash(:error, "You must be logged in to access this page.")
+       |> redirect(to: "/")}
     end
+  end
+
+  def on_mount(:redirect_if_authenticated, _params, session, socket) do
+    user_token = session["user_token"]
+
+    if is_binary(user_token) && Accounts.get_user_by_session_token(user_token) do
+      {:halt, redirect(socket, to: "/dashboard")}
+    else
+      {:cont, assign(socket, :current_user, nil)}
+    end
+  end
+
+  def on_mount(:mount_current_user, _params, session, socket) do
+    user_token = session["user_token"]
+
+    user =
+      if is_binary(user_token),
+        do: Accounts.get_user_by_session_token(user_token),
+        else: nil
+
+    {:cont, assign(socket, :current_user, user)}
   end
 
   @spec assign_user_and_companies(Phoenix.LiveView.Socket.t(), map(), map()) ::

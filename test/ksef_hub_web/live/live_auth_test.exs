@@ -5,24 +5,24 @@ defmodule KsefHubWeb.LiveAuthTest do
   import Phoenix.LiveViewTest
 
   describe "LiveAuth on_mount" do
-    test "redirects to / when session has no user_id", %{conn: conn} do
+    test "redirects to / when session has no user_token", %{conn: conn} do
       {:error, {:redirect, %{to: "/"}}} =
         conn
         |> init_test_session(%{})
         |> live("/dashboard")
     end
 
-    test "redirects to / when session user_id is not a valid UUID", %{conn: conn} do
+    test "redirects to / when session user_token is invalid", %{conn: conn} do
       {:error, {:redirect, %{to: "/"}}} =
         conn
-        |> init_test_session(%{user_id: "not-a-uuid"})
+        |> init_test_session(%{user_token: "invalid-token"})
         |> live("/dashboard")
     end
 
-    test "redirects to / when user_id does not match any user", %{conn: conn} do
+    test "redirects to / when session user_token is expired", %{conn: conn} do
       {:error, {:redirect, %{to: "/"}}} =
         conn
-        |> init_test_session(%{user_id: Ecto.UUID.generate()})
+        |> init_test_session(%{user_token: :crypto.strong_rand_bytes(32)})
         |> live("/dashboard")
     end
 
@@ -33,7 +33,7 @@ defmodule KsefHubWeb.LiveAuthTest do
 
       {:ok, view, _html} =
         conn
-        |> init_test_session(%{user_id: user.id, current_company_id: company.id})
+        |> log_in_user(user, %{current_company_id: company.id})
         |> live("/dashboard")
 
       assert has_element?(view, "a[href='/dashboard']")
@@ -47,7 +47,7 @@ defmodule KsefHubWeb.LiveAuthTest do
 
       {:ok, view, _html} =
         conn
-        |> init_test_session(%{user_id: user.id, current_company_id: company_a.id})
+        |> log_in_user(user, %{current_company_id: company_a.id})
         |> live("/dashboard")
 
       assert has_element?(view, "[data-testid='current-company-name']", "My Company")
@@ -59,7 +59,7 @@ defmodule KsefHubWeb.LiveAuthTest do
 
       {:error, {:redirect, %{to: "/companies/new"}}} =
         conn
-        |> init_test_session(%{user_id: user.id})
+        |> log_in_user(user)
         |> live("/dashboard")
     end
 
@@ -72,7 +72,7 @@ defmodule KsefHubWeb.LiveAuthTest do
       # Attempt to set current_company_id to a company user doesn't belong to
       {:ok, view, _html} =
         conn
-        |> init_test_session(%{user_id: user.id, current_company_id: other.id})
+        |> log_in_user(user, %{current_company_id: other.id})
         |> live("/dashboard")
 
       # Should fall back to the user's first company
@@ -86,7 +86,7 @@ defmodule KsefHubWeb.LiveAuthTest do
 
       {:ok, view, _html} =
         conn
-        |> init_test_session(%{user_id: user.id, current_company_id: company.id})
+        |> log_in_user(user, %{current_company_id: company.id})
         |> live("/dashboard")
 
       # Accountant should see Dashboard but not owner-only nav items

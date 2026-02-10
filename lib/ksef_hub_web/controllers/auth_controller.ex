@@ -2,8 +2,8 @@ defmodule KsefHubWeb.AuthController do
   @moduledoc """
   Handles OAuth authentication via Ueberauth (Google Sign-In).
 
-  Validates that the email is verified by the provider and present in the
-  configured allowlist before creating or finding the user.
+  Validates that the email is verified by the provider before creating
+  or finding the user. Any verified Google user can sign in.
   """
 
   use KsefHubWeb, :controller
@@ -11,11 +11,12 @@ defmodule KsefHubWeb.AuthController do
   plug Ueberauth
 
   alias KsefHub.Accounts
+  alias KsefHubWeb.UserAuth
 
   @doc """
-  Handles the OAuth callback. Rejects unverified emails, emails not in the
-  allowlist, and blank/nil emails. Renews the session on successful login
-  to prevent session fixation.
+  Handles the OAuth callback. Rejects unverified emails and blank/nil emails.
+  Uses `get_or_create_google_user/1` which links Google accounts to existing
+  email-registered users.
   """
   @spec callback(Plug.Conn.t(), map()) :: Plug.Conn.t()
   def callback(%{assigns: %{ueberauth_auth: auth}} = conn, _params) do
@@ -24,9 +25,7 @@ defmodule KsefHubWeb.AuthController do
     email_verified =
       get_in(auth, [Access.key(:extra), Access.key(:raw_info), :user, "email_verified"])
 
-    # Require explicit email verification from provider
-    if is_binary(email) and email != "" and email_verified == true and
-         Accounts.allowed_email?(email) do
+    if is_binary(email) and email != "" and email_verified == true do
       user_info = %{
         uid: auth.uid,
         email: email,
@@ -34,13 +33,11 @@ defmodule KsefHubWeb.AuthController do
         avatar_url: auth.info.image
       }
 
-      case Accounts.find_or_create_user(user_info) do
+      case Accounts.get_or_create_google_user(user_info) do
         {:ok, user} ->
           conn
-          |> configure_session(renew: true)
-          |> put_session(:user_id, user.id)
           |> put_flash(:info, "Welcome, #{user.name || user.email}!")
-          |> redirect(to: ~p"/dashboard")
+          |> UserAuth.log_in_user(user)
 
         {:error, _reason} ->
           conn
@@ -57,15 +54,6 @@ defmodule KsefHubWeb.AuthController do
   def callback(%{assigns: %{ueberauth_failure: _failure}} = conn, _params) do
     conn
     |> put_flash(:error, "Authentication failed.")
-    |> redirect(to: ~p"/")
-  end
-
-  @doc "Logs the user out by dropping the session."
-  @spec logout(Plug.Conn.t(), any()) :: Plug.Conn.t()
-  def logout(conn, _params) do
-    conn
-    |> configure_session(drop: true)
-    |> put_flash(:info, "Logged out successfully.")
     |> redirect(to: ~p"/")
   end
 end
