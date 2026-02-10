@@ -64,14 +64,16 @@ defmodule KsefHubWeb.CompanyLive.Index do
   @spec save_company(Phoenix.LiveView.Socket.t(), atom(), map()) ::
           {:noreply, Phoenix.LiveView.Socket.t()}
   defp save_company(socket, :new, params) do
-    case Companies.create_company(params) do
-      {:ok, company} ->
+    user = socket.assigns.current_user
+
+    case Companies.create_company_with_owner(user, params) do
+      {:ok, %{company: company}} ->
         {:noreply,
          socket
          |> put_flash(:info, "Company created.")
          |> redirect(to: ~p"/switch-company/#{company.id}?return_to=/dashboard")}
 
-      {:error, changeset} ->
+      {:error, :company, changeset, _changes} ->
         {:noreply, assign(socket, form: to_form(changeset))}
     end
   end
@@ -91,7 +93,13 @@ defmodule KsefHubWeb.CompanyLive.Index do
 
   @spec load_companies(Phoenix.LiveView.Socket.t()) :: Phoenix.LiveView.Socket.t()
   defp load_companies(socket) do
-    assign(socket, :companies_with_creds, Companies.list_companies_with_credential_status())
+    user = socket.assigns.current_user
+
+    assign(
+      socket,
+      :companies_with_creds,
+      Companies.list_companies_for_user_with_credential_status(user.id)
+    )
   end
 
   @doc "Renders the company list page with create/edit form."

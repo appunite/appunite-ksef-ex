@@ -16,6 +16,11 @@ defmodule KsefHubWeb.Layouts do
   attr :current_user, :map, default: nil
   attr :current_path, :string, default: nil
   attr :current_company, :map, default: nil
+
+  attr :current_role, :string,
+    default: nil,
+    doc: "the user's role for the current company membership"
+
   attr :companies, :list, default: []
 
   @doc "Renders the main application layout with sidebar navigation."
@@ -61,9 +66,16 @@ defmodule KsefHubWeb.Layouts do
     <!-- Company Selector -->
           <div :if={@current_company} class="p-4 border-b border-base-300">
             <div class="dropdown w-full">
-              <div tabindex="0" role="button" class="btn btn-ghost btn-sm w-full justify-start gap-2">
+              <div
+                tabindex="0"
+                role="button"
+                class="btn btn-ghost btn-sm w-full justify-start gap-2"
+                data-testid="company-selector"
+              >
                 <.icon name="hero-building-office-2" class="size-4" />
-                <span class="flex-1 text-left truncate">{@current_company.name}</span>
+                <span class="flex-1 text-left truncate" data-testid="current-company-name">
+                  {@current_company.name}
+                </span>
                 <.icon name="hero-chevron-down" class="size-3" />
               </div>
               <ul
@@ -103,12 +115,12 @@ defmodule KsefHubWeb.Layouts do
                   Invoices
                 </.nav_link>
               </li>
-              <li>
+              <li :if={@current_role == "owner"}>
                 <.nav_link path={~p"/certificates"} current={@current_path} icon="hero-shield-check">
                   Certificates
                 </.nav_link>
               </li>
-              <li>
+              <li :if={@current_role == "owner"}>
                 <.nav_link path={~p"/tokens"} current={@current_path} icon="hero-key">
                   API Tokens
                 </.nav_link>

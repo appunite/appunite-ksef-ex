@@ -4,7 +4,7 @@ Date: 2026-02-07
 
 ## Status
 
-Accepted
+Accepted — auth context updated by [ADR 0011](0011-per-company-rbac.md) (per-company RBAC) and [ADR 0013](0013-email-password-auth.md) (email/password auth replaces Google Sign-In + allowlist)
 
 ## Context
 

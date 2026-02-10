@@ -18,6 +18,7 @@ defmodule KsefHubWeb.CertificateLiveTest do
       Accounts.find_or_create_user(%{uid: "g-cert-1", email: "test@example.com", name: "Test"})
 
     company = insert(:company)
+    insert(:membership, user: user, company: company, role: "owner")
 
     # Stub auth mocks so AuthWorker (inline via Oban) succeeds after certificate upload
     stub(KsefHub.KsefClient.Mock, :get_challenge, fn ->

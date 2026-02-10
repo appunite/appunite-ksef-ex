@@ -8,9 +8,9 @@
 
 ## Executive Summary
 
-**KSeF Hub** is a dedicated service for Poland's National e-Invoice System (KSeF). It handles the complexity of KSeF integration - certificate authentication, XADES signing, XML parsing, invoice sync - and exposes clean REST APIs for any consumer application.
+**KSeF Hub** is a multi-tenant service for Poland's National e-Invoice System (KSeF). It handles the complexity of KSeF integration — certificate authentication, XADES signing, XML parsing, invoice sync — and exposes clean REST APIs and a self-service admin UI for multiple companies and teams.
 
-KSeF stores invoices as FA(3) XML documents. This service syncs those documents, parses them, transforms them to HTML/PDF using official gov.pl stylesheets, and provides structured data via API.
+KSeF stores invoices as FA(3) XML documents. This service syncs those documents, parses them, transforms them to HTML/PDF using official gov.pl stylesheets, and provides structured data via API. Any user can sign up, create a company, invite team members, and start syncing invoices.
 
 ---
 
@@ -43,7 +43,7 @@ Embedding this complexity into consumer applications (payroll, accounting, ETL) 
 | Language | **Elixir** | Fault-tolerant, great for background jobs, clean syntax |
 | Framework | **Phoenix + LiveView** | Single app: REST API + admin UI, no separate frontend |
 | Database | **Supabase (PostgreSQL)** | Managed Postgres, realtime subscriptions |
-| Auth (UI) | **Google Sign-In** | Internal tool, company account |
+| Auth (UI) | **Email/password + Google Sign-In** | Self-service sign-up, Google as additional option |
 | Auth (API) | **API tokens** | Generated per consumer application |
 | Sync | **15-min cron** | Reliable polling |
 | PDF | **xsltproc + Gotenberg** | Gov.pl stylesheets → HTML → PDF |
@@ -101,19 +101,26 @@ docs/adr/
 
 ## Users
 
-**Superadmins** (defined in ENV: `ALLOWED_EMAILS`)
-- Authenticate via Google Sign-In
-- Access granted only if email is in allowed list
-- All superadmins have equal permissions:
-  - View invoices (income and expense)
-  - Upload KSeF certificate
-  - Generate API tokens for consumer systems
-  - Approve/reject expense invoices
+Any user can sign up with email/password or Google Sign-In. There is no email allowlist — the system is self-service.
 
-```elixir
-# Example ENV
-ALLOWED_EMAILS=admin@company.com,finance@company.com
-```
+### Roles
+
+Roles are **per-company**. The same user can be an owner in Company A, an accountant in Company B, and an invoice reviewer in Company C.
+
+| Role | Scope | Permissions |
+|------|-------|-------------|
+| **Owner** | Per-company (creator) | Full access: certificates, API tokens, invite users, view/approve/reject invoices, company settings |
+| **Accountant** | Per-company (invited) | View invoices, approve/reject expenses, view sync status |
+| **Invoice Reviewer** | Per-company (invited) | View invoices, approve/reject expenses |
+
+### Key Rules
+
+- **Sign-up is open** — anyone can create an account
+- **User who creates a company becomes its owner** — the owner role cannot be transferred (for now)
+- **NIP is globally unique** — if a company with a given NIP already exists, the user must be invited by the existing owner
+- **Certificates belong to the user (owner), not the company** — one person certificate can authenticate for multiple companies (see `docs/ksef-certificates.md`)
+- **Only owners** can see and manage the Certificates tab and API Tokens tab
+- **Company list** shows "Owner" / "Member" badge per company for each user
 
 ---
 
@@ -123,9 +130,11 @@ ALLOWED_EMAILS=admin@company.com,finance@company.com
 
 | Requirement | Priority | Description |
 |-------------|----------|-------------|
-| F1.1 | Must | Google Sign-In for user authentication |
-| F1.2 | Must | Check email against `ALLOWED_EMAILS` env var |
-| F1.3 | Must | Reject access if email not in allowed list |
+| F1.1 | Must | Email/password sign-up and sign-in |
+| F1.2 | Must | Email confirmation on sign-up |
+| F1.3 | Must | Password reset flow |
+| F1.4 | Should | Google Sign-In as additional auth method |
+| F1.5 | Must | Session management (login, logout, remember me) |
 
 ### F1b: API Token Management
 
@@ -134,20 +143,47 @@ ALLOWED_EMAILS=admin@company.com,finance@company.com
 | F1b.1 | Must | Generate API tokens with name/description |
 | F1b.2 | Must | Revoke (decline) API tokens |
 | F1b.3 | Must | Track last used timestamp per token |
-| F1b.4 | Should | Track request count per token |
-| F1b.5 | Should | View token usage history |
+| F1b.4 | Must | Only company owners can create/revoke tokens |
+| F1b.5 | Should | Track request count per token |
+| F1b.6 | Should | View token usage history |
 
-### F2: KSeF Certificate (Security Compliance)
+### F1c: Company Management
 
 | Requirement | Priority | Description |
 |-------------|----------|-------------|
-| F2.1 | Must | Upload PKCS12 certificate |
+| F1c.1 | Must | Create company (name, NIP) |
+| F1c.2 | Must | NIP globally unique — reject if company with NIP already exists |
+| F1c.3 | Must | Creator becomes company owner |
+| F1c.4 | Must | Company settings page (name, NIP displayed, sync config) |
+| F1c.5 | Must | Company selector in UI — user can switch between companies |
+
+### F1d: Team & Invitations
+
+| Requirement | Priority | Description |
+|-------------|----------|-------------|
+| F1d.1 | Must | Owner invites user by email with role (accountant or invoice reviewer) |
+| F1d.2 | Must | Invitation email sent with accept link |
+| F1d.3 | Must | Invited user signs up (if new) or logs in, then joins the company |
+| F1d.4 | Must | Accept/decline invitation |
+| F1d.5 | Must | Owner can remove a member from the company |
+| F1d.6 | Should | Owner can change a member's role |
+| F1d.7 | Should | List pending invitations for a company |
+
+### F2: KSeF Certificate (Security Compliance)
+
+Certificates belong to the **user** (owner), not the company. One person certificate can authenticate for multiple companies where the person has KSeF authorization. See `docs/ksef-certificates.md` for background.
+
+| Requirement | Priority | Description |
+|-------------|----------|-------------|
+| F2.1 | Must | Upload PKCS12 certificate (user-level, not company-level) |
 | F2.2 | Must | Encrypt certificate data at rest (AES-256-GCM) |
 | F2.3 | Must | Encrypt password separately (AES-256-GCM) |
 | F2.4 | Must | Encryption key from Secret Manager (not in code) |
 | F2.5 | Must | Display certificate expiry |
 | F2.6 | Must | Audit log of certificate operations (upload, use) |
-| F2.7 | Should | Expiry alerts |
+| F2.7 | Must | Only company owners can manage certificates |
+| F2.8 | Must | Certificate shared across all companies the owner manages |
+| F2.9 | Should | Expiry alerts |
 
 ### F3: Invoice Sync
 
@@ -184,12 +220,15 @@ ALLOWED_EMAILS=admin@company.com,finance@company.com
 
 | Requirement | Priority | Description |
 |-------------|----------|-------------|
-| F6.1 | Must | Dashboard - sync status, invoice counts |
-| F6.2 | Must | Certificate upload page |
+| F6.1 | Must | Company selector — switch between companies the user belongs to |
+| F6.2 | Must | Dashboard — sync status, invoice counts (scoped to selected company) |
 | F6.3 | Must | Invoice list with filters (type, status, date) |
 | F6.4 | Must | Invoice detail with PDF preview |
-| F6.5 | Must | API token generation page |
-| F6.6 | Should | Real-time sync status updates |
+| F6.5 | Must | Certificate upload page (**owner-only**) |
+| F6.6 | Must | API token generation page (**owner-only**) |
+| F6.7 | Must | Team management page — list members, invite, remove (**owner-only**) |
+| F6.8 | Must | Company settings page (**owner-only**) |
+| F6.9 | Should | Real-time sync status updates |
 
 ---
 
@@ -201,14 +240,21 @@ ALLOWED_EMAILS=admin@company.com,finance@company.com
 flowchart TB
     subgraph external["External"]
         ksef["KSeF API\n(gov.pl)"]
-        google["Google OAuth"]
+        google["Google OAuth\n(optional)"]
     end
 
     subgraph hub["KSeF Hub (Phoenix)"]
         subgraph phoenix["Single Phoenix App"]
+            auth["Auth\n(email/pw + Google)"]
             live["LiveView\n(Admin UI)"]
             api["REST API\n(/api/*)"]
             sync["GenServer\n(Sync Worker)"]
+        end
+
+        subgraph membership["Multi-Tenant Layer"]
+            companies["Companies"]
+            memberships["Memberships\n(user ↔ company + role)"]
+            invitations["Invitations"]
         end
 
         subgraph pdf["PDF Pipeline"]
@@ -229,10 +275,12 @@ flowchart TB
         app3["Consumer App N"]
     end
 
-    google --> live
+    google --> auth
+    auth --> live
     sync --> xmlsec
     xmlsec --> ksef
     phoenix --> db
+    membership --> db
     xslt --> gotenberg
 
     app1 -->|API token| api
@@ -246,8 +294,12 @@ flowchart TB
 ksef_hub/
 ├── lib/
 │   ├── ksef_hub/                    # Business logic
+│   │   ├── accounts/                # User auth (email/pw, Google, sessions)
+│   │   ├── companies/               # Company CRUD, settings
+│   │   ├── memberships/             # User ↔ Company join with role
+│   │   ├── invitations/             # Email invitations, accept/decline
 │   │   ├── invoices/                # Invoice context
-│   │   ├── credentials/             # Certificate context
+│   │   ├── credentials/             # User certificates (encrypted, user-scoped)
 │   │   ├── ksef_client/             # KSeF API client
 │   │   └── sync_worker.ex           # GenServer for sync
 │   │
@@ -259,7 +311,9 @@ ksef_hub/
 │       ├── live/                    # LiveView (Admin UI)
 │       │   ├── dashboard_live.ex
 │       │   ├── invoice_live.ex
-│       │   └── certificate_live.ex
+│       │   ├── certificate_live.ex
+│       │   ├── company_live.ex
+│       │   └── team_live.ex
 │       └── router.ex
 │
 ├── test/
@@ -402,20 +456,76 @@ Based on implementing KSeF integration in Swift, these lessons inform this proje
 ### 6. Database Schema
 
 ```sql
--- Credentials (one row)
-CREATE TABLE ksef_credentials (
+-- Users (managed by phx.gen.auth)
+CREATE TABLE users (
     id UUID PRIMARY KEY,
-    nip TEXT NOT NULL,
-    certificate_data BYTEA NOT NULL,
-    certificate_password_encrypted TEXT NOT NULL,
-    certificate_expires_at DATE NOT NULL,
-    last_sync_at TIMESTAMPTZ,
-    is_active BOOLEAN DEFAULT true
+    email TEXT NOT NULL UNIQUE,
+    hashed_password TEXT NOT NULL,
+    confirmed_at TIMESTAMPTZ,
+    inserted_at TIMESTAMPTZ DEFAULT NOW(),
+    updated_at TIMESTAMPTZ DEFAULT NOW()
 );
 
--- Invoices (partitioned by type)
+-- Companies
+CREATE TABLE companies (
+    id UUID PRIMARY KEY,
+    name TEXT NOT NULL,
+    nip TEXT NOT NULL UNIQUE,
+    inserted_at TIMESTAMPTZ DEFAULT NOW(),
+    updated_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+-- Memberships (user ↔ company with role)
+CREATE TABLE memberships (
+    id UUID PRIMARY KEY,
+    user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    company_id UUID NOT NULL REFERENCES companies(id) ON DELETE CASCADE,
+    role TEXT NOT NULL,  -- 'owner', 'accountant', 'invoice_reviewer'
+    joined_at TIMESTAMPTZ DEFAULT NOW(),
+    UNIQUE(user_id, company_id)
+);
+
+-- Invitations
+CREATE TABLE invitations (
+    id UUID PRIMARY KEY,
+    company_id UUID NOT NULL REFERENCES companies(id) ON DELETE CASCADE,
+    email TEXT NOT NULL,
+    role TEXT NOT NULL,  -- 'accountant', 'invoice_reviewer'
+    invited_by_id UUID NOT NULL REFERENCES users(id),
+    token TEXT NOT NULL UNIQUE,
+    status TEXT NOT NULL DEFAULT 'pending',  -- 'pending', 'accepted', 'declined', 'expired'
+    expires_at TIMESTAMPTZ NOT NULL,
+    inserted_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+-- User certificates (user-scoped, not company-scoped)
+CREATE TABLE user_certificates (
+    id UUID PRIMARY KEY,
+    user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    certificate_data_encrypted BYTEA NOT NULL,
+    certificate_password_encrypted TEXT NOT NULL,
+    certificate_subject TEXT,        -- e.g., "JAN KOWALSKI, PESEL: ..."
+    certificate_expires_at DATE NOT NULL,
+    is_active BOOLEAN DEFAULT true,
+    inserted_at TIMESTAMPTZ DEFAULT NOW(),
+    updated_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+-- Company KSeF config (sync state, per company)
+CREATE TABLE ksef_credentials (
+    id UUID PRIMARY KEY,
+    company_id UUID NOT NULL REFERENCES companies(id) ON DELETE CASCADE UNIQUE,
+    nip TEXT NOT NULL,
+    last_sync_at TIMESTAMPTZ,
+    is_active BOOLEAN DEFAULT true,
+    inserted_at TIMESTAMPTZ DEFAULT NOW(),
+    updated_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+-- Invoices (scoped to company)
 CREATE TABLE invoices (
     id UUID PRIMARY KEY,
+    company_id UUID NOT NULL REFERENCES companies(id) ON DELETE CASCADE,
     ksef_number TEXT NOT NULL UNIQUE,
     type TEXT NOT NULL,  -- 'income' or 'expense'
     xml_content TEXT NOT NULL,
@@ -434,11 +544,11 @@ CREATE TABLE invoices (
     status TEXT DEFAULT 'pending',  -- pending/approved/rejected
     -- Audit
     ksef_acquisition_date TIMESTAMPTZ,
-    created_at TIMESTAMPTZ DEFAULT NOW(),
+    inserted_at TIMESTAMPTZ DEFAULT NOW(),
     updated_at TIMESTAMPTZ DEFAULT NOW()
 );
 
-CREATE INDEX idx_invoices_type_status ON invoices(type, status);
+CREATE INDEX idx_invoices_company_type ON invoices(company_id, type, status);
 CREATE INDEX idx_invoices_ksef_number ON invoices(ksef_number);
 ```
 
@@ -466,7 +576,7 @@ RUN apt-get install -y xmlsec1
 | **Passwords** | Encrypted separately, never logged |
 | **Encryption keys** | Stored in Secret Manager, not in code/env |
 | **API tokens** | Hashed storage, revocable, usage tracked |
-| **Authentication** | Google Sign-In + email allowlist |
+| **Authentication** | Email/password + Google Sign-In, per-company RBAC |
 | **Audit trail** | Log certificate operations, token usage, sync events |
 | **Temp files** | Secure cleanup (overwrite before delete) |
 
@@ -488,20 +598,41 @@ RUN apt-get install -y xmlsec1
 
 ## Open Questions
 
-1. **KSeF webhooks** - Does KSeF support push notifications, or cron-only?
+1. **KSeF webhooks** — Does KSeF support push notifications, or cron-only?
 
 ---
 
-## Next Steps
+## Implementation Phases
 
-1. ✅ Finalize PRD
-2. Create Phoenix project (`mix phx.new ksef_hub`)
-3. Write first ADRs
-4. Set up Supabase project + configure Ecto
-5. Implement KSeF client with TDD (XADES signing, API calls)
-6. Implement FA(3) parser with test samples
-7. Implement PDF pipeline (xsltproc + Gotenberg)
-8. Build sync worker (GenServer)
-9. Build REST API endpoints
-10. Build LiveView admin UI
-11. Dockerize + deploy to Cloud Run
+The multi-tenant transition is broken into four phases. Each phase delivers a working system — no big-bang migration.
+
+### Phase 1: User certificates + membership foundation
+
+- Create `user_certificates` table — move cert data from `ksef_credentials` to user-scoped storage
+- Create `companies` table and `memberships` table (user ↔ company with role)
+- Migrate existing data: current users become owners of existing companies
+- Update `ksef_credentials` to reference company (not hold cert data)
+- Role-based UI visibility: Certificates tab and API Tokens tab visible only to owners
+
+### Phase 2: Email/password authentication
+
+- Add sign-up/sign-in with email and password (`phx.gen.auth` or similar)
+- Email confirmation on sign-up
+- Password reset flow
+- Keep Google Sign-In as additional auth method
+- Remove `ALLOWED_EMAILS` gate entirely
+
+### Phase 3: Invitation system
+
+- Owner can invite users by email with a role (accountant or invoice reviewer)
+- Invitation email with accept link
+- Invited user signs up (if new) or logs in, then joins the company
+- Team management page: list members, remove, change role
+- Pending invitations list
+
+### Phase 4: API token scoping
+
+- API tokens scoped to a company (not just a user)
+- Only owners can create/revoke tokens for their company
+- Token validation checks company membership
+- Track usage per token per company
