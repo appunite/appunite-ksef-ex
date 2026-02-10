@@ -11,6 +11,7 @@ defmodule KsefHubWeb.AuthController do
   plug Ueberauth
 
   alias KsefHub.Accounts
+  alias KsefHub.Invitations
   alias KsefHubWeb.UserAuth
 
   @doc """
@@ -35,6 +36,8 @@ defmodule KsefHubWeb.AuthController do
 
       case Accounts.get_or_create_google_user(user_info) do
         {:ok, user} ->
+          Invitations.accept_pending_invitations_for_email(user)
+
           conn
           |> put_flash(:info, "Welcome, #{user.name || user.email}!")
           |> UserAuth.log_in_user(user)

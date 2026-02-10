@@ -7,6 +7,7 @@ defmodule KsefHubWeb.UserRegistrationLive do
 
   alias KsefHub.Accounts
   alias KsefHub.Accounts.User
+  alias KsefHub.Invitations
 
   @doc false
   @spec mount(map(), map(), Phoenix.LiveView.Socket.t()) ::
@@ -28,6 +29,8 @@ defmodule KsefHubWeb.UserRegistrationLive do
   def handle_event("save", %{"user" => user_params}, socket) do
     case Accounts.register_user(user_params) do
       {:ok, user} ->
+        Invitations.accept_pending_invitations_for_email(user)
+
         case Accounts.deliver_user_confirmation_instructions(
                user,
                &url(~p"/users/confirm/#{&1}")
