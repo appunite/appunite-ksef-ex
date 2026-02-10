@@ -1,11 +1,11 @@
 defmodule KsefHub.Accounts do
   @moduledoc """
-  The Accounts context. Manages users and API tokens.
+  The Accounts context. Manages users, authentication, and API tokens.
   """
 
   import Ecto.Query
 
-  alias KsefHub.Accounts.{ApiToken, User}
+  alias KsefHub.Accounts.{ApiToken, User, UserNotifier, UserToken}
   alias KsefHub.Repo
 
   @token_bytes 32
@@ -95,6 +95,192 @@ defmodule KsefHub.Accounts do
         {:ok, user}
     end
   end
+
+  @doc """
+  Fetches a user by email and verifies the password.
+
+  Returns `nil` if no user found or password is invalid.
+  """
+  @spec get_user_by_email_and_password(String.t(), String.t()) :: User.t() | nil
+  def get_user_by_email_and_password(email, password)
+      when is_binary(email) and is_binary(password) do
+    user = get_user_by_email(email)
+    if User.valid_password?(user, password), do: user
+  end
+
+  @doc """
+  Registers a new user with email and password.
+  """
+  @spec register_user(map()) :: {:ok, User.t()} | {:error, Ecto.Changeset.t()}
+  def register_user(attrs) do
+    %User{}
+    |> User.registration_changeset(attrs)
+    |> Repo.insert()
+  end
+
+  @doc """
+  Finds a user by Google UID, links to existing email user, or creates a new one.
+
+  Handles three cases:
+  1. User exists with matching `google_uid` -> return existing
+  2. User exists with matching `email` but no `google_uid` -> link Google UID
+  3. No matching user -> create new
+  """
+  @spec get_or_create_google_user(map()) :: {:ok, User.t()} | {:error, Ecto.Changeset.t()}
+  def get_or_create_google_user(%{uid: uid, email: email} = info) do
+    case get_user_by_google_uid(uid) do
+      %User{} = user ->
+        {:ok, user}
+
+      nil ->
+        case get_user_by_email(email) do
+          %User{} = user ->
+            user
+            |> User.changeset(%{
+              google_uid: uid,
+              name: Map.get(info, :name) || user.name,
+              avatar_url: Map.get(info, :avatar_url) || user.avatar_url
+            })
+            |> Repo.update()
+
+          nil ->
+            %User{}
+            |> User.changeset(%{
+              google_uid: uid,
+              email: email,
+              name: Map.get(info, :name),
+              avatar_url: Map.get(info, :avatar_url)
+            })
+            |> Repo.insert()
+        end
+    end
+  end
+
+  # --- Session Tokens ---
+
+  @doc """
+  Generates a session token for the user and persists it.
+
+  Returns the raw token to store in the session cookie.
+  """
+  @spec generate_user_session_token(User.t()) :: binary()
+  def generate_user_session_token(user) do
+    {token, user_token} = UserToken.build_session_token(user)
+    Repo.insert!(user_token)
+    token
+  end
+
+  @doc """
+  Gets the user associated with a session token.
+
+  Returns `nil` if the token is invalid or expired.
+  """
+  @spec get_user_by_session_token(binary()) :: User.t() | nil
+  def get_user_by_session_token(token) do
+    {:ok, query} = UserToken.verify_session_token_query(token)
+    Repo.one(query)
+  end
+
+  @doc """
+  Deletes the given session token from the database.
+  """
+  @spec delete_user_session_token(binary()) :: :ok
+  def delete_user_session_token(token) do
+    hashed_token = :crypto.hash(:sha256, token)
+
+    from(t in UserToken, where: t.token == ^hashed_token and t.context == "session")
+    |> Repo.delete_all()
+
+    :ok
+  end
+
+  # --- Email Confirmation ---
+
+  @doc """
+  Delivers confirmation instructions to the user.
+
+  Returns `{:error, :already_confirmed}` if the user has already been confirmed.
+  """
+  @spec deliver_user_confirmation_instructions(User.t(), (String.t() -> String.t())) ::
+          {:ok, Swoosh.Email.t()} | {:error, :already_confirmed}
+  def deliver_user_confirmation_instructions(%User{} = user, confirmation_url_fun)
+      when is_function(confirmation_url_fun, 1) do
+    if user.confirmed_at do
+      {:error, :already_confirmed}
+    else
+      {token, user_token} = UserToken.build_email_token(user, "confirm")
+      Repo.insert!(user_token)
+      encoded = Base.url_encode64(token, padding: false)
+      UserNotifier.deliver_confirmation_instructions(user, confirmation_url_fun.(encoded))
+    end
+  end
+
+  @doc """
+  Confirms a user by the given token.
+  """
+  @spec confirm_user(String.t()) :: {:ok, User.t()} | :error
+  def confirm_user(token) do
+    with {:ok, query} <- UserToken.verify_email_token_query(token, "confirm"),
+         %User{} = user <- Repo.one(query),
+         {:ok, %{user: user}} <- confirm_user_multi(user) do
+      {:ok, user}
+    else
+      _ -> :error
+    end
+  end
+
+  @spec confirm_user_multi(User.t()) :: {:ok, map()} | {:error, atom(), term(), map()}
+  defp confirm_user_multi(user) do
+    Ecto.Multi.new()
+    |> Ecto.Multi.update(:user, User.confirm_changeset(user))
+    |> Ecto.Multi.delete_all(:tokens, UserToken.by_user_and_contexts_query(user, ["confirm"]))
+    |> Repo.transaction()
+  end
+
+  # --- Password Reset ---
+
+  @doc """
+  Delivers reset password instructions to the user.
+  """
+  @spec deliver_user_reset_password_instructions(User.t(), (String.t() -> String.t())) ::
+          {:ok, Swoosh.Email.t()}
+  def deliver_user_reset_password_instructions(%User{} = user, reset_password_url_fun)
+      when is_function(reset_password_url_fun, 1) do
+    {token, user_token} = UserToken.build_email_token(user, "reset_password")
+    Repo.insert!(user_token)
+    encoded = Base.url_encode64(token, padding: false)
+    UserNotifier.deliver_reset_password_instructions(user, reset_password_url_fun.(encoded))
+  end
+
+  @doc """
+  Gets the user by reset password token.
+  """
+  @spec get_user_by_reset_password_token(String.t()) :: User.t() | nil
+  def get_user_by_reset_password_token(token) do
+    with {:ok, query} <- UserToken.verify_email_token_query(token, "reset_password"),
+         %User{} = user <- Repo.one(query) do
+      user
+    else
+      _ -> nil
+    end
+  end
+
+  @doc """
+  Resets the user password.
+  """
+  @spec reset_user_password(User.t(), map()) :: {:ok, User.t()} | {:error, Ecto.Changeset.t()}
+  def reset_user_password(user, attrs) do
+    Ecto.Multi.new()
+    |> Ecto.Multi.update(:user, User.password_changeset(user, attrs))
+    |> Ecto.Multi.delete_all(:tokens, UserToken.by_user_and_contexts_query(user, :all))
+    |> Repo.transaction()
+    |> case do
+      {:ok, %{user: user}} -> {:ok, user}
+      {:error, :user, changeset, _} -> {:error, changeset}
+    end
+  end
+
+  # --- Allowed Emails (legacy) ---
 
   @doc """
   Checks if an email is in the allowlist.

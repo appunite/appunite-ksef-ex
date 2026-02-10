@@ -43,6 +43,26 @@ defmodule KsefHub.DataCase do
   end
 
   @doc """
+  Captures the token from an email-sending function.
+
+  Use this to extract tokens from functions like `deliver_user_confirmation_instructions/2`.
+
+  ## Example
+
+      {encoded_token, _} =
+        extract_user_token(fn url ->
+          Accounts.deliver_user_confirmation_instructions(user, url)
+        end)
+  """
+  def extract_user_token(fun) do
+    {:ok, captured} = fun.(&"[TOKEN]#{&1}[/TOKEN]")
+    %{text_body: body} = captured
+    [_, token_and_rest | _] = String.split(body, "[TOKEN]")
+    [token | _] = String.split(token_and_rest, "[/TOKEN]")
+    {token, captured}
+  end
+
+  @doc """
   A helper that transforms changeset errors into a map of messages.
 
       assert {:error, changeset} = Accounts.create_user(%{password: "short"})
