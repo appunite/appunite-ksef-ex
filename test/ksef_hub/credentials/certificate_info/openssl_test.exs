@@ -1,4 +1,4 @@
-defmodule KsefHub.Credentials.CertificateInfoTest do
+defmodule KsefHub.Credentials.CertificateInfo.OpensslTest do
   @moduledoc false
   use ExUnit.Case, async: true
 

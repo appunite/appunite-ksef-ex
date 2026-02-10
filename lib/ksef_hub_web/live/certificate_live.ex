@@ -12,6 +12,7 @@ defmodule KsefHubWeb.CertificateLive do
 
   alias KsefHub.Credentials
   alias KsefHub.Credentials.Encryption
+  alias KsefHub.KsefClient.AuthWorker
 
   @doc "Initializes the certificate management LiveView with upload configurations."
   @spec mount(map(), map(), Phoenix.LiveView.Socket.t()) :: {:ok, Phoenix.LiveView.Socket.t()}
@@ -184,6 +185,8 @@ defmodule KsefHubWeb.CertificateLive do
 
       case Credentials.replace_active_credential(company.id, attrs) do
         {:ok, _credential} ->
+          enqueue_auth(company.id)
+
           {:noreply,
            socket
            |> put_flash(:info, "Certificate uploaded successfully.")
@@ -239,6 +242,13 @@ defmodule KsefHubWeb.CertificateLive do
   @spec certificate_info() :: module()
   defp certificate_info do
     Application.get_env(:ksef_hub, :certificate_info, KsefHub.Credentials.CertificateInfo.Openssl)
+  end
+
+  @spec enqueue_auth(Ecto.UUID.t()) :: {:ok, Oban.Job.t()} | {:error, term()}
+  defp enqueue_auth(company_id) do
+    %{company_id: company_id}
+    |> AuthWorker.new()
+    |> Oban.insert()
   end
 
   @spec load_credentials(Phoenix.LiveView.Socket.t()) :: Phoenix.LiveView.Socket.t()

@@ -19,6 +19,33 @@ defmodule KsefHubWeb.CertificateLiveTest do
 
     company = insert(:company)
 
+    # Stub auth mocks so AuthWorker (inline via Oban) succeeds after certificate upload
+    stub(KsefHub.KsefClient.Mock, :get_challenge, fn ->
+      {:ok, %{challenge: "stub-challenge", timestamp: "2025-01-01T00:00:00Z"}}
+    end)
+
+    stub(KsefHub.XadesSigner.Mock, :sign_challenge, fn _, _, _, _ ->
+      {:ok, "<StubSignedXML/>"}
+    end)
+
+    stub(KsefHub.KsefClient.Mock, :authenticate_xades, fn _ ->
+      {:ok, %{reference_number: "stub-ref", operation_token: "stub-op"}}
+    end)
+
+    stub(KsefHub.KsefClient.Mock, :poll_auth_status, fn _, _ ->
+      {:ok, :success}
+    end)
+
+    stub(KsefHub.KsefClient.Mock, :redeem_tokens, fn _ ->
+      {:ok,
+       %{
+         access_token: "stub-access",
+         refresh_token: "stub-refresh",
+         access_valid_until: DateTime.add(DateTime.utc_now(), 900),
+         refresh_valid_until: DateTime.add(DateTime.utc_now(), 48 * 24 * 3600)
+       }}
+    end)
+
     conn = conn |> init_test_session(%{user_id: user.id, current_company_id: company.id})
     %{conn: conn, user: user, company: company}
   end

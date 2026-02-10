@@ -99,8 +99,8 @@ defmodule KsefHub.Credentials.CertificateInfo.Openssl do
       {:ok, {output, 0}} ->
         {:ok, output}
 
-      {:ok, {output, exit_code}} ->
-        Logger.warning("openssl pkcs12 info extraction failed (exit #{exit_code}): #{output}")
+      {:ok, {_output, exit_code}} ->
+        Logger.warning("openssl pkcs12 info extraction failed (exit #{exit_code})")
         {:error, {:openssl_failed, exit_code}}
 
       nil ->
