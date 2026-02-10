@@ -25,9 +25,9 @@ defmodule KsefHubWeb.UserLoginLive do
     {:noreply, assign(socket, form: form)}
   end
 
-  def handle_event("save", %{"user" => _user_params} = params, socket) do
+  def handle_event("save", %{"user" => user_params}, socket) do
     # The form will POST to the session controller via phx-trigger-action
-    form = to_form(params["user"], as: "user")
+    form = to_form(user_params, as: "user")
     {:noreply, assign(socket, form: form, trigger_submit: true)}
   end
 

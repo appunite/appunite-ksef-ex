@@ -40,15 +40,31 @@ defmodule KsefHubWeb.ConnCase do
   Captures the token from an email-sending function.
 
   Delegates to `KsefHub.DataCase.extract_user_token/1`.
+
+  ## Parameters
+
+    - `fun` (`(String.t() -> {:ok, Swoosh.Email.t()})`) — a function that
+      receives a URL-building callback and triggers email delivery
+
+  ## Returns
+
+    `{String.t(), Swoosh.Email.t()}` — the encoded token and the captured email
   """
   defdelegate extract_user_token(fun), to: KsefHub.DataCase
 
   @doc """
   Sets up a logged-in connection by generating a session token for the user.
 
-  Accepts optional extra session params (e.g., `current_company_id`).
+  ## Parameters
 
-  Returns the conn with the `:user_token` session key set.
+    - `conn` (`Plug.Conn.t()`) — the test connection
+    - `user` (`KsefHub.Accounts.User.t()`) — the user to log in
+    - `extra_session` (`map()`) — optional extra session keys
+      (e.g., `%{current_company_id: uuid}`)
+
+  ## Returns
+
+    `Plug.Conn.t()` — conn with `:user_token` (and any extra keys) in session
   """
   def log_in_user(conn, user, extra_session \\ %{}) do
     token = KsefHub.Accounts.generate_user_session_token(user)

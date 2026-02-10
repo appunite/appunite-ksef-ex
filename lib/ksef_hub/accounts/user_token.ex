@@ -94,21 +94,19 @@ defmodule KsefHub.Accounts.UserToken do
   """
   @spec verify_email_token_query(String.t(), String.t()) :: {:ok, Ecto.Query.t()} | :error
   def verify_email_token_query(encoded_token, context) do
-    case Base.url_decode64(encoded_token, padding: false) do
-      {:ok, decoded_token} ->
-        hashed_token = :crypto.hash(:sha256, decoded_token)
-        days = days_for_context(context)
+    with {:ok, decoded_token} <- Base.url_decode64(encoded_token, padding: false),
+         {:ok, days} <- days_for_context(context) do
+      hashed_token = :crypto.hash(:sha256, decoded_token)
 
-        query =
-          from token in by_token_and_context_query(hashed_token, context),
-            join: user in assoc(token, :user),
-            where: token.inserted_at > ago(^days, "day") and token.sent_to == user.email,
-            select: user
+      query =
+        from token in by_token_and_context_query(hashed_token, context),
+          join: user in assoc(token, :user),
+          where: token.inserted_at > ago(^days, "day") and token.sent_to == user.email,
+          select: user
 
-        {:ok, query}
-
-      :error ->
-        :error
+      {:ok, query}
+    else
+      _ -> :error
     end
   end
 
@@ -132,7 +130,8 @@ defmodule KsefHub.Accounts.UserToken do
     from __MODULE__, where: [token: ^token, context: ^context]
   end
 
-  @spec days_for_context(String.t()) :: pos_integer()
-  defp days_for_context("confirm"), do: @confirm_validity_in_days
-  defp days_for_context("reset_password"), do: @reset_password_validity_in_days
+  @spec days_for_context(String.t()) :: {:ok, pos_integer()} | :error
+  defp days_for_context("confirm"), do: {:ok, @confirm_validity_in_days}
+  defp days_for_context("reset_password"), do: {:ok, @reset_password_validity_in_days}
+  defp days_for_context(_), do: :error
 end

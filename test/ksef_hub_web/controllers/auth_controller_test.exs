@@ -1,6 +1,8 @@
 defmodule KsefHubWeb.AuthControllerTest do
   use KsefHubWeb.ConnCase, async: true
 
+  import KsefHub.Factory
+
   alias KsefHub.Accounts
 
   describe "callback/2" do
@@ -133,9 +135,7 @@ defmodule KsefHubWeb.AuthControllerTest do
     end
 
     test "links Google account to existing email-registered user", %{conn: conn} do
-      # Register a user via email/password first
-      {:ok, email_user} =
-        Accounts.register_user(%{email: "link@example.com", password: "valid_password123"})
+      email_user = insert(:password_user, email: "link@example.com")
 
       auth = %Ueberauth.Auth{
         uid: "google-link-uid",

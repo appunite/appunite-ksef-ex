@@ -7,6 +7,12 @@ defmodule KsefHub.Accounts.UserNotifier do
 
   alias KsefHub.Mailer
 
+  @from_email Application.compile_env(
+                :ksef_hub,
+                :mailer_from,
+                {"KSeF Hub", "noreply@ksef-hub.com"}
+              )
+
   @doc """
   Delivers confirmation instructions to the user's email.
 
@@ -65,7 +71,7 @@ defmodule KsefHub.Accounts.UserNotifier do
     email =
       new()
       |> to(recipient)
-      |> from({"KSeF Hub", "noreply@ksef-hub.com"})
+      |> from(@from_email)
       |> subject(subject)
       |> text_body(body)
 

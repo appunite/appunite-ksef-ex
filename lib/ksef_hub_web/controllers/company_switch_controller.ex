@@ -7,23 +7,30 @@ defmodule KsefHubWeb.CompanySwitchController do
 
   use KsefHubWeb, :controller
 
+  alias KsefHub.Accounts.User
   alias KsefHub.Companies
 
   @doc "Switches the current company context and redirects."
   @spec update(Plug.Conn.t(), map()) :: Plug.Conn.t()
   def update(conn, %{"id" => id} = params) do
-    user = conn.assigns.current_user
+    case conn.assigns[:current_user] do
+      %User{} = user ->
+        with {:ok, uuid} <- Ecto.UUID.cast(id),
+             %{} <- Companies.get_membership(user.id, uuid) do
+          conn
+          |> put_session(:current_company_id, uuid)
+          |> redirect(to: safe_return_to(params["return_to"]))
+        else
+          _ ->
+            conn
+            |> put_flash(:error, "Company not found.")
+            |> redirect(to: ~p"/dashboard")
+        end
 
-    with {:ok, uuid} <- Ecto.UUID.cast(id),
-         %{} <- Companies.get_membership(user.id, uuid) do
-      conn
-      |> put_session(:current_company_id, uuid)
-      |> redirect(to: safe_return_to(params["return_to"]))
-    else
       _ ->
         conn
-        |> put_flash(:error, "Company not found.")
-        |> redirect(to: ~p"/dashboard")
+        |> put_flash(:error, "You must be logged in.")
+        |> redirect(to: ~p"/")
     end
   end
 

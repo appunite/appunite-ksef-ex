@@ -47,6 +47,15 @@ defmodule KsefHub.DataCase do
 
   Use this to extract tokens from functions like `deliver_user_confirmation_instructions/2`.
 
+  ## Parameters
+
+    - `fun` (`(String.t() -> {:ok, Swoosh.Email.t()})`) — a function that
+      receives a URL-building callback and triggers email delivery
+
+  ## Returns
+
+    `{String.t(), Swoosh.Email.t()}` — the encoded token and the captured email
+
   ## Example
 
       {encoded_token, _} =
@@ -54,6 +63,8 @@ defmodule KsefHub.DataCase do
           Accounts.deliver_user_confirmation_instructions(user, url)
         end)
   """
+  @spec extract_user_token((String.t() -> {:ok, Swoosh.Email.t()})) ::
+          {String.t(), Swoosh.Email.t()}
   def extract_user_token(fun) do
     {:ok, captured} = fun.(&"[TOKEN]#{&1}[/TOKEN]")
     %{text_body: body} = captured

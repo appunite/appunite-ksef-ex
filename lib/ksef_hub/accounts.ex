@@ -68,7 +68,8 @@ defmodule KsefHub.Accounts do
   @spec get_user_by_email_and_password(String.t(), String.t()) :: User.t() | nil
   def get_user_by_email_and_password(email, password)
       when is_binary(email) and is_binary(password) do
-    user = get_user_by_email(email)
+    normalized_email = email |> String.trim() |> String.downcase()
+    user = get_user_by_email(normalized_email)
     if User.valid_password?(user, password), do: user
   end
 

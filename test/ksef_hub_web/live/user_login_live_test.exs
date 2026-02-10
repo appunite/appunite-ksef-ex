@@ -25,8 +25,8 @@ defmodule KsefHubWeb.UserLoginLiveTest do
 
   describe "user login" do
     test "redirects on valid credentials via session controller", %{conn: conn} do
-      password = "valid_password123"
-      user = insert(:password_user, hashed_password: Bcrypt.hash_pwd_salt(password))
+      # Factory hashes "valid_password123" by default
+      user = insert(:password_user)
 
       {:ok, view, _html} = live(conn, ~p"/users/log-in")
 
@@ -37,7 +37,7 @@ defmodule KsefHubWeb.UserLoginLiveTest do
 
       conn =
         post(conn, ~p"/users/log-in", %{
-          "user" => %{"email" => user.email, "password" => password}
+          "user" => %{"email" => user.email, "password" => "valid_password123"}
         })
 
       assert redirected_to(conn) == ~p"/dashboard"

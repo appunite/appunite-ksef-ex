@@ -221,7 +221,7 @@ defmodule KsefHub.AccountsTest do
                Accounts.reset_user_password(user, %{password: "new_password12345"})
 
       assert Accounts.get_user_by_email_and_password("reset@example.com", "new_password12345")
-      refute updated.id != user.id
+      assert updated.id == user.id
     end
 
     test "reset_user_password/2 deletes all tokens", %{user: user} do
