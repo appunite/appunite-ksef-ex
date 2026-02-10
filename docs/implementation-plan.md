@@ -256,14 +256,14 @@ Add invitations table. Owner invites by email + role. Tokenized accept link via 
 ### Checklist
 
 #### 4.1 Invitation schema + migration
-- [ ] Write test: `test/ksef_hub/invitations/invitation_test.exs` — changeset validations
-- [ ] Create migration: `create_invitations` table (id, company_id FK restrict, email, role, invited_by_id FK, token_hash, status enum, expires_at, timestamps). Unique partial index on `[:company_id, :email]` where `status = 'pending'`.
-- [ ] Create schema: `lib/ksef_hub/invitations/invitation.ex`
-- [ ] Add factory: `:invitation` in factory.ex
-- [ ] Run tests green
+- [x] Write test: `test/ksef_hub/invitations/invitation_test.exs` — changeset validations
+- [x] Create migration: `create_invitations` table (id, company_id FK restrict, email, role, invited_by_id FK, token_hash, status enum, expires_at, timestamps). Unique partial index on `[:company_id, :email]` where `status = 'pending'`.
+- [x] Create schema: `lib/ksef_hub/invitations/invitation.ex`
+- [x] Add factory: `:invitation` in factory.ex
+- [x] Run tests green
 
 #### 4.2 Invitations context
-- [ ] Write tests in `test/ksef_hub/invitations_test.exs`:
+- [x] Write tests in `test/ksef_hub/invitations_test.exs`:
   - `create_invitation/2` — owner creates, token generated, hashed in DB
   - `create_invitation/2` — rejects if email already has membership
   - `create_invitation/2` — rejects if pending invitation already exists
@@ -273,40 +273,40 @@ Add invitations table. Owner invites by email + role. Tokenized accept link via 
   - `cancel_invitation/2` — owner cancels pending invitation
   - `list_pending_invitations/1` — for a company
   - `accept_pending_invitations_for_email/1` — auto-accept on sign-up
-- [ ] Create `lib/ksef_hub/invitations.ex` context module
-- [ ] Run tests green
+- [x] Create `lib/ksef_hub/invitations.ex` context module
+- [x] Run tests green
 
 #### 4.3 Invitation email
-- [ ] Create `lib/ksef_hub/invitations/invitation_notifier.ex` — email with accept link
-- [ ] Write test: email contains correct token URL, company name, role
-- [ ] Run tests green
+- [x] Create `lib/ksef_hub/invitations/invitation_notifier.ex` — email with accept link
+- [x] Write test: email contains correct token URL, company name, role
+- [x] Run tests green
 
 #### 4.4 Accept flow (controller/LiveView)
-- [ ] Create accept page: `lib/ksef_hub_web/live/invitation_accept_live.ex`
+- [x] Create accept page: `lib/ksef_hub_web/live/invitation_accept_live.ex`
   - Validates token
   - If logged in → accept, redirect to company dashboard
   - If not logged in → redirect to sign-up/login with return URL
-- [ ] Write tests for accept flow (valid token, expired, already member)
-- [ ] Run tests green
+- [x] Write tests for accept flow (valid token, expired, already member)
+- [x] Run tests green
 
 #### 4.5 Auto-accept on sign-up
-- [ ] Update registration/Google sign-in flow: after creating user, call `Invitations.accept_pending_invitations_for_email(email)`
-- [ ] Write test: sign up with pending invitation → membership auto-created
-- [ ] Run tests green
+- [x] Update registration/Google sign-in flow: after creating user, call `Invitations.accept_pending_invitations_for_email(email)`
+- [x] Write test: sign up with pending invitation → membership auto-created
+- [x] Run tests green
 
 #### 4.6 Team management LiveView
-- [ ] Write test: `test/ksef_hub_web/live/team_live_test.exs`
+- [x] Write test: `test/ksef_hub_web/live/team_live_test.exs`
   - Owner sees member list, invite form, pending invitations
   - Non-owner cannot access
   - Owner can invite, cancel, remove member
-- [ ] Create `lib/ksef_hub_web/live/team_live.ex` — owner-only page
-- [ ] Add route: `live "/team", TeamLive`
-- [ ] Run tests green
+- [x] Create `lib/ksef_hub_web/live/team_live.ex` — owner-only page
+- [x] Add route: `live "/team", TeamLive`
+- [x] Run tests green
 
 #### 4.7 Final verification
-- [ ] `mix test` — all green
-- [ ] `mix format --check-formatted`
-- [ ] `mix credo --strict`
+- [x] `mix test` — all green
+- [x] `mix format --check-formatted`
+- [x] `mix credo --strict`
 
 ---
 
@@ -382,8 +382,8 @@ When starting work on a PR, update the status below. This lets a new LLM context
 |----|--------|--------|-------|
 | 1 | `feat/memberships-rbac` | DONE | |
 | 2 | `feat/user-scoped-certificates` | DONE | |
-| 3 | `feat/email-password-auth` | NOT STARTED | Blocked by PR 1 |
-| 4 | `feat/company-invitations` | NOT STARTED | Blocked by PR 1 + PR 3 |
+| 3 | `feat/email-password-auth` | DONE | |
+| 4 | `feat/company-invitations` | DONE | |
 | 5 | `feat/api-token-scoping` | NOT STARTED | Blocked by PR 1 |
 
 ## Code Quality Standards
