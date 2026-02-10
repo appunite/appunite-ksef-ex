@@ -217,7 +217,7 @@ defmodule KsefHubWeb.CertificateLive do
     do: "Certificate processing failed (error #{code}). Please verify your files."
 
   defp format_error(:timeout), do: "Certificate processing timed out. Please try again."
-  defp format_error(reason), do: "Certificate processing failed: #{inspect(reason)}"
+  defp format_error(_reason), do: "Certificate processing failed. Please contact support."
 
   @spec extract_certificate_info(binary(), String.t()) :: map()
   defp extract_certificate_info(cert_data, password) do

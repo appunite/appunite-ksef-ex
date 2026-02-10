@@ -10,6 +10,10 @@ defmodule KsefHub.Credentials.CertificateInfo.Openssl do
   @behaviour KsefHub.Credentials.CertificateInfo.Behaviour
 
   require Logger
+  require Record
+
+  Record.defrecord(:otp_certificate, Record.extract(:OTPCertificate, from_lib: "public_key/include/public_key.hrl"))
+  Record.defrecord(:otp_tbscertificate, Record.extract(:OTPTBSCertificate, from_lib: "public_key/include/public_key.hrl"))
 
   alias KsefHub.SecureTemp
 
@@ -60,14 +64,9 @@ defmodule KsefHub.Credentials.CertificateInfo.Openssl do
       {:ok, {output, 0}} ->
         {:ok, output}
 
-      {:ok, {output, exit_code}} ->
+      {:ok, {_output, _exit_code}} ->
         # Retry without -legacy flag for older OpenSSL versions
-        if exit_code != 0 do
-          retry_without_legacy(p12_path, pass_path)
-        else
-          Logger.warning("openssl pkcs12 info extraction failed (exit #{exit_code}): #{output}")
-          {:error, {:openssl_failed, exit_code}}
-        end
+        retry_without_legacy(p12_path, pass_path)
 
       nil ->
         Logger.warning("openssl pkcs12 info extraction timed out")
@@ -116,12 +115,9 @@ defmodule KsefHub.Credentials.CertificateInfo.Openssl do
           {:ok, %{subject: String.t(), expires_at: Date.t()}} | {:error, term()}
   defp parse_certificate(der) do
     cert = :public_key.pkix_decode_cert(der, :otp)
-    tbs = elem(cert, 1)
-
-    # OTPTBSCertificate fields (0-indexed after tag):
-    # 0=tag, 1=version, 2=serial, 3=signature, 4=issuer, 5=validity, 6=subject, 7=pubkey, ...
-    validity = elem(tbs, 5)
-    subject = elem(tbs, 6)
+    tbs = otp_certificate(cert, :tbsCertificate)
+    validity = otp_tbscertificate(tbs, :validity)
+    subject = otp_tbscertificate(tbs, :subject)
 
     {:Validity, _not_before, not_after} = validity
     subject_string = format_subject(subject)
