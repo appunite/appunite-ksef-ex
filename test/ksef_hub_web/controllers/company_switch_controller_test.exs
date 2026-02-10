@@ -56,5 +56,31 @@ defmodule KsefHubWeb.CompanySwitchControllerTest do
 
       assert redirected_to(conn) == "/invoices"
     end
+
+    test "rejects external URL in return_to (open redirect protection)", %{conn: conn} do
+      user = insert(:user)
+      company = insert(:company)
+      insert(:membership, user: user, company: company, role: "owner")
+
+      conn =
+        conn
+        |> init_test_session(%{user_id: user.id})
+        |> post(~p"/switch-company/#{company.id}", %{return_to: "https://evil.com"})
+
+      assert redirected_to(conn) == "/dashboard"
+    end
+
+    test "rejects protocol-relative URL in return_to", %{conn: conn} do
+      user = insert(:user)
+      company = insert(:company)
+      insert(:membership, user: user, company: company, role: "owner")
+
+      conn =
+        conn
+        |> init_test_session(%{user_id: user.id})
+        |> post(~p"/switch-company/#{company.id}", %{return_to: "//evil.com"})
+
+      assert redirected_to(conn) == "/dashboard"
+    end
   end
 end

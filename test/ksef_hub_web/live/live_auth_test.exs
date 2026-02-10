@@ -31,12 +31,12 @@ defmodule KsefHubWeb.LiveAuthTest do
       company = insert(:company)
       insert(:membership, user: user, company: company, role: "owner")
 
-      {:ok, _view, html} =
+      {:ok, view, _html} =
         conn
         |> init_test_session(%{user_id: user.id, current_company_id: company.id})
         |> live("/dashboard")
 
-      assert html =~ "Dashboard"
+      assert has_element?(view, "a[href='/dashboard']")
     end
 
     test "user sees only their companies via membership", %{conn: conn} do
@@ -50,9 +50,8 @@ defmodule KsefHubWeb.LiveAuthTest do
         |> init_test_session(%{user_id: user.id, current_company_id: company_a.id})
         |> live("/dashboard")
 
-      html = render(view)
-      assert html =~ "My Company"
-      refute html =~ "Other Company"
+      assert has_element?(view, "[data-testid='current-company-name']", "My Company")
+      refute has_element?(view, "button", "Other Company")
     end
 
     test "user with no memberships is redirected to company creation", %{conn: conn} do
@@ -77,8 +76,7 @@ defmodule KsefHubWeb.LiveAuthTest do
         |> live("/dashboard")
 
       # Should fall back to the user's first company
-      html = render(view)
-      assert html =~ "Mine"
+      assert has_element?(view, "[data-testid='current-company-name']", "Mine")
     end
 
     test "assigns current_role from membership and hides owner-only nav", %{conn: conn} do

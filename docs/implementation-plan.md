@@ -429,6 +429,40 @@ For every checklist item:
 | 4 | `docs/adr/0014-company-invitation-system.md` | F1d (Team & Invitations), F6.7 (Team page) | `invitations` table; hashed token; 7-day expiry; auto-accept on sign-up |
 | 5 | `docs/adr/0006-api-token-hashed-bearer.md` (updated) | F1b (API Token Mgmt) | Add company_id to api_tokens; derive company from token |
 
+## Common Mistakes
+
+Lessons learned from PR review rounds. Apply these proactively when implementing new features.
+
+### Changesets & Security
+
+- **Never cast foreign key IDs in changesets.** Set `user_id`, `company_id`, etc. on the struct before calling `changeset/2`. Only cast fields the user should control (e.g., `:role`). This prevents mass-assignment attacks.
+- **Test security boundaries explicitly.** Add tests for mass-assignment, open-redirect (`https://evil.com`, `//evil.com`), unauthorized access, and cross-tenant data leakage — not just happy paths.
+- **Guard against nil session values in controllers.** Use `user_id when is_binary(user_id)` pattern matching in `with` chains to catch missing session data early.
+
+### LiveView Tests
+
+- **Use `has_element?/2,3` with stable CSS selectors** instead of `html =~ "string"`. Prefer `has_element?(view, "a[href='/dashboard']")` over checking raw HTML strings. String matching is brittle and breaks on markup changes.
+- **Add `data-testid` attributes to UI elements** that tests need to target. This decouples tests from styling and text content: `has_element?(view, "[data-testid='current-company-name']", "My Company")`.
+- **Use precise form selectors** when pages have multiple forms. Use `form("form[phx-submit=save]", ...)` instead of bare `form("form", ...)`.
+
+### Type Specs & Code Quality
+
+- **Use specific types in `@spec`** — prefer `Company.t()` over `map()`, `Membership.t()` over `map()`. Generic types hide bugs and weaken Dialyzer.
+- **Avoid redundant DB lookups.** When resolving fallbacks (e.g., current company), compute derived values from already-loaded data. Don't call the DB twice when one pass suffices.
+- **Use `assert is_nil(value)`** over `refute value == something` — the former is a stronger, more precise assertion.
+
+### Documentation & Markdown
+
+- **Always add language identifiers to fenced code blocks** in markdown files. Use ` ```text `, ` ```elixir `, ` ```sql `, etc. — never bare ` ``` `.
+- **Differentiate role descriptions** in schema moduledocs. Don't just list role names — explain what each role can do.
+
+### Database
+
+- **Add explicit indexes for query patterns** even when a composite index exists with the right leading column. A dedicated single-column index on `user_id` is still valuable for queries that only filter by user.
+- **Test data isolation.** When updating `on_mount` hooks or context functions to scope by user/company, ensure all existing tests create the necessary association records (e.g., memberships). A single missing `insert(:membership)` in setup will cascade into redirect-based test failures.
+
+---
+
 ## Context Recovery Instructions
 
 If starting a new LLM context mid-implementation:

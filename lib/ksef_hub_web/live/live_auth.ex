@@ -11,6 +11,7 @@ defmodule KsefHubWeb.LiveAuth do
 
   alias KsefHub.Accounts
   alias KsefHub.Companies
+  alias KsefHub.Companies.Company
 
   @doc """
   Assigns `:current_user`, `:current_company`, `:companies`, and `:current_role` to the socket.
@@ -54,7 +55,7 @@ defmodule KsefHubWeb.LiveAuth do
     end)
   end
 
-  @spec resolve_role(Ecto.UUID.t(), map() | nil) :: String.t() | nil
+  @spec resolve_role(Ecto.UUID.t(), Company.t() | nil) :: String.t() | nil
   defp resolve_role(_user_id, nil), do: nil
 
   defp resolve_role(user_id, company) do
@@ -74,7 +75,7 @@ defmodule KsefHubWeb.LiveAuth do
     end
   end
 
-  @spec resolve_company([map()], Ecto.UUID.t() | nil) :: map() | nil
+  @spec resolve_company([Company.t()], Ecto.UUID.t() | nil) :: Company.t() | nil
   defp resolve_company([], _), do: nil
   defp resolve_company(_companies, nil), do: nil
 

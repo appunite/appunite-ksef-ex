@@ -62,9 +62,16 @@ defmodule KsefHubWeb.Layouts do
     <!-- Company Selector -->
           <div :if={@current_company} class="p-4 border-b border-base-300">
             <div class="dropdown w-full">
-              <div tabindex="0" role="button" class="btn btn-ghost btn-sm w-full justify-start gap-2">
+              <div
+                tabindex="0"
+                role="button"
+                class="btn btn-ghost btn-sm w-full justify-start gap-2"
+                data-testid="company-selector"
+              >
                 <.icon name="hero-building-office-2" class="size-4" />
-                <span class="flex-1 text-left truncate">{@current_company.name}</span>
+                <span class="flex-1 text-left truncate" data-testid="current-company-name">
+                  {@current_company.name}
+                </span>
                 <.icon name="hero-chevron-down" class="size-3" />
               </div>
               <ul
