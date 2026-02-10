@@ -42,6 +42,17 @@ defmodule KsefHubWeb.LiveAuth do
     end
   end
 
+  def on_mount(:require_owner, _params, _session, socket) do
+    if socket.assigns[:current_role] == "owner" do
+      {:cont, socket}
+    else
+      {:halt,
+       socket
+       |> put_flash(:error, "Only the owner can manage the team.")
+       |> redirect(to: "/dashboard")}
+    end
+  end
+
   def on_mount(:redirect_if_authenticated, _params, session, socket) do
     user_token = session["user_token"]
 

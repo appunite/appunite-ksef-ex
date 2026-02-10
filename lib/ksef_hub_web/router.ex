@@ -80,6 +80,10 @@ defmodule KsefHubWeb.Router do
       live "/companies", CompanyLive.Index
       live "/companies/new", CompanyLive.Index, :new
       live "/companies/:id/edit", CompanyLive.Index, :edit
+    end
+
+    live_session :owner_only,
+      on_mount: [{KsefHubWeb.LiveAuth, :default}, {KsefHubWeb.LiveAuth, :require_owner}] do
       live "/team", TeamLive
     end
 

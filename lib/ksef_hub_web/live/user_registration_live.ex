@@ -5,6 +5,8 @@ defmodule KsefHubWeb.UserRegistrationLive do
 
   use KsefHubWeb, :live_view
 
+  require Logger
+
   alias KsefHub.Accounts
   alias KsefHub.Accounts.User
   alias KsefHub.Invitations
@@ -32,7 +34,6 @@ defmodule KsefHubWeb.UserRegistrationLive do
         {:ok, memberships} = Invitations.accept_pending_invitations_for_email(user)
 
         if memberships != [] do
-          require Logger
           Logger.info("Auto-accepted #{length(memberships)} invitation(s) for user #{user.id}")
         end
 
@@ -44,7 +45,6 @@ defmodule KsefHubWeb.UserRegistrationLive do
             :ok
 
           {:error, _reason} ->
-            require Logger
             Logger.error("Failed to deliver confirmation email")
         end
 

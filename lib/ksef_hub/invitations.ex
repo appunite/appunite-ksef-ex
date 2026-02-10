@@ -10,6 +10,8 @@ defmodule KsefHub.Invitations do
   import Ecto.Query
 
   alias Ecto.Multi
+  require Logger
+
   alias KsefHub.Accounts.User
   alias KsefHub.Companies
   alias KsefHub.Companies.Membership
@@ -122,23 +124,27 @@ defmodule KsefHub.Invitations do
           | {:error, :already_member}
           | {:error, Ecto.Changeset.t()}
   defp do_accept_invitation(invitation, user) do
-    if Companies.get_membership(user.id, invitation.company_id) do
-      {:error, :already_member}
-    else
-      Multi.new()
-      |> Multi.update(:invitation, Ecto.Changeset.change(invitation, status: "accepted"))
-      |> Multi.insert(:membership, fn _changes ->
-        %Membership{user_id: user.id, company_id: invitation.company_id}
-        |> Membership.changeset(%{role: invitation.role})
-      end)
-      |> Repo.transaction()
-      |> case do
-        {:ok, %{invitation: invitation, membership: membership}} ->
-          {:ok, %{invitation: invitation, membership: membership}}
+    Multi.new()
+    |> Multi.run(:check_membership, fn _repo, _changes ->
+      if Companies.get_membership(user.id, invitation.company_id),
+        do: {:error, :already_member},
+        else: {:ok, :not_member}
+    end)
+    |> Multi.update(:invitation, Ecto.Changeset.change(invitation, status: "accepted"))
+    |> Multi.insert(:membership, fn _changes ->
+      %Membership{user_id: user.id, company_id: invitation.company_id}
+      |> Membership.changeset(%{role: invitation.role})
+    end)
+    |> Repo.transaction()
+    |> case do
+      {:ok, %{invitation: invitation, membership: membership}} ->
+        {:ok, %{invitation: invitation, membership: membership}}
 
-        {:error, _step, changeset, _changes} ->
-          {:error, changeset}
-      end
+      {:error, :check_membership, :already_member, _changes} ->
+        {:error, :already_member}
+
+      {:error, _step, changeset, _changes} ->
+        {:error, changeset}
     end
   end
 
@@ -227,8 +233,15 @@ defmodule KsefHub.Invitations do
     memberships =
       Enum.reduce(invitations, [], fn invitation, acc ->
         case do_accept_invitation(invitation, user) do
-          {:ok, %{membership: membership}} -> [membership | acc]
-          {:error, _} -> acc
+          {:ok, %{membership: membership}} ->
+            [membership | acc]
+
+          {:error, reason} ->
+            Logger.warning(
+              "Failed to auto-accept invitation #{invitation.id} for user #{user.id}: #{inspect(reason)}"
+            )
+
+            acc
         end
       end)
 
