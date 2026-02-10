@@ -38,7 +38,9 @@ defmodule KsefHubWeb.UserConfirmationLive do
     <div class="min-h-screen flex items-center justify-center">
       <div class="card bg-base-100 border border-base-300 w-full max-w-md">
         <div class="card-body text-center">
-          <h2 class="card-title text-2xl justify-center mb-4">Confirm Account</h2>
+          <h2 data-testid="page-title" class="card-title text-2xl justify-center mb-4">
+            Confirm Account
+          </h2>
 
           <div :if={!@confirmed}>
             <p class="mb-4">Click the button below to confirm your account.</p>
@@ -50,7 +52,7 @@ defmodule KsefHubWeb.UserConfirmationLive do
             </.simple_form>
           </div>
 
-          <div :if={@confirmed}>
+          <div :if={@confirmed} data-testid="confirmation-success">
             <p class="text-success mb-4">Your account has been confirmed!</p>
             <.link navigate={~p"/users/log-in"} class="btn btn-primary w-full">
               Log in

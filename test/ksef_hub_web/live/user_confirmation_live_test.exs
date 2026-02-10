@@ -18,8 +18,8 @@ defmodule KsefHubWeb.UserConfirmationLiveTest do
           Accounts.deliver_user_confirmation_instructions(user, url)
         end)
 
-      {:ok, _view, html} = live(conn, ~p"/users/confirm/#{token}")
-      assert html =~ "Confirm Account"
+      {:ok, view, _html} = live(conn, ~p"/users/confirm/#{token}")
+      assert has_element?(view, "[data-testid='page-title']", "Confirm Account")
     end
 
     test "confirms the user account", %{conn: conn, user: user} do
@@ -30,25 +30,22 @@ defmodule KsefHubWeb.UserConfirmationLiveTest do
 
       {:ok, view, _html} = live(conn, ~p"/users/confirm/#{token}")
 
-      result =
-        view
-        |> form("#confirmation_form")
-        |> render_submit()
+      view
+      |> form("#confirmation_form")
+      |> render_submit()
 
-      assert result =~ "Your account has been confirmed"
-
+      assert has_element?(view, "[data-testid='confirmation-success']")
       assert Accounts.get_user!(user.id).confirmed_at
     end
 
     test "does not confirm with invalid token", %{conn: conn} do
       {:ok, view, _html} = live(conn, ~p"/users/confirm/invalid-token")
 
-      result =
-        view
-        |> form("#confirmation_form")
-        |> render_submit()
+      view
+      |> form("#confirmation_form")
+      |> render_submit()
 
-      assert result =~ "Confirmation link is invalid or it has expired"
+      refute has_element?(view, "[data-testid='confirmation-success']")
     end
   end
 end

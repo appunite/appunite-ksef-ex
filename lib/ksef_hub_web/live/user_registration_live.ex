@@ -66,7 +66,9 @@ defmodule KsefHubWeb.UserRegistrationLive do
     <div class="min-h-screen flex items-center justify-center">
       <div class="card bg-base-100 border border-base-300 w-full max-w-md">
         <div class="card-body">
-          <h2 class="card-title text-2xl justify-center mb-4">Create an account</h2>
+          <h2 data-testid="page-title" class="card-title text-2xl justify-center mb-4">
+            Create an account
+          </h2>
 
           <.simple_form
             for={@form}

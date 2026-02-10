@@ -300,6 +300,7 @@ defmodule KsefHubWeb.CoreComponents do
   slot :inner_block, required: true
   slot :actions, doc: "the slot for form actions, such as a submit button"
 
+  @spec simple_form(map()) :: Phoenix.LiveView.Rendered.t()
   def simple_form(assigns) do
     ~H"""
     <.form :let={f} for={@for} as={@as} {@rest}>
@@ -322,6 +323,7 @@ defmodule KsefHubWeb.CoreComponents do
   """
   slot :inner_block, required: true
 
+  @spec error(map()) :: Phoenix.LiveView.Rendered.t()
   def error(assigns) do
     ~H"""
     <p class="mt-1.5 flex gap-2 items-center text-sm text-error/80">

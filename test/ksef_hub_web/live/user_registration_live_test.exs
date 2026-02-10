@@ -6,11 +6,11 @@ defmodule KsefHubWeb.UserRegistrationLiveTest do
 
   describe "Registration page" do
     test "renders registration form", %{conn: conn} do
-      {:ok, _view, html} = live(conn, ~p"/users/register")
+      {:ok, view, _html} = live(conn, ~p"/users/register")
 
-      assert html =~ "Create an account"
-      assert html =~ "Log in"
-      assert html =~ "Sign in with Google"
+      assert has_element?(view, "[data-testid='page-title']", "Create an account")
+      assert has_element?(view, "a[href='/users/log-in']", "Log in")
+      assert has_element?(view, "a[href='/auth/google']", "Sign in with Google")
     end
 
     test "redirects if already logged in", %{conn: conn} do
@@ -40,12 +40,11 @@ defmodule KsefHubWeb.UserRegistrationLiveTest do
     test "renders errors for invalid data on submit", %{conn: conn} do
       {:ok, view, _html} = live(conn, ~p"/users/register")
 
-      result =
-        view
-        |> form("#registration_form", user: %{email: "short", password: "short"})
-        |> render_submit()
+      view
+      |> form("#registration_form", user: %{email: "short", password: "short"})
+      |> render_submit()
 
-      assert result =~ "Create an account"
+      assert has_element?(view, "[data-testid='page-title']", "Create an account")
     end
 
     test "renders errors for duplicate email", %{conn: conn} do

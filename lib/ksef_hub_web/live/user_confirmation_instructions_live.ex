@@ -41,7 +41,7 @@ defmodule KsefHubWeb.UserConfirmationInstructionsLive do
     <div class="min-h-screen flex items-center justify-center">
       <div class="card bg-base-100 border border-base-300 w-full max-w-md">
         <div class="card-body">
-          <h2 class="card-title text-2xl justify-center mb-4">
+          <h2 data-testid="page-title" class="card-title text-2xl justify-center mb-4">
             Resend confirmation instructions
           </h2>
 

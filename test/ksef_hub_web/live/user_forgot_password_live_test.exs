@@ -6,11 +6,11 @@ defmodule KsefHubWeb.UserForgotPasswordLiveTest do
 
   describe "Forgot password page" do
     test "renders the forgot password page", %{conn: conn} do
-      {:ok, _view, html} = live(conn, ~p"/users/reset-password")
+      {:ok, view, _html} = live(conn, ~p"/users/reset-password")
 
-      assert html =~ "Forgot your password?"
-      assert html =~ "Register"
-      assert html =~ "Log in"
+      assert has_element?(view, "[data-testid='page-title']", "Forgot your password?")
+      assert has_element?(view, "a[href='/users/register']", "Register")
+      assert has_element?(view, "a[href='/users/log-in']", "Log in")
     end
 
     test "sends reset password email and redirects", %{conn: conn} do

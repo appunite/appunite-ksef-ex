@@ -6,12 +6,12 @@ defmodule KsefHubWeb.UserLoginLiveTest do
 
   describe "Log in page" do
     test "renders log in form", %{conn: conn} do
-      {:ok, _view, html} = live(conn, ~p"/users/log-in")
+      {:ok, view, _html} = live(conn, ~p"/users/log-in")
 
-      assert html =~ "Log in"
-      assert html =~ "Forgot your password?"
-      assert html =~ "Sign up"
-      assert html =~ "Sign in with Google"
+      assert has_element?(view, "[data-testid='page-title']", "Log in")
+      assert has_element?(view, "a[href='/users/reset-password']", "Forgot your password?")
+      assert has_element?(view, "a[href='/users/register']", "Sign up")
+      assert has_element?(view, "a[href='/auth/google']", "Sign in with Google")
     end
 
     test "redirects if already logged in", %{conn: conn} do

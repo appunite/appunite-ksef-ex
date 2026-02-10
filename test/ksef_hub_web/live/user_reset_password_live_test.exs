@@ -19,9 +19,9 @@ defmodule KsefHubWeb.UserResetPasswordLiveTest do
 
   describe "Reset password page" do
     test "renders the reset password page", %{conn: conn, token: token} do
-      {:ok, _view, html} = live(conn, ~p"/users/reset-password/#{token}")
+      {:ok, view, _html} = live(conn, ~p"/users/reset-password/#{token}")
 
-      assert html =~ "Reset Password"
+      assert has_element?(view, "[data-testid='page-title']", "Reset Password")
     end
 
     test "redirects with invalid token", %{conn: conn} do

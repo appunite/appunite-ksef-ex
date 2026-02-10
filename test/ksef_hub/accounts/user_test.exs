@@ -52,6 +52,20 @@ defmodule KsefHub.Accounts.UserTest do
       assert changeset.changes.email == "user@example.com"
     end
 
+    test "does not accept confirmed_at or hashed_password (mass-assignment)" do
+      attrs = %{
+        email: "user@example.com",
+        password: "valid_password123",
+        confirmed_at: ~U[2025-01-01 00:00:00Z],
+        hashed_password: "injected-hash"
+      }
+
+      changeset = User.registration_changeset(%User{}, attrs)
+      refute Map.has_key?(changeset.changes, :confirmed_at)
+      # hashed_password comes from password hashing, not direct input
+      assert String.starts_with?(changeset.changes.hashed_password, "$2b$")
+    end
+
     test "unique constraint on email" do
       attrs = %{email: "dup@example.com", password: "valid_password123"}
       {:ok, _} = Repo.insert(User.registration_changeset(%User{}, attrs))

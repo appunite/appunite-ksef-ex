@@ -41,7 +41,9 @@ defmodule KsefHubWeb.UserForgotPasswordLive do
     <div class="min-h-screen flex items-center justify-center">
       <div class="card bg-base-100 border border-base-300 w-full max-w-md">
         <div class="card-body">
-          <h2 class="card-title text-2xl justify-center mb-4">Forgot your password?</h2>
+          <h2 data-testid="page-title" class="card-title text-2xl justify-center mb-4">
+            Forgot your password?
+          </h2>
           <p class="text-sm text-base-content/70 mb-4 text-center">
             We'll send a password reset link to your inbox.
           </p>
