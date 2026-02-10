@@ -16,6 +16,7 @@ defmodule KsefHubWeb.Layouts do
   attr :current_user, :map, default: nil
   attr :current_path, :string, default: nil
   attr :current_company, :map, default: nil
+  attr :current_role, :string, default: nil
   attr :companies, :list, default: []
 
   @doc "Renders the main application layout with sidebar navigation."
@@ -103,12 +104,12 @@ defmodule KsefHubWeb.Layouts do
                   Invoices
                 </.nav_link>
               </li>
-              <li>
+              <li :if={@current_role == "owner"}>
                 <.nav_link path={~p"/certificates"} current={@current_path} icon="hero-shield-check">
                   Certificates
                 </.nav_link>
               </li>
-              <li>
+              <li :if={@current_role == "owner"}>
                 <.nav_link path={~p"/tokens"} current={@current_path} icon="hero-key">
                   API Tokens
                 </.nav_link>

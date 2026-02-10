@@ -12,6 +12,7 @@ defmodule KsefHubWeb.InvoiceLive.IndexTest do
       Accounts.find_or_create_user(%{uid: "g-inv-1", email: "test@example.com", name: "Test"})
 
     company = insert(:company)
+    insert(:membership, user: user, company: company, role: "owner")
 
     conn = conn |> init_test_session(%{user_id: user.id, current_company_id: company.id})
     %{conn: conn, user: user, company: company}
