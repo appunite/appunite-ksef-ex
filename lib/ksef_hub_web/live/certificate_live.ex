@@ -242,14 +242,20 @@ defmodule KsefHubWeb.CertificateLive do
   @spec extract_certificate_info(binary(), String.t()) :: map()
   defp extract_certificate_info(cert_data, password) do
     case certificate_info().extract(cert_data, password) do
-      {:ok, %{subject: subject, expires_at: expires_at}} ->
-        %{certificate_subject: subject, not_after: expires_at}
+      {:ok, info} ->
+        %{certificate_subject: info.subject}
+        |> put_if_present(:not_before, Map.get(info, :not_before))
+        |> put_if_present(:not_after, Map.get(info, :expires_at))
 
       {:error, _reason} ->
         Logger.warning("Failed to extract certificate info")
         %{}
     end
   end
+
+  @spec put_if_present(map(), atom(), term()) :: map()
+  defp put_if_present(map, _key, nil), do: map
+  defp put_if_present(map, key, value), do: Map.put(map, key, value)
 
   @spec pkcs12_converter() :: module()
   defp pkcs12_converter do
@@ -300,8 +306,8 @@ defmodule KsefHubWeb.CertificateLive do
   def render(assigns) do
     ~H"""
     <.header>
-      Certificates
-      <:subtitle>Manage KSeF certificates for authentication</:subtitle>
+      Certificate
+      <:subtitle>Your personal KSeF certificate — used for all your companies</:subtitle>
     </.header>
 
     <!-- Current Certificate -->
@@ -311,17 +317,21 @@ defmodule KsefHubWeb.CertificateLive do
       class="card bg-base-100 border border-base-300 mt-6"
     >
       <div class="p-5">
-        <h2 class="text-base font-semibold">Current Certificate</h2>
+        <h2 class="text-base font-semibold">Your Certificate</h2>
         <.list>
-          <:item :if={@active_credential} title="NIP">{@active_credential.nip}</:item>
-          <:item :if={@user_certificate.certificate_subject} title="Subject">
+          <:item :if={@user_certificate.certificate_subject} title="Issued To">
             {@user_certificate.certificate_subject}
           </:item>
-          <:item :if={@user_certificate.not_after} title="Expires">
-            {Calendar.strftime(@user_certificate.not_after, "%Y-%m-%d")}
+          <:item :if={@user_certificate.not_before} title="Valid From">
+            {Calendar.strftime(@user_certificate.not_before, "%Y-%m-%d")}
           </:item>
-          <:item :if={@active_credential && @active_credential.last_sync_at} title="Last Sync">
-            {Calendar.strftime(@active_credential.last_sync_at, "%Y-%m-%d %H:%M UTC")}
+          <:item :if={@user_certificate.not_after} title="Valid Until">
+            <span class={cert_expiry_class(@user_certificate.not_after)}>
+              {Calendar.strftime(@user_certificate.not_after, "%Y-%m-%d")}
+            </span>
+          </:item>
+          <:item :if={@user_certificate.fingerprint} title="Fingerprint">
+            <span class="font-mono text-xs">{@user_certificate.fingerprint}</span>
           </:item>
           <:item title="Uploaded">
             {Calendar.strftime(@user_certificate.inserted_at, "%Y-%m-%d %H:%M UTC")}
@@ -497,6 +507,19 @@ defmodule KsefHubWeb.CertificateLive do
       </div>
     </div>
     """
+  end
+
+  @spec cert_expiry_class(Date.t() | nil) :: String.t()
+  defp cert_expiry_class(nil), do: ""
+
+  defp cert_expiry_class(date) do
+    days_left = Date.diff(date, Date.utc_today())
+
+    cond do
+      days_left < 0 -> "text-error font-bold"
+      days_left < 30 -> "text-warning font-semibold"
+      true -> ""
+    end
   end
 
   @spec format_bytes(non_neg_integer()) :: String.t()

@@ -77,7 +77,7 @@ defmodule KsefHubWeb.CertificateLiveTest do
 
       {:ok, view, _html} = live(conn, ~p"/certificates")
       assert has_element?(view, "#current-certificate")
-      assert render(view) =~ "Current Certificate"
+      assert render(view) =~ "Your Certificate"
       assert render(view) =~ "CN=Test Cert"
     end
 

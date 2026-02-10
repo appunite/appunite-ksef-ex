@@ -97,18 +97,20 @@ defmodule KsefHub.Credentials.CertificateInfo.Openssl do
   end
 
   @spec parse_certificate(:public_key.der_encoded()) ::
-          {:ok, %{subject: String.t(), expires_at: Date.t()}} | {:error, term()}
+          {:ok, %{subject: String.t(), not_before: Date.t(), expires_at: Date.t()}}
+          | {:error, term()}
   defp parse_certificate(der) do
     cert = :public_key.pkix_decode_cert(der, :otp)
     tbs = otp_certificate(cert, :tbsCertificate)
     validity = otp_tbscertificate(tbs, :validity)
     subject = otp_tbscertificate(tbs, :subject)
 
-    {:Validity, _not_before, not_after} = validity
+    {:Validity, not_before_raw, not_after_raw} = validity
     subject_string = format_subject(subject)
-    expires_at = parse_validity_time(not_after)
+    not_before = parse_validity_time(not_before_raw)
+    expires_at = parse_validity_time(not_after_raw)
 
-    {:ok, %{subject: subject_string, expires_at: expires_at}}
+    {:ok, %{subject: subject_string, not_before: not_before, expires_at: expires_at}}
   rescue
     _e ->
       Logger.warning("Failed to parse certificate")
