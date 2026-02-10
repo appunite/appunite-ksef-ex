@@ -12,8 +12,15 @@ defmodule KsefHub.Credentials.CertificateInfo.Openssl do
   require Logger
   require Record
 
-  Record.defrecord(:otp_certificate, Record.extract(:OTPCertificate, from_lib: "public_key/include/public_key.hrl"))
-  Record.defrecord(:otp_tbscertificate, Record.extract(:OTPTBSCertificate, from_lib: "public_key/include/public_key.hrl"))
+  Record.defrecord(
+    :otp_certificate,
+    Record.extract(:OTPCertificate, from_lib: "public_key/include/public_key.hrl")
+  )
+
+  Record.defrecord(
+    :otp_tbscertificate,
+    Record.extract(:OTPTBSCertificate, from_lib: "public_key/include/public_key.hrl")
+  )
 
   alias KsefHub.SecureTemp
 
