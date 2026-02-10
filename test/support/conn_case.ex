@@ -37,6 +37,13 @@ defmodule KsefHubWeb.ConnCase do
   end
 
   @doc """
+  Captures the token from an email-sending function.
+
+  Delegates to `KsefHub.DataCase.extract_user_token/1`.
+  """
+  defdelegate extract_user_token(fun), to: KsefHub.DataCase
+
+  @doc """
   Sets up a logged-in connection by generating a session token for the user.
 
   Accepts optional extra session params (e.g., `current_company_id`).

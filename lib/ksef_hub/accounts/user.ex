@@ -46,12 +46,12 @@ defmodule KsefHub.Accounts.User do
   Validates email format, password length (12-72 chars), and hashes the
   password with bcrypt.
   """
-  @spec registration_changeset(t(), map()) :: Ecto.Changeset.t()
-  def registration_changeset(user, attrs) do
+  @spec registration_changeset(t(), map(), keyword()) :: Ecto.Changeset.t()
+  def registration_changeset(user, attrs, opts \\ []) do
     user
     |> cast(attrs, [:email, :password])
-    |> validate_email()
-    |> validate_password()
+    |> validate_email(opts)
+    |> validate_password(opts)
   end
 
   @doc """
@@ -59,11 +59,11 @@ defmodule KsefHub.Accounts.User do
 
   Validates length and hashes with bcrypt.
   """
-  @spec password_changeset(t(), map()) :: Ecto.Changeset.t()
-  def password_changeset(user, attrs) do
+  @spec password_changeset(t(), map(), keyword()) :: Ecto.Changeset.t()
+  def password_changeset(user, attrs, opts \\ []) do
     user
     |> cast(attrs, [:password])
-    |> validate_password()
+    |> validate_password(opts)
   end
 
   @doc """
@@ -92,31 +92,36 @@ defmodule KsefHub.Accounts.User do
     false
   end
 
-  @spec validate_email(Ecto.Changeset.t()) :: Ecto.Changeset.t()
-  defp validate_email(changeset) do
-    changeset
-    |> validate_required([:email])
-    |> validate_format(:email, ~r/^[^\s]+@[^\s]+$/, message: "must have the @ sign and no spaces")
-    |> validate_length(:email, max: 160)
-    |> update_change(:email, fn email ->
-      email |> String.downcase() |> String.trim()
-    end)
-    |> unique_constraint(:email)
+  @spec validate_email(Ecto.Changeset.t(), keyword()) :: Ecto.Changeset.t()
+  defp validate_email(changeset, opts) do
+    if Keyword.get(opts, :validate_email, true) do
+      changeset
+      |> validate_required([:email])
+      |> validate_format(:email, ~r/^[^\s]+@[^\s]+$/, message: "must have the @ sign and no spaces")
+      |> validate_length(:email, max: 160)
+      |> update_change(:email, fn email ->
+        email |> String.downcase() |> String.trim()
+      end)
+      |> unique_constraint(:email)
+    else
+      changeset
+    end
   end
 
-  @spec validate_password(Ecto.Changeset.t()) :: Ecto.Changeset.t()
-  defp validate_password(changeset) do
+  @spec validate_password(Ecto.Changeset.t(), keyword()) :: Ecto.Changeset.t()
+  defp validate_password(changeset, opts) do
     changeset
     |> validate_required([:password])
     |> validate_length(:password, min: 12, max: 72)
-    |> hash_password()
+    |> maybe_hash_password(opts)
   end
 
-  @spec hash_password(Ecto.Changeset.t()) :: Ecto.Changeset.t()
-  defp hash_password(changeset) do
+  @spec maybe_hash_password(Ecto.Changeset.t(), keyword()) :: Ecto.Changeset.t()
+  defp maybe_hash_password(changeset, opts) do
+    hash_password? = Keyword.get(opts, :hash_password, true)
     password = get_change(changeset, :password)
 
-    if password && changeset.valid? do
+    if hash_password? && password && changeset.valid? do
       changeset
       |> put_change(:hashed_password, Bcrypt.hash_pwd_salt(password))
       |> delete_change(:password)

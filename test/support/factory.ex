@@ -24,6 +24,17 @@ defmodule KsefHub.Factory do
     }
   end
 
+  @doc "Builds a `User` with email/password credentials (hashed password)."
+  @spec password_user_factory() :: User.t()
+  def password_user_factory do
+    %User{
+      email: sequence(:email, &"user#{&1}@example.com"),
+      name: "Test User",
+      hashed_password: Bcrypt.hash_pwd_salt("valid_password123"),
+      confirmed_at: DateTime.utc_now() |> DateTime.truncate(:second)
+    }
+  end
+
   @doc "Builds a `Company` with a sequenced name and NIP."
   @spec company_factory() :: Company.t()
   def company_factory do
