@@ -47,7 +47,7 @@ Key characteristics:
 
 Example from the KSeF portal certificate list:
 
-```
+```text
 Identyfikator podmiotu:    PESEL: xxxxxxxxxxx
 Nazwa właściciela:         JAN KOWALSKI
 Przeznaczenie:             Uwierzytelnienie
@@ -95,7 +95,7 @@ These correspond to our `.key + .crt` upload mode, which converts them server-si
 
 The certificate proves the signer's identity, but it does **not** determine which company they act for. That is specified in the API request:
 
-```
+```text
 1. App sends:  getChallenge(NIP = "1234567890", Type = "onip")
                                     ↑ company NIP
 2. KSeF returns: challenge string
@@ -133,7 +133,7 @@ For a person's certificate to work for a company, that person must be **authoriz
 
 ### Current Model (credential per company)
 
-```
+```text
 Company A (NIP: 1234567890)  →  Credential row with cert data
 Company B (NIP: 0987654321)  →  Credential row with same cert data (re-uploaded)
 ```
@@ -142,7 +142,7 @@ This forces the user to upload the same certificate file for each company — re
 
 ### Correct Model (credential per user)
 
-```
+```text
 User  →  One credential row with cert data
   ├── authenticates as Company A (NIP: 1234567890)
   └── authenticates as Company B (NIP: 0987654321)

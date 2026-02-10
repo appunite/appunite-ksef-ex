@@ -81,7 +81,7 @@ defmodule KsefHubWeb.LiveAuthTest do
       assert html =~ "Mine"
     end
 
-    test "assigns current_role from membership", %{conn: conn} do
+    test "assigns current_role from membership and hides owner-only nav", %{conn: conn} do
       user = insert(:user)
       company = insert(:company)
       insert(:membership, user: user, company: company, role: "accountant")
@@ -91,10 +91,10 @@ defmodule KsefHubWeb.LiveAuthTest do
         |> init_test_session(%{user_id: user.id, current_company_id: company.id})
         |> live("/dashboard")
 
-      # The role should be assigned on the socket — verify via rendered content
-      # that owner-only nav items are hidden for non-owner
-      html = render(view)
-      assert html =~ "Dashboard"
+      # Accountant should see Dashboard but not owner-only nav items
+      assert has_element?(view, "a[href='/dashboard']")
+      refute has_element?(view, "a[href='/certificates']")
+      refute has_element?(view, "a[href='/tokens']")
     end
   end
 end

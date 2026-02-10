@@ -6,16 +6,13 @@ defmodule KsefHub.Companies.MembershipTest do
   alias KsefHub.Companies.Membership
 
   describe "changeset/2" do
-    test "valid with required fields" do
+    test "valid with IDs on struct and role in attrs" do
       user = insert(:user)
       company = insert(:company)
 
       changeset =
-        Membership.changeset(%Membership{}, %{
-          user_id: user.id,
-          company_id: company.id,
-          role: "owner"
-        })
+        %Membership{user_id: user.id, company_id: company.id}
+        |> Membership.changeset(%{role: "owner"})
 
       assert changeset.valid?
     end
@@ -24,10 +21,8 @@ defmodule KsefHub.Companies.MembershipTest do
       company = insert(:company)
 
       changeset =
-        Membership.changeset(%Membership{}, %{
-          company_id: company.id,
-          role: "owner"
-        })
+        %Membership{company_id: company.id}
+        |> Membership.changeset(%{role: "owner"})
 
       assert errors_on(changeset).user_id
     end
@@ -36,10 +31,8 @@ defmodule KsefHub.Companies.MembershipTest do
       user = insert(:user)
 
       changeset =
-        Membership.changeset(%Membership{}, %{
-          user_id: user.id,
-          role: "owner"
-        })
+        %Membership{user_id: user.id}
+        |> Membership.changeset(%{role: "owner"})
 
       assert errors_on(changeset).company_id
     end
@@ -49,10 +42,8 @@ defmodule KsefHub.Companies.MembershipTest do
       company = insert(:company)
 
       changeset =
-        Membership.changeset(%Membership{}, %{
-          user_id: user.id,
-          company_id: company.id
-        })
+        %Membership{user_id: user.id, company_id: company.id}
+        |> Membership.changeset(%{})
 
       assert errors_on(changeset).role
     end
@@ -63,11 +54,8 @@ defmodule KsefHub.Companies.MembershipTest do
 
       for role <- ~w(owner accountant invoice_reviewer) do
         changeset =
-          Membership.changeset(%Membership{}, %{
-            user_id: user.id,
-            company_id: company.id,
-            role: role
-          })
+          %Membership{user_id: user.id, company_id: company.id}
+          |> Membership.changeset(%{role: role})
 
         assert changeset.valid?, "expected role #{role} to be valid"
       end
@@ -78,13 +66,23 @@ defmodule KsefHub.Companies.MembershipTest do
       company = insert(:company)
 
       changeset =
-        Membership.changeset(%Membership{}, %{
-          user_id: user.id,
-          company_id: company.id,
-          role: "admin"
-        })
+        %Membership{user_id: user.id, company_id: company.id}
+        |> Membership.changeset(%{role: "admin"})
 
       assert "is invalid" in errors_on(changeset).role
+    end
+
+    test "does not cast user_id or company_id from attrs" do
+      user = insert(:user)
+      company = insert(:company)
+      other_user = insert(:user)
+
+      changeset =
+        %Membership{user_id: user.id, company_id: company.id}
+        |> Membership.changeset(%{role: "owner", user_id: other_user.id})
+
+      # user_id should remain as set on the struct, not overwritten by attrs
+      assert Ecto.Changeset.get_field(changeset, :user_id) == user.id
     end
 
     test "enforces unique user+company pair" do
@@ -93,12 +91,8 @@ defmodule KsefHub.Companies.MembershipTest do
       insert(:membership, user: user, company: company)
 
       {:error, changeset} =
-        %Membership{}
-        |> Membership.changeset(%{
-          user_id: user.id,
-          company_id: company.id,
-          role: "accountant"
-        })
+        %Membership{user_id: user.id, company_id: company.id}
+        |> Membership.changeset(%{role: "accountant"})
         |> Repo.insert()
 
       assert "already a member of this company" in errors_on(changeset).user_id

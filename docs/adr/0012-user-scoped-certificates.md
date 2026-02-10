@@ -18,7 +18,7 @@ The current model stores certificate data (`certificate_data_encrypted`, `certif
 
 Create a new `user_certificates` table to store certificate data at the user level:
 
-```
+```text
 user_certificates
 ├── id
 ├── user_id              (FK → users)
@@ -33,7 +33,7 @@ user_certificates
 
 Strip certificate data columns from `ksef_credentials`. That table becomes company sync configuration only:
 
-```
+```text
 ksef_credentials (after migration)
 ├── id
 ├── company_id

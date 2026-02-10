@@ -110,11 +110,8 @@ defmodule KsefHub.Companies do
     Multi.new()
     |> Multi.insert(:company, Company.changeset(%Company{}, attrs))
     |> Multi.insert(:membership, fn %{company: company} ->
-      Membership.changeset(%Membership{}, %{
-        user_id: user.id,
-        company_id: company.id,
-        role: "owner"
-      })
+      %Membership{user_id: user.id, company_id: company.id}
+      |> Membership.changeset(%{role: "owner"})
     end)
     |> Repo.transaction()
   end
@@ -137,11 +134,17 @@ defmodule KsefHub.Companies do
     |> Repo.one!()
   end
 
-  @doc "Creates a membership."
+  @doc """
+  Creates a membership. The `user_id` and `company_id` must be provided in `attrs`
+  and are set directly on the struct (not cast from user input).
+  """
   @spec create_membership(map()) :: {:ok, Membership.t()} | {:error, Ecto.Changeset.t()}
   def create_membership(attrs) do
-    %Membership{}
-    |> Membership.changeset(attrs)
+    %Membership{
+      user_id: attrs[:user_id] || attrs["user_id"],
+      company_id: attrs[:company_id] || attrs["company_id"]
+    }
+    |> Membership.changeset(Map.take(attrs, [:role, "role"]))
     |> Repo.insert()
   end
 

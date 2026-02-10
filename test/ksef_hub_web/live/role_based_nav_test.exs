@@ -10,13 +10,15 @@ defmodule KsefHubWeb.RoleBasedNavTest do
       company = insert(:company)
       insert(:membership, user: user, company: company, role: "owner")
 
-      {:ok, _view, html} =
+      {:ok, view, _html} =
         conn
         |> init_test_session(%{user_id: user.id, current_company_id: company.id})
         |> live("/dashboard")
 
-      assert html =~ "Certificates"
-      assert html =~ "API Tokens"
+      assert has_element?(view, "a[href='/dashboard']")
+      assert has_element?(view, "a[href='/invoices']")
+      assert has_element?(view, "a[href='/certificates']")
+      assert has_element?(view, "a[href='/tokens']")
     end
 
     test "accountant does not see Certificates or API Tokens nav items", %{conn: conn} do
@@ -24,15 +26,15 @@ defmodule KsefHubWeb.RoleBasedNavTest do
       company = insert(:company)
       insert(:membership, user: user, company: company, role: "accountant")
 
-      {:ok, _view, html} =
+      {:ok, view, _html} =
         conn
         |> init_test_session(%{user_id: user.id, current_company_id: company.id})
         |> live("/dashboard")
 
-      refute html =~ "Certificates"
-      refute html =~ "API Tokens"
-      assert html =~ "Dashboard"
-      assert html =~ "Invoices"
+      assert has_element?(view, "a[href='/dashboard']")
+      assert has_element?(view, "a[href='/invoices']")
+      refute has_element?(view, "a[href='/certificates']")
+      refute has_element?(view, "a[href='/tokens']")
     end
 
     test "invoice_reviewer does not see Certificates or API Tokens nav items", %{conn: conn} do
@@ -40,15 +42,15 @@ defmodule KsefHubWeb.RoleBasedNavTest do
       company = insert(:company)
       insert(:membership, user: user, company: company, role: "invoice_reviewer")
 
-      {:ok, _view, html} =
+      {:ok, view, _html} =
         conn
         |> init_test_session(%{user_id: user.id, current_company_id: company.id})
         |> live("/dashboard")
 
-      refute html =~ "Certificates"
-      refute html =~ "API Tokens"
-      assert html =~ "Dashboard"
-      assert html =~ "Invoices"
+      assert has_element?(view, "a[href='/dashboard']")
+      assert has_element?(view, "a[href='/invoices']")
+      refute has_element?(view, "a[href='/certificates']")
+      refute has_element?(view, "a[href='/tokens']")
     end
   end
 end

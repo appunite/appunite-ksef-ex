@@ -3,9 +3,9 @@ defmodule KsefHub.Companies.Membership do
   Membership schema. Links a user to a company with a specific role.
 
   Roles:
-  - `owner` — full access including certificates, API tokens, team management
-  - `accountant` — can view invoices and approve/reject expenses
-  - `invoice_reviewer` — can view invoices and approve/reject expenses
+  - `owner` — full access including certificates, API tokens, team management, and company settings
+  - `accountant` — can view invoices, manage bookkeeping, and submit expense approvals
+  - `invoice_reviewer` — can view invoices and approve or reject individual expense items
   """
 
   use Ecto.Schema
@@ -31,11 +31,17 @@ defmodule KsefHub.Companies.Membership do
   @spec roles() :: [String.t()]
   def roles, do: @roles
 
-  @doc "Builds a changeset for membership creation/update."
+  @doc """
+  Builds a changeset for membership creation/update.
+
+  Only `:role` is cast from attrs. The `user_id` and `company_id` must be set
+  directly on the struct before calling this function to prevent mass-assignment
+  of foreign keys from user input.
+  """
   @spec changeset(t(), map()) :: Ecto.Changeset.t()
   def changeset(membership, attrs) do
     membership
-    |> cast(attrs, [:user_id, :company_id, :role])
+    |> cast(attrs, [:role])
     |> validate_required([:user_id, :company_id, :role])
     |> validate_inclusion(:role, @roles)
     |> foreign_key_constraint(:user_id)
