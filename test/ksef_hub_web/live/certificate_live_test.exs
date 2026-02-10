@@ -8,6 +8,7 @@ defmodule KsefHubWeb.CertificateLiveTest do
 
   alias KsefHub.Accounts
   alias KsefHub.Credentials
+  alias KsefHub.Credentials.CertificateInfo
 
   setup :set_mox_from_context
   setup :verify_on_exit!
@@ -94,6 +95,11 @@ defmodule KsefHubWeb.CertificateLiveTest do
         {:ok, %{p12_data: "fake-p12-binary", p12_password: "generated-pass"}}
       end)
 
+      CertificateInfo.Mock
+      |> expect(:extract, fn "fake-p12-binary", "generated-pass" ->
+        {:ok, %{subject: "CN=Test, O=TestOrg", expires_at: ~D[2026-12-31]}}
+      end)
+
       {:ok, view, _html} = live(conn, ~p"/certificates")
 
       view
@@ -118,7 +124,11 @@ defmodule KsefHubWeb.CertificateLiveTest do
       |> render_submit()
 
       assert has_element?(view, "#flash-info", "Certificate uploaded successfully.")
-      assert Credentials.get_active_credential(company.id)
+
+      cred = Credentials.get_active_credential(company.id)
+      assert cred
+      assert cred.certificate_subject == "CN=Test, O=TestOrg"
+      assert cred.certificate_expires_at == ~D[2026-12-31]
     end
 
     test "shows error when converter fails", %{conn: conn} do
@@ -175,6 +185,11 @@ defmodule KsefHubWeb.CertificateLiveTest do
       KsefHub.Credentials.Pkcs12Converter.Mock
       |> expect(:convert, fn _key, _crt, "my-secret" ->
         {:ok, %{p12_data: "fake-p12", p12_password: "generated"}}
+      end)
+
+      CertificateInfo.Mock
+      |> expect(:extract, fn "fake-p12", "generated" ->
+        {:ok, %{subject: "CN=Test", expires_at: ~D[2026-12-31]}}
       end)
 
       {:ok, view, _html} = live(conn, ~p"/certificates")

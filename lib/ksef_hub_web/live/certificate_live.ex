@@ -8,6 +8,8 @@ defmodule KsefHubWeb.CertificateLive do
   """
   use KsefHubWeb, :live_view
 
+  require Logger
+
   alias KsefHub.Credentials
   alias KsefHub.Credentials.Encryption
 
@@ -164,14 +166,17 @@ defmodule KsefHubWeb.CertificateLive do
 
   defp save_credential(socket, cert_data, password) do
     company = socket.assigns.current_company
+    cert_meta = extract_certificate_info(cert_data, password)
 
     with {:ok, encrypted_cert} <- Encryption.encrypt(cert_data),
          {:ok, encrypted_password} <- Encryption.encrypt(password) do
-      attrs = %{
-        certificate_data_encrypted: encrypted_cert,
-        certificate_password_encrypted: encrypted_password,
-        is_active: true
-      }
+      attrs =
+        %{
+          certificate_data_encrypted: encrypted_cert,
+          certificate_password_encrypted: encrypted_password,
+          is_active: true
+        }
+        |> Map.merge(cert_meta)
 
       case Credentials.replace_active_credential(company.id, attrs) do
         {:ok, _credential} ->
@@ -202,9 +207,26 @@ defmodule KsefHubWeb.CertificateLive do
   defp format_error({:openssl_failed, code}), do: "openssl exited with code #{code}"
   defp format_error(reason), do: inspect(reason)
 
+  @spec extract_certificate_info(binary(), String.t()) :: map()
+  defp extract_certificate_info(cert_data, password) do
+    case certificate_info().extract(cert_data, password) do
+      {:ok, %{subject: subject, expires_at: expires_at}} ->
+        %{certificate_subject: subject, certificate_expires_at: expires_at}
+
+      {:error, reason} ->
+        Logger.warning("Failed to extract certificate info: #{inspect(reason)}")
+        %{}
+    end
+  end
+
   @spec pkcs12_converter() :: module()
   defp pkcs12_converter do
     Application.get_env(:ksef_hub, :pkcs12_converter, KsefHub.Credentials.Pkcs12Converter.Openssl)
+  end
+
+  @spec certificate_info() :: module()
+  defp certificate_info do
+    Application.get_env(:ksef_hub, :certificate_info, KsefHub.Credentials.CertificateInfo.Openssl)
   end
 
   @spec load_credentials(Phoenix.LiveView.Socket.t()) :: Phoenix.LiveView.Socket.t()
