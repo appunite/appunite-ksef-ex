@@ -21,7 +21,6 @@ defmodule KsefHubWeb.TeamLive do
      socket
      |> assign(page_title: "Team")
      |> assign(invite_form: to_form(%{"email" => "", "role" => "accountant"}, as: :invitation))
-     |> assign(has_pending_invitations: false)
      |> stream(:members, [])
      |> stream(:pending_invitations, [])
      |> load_team_data()}
@@ -123,7 +122,6 @@ defmodule KsefHubWeb.TeamLive do
     pending_invitations = Invitations.list_pending_invitations(company.id)
 
     socket
-    |> assign(has_pending_invitations: pending_invitations != [])
     |> stream(:members, members, reset: true)
     |> stream(:pending_invitations, pending_invitations, reset: true)
   end
@@ -208,64 +206,29 @@ defmodule KsefHubWeb.TeamLive do
       </div>
     </div>
 
-    <!-- Pending Invitations -->
-    <div :if={@has_pending_invitations} class="card bg-base-100 border border-base-300 mt-6">
-      <div class="p-5">
-        <h2 class="text-base font-semibold mb-3">Pending invitations</h2>
-        <div class="overflow-x-auto">
-          <table class="table table-sm" data-testid="pending-invitations">
-            <thead>
-              <tr>
-                <th>Email</th>
-                <th>Role</th>
-                <th>Expires</th>
-                <th></th>
-              </tr>
-            </thead>
-            <tbody id="pending-invitations-list" phx-update="stream">
-              <tr :for={{dom_id, inv} <- @streams.pending_invitations} id={dom_id}>
-                <td>{inv.email}</td>
-                <td><span class="badge badge-sm badge-outline">{inv.role}</span></td>
-                <td class="text-sm text-base-content/60">
-                  {Calendar.strftime(inv.expires_at, "%Y-%m-%d %H:%M UTC")}
-                </td>
-                <td>
-                  <button
-                    phx-click="cancel_invitation"
-                    phx-value-id={inv.id}
-                    data-confirm="Cancel this invitation?"
-                    data-testid={"cancel-invitation-#{inv.id}"}
-                    class="btn btn-xs btn-ghost text-error"
-                  >
-                    Cancel
-                  </button>
-                </td>
-              </tr>
-            </tbody>
-          </table>
-        </div>
-      </div>
-    </div>
-
-    <!-- Members -->
+    <!-- Team members & pending invitations -->
     <div class="card bg-base-100 border border-base-300 mt-6">
       <div class="p-5">
         <h2 class="text-base font-semibold mb-3">Members</h2>
         <div class="overflow-x-auto" data-testid="member-list">
-          <table class="table table-sm">
+          <table class="table table-sm" data-testid="pending-invitations">
             <thead>
               <tr>
-                <th>Name</th>
                 <th>Email</th>
+                <th>Name</th>
                 <th>Role</th>
-                <th></th>
+                <th>Status</th>
+                <th>Expires</th>
+                <th>Action</th>
               </tr>
             </thead>
             <tbody id="members-list" phx-update="stream">
               <tr :for={{dom_id, member} <- @streams.members} id={dom_id}>
-                <td>{member.user.name || "—"}</td>
                 <td>{member.user.email}</td>
+                <td>{member.user.name || "—"}</td>
                 <td><span class="badge badge-sm badge-outline">{member.role}</span></td>
+                <td></td>
+                <td>—</td>
                 <td>
                   <button
                     :if={member.role != "owner"}
@@ -276,6 +239,29 @@ defmodule KsefHubWeb.TeamLive do
                     class="btn btn-xs btn-ghost text-error"
                   >
                     Remove
+                  </button>
+                </td>
+              </tr>
+            </tbody>
+            <tbody id="pending-invitations-list" phx-update="stream">
+              <tr
+                :for={{dom_id, inv} <- @streams.pending_invitations}
+                id={dom_id}
+              >
+                <td>{inv.email}</td>
+                <td>—</td>
+                <td><span class="badge badge-sm badge-outline">{inv.role}</span></td>
+                <td><span class="badge badge-sm badge-warning">pending</span></td>
+                <td>{Calendar.strftime(inv.expires_at, "%Y-%m-%d")}</td>
+                <td>
+                  <button
+                    phx-click="cancel_invitation"
+                    phx-value-id={inv.id}
+                    data-confirm="Cancel this invitation?"
+                    data-testid={"cancel-invitation-#{inv.id}"}
+                    class="btn btn-xs btn-ghost text-error"
+                  >
+                    Cancel
                   </button>
                 </td>
               </tr>
