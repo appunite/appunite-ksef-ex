@@ -122,6 +122,7 @@ defmodule KsefHub.Invitations do
   @spec do_accept_invitation(Invitation.t(), User.t()) ::
           {:ok, %{invitation: Invitation.t(), membership: Membership.t()}}
           | {:error, :not_found}
+          | {:error, :expired}
           | {:error, :already_member}
           | {:error, Ecto.Changeset.t()}
   defp do_accept_invitation(invitation, user) do
@@ -136,14 +137,17 @@ defmodule KsefHub.Invitations do
     |> Multi.run(:invitation, fn _repo, _changes ->
       {count, _} =
         from(i in Invitation,
-          where: i.id == ^invitation.id and i.status == "pending"
+          where: i.id == ^invitation.id and i.status == "pending" and i.expires_at > ^now
         )
         |> Repo.update_all(set: [status: "accepted", updated_at: now])
 
       if count == 1 do
         {:ok, Repo.get!(Invitation, invitation.id)}
       else
-        {:error, :not_found}
+        case Repo.get(Invitation, invitation.id) do
+          %Invitation{expires_at: expires_at} when expires_at <= now -> {:error, :expired}
+          _ -> {:error, :not_found}
+        end
       end
     end)
     |> Multi.insert(:membership, fn _changes ->
@@ -157,6 +161,9 @@ defmodule KsefHub.Invitations do
 
       {:error, :check_membership, :already_member, _changes} ->
         {:error, :already_member}
+
+      {:error, :invitation, :expired, _changes} ->
+        {:error, :expired}
 
       {:error, :invitation, :not_found, _changes} ->
         {:error, :not_found}
