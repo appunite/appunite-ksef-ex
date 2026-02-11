@@ -23,8 +23,11 @@ defmodule KsefHub.XadesSigner.AuthTokenRequest do
       "</AuthTokenRequest>"
   end
 
+  @doc """
+  Escapes XML special characters in a string.
+  """
   @spec escape_xml(String.t()) :: String.t()
-  defp escape_xml(str) when is_binary(str) do
+  def escape_xml(str) when is_binary(str) do
     str
     |> String.replace("&", "&amp;")
     |> String.replace("<", "&lt;")

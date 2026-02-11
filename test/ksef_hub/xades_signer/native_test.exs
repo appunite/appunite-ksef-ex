@@ -6,11 +6,12 @@ defmodule KsefHub.XadesSigner.NativeTest do
   @challenge "20250211-test-challenge-abc123"
   @nip "1234567890"
 
+  setup_all do
+    {p12_data, password} = generate_test_pkcs12()
+    %{p12_data: p12_data, password: password}
+  end
+
   describe "sign_challenge/4" do
-    setup do
-      {p12_data, password} = generate_test_pkcs12()
-      %{p12_data: p12_data, password: password}
-    end
 
     test "returns {:ok, signed_xml} with valid PKCS12", %{p12_data: p12_data, password: password} do
       assert {:ok, signed_xml} = Native.sign_challenge(@challenge, @nip, p12_data, password)
@@ -167,11 +168,16 @@ defmodule KsefHub.XadesSigner.NativeTest do
   defp generate_test_pkcs12 do
     password = "test-password-123"
     tmp_dir = System.tmp_dir!()
-    key_path = Path.join(tmp_dir, "ksef_test_#{:rand.uniform(999_999)}_key.pem")
-    cert_path = Path.join(tmp_dir, "ksef_test_#{:rand.uniform(999_999)}_cert.pem")
-    p12_path = Path.join(tmp_dir, "ksef_test_#{:rand.uniform(999_999)}_cert.p12")
+    rand = :rand.uniform(999_999)
+    key_path = Path.join(tmp_dir, "ksef_test_#{rand}_key.pem")
+    cert_path = Path.join(tmp_dir, "ksef_test_#{rand}_cert.pem")
+    p12_path = Path.join(tmp_dir, "ksef_test_#{rand}_cert.p12")
+    pass_path = Path.join(tmp_dir, "ksef_test_#{rand}_pass.txt")
 
     try do
+      File.write!(pass_path, password)
+      File.chmod!(pass_path, 0o600)
+
       # Generate EC P-256 private key
       {_, 0} =
         System.cmd("openssl", ["ecparam", "-genkey", "-name", "prime256v1", "-out", key_path])
@@ -192,7 +198,7 @@ defmodule KsefHub.XadesSigner.NativeTest do
           "/CN=Test KSeF/O=Test Org/C=PL"
         ])
 
-      # Create PKCS12 bundle
+      # Create PKCS12 bundle (file-based password, consistent with production)
       {_, 0} =
         System.cmd("openssl", [
           "pkcs12",
@@ -204,7 +210,7 @@ defmodule KsefHub.XadesSigner.NativeTest do
           "-out",
           p12_path,
           "-passout",
-          "pass:#{password}"
+          "file:#{pass_path}"
         ])
 
       p12_data = File.read!(p12_path)
@@ -213,6 +219,7 @@ defmodule KsefHub.XadesSigner.NativeTest do
       File.rm(key_path)
       File.rm(cert_path)
       File.rm(p12_path)
+      File.rm(pass_path)
     end
   end
 end

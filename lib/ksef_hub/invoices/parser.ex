@@ -10,6 +10,7 @@ defmodule KsefHub.Invoices.Parser do
   Parses an FA(3) XML string into a structured invoice map.
   Returns `{:ok, map}` or `{:error, reason}`.
   """
+  @spec parse(String.t()) :: {:ok, map()} | {:error, term()}
   def parse(xml_string) when is_binary(xml_string) do
     doc = SweetXml.parse(xml_string, namespace_conformant: true, quiet: true)
 
@@ -39,6 +40,7 @@ defmodule KsefHub.Invoices.Parser do
   Determines invoice type (income/expense) based on our NIP.
   If our NIP matches Podmiot1 (seller), it's income. If Podmiot2 (buyer), expense.
   """
+  @spec determine_type(map(), String.t()) :: String.t()
   def determine_type(parsed_invoice, our_nip) do
     cond do
       parsed_invoice.seller_nip == our_nip -> "income"
@@ -56,7 +58,9 @@ defmodule KsefHub.Invoices.Parser do
     if name != "" do
       name
     else
-      first = xpath(doc, ~x"//*[local-name()='#{subject}']//*[local-name()='ImiePierwsze']/text()"s)
+      first =
+        xpath(doc, ~x"//*[local-name()='#{subject}']//*[local-name()='ImiePierwsze']/text()"s)
+
       last = xpath(doc, ~x"//*[local-name()='#{subject}']//*[local-name()='Nazwisko']/text()"s)
       String.trim("#{first} #{last}")
     end

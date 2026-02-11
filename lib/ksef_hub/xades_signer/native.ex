@@ -375,13 +375,5 @@ defmodule KsefHub.XadesSigner.Native do
     :binary.copy(<<0>>, pad) <> bytes
   end
 
-  @spec escape_xml(String.t()) :: String.t()
-  defp escape_xml(str) when is_binary(str) do
-    str
-    |> String.replace("&", "&amp;")
-    |> String.replace("<", "&lt;")
-    |> String.replace(">", "&gt;")
-    |> String.replace("\"", "&quot;")
-    |> String.replace("'", "&apos;")
-  end
+  defdelegate escape_xml(str), to: AuthTokenRequest
 end

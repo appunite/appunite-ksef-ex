@@ -115,29 +115,35 @@ defmodule KsefHub.Sync.SyncWorker do
         broadcast_sync_completed(company_id, %{income: ic, expense: ec})
         {:ok, :full}
 
-      {{:ok, ic, _if}, {:error, reason}} ->
+      {{:ok, ic, if_}, {:error, reason}} ->
         Logger.error(
           "Expense sync failed for company #{company_id}: #{inspect(reason)} (#{ic} income invoices synced)"
         )
 
-        store_meta(job, %{
+        meta = %{
           "income_count" => ic,
           "error" => inspect(reason),
           "failed_type" => "expense"
-        })
+        }
+
+        meta = if if_ > 0, do: Map.put(meta, "income_failed", if_), else: meta
+        store_meta(job, meta)
 
         {:ok, :partial, %{succeeded: :income, failed: {:expense, reason}}}
 
-      {{:error, reason}, {:ok, ec, _ef}} ->
+      {{:error, reason}, {:ok, ec, ef}} ->
         Logger.error(
           "Income sync failed for company #{company_id}: #{inspect(reason)} (#{ec} expense invoices synced)"
         )
 
-        store_meta(job, %{
+        meta = %{
           "expense_count" => ec,
           "error" => inspect(reason),
           "failed_type" => "income"
-        })
+        }
+
+        meta = if ef > 0, do: Map.put(meta, "expense_failed", ef), else: meta
+        store_meta(job, meta)
 
         {:ok, :partial, %{succeeded: :expense, failed: {:income, reason}}}
 
