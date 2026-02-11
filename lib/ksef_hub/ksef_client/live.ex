@@ -6,6 +6,10 @@ defmodule KsefHub.KsefClient.Live do
 
   @behaviour KsefHub.KsefClient.Behaviour
 
+  @receive_timeout :timer.seconds(30)
+  @retry_count 2
+  @retry_delay :timer.seconds(1)
+
   defp base_url,
     do: Application.get_env(:ksef_hub, :ksef_api_url, "https://api-test.ksef.mf.gov.pl")
 
@@ -13,11 +17,21 @@ defmodule KsefHub.KsefClient.Live do
 
   defp bearer_headers(token), do: [{"authorization", "Bearer #{token}"}]
 
+  @spec req_options() :: keyword()
+  defp req_options do
+    [
+      receive_timeout: @receive_timeout,
+      retry: :transient,
+      max_retries: @retry_count,
+      retry_delay: @retry_delay
+    ]
+  end
+
   @impl true
   def get_challenge do
     url = api_url("/auth/challenge")
 
-    case Req.post(url, json: %{}) do
+    case Req.post(url, [json: %{}] ++ req_options()) do
       {:ok, %{status: 200, body: body}} when is_map(body) ->
         {:ok,
          %{
@@ -40,7 +54,10 @@ defmodule KsefHub.KsefClient.Live do
   def authenticate_xades(signed_xml) do
     url = api_url("/auth/xades-signature")
 
-    case Req.post(url, body: signed_xml, headers: [{"content-type", "application/xml"}]) do
+    case Req.post(
+           url,
+           [body: signed_xml, headers: [{"content-type", "application/xml"}]] ++ req_options()
+         ) do
       {:ok, %{status: status, body: body}} when status in [200, 202] and is_map(body) ->
         auth_token_data = body["authenticationToken"] || %{}
 
@@ -67,7 +84,7 @@ defmodule KsefHub.KsefClient.Live do
     url = api_url("/auth/#{reference_number}")
     headers = bearer_headers(auth_token)
 
-    case Req.get(url, headers: headers) do
+    case Req.get(url, [headers: headers] ++ req_options()) do
       {:ok, %{status: 200, body: %{"status" => %{"code" => code}}}}
       when code >= 200 and code < 300 ->
         {:ok, :success}
@@ -94,7 +111,7 @@ defmodule KsefHub.KsefClient.Live do
     url = api_url("/auth/token/redeem")
     headers = bearer_headers(auth_token)
 
-    case Req.post(url, json: %{}, headers: headers) do
+    case Req.post(url, [json: %{}, headers: headers] ++ req_options()) do
       {:ok, %{status: 200, body: body}} when is_map(body) ->
         access = body["accessToken"] || %{}
         refresh = body["refreshToken"] || %{}
@@ -123,7 +140,7 @@ defmodule KsefHub.KsefClient.Live do
     url = api_url("/auth/token/refresh")
     headers = bearer_headers(refresh_token)
 
-    case Req.post(url, json: %{}, headers: headers) do
+    case Req.post(url, [json: %{}, headers: headers] ++ req_options()) do
       {:ok, %{status: 200, body: body}} when is_map(body) ->
         access = body["accessToken"] || %{}
 
@@ -159,7 +176,7 @@ defmodule KsefHub.KsefClient.Live do
     headers = bearer_headers(access_token)
     body = build_query_filters(filters)
 
-    case Req.post(url, json: body, headers: headers, params: params) do
+    case Req.post(url, [json: body, headers: headers, params: params] ++ req_options()) do
       {:ok, %{status: 200, body: body}} when is_map(body) ->
         {:ok,
          %{
@@ -188,7 +205,7 @@ defmodule KsefHub.KsefClient.Live do
     url = api_url("/invoices/ksef/#{ksef_number}")
     headers = bearer_headers(access_token)
 
-    case Req.get(url, headers: headers) do
+    case Req.get(url, [headers: headers] ++ req_options()) do
       {:ok, %{status: 200, body: body}} when is_binary(body) ->
         {:ok, body}
 
@@ -209,7 +226,7 @@ defmodule KsefHub.KsefClient.Live do
     url = api_url("/auth/sessions/current")
     headers = bearer_headers(token)
 
-    case Req.delete(url, headers: headers) do
+    case Req.delete(url, [headers: headers] ++ req_options()) do
       {:ok, %{status: status}} when status in [200, 204] -> :ok
       {:ok, %{status: status, body: body}} -> {:error, {:ksef_error, status, body}}
       {:error, reason} -> {:error, {:request_failed, reason}}
