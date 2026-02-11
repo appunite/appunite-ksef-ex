@@ -88,7 +88,9 @@ defmodule KsefHubWeb.InvoiceLive.Show do
     if invoice.xml_content do
       pdf_mod = Application.get_env(:ksef_hub, :pdf_generator, KsefHub.Pdf)
 
-      case pdf_mod.generate_html(invoice.xml_content) do
+      metadata = %{ksef_number: invoice.ksef_number}
+
+      case pdf_mod.generate_html(invoice.xml_content, metadata) do
         {:ok, html} -> html
         {:error, _} -> nil
       end
@@ -132,54 +134,78 @@ defmodule KsefHubWeb.InvoiceLive.Show do
       </:actions>
     </.header>
 
-    <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 mt-6">
+    <div class="grid grid-cols-1 lg:grid-cols-[minmax(0,1fr)_minmax(0,2fr)] gap-6 mt-6">
       <!-- Invoice Metadata -->
       <div class="card bg-base-100 border border-base-300">
-        <div class="p-5">
+        <div class="p-4">
           <h2 class="text-base font-semibold mb-2">Details</h2>
-          <.list>
-            <:item title="Invoice Number">{@invoice.invoice_number}</:item>
-            <:item title="Type"><.type_badge type={@invoice.type} /></:item>
-            <:item title="Status"><.status_badge status={@invoice.status} /></:item>
-            <:item title="Issue Date">{format_date(@invoice.issue_date)}</:item>
-            <:item title="Seller">
-              <span class="font-medium">{@invoice.seller_name}</span>
-              <span class="text-sm text-base-content/60 ml-1">NIP: {@invoice.seller_nip}</span>
-            </:item>
-            <:item title="Buyer">
-              <span class="font-medium">{@invoice.buyer_name}</span>
-              <span class="text-sm text-base-content/60 ml-1">NIP: {@invoice.buyer_nip}</span>
-            </:item>
-            <:item title="Net Amount">
-              <span class="font-mono">{format_amount(@invoice.net_amount)}</span>
-              {@invoice.currency}
-            </:item>
-            <:item title="VAT Amount">
-              <span class="font-mono">{format_amount(@invoice.vat_amount)}</span>
-              {@invoice.currency}
-            </:item>
-            <:item title="Gross Amount">
-              <span class="font-mono font-bold">{format_amount(@invoice.gross_amount)}</span>
-              {@invoice.currency}
-            </:item>
-            <:item :if={@invoice.ksef_number} title="KSeF Number">
-              <span class="font-mono text-sm">{@invoice.ksef_number}</span>
-            </:item>
-            <:item :if={@invoice.ksef_acquisition_date} title="KSeF Acquisition">
-              {format_datetime(@invoice.ksef_acquisition_date)}
-            </:item>
-          </.list>
+          <table class="text-sm w-full">
+            <tbody>
+              <tr class="border-b border-base-300/50">
+                <td class="py-1.5 pr-3 text-base-content/60 whitespace-nowrap">Number</td>
+                <td class="py-1.5 text-right">{@invoice.invoice_number}</td>
+              </tr>
+              <tr class="border-b border-base-300/50">
+                <td class="py-1.5 pr-3 text-base-content/60">Date</td>
+                <td class="py-1.5 text-right">{format_date(@invoice.issue_date)}</td>
+              </tr>
+              <tr class="border-b border-base-300/50">
+                <td class="py-1.5 pr-3 text-base-content/60">Seller</td>
+                <td class="py-1.5 text-right">
+                  <div>{@invoice.seller_name}</div>
+                  <div class="text-xs text-base-content/50">{@invoice.seller_nip}</div>
+                </td>
+              </tr>
+              <tr class="border-b border-base-300/50">
+                <td class="py-1.5 pr-3 text-base-content/60">Buyer</td>
+                <td class="py-1.5 text-right">
+                  <div>{@invoice.buyer_name}</div>
+                  <div class="text-xs text-base-content/50">{@invoice.buyer_nip}</div>
+                </td>
+              </tr>
+              <tr class="border-b border-base-300/50">
+                <td class="py-1.5 pr-3 text-base-content/60">Netto</td>
+                <td class="py-1.5 text-right font-mono">
+                  {format_amount(@invoice.net_amount)} {@invoice.currency}
+                </td>
+              </tr>
+              <tr class="border-b border-base-300/50">
+                <td class="py-1.5 pr-3 text-base-content/60">VAT</td>
+                <td class="py-1.5 text-right font-mono">
+                  {format_amount(@invoice.vat_amount)} {@invoice.currency}
+                </td>
+              </tr>
+              <tr class="border-b border-base-300/50">
+                <td class="py-1.5 pr-3 text-base-content/60">Brutto</td>
+                <td class="py-1.5 text-right font-mono font-bold">
+                  {format_amount(@invoice.gross_amount)} {@invoice.currency}
+                </td>
+              </tr>
+              <tr :if={@invoice.ksef_number} class="border-b border-base-300/50">
+                <td class="py-1.5 pr-3 text-base-content/60">KSeF</td>
+                <td class="py-1.5 text-right font-mono text-xs break-all">
+                  {@invoice.ksef_number}
+                </td>
+              </tr>
+              <tr :if={@invoice.ksef_acquisition_date}>
+                <td class="py-1.5 pr-3 text-base-content/60 whitespace-nowrap">Acquired</td>
+                <td class="py-1.5 text-right text-xs">
+                  {format_datetime(@invoice.ksef_acquisition_date)}
+                </td>
+              </tr>
+            </tbody>
+          </table>
         </div>
       </div>
       
     <!-- HTML Preview -->
       <div class="card bg-base-100 border border-base-300">
-        <div class="p-5">
+        <div class="p-4">
           <h2 class="text-base font-semibold mb-2">Preview</h2>
           <div :if={@html_preview} class="border border-base-300 rounded-lg overflow-hidden">
             <iframe
               srcdoc={@html_preview}
-              class="w-full h-96 bg-white"
+              class="w-full h-[600px] bg-white"
               sandbox=""
               title="Invoice preview"
             >

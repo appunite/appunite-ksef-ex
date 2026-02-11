@@ -48,7 +48,9 @@ defmodule KsefHubWeb.InvoicePdfController do
   defp generate_and_send_pdf(conn, invoice) do
     pdf_mod = Application.get_env(:ksef_hub, :pdf_generator, KsefHub.Pdf)
 
-    with {:ok, html} <- pdf_mod.generate_html(invoice.xml_content),
+    metadata = %{ksef_number: invoice.ksef_number}
+
+    with {:ok, html} <- pdf_mod.generate_html(invoice.xml_content, metadata),
          {:ok, pdf_binary} <- pdf_mod.generate_pdf(html) do
       filename = sanitize_filename("#{invoice.invoice_number}.pdf")
 

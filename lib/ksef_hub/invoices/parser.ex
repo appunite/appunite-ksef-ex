@@ -18,6 +18,7 @@ defmodule KsefHub.Invoices.Parser do
      %{
        invoice_number: xpath(doc, ~x"//*[local-name()='P_2']/text()"s),
        issue_date: xpath(doc, ~x"//*[local-name()='P_1']/text()"s) |> parse_date(),
+       sales_date: xpath(doc, ~x"//*[local-name()='P_6']/text()"s) |> parse_date(),
        seller_nip: xpath(doc, ~x"//*[local-name()='Podmiot1']//*[local-name()='NIP']/text()"s),
        seller_name: extract_name(doc, "Podmiot1"),
        buyer_nip: xpath(doc, ~x"//*[local-name()='Podmiot2']//*[local-name()='NIP']/text()"s),

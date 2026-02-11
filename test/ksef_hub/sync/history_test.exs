@@ -67,6 +67,31 @@ defmodule KsefHub.Sync.HistoryTest do
       assert job.error == "connection timeout"
     end
 
+    test "hides stale errors from job.errors when job completed on retry", %{company: company} do
+      insert(:sync_job,
+        state: "completed",
+        meta: %{"income_count" => 2, "expense_count" => 1},
+        errors: [%{"at" => "2026-02-11T10:00:00Z", "attempt" => 1, "error" => "timeout"}],
+        args: %{"company_id" => company.id}
+      )
+
+      [job] = History.list_sync_jobs(company.id)
+      assert job.state == "completed"
+      assert job.error == nil
+    end
+
+    test "shows error from job.errors for non-completed jobs", %{company: company} do
+      insert(:sync_job,
+        state: "retryable",
+        meta: %{},
+        errors: [%{"at" => "2026-02-11T10:00:00Z", "attempt" => 1, "error" => "timeout"}],
+        args: %{"company_id" => company.id}
+      )
+
+      [job] = History.list_sync_jobs(company.id)
+      assert job.error == "timeout"
+    end
+
     test "calculates duration from attempted_at to completed_at", %{company: company} do
       now = DateTime.utc_now()
 
@@ -111,6 +136,18 @@ defmodule KsefHub.Sync.HistoryTest do
 
     test "returns error when sync is already executing", %{company: company} do
       insert(:sync_job, state: "executing", args: %{"company_id" => company.id})
+
+      assert {:error, :already_running} = History.trigger_manual_sync(company.id)
+    end
+
+    test "returns error when sync job is queued (available)", %{company: company} do
+      insert(:sync_job, state: "available", args: %{"company_id" => company.id})
+
+      assert {:error, :already_running} = History.trigger_manual_sync(company.id)
+    end
+
+    test "returns error when sync job is scheduled", %{company: company} do
+      insert(:sync_job, state: "scheduled", args: %{"company_id" => company.id})
 
       assert {:error, :already_running} = History.trigger_manual_sync(company.id)
     end

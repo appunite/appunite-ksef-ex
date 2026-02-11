@@ -61,6 +61,53 @@ defmodule KsefHub.KsefClient.TokenManagerTest do
 
       assert {:ok, "new-access"} = TokenManager.ensure_access_token(company.id)
     end
+
+    test "propagates transient error when refresh fails due to network timeout", %{
+      company: company
+    } do
+      expired = DateTime.add(DateTime.utc_now(), 60)
+      refresh_future = DateTime.add(DateTime.utc_now(), 48 * 24 * 3600)
+
+      :ok =
+        TokenManager.store_tokens(
+          company.id,
+          "old-access",
+          "refresh-tok",
+          expired,
+          refresh_future
+        )
+
+      KsefHub.KsefClient.Mock
+      |> expect(:refresh_access_token, fn "refresh-tok" ->
+        {:error, {:request_failed, %Req.TransportError{reason: :timeout}}}
+      end)
+
+      assert {:error, {:request_failed, %Req.TransportError{reason: :timeout}}} =
+               TokenManager.ensure_access_token(company.id)
+    end
+
+    test "returns :reauth_required when refresh fails due to auth rejection", %{
+      company: company
+    } do
+      expired = DateTime.add(DateTime.utc_now(), 60)
+      refresh_future = DateTime.add(DateTime.utc_now(), 48 * 24 * 3600)
+
+      :ok =
+        TokenManager.store_tokens(
+          company.id,
+          "old-access",
+          "refresh-tok",
+          expired,
+          refresh_future
+        )
+
+      KsefHub.KsefClient.Mock
+      |> expect(:refresh_access_token, fn "refresh-tok" ->
+        {:error, {:ksef_error, 401, "Unauthorized"}}
+      end)
+
+      assert {:error, :reauth_required} = TokenManager.ensure_access_token(company.id)
+    end
   end
 
   describe "refresh_token_expires_at/1" do

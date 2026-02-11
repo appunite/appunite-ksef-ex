@@ -4,7 +4,7 @@ defmodule KsefHub.Invitations.Invitation do
 
   Roles that can be invited:
   - `accountant` — can view invoices, manage bookkeeping, and submit expense approvals
-  - `invoice_reviewer` — can view invoices and approve or reject individual expense items
+  - `reviewer` — can view invoices and approve or reject individual expense items
 
   The `owner` role cannot be invited — ownership is assigned only at company creation.
 
@@ -19,7 +19,7 @@ defmodule KsefHub.Invitations.Invitation do
 
   @type t :: %__MODULE__{}
 
-  @invitable_roles ~w(accountant invoice_reviewer)
+  @invitable_roles ~w(accountant reviewer)
   @statuses ~w(pending accepted cancelled)
 
   @primary_key {:id, :binary_id, autogenerate: true}

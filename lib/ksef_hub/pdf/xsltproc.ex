@@ -10,28 +10,34 @@ defmodule KsefHub.Pdf.Xsltproc do
 
   @doc """
   Transforms FA(3) XML content into HTML using the gov.pl XSL stylesheet.
+  Accepts optional metadata map with `:ksef_number` to pass as an XSLT parameter.
   Returns `{:ok, html}` or `{:error, reason}`.
   """
-  @spec transform(String.t()) :: {:ok, String.t()} | {:error, term()}
-  def transform(xml_content) when is_binary(xml_content) do
+  @spec transform(String.t(), map()) :: {:ok, String.t()} | {:error, term()}
+  def transform(xml_content, metadata \\ %{}) when is_binary(xml_content) do
     xsl_path = xsl_path()
 
     if is_binary(xsl_path) and File.exists?(xsl_path) do
-      do_transform(xml_content, xsl_path)
+      do_transform(xml_content, xsl_path, metadata)
     else
       {:error, :xsl_not_found}
     end
   end
 
-  defp do_transform(xml_content, xsl_path) do
+  defp do_transform(xml_content, xsl_path, metadata) do
     run_dir = create_run_dir!()
 
     try do
       xml_path = write_secure_temp(run_dir, xml_content, "invoice.xml")
+      string_params = build_string_params(metadata)
 
       task =
         Task.Supervisor.async_nolink(KsefHub.TaskSupervisor, fn ->
-          System.cmd("xsltproc", ["--nonet", xsl_path, xml_path], stderr_to_stdout: true)
+          System.cmd(
+            "xsltproc",
+            string_params ++ ["--nonet", xsl_path, xml_path],
+            stderr_to_stdout: true
+          )
         end)
 
       case Task.yield(task, @cmd_timeout) || Task.shutdown(task, :brutal_kill) do
@@ -57,6 +63,13 @@ defmodule KsefHub.Pdf.Xsltproc do
     after
       secure_delete_dir(run_dir)
     end
+  end
+
+  @spec build_string_params(map()) :: [String.t()]
+  defp build_string_params(metadata) do
+    metadata
+    |> Enum.filter(fn {_k, v} -> is_binary(v) and v != "" end)
+    |> Enum.flat_map(fn {k, v} -> ["--stringparam", to_string(k), v] end)
   end
 
   defp xsl_path do

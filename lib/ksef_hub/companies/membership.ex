@@ -5,7 +5,7 @@ defmodule KsefHub.Companies.Membership do
   Roles:
   - `owner` — full access including certificates, API tokens, team management, and company settings
   - `accountant` — can view invoices, manage bookkeeping, and submit expense approvals
-  - `invoice_reviewer` — can view invoices and approve or reject individual expense items
+  - `reviewer` — can view invoices and approve or reject individual expense items
   """
 
   use Ecto.Schema
@@ -13,7 +13,7 @@ defmodule KsefHub.Companies.Membership do
 
   @type t :: %__MODULE__{}
 
-  @roles ~w(owner accountant invoice_reviewer)
+  @roles ~w(owner accountant reviewer)
 
   @primary_key {:id, :binary_id, autogenerate: true}
   @foreign_key_type :binary_id

@@ -8,22 +8,36 @@ defmodule KsefHub.Pdf.FallbackTemplate do
 
   @doc """
   Renders FA(3) XML as a simple HTML document.
+  Accepts optional metadata map with `:ksef_number`.
   Returns `{:ok, html}` or `{:error, reason}`.
   """
-  @spec render(String.t()) :: {:ok, String.t()} | {:error, term()}
-  def render(xml_content) do
+  @spec render(String.t(), map()) :: {:ok, String.t()} | {:error, term()}
+  def render(xml_content, metadata \\ %{}) do
     case Parser.parse(xml_content) do
       {:ok, invoice} ->
-        {:ok, build_html(invoice)}
+        {:ok, build_html(invoice, metadata)}
 
       {:error, reason} ->
         {:error, reason}
     end
   end
 
-  defp build_html(invoice) do
+  defp build_html(invoice, metadata) do
     line_items_html =
       Enum.map_join(invoice.line_items, "\n", &line_item_row/1)
+
+    ksef_number = metadata[:ksef_number] || metadata["ksef_number"]
+
+    ksef_html =
+      if ksef_number,
+        do:
+          ~s(<div class="ksef-number">Numer KSeF: <strong>#{escape(ksef_number)}</strong></div>),
+        else: ""
+
+    sales_date_html =
+      if invoice[:sales_date],
+        do: ~s(<p>Data sprzedaży: #{format_date(invoice.sales_date)}</p>),
+        else: ""
 
     """
     <!DOCTYPE html>
@@ -34,6 +48,7 @@ defmodule KsefHub.Pdf.FallbackTemplate do
       <style>
         body { font-family: Arial, sans-serif; margin: 2rem; color: #333; }
         h1 { font-size: 1.5rem; border-bottom: 2px solid #333; padding-bottom: 0.5rem; }
+        .ksef-number { font-size: 0.85rem; color: #555; margin-bottom: 1rem; padding: 0.5rem 0.75rem; background: #e8f4fd; border-left: 3px solid #2196F3; }
         .parties { display: flex; gap: 2rem; margin: 1.5rem 0; }
         .party { flex: 1; padding: 1rem; background: #f5f5f5; border-radius: 4px; }
         .party h3 { margin: 0 0 0.5rem; font-size: 0.9rem; color: #666; text-transform: uppercase; }
@@ -45,11 +60,15 @@ defmodule KsefHub.Pdf.FallbackTemplate do
         .totals { margin-top: 1rem; text-align: right; }
         .totals p { margin: 0.25rem 0; }
         .totals .gross { font-size: 1.2rem; font-weight: bold; }
+        .footer { margin-top: 2rem; padding-top: 1rem; border-top: 1px solid #ddd; font-size: 0.8rem; color: #666; }
       </style>
     </head>
     <body>
       <h1>Faktura VAT #{escape(invoice.invoice_number)}</h1>
+      #{ksef_html}
       <p>Data wystawienia: #{format_date(invoice.issue_date)}</p>
+      #{sales_date_html}
+      <p>Waluta: #{escape(invoice.currency)}</p>
 
       <div class="parties">
         <div class="party">
@@ -85,6 +104,10 @@ defmodule KsefHub.Pdf.FallbackTemplate do
         <p>Netto: #{format_amount(invoice.net_amount)} #{escape(invoice.currency)}</p>
         <p>VAT: #{format_amount(invoice.vat_amount)} #{escape(invoice.currency)}</p>
         <p class="gross">Brutto: #{format_amount(invoice.gross_amount)} #{escape(invoice.currency)}</p>
+      </div>
+
+      <div class="footer">
+        <p>Dokument wygenerowany z systemu KSeF Hub</p>
       </div>
     </body>
     </html>

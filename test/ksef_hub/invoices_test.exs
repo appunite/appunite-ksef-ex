@@ -50,16 +50,23 @@ defmodule KsefHub.InvoicesTest do
   end
 
   describe "upsert_invoice/1" do
-    test "inserts new invoice", %{company: company} do
+    test "inserts new invoice and returns :inserted tag", %{company: company} do
       attrs = params_for(:invoice, ksef_number: "upsert-1", company_id: company.id)
-      assert {:ok, %Invoice{}} = Invoices.upsert_invoice(attrs)
+      assert {:ok, %Invoice{}, :inserted} = Invoices.upsert_invoice(attrs)
     end
 
-    test "updates existing invoice on (company_id, ksef_number) conflict", %{company: company} do
-      attrs = params_for(:invoice, ksef_number: "upsert-2", company_id: company.id)
-      {:ok, original} = Invoices.upsert_invoice(attrs)
+    test "updates existing invoice and returns :updated tag", %{company: company} do
+      # Pre-insert with a backdated timestamp so inserted_at != updated_at after upsert
+      original =
+        insert(:invoice,
+          ksef_number: "upsert-2",
+          company: company,
+          inserted_at: NaiveDateTime.add(NaiveDateTime.utc_now(), -60)
+        )
 
-      {:ok, updated} =
+      attrs = params_for(:invoice, ksef_number: "upsert-2", company_id: company.id)
+
+      {:ok, updated, :updated} =
         Invoices.upsert_invoice(%{attrs | seller_name: "Updated Name"})
 
       assert updated.id == original.id

@@ -57,7 +57,7 @@ defmodule KsefHub.InvitationsTest do
     test "rejects if pending invitation already exists", %{company: company, owner: owner} do
       insert(:invitation, company: company, invited_by: owner, email: "dupe@example.com")
 
-      attrs = %{email: "dupe@example.com", role: "invoice_reviewer"}
+      attrs = %{email: "dupe@example.com", role: "reviewer"}
 
       assert {:error, changeset} = Invitations.create_invitation(owner.id, company.id, attrs)
       assert "already has a pending invitation for this company" in errors_on(changeset)[:email]
@@ -162,7 +162,7 @@ defmodule KsefHub.InvitationsTest do
         Invitations.create_invitation(owner.id, company.id, attrs)
 
       member = insert(:user, email: "member@example.com")
-      insert(:membership, user: member, company: company, role: "invoice_reviewer")
+      insert(:membership, user: member, company: company, role: "reviewer")
 
       assert {:error, :already_member} = Invitations.accept_invitation(token, member)
     end
@@ -252,7 +252,7 @@ defmodule KsefHub.InvitationsTest do
       {:ok, %{invitation: _inv2, token: token}} =
         Invitations.create_invitation(owner.id, company.id, %{
           email: "b@example.com",
-          role: "invoice_reviewer"
+          role: "reviewer"
         })
 
       # Accept one
@@ -290,7 +290,7 @@ defmodule KsefHub.InvitationsTest do
       {:ok, _} =
         Invitations.create_invitation(owner2.id, company2.id, %{
           email: "newuser@example.com",
-          role: "invoice_reviewer"
+          role: "reviewer"
         })
 
       new_user = insert(:user, email: "newuser@example.com")

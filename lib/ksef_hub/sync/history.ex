@@ -38,13 +38,13 @@ defmodule KsefHub.Sync.History do
   @spec trigger_manual_sync(Ecto.UUID.t()) ::
           {:ok, Oban.Job.t()} | {:error, :already_running | Ecto.Changeset.t()}
   def trigger_manual_sync(company_id) do
-    executing =
+    pending_or_running =
       Oban.Job
-      |> where([j], j.worker == @worker and j.state == "executing")
+      |> where([j], j.worker == @worker and j.state in ["available", "scheduled", "executing"])
       |> where([j], fragment("?->>'company_id' = ?", j.args, ^company_id))
       |> Repo.exists?()
 
-    if executing do
+    if pending_or_running do
       {:error, :already_running}
     else
       %{company_id: company_id, manual: true}
@@ -64,8 +64,18 @@ defmodule KsefHub.Sync.History do
       duration: duration(job.attempted_at, job.completed_at),
       income_count: get_in(job.meta, ["income_count"]),
       expense_count: get_in(job.meta, ["expense_count"]),
-      error: get_in(job.meta, ["error"]) || format_errors(job.errors)
+      error: extract_error(job)
     }
+  end
+
+  # Don't show stale errors from previous attempts when the job eventually succeeded
+  @spec extract_error(Oban.Job.t()) :: String.t() | nil
+  defp extract_error(%Oban.Job{state: "completed", meta: meta}) do
+    get_in(meta, ["error"])
+  end
+
+  defp extract_error(%Oban.Job{meta: meta, errors: errors}) do
+    get_in(meta, ["error"]) || format_errors(errors)
   end
 
   @spec duration(DateTime.t() | nil, DateTime.t() | nil) :: non_neg_integer() | nil

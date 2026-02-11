@@ -39,7 +39,7 @@ defmodule KsefHub.Invitations.InvitationTest do
       assert "can't be blank" in errors[:token_hash]
     end
 
-    test "validates role is accountant or invoice_reviewer" do
+    test "validates role is accountant or reviewer" do
       changeset =
         %Invitation{
           company_id: Ecto.UUID.generate(),
