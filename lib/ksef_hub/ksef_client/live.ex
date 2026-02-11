@@ -10,6 +10,10 @@ defmodule KsefHub.KsefClient.Live do
   @retry_count 2
   @retry_delay :timer.seconds(1)
 
+  # Proactive rate limit delays per KSeF guidelines
+  @query_delay_ms 500
+  @download_delay_ms 125
+
   defp base_url,
     do: Application.get_env(:ksef_hub, :ksef_api_url, "https://api-test.ksef.mf.gov.pl")
 
@@ -172,6 +176,8 @@ defmodule KsefHub.KsefClient.Live do
 
   @impl true
   def query_invoice_metadata(access_token, filters, opts \\ []) do
+    Process.sleep(@query_delay_ms)
+
     page_offset = Keyword.get(opts, :page_offset, 0)
     page_size = Keyword.get(opts, :page_size, 100)
 
@@ -211,6 +217,8 @@ defmodule KsefHub.KsefClient.Live do
 
   @impl true
   def download_invoice(access_token, ksef_number) do
+    Process.sleep(@download_delay_ms)
+
     url = api_url("/invoices/ksef/#{ksef_number}")
     headers = bearer_headers(access_token)
 

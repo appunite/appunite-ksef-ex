@@ -59,7 +59,7 @@ defmodule KsefHub.Sync.InvoiceFetcher do
 
       {:error, {:rate_limited, retry_after}} ->
         Logger.warning("Rate limited, waiting #{retry_after}s")
-        Process.sleep(retry_after * 1000 + :rand.uniform(1000))
+        KsefHub.KsefClient.RateLimiter.handle_rate_limit(retry_after)
         do_fetch(ctx, from, page_offset, count, failed, max_ts)
 
       {:error, reason} ->
