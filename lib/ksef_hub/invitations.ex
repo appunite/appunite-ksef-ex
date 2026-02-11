@@ -121,16 +121,31 @@ defmodule KsefHub.Invitations do
 
   @spec do_accept_invitation(Invitation.t(), User.t()) ::
           {:ok, %{invitation: Invitation.t(), membership: Membership.t()}}
+          | {:error, :not_found}
           | {:error, :already_member}
           | {:error, Ecto.Changeset.t()}
   defp do_accept_invitation(invitation, user) do
+    now = DateTime.utc_now() |> DateTime.truncate(:second)
+
     Multi.new()
     |> Multi.run(:check_membership, fn _repo, _changes ->
       if Companies.get_membership(user.id, invitation.company_id),
         do: {:error, :already_member},
         else: {:ok, :not_member}
     end)
-    |> Multi.update(:invitation, Ecto.Changeset.change(invitation, status: "accepted"))
+    |> Multi.run(:invitation, fn _repo, _changes ->
+      {count, _} =
+        from(i in Invitation,
+          where: i.id == ^invitation.id and i.status == "pending"
+        )
+        |> Repo.update_all(set: [status: "accepted", updated_at: now])
+
+      if count == 1 do
+        {:ok, Repo.get!(Invitation, invitation.id)}
+      else
+        {:error, :not_found}
+      end
+    end)
     |> Multi.insert(:membership, fn _changes ->
       %Membership{user_id: user.id, company_id: invitation.company_id}
       |> Membership.changeset(%{role: invitation.role})
@@ -142,6 +157,9 @@ defmodule KsefHub.Invitations do
 
       {:error, :check_membership, :already_member, _changes} ->
         {:error, :already_member}
+
+      {:error, :invitation, :not_found, _changes} ->
+        {:error, :not_found}
 
       {:error, _step, changeset, _changes} ->
         {:error, changeset}
