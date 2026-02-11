@@ -1,4 +1,11 @@
 defmodule KsefHubWeb.Api.TokenController do
+  @moduledoc """
+  REST API controller for token management.
+
+  All actions are scoped to the company associated with the authenticated API token.
+  Only company owners can create and revoke tokens.
+  """
+
   use KsefHubWeb, :controller
   use OpenApiSpex.ControllerSpecs
 
@@ -51,6 +58,7 @@ defmodule KsefHubWeb.Api.TokenController do
     responses: %{
       201 => {"Created token", "application/json", Schemas.TokenCreatedResponse},
       401 => {"Unauthorized", "application/json", Schemas.ErrorResponse},
+      403 => {"Forbidden", "application/json", Schemas.ErrorResponse},
       422 => {"Validation error", "application/json", Schemas.ErrorResponse}
     }
   )

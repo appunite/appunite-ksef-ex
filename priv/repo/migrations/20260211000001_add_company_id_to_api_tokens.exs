@@ -34,10 +34,10 @@ defmodule KsefHub.Repo.Migrations.AddCompanyIdToApiTokens do
   end
 
   def down do
-    drop index(:api_tokens, [:company_id])
-
-    alter table(:api_tokens) do
-      remove :company_id, references(:companies, type: :binary_id), null: true
-    end
+    raise Ecto.MigrationError,
+      message: """
+      Cannot reverse: data migration deactivated tokens without owner memberships.
+      Rolling back would leave those tokens inactive with no way to restore them.
+      """
   end
 end

@@ -164,7 +164,9 @@ defmodule KsefHubWeb.TokenLive do
         row_id={fn {id, _} -> id end}
         row_item={fn {_id, item} -> item end}
       >
-        <:col :let={token} label="Name">{token.name}</:col>
+        <:col :let={token} label="Name">
+          <span data-testid={"token-name-#{token.id}"}>{token.name}</span>
+        </:col>
         <:col :let={token} label="Prefix">
           <code class="font-mono text-sm">{token.token_prefix}****</code>
         </:col>

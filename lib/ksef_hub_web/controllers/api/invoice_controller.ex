@@ -1,4 +1,10 @@
 defmodule KsefHubWeb.Api.InvoiceController do
+  @moduledoc """
+  REST API controller for invoice operations.
+
+  All actions are scoped to the company associated with the authenticated API token.
+  """
+
   use KsefHubWeb, :controller
   use OpenApiSpex.ControllerSpecs
 

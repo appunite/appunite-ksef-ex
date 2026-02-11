@@ -34,19 +34,24 @@ defmodule KsefHubWeb.TokenLiveTest do
     end
 
     test "shows only tokens for current company", %{conn: conn, user: user, company: company} do
-      {:ok, _} =
+      {:ok, %{api_token: visible_token}} =
         Accounts.create_api_token(user.id, company.id, %{name: "This Company Token"})
 
       other_company = insert(:company)
       insert(:membership, user: user, company: other_company, role: "owner")
 
-      {:ok, _} =
+      {:ok, %{api_token: hidden_token}} =
         Accounts.create_api_token(user.id, other_company.id, %{name: "Other Company Token"})
 
-      {:ok, _view, html} = live(conn, ~p"/tokens")
+      {:ok, view, _html} = live(conn, ~p"/tokens")
 
-      assert html =~ "This Company Token"
-      refute html =~ "Other Company Token"
+      assert has_element?(
+               view,
+               "[data-testid='token-name-#{visible_token.id}']",
+               "This Company Token"
+             )
+
+      refute has_element?(view, "[data-testid='token-name-#{hidden_token.id}']")
     end
   end
 

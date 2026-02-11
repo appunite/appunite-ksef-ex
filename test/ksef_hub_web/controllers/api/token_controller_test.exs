@@ -2,26 +2,9 @@ defmodule KsefHubWeb.Api.TokenControllerTest do
   use KsefHubWeb.ConnCase, async: true
 
   import KsefHub.Factory
+  import KsefHubWeb.ApiTestHelpers
 
   alias KsefHub.Accounts
-
-  defp create_owner_with_token do
-    user = insert(:user, google_uid: "uid-#{System.unique_integer([:positive])}")
-    company = insert(:company)
-    insert(:membership, user: user, company: company, role: "owner")
-
-    {:ok, %{token: token}} =
-      Accounts.create_api_token(user.id, company.id, %{name: "API Token"})
-
-    %{user: user, company: company, token: token}
-  end
-
-  defp api_conn(conn, token) do
-    conn
-    |> put_req_header("authorization", "Bearer #{token}")
-    |> put_req_header("accept", "application/json")
-    |> put_req_header("content-type", "application/json")
-  end
 
   describe "index" do
     test "lists tokens for the token's company only", %{conn: conn} do
@@ -70,6 +53,29 @@ defmodule KsefHubWeb.Api.TokenControllerTest do
 
       assert conn.status == 422
     end
+
+    test "returns 403 when non-owner tries to create token", %{conn: conn} do
+      %{user: user, company: company, token: token} = create_owner_with_token()
+
+      # Demote from owner to accountant
+      membership =
+        KsefHub.Repo.get_by!(KsefHub.Companies.Membership,
+          user_id: user.id,
+          company_id: company.id
+        )
+
+      membership
+      |> Ecto.Changeset.change(role: "accountant")
+      |> KsefHub.Repo.update!()
+
+      conn =
+        conn
+        |> api_conn(token)
+        |> post("/api/tokens", %{name: "Should Fail"})
+
+      assert conn.status == 403
+      assert Jason.decode!(conn.resp_body)["error"] =~ "Only company owners"
+    end
   end
 
   describe "delete" do
@@ -111,7 +117,6 @@ defmodule KsefHubWeb.Api.TokenControllerTest do
         Accounts.create_api_token(owner.id, company.id, %{name: "Target Token"})
 
       # Create an accountant with a token for the same company
-      # (inserted directly via factory to bypass owner check)
       accountant = insert(:user, google_uid: "uid-#{System.unique_integer([:positive])}")
       insert(:membership, user: accountant, company: company, role: "accountant")
 

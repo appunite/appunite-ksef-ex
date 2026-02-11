@@ -2,25 +2,7 @@ defmodule KsefHubWeb.Api.InvoiceControllerTest do
   use KsefHubWeb.ConnCase, async: true
 
   import KsefHub.Factory
-
-  alias KsefHub.Accounts
-
-  defp create_owner_with_token do
-    user = insert(:user, google_uid: "uid-#{System.unique_integer([:positive])}")
-    company = insert(:company)
-    insert(:membership, user: user, company: company, role: "owner")
-
-    {:ok, %{token: token}} =
-      Accounts.create_api_token(user.id, company.id, %{name: "API Token"})
-
-    %{user: user, company: company, token: token}
-  end
-
-  defp api_conn(conn, token) do
-    conn
-    |> put_req_header("authorization", "Bearer #{token}")
-    |> put_req_header("accept", "application/json")
-  end
+  import KsefHubWeb.ApiTestHelpers
 
   describe "index" do
     test "returns invoices for the token's company without company_id param", %{conn: conn} do
@@ -80,6 +62,16 @@ defmodule KsefHubWeb.Api.InvoiceControllerTest do
       assert conn.status == 200
       assert Jason.decode!(conn.resp_body)["data"]["status"] == "approved"
     end
+
+    test "returns 404 when approving invoice from different company", %{conn: conn} do
+      %{token: token} = create_owner_with_token()
+      other_company = insert(:company)
+      invoice = insert(:invoice, company: other_company, type: "expense", status: "pending")
+
+      assert_error_sent 404, fn ->
+        conn |> api_conn(token) |> post("/api/invoices/#{invoice.id}/approve")
+      end
+    end
   end
 
   describe "reject" do
@@ -91,6 +83,16 @@ defmodule KsefHubWeb.Api.InvoiceControllerTest do
 
       assert conn.status == 200
       assert Jason.decode!(conn.resp_body)["data"]["status"] == "rejected"
+    end
+
+    test "returns 404 when rejecting invoice from different company", %{conn: conn} do
+      %{token: token} = create_owner_with_token()
+      other_company = insert(:company)
+      invoice = insert(:invoice, company: other_company, type: "expense", status: "pending")
+
+      assert_error_sent 404, fn ->
+        conn |> api_conn(token) |> post("/api/invoices/#{invoice.id}/reject")
+      end
     end
   end
 end

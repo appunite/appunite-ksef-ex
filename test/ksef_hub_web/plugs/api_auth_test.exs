@@ -1,24 +1,9 @@
 defmodule KsefHubWeb.Plugs.ApiAuthTest do
   use KsefHubWeb.ConnCase, async: true
 
-  import KsefHub.Factory
+  import KsefHubWeb.ApiTestHelpers
 
   alias KsefHub.Accounts
-
-  defp create_owner_with_token(attrs \\ %{}) do
-    user = insert(:user, google_uid: "uid-#{System.unique_integer([:positive])}")
-    company = insert(:company)
-    insert(:membership, user: user, company: company, role: "owner")
-
-    {:ok, result} =
-      Accounts.create_api_token(
-        user.id,
-        company.id,
-        Map.merge(%{name: "Test Token"}, attrs)
-      )
-
-    %{user: user, company: company, token: result.token, api_token: result.api_token}
-  end
 
   describe "ApiAuth plug" do
     test "assigns api_token and current_company for valid bearer token", %{conn: conn} do
@@ -26,8 +11,7 @@ defmodule KsefHubWeb.Plugs.ApiAuthTest do
 
       conn =
         conn
-        |> put_req_header("authorization", "Bearer #{token}")
-        |> put_req_header("accept", "application/json")
+        |> api_conn(token)
         |> get("/api/invoices")
 
       refute conn.status == 401
@@ -38,7 +22,7 @@ defmodule KsefHubWeb.Plugs.ApiAuthTest do
     test "rejects request without authorization header with WWW-Authenticate", %{conn: conn} do
       conn =
         conn
-        |> put_req_header("accept", "application/json")
+        |> Plug.Conn.put_req_header("accept", "application/json")
         |> get("/api/invoices")
 
       assert conn.status == 401
@@ -49,8 +33,7 @@ defmodule KsefHubWeb.Plugs.ApiAuthTest do
     test "rejects request with invalid token with WWW-Authenticate", %{conn: conn} do
       conn =
         conn
-        |> put_req_header("authorization", "Bearer invalid-token")
-        |> put_req_header("accept", "application/json")
+        |> api_conn("invalid-token")
         |> get("/api/invoices")
 
       assert conn.status == 401
@@ -63,8 +46,7 @@ defmodule KsefHubWeb.Plugs.ApiAuthTest do
 
       conn =
         conn
-        |> put_req_header("authorization", "Bearer #{token}")
-        |> put_req_header("accept", "application/json")
+        |> api_conn(token)
         |> get("/api/invoices")
 
       assert conn.status == 401
@@ -80,8 +62,7 @@ defmodule KsefHubWeb.Plugs.ApiAuthTest do
 
       conn =
         conn
-        |> put_req_header("authorization", "Bearer #{token}")
-        |> put_req_header("accept", "application/json")
+        |> api_conn(token)
         |> get("/api/invoices")
 
       assert conn.status == 401
@@ -91,8 +72,7 @@ defmodule KsefHubWeb.Plugs.ApiAuthTest do
       %{token: token, api_token: api_token} = create_owner_with_token(%{name: "Track Me"})
 
       conn
-      |> put_req_header("authorization", "Bearer #{token}")
-      |> put_req_header("accept", "application/json")
+      |> api_conn(token)
       |> get("/api/invoices")
 
       updated = KsefHub.Repo.get!(Accounts.ApiToken, api_token.id)
