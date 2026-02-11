@@ -32,44 +32,54 @@ defmodule KsefHub.XadesSigner.Xmlsec1 do
           password_args ++
           ["--output", signed_path, xml_path]
 
-      task =
-        Task.async(fn ->
-          try do
-            System.cmd("xmlsec1", args, stderr_to_stdout: true)
-          rescue
-            e in ErlangError ->
-              {:error, e}
-          end
-        end)
-
-      case Task.yield(task, 30_000) || Task.shutdown(task, :brutal_kill) do
-        {:ok, {_output, 0}} ->
-          {:ok, File.read!(signed_path)}
-
-        {:ok, {:error, %ErlangError{original: :enoent}}} ->
-          Logger.error(
-            "xmlsec1 not found. Install it: brew install xmlsec1 (macOS) or apt-get install xmlsec1 (Linux)"
-          )
-
-          {:error, {:xmlsec1_not_found, "xmlsec1 binary not found in PATH"}}
-
-        {:ok, {:error, %ErlangError{original: reason}}} ->
-          Logger.error("xmlsec1 failed to start: #{inspect(reason)}")
-          {:error, {:xmlsec1_failed, 0, inspect(reason)}}
-
-        {:ok, {output, exit_code}} ->
-          Logger.error("xmlsec1 failed (exit #{exit_code}): #{output}")
-          {:error, {:xmlsec1_failed, exit_code, output}}
-
-        nil ->
-          Logger.error("xmlsec1 timed out after 30s")
-          {:error, :timeout}
-      end
+      args
+      |> run_xmlsec1()
+      |> handle_result(signed_path)
     after
       cleanup_paths = [cert_path, xml_path, signed_path]
       cleanup_paths = if password_path, do: [password_path | cleanup_paths], else: cleanup_paths
       Enum.each(cleanup_paths, &SecureTemp.delete/1)
     end
+  end
+
+  @spec run_xmlsec1([String.t()]) :: term()
+  defp run_xmlsec1(args) do
+    task =
+      Task.async(fn ->
+        try do
+          System.cmd("xmlsec1", args, stderr_to_stdout: true)
+        rescue
+          e in ErlangError -> {:error, e}
+        end
+      end)
+
+    Task.yield(task, 30_000) || Task.shutdown(task, :brutal_kill)
+  end
+
+  @spec handle_result(term(), String.t()) :: {:ok, String.t()} | {:error, term()}
+  defp handle_result({:ok, {_output, 0}}, signed_path), do: {:ok, File.read!(signed_path)}
+
+  defp handle_result({:ok, {:error, %ErlangError{original: :enoent}}}, _signed_path) do
+    Logger.error(
+      "xmlsec1 not found. Install it: brew install xmlsec1 (macOS) or apt-get install xmlsec1 (Linux)"
+    )
+
+    {:error, {:xmlsec1_not_found, "xmlsec1 binary not found in PATH"}}
+  end
+
+  defp handle_result({:ok, {:error, %ErlangError{original: reason}}}, _signed_path) do
+    Logger.error("xmlsec1 failed to start: #{inspect(reason)}")
+    {:error, {:xmlsec1_failed, 0, inspect(reason)}}
+  end
+
+  defp handle_result({:ok, {output, exit_code}}, _signed_path) do
+    Logger.error("xmlsec1 failed (exit #{exit_code}): #{output}")
+    {:error, {:xmlsec1_failed, exit_code, output}}
+  end
+
+  defp handle_result(nil, _signed_path) do
+    Logger.error("xmlsec1 timed out after 30s")
+    {:error, :timeout}
   end
 
   # xmlsec1 >= 1.3 (xmlsec library 3.x) removed --pwd-file, only --pwd is available.
