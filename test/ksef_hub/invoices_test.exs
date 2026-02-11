@@ -149,7 +149,10 @@ defmodule KsefHub.InvoicesTest do
 
     test "paginates with default page 1 and per_page 25", %{company: company} do
       for i <- 1..30 do
-        insert(:invoice, company: company, invoice_number: "FV/#{String.pad_leading("#{i}", 3, "0")}")
+        insert(:invoice,
+          company: company,
+          invoice_number: "FV/#{String.pad_leading("#{i}", 3, "0")}"
+        )
       end
 
       result = Invoices.list_invoices(company.id)

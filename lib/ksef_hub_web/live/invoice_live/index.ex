@@ -233,7 +233,11 @@ defmodule KsefHubWeb.InvoiceLive.Index do
     </p>
 
     <!-- Pagination -->
-    <div :if={@total_pages > 1} class="flex items-center justify-between mt-6" data-testid="pagination">
+    <div
+      :if={@total_pages > 1}
+      class="flex items-center justify-between mt-6"
+      data-testid="pagination"
+    >
       <p class="text-sm text-base-content/60">
         Showing {(@page - 1) * @per_page + 1}–{min(@page * @per_page, @total_count)} of {@total_count} invoices
       </p>

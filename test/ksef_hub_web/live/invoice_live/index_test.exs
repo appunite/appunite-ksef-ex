@@ -78,7 +78,10 @@ defmodule KsefHubWeb.InvoiceLive.IndexTest do
   describe "pagination" do
     test "renders pagination controls when more than one page", %{conn: conn, company: company} do
       for i <- 1..30 do
-        insert(:invoice, company: company, invoice_number: "FV/#{String.pad_leading("#{i}", 3, "0")}")
+        insert(:invoice,
+          company: company,
+          invoice_number: "FV/#{String.pad_leading("#{i}", 3, "0")}"
+        )
       end
 
       {:ok, _view, html} = live(conn, ~p"/invoices")
@@ -96,7 +99,10 @@ defmodule KsefHubWeb.InvoiceLive.IndexTest do
 
     test "navigates to page 2", %{conn: conn, company: company} do
       for i <- 1..30 do
-        insert(:invoice, company: company, invoice_number: "FV/#{String.pad_leading("#{i}", 3, "0")}")
+        insert(:invoice,
+          company: company,
+          invoice_number: "FV/#{String.pad_leading("#{i}", 3, "0")}"
+        )
       end
 
       {:ok, view, _html} = live(conn, ~p"/invoices?page=2")
