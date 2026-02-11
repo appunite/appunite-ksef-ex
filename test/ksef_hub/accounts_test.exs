@@ -4,15 +4,30 @@ defmodule KsefHub.AccountsTest do
   import KsefHub.Factory
 
   alias KsefHub.Accounts
-  alias KsefHub.Accounts.{ApiToken, User, UserToken}
+  alias KsefHub.Accounts.ApiToken
+  alias KsefHub.Accounts.UserToken
 
   defp create_user do
     insert(:user, google_uid: "uid-#{System.unique_integer([:positive])}")
   end
 
+  defp create_owner_with_company do
+    user = create_user()
+    company = insert(:company)
+    insert(:membership, user: user, company: company, role: "owner")
+    {user, company}
+  end
+
   defp create_api_token(user \\ nil, attrs \\ %{}) do
     user = user || create_user()
     {:ok, result} = Accounts.create_api_token(user.id, Map.merge(%{name: "Test Token"}, attrs))
+    result
+  end
+
+  defp create_company_api_token(user, company, attrs \\ %{}) do
+    {:ok, result} =
+      Accounts.create_api_token(user.id, company.id, Map.merge(%{name: "Test Token"}, attrs))
+
     result
   end
 
@@ -326,6 +341,103 @@ defmodule KsefHub.AccountsTest do
       updated = Repo.get!(ApiToken, api_token.id)
       assert updated.request_count == 1
       assert updated.last_used_at != nil
+    end
+  end
+
+  describe "company-scoped api_tokens" do
+    test "create_api_token/3 creates token scoped to company for owner" do
+      {user, company} = create_owner_with_company()
+
+      assert {:ok, %{token: token, api_token: api_token}} =
+               Accounts.create_api_token(user.id, company.id, %{name: "Company Token"})
+
+      assert is_binary(token)
+      assert api_token.company_id == company.id
+      assert api_token.created_by_id == user.id
+      assert api_token.name == "Company Token"
+    end
+
+    test "create_api_token/3 rejects non-owner" do
+      user = create_user()
+      company = insert(:company)
+      insert(:membership, user: user, company: company, role: "accountant")
+
+      assert {:error, :unauthorized} =
+               Accounts.create_api_token(user.id, company.id, %{name: "Nope"})
+    end
+
+    test "create_api_token/3 rejects user with no membership" do
+      user = create_user()
+      company = insert(:company)
+
+      assert {:error, :unauthorized} =
+               Accounts.create_api_token(user.id, company.id, %{name: "Nope"})
+    end
+
+    test "validate_api_token/1 returns token with company preloaded" do
+      {user, company} = create_owner_with_company()
+      %{token: plain_token} = create_company_api_token(user, company)
+
+      assert {:ok, %ApiToken{} = found} = Accounts.validate_api_token(plain_token)
+      assert found.company_id == company.id
+      assert found.company.id == company.id
+    end
+
+    test "list_api_tokens/2 returns tokens scoped to user + company" do
+      {user, company1} = create_owner_with_company()
+      company2 = insert(:company)
+      insert(:membership, user: user, company: company2, role: "owner")
+
+      create_company_api_token(user, company1, %{name: "Company1 Token"})
+      create_company_api_token(user, company2, %{name: "Company2 Token"})
+
+      tokens = Accounts.list_api_tokens(user.id, company1.id)
+      assert length(tokens) == 1
+      assert hd(tokens).name == "Company1 Token"
+      assert Enum.all?(tokens, &(&1.token_hash == "**redacted**"))
+    end
+
+    test "list_api_tokens/2 does not return other users' tokens for the same company" do
+      {user1, company} = create_owner_with_company()
+      user2 = create_user()
+      insert(:membership, user: user2, company: company, role: "owner")
+
+      create_company_api_token(user1, company, %{name: "User1 Token"})
+      create_company_api_token(user2, company, %{name: "User2 Token"})
+
+      tokens = Accounts.list_api_tokens(user1.id, company.id)
+      assert length(tokens) == 1
+      assert hd(tokens).name == "User1 Token"
+    end
+
+    test "revoke_api_token/3 revokes token scoped to user + company" do
+      {user, company} = create_owner_with_company()
+      %{api_token: api_token} = create_company_api_token(user, company)
+
+      assert {:ok, revoked} = Accounts.revoke_api_token(user.id, company.id, api_token.id)
+      assert revoked.is_active == false
+    end
+
+    test "revoke_api_token/3 rejects token from different company" do
+      {user, company1} = create_owner_with_company()
+      company2 = insert(:company)
+      insert(:membership, user: user, company: company2, role: "owner")
+
+      %{api_token: api_token} = create_company_api_token(user, company1)
+
+      assert {:error, :not_found} =
+               Accounts.revoke_api_token(user.id, company2.id, api_token.id)
+    end
+
+    test "revoke_api_token/3 rejects another user's token" do
+      {user1, company} = create_owner_with_company()
+      user2 = create_user()
+      insert(:membership, user: user2, company: company, role: "owner")
+
+      %{api_token: api_token} = create_company_api_token(user1, company)
+
+      assert {:error, :not_found} =
+               Accounts.revoke_api_token(user2.id, company.id, api_token.id)
     end
   end
 end
