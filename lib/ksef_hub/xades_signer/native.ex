@@ -242,16 +242,16 @@ defmodule KsefHub.XadesSigner.Native do
 
   @spec build_signed_properties(String.t(), map()) :: String.t()
   defp build_signed_properties(signing_time, cert_meta) do
-    "<xades:SignedProperties" <>
-      " xmlns:ds=\"http://www.w3.org/2000/09/xmldsig#\"" <>
-      " xmlns:xades=\"http://uri.etsi.org/01903/v1.3.2#\"" <>
-      " Id=\"SignedProps-1\">" <>
+    ~s(<xades:SignedProperties) <>
+      ~s( xmlns:ds="http://www.w3.org/2000/09/xmldsig#") <>
+      ~s( xmlns:xades="http://uri.etsi.org/01903/v1.3.2#") <>
+      ~s( Id="SignedProps-1">) <>
       "<xades:SignedSignatureProperties>" <>
       "<xades:SigningTime>#{signing_time}</xades:SigningTime>" <>
       "<xades:SigningCertificate>" <>
       "<xades:Cert>" <>
       "<xades:CertDigest>" <>
-      "<ds:DigestMethod Algorithm=\"http://www.w3.org/2001/04/xmlenc#sha256\"></ds:DigestMethod>" <>
+      ~s(<ds:DigestMethod Algorithm="http://www.w3.org/2001/04/xmlenc#sha256"></ds:DigestMethod>) <>
       "<ds:DigestValue>#{cert_meta.digest_b64}</ds:DigestValue>" <>
       "</xades:CertDigest>" <>
       "<xades:IssuerSerial>" <>
@@ -266,22 +266,22 @@ defmodule KsefHub.XadesSigner.Native do
 
   @spec build_signed_info(String.t(), String.t()) :: String.t()
   defp build_signed_info(body_digest_b64, props_digest_b64) do
-    "<ds:SignedInfo xmlns:ds=\"http://www.w3.org/2000/09/xmldsig#\">" <>
-      "<ds:CanonicalizationMethod Algorithm=\"http://www.w3.org/2001/10/xml-exc-c14n#\"></ds:CanonicalizationMethod>" <>
-      "<ds:SignatureMethod Algorithm=\"http://www.w3.org/2001/04/xmldsig-more#ecdsa-sha256\"></ds:SignatureMethod>" <>
-      "<ds:Reference URI=\"\">" <>
+    ~s(<ds:SignedInfo xmlns:ds="http://www.w3.org/2000/09/xmldsig#">) <>
+      ~s(<ds:CanonicalizationMethod Algorithm="http://www.w3.org/2001/10/xml-exc-c14n#"></ds:CanonicalizationMethod>) <>
+      ~s(<ds:SignatureMethod Algorithm="http://www.w3.org/2001/04/xmldsig-more#ecdsa-sha256"></ds:SignatureMethod>) <>
+      ~s(<ds:Reference URI="">) <>
       "<ds:Transforms>" <>
-      "<ds:Transform Algorithm=\"http://www.w3.org/2000/09/xmldsig#enveloped-signature\"></ds:Transform>" <>
-      "<ds:Transform Algorithm=\"http://www.w3.org/2001/10/xml-exc-c14n#\"></ds:Transform>" <>
+      ~s(<ds:Transform Algorithm="http://www.w3.org/2000/09/xmldsig#enveloped-signature"></ds:Transform>) <>
+      ~s(<ds:Transform Algorithm="http://www.w3.org/2001/10/xml-exc-c14n#"></ds:Transform>) <>
       "</ds:Transforms>" <>
-      "<ds:DigestMethod Algorithm=\"http://www.w3.org/2001/04/xmlenc#sha256\"></ds:DigestMethod>" <>
+      ~s(<ds:DigestMethod Algorithm="http://www.w3.org/2001/04/xmlenc#sha256"></ds:DigestMethod>) <>
       "<ds:DigestValue>#{body_digest_b64}</ds:DigestValue>" <>
       "</ds:Reference>" <>
-      "<ds:Reference Type=\"http://uri.etsi.org/01903#SignedProperties\" URI=\"#SignedProps-1\">" <>
+      ~s(<ds:Reference Type="http://uri.etsi.org/01903#SignedProperties" URI="#SignedProps-1">) <>
       "<ds:Transforms>" <>
-      "<ds:Transform Algorithm=\"http://www.w3.org/2001/10/xml-exc-c14n#\"></ds:Transform>" <>
+      ~s(<ds:Transform Algorithm="http://www.w3.org/2001/10/xml-exc-c14n#"></ds:Transform>) <>
       "</ds:Transforms>" <>
-      "<ds:DigestMethod Algorithm=\"http://www.w3.org/2001/04/xmlenc#sha256\"></ds:DigestMethod>" <>
+      ~s(<ds:DigestMethod Algorithm="http://www.w3.org/2001/04/xmlenc#sha256"></ds:DigestMethod>) <>
       "<ds:DigestValue>#{props_digest_b64}</ds:DigestValue>" <>
       "</ds:Reference>" <>
       "</ds:SignedInfo>"
@@ -292,22 +292,23 @@ defmodule KsefHub.XadesSigner.Native do
   defp assemble_signed_xml(challenge, nip, signed_info_xml, signature_b64, cert_meta, props_xml) do
     # Remove the xmlns:ds from SignedInfo for the assembled document
     # (it will be on the parent ds:Signature element instead)
-    inner_signed_info = String.replace(signed_info_xml, " xmlns:ds=\"http://www.w3.org/2000/09/xmldsig#\"", "")
+    inner_signed_info =
+      String.replace(signed_info_xml, ~s( xmlns:ds="http://www.w3.org/2000/09/xmldsig#"), "")
 
     # Remove namespace declarations from SignedProperties for embedded form
     inner_props =
       props_xml
-      |> String.replace(" xmlns:ds=\"http://www.w3.org/2000/09/xmldsig#\"", "")
-      |> String.replace(" xmlns:xades=\"http://uri.etsi.org/01903/v1.3.2#\"", "")
+      |> String.replace(~s( xmlns:ds="http://www.w3.org/2000/09/xmldsig#"), "")
+      |> String.replace(~s( xmlns:xades="http://uri.etsi.org/01903/v1.3.2#"), "")
 
-    "<?xml version=\"1.0\" encoding=\"UTF-8\"?>" <>
-      "<AuthTokenRequest xmlns=\"http://ksef.mf.gov.pl/auth/token/2.0\">" <>
+    ~s(<?xml version="1.0" encoding="UTF-8"?>) <>
+      ~s(<AuthTokenRequest xmlns="http://ksef.mf.gov.pl/auth/token/2.0">) <>
       "<Challenge>#{escape_xml(challenge)}</Challenge>" <>
       "<ContextIdentifier>" <>
       "<Nip>#{escape_xml(nip)}</Nip>" <>
       "</ContextIdentifier>" <>
       "<SubjectIdentifierType>certificateSubject</SubjectIdentifierType>" <>
-      "<ds:Signature xmlns:ds=\"http://www.w3.org/2000/09/xmldsig#\" xmlns:xades=\"http://uri.etsi.org/01903/v1.3.2#\" Id=\"Signature\">" <>
+      ~s(<ds:Signature xmlns:ds="http://www.w3.org/2000/09/xmldsig#" xmlns:xades="http://uri.etsi.org/01903/v1.3.2#" Id="Signature">) <>
       inner_signed_info <>
       "<ds:SignatureValue>#{signature_b64}</ds:SignatureValue>" <>
       "<ds:KeyInfo>" <>
@@ -316,7 +317,7 @@ defmodule KsefHub.XadesSigner.Native do
       "</ds:X509Data>" <>
       "</ds:KeyInfo>" <>
       "<ds:Object>" <>
-      "<xades:QualifyingProperties Target=\"#Signature\">" <>
+      ~s(<xades:QualifyingProperties Target="#Signature">) <>
       inner_props <>
       "</xades:QualifyingProperties>" <>
       "</ds:Object>" <>

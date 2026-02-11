@@ -153,7 +153,8 @@ defmodule KsefHub.XadesSigner.NativeTest do
 
     try do
       # Generate EC P-256 private key
-      {_, 0} = System.cmd("openssl", ["ecparam", "-genkey", "-name", "prime256v1", "-out", key_path])
+      {_, 0} =
+        System.cmd("openssl", ["ecparam", "-genkey", "-name", "prime256v1", "-out", key_path])
 
       # Generate self-signed certificate
       {_, 0} =
