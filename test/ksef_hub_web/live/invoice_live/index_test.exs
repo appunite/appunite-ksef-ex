@@ -74,4 +74,54 @@ defmodule KsefHubWeb.InvoiceLive.IndexTest do
       assert_patched(view, "/invoices?type=income")
     end
   end
+
+  describe "pagination" do
+    test "renders pagination controls when more than one page", %{conn: conn, company: company} do
+      for i <- 1..30 do
+        insert(:invoice, company: company, invoice_number: "FV/#{String.pad_leading("#{i}", 3, "0")}")
+      end
+
+      {:ok, _view, html} = live(conn, ~p"/invoices")
+      assert html =~ "data-testid=\"pagination\""
+      assert html =~ "Showing 1"
+      assert html =~ "of 30 invoices"
+    end
+
+    test "does not render pagination controls for single page", %{conn: conn, company: company} do
+      insert(:invoice, company: company)
+
+      {:ok, _view, html} = live(conn, ~p"/invoices")
+      refute html =~ "data-testid=\"pagination\""
+    end
+
+    test "navigates to page 2", %{conn: conn, company: company} do
+      for i <- 1..30 do
+        insert(:invoice, company: company, invoice_number: "FV/#{String.pad_leading("#{i}", 3, "0")}")
+      end
+
+      {:ok, view, _html} = live(conn, ~p"/invoices?page=2")
+      html = render(view)
+      assert html =~ "Showing 26"
+      assert html =~ "of 30 invoices"
+    end
+
+    test "filter change resets to page 1", %{conn: conn, company: company} do
+      for i <- 1..30 do
+        insert(:invoice,
+          company: company,
+          type: "income",
+          invoice_number: "FV/#{String.pad_leading("#{i}", 3, "0")}"
+        )
+      end
+
+      {:ok, view, _html} = live(conn, ~p"/invoices?page=2")
+
+      view
+      |> element("form[phx-change=filter]")
+      |> render_change(%{"type" => "income"})
+
+      # Should not include page param (defaults to page 1)
+      assert_patched(view, "/invoices?type=income")
+    end
+  end
 end

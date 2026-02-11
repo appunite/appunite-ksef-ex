@@ -26,7 +26,49 @@ defmodule KsefHubWeb.Api.InvoiceControllerTest do
       conn = conn |> api_conn(token) |> get("/api/invoices")
 
       assert conn.status == 200
-      assert Jason.decode!(conn.resp_body)["data"] == []
+      body = Jason.decode!(conn.resp_body)
+      assert body["data"] == []
+      assert body["meta"]["total_count"] == 0
+    end
+
+    test "returns paginated response with meta", %{conn: conn} do
+      %{company: company, token: token} = create_owner_with_token()
+
+      for i <- 1..5 do
+        insert(:invoice, company: company, invoice_number: "FV/#{i}")
+      end
+
+      conn = conn |> api_conn(token) |> get("/api/invoices?page=1&per_page=2")
+
+      assert conn.status == 200
+      body = Jason.decode!(conn.resp_body)
+      assert length(body["data"]) == 2
+      assert body["meta"]["page"] == 1
+      assert body["meta"]["per_page"] == 2
+      assert body["meta"]["total_count"] == 5
+      assert body["meta"]["total_pages"] == 3
+    end
+
+    test "defaults to page 1 per_page 25", %{conn: conn} do
+      %{company: company, token: token} = create_owner_with_token()
+      insert(:invoice, company: company)
+
+      conn = conn |> api_conn(token) |> get("/api/invoices")
+
+      body = Jason.decode!(conn.resp_body)
+      assert body["meta"]["page"] == 1
+      assert body["meta"]["per_page"] == 25
+    end
+
+    test "does not include xml_content in list response", %{conn: conn} do
+      %{company: company, token: token} = create_owner_with_token()
+      insert(:invoice, company: company, xml_content: "<xml>data</xml>")
+
+      conn = conn |> api_conn(token) |> get("/api/invoices")
+
+      body = Jason.decode!(conn.resp_body)
+      invoice = hd(body["data"])
+      refute Map.has_key?(invoice, "xml_content")
     end
   end
 
