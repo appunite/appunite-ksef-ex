@@ -37,10 +37,10 @@ defmodule KsefHubWeb.RoleBasedNavTest do
       refute has_element?(view, "a[href='/tokens']")
     end
 
-    test "invoice_reviewer does not see Certificates or API Tokens nav items", %{conn: conn} do
+    test "reviewer does not see Certificates or API Tokens nav items", %{conn: conn} do
       user = insert(:user)
       company = insert(:company)
-      insert(:membership, user: user, company: company, role: "invoice_reviewer")
+      insert(:membership, user: user, company: company, role: "reviewer")
 
       {:ok, view, _html} =
         conn

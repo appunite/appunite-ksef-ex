@@ -94,12 +94,12 @@ defmodule KsefHubWeb.TeamLiveTest do
       {:ok, _} =
         Invitations.create_invitation(owner.id, company.id, %{
           email: "pending@example.com",
-          role: "invoice_reviewer"
+          role: "reviewer"
         })
 
       {:ok, view, _html} = live(conn, ~p"/team")
       assert has_element?(view, "[data-testid='pending-invitations'] td", "pending@example.com")
-      assert has_element?(view, "[data-testid='pending-invitations'] .badge", "invoice_reviewer")
+      assert has_element?(view, "[data-testid='pending-invitations'] .badge", "reviewer")
     end
 
     test "owner can cancel pending invitation", %{conn: conn, company: company, owner: owner} do

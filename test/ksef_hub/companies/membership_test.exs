@@ -52,7 +52,7 @@ defmodule KsefHub.Companies.MembershipTest do
       user = insert(:user)
       company = insert(:company)
 
-      for role <- ~w(owner accountant invoice_reviewer) do
+      for role <- ~w(owner accountant reviewer) do
         changeset =
           %Membership{user_id: user.id, company_id: company.id}
           |> Membership.changeset(%{role: role})

@@ -195,10 +195,10 @@ defmodule KsefHubWeb.TeamLive do
               field={@invite_form[:role]}
               type="select"
               label="Role"
-              options={[{"Accountant", "accountant"}, {"Invoice Reviewer", "invoice_reviewer"}]}
+              options={[{"Accountant", "accountant"}, {"Reviewer", "reviewer"}]}
             />
           </div>
-          <button type="submit" class="btn btn-primary">
+          <button type="submit" class="btn btn-primary mb-2">
             <.icon name="hero-paper-airplane" class="size-4" /> Invite
           </button>
         </.form>
