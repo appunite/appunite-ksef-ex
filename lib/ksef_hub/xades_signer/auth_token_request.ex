@@ -1,11 +1,16 @@
 defmodule KsefHub.XadesSigner.AuthTokenRequest do
   @moduledoc """
   Builds the AuthTokenRequest XML document for KSeF v2 XADES authentication.
-  This XML includes a ds:Signature template that xmlsec1 fills in during signing.
+
+  Provides two builders:
+  - `build/2` — full XML with `<ds:Signature>` template (for xmlsec1 CLI signer)
+  - `build_body/2` — canonical body XML without signature (for Native Elixir signer)
   """
 
   @doc """
   Builds an AuthTokenRequest XML string with an enveloped signature template.
+
+  Used by the `Xmlsec1` signer which fills in the template during signing.
   """
   @spec build(String.t(), String.t()) :: String.t()
   def build(challenge, nip) do
@@ -39,6 +44,27 @@ defmodule KsefHub.XadesSigner.AuthTokenRequest do
       </ds:Signature>
     </AuthTokenRequest>
     """
+  end
+
+  @doc """
+  Builds the canonical AuthTokenRequest body XML without signature or XML declaration.
+
+  This is the document content that gets digested per the enveloped-signature transform:
+  the full `<AuthTokenRequest>` element with its children, but without any `<ds:Signature>`
+  element and without the `<?xml ...?>` declaration.
+
+  Canonical form: no extra whitespace between tags, explicit close tags.
+  Used by the `Native` Elixir signer.
+  """
+  @spec build_body(String.t(), String.t()) :: String.t()
+  def build_body(challenge, nip) do
+    "<AuthTokenRequest xmlns=\"http://ksef.mf.gov.pl/auth/token/2.0\">" <>
+      "<Challenge>#{escape_xml(challenge)}</Challenge>" <>
+      "<ContextIdentifier>" <>
+      "<Nip>#{escape_xml(nip)}</Nip>" <>
+      "</ContextIdentifier>" <>
+      "<SubjectIdentifierType>certificateSubject</SubjectIdentifierType>" <>
+      "</AuthTokenRequest>"
   end
 
   @spec escape_xml(String.t()) :: String.t()
