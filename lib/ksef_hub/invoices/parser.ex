@@ -15,16 +15,16 @@ defmodule KsefHub.Invoices.Parser do
 
     {:ok,
      %{
-       invoice_number: xpath(doc, ~x"//P_2/text()"s),
-       issue_date: xpath(doc, ~x"//P_1/text()"s) |> parse_date(),
-       seller_nip: xpath(doc, ~x"//Podmiot1//NIP/text()"s),
+       invoice_number: xpath(doc, ~x"//*[local-name()='P_2']/text()"s),
+       issue_date: xpath(doc, ~x"//*[local-name()='P_1']/text()"s) |> parse_date(),
+       seller_nip: xpath(doc, ~x"//*[local-name()='Podmiot1']//*[local-name()='NIP']/text()"s),
        seller_name: extract_name(doc, "Podmiot1"),
-       buyer_nip: xpath(doc, ~x"//Podmiot2//NIP/text()"s),
+       buyer_nip: xpath(doc, ~x"//*[local-name()='Podmiot2']//*[local-name()='NIP']/text()"s),
        buyer_name: extract_name(doc, "Podmiot2"),
-       net_amount: xpath(doc, ~x"//P_13_1/text()"s) |> parse_decimal(),
-       vat_amount: xpath(doc, ~x"//P_14_1/text()"s) |> parse_decimal(),
-       gross_amount: xpath(doc, ~x"//P_15/text()"s) |> parse_decimal(),
-       currency: xpath(doc, ~x"//KodWaluty/text()"s) |> default_currency(),
+       net_amount: xpath(doc, ~x"//*[local-name()='P_13_1']/text()"s) |> parse_decimal(),
+       vat_amount: xpath(doc, ~x"//*[local-name()='P_14_1']/text()"s) |> parse_decimal(),
+       gross_amount: xpath(doc, ~x"//*[local-name()='P_15']/text()"s) |> parse_decimal(),
+       currency: xpath(doc, ~x"//*[local-name()='KodWaluty']/text()"s) |> default_currency(),
        line_items: parse_line_items(doc)
      }}
   rescue
@@ -51,29 +51,29 @@ defmodule KsefHub.Invoices.Parser do
 
   defp extract_name(doc, subject) do
     # Try Nazwa first (company), then personal name fields
-    name = xpath(doc, ~x"//#{subject}//Nazwa/text()"s)
+    name = xpath(doc, ~x"//*[local-name()='#{subject}']//*[local-name()='Nazwa']/text()"s)
 
     if name != "" do
       name
     else
-      first = xpath(doc, ~x"//#{subject}//ImiePierwsze/text()"s)
-      last = xpath(doc, ~x"//#{subject}//Nazwisko/text()"s)
+      first = xpath(doc, ~x"//*[local-name()='#{subject}']//*[local-name()='ImiePierwsze']/text()"s)
+      last = xpath(doc, ~x"//*[local-name()='#{subject}']//*[local-name()='Nazwisko']/text()"s)
       String.trim("#{first} #{last}")
     end
   end
 
   defp parse_line_items(doc) do
     doc
-    |> xpath(~x"//FaWiersz"l)
+    |> xpath(~x"//*[local-name()='FaWiersz']"l)
     |> Enum.map(fn item ->
       %{
-        line_number: xpath(item, ~x"./NrWierszaFa/text()"s) |> parse_integer(),
-        description: xpath(item, ~x"./P_7/text()"s),
-        unit: xpath(item, ~x"./P_8A/text()"s),
-        quantity: xpath(item, ~x"./P_8B/text()"s) |> parse_decimal(),
-        unit_price: xpath(item, ~x"./P_9A/text()"s) |> parse_decimal(),
-        net_amount: xpath(item, ~x"./P_11/text()"s) |> parse_decimal(),
-        vat_rate: xpath(item, ~x"./P_12/text()"s) |> parse_decimal()
+        line_number: xpath(item, ~x"./*[local-name()='NrWierszaFa']/text()"s) |> parse_integer(),
+        description: xpath(item, ~x"./*[local-name()='P_7']/text()"s),
+        unit: xpath(item, ~x"./*[local-name()='P_8A']/text()"s),
+        quantity: xpath(item, ~x"./*[local-name()='P_8B']/text()"s) |> parse_decimal(),
+        unit_price: xpath(item, ~x"./*[local-name()='P_9A']/text()"s) |> parse_decimal(),
+        net_amount: xpath(item, ~x"./*[local-name()='P_11']/text()"s) |> parse_decimal(),
+        vat_rate: xpath(item, ~x"./*[local-name()='P_12']/text()"s) |> parse_decimal()
       }
     end)
   end
