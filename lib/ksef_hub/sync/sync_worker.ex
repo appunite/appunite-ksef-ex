@@ -72,6 +72,10 @@ defmodule KsefHub.Sync.SyncWorker do
     end
   end
 
+  @spec handle_sync_result(
+          {:ok, :full} | {:ok, :partial, map()} | {:error, term()},
+          Credentials.Credential.t()
+        ) :: :ok | {:error, term()}
   defp handle_sync_result({:ok, :full}, credential) do
     case Credentials.update_last_sync(credential) do
       {:ok, _} -> :ok
@@ -82,10 +86,13 @@ defmodule KsefHub.Sync.SyncWorker do
   defp handle_sync_result({:ok, :partial, _details}, _credential), do: :ok
   defp handle_sync_result({:error, reason}, _credential), do: {:error, reason}
 
+  @spec get_access_token(Ecto.UUID.t()) :: {:ok, String.t()} | {:error, term()}
   defp get_access_token(company_id) do
     TokenManager.ensure_access_token(company_id)
   end
 
+  @spec sync_all_types(String.t(), String.t(), Ecto.UUID.t(), Oban.Job.t()) ::
+          {:ok, :full} | {:ok, :partial, map()} | {:error, term()}
   defp sync_all_types(access_token, nip, company_id, job) do
     income_result = sync_type(access_token, "income", nip, company_id)
     expense_result = sync_type(access_token, "expense", nip, company_id)
@@ -161,6 +168,7 @@ defmodule KsefHub.Sync.SyncWorker do
     end
   end
 
+  @spec broadcast_sync_completed(Ecto.UUID.t(), map()) :: :ok
   defp broadcast_sync_completed(company_id, stats) do
     case Phoenix.PubSub.broadcast(
            KsefHub.PubSub,
@@ -176,6 +184,8 @@ defmodule KsefHub.Sync.SyncWorker do
     end
   end
 
+  @spec sync_type(String.t(), String.t(), String.t(), Ecto.UUID.t()) ::
+          {:ok, non_neg_integer(), non_neg_integer()} | {:error, term()}
   defp sync_type(access_token, type, nip, company_id) do
     checkpoint = Checkpoints.get_or_init(type, company_id)
 
@@ -203,6 +213,7 @@ defmodule KsefHub.Sync.SyncWorker do
     end
   end
 
+  @spec store_meta(Oban.Job.t(), map()) :: :ok | {non_neg_integer(), nil}
   defp store_meta(%Oban.Job{id: id}, attrs) when is_integer(id) do
     import Ecto.Query, only: [where: 2]
 

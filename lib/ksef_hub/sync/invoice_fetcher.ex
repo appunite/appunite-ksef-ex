@@ -12,6 +12,7 @@ defmodule KsefHub.Sync.InvoiceFetcher do
   @overlap_minutes 10
   @max_pages 100
 
+  @spec ksef_client() :: module()
   defp ksef_client, do: Application.get_env(:ksef_hub, :ksef_client, KsefHub.KsefClient.Live)
 
   @doc """
@@ -27,6 +28,15 @@ defmodule KsefHub.Sync.InvoiceFetcher do
     do_fetch(ctx, from, 0, 0, 0, nil)
   end
 
+  @spec do_fetch(
+          map(),
+          DateTime.t(),
+          non_neg_integer(),
+          non_neg_integer(),
+          non_neg_integer(),
+          DateTime.t() | nil
+        ) ::
+          {:ok, non_neg_integer(), DateTime.t() | nil, non_neg_integer()} | {:error, term()}
   defp do_fetch(_ctx, _from, page, count, failed, max_ts) when page >= @max_pages do
     Logger.warning("Sync hit max page limit (#{@max_pages})")
     {:ok, count, max_ts, failed}
@@ -57,6 +67,8 @@ defmodule KsefHub.Sync.InvoiceFetcher do
     end
   end
 
+  @spec decide_next_action(map(), DateTime.t() | nil, DateTime.t() | nil) ::
+          :narrow_range | :truncation_no_progress | :next_page | :done
   defp decide_next_action(%{is_truncated: true, has_more: true}, new_max_ts, old_max_ts)
        when new_max_ts == nil or new_max_ts == old_max_ts do
     :narrow_range
@@ -71,6 +83,16 @@ defmodule KsefHub.Sync.InvoiceFetcher do
   defp decide_next_action(%{has_more: true}, _new_max_ts, _old_max_ts), do: :next_page
   defp decide_next_action(_result, _new_max_ts, _old_max_ts), do: :done
 
+  @spec handle_next_action(
+          atom(),
+          map(),
+          DateTime.t(),
+          non_neg_integer(),
+          non_neg_integer(),
+          non_neg_integer(),
+          DateTime.t() | nil
+        ) ::
+          {:ok, non_neg_integer(), DateTime.t() | nil, non_neg_integer()} | {:error, term()}
   defp handle_next_action(:truncation_no_progress, _ctx, _from, _offset, _count, _failed, _max_ts) do
     Logger.error("Truncated response with no forward progress, aborting sync")
     {:error, :truncation_no_progress}
@@ -93,6 +115,8 @@ defmodule KsefHub.Sync.InvoiceFetcher do
     {:ok, count, max_ts, failed}
   end
 
+  @spec process_invoices(map(), [map()], non_neg_integer(), non_neg_integer(), DateTime.t() | nil) ::
+          {non_neg_integer(), non_neg_integer(), DateTime.t() | nil}
   defp process_invoices(ctx, headers, count, failed, max_ts) do
     Enum.reduce(headers, {count, failed, max_ts}, fn header,
                                                      {acc_count, acc_failed, acc_max_ts} ->
@@ -110,6 +134,8 @@ defmodule KsefHub.Sync.InvoiceFetcher do
     end)
   end
 
+  @spec download_and_upsert(map(), String.t() | nil, map()) ::
+          {:ok, Invoices.Invoice.t()} | {:error, term()}
   defp download_and_upsert(ctx, ksef_number, header) do
     with {:ok, xml} <- ksef_client().download_invoice(ctx.token, ksef_number),
          {:ok, parsed} <- Parser.parse(xml) do
@@ -130,6 +156,7 @@ defmodule KsefHub.Sync.InvoiceFetcher do
     end
   end
 
+  @spec parse_header_date(String.t() | nil) :: DateTime.t() | nil
   defp parse_header_date(nil), do: nil
 
   defp parse_header_date(str) do
@@ -139,6 +166,7 @@ defmodule KsefHub.Sync.InvoiceFetcher do
     end
   end
 
+  @spec pick_max_timestamp(DateTime.t() | nil, DateTime.t() | nil) :: DateTime.t() | nil
   defp pick_max_timestamp(nil, new), do: new
   defp pick_max_timestamp(old, nil), do: old
 

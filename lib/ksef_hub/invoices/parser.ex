@@ -51,6 +51,7 @@ defmodule KsefHub.Invoices.Parser do
 
   # --- Private ---
 
+  @spec extract_name(term(), String.t()) :: String.t()
   defp extract_name(doc, subject) do
     # Try Nazwa first (company), then personal name fields
     name = xpath(doc, ~x"//*[local-name()='#{subject}']//*[local-name()='Nazwa']/text()"s)
@@ -61,11 +62,14 @@ defmodule KsefHub.Invoices.Parser do
       first =
         xpath(doc, ~x"//*[local-name()='#{subject}']//*[local-name()='ImiePierwsze']/text()"s)
 
-      last = xpath(doc, ~x"//*[local-name()='#{subject}']//*[local-name()='Nazwisko']/text()"s)
+      last =
+        xpath(doc, ~x"//*[local-name()='#{subject}']//*[local-name()='Nazwisko']/text()"s)
+
       String.trim("#{first} #{last}")
     end
   end
 
+  @spec parse_line_items(term()) :: [map()]
   defp parse_line_items(doc) do
     doc
     |> xpath(~x"//*[local-name()='FaWiersz']"l)
@@ -82,6 +86,7 @@ defmodule KsefHub.Invoices.Parser do
     end)
   end
 
+  @spec parse_date(String.t()) :: Date.t() | nil
   defp parse_date(""), do: nil
 
   defp parse_date(str) do
@@ -91,6 +96,7 @@ defmodule KsefHub.Invoices.Parser do
     end
   end
 
+  @spec parse_decimal(String.t()) :: Decimal.t() | nil
   defp parse_decimal(""), do: nil
 
   defp parse_decimal(str) do
@@ -101,6 +107,7 @@ defmodule KsefHub.Invoices.Parser do
     end
   end
 
+  @spec parse_integer(String.t()) :: integer() | nil
   defp parse_integer(""), do: nil
 
   defp parse_integer(str) do
@@ -110,6 +117,7 @@ defmodule KsefHub.Invoices.Parser do
     end
   end
 
+  @spec default_currency(String.t()) :: String.t()
   defp default_currency(""), do: "PLN"
   defp default_currency(currency), do: currency
 end
