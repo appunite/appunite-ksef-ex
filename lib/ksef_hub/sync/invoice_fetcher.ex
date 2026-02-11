@@ -123,9 +123,13 @@ defmodule KsefHub.Sync.InvoiceFetcher do
       ksef_number = header["ksefNumber"]
 
       case download_and_upsert(ctx, ksef_number, header) do
-        {:ok, invoice} ->
+        {:ok, invoice, :inserted} ->
           new_max = pick_max_timestamp(acc_max_ts, invoice.permanent_storage_date)
           {acc_count + 1, acc_failed, new_max}
+
+        {:ok, invoice, :updated} ->
+          new_max = pick_max_timestamp(acc_max_ts, invoice.permanent_storage_date)
+          {acc_count, acc_failed, new_max}
 
         {:error, reason} ->
           Logger.error("Failed to process invoice #{ksef_number}: #{inspect(reason)}")

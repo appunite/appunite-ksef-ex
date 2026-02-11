@@ -66,36 +66,49 @@ defmodule KsefHub.Invoices do
 
   @doc """
   Upserts an invoice by (company_id, ksef_number). Used during sync to avoid duplicates.
+
+  Returns `{:ok, invoice, :inserted}` for new invoices or `{:ok, invoice, :updated}`
+  when an existing invoice was refreshed.
   """
-  @spec upsert_invoice(map()) :: {:ok, Invoice.t()} | {:error, Ecto.Changeset.t()}
+  @spec upsert_invoice(map()) ::
+          {:ok, Invoice.t(), :inserted | :updated} | {:error, Ecto.Changeset.t()}
   def upsert_invoice(attrs) do
     company_id = attrs[:company_id] || attrs["company_id"]
+    ksef_number = attrs[:ksef_number] || attrs["ksef_number"]
 
-    %Invoice{}
-    |> Ecto.Changeset.change(%{company_id: company_id})
-    |> Invoice.changeset(attrs)
-    |> Repo.insert(
-      on_conflict:
-        {:replace,
-         [
-           :xml_content,
-           :seller_nip,
-           :seller_name,
-           :buyer_nip,
-           :buyer_name,
-           :invoice_number,
-           :issue_date,
-           :net_amount,
-           :vat_amount,
-           :gross_amount,
-           :currency,
-           :ksef_acquisition_date,
-           :permanent_storage_date,
-           :updated_at
-         ]},
-      conflict_target: [:company_id, :ksef_number],
-      returning: true
-    )
+    existed? =
+      Invoice
+      |> where([i], i.company_id == ^company_id and i.ksef_number == ^ksef_number)
+      |> Repo.exists?()
+
+    case %Invoice{}
+         |> Ecto.Changeset.change(%{company_id: company_id})
+         |> Invoice.changeset(attrs)
+         |> Repo.insert(
+           on_conflict:
+             {:replace,
+              [
+                :xml_content,
+                :seller_nip,
+                :seller_name,
+                :buyer_nip,
+                :buyer_name,
+                :invoice_number,
+                :issue_date,
+                :net_amount,
+                :vat_amount,
+                :gross_amount,
+                :currency,
+                :ksef_acquisition_date,
+                :permanent_storage_date,
+                :updated_at
+              ]},
+           conflict_target: [:company_id, :ksef_number],
+           returning: true
+         ) do
+      {:ok, invoice} -> {:ok, invoice, if(existed?, do: :updated, else: :inserted)}
+      {:error, changeset} -> {:error, changeset}
+    end
   end
 
   @doc """

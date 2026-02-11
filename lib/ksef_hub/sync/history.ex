@@ -38,13 +38,13 @@ defmodule KsefHub.Sync.History do
   @spec trigger_manual_sync(Ecto.UUID.t()) ::
           {:ok, Oban.Job.t()} | {:error, :already_running | Ecto.Changeset.t()}
   def trigger_manual_sync(company_id) do
-    executing =
+    pending_or_running =
       Oban.Job
-      |> where([j], j.worker == @worker and j.state == "executing")
+      |> where([j], j.worker == @worker and j.state in ["available", "scheduled", "executing"])
       |> where([j], fragment("?->>'company_id' = ?", j.args, ^company_id))
       |> Repo.exists?()
 
-    if executing do
+    if pending_or_running do
       {:error, :already_running}
     else
       %{company_id: company_id, manual: true}

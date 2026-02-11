@@ -114,5 +114,17 @@ defmodule KsefHub.Sync.HistoryTest do
 
       assert {:error, :already_running} = History.trigger_manual_sync(company.id)
     end
+
+    test "returns error when sync job is queued (available)", %{company: company} do
+      insert(:sync_job, state: "available", args: %{"company_id" => company.id})
+
+      assert {:error, :already_running} = History.trigger_manual_sync(company.id)
+    end
+
+    test "returns error when sync job is scheduled", %{company: company} do
+      insert(:sync_job, state: "scheduled", args: %{"company_id" => company.id})
+
+      assert {:error, :already_running} = History.trigger_manual_sync(company.id)
+    end
   end
 end

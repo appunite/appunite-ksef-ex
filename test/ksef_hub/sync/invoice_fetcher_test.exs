@@ -102,6 +102,45 @@ defmodule KsefHub.Sync.InvoiceFetcherTest do
                InvoiceFetcher.fetch_all("token", "income", company.nip, company.id, from)
     end
 
+    test "does not count re-synced (updated) invoices", %{company: company} do
+      xml = File.read!("test/support/fixtures/sample_income.xml")
+      storage_date = DateTime.to_iso8601(DateTime.utc_now())
+
+      # Pre-insert the invoice so the upsert is an update
+      insert(:invoice,
+        ksef_number: "RESYNC-001",
+        company: company,
+        seller_nip: "1234567890",
+        type: "income"
+      )
+
+      KsefHub.KsefClient.Mock
+      |> expect(:query_invoice_metadata, fn _token, _filters, _opts ->
+        {:ok,
+         %{
+           invoices: [
+             %{
+               "ksefNumber" => "RESYNC-001",
+               "acquisitionDate" => storage_date,
+               "permanentStorageDate" => storage_date
+             }
+           ],
+           has_more: false,
+           is_truncated: false
+         }}
+      end)
+
+      KsefHub.KsefClient.Mock
+      |> expect(:download_invoice, fn _token, "RESYNC-001" ->
+        {:ok, xml}
+      end)
+
+      from = DateTime.add(DateTime.utc_now(), -3600)
+
+      assert {:ok, 0, _max_ts, 0} =
+               InvoiceFetcher.fetch_all("token", "income", company.nip, company.id, from)
+    end
+
     test "handles rate limiting with retry", %{company: company} do
       KsefHub.KsefClient.Mock
       |> expect(:query_invoice_metadata, fn _t, _f, _o ->
