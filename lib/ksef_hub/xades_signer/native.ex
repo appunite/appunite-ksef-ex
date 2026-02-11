@@ -46,7 +46,7 @@ defmodule KsefHub.XadesSigner.Native do
   end
 
   @spec decode_pkcs12(binary(), String.t()) ::
-          {:ok, {term(), binary()}} | {:error, term()}
+          {:ok, {binary(), binary()}} | {:error, term()}
   defp decode_pkcs12(p12_data, password) do
     p12_path = SecureTemp.write(p12_data, "cert.p12")
     pass_path = SecureTemp.write(password, "pass.txt")
@@ -118,34 +118,31 @@ defmodule KsefHub.XadesSigner.Native do
     end
   end
 
-  @spec parse_ec_private_key(String.t()) :: {:ok, term()} | {:error, term()}
+  @spec parse_ec_private_key(String.t()) :: {:ok, binary()} | {:error, term()}
   defp parse_ec_private_key(pem) do
     case :public_key.pem_decode(pem) do
       [{:ECPrivateKey, der, :not_encrypted} | _] ->
-        {:ok, :public_key.der_decode(:ECPrivateKey, der)}
+        extract_ec_private_key_binary(:public_key.der_decode(:ECPrivateKey, der))
 
-      [{type, der, :not_encrypted} | _] ->
-        # Handle PKCS8-wrapped keys (openssl may output PrivateKeyInfo)
-        try do
-          {:ok, unwrap_pkcs8_ec_key(type, der)}
-        rescue
-          _ -> {:error, {:unsupported_key_type, type}}
-        end
+      [{:PrivateKeyInfo, der, :not_encrypted} | _] ->
+        # PKCS8-wrapped key (openssl outputs this for EC keys)
+        extract_ec_private_key_binary(:public_key.der_decode(:PrivateKeyInfo, der))
+
+      [{type, _der, _enc} | _] ->
+        {:error, {:unsupported_key_type, type}}
 
       _ ->
         {:error, :no_private_key_found}
     end
   end
 
-  @spec unwrap_pkcs8_ec_key(atom(), binary()) :: term()
-  defp unwrap_pkcs8_ec_key(:PrivateKeyInfo, der) do
-    private_key_info = :public_key.der_decode(:PrivateKeyInfo, der)
-    # PrivateKeyInfo = {version, algorithm, key_der}
-    # Extract the inner ECPrivateKey
-    {:PrivateKeyInfo, _version, _algo_info, inner_key_der, _attrs} = private_key_info
-    ec_key = :public_key.der_decode(:ECPrivateKey, inner_key_der)
-    ec_key
+  # :crypto.sign requires the raw private key binary, not the ECPrivateKey record
+  @spec extract_ec_private_key_binary(term()) :: {:ok, binary()} | {:error, term()}
+  defp extract_ec_private_key_binary({:ECPrivateKey, _, priv_key_bin, _, _, _}) do
+    {:ok, priv_key_bin}
   end
+
+  defp extract_ec_private_key_binary(_), do: {:error, :not_ec_key}
 
   @spec parse_certificate_der(String.t()) :: {:ok, binary()} | {:error, term()}
   defp parse_certificate_der(pem) do
@@ -223,7 +220,7 @@ defmodule KsefHub.XadesSigner.Native do
   defp decode_attribute_value(value) when is_list(value), do: to_string(value)
   defp decode_attribute_value(_), do: nil
 
-  @spec sign_and_assemble(String.t(), String.t(), term(), binary(), map()) :: String.t()
+  @spec sign_and_assemble(String.t(), String.t(), binary(), binary(), map()) :: String.t()
   defp sign_and_assemble(challenge, nip, ec_key, _cert_der, cert_meta) do
     # 1. Body digest (enveloped-signature transform = document without <Signature>)
     body_xml = AuthTokenRequest.build_body(challenge, nip)
