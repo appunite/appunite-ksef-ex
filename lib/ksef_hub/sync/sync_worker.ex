@@ -91,16 +91,31 @@ defmodule KsefHub.Sync.SyncWorker do
     expense_result = sync_type(access_token, "expense", nip, company_id)
 
     case {income_result, expense_result} do
-      {{:ok, ic}, {:ok, ec}} ->
-        Logger.info(
-          "Sync complete for company #{company_id}: #{ic} income, #{ec} expense invoices"
-        )
+      {{:ok, ic, if_}, {:ok, ec, ef}} ->
+        total_failed = if_ + ef
 
-        store_meta(job, %{"income_count" => ic, "expense_count" => ec})
+        if total_failed > 0 do
+          Logger.warning(
+            "Sync complete for company #{company_id}: #{ic} income, #{ec} expense invoices (#{total_failed} failed downloads)"
+          )
+        else
+          Logger.info(
+            "Sync complete for company #{company_id}: #{ic} income, #{ec} expense invoices"
+          )
+        end
+
+        meta = %{"income_count" => ic, "expense_count" => ec}
+
+        meta =
+          if total_failed > 0,
+            do: Map.put(meta, "error", "#{total_failed} invoice downloads failed"),
+            else: meta
+
+        store_meta(job, meta)
         broadcast_sync_completed(company_id, %{income: ic, expense: ec})
         {:ok, :full}
 
-      {{:ok, ic}, {:error, reason}} ->
+      {{:ok, ic, _if}, {:error, reason}} ->
         Logger.error(
           "Expense sync failed for company #{company_id}: #{inspect(reason)} (#{ic} income invoices synced)"
         )
@@ -113,7 +128,7 @@ defmodule KsefHub.Sync.SyncWorker do
 
         {:ok, :partial, %{succeeded: :income, failed: {:expense, reason}}}
 
-      {{:error, reason}, {:ok, ec}} ->
+      {{:error, reason}, {:ok, ec, _ef}} ->
         Logger.error(
           "Income sync failed for company #{company_id}: #{inspect(reason)} (#{ec} expense invoices synced)"
         )
@@ -165,13 +180,13 @@ defmodule KsefHub.Sync.SyncWorker do
            company_id,
            checkpoint.last_seen_timestamp
          ) do
-      {:ok, count, nil} ->
-        {:ok, count}
+      {:ok, count, nil, failed} ->
+        {:ok, count, failed}
 
-      {:ok, count, max_timestamp} ->
+      {:ok, count, max_timestamp, failed} ->
         case Checkpoints.advance(type, company_id, max_timestamp) do
           {:ok, _checkpoint} ->
-            {:ok, count}
+            {:ok, count, failed}
 
           {:error, reason} ->
             {:error, {:checkpoint_advance_failed, reason}}

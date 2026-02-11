@@ -23,7 +23,7 @@ defmodule KsefHub.Sync.InvoiceFetcherTest do
 
       from = DateTime.add(DateTime.utc_now(), -3600)
 
-      assert {:ok, 0, nil} =
+      assert {:ok, 0, nil, 0} =
                InvoiceFetcher.fetch_all("token", "income", company.nip, company.id, from)
     end
 
@@ -54,7 +54,7 @@ defmodule KsefHub.Sync.InvoiceFetcherTest do
 
       from = DateTime.add(DateTime.utc_now(), -3600)
 
-      assert {:ok, 1, _max_ts} =
+      assert {:ok, 1, _max_ts, 0} =
                InvoiceFetcher.fetch_all("token", "income", company.nip, company.id, from)
 
       invoice = KsefHub.Invoices.get_invoice_by_ksef_number(company.id, "FETCH-001")
@@ -98,7 +98,7 @@ defmodule KsefHub.Sync.InvoiceFetcherTest do
 
       from = DateTime.add(DateTime.utc_now(), -3600)
 
-      assert {:ok, 1, _} =
+      assert {:ok, 1, _, 0} =
                InvoiceFetcher.fetch_all("token", "income", company.nip, company.id, from)
     end
 
@@ -116,7 +116,7 @@ defmodule KsefHub.Sync.InvoiceFetcherTest do
 
       from = DateTime.add(DateTime.utc_now(), -3600)
 
-      assert {:ok, 0, nil} =
+      assert {:ok, 0, nil, 0} =
                InvoiceFetcher.fetch_all("token", "income", company.nip, company.id, from)
     end
   end
