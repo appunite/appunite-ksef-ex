@@ -318,19 +318,18 @@ defmodule KsefHub.Accounts do
   @spec create_api_token(Ecto.UUID.t(), map()) ::
           {:ok, %{token: String.t(), api_token: ApiToken.t()}} | {:error, Ecto.Changeset.t()}
   def create_api_token(user_id, attrs) do
-    attrs = Map.put(attrs, :created_by_id, user_id)
-    do_create_api_token(attrs)
+    do_create_api_token(user_id, nil, attrs)
   end
 
-  @spec do_create_api_token(map()) ::
+  @spec do_create_api_token(Ecto.UUID.t(), Ecto.UUID.t() | nil, map()) ::
           {:ok, %{token: String.t(), api_token: ApiToken.t()}} | {:error, Ecto.Changeset.t()}
-  defp do_create_api_token(attrs) do
+  defp do_create_api_token(user_id, company_id, attrs) do
     plain_token = generate_token()
     token_hash = hash_token(plain_token)
     token_prefix = String.slice(plain_token, 0, 8)
 
     changeset =
-      %ApiToken{}
+      %ApiToken{created_by_id: user_id, company_id: company_id}
       |> ApiToken.changeset(attrs)
       |> Ecto.Changeset.put_change(:token_hash, token_hash)
       |> Ecto.Changeset.put_change(:token_prefix, token_prefix)

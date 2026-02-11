@@ -1,5 +1,11 @@
 defmodule KsefHub.Accounts.ApiToken do
-  @moduledoc "API token schema. Tokens authenticate external API consumers."
+  @moduledoc """
+  API token schema. Tokens authenticate external API consumers.
+
+  Each token is scoped to a single company — the company is derived from the
+  token during API authentication, so consumers never need to pass a company_id
+  parameter.
+  """
 
   use Ecto.Schema
   import Ecto.Changeset
@@ -20,6 +26,7 @@ defmodule KsefHub.Accounts.ApiToken do
     field :expires_at, :utc_datetime_usec
 
     belongs_to :created_by, KsefHub.Accounts.User
+    belongs_to :company, KsefHub.Companies.Company
 
     timestamps()
   end
@@ -28,7 +35,7 @@ defmodule KsefHub.Accounts.ApiToken do
   @spec changeset(t(), map()) :: Ecto.Changeset.t()
   def changeset(api_token, attrs) do
     api_token
-    |> cast(attrs, [:name, :description, :is_active, :created_by_id, :expires_at])
+    |> cast(attrs, [:name, :description, :is_active, :expires_at])
     |> validate_required([:name])
     |> unique_constraint(:token_hash)
   end
