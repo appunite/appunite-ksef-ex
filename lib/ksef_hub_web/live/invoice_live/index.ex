@@ -141,23 +141,23 @@ defmodule KsefHubWeb.InvoiceLive.Index do
     <!-- Invoice Table -->
     <div class="overflow-x-auto">
       <.table id="invoices" rows={@invoices} row_id={fn inv -> "inv-#{inv.id}" end}>
-        <:col :let={inv} label="Number">
+        <:col :let={inv} label="Number" class="w-1/5">
           <.link navigate={~p"/invoices/#{inv.id}"} class="link link-primary">
             {inv.invoice_number}
           </.link>
         </:col>
-        <:col :let={inv} label="Date">
+        <:col :let={inv} label="Date" class="w-28">
           <span class="whitespace-nowrap">{format_date(inv.issue_date)}</span>
         </:col>
-        <:col :let={inv} label="Type">
+        <:col :let={inv} label="Type" class="w-24">
           <.type_badge type={inv.type} />
         </:col>
         <:col :let={inv} label="Seller">{inv.seller_name}</:col>
-        <:col :let={inv} label="Gross">
+        <:col :let={inv} label="Gross" class="w-36 text-right">
           <span class="font-mono">{format_amount(inv.gross_amount)}</span>
           <span class="text-xs text-base-content/60">{inv.currency}</span>
         </:col>
-        <:col :let={inv} label="Status">
+        <:col :let={inv} label="Status" class="w-28">
           <.status_badge status={inv.status} />
         </:col>
       </.table>
