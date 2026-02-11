@@ -240,23 +240,27 @@ defmodule KsefHub.XadesSigner.Native do
     assemble_signed_xml(challenge, nip, signed_info_xml, signature_b64, cert_meta, props_xml)
   end
 
+  # Builds SignedProperties in Exclusive C14N canonical form.
+  #
+  # Per Exclusive C14N, xmlns:ds is NOT on <xades:SignedProperties> (it doesn't
+  # visibly utilize the ds: prefix). Instead, xmlns:ds appears on each ds:* element
+  # individually, since no ancestor within the canonicalized subtree has it.
   @spec build_signed_properties(String.t(), map()) :: String.t()
   defp build_signed_properties(signing_time, cert_meta) do
-    ~s(<xades:SignedProperties) <>
-      ~s( xmlns:ds="http://www.w3.org/2000/09/xmldsig#") <>
-      ~s( xmlns:xades="http://uri.etsi.org/01903/v1.3.2#") <>
-      ~s( Id="SignedProps-1">) <>
+    ds = ~s( xmlns:ds="http://www.w3.org/2000/09/xmldsig#")
+
+    ~s(<xades:SignedProperties xmlns:xades="http://uri.etsi.org/01903/v1.3.2#" Id="SignedProps-1">) <>
       "<xades:SignedSignatureProperties>" <>
       "<xades:SigningTime>#{signing_time}</xades:SigningTime>" <>
       "<xades:SigningCertificate>" <>
       "<xades:Cert>" <>
       "<xades:CertDigest>" <>
-      ~s(<ds:DigestMethod Algorithm="http://www.w3.org/2001/04/xmlenc#sha256"></ds:DigestMethod>) <>
-      "<ds:DigestValue>#{cert_meta.digest_b64}</ds:DigestValue>" <>
+      ~s(<ds:DigestMethod#{ds} Algorithm="http://www.w3.org/2001/04/xmlenc#sha256"></ds:DigestMethod>) <>
+      "<ds:DigestValue#{ds}>#{cert_meta.digest_b64}</ds:DigestValue>" <>
       "</xades:CertDigest>" <>
       "<xades:IssuerSerial>" <>
-      "<ds:X509IssuerName>#{escape_xml(cert_meta.issuer_dn)}</ds:X509IssuerName>" <>
-      "<ds:X509SerialNumber>#{cert_meta.serial}</ds:X509SerialNumber>" <>
+      "<ds:X509IssuerName#{ds}>#{escape_xml(cert_meta.issuer_dn)}</ds:X509IssuerName>" <>
+      "<ds:X509SerialNumber#{ds}>#{cert_meta.serial}</ds:X509SerialNumber>" <>
       "</xades:IssuerSerial>" <>
       "</xades:Cert>" <>
       "</xades:SigningCertificate>" <>
@@ -296,6 +300,7 @@ defmodule KsefHub.XadesSigner.Native do
       String.replace(signed_info_xml, ~s( xmlns:ds="http://www.w3.org/2000/09/xmldsig#"), "")
 
     # Remove namespace declarations from SignedProperties for embedded form
+    # (both xmlns:ds and xmlns:xades are inherited from parent ds:Signature)
     inner_props =
       props_xml
       |> String.replace(~s( xmlns:ds="http://www.w3.org/2000/09/xmldsig#"), "")
