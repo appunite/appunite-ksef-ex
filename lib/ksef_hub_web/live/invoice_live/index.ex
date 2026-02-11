@@ -1,6 +1,6 @@
 defmodule KsefHubWeb.InvoiceLive.Index do
   @moduledoc """
-  LiveView for listing and filtering invoices by type and status.
+  LiveView for listing and filtering invoices by type and status, with pagination.
   """
   use KsefHubWeb, :live_view
 
@@ -17,20 +17,27 @@ defmodule KsefHubWeb.InvoiceLive.Index do
   def handle_params(params, _uri, socket) do
     filters = parse_filters(params)
 
-    invoices =
+    result =
       case socket.assigns[:current_company] do
-        %{id: company_id} -> Invoices.list_invoices(company_id, filters)
-        _ -> []
+        %{id: company_id} ->
+          Invoices.list_invoices_paginated(company_id, filters)
+
+        _ ->
+          %{entries: [], page: 1, per_page: 25, total_count: 0, total_pages: 1}
       end
 
-    {:noreply, assign(socket, filter_assigns(filters, invoices))}
+    {:noreply, assign(socket, filter_assigns(filters, result))}
   end
 
-  @spec filter_assigns(map(), list()) :: keyword()
-  defp filter_assigns(filters, invoices) do
+  @spec filter_assigns(map(), map()) :: keyword()
+  defp filter_assigns(filters, result) do
     [
-      invoices: invoices,
+      invoices: result.entries,
       filters: filters,
+      page: result.page,
+      per_page: result.per_page,
+      total_count: result.total_count,
+      total_pages: result.total_pages,
       type_filter: filters[:type] || "",
       status_filter: filters[:status] || "",
       date_from: (filters[:date_from] && Date.to_iso8601(filters[:date_from])) || "",
@@ -59,6 +66,7 @@ defmodule KsefHubWeb.InvoiceLive.Index do
     |> maybe_put_date(:date_from, params["date_from"])
     |> maybe_put_date(:date_to, params["date_to"])
     |> maybe_put_search(:query, params["query"])
+    |> maybe_put_page(:page, params["page"])
   end
 
   defp maybe_put_filter(map, _key, nil, _valid), do: map
@@ -82,9 +90,66 @@ defmodule KsefHubWeb.InvoiceLive.Index do
   defp maybe_put_search(map, _key, ""), do: map
   defp maybe_put_search(map, key, value), do: Map.put(map, key, value)
 
+  defp maybe_put_page(map, _key, nil), do: map
+  defp maybe_put_page(map, _key, ""), do: map
+
+  defp maybe_put_page(map, key, value) do
+    case Integer.parse(value) do
+      {int, ""} when int > 0 -> Map.put(map, key, int)
+      _ -> map
+    end
+  end
+
   defp maybe_put(map, _key, nil), do: map
   defp maybe_put(map, _key, ""), do: map
   defp maybe_put(map, key, value), do: Map.put(map, key, value)
+
+  @spec pagination_params(map(), pos_integer()) :: map()
+  defp pagination_params(filters, target_page) do
+    params = %{}
+    params = if filters[:type], do: Map.put(params, "type", filters[:type]), else: params
+    params = if filters[:status], do: Map.put(params, "status", filters[:status]), else: params
+
+    params =
+      if filters[:date_from],
+        do: Map.put(params, "date_from", Date.to_iso8601(filters[:date_from])),
+        else: params
+
+    params =
+      if filters[:date_to],
+        do: Map.put(params, "date_to", Date.to_iso8601(filters[:date_to])),
+        else: params
+
+    params = if filters[:query], do: Map.put(params, "query", filters[:query]), else: params
+
+    if target_page > 1 do
+      Map.put(params, "page", Integer.to_string(target_page))
+    else
+      params
+    end
+  end
+
+  @spec visible_pages(pos_integer(), pos_integer()) :: [pos_integer()]
+  defp visible_pages(_current_page, total_pages) when total_pages <= 7 do
+    Enum.to_list(1..total_pages)
+  end
+
+  defp visible_pages(current_page, total_pages) do
+    # Show a window of 5 pages centered on the current page
+    half = 2
+    start = max(1, current_page - half)
+    finish = min(total_pages, current_page + half)
+
+    # Adjust if near the edges
+    {start, finish} =
+      cond do
+        finish - start < 4 && start == 1 -> {1, min(5, total_pages)}
+        finish - start < 4 && finish == total_pages -> {max(1, total_pages - 4), total_pages}
+        true -> {start, finish}
+      end
+
+    Enum.to_list(start..finish)
+  end
 
   @impl true
   def render(assigns) do
@@ -163,9 +228,44 @@ defmodule KsefHubWeb.InvoiceLive.Index do
       </.table>
     </div>
 
-    <p :if={@invoices == []} class="text-center text-base-content/60 py-8">
+    <p :if={@invoices == [] && @total_count == 0} class="text-center text-base-content/60 py-8">
       No invoices found matching your filters.
     </p>
+
+    <!-- Pagination -->
+    <div :if={@total_pages > 1} class="flex items-center justify-between mt-6" data-testid="pagination">
+      <p class="text-sm text-base-content/60">
+        Showing {(@page - 1) * @per_page + 1}–{min(@page * @per_page, @total_count)} of {@total_count} invoices
+      </p>
+
+      <div class="join">
+        <.link
+          :if={@page > 1}
+          patch={~p"/invoices?#{pagination_params(@filters, @page - 1)}"}
+          class="join-item btn btn-sm"
+        >
+          Prev
+        </.link>
+        <span :if={@page <= 1} class="join-item btn btn-sm btn-disabled">Prev</span>
+
+        <.link
+          :for={p <- visible_pages(@page, @total_pages)}
+          patch={~p"/invoices?#{pagination_params(@filters, p)}"}
+          class={["join-item btn btn-sm", p == @page && "btn-active"]}
+        >
+          {p}
+        </.link>
+
+        <.link
+          :if={@page < @total_pages}
+          patch={~p"/invoices?#{pagination_params(@filters, @page + 1)}"}
+          class="join-item btn btn-sm"
+        >
+          Next
+        </.link>
+        <span :if={@page >= @total_pages} class="join-item btn btn-sm btn-disabled">Next</span>
+      </div>
+    </div>
     """
   end
 end
