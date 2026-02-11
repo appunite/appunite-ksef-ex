@@ -197,8 +197,8 @@ defmodule KsefHubWeb.InvoiceLive.Show do
           </table>
         </div>
       </div>
-
-      <!-- HTML Preview -->
+      
+    <!-- HTML Preview -->
       <div class="card bg-base-100 border border-base-300">
         <div class="p-4">
           <h2 class="text-base font-semibold mb-2">Preview</h2>

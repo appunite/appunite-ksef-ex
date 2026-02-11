@@ -106,12 +106,13 @@ defmodule KsefHub.Sync.InvoiceFetcherTest do
       xml = File.read!("test/support/fixtures/sample_income.xml")
       storage_date = DateTime.to_iso8601(DateTime.utc_now())
 
-      # Pre-insert the invoice so the upsert is an update
+      # Pre-insert the invoice with a backdated timestamp so the upsert detects :updated
       insert(:invoice,
         ksef_number: "RESYNC-001",
         company: company,
         seller_nip: "1234567890",
-        type: "income"
+        type: "income",
+        inserted_at: NaiveDateTime.add(NaiveDateTime.utc_now(), -60)
       )
 
       KsefHub.KsefClient.Mock

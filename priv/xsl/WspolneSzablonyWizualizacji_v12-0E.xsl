@@ -4,8 +4,8 @@
 	<xsl:param name="schema-krajow" select="'KodyKrajow_v10-0E.xsd'"/>
 	<xsl:param name="schema-urzedow" select="'KodyUrzedowSkarbowych_v8-0E.xsd'"/>
 	<xsl:param name="schema-urzedowexwus" select="'KodyUrzedowSkarbowychExWUS_v8-0E.xsd'"/>
-	<xsl:param name="schema-naczelnikow-urzedow" select="'http://crd.gov.pl/xml/schematy/dziedzinowe/mf/2017/02/06/eD/KodyNaczelnikowUrzedowSkarbowych/KodyNaczelnikowUrzedowSkarbowych_v4-0E.xsd'"/>
-	<xsl:param name="schema-walut" select="'http://crd.gov.pl/xml/schematy/dziedzinowe/mf/2021/12/23/eD/KodyWalut/KodyWalut_v1-0E.xsd'"/>
+	<xsl:param name="schema-naczelnikow-urzedow" select="'KodyNaczelnikowUrzedowSkarbowych_v4-0E.xsd'"/>
+	<xsl:param name="schema-walut" select="'KodyWalut_v1-0E.xsd'"/>
 	<xsl:template match="/">
 		<html>
 			<head>
@@ -699,24 +699,26 @@
 	<xsl:template match="*[local-name()='Naglowek']/*[local-name()='KodUrzedu'] | *[local-name()='Naglowek']/*[local-name()='PoprzedniNaczelnikUS'] ">
 		<xsl:apply-templates/>&#xA0;
 		<xsl:if test="$nazwy-dla-kodow">
-			<span class="nazwa-dla-kodu">
+			<xsl:variable name="primary">
 				<xsl:call-template name="ZnajdzWEnumeracji">
 					<xsl:with-param name="schema" select="$schema-urzedow"/>
 					<xsl:with-param name="typ" select="'TKodUS'"/>
 					<xsl:with-param name="kod" select="text()"/>
 				</xsl:call-template>
-			</span>
-		</xsl:if>
-	</xsl:template>
-		<xsl:template match="*[local-name()='Naglowek']/*[local-name()='KodUrzedu'] | *[local-name()='Naglowek']/*[local-name()='PoprzedniNaczelnikUS'] ">
-		<xsl:apply-templates/>&#xA0;
-		<xsl:if test="$nazwy-dla-kodow">
+			</xsl:variable>
 			<span class="nazwa-dla-kodu">
-				<xsl:call-template name="ZnajdzWEnumeracji">
-					<xsl:with-param name="schema" select="$schema-urzedowexwus"/>
-					<xsl:with-param name="typ" select="'TKodUS1'"/>
-					<xsl:with-param name="kod" select="text()"/>
-				</xsl:call-template>
+				<xsl:choose>
+					<xsl:when test="string($primary) != ''">
+						<xsl:value-of select="$primary"/>
+					</xsl:when>
+					<xsl:otherwise>
+						<xsl:call-template name="ZnajdzWEnumeracji">
+							<xsl:with-param name="schema" select="$schema-urzedowexwus"/>
+							<xsl:with-param name="typ" select="'TKodUS1'"/>
+							<xsl:with-param name="kod" select="text()"/>
+						</xsl:call-template>
+					</xsl:otherwise>
+				</xsl:choose>
 			</span>
 		</xsl:if>
 	</xsl:template>

@@ -195,8 +195,12 @@ defmodule KsefHub.KsefClient.TokenManager do
         Logger.warning("Token refresh failed due to network error, will retry")
         error
 
-      {:error, reason} ->
-        Logger.warning("Token refresh failed, re-auth required: #{inspect(reason)}")
+      {:error, {:ksef_error, status, _body}} ->
+        Logger.warning("Token refresh failed, re-auth required: status=#{status}")
+        {:error, :reauth_required}
+
+      {:error, _reason} ->
+        Logger.warning("Token refresh failed, re-auth required")
         {:error, :reauth_required}
     end
   end

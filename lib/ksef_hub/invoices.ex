@@ -74,41 +74,44 @@ defmodule KsefHub.Invoices do
           {:ok, Invoice.t(), :inserted | :updated} | {:error, Ecto.Changeset.t()}
   def upsert_invoice(attrs) do
     company_id = attrs[:company_id] || attrs["company_id"]
-    ksef_number = attrs[:ksef_number] || attrs["ksef_number"]
 
-    existed? =
-      Invoice
-      |> where([i], i.company_id == ^company_id and i.ksef_number == ^ksef_number)
-      |> Repo.exists?()
+    case do_upsert(company_id, attrs) do
+      {:ok, invoice} ->
+        action = if invoice.inserted_at == invoice.updated_at, do: :inserted, else: :updated
+        {:ok, invoice, action}
 
-    case %Invoice{}
-         |> Ecto.Changeset.change(%{company_id: company_id})
-         |> Invoice.changeset(attrs)
-         |> Repo.insert(
-           on_conflict:
-             {:replace,
-              [
-                :xml_content,
-                :seller_nip,
-                :seller_name,
-                :buyer_nip,
-                :buyer_name,
-                :invoice_number,
-                :issue_date,
-                :net_amount,
-                :vat_amount,
-                :gross_amount,
-                :currency,
-                :ksef_acquisition_date,
-                :permanent_storage_date,
-                :updated_at
-              ]},
-           conflict_target: [:company_id, :ksef_number],
-           returning: true
-         ) do
-      {:ok, invoice} -> {:ok, invoice, if(existed?, do: :updated, else: :inserted)}
-      {:error, changeset} -> {:error, changeset}
+      {:error, changeset} ->
+        {:error, changeset}
     end
+  end
+
+  @upsert_replace_fields [
+    :xml_content,
+    :seller_nip,
+    :seller_name,
+    :buyer_nip,
+    :buyer_name,
+    :invoice_number,
+    :issue_date,
+    :net_amount,
+    :vat_amount,
+    :gross_amount,
+    :currency,
+    :ksef_acquisition_date,
+    :permanent_storage_date,
+    :updated_at
+  ]
+
+  @spec do_upsert(Ecto.UUID.t(), map()) :: {:ok, Invoice.t()} | {:error, Ecto.Changeset.t()}
+  defp do_upsert(company_id, attrs) do
+    %Invoice{}
+    |> Ecto.Changeset.change(%{company_id: company_id})
+    |> Invoice.changeset(attrs)
+    |> Repo.insert(
+      on_conflict: {:replace, @upsert_replace_fields},
+      conflict_target: [:company_id, :ksef_number],
+      returning: true
+    )
   end
 
   @doc """
