@@ -2,7 +2,6 @@ defmodule KsefHubWeb.TokenLiveTest do
   use KsefHubWeb.ConnCase, async: true
 
   import Phoenix.LiveViewTest
-
   import KsefHub.Factory
 
   alias KsefHub.Accounts
@@ -23,15 +22,53 @@ defmodule KsefHubWeb.TokenLiveTest do
   end
 
   describe "mount" do
-    test "renders token page", %{conn: conn} do
+    test "renders token page with company-scoped tokens", %{conn: conn} do
       {:ok, _view, html} = live(conn, ~p"/tokens")
       assert html =~ "API Tokens"
       assert html =~ "New Token"
     end
 
-    test "shows empty state when no tokens", %{conn: conn} do
+    test "shows empty state when no tokens for company", %{conn: conn} do
       {:ok, _view, html} = live(conn, ~p"/tokens")
       assert html =~ "No API tokens yet"
+    end
+
+    test "shows only tokens for current company", %{conn: conn, user: user, company: company} do
+      {:ok, _} =
+        Accounts.create_api_token(user.id, company.id, %{name: "This Company Token"})
+
+      other_company = insert(:company)
+      insert(:membership, user: user, company: other_company, role: "owner")
+
+      {:ok, _} =
+        Accounts.create_api_token(user.id, other_company.id, %{name: "Other Company Token"})
+
+      {:ok, _view, html} = live(conn, ~p"/tokens")
+
+      assert html =~ "This Company Token"
+      refute html =~ "Other Company Token"
+    end
+  end
+
+  describe "access control" do
+    test "non-owner is redirected away", %{company: company} do
+      {:ok, non_owner} =
+        Accounts.get_or_create_google_user(%{
+          uid: "g-tok-nonowner",
+          email: "nonowner@example.com",
+          name: "Non-Owner"
+        })
+
+      insert(:membership, user: non_owner, company: company, role: "accountant")
+
+      conn =
+        build_conn()
+        |> log_in_user(non_owner, %{current_company_id: company.id})
+
+      assert {:error, {:redirect, %{to: "/dashboard", flash: %{"error" => message}}}} =
+               live(conn, ~p"/tokens")
+
+      assert message =~ "Only company owners"
     end
   end
 
@@ -43,7 +80,7 @@ defmodule KsefHubWeb.TokenLiveTest do
       assert has_element?(view, "button", "Create Token")
     end
 
-    test "creates token and shows plaintext", %{conn: conn} do
+    test "creates token scoped to current company", %{conn: conn} do
       {:ok, view, _html} = live(conn, ~p"/tokens")
 
       view |> element("button", "New Token") |> render_click()
@@ -59,9 +96,13 @@ defmodule KsefHubWeb.TokenLiveTest do
   end
 
   describe "revoke token" do
-    test "revokes a token", %{conn: conn, user: user} do
-      {:ok, %{api_token: _token}} =
-        Accounts.create_api_token(user.id, %{name: "Revoke Test"})
+    test "revokes a token scoped to current company", %{
+      conn: conn,
+      user: user,
+      company: company
+    } do
+      {:ok, _} =
+        Accounts.create_api_token(user.id, company.id, %{name: "Revoke Test"})
 
       {:ok, view, _html} = live(conn, ~p"/tokens")
 
@@ -76,17 +117,14 @@ defmodule KsefHubWeb.TokenLiveTest do
     test "dismisses the plaintext token alert", %{conn: conn} do
       {:ok, view, _html} = live(conn, ~p"/tokens")
 
-      # Create a token first
       view |> element("button", "New Token") |> render_click()
 
       view
       |> element("form[phx-submit=create]")
       |> render_submit(%{token: %{name: "Dismiss Test", description: ""}})
 
-      # Token should be visible
       assert render(view) =~ "Copy your API token now"
 
-      # Dismiss it
       view |> element("button", "Dismiss") |> render_click()
       refute render(view) =~ "Copy your API token now"
     end
