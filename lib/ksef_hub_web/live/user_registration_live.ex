@@ -5,8 +5,11 @@ defmodule KsefHubWeb.UserRegistrationLive do
 
   use KsefHubWeb, :live_view
 
+  require Logger
+
   alias KsefHub.Accounts
   alias KsefHub.Accounts.User
+  alias KsefHub.Invitations
 
   @doc false
   @spec mount(map(), map(), Phoenix.LiveView.Socket.t()) ::
@@ -28,6 +31,12 @@ defmodule KsefHubWeb.UserRegistrationLive do
   def handle_event("save", %{"user" => user_params}, socket) do
     case Accounts.register_user(user_params) do
       {:ok, user} ->
+        {:ok, memberships} = Invitations.accept_pending_invitations_for_email(user)
+
+        if memberships != [] do
+          Logger.info("Auto-accepted #{length(memberships)} invitation(s) for user #{user.id}")
+        end
+
         case Accounts.deliver_user_confirmation_instructions(
                user,
                &url(~p"/users/confirm/#{&1}")
@@ -36,7 +45,6 @@ defmodule KsefHubWeb.UserRegistrationLive do
             :ok
 
           {:error, _reason} ->
-            require Logger
             Logger.error("Failed to deliver confirmation email")
         end
 

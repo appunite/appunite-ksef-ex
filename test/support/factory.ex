@@ -11,6 +11,7 @@ defmodule KsefHub.Factory do
   alias KsefHub.Accounts.{ApiToken, User}
   alias KsefHub.Companies.{Company, Membership}
   alias KsefHub.Credentials.{Credential, UserCertificate}
+  alias KsefHub.Invitations.Invitation
   alias KsefHub.Invoices.Invoice
   alias KsefHub.Sync.Checkpoint
 
@@ -91,6 +92,22 @@ defmodule KsefHub.Factory do
       fingerprint: "AA:BB:CC:DD:EE:FF",
       is_active: true,
       user: build(:user)
+    }
+  end
+
+  @doc "Builds an `Invitation` with a sequenced email, pending status, and 7-day expiry."
+  @spec invitation_factory() :: Invitation.t()
+  def invitation_factory do
+    token = :crypto.strong_rand_bytes(32) |> Base.url_encode64(padding: false)
+
+    %Invitation{
+      email: sequence(:invitation_email, &"invitee#{&1}@example.com"),
+      role: "accountant",
+      token_hash: :crypto.hash(:sha256, token) |> Base.encode16(case: :lower),
+      status: "pending",
+      expires_at: DateTime.add(DateTime.utc_now(), 7 * 24 * 3600) |> DateTime.truncate(:second),
+      company: build(:company),
+      invited_by: build(:user)
     }
   end
 

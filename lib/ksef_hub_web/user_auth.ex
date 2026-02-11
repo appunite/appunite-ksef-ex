@@ -12,21 +12,23 @@ defmodule KsefHubWeb.UserAuth do
   import Phoenix.Controller
 
   alias KsefHub.Accounts
+  alias KsefHubWeb.UrlHelpers
 
   @doc """
   Logs the user in by generating a session token, renewing the session,
   and redirecting to the appropriate path.
   """
   @spec log_in_user(Plug.Conn.t(), KsefHub.Accounts.User.t(), map()) :: Plug.Conn.t()
-  def log_in_user(conn, user, _params \\ %{}) do
+  def log_in_user(conn, user, params \\ %{}) do
     token = Accounts.generate_user_session_token(user)
+    return_to = UrlHelpers.sanitize_return_to(params[:return_to] || params["return_to"])
 
     conn
     |> configure_session(renew: true)
     |> clear_session()
     |> put_session(:user_token, token)
     |> put_session(:live_socket_id, "users_sessions:#{Base.url_encode64(token)}")
-    |> redirect(to: signed_in_path(user))
+    |> redirect(to: return_to || signed_in_path(user))
   end
 
   @doc """

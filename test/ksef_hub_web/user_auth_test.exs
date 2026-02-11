@@ -33,6 +33,31 @@ defmodule KsefHubWeb.UserAuthTest do
       conn = UserAuth.log_in_user(conn, user)
       assert redirected_to(conn) =~ "/"
     end
+
+    test "respects valid return_to path", %{conn: conn, user: user} do
+      conn = UserAuth.log_in_user(conn, user, %{return_to: "/invitations/accept/abc123"})
+      assert redirected_to(conn) == "/invitations/accept/abc123"
+    end
+
+    test "ignores return_to with absolute URL (open-redirect)", %{conn: conn, user: user} do
+      conn = UserAuth.log_in_user(conn, user, %{return_to: "https://evil.com"})
+      assert redirected_to(conn) == ~p"/dashboard"
+    end
+
+    test "ignores return_to with protocol-relative URL (open-redirect)", %{conn: conn, user: user} do
+      conn = UserAuth.log_in_user(conn, user, %{return_to: "//evil.com"})
+      assert redirected_to(conn) == ~p"/dashboard"
+    end
+
+    test "ignores return_to that does not start with /", %{conn: conn, user: user} do
+      conn = UserAuth.log_in_user(conn, user, %{return_to: "evil.com/path"})
+      assert redirected_to(conn) == ~p"/dashboard"
+    end
+
+    test "ignores empty return_to", %{conn: conn, user: user} do
+      conn = UserAuth.log_in_user(conn, user, %{return_to: ""})
+      assert redirected_to(conn) == ~p"/dashboard"
+    end
   end
 
   describe "log_out_user/1" do

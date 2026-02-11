@@ -8,9 +8,12 @@ defmodule KsefHubWeb.AuthController do
 
   use KsefHubWeb, :controller
 
+  require Logger
+
   plug Ueberauth
 
   alias KsefHub.Accounts
+  alias KsefHub.Invitations
   alias KsefHubWeb.UserAuth
 
   @doc """
@@ -35,6 +38,8 @@ defmodule KsefHubWeb.AuthController do
 
       case Accounts.get_or_create_google_user(user_info) do
         {:ok, user} ->
+          auto_accept_invitations(user)
+
           conn
           |> put_flash(:info, "Welcome, #{user.name || user.email}!")
           |> UserAuth.log_in_user(user)
@@ -55,5 +60,16 @@ defmodule KsefHubWeb.AuthController do
     conn
     |> put_flash(:error, "Authentication failed.")
     |> redirect(to: ~p"/")
+  end
+
+  @spec auto_accept_invitations(KsefHub.Accounts.User.t()) :: :ok
+  defp auto_accept_invitations(user) do
+    {:ok, memberships} = Invitations.accept_pending_invitations_for_email(user)
+
+    if memberships != [] do
+      Logger.info("Auto-accepted #{length(memberships)} invitation(s) for user #{user.id}")
+    end
+
+    :ok
   end
 end

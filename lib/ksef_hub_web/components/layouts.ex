@@ -125,6 +125,11 @@ defmodule KsefHubWeb.Layouts do
                   API Tokens
                 </.nav_link>
               </li>
+              <li :if={@current_role == "owner"}>
+                <.nav_link path={~p"/team"} current={@current_path} icon="hero-user-group">
+                  Team
+                </.nav_link>
+              </li>
               <li>
                 <.nav_link path={~p"/syncs"} current={@current_path} icon="hero-arrow-path">
                   Syncs
