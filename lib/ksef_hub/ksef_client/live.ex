@@ -27,11 +27,19 @@ defmodule KsefHub.KsefClient.Live do
     ]
   end
 
+  @spec req_options_no_retry() :: keyword()
+  defp req_options_no_retry do
+    [
+      receive_timeout: @receive_timeout,
+      retry: false
+    ]
+  end
+
   @impl true
   def get_challenge do
     url = api_url("/auth/challenge")
 
-    case Req.post(url, [json: %{}] ++ req_options()) do
+    case Req.post(url, [json: %{}] ++ req_options_no_retry()) do
       {:ok, %{status: 200, body: body}} when is_map(body) ->
         {:ok,
          %{
@@ -56,7 +64,8 @@ defmodule KsefHub.KsefClient.Live do
 
     case Req.post(
            url,
-           [body: signed_xml, headers: [{"content-type", "application/xml"}]] ++ req_options()
+           [body: signed_xml, headers: [{"content-type", "application/xml"}]] ++
+             req_options_no_retry()
          ) do
       {:ok, %{status: status, body: body}} when status in [200, 202] and is_map(body) ->
         auth_token_data = body["authenticationToken"] || %{}
@@ -111,7 +120,7 @@ defmodule KsefHub.KsefClient.Live do
     url = api_url("/auth/token/redeem")
     headers = bearer_headers(auth_token)
 
-    case Req.post(url, [json: %{}, headers: headers] ++ req_options()) do
+    case Req.post(url, [json: %{}, headers: headers] ++ req_options_no_retry()) do
       {:ok, %{status: 200, body: body}} when is_map(body) ->
         access = body["accessToken"] || %{}
         refresh = body["refreshToken"] || %{}
@@ -140,7 +149,7 @@ defmodule KsefHub.KsefClient.Live do
     url = api_url("/auth/token/refresh")
     headers = bearer_headers(refresh_token)
 
-    case Req.post(url, [json: %{}, headers: headers] ++ req_options()) do
+    case Req.post(url, [json: %{}, headers: headers] ++ req_options_no_retry()) do
       {:ok, %{status: 200, body: body}} when is_map(body) ->
         access = body["accessToken"] || %{}
 
@@ -226,7 +235,7 @@ defmodule KsefHub.KsefClient.Live do
     url = api_url("/auth/sessions/current")
     headers = bearer_headers(token)
 
-    case Req.delete(url, [headers: headers] ++ req_options()) do
+    case Req.delete(url, [headers: headers] ++ req_options_no_retry()) do
       {:ok, %{status: status}} when status in [200, 204] -> :ok
       {:ok, %{status: status, body: body}} -> {:error, {:ksef_error, status, body}}
       {:error, reason} -> {:error, {:request_failed, reason}}

@@ -139,7 +139,7 @@ defmodule KsefHub.Sync.InvoiceFetcher do
   end
 
   @spec download_and_upsert(map(), String.t() | nil, map()) ::
-          {:ok, Invoices.Invoice.t()} | {:error, term()}
+          {:ok, Invoices.Invoice.t(), :inserted | :updated} | {:error, term()}
   defp download_and_upsert(ctx, ksef_number, header) do
     with {:ok, xml} <- ksef_client().download_invoice(ctx.token, ksef_number),
          {:ok, parsed} <- Parser.parse(xml) do
