@@ -146,12 +146,13 @@ defmodule KsefHubWeb.InvoiceLive.Index do
             {inv.invoice_number}
           </.link>
         </:col>
+        <:col :let={inv} label="Date">
+          <span class="whitespace-nowrap">{format_date(inv.issue_date)}</span>
+        </:col>
         <:col :let={inv} label="Type">
           <.type_badge type={inv.type} />
         </:col>
         <:col :let={inv} label="Seller">{inv.seller_name}</:col>
-        <:col :let={inv} label="Buyer">{inv.buyer_name}</:col>
-        <:col :let={inv} label="Date">{format_date(inv.issue_date)}</:col>
         <:col :let={inv} label="Gross">
           <span class="font-mono">{format_amount(inv.gross_amount)}</span>
           <span class="text-xs text-base-content/60">{inv.currency}</span>

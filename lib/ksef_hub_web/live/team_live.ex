@@ -213,13 +213,25 @@ defmodule KsefHubWeb.TeamLive do
         <div class="overflow-x-auto" data-testid="member-list">
           <table class="table table-sm" data-testid="pending-invitations">
             <thead>
-              <tr>
-                <th>Email</th>
-                <th>Name</th>
-                <th>Role</th>
-                <th>Status</th>
-                <th>Expires</th>
-                <th>Action</th>
+              <tr class="border-b border-base-300">
+                <th class="text-left py-3 px-2 text-xs font-medium text-base-content/60 uppercase tracking-wide">
+                  Email
+                </th>
+                <th class="text-left py-3 px-2 text-xs font-medium text-base-content/60 uppercase tracking-wide">
+                  Name
+                </th>
+                <th class="text-left py-3 px-2 text-xs font-medium text-base-content/60 uppercase tracking-wide">
+                  Role
+                </th>
+                <th class="text-left py-3 px-2 text-xs font-medium text-base-content/60 uppercase tracking-wide">
+                  Status
+                </th>
+                <th class="text-left py-3 px-2 text-xs font-medium text-base-content/60 uppercase tracking-wide">
+                  Expires
+                </th>
+                <th class="text-left py-3 px-2 text-xs font-medium text-base-content/60 uppercase tracking-wide">
+                  Action
+                </th>
               </tr>
             </thead>
             <tbody id="members-list" phx-update="stream">
