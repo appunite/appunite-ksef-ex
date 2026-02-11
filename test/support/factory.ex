@@ -56,7 +56,7 @@ defmodule KsefHub.Factory do
     }
   end
 
-  @doc "Builds an `ApiToken` with a sequenced name and hash, associated to a user."
+  @doc "Builds an `ApiToken` with a sequenced name and hash, associated to a user and company."
   @spec api_token_factory() :: ApiToken.t()
   def api_token_factory do
     %ApiToken{
@@ -64,7 +64,8 @@ defmodule KsefHub.Factory do
       token_hash: sequence(:token_hash, &"hash-#{&1}"),
       token_prefix: "ksef_hub_",
       is_active: true,
-      created_by: build(:user)
+      created_by: build(:user),
+      company: build(:company)
     }
   end
 

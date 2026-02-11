@@ -6,6 +6,7 @@ defmodule KsefHub.Accounts do
   import Ecto.Query
 
   alias KsefHub.Accounts.{ApiToken, User, UserNotifier, UserToken}
+  alias KsefHub.Companies
   alias KsefHub.Repo
 
   @token_bytes 32
@@ -305,32 +306,52 @@ defmodule KsefHub.Accounts do
   # --- API Tokens ---
 
   @doc """
-  Creates a new API token owned by the given user. Returns the plaintext token exactly once.
+  Creates a new API token owned by the given user (no company scope).
+  Returns the plaintext token exactly once.
 
-  ## Parameters
-    - `user_id` (`Ecto.UUID.t()`) — owner of the token
-    - `attrs` (`map()`) — token attributes (`:name`, `:description`, `:expires_at`)
-
-  ## Returns
-    - `{:ok, %{token: String.t(), api_token: ApiToken.t()}}` on success
-    - `{:error, Ecto.Changeset.t()}` on validation failure
+  Kept for backward compatibility. Prefer `create_api_token/3` for new code.
   """
   @spec create_api_token(Ecto.UUID.t(), map()) ::
           {:ok, %{token: String.t(), api_token: ApiToken.t()}} | {:error, Ecto.Changeset.t()}
   def create_api_token(user_id, attrs) do
-    attrs = Map.put(attrs, :created_by_id, user_id)
-    do_create_api_token(attrs)
+    do_create_api_token(user_id, nil, attrs)
   end
 
-  @spec do_create_api_token(map()) ::
+  @doc """
+  Creates a new API token scoped to a company. Only owners can create tokens.
+  Returns the plaintext token exactly once.
+
+  ## Parameters
+    - `user_id` — the creating user's ID (must be company owner)
+    - `company_id` — the company to scope the token to
+    - `attrs` — token attributes (`:name`, `:description`, `:expires_at`)
+
+  ## Returns
+    - `{:ok, %{token: String.t(), api_token: ApiToken.t()}}` on success
+    - `{:error, :unauthorized}` if user is not an owner of the company
+    - `{:error, Ecto.Changeset.t()}` on validation failure
+  """
+  @spec create_api_token(Ecto.UUID.t(), Ecto.UUID.t(), map()) ::
+          {:ok, %{token: String.t(), api_token: ApiToken.t()}}
+          | {:error, :unauthorized}
+          | {:error, Ecto.Changeset.t()}
+  def create_api_token(user_id, company_id, attrs) do
+    if Companies.has_role?(user_id, company_id, "owner") do
+      do_create_api_token(user_id, company_id, attrs)
+    else
+      {:error, :unauthorized}
+    end
+  end
+
+  @spec do_create_api_token(Ecto.UUID.t(), Ecto.UUID.t() | nil, map()) ::
           {:ok, %{token: String.t(), api_token: ApiToken.t()}} | {:error, Ecto.Changeset.t()}
-  defp do_create_api_token(attrs) do
+  defp do_create_api_token(user_id, company_id, attrs) do
     plain_token = generate_token()
     token_hash = hash_token(plain_token)
     token_prefix = String.slice(plain_token, 0, 8)
 
     changeset =
-      %ApiToken{}
+      %ApiToken{created_by_id: user_id, company_id: company_id}
       |> ApiToken.changeset(attrs)
       |> Ecto.Changeset.put_change(:token_hash, token_hash)
       |> Ecto.Changeset.put_change(:token_prefix, token_prefix)
@@ -345,13 +366,11 @@ defmodule KsefHub.Accounts do
   end
 
   @doc """
-  Validates a plaintext API token. Returns the token record if valid and not expired.
-
-  ## Parameters
-    - `plain_token` (`String.t()`) — the plaintext Bearer token
+  Validates a plaintext API token. Returns the token record with company preloaded
+  if valid and not expired.
 
   ## Returns
-    - `{:ok, ApiToken.t()}` if valid and active
+    - `{:ok, ApiToken.t()}` if valid and active (company preloaded)
     - `{:error, :invalid}` if not found or not a binary
     - `{:error, :expired}` if past `expires_at`
   """
@@ -360,7 +379,13 @@ defmodule KsefHub.Accounts do
   def validate_api_token(plain_token) when is_binary(plain_token) do
     token_hash = hash_token(plain_token)
 
-    case Repo.get_by(ApiToken, token_hash: token_hash, is_active: true) do
+    query =
+      from(t in ApiToken,
+        where: t.token_hash == ^token_hash and t.is_active == true,
+        preload: [:company]
+      )
+
+    case Repo.one(query) do
       nil ->
         {:error, :invalid}
 
@@ -380,15 +405,6 @@ defmodule KsefHub.Accounts do
 
   @doc """
   Revokes an API token by ID, scoped to the given user.
-
-  ## Parameters
-    - `user_id` (`Ecto.UUID.t()`) — the token owner's ID
-    - `token_id` (`Ecto.UUID.t()`) — the token to revoke
-
-  ## Returns
-    - `{:ok, ApiToken.t()}` on success
-    - `{:error, :not_found}` if the token doesn't exist or doesn't belong to the user
-    - `{:error, Ecto.Changeset.t()}` on update failure
   """
   @spec revoke_api_token(Ecto.UUID.t(), Ecto.UUID.t()) ::
           {:ok, ApiToken.t()} | {:error, :not_found} | {:error, Ecto.Changeset.t()}
@@ -405,13 +421,48 @@ defmodule KsefHub.Accounts do
   end
 
   @doc """
-  Lists API tokens for a given user with sensitive fields redacted.
-
-  ## Parameters
-    - `user_id` (`Ecto.UUID.t()`) — the token owner's ID
+  Revokes an API token by ID, scoped to the given user and company.
+  Only owners can revoke tokens.
 
   ## Returns
-    - `[ApiToken.t()]` — tokens with `token_hash` replaced by `"**redacted**"`
+    - `{:ok, ApiToken.t()}` on success
+    - `{:error, :unauthorized}` if user is not an owner of the company
+    - `{:error, :not_found}` if the token doesn't exist for user + company
+    - `{:error, Ecto.Changeset.t()}` on update failure
+  """
+  @spec revoke_api_token(Ecto.UUID.t(), Ecto.UUID.t(), Ecto.UUID.t()) ::
+          {:ok, ApiToken.t()}
+          | {:error, :unauthorized}
+          | {:error, :not_found}
+          | {:error, Ecto.Changeset.t()}
+  def revoke_api_token(user_id, company_id, token_id) do
+    if Companies.has_role?(user_id, company_id, "owner") do
+      do_revoke_api_token(user_id, company_id, token_id)
+    else
+      {:error, :unauthorized}
+    end
+  end
+
+  @spec do_revoke_api_token(Ecto.UUID.t(), Ecto.UUID.t(), Ecto.UUID.t()) ::
+          {:ok, ApiToken.t()} | {:error, :not_found} | {:error, Ecto.Changeset.t()}
+  defp do_revoke_api_token(user_id, company_id, token_id) do
+    case Repo.get_by(ApiToken,
+           id: token_id,
+           created_by_id: user_id,
+           company_id: company_id
+         ) do
+      nil ->
+        {:error, :not_found}
+
+      api_token ->
+        api_token
+        |> ApiToken.changeset(%{is_active: false})
+        |> Repo.update()
+    end
+  end
+
+  @doc """
+  Lists API tokens for a given user with sensitive fields redacted.
   """
   @spec list_api_tokens(Ecto.UUID.t()) :: [ApiToken.t()]
   def list_api_tokens(user_id) do
@@ -419,18 +470,23 @@ defmodule KsefHub.Accounts do
     |> where([t], t.created_by_id == ^user_id)
     |> order_by([t], desc: t.inserted_at)
     |> Repo.all()
-    |> Enum.map(fn token -> %{token | token_hash: "**redacted**"} end)
+    |> redact_token_hashes()
+  end
+
+  @doc """
+  Lists API tokens for a given user and company with sensitive fields redacted.
+  """
+  @spec list_api_tokens(Ecto.UUID.t(), Ecto.UUID.t()) :: [ApiToken.t()]
+  def list_api_tokens(user_id, company_id) do
+    ApiToken
+    |> where([t], t.created_by_id == ^user_id and t.company_id == ^company_id)
+    |> order_by([t], desc: t.inserted_at)
+    |> Repo.all()
+    |> redact_token_hashes()
   end
 
   @doc """
   Tracks usage of an API token (last_used_at, request_count).
-
-  ## Parameters
-    - `token_id` (`Ecto.UUID.t()`) — the token to update
-
-  ## Returns
-    - `:ok` if the token was found and updated
-    - `{:error, :not_found}` if no matching token exists
   """
   @spec track_token_usage(Ecto.UUID.t()) :: :ok | {:error, :not_found}
   def track_token_usage(token_id) do
@@ -442,6 +498,11 @@ defmodule KsefHub.Accounts do
       {1, _} -> :ok
       {0, _} -> {:error, :not_found}
     end
+  end
+
+  @spec redact_token_hashes([ApiToken.t()]) :: [ApiToken.t()]
+  defp redact_token_hashes(tokens) do
+    Enum.map(tokens, fn token -> %{token | token_hash: "**redacted**"} end)
   end
 
   @spec generate_token() :: String.t()

@@ -324,41 +324,41 @@ Add `company_id` to API tokens. API auth derives company from token (no more que
 ### Checklist
 
 #### 5.1 API token schema + migration
-- [ ] Create migration: add `company_id` (FK restrict) to `api_tokens`. Data migration: associate existing tokens with a company (or mark inactive).
-- [ ] Update `lib/ksef_hub/accounts/api_token.ex` — add `belongs_to :company`, update changeset
-- [ ] Write tests for updated changeset
-- [ ] Run tests green
+- [x] Create migration: add `company_id` (FK restrict) to `api_tokens`. Data migration: associate existing tokens with a company (or mark inactive).
+- [x] Update `lib/ksef_hub/accounts/api_token.ex` — add `belongs_to :company`, update changeset
+- [x] Write tests for updated changeset
+- [x] Run tests green
 
 #### 5.2 Accounts context updates
-- [ ] Write tests:
+- [x] Write tests:
   - `create_api_token/3` — requires user_id, company_id, attrs; verifies user is owner
   - `validate_api_token/1` — returns token with company preloaded
   - `list_api_tokens/2` — scoped to user + company
   - `revoke_api_token/3` — user_id + company_id + token_id; owner only
-- [ ] Update `lib/ksef_hub/accounts.ex`
-- [ ] Run tests green
+- [x] Update `lib/ksef_hub/accounts.ex`
+- [x] Run tests green
 
 #### 5.3 ApiAuth plug — derive company from token
-- [ ] Write/update test: `test/ksef_hub_web/plugs/api_auth_test.exs`
+- [x] Write/update test: `test/ksef_hub_web/plugs/api_auth_test.exs`
   - Valid token assigns `api_token` AND `current_company` to conn
-- [ ] Update `lib/ksef_hub_web/plugs/api_auth.ex` — preload company on token, assign to conn
-- [ ] Run tests green
+- [x] Update `lib/ksef_hub_web/plugs/api_auth.ex` — preload company on token, assign to conn
+- [x] Run tests green
 
 #### 5.4 API controllers — remove company_id param
-- [ ] Update `lib/ksef_hub_web/controllers/api/invoice_controller.ex` — get company from `conn.assigns.current_company` instead of query param
-- [ ] Update OpenAPI specs — remove `company_id` from query parameters
-- [ ] Write tests: API calls use token's company, not a param
-- [ ] Run tests green
+- [x] Update `lib/ksef_hub_web/controllers/api/invoice_controller.ex` — get company from `conn.assigns.current_company` instead of query param
+- [x] Update OpenAPI specs — remove `company_id` from query parameters
+- [x] Write tests: API calls use token's company, not a param
+- [x] Run tests green
 
 #### 5.5 Token management UI — owner only, company scoped
-- [ ] Update `TokenLive` — show only tokens for current company, owner-only access
-- [ ] Write tests
-- [ ] Run tests green
+- [x] Update `TokenLive` — show only tokens for current company, owner-only access
+- [x] Write tests
+- [x] Run tests green
 
 #### 5.6 Final verification
-- [ ] `mix test` — all green
-- [ ] `mix format --check-formatted`
-- [ ] `mix credo --strict`
+- [x] `mix test` — all green
+- [x] `mix format --check-formatted`
+- [x] `mix credo --strict`
 
 ---
 
@@ -384,7 +384,7 @@ When starting work on a PR, update the status below. This lets a new LLM context
 | 2 | `feat/user-scoped-certificates` | DONE | |
 | 3 | `feat/email-password-auth` | DONE | |
 | 4 | `feat/company-invitations` | DONE | |
-| 5 | `feat/api-token-scoping` | NOT STARTED | Blocked by PR 1 |
+| 5 | `feat/api-token-scoping` | DONE | |
 
 ## Code Quality Standards
 

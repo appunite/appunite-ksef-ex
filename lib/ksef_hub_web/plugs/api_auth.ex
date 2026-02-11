@@ -1,7 +1,10 @@
 defmodule KsefHubWeb.Plugs.ApiAuth do
   @moduledoc """
   Plug that validates Bearer API tokens for JSON API routes.
-  Tracks token usage on successful authentication.
+
+  On success, assigns both `:api_token` and `:current_company` to the conn.
+  The company is derived from the token — API consumers never need to pass
+  a company_id parameter.
   """
 
   import Plug.Conn
@@ -9,13 +12,20 @@ defmodule KsefHubWeb.Plugs.ApiAuth do
 
   alias KsefHub.Accounts
 
+  @doc false
+  @spec init(Keyword.t()) :: Keyword.t()
   def init(opts), do: opts
 
+  @doc false
+  @spec call(Plug.Conn.t(), Keyword.t()) :: Plug.Conn.t()
   def call(conn, _opts) do
     with ["Bearer " <> token] <- get_req_header(conn, "authorization"),
          {:ok, api_token} <- Accounts.validate_api_token(token) do
       Accounts.track_token_usage(api_token.id)
-      assign(conn, :api_token, api_token)
+
+      conn
+      |> assign(:api_token, api_token)
+      |> assign(:current_company, api_token.company)
     else
       {:error, :expired} ->
         conn

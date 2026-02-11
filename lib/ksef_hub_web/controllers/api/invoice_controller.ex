@@ -1,4 +1,10 @@
 defmodule KsefHubWeb.Api.InvoiceController do
+  @moduledoc """
+  REST API controller for invoice operations.
+
+  All actions are scoped to the company associated with the authenticated API token.
+  """
+
   use KsefHubWeb, :controller
   use OpenApiSpex.ControllerSpecs
 
@@ -17,14 +23,9 @@ defmodule KsefHubWeb.Api.InvoiceController do
 
   operation(:index,
     summary: "List invoices",
-    description: "Returns invoices for the given company, with optional filtering.",
+    description:
+      "Returns invoices for the company associated with the API token, with optional filtering.",
     parameters: [
-      company_id: [
-        in: :query,
-        description: "Company UUID (required).",
-        schema: %Schema{type: :string, format: :uuid},
-        required: true
-      ],
       type: [
         in: :query,
         description: "Filter by invoice type.",
@@ -63,44 +64,38 @@ defmodule KsefHubWeb.Api.InvoiceController do
     ],
     responses: %{
       200 => {"Invoice list", "application/json", Schemas.InvoiceListResponse},
-      400 => {"Bad request", "application/json", Schemas.ErrorResponse},
       401 => {"Unauthorized", "application/json", Schemas.ErrorResponse}
     }
   )
 
   def index(conn, params) do
-    with {:ok, company_id} <- require_company_id(conn, params) do
-      filters = build_filters(params)
-      invoices = Invoices.list_invoices(company_id, filters)
-      json(conn, %{data: Enum.map(invoices, &invoice_json/1)})
-    end
+    company_id = conn.assigns.current_company.id
+    filters = build_filters(params)
+    invoices = Invoices.list_invoices(company_id, filters)
+    json(conn, %{data: Enum.map(invoices, &invoice_json/1)})
   end
 
   operation(:show,
     summary: "Get invoice",
-    description: "Returns a single invoice by ID.",
+    description: "Returns a single invoice by ID from the token's company.",
     parameters: [
-      id: [in: :path, description: "Invoice UUID.", schema: %Schema{type: :string, format: :uuid}],
-      company_id: [
-        in: :query,
-        description: "Company UUID (required).",
-        schema: %Schema{type: :string, format: :uuid},
-        required: true
+      id: [
+        in: :path,
+        description: "Invoice UUID.",
+        schema: %Schema{type: :string, format: :uuid}
       ]
     ],
     responses: %{
       200 => {"Invoice", "application/json", Schemas.InvoiceResponse},
-      400 => {"Bad request", "application/json", Schemas.ErrorResponse},
       401 => {"Unauthorized", "application/json", Schemas.ErrorResponse},
       404 => {"Not found", "application/json", Schemas.ErrorResponse}
     }
   )
 
-  def show(conn, %{"id" => id} = params) do
-    with {:ok, company_id} <- require_company_id(conn, params) do
-      invoice = Invoices.get_invoice!(company_id, id)
-      json(conn, %{data: invoice_json(invoice)})
-    end
+  def show(conn, %{"id" => id}) do
+    company_id = conn.assigns.current_company.id
+    invoice = Invoices.get_invoice!(company_id, id)
+    json(conn, %{data: invoice_json(invoice)})
   end
 
   operation(:approve,
@@ -111,41 +106,33 @@ defmodule KsefHubWeb.Api.InvoiceController do
         in: :path,
         description: "Invoice UUID.",
         schema: %Schema{type: :string, format: :uuid}
-      ],
-      company_id: [
-        in: :query,
-        description: "Company UUID (required).",
-        schema: %Schema{type: :string, format: :uuid},
-        required: true
       ]
     ],
     responses: %{
       200 => {"Approved invoice", "application/json", Schemas.InvoiceResponse},
-      400 => {"Bad request", "application/json", Schemas.ErrorResponse},
       401 => {"Unauthorized", "application/json", Schemas.ErrorResponse},
       404 => {"Not found", "application/json", Schemas.ErrorResponse},
       422 => {"Unprocessable entity", "application/json", Schemas.ErrorResponse}
     }
   )
 
-  def approve(conn, %{"id" => id} = params) do
-    with {:ok, company_id} <- require_company_id(conn, params) do
-      invoice = Invoices.get_invoice!(company_id, id)
+  def approve(conn, %{"id" => id}) do
+    company_id = conn.assigns.current_company.id
+    invoice = Invoices.get_invoice!(company_id, id)
 
-      case Invoices.approve_invoice(invoice) do
-        {:ok, updated} ->
-          json(conn, %{data: invoice_json(updated)})
+    case Invoices.approve_invoice(invoice) do
+      {:ok, updated} ->
+        json(conn, %{data: invoice_json(updated)})
 
-        {:error, {:invalid_type, _type}} ->
-          conn
-          |> put_status(:unprocessable_entity)
-          |> json(%{error: "Only expense invoices can be approved"})
+      {:error, {:invalid_type, _type}} ->
+        conn
+        |> put_status(:unprocessable_entity)
+        |> json(%{error: "Only expense invoices can be approved"})
 
-        {:error, changeset} ->
-          conn
-          |> put_status(:unprocessable_entity)
-          |> json(%{error: changeset_errors(changeset)})
-      end
+      {:error, changeset} ->
+        conn
+        |> put_status(:unprocessable_entity)
+        |> json(%{error: changeset_errors(changeset)})
     end
   end
 
@@ -157,41 +144,33 @@ defmodule KsefHubWeb.Api.InvoiceController do
         in: :path,
         description: "Invoice UUID.",
         schema: %Schema{type: :string, format: :uuid}
-      ],
-      company_id: [
-        in: :query,
-        description: "Company UUID (required).",
-        schema: %Schema{type: :string, format: :uuid},
-        required: true
       ]
     ],
     responses: %{
       200 => {"Rejected invoice", "application/json", Schemas.InvoiceResponse},
-      400 => {"Bad request", "application/json", Schemas.ErrorResponse},
       401 => {"Unauthorized", "application/json", Schemas.ErrorResponse},
       404 => {"Not found", "application/json", Schemas.ErrorResponse},
       422 => {"Unprocessable entity", "application/json", Schemas.ErrorResponse}
     }
   )
 
-  def reject(conn, %{"id" => id} = params) do
-    with {:ok, company_id} <- require_company_id(conn, params) do
-      invoice = Invoices.get_invoice!(company_id, id)
+  def reject(conn, %{"id" => id}) do
+    company_id = conn.assigns.current_company.id
+    invoice = Invoices.get_invoice!(company_id, id)
 
-      case Invoices.reject_invoice(invoice) do
-        {:ok, updated} ->
-          json(conn, %{data: invoice_json(updated)})
+    case Invoices.reject_invoice(invoice) do
+      {:ok, updated} ->
+        json(conn, %{data: invoice_json(updated)})
 
-        {:error, {:invalid_type, _type}} ->
-          conn
-          |> put_status(:unprocessable_entity)
-          |> json(%{error: "Only expense invoices can be rejected"})
+      {:error, {:invalid_type, _type}} ->
+        conn
+        |> put_status(:unprocessable_entity)
+        |> json(%{error: "Only expense invoices can be rejected"})
 
-        {:error, changeset} ->
-          conn
-          |> put_status(:unprocessable_entity)
-          |> json(%{error: changeset_errors(changeset)})
-      end
+      {:error, changeset} ->
+        conn
+        |> put_status(:unprocessable_entity)
+        |> json(%{error: changeset_errors(changeset)})
     end
   end
 
@@ -204,41 +183,33 @@ defmodule KsefHubWeb.Api.InvoiceController do
         in: :path,
         description: "Invoice UUID.",
         schema: %Schema{type: :string, format: :uuid}
-      ],
-      company_id: [
-        in: :query,
-        description: "Company UUID (required).",
-        schema: %Schema{type: :string, format: :uuid},
-        required: true
       ]
     ],
     responses: %{
       200 => {"HTML content", "text/html", %Schema{type: :string}},
-      400 => {"Bad request", "application/json", Schemas.ErrorResponse},
       401 => {"Unauthorized", "application/json", Schemas.ErrorResponse},
       404 => {"Not found", "application/json", Schemas.ErrorResponse},
       500 => {"Generation failed", "application/json", Schemas.ErrorResponse}
     }
   )
 
-  def html(conn, %{"id" => id} = params) do
-    with {:ok, company_id} <- require_company_id(conn, params) do
-      invoice = Invoices.get_invoice!(company_id, id)
-      pdf_mod = Application.get_env(:ksef_hub, :pdf_generator, KsefHub.Pdf)
+  def html(conn, %{"id" => id}) do
+    company_id = conn.assigns.current_company.id
+    invoice = Invoices.get_invoice!(company_id, id)
+    pdf_mod = Application.get_env(:ksef_hub, :pdf_generator, KsefHub.Pdf)
 
-      case pdf_mod.generate_html(invoice.xml_content) do
-        {:ok, html_content} ->
-          conn
-          |> put_resp_content_type("text/html")
-          |> send_resp(200, html_content)
+    case pdf_mod.generate_html(invoice.xml_content) do
+      {:ok, html_content} ->
+        conn
+        |> put_resp_content_type("text/html")
+        |> send_resp(200, html_content)
 
-        {:error, reason} ->
-          Logger.error("HTML generation failed for invoice #{id}: #{sanitize_error(reason)}")
+      {:error, reason} ->
+        Logger.error("HTML generation failed for invoice #{id}: #{sanitize_error(reason)}")
 
-          conn
-          |> put_status(:internal_server_error)
-          |> json(%{error: "HTML generation failed"})
-      end
+        conn
+        |> put_status(:internal_server_error)
+        |> json(%{error: "HTML generation failed"})
     end
   end
 
@@ -251,72 +222,42 @@ defmodule KsefHubWeb.Api.InvoiceController do
         in: :path,
         description: "Invoice UUID.",
         schema: %Schema{type: :string, format: :uuid}
-      ],
-      company_id: [
-        in: :query,
-        description: "Company UUID (required).",
-        schema: %Schema{type: :string, format: :uuid},
-        required: true
       ]
     ],
     responses: %{
       200 => {"PDF file", "application/pdf", %Schema{type: :string, format: :binary}},
-      400 => {"Bad request", "application/json", Schemas.ErrorResponse},
       401 => {"Unauthorized", "application/json", Schemas.ErrorResponse},
       404 => {"Not found", "application/json", Schemas.ErrorResponse},
       500 => {"Generation failed", "application/json", Schemas.ErrorResponse}
     }
   )
 
-  def pdf(conn, %{"id" => id} = params) do
-    with {:ok, company_id} <- require_company_id(conn, params) do
-      invoice = Invoices.get_invoice!(company_id, id)
-      pdf_mod = Application.get_env(:ksef_hub, :pdf_generator, KsefHub.Pdf)
+  def pdf(conn, %{"id" => id}) do
+    company_id = conn.assigns.current_company.id
+    invoice = Invoices.get_invoice!(company_id, id)
+    pdf_mod = Application.get_env(:ksef_hub, :pdf_generator, KsefHub.Pdf)
 
-      with {:ok, html_content} <- pdf_mod.generate_html(invoice.xml_content),
-           {:ok, pdf_binary} <- pdf_mod.generate_pdf(html_content) do
-        filename = sanitize_filename("#{invoice.invoice_number}.pdf")
+    with {:ok, html_content} <- pdf_mod.generate_html(invoice.xml_content),
+         {:ok, pdf_binary} <- pdf_mod.generate_pdf(html_content) do
+      filename = sanitize_filename("#{invoice.invoice_number}.pdf")
+
+      conn
+      |> put_resp_content_type("application/pdf")
+      |> put_resp_header("content-disposition", ~s(attachment; filename="#{filename}"))
+      |> send_resp(200, pdf_binary)
+    else
+      {:error, reason} ->
+        Logger.error("PDF generation failed for invoice #{id}: #{sanitize_error(reason)}")
 
         conn
-        |> put_resp_content_type("application/pdf")
-        |> put_resp_header("content-disposition", ~s(attachment; filename="#{filename}"))
-        |> send_resp(200, pdf_binary)
-      else
-        {:error, reason} ->
-          Logger.error("PDF generation failed for invoice #{id}: #{sanitize_error(reason)}")
-
-          conn
-          |> put_status(:internal_server_error)
-          |> json(%{error: "PDF generation failed"})
-      end
+        |> put_status(:internal_server_error)
+        |> json(%{error: "PDF generation failed"})
     end
   end
 
   # --- Private ---
 
-  @spec require_company_id(Plug.Conn.t(), map()) :: {:ok, Ecto.UUID.t()} | Plug.Conn.t()
-  defp require_company_id(conn, params) do
-    case params["company_id"] do
-      nil ->
-        conn
-        |> put_status(:bad_request)
-        |> json(%{error: "company_id parameter is required"})
-        |> halt()
-
-      id ->
-        case Ecto.UUID.cast(id) do
-          {:ok, uuid} ->
-            {:ok, uuid}
-
-          :error ->
-            conn
-            |> put_status(:bad_request)
-            |> json(%{error: "company_id must be a valid UUID"})
-            |> halt()
-        end
-    end
-  end
-
+  @spec build_filters(map()) :: map()
   defp build_filters(params) do
     %{}
     |> maybe_put(:type, params["type"])
@@ -328,10 +269,12 @@ defmodule KsefHubWeb.Api.InvoiceController do
     |> maybe_put_date(:date_to, params["date_to"])
   end
 
+  @spec maybe_put(map(), atom(), String.t() | nil) :: map()
   defp maybe_put(map, _key, nil), do: map
   defp maybe_put(map, _key, ""), do: map
   defp maybe_put(map, key, value), do: Map.put(map, key, value)
 
+  @spec maybe_put_date(map(), atom(), String.t() | nil) :: map()
   defp maybe_put_date(map, _key, nil), do: map
   defp maybe_put_date(map, _key, ""), do: map
 
@@ -342,6 +285,7 @@ defmodule KsefHubWeb.Api.InvoiceController do
     end
   end
 
+  @spec invoice_json(KsefHub.Invoices.Invoice.t()) :: map()
   defp invoice_json(invoice) do
     %{
       id: invoice.id,
