@@ -34,7 +34,12 @@ defmodule KsefHubWeb.CertificateLiveTest do
     end)
 
     stub(KsefHub.KsefClient.Mock, :authenticate_xades, fn _ ->
-      {:ok, %{reference_number: "stub-ref", operation_token: "stub-op"}}
+      {:ok,
+       %{
+         reference_number: "stub-ref",
+         auth_token: "stub-auth",
+         auth_token_valid_until: DateTime.add(DateTime.utc_now(), 300)
+       }}
     end)
 
     stub(KsefHub.KsefClient.Mock, :poll_auth_status, fn _, _ ->

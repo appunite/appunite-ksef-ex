@@ -1,25 +1,27 @@
 defmodule KsefHub.XadesSigner.AuthTokenRequest do
   @moduledoc """
-  Builds the AuthTokenRequest XML document for KSeF XADES authentication.
+  Builds the AuthTokenRequest XML document for KSeF v2 XADES authentication.
   This XML is signed with xmlsec1 before submission to KSeF.
   """
 
   @doc """
   Builds an AuthTokenRequest XML string with the given challenge and NIP.
   """
+  @spec build(String.t(), String.t()) :: String.t()
   def build(challenge, nip) do
     """
     <?xml version="1.0" encoding="UTF-8"?>
-    <AuthorisationChallengeRequest xmlns="http://ksef.mf.gov.pl/schema/gtw/svc/online/types/2021/10/01/0001">
-      <ContextIdentifier>
-        <Type>onip</Type>
-        <Identifier>#{escape_xml(nip)}</Identifier>
-      </ContextIdentifier>
+    <AuthTokenRequest xmlns="http://ksef.mf.gov.pl/auth/token/2.0">
       <Challenge>#{escape_xml(challenge)}</Challenge>
-    </AuthorisationChallengeRequest>
+      <ContextIdentifier>
+        <Nip>#{escape_xml(nip)}</Nip>
+      </ContextIdentifier>
+      <SubjectIdentifierType>certificateSubject</SubjectIdentifierType>
+    </AuthTokenRequest>
     """
   end
 
+  @spec escape_xml(String.t()) :: String.t()
   defp escape_xml(str) when is_binary(str) do
     str
     |> String.replace("&", "&amp;")

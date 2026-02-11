@@ -1,19 +1,24 @@
 defmodule KsefHub.KsefClient.Behaviour do
   @moduledoc """
-  Behaviour for KSeF API client. Implementations: Live (HTTP) and Mock (test).
+  Behaviour for KSeF API client (v2). Implementations: Live (HTTP) and Mock (test).
   """
 
   @callback get_challenge() ::
               {:ok, %{challenge: String.t(), timestamp: String.t()}} | {:error, term()}
 
   @callback authenticate_xades(signed_xml :: String.t()) ::
-              {:ok, %{reference_number: String.t(), operation_token: String.t()}}
+              {:ok,
+               %{
+                 reference_number: String.t(),
+                 auth_token: String.t(),
+                 auth_token_valid_until: DateTime.t() | nil
+               }}
               | {:error, term()}
 
-  @callback poll_auth_status(reference_number :: String.t(), operation_token :: String.t()) ::
+  @callback poll_auth_status(reference_number :: String.t(), auth_token :: String.t()) ::
               {:ok, :success} | {:ok, :pending} | {:error, term()}
 
-  @callback redeem_tokens(operation_token :: String.t()) ::
+  @callback redeem_tokens(auth_token :: String.t()) ::
               {:ok,
                %{
                  access_token: String.t(),

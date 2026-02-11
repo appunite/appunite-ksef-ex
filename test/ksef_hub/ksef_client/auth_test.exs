@@ -21,16 +21,21 @@ defmodule KsefHub.KsefClient.AuthTest do
 
       KsefHub.KsefClient.Mock
       |> expect(:authenticate_xades, fn "<SignedXML>...</SignedXML>" ->
-        {:ok, %{reference_number: "ref-123", operation_token: "op-token-456"}}
+        {:ok,
+         %{
+           reference_number: "ref-123",
+           auth_token: "auth-token-456",
+           auth_token_valid_until: DateTime.add(DateTime.utc_now(), 300)
+         }}
       end)
 
       KsefHub.KsefClient.Mock
-      |> expect(:poll_auth_status, fn "ref-123", "op-token-456" ->
+      |> expect(:poll_auth_status, fn "ref-123", "auth-token-456" ->
         {:ok, :success}
       end)
 
       KsefHub.KsefClient.Mock
-      |> expect(:redeem_tokens, fn "op-token-456" ->
+      |> expect(:redeem_tokens, fn "auth-token-456" ->
         {:ok,
          %{
            access_token: "access-tok",

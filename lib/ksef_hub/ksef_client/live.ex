@@ -1,27 +1,32 @@
 defmodule KsefHub.KsefClient.Live do
   @moduledoc """
-  Production HTTP implementation of the KSeF API client.
+  Production HTTP implementation of the KSeF v2 API client.
   Uses Req for HTTP requests against the KSeF REST API.
   """
 
   @behaviour KsefHub.KsefClient.Behaviour
 
-  defp base_url, do: Application.get_env(:ksef_hub, :ksef_api_url, "https://ksef-test.mf.gov.pl")
+  defp base_url,
+    do: Application.get_env(:ksef_hub, :ksef_api_url, "https://api-test.ksef.mf.gov.pl")
 
-  defp api_url(path), do: "#{base_url()}/api/online#{path}"
+  defp api_url(path), do: "#{base_url()}/v2#{path}"
+
+  defp bearer_headers(token), do: [{"authorization", "Bearer #{token}"}]
 
   @impl true
   def get_challenge do
-    url = api_url("/Session/AuthorisationChallenge")
-    body = %{"contextIdentifier" => %{"type" => "onip", "identifier" => "placeholder"}}
+    url = api_url("/auth/challenge")
 
-    case Req.post(url, json: body) do
-      {:ok, %{status: 200, body: body}} ->
+    case Req.post(url, json: %{}) do
+      {:ok, %{status: 200, body: body}} when is_map(body) ->
         {:ok,
          %{
            challenge: body["challenge"],
            timestamp: body["timestamp"]
          }}
+
+      {:ok, %{status: status, body: body}} when is_binary(body) ->
+        {:error, {:unexpected_html_response, status}}
 
       {:ok, %{status: status, body: body}} ->
         {:error, {:ksef_error, status, body}}
@@ -33,15 +38,21 @@ defmodule KsefHub.KsefClient.Live do
 
   @impl true
   def authenticate_xades(signed_xml) do
-    url = api_url("/Session/AuthenticationToken/XadesSignature")
+    url = api_url("/auth/xades-signature")
 
-    case Req.post(url, body: signed_xml, headers: [{"content-type", "application/octet-stream"}]) do
-      {:ok, %{status: 200, body: body}} ->
+    case Req.post(url, body: signed_xml, headers: [{"content-type", "application/xml"}]) do
+      {:ok, %{status: status, body: body}} when status in [200, 202] and is_map(body) ->
+        auth_token_data = body["authenticationToken"] || %{}
+
         {:ok,
          %{
            reference_number: body["referenceNumber"],
-           operation_token: body["operationToken"]
+           auth_token: auth_token_data["token"],
+           auth_token_valid_until: parse_datetime(auth_token_data["validUntil"])
          }}
+
+      {:ok, %{status: status, body: body}} when is_binary(body) ->
+        {:error, {:unexpected_html_response, status}}
 
       {:ok, %{status: status, body: body}} ->
         {:error, {:ksef_error, status, body}}
@@ -52,15 +63,23 @@ defmodule KsefHub.KsefClient.Live do
   end
 
   @impl true
-  def poll_auth_status(reference_number, _operation_token) do
-    url = api_url("/Session/Status/#{reference_number}")
+  def poll_auth_status(reference_number, auth_token) do
+    url = api_url("/auth/#{reference_number}")
+    headers = bearer_headers(auth_token)
 
-    case Req.get(url) do
-      {:ok, %{status: 200, body: %{"processingCode" => 200}}} ->
+    case Req.get(url, headers: headers) do
+      {:ok, %{status: 200, body: %{"status" => %{"code" => code}}}}
+      when code >= 200 and code < 300 ->
         {:ok, :success}
 
-      {:ok, %{status: 200, body: %{"processingCode" => _}}} ->
+      {:ok, %{status: 200, body: %{"status" => %{"code" => code}}}} when code < 200 ->
         {:ok, :pending}
+
+      {:ok, %{status: 200, body: %{"status" => %{"code" => code}} = body}} when code >= 400 ->
+        {:error, {:ksef_error, code, body}}
+
+      {:ok, %{status: status, body: body}} when is_binary(body) ->
+        {:error, {:unexpected_html_response, status}}
 
       {:ok, %{status: status, body: body}} ->
         {:error, {:ksef_error, status, body}}
@@ -71,18 +90,25 @@ defmodule KsefHub.KsefClient.Live do
   end
 
   @impl true
-  def redeem_tokens(operation_token) do
-    url = api_url("/Session/Token/Redeem")
+  def redeem_tokens(auth_token) do
+    url = api_url("/auth/token/redeem")
+    headers = bearer_headers(auth_token)
 
-    case Req.post(url, json: %{"operationToken" => operation_token}) do
-      {:ok, %{status: 200, body: body}} ->
+    case Req.post(url, json: %{}, headers: headers) do
+      {:ok, %{status: 200, body: body}} when is_map(body) ->
+        access = body["accessToken"] || %{}
+        refresh = body["refreshToken"] || %{}
+
         {:ok,
          %{
-           access_token: body["accessToken"],
-           refresh_token: body["refreshToken"],
-           access_valid_until: parse_datetime(body["accessTokenValidUntil"]),
-           refresh_valid_until: parse_datetime(body["refreshTokenValidUntil"])
+           access_token: access["token"],
+           refresh_token: refresh["token"],
+           access_valid_until: parse_datetime(access["validUntil"]),
+           refresh_valid_until: parse_datetime(refresh["validUntil"])
          }}
+
+      {:ok, %{status: status, body: body}} when is_binary(body) ->
+        {:error, {:unexpected_html_response, status}}
 
       {:ok, %{status: status, body: body}} ->
         {:error, {:ksef_error, status, body}}
@@ -94,15 +120,21 @@ defmodule KsefHub.KsefClient.Live do
 
   @impl true
   def refresh_access_token(refresh_token) do
-    url = api_url("/Session/Token/Refresh")
+    url = api_url("/auth/token/refresh")
+    headers = bearer_headers(refresh_token)
 
-    case Req.post(url, json: %{"refreshToken" => refresh_token}) do
-      {:ok, %{status: 200, body: body}} ->
+    case Req.post(url, json: %{}, headers: headers) do
+      {:ok, %{status: 200, body: body}} when is_map(body) ->
+        access = body["accessToken"] || %{}
+
         {:ok,
          %{
-           access_token: body["accessToken"],
-           valid_until: parse_datetime(body["accessTokenValidUntil"])
+           access_token: access["token"],
+           valid_until: parse_datetime(access["validUntil"])
          }}
+
+      {:ok, %{status: status, body: body}} when is_binary(body) ->
+        {:error, {:unexpected_html_response, status}}
 
       {:ok, %{status: status, body: body}} ->
         {:error, {:ksef_error, status, body}}
@@ -114,22 +146,24 @@ defmodule KsefHub.KsefClient.Live do
 
   @impl true
   def query_invoice_metadata(access_token, filters, opts \\ []) do
-    url = api_url("/Query/Invoice/Sync")
     page_offset = Keyword.get(opts, :page_offset, 0)
+    page_size = Keyword.get(opts, :page_size, 100)
 
-    body = %{
-      "queryCriteria" => build_query_criteria(filters),
-      "pageOffset" => page_offset,
-      "pageSize" => Keyword.get(opts, :page_size, 100)
-    }
+    params = [
+      {"pageOffset", page_offset},
+      {"pageSize", page_size},
+      {"sortOrder", "Asc"}
+    ]
 
-    headers = [{"SessionToken", access_token}]
+    url = api_url("/invoices/query/metadata")
+    headers = bearer_headers(access_token)
+    body = build_query_filters(filters)
 
-    case Req.post(url, json: body, headers: headers) do
-      {:ok, %{status: 200, body: body}} ->
+    case Req.post(url, json: body, headers: headers, params: params) do
+      {:ok, %{status: 200, body: body}} when is_map(body) ->
         {:ok,
          %{
-           invoices: body["invoiceHeaderList"] || [],
+           invoices: body["invoices"] || [],
            has_more: body["hasMore"] || false,
            is_truncated: body["isTruncated"] || false
          }}
@@ -137,6 +171,9 @@ defmodule KsefHub.KsefClient.Live do
       {:ok, %{status: 429} = resp} ->
         retry_after = get_retry_after(resp)
         {:error, {:rate_limited, retry_after}}
+
+      {:ok, %{status: status, body: body}} when is_binary(body) ->
+        {:error, {:unexpected_html_response, status}}
 
       {:ok, %{status: status, body: body}} ->
         {:error, {:ksef_error, status, body}}
@@ -148,8 +185,8 @@ defmodule KsefHub.KsefClient.Live do
 
   @impl true
   def download_invoice(access_token, ksef_number) do
-    url = api_url("/Invoice/Get/#{ksef_number}")
-    headers = [{"SessionToken", access_token}]
+    url = api_url("/invoices/ksef/#{ksef_number}")
+    headers = bearer_headers(access_token)
 
     case Req.get(url, headers: headers) do
       {:ok, %{status: 200, body: body}} when is_binary(body) ->
@@ -169,11 +206,11 @@ defmodule KsefHub.KsefClient.Live do
 
   @impl true
   def terminate_session(token) do
-    url = api_url("/Session/Terminate")
-    headers = [{"SessionToken", token}]
+    url = api_url("/auth/sessions/current")
+    headers = bearer_headers(token)
 
-    case Req.get(url, headers: headers) do
-      {:ok, %{status: 200}} -> :ok
+    case Req.delete(url, headers: headers) do
+      {:ok, %{status: status}} when status in [200, 204] -> :ok
       {:ok, %{status: status, body: body}} -> {:error, {:ksef_error, status, body}}
       {:error, reason} -> {:error, {:request_failed, reason}}
     end
@@ -181,45 +218,41 @@ defmodule KsefHub.KsefClient.Live do
 
   # --- Private ---
 
-  defp build_query_criteria(filters) do
-    criteria = %{}
+  @spec build_query_filters(map()) :: map()
+  defp build_query_filters(filters) do
+    query = %{}
 
-    criteria =
+    query =
       if filters[:type] do
         Map.put(
-          criteria,
+          query,
           "subjectType",
-          if(filters[:type] == "income", do: "subject1", else: "subject2")
+          if(filters[:type] == "income", do: "Subject1", else: "Subject2")
         )
       else
-        criteria
+        query
       end
 
-    criteria =
-      if filters[:date_from] do
-        Map.put(
-          criteria,
-          "acquisitionTimestampThresholdFrom",
-          DateTime.to_iso8601(filters[:date_from])
-        )
-      else
-        criteria
-      end
+    date_range = build_date_range(filters[:date_from], filters[:date_to])
 
-    criteria =
-      if filters[:date_to] do
-        Map.put(
-          criteria,
-          "acquisitionTimestampThresholdTo",
-          DateTime.to_iso8601(filters[:date_to])
-        )
-      else
-        criteria
-      end
-
-    criteria
+    if date_range do
+      Map.put(query, "dateRange", date_range)
+    else
+      query
+    end
   end
 
+  @spec build_date_range(DateTime.t() | nil, DateTime.t() | nil) :: map() | nil
+  defp build_date_range(nil, nil), do: nil
+
+  defp build_date_range(from, to) do
+    range = %{"dateType" => "PermanentStorage"}
+    range = if from, do: Map.put(range, "from", DateTime.to_iso8601(from)), else: range
+    range = if to, do: Map.put(range, "to", DateTime.to_iso8601(to)), else: range
+    range
+  end
+
+  @spec parse_datetime(String.t() | nil) :: DateTime.t() | nil
   defp parse_datetime(nil), do: nil
 
   defp parse_datetime(str) when is_binary(str) do
@@ -229,6 +262,7 @@ defmodule KsefHub.KsefClient.Live do
     end
   end
 
+  @spec get_retry_after(map()) :: non_neg_integer()
   defp get_retry_after(%{headers: headers}) do
     case List.keyfind(headers, "retry-after", 0) do
       {_, value} -> String.to_integer(value)
