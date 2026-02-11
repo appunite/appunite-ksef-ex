@@ -262,7 +262,9 @@ defmodule KsefHubWeb.TeamLive do
               >
                 <td>{inv.email}</td>
                 <td>—</td>
-                <td><span class="badge badge-sm badge-outline" data-role={inv.role}>{inv.role}</span></td>
+                <td>
+                  <span class="badge badge-sm badge-outline" data-role={inv.role}>{inv.role}</span>
+                </td>
                 <td><span class="badge badge-sm badge-warning">pending</span></td>
                 <td>{Calendar.strftime(inv.expires_at, "%Y-%m-%d")}</td>
                 <td>
