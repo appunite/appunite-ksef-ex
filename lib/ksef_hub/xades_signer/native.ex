@@ -2,7 +2,7 @@ defmodule KsefHub.XadesSigner.Native do
   @moduledoc """
   Pure Elixir XADES-BES signer for KSeF authentication.
 
-  Replaces the xmlsec1 CLI dependency with OTP's `:crypto` and `:public_key` modules.
+  Uses OTP's `:crypto` and `:public_key` modules for signing (no xmlsec1 dependency).
   Uses `openssl` CLI only for PKCS12 extraction (same dependency as `CertificateInfo.Openssl`).
 
   Produces an enveloped XML signature with XAdES QualifyingProperties containing:

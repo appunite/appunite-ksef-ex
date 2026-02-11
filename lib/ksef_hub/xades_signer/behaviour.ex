@@ -1,6 +1,6 @@
 defmodule KsefHub.XadesSigner.Behaviour do
   @moduledoc """
-  Behaviour for XADES XML signing. Implementations: Xmlsec1 (production) and Mock (test).
+  Behaviour for XADES XML signing. Implementations: Native (production) and Mock (test).
   """
 
   @callback sign_challenge(

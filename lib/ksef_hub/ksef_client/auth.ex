@@ -13,12 +13,12 @@ defmodule KsefHub.KsefClient.Auth do
   defp ksef_client, do: Application.get_env(:ksef_hub, :ksef_client, KsefHub.KsefClient.Live)
 
   defp xades_signer,
-    do: Application.get_env(:ksef_hub, :xades_signer, KsefHub.XadesSigner.Xmlsec1)
+    do: Application.get_env(:ksef_hub, :xades_signer, KsefHub.XadesSigner.Native)
 
   @doc """
   Performs full XADES authentication flow:
   1. Get challenge from KSeF
-  2. Sign challenge with XADES (xmlsec1 + PKCS12 cert)
+  2. Sign challenge with XADES-BES (PKCS12 cert)
   3. Submit signed XML to KSeF
   4. Poll for auth completion
   5. Redeem tokens (access + refresh)
