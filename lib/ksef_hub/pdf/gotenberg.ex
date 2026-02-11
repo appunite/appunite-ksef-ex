@@ -20,7 +20,7 @@ defmodule KsefHub.Pdf.Gotenberg do
 
         case Req.post(url,
                form_multipart: [
-                 {"files", html_content, filename: "index.html", content_type: "text/html"}
+                 {"files", {html_content, filename: "index.html", content_type: "text/html"}}
                ],
                receive_timeout: 30_000
              ) do

@@ -11,14 +11,14 @@ defmodule KsefHub.Pdf do
   alias KsefHub.Pdf.{FallbackTemplate, Gotenberg, Xsltproc}
 
   @impl true
-  def generate_html(xml_content) do
-    case Xsltproc.transform(xml_content) do
+  def generate_html(xml_content, metadata \\ %{}) do
+    case Xsltproc.transform(xml_content, metadata) do
       {:ok, html} ->
         {:ok, html}
 
       {:error, _reason} ->
         Logger.debug("Xsltproc failed, using fallback template")
-        FallbackTemplate.render(xml_content)
+        FallbackTemplate.render(xml_content, metadata)
     end
   end
 

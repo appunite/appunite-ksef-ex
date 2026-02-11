@@ -198,7 +198,9 @@ defmodule KsefHubWeb.Api.InvoiceController do
     invoice = Invoices.get_invoice!(company_id, id)
     pdf_mod = Application.get_env(:ksef_hub, :pdf_generator, KsefHub.Pdf)
 
-    case pdf_mod.generate_html(invoice.xml_content) do
+    metadata = %{ksef_number: invoice.ksef_number}
+
+    case pdf_mod.generate_html(invoice.xml_content, metadata) do
       {:ok, html_content} ->
         conn
         |> put_resp_content_type("text/html")
@@ -237,7 +239,9 @@ defmodule KsefHubWeb.Api.InvoiceController do
     invoice = Invoices.get_invoice!(company_id, id)
     pdf_mod = Application.get_env(:ksef_hub, :pdf_generator, KsefHub.Pdf)
 
-    with {:ok, html_content} <- pdf_mod.generate_html(invoice.xml_content),
+    metadata = %{ksef_number: invoice.ksef_number}
+
+    with {:ok, html_content} <- pdf_mod.generate_html(invoice.xml_content, metadata),
          {:ok, pdf_binary} <- pdf_mod.generate_pdf(html_content) do
       filename = sanitize_filename("#{invoice.invoice_number}.pdf")
 

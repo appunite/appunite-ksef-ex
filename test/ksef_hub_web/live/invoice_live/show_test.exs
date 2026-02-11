@@ -30,7 +30,7 @@ defmodule KsefHubWeb.InvoiceLive.ShowTest do
     test "renders invoice detail page", %{conn: conn, company: company} do
       invoice = insert(:invoice, type: "income", company: company)
 
-      stub(KsefHub.Pdf.Mock, :generate_html, fn _xml -> {:ok, "<html>preview</html>"} end)
+      stub(KsefHub.Pdf.Mock, :generate_html, fn _xml, _meta -> {:ok, "<html>preview</html>"} end)
 
       {:ok, _view, html} = live(conn, ~p"/invoices/#{invoice.id}")
       assert html =~ invoice.invoice_number
@@ -42,7 +42,7 @@ defmodule KsefHubWeb.InvoiceLive.ShowTest do
       xml = File.read!("test/support/fixtures/sample_income.xml")
       invoice = insert(:invoice, type: "income", xml_content: xml, company: company)
 
-      stub(KsefHub.Pdf.Mock, :generate_html, fn _xml -> {:ok, "<html>preview</html>"} end)
+      stub(KsefHub.Pdf.Mock, :generate_html, fn _xml, _meta -> {:ok, "<html>preview</html>"} end)
 
       {:ok, _view, html} = live(conn, ~p"/invoices/#{invoice.id}")
       assert html =~ "preview"
@@ -53,7 +53,7 @@ defmodule KsefHubWeb.InvoiceLive.ShowTest do
     test "approve button shown for pending expense invoices", %{conn: conn, company: company} do
       invoice = insert(:invoice, type: "expense", company: company)
 
-      stub(KsefHub.Pdf.Mock, :generate_html, fn _xml -> {:error, :no_xml} end)
+      stub(KsefHub.Pdf.Mock, :generate_html, fn _xml, _meta -> {:error, :no_xml} end)
 
       {:ok, view, _html} = live(conn, ~p"/invoices/#{invoice.id}")
       assert has_element?(view, "button", "Approve")
@@ -63,7 +63,7 @@ defmodule KsefHubWeb.InvoiceLive.ShowTest do
     test "approve button not shown for income invoices", %{conn: conn, company: company} do
       invoice = insert(:invoice, type: "income", company: company)
 
-      stub(KsefHub.Pdf.Mock, :generate_html, fn _xml -> {:error, :no_xml} end)
+      stub(KsefHub.Pdf.Mock, :generate_html, fn _xml, _meta -> {:error, :no_xml} end)
 
       {:ok, view, _html} = live(conn, ~p"/invoices/#{invoice.id}")
       refute has_element?(view, "button", "Approve")
@@ -72,7 +72,7 @@ defmodule KsefHubWeb.InvoiceLive.ShowTest do
     test "clicking approve updates status", %{conn: conn, company: company} do
       invoice = insert(:invoice, type: "expense", company: company)
 
-      stub(KsefHub.Pdf.Mock, :generate_html, fn _xml -> {:error, :no_xml} end)
+      stub(KsefHub.Pdf.Mock, :generate_html, fn _xml, _meta -> {:error, :no_xml} end)
 
       {:ok, view, _html} = live(conn, ~p"/invoices/#{invoice.id}")
 
@@ -86,7 +86,7 @@ defmodule KsefHubWeb.InvoiceLive.ShowTest do
     test "clicking reject updates status", %{conn: conn, company: company} do
       invoice = insert(:invoice, type: "expense", company: company)
 
-      stub(KsefHub.Pdf.Mock, :generate_html, fn _xml -> {:error, :no_xml} end)
+      stub(KsefHub.Pdf.Mock, :generate_html, fn _xml, _meta -> {:error, :no_xml} end)
 
       {:ok, view, _html} = live(conn, ~p"/invoices/#{invoice.id}")
 
@@ -100,7 +100,7 @@ defmodule KsefHubWeb.InvoiceLive.ShowTest do
     test "approve on income invoice is rejected", %{conn: conn, company: company} do
       invoice = insert(:invoice, type: "income", company: company)
 
-      stub(KsefHub.Pdf.Mock, :generate_html, fn _xml -> {:error, :no_xml} end)
+      stub(KsefHub.Pdf.Mock, :generate_html, fn _xml, _meta -> {:error, :no_xml} end)
 
       {:ok, view, _html} = live(conn, ~p"/invoices/#{invoice.id}")
 
@@ -115,7 +115,7 @@ defmodule KsefHubWeb.InvoiceLive.ShowTest do
     test "already-approved invoice does not show action buttons", %{conn: conn, company: company} do
       invoice = insert(:invoice, type: "expense", status: "approved", company: company)
 
-      stub(KsefHub.Pdf.Mock, :generate_html, fn _xml -> {:error, :no_xml} end)
+      stub(KsefHub.Pdf.Mock, :generate_html, fn _xml, _meta -> {:error, :no_xml} end)
 
       {:ok, view, _html} = live(conn, ~p"/invoices/#{invoice.id}")
 

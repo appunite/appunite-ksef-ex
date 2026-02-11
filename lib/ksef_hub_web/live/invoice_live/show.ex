@@ -88,7 +88,9 @@ defmodule KsefHubWeb.InvoiceLive.Show do
     if invoice.xml_content do
       pdf_mod = Application.get_env(:ksef_hub, :pdf_generator, KsefHub.Pdf)
 
-      case pdf_mod.generate_html(invoice.xml_content) do
+      metadata = %{ksef_number: invoice.ksef_number}
+
+      case pdf_mod.generate_html(invoice.xml_content, metadata) do
         {:ok, html} -> html
         {:error, _} -> nil
       end
