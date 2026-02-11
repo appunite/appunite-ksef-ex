@@ -99,6 +99,7 @@ defmodule KsefHubWeb.Api.TokenController do
     responses: %{
       200 => {"Token revoked", "application/json", Schemas.MessageResponse},
       401 => {"Unauthorized", "application/json", Schemas.ErrorResponse},
+      403 => {"Forbidden", "application/json", Schemas.ErrorResponse},
       404 => {"Not found", "application/json", Schemas.ErrorResponse}
     }
   )
@@ -110,6 +111,11 @@ defmodule KsefHubWeb.Api.TokenController do
     case Accounts.revoke_api_token(user_id, company_id, id) do
       {:ok, _token} ->
         json(conn, %{message: "Token revoked successfully"})
+
+      {:error, :unauthorized} ->
+        conn
+        |> put_status(:forbidden)
+        |> json(%{error: "Only company owners can revoke API tokens"})
 
       {:error, :not_found} ->
         conn

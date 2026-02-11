@@ -439,5 +439,17 @@ defmodule KsefHub.AccountsTest do
       assert {:error, :not_found} =
                Accounts.revoke_api_token(user2.id, company.id, api_token.id)
     end
+
+    test "revoke_api_token/3 rejects non-owner" do
+      user = create_user()
+      company = insert(:company)
+      insert(:membership, user: user, company: company, role: "accountant")
+
+      # Insert a token directly (bypassing owner check) to test revoke guard
+      token = insert(:api_token, created_by: user, company: company)
+
+      assert {:error, :unauthorized} =
+               Accounts.revoke_api_token(user.id, company.id, token.id)
+    end
   end
 end

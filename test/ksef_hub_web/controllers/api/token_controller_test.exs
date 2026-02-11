@@ -99,4 +99,36 @@ defmodule KsefHubWeb.Api.TokenControllerTest do
       assert conn.status == 404
     end
   end
+
+  describe "owner-only enforcement" do
+    test "non-owner cannot revoke tokens via API", %{conn: conn} do
+      # Create a company with an owner who creates a token
+      owner = insert(:user, google_uid: "uid-#{System.unique_integer([:positive])}")
+      company = insert(:company)
+      insert(:membership, user: owner, company: company, role: "owner")
+
+      {:ok, %{api_token: target}} =
+        Accounts.create_api_token(owner.id, company.id, %{name: "Target Token"})
+
+      # Create an accountant with a token for the same company
+      # (inserted directly via factory to bypass owner check)
+      accountant = insert(:user, google_uid: "uid-#{System.unique_integer([:positive])}")
+      insert(:membership, user: accountant, company: company, role: "accountant")
+
+      {:ok, %{token: acct_plain_token}} =
+        Accounts.create_api_token(accountant.id, %{name: "Acct Token"})
+
+      # Set company_id on the accountant's token so ApiAuth derives the company
+      acct_api_token = KsefHub.Repo.get_by!(Accounts.ApiToken, created_by_id: accountant.id)
+
+      acct_api_token
+      |> Ecto.Changeset.change(company_id: company.id)
+      |> KsefHub.Repo.update!()
+
+      conn = conn |> api_conn(acct_plain_token) |> delete("/api/tokens/#{target.id}")
+
+      assert conn.status == 403
+      assert Jason.decode!(conn.resp_body)["error"] =~ "Only company owners"
+    end
+  end
 end

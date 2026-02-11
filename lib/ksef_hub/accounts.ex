@@ -422,10 +422,30 @@ defmodule KsefHub.Accounts do
 
   @doc """
   Revokes an API token by ID, scoped to the given user and company.
+  Only owners can revoke tokens.
+
+  ## Returns
+    - `{:ok, ApiToken.t()}` on success
+    - `{:error, :unauthorized}` if user is not an owner of the company
+    - `{:error, :not_found}` if the token doesn't exist for user + company
+    - `{:error, Ecto.Changeset.t()}` on update failure
   """
   @spec revoke_api_token(Ecto.UUID.t(), Ecto.UUID.t(), Ecto.UUID.t()) ::
-          {:ok, ApiToken.t()} | {:error, :not_found} | {:error, Ecto.Changeset.t()}
+          {:ok, ApiToken.t()}
+          | {:error, :unauthorized}
+          | {:error, :not_found}
+          | {:error, Ecto.Changeset.t()}
   def revoke_api_token(user_id, company_id, token_id) do
+    if Companies.has_role?(user_id, company_id, "owner") do
+      do_revoke_api_token(user_id, company_id, token_id)
+    else
+      {:error, :unauthorized}
+    end
+  end
+
+  @spec do_revoke_api_token(Ecto.UUID.t(), Ecto.UUID.t(), Ecto.UUID.t()) ::
+          {:ok, ApiToken.t()} | {:error, :not_found} | {:error, Ecto.Changeset.t()}
+  defp do_revoke_api_token(user_id, company_id, token_id) do
     case Repo.get_by(ApiToken,
            id: token_id,
            created_by_id: user_id,

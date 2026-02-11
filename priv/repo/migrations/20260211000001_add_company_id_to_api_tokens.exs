@@ -8,16 +8,21 @@ defmodule KsefHub.Repo.Migrations.AddCompanyIdToApiTokens do
 
     create index(:api_tokens, [:company_id])
 
-    # Data migration: associate existing tokens with their creator's first company
-    # (via the creator's owner membership). Tokens without a valid owner membership
-    # are deactivated rather than left with NULL company_id.
+    # Data migration: associate existing tokens with their creator's earliest owner
+    # membership company. Uses a deterministic subquery (ORDER BY + LIMIT 1) so
+    # users who own multiple companies get a consistent, single result per token.
+    # Tokens without a valid owner membership are deactivated below.
     execute """
     UPDATE api_tokens
-    SET company_id = m.company_id
-    FROM memberships m
-    WHERE api_tokens.created_by_id = m.user_id
-      AND m.role = 'owner'
-      AND api_tokens.company_id IS NULL
+    SET company_id = (
+      SELECT m.company_id
+      FROM memberships m
+      WHERE m.user_id = api_tokens.created_by_id
+        AND m.role = 'owner'
+      ORDER BY m.inserted_at, m.id
+      LIMIT 1
+    )
+    WHERE api_tokens.company_id IS NULL
     """
 
     execute """
