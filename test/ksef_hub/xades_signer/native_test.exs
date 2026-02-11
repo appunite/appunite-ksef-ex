@@ -12,7 +12,6 @@ defmodule KsefHub.XadesSigner.NativeTest do
   end
 
   describe "sign_challenge/4" do
-
     test "returns {:ok, signed_xml} with valid PKCS12", %{p12_data: p12_data, password: password} do
       assert {:ok, signed_xml} = Native.sign_challenge(@challenge, @nip, p12_data, password)
       assert is_binary(signed_xml)
