@@ -44,7 +44,7 @@ if config_env() == :dev do
     config :ksef_hub, KsefHub.Repo,
       url: database_url,
       ssl: [verify: :verify_none],
-      pool_size: 10
+      pool_size: String.to_integer(System.get_env("POOL_SIZE") || "5")
   end
 end
 
@@ -60,7 +60,7 @@ if config_env() == :prod do
     System.get_env("KSEF_API_URL") ||
       raise """
       environment variable KSEF_API_URL is missing.
-      Use https://ksef-test.mf.gov.pl for test or https://ksef.mf.gov.pl for production.
+      Use https://api-test.ksef.mf.gov.pl for test or https://api.ksef.mf.gov.pl for production.
       """
 
   uri = URI.parse(ksef_api_url)

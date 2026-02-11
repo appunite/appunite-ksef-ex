@@ -29,10 +29,10 @@ defmodule KsefHub.KsefClient.Auth do
     with {:ok, %{challenge: challenge}} <- ksef_client().get_challenge(),
          {:ok, signed_xml} <-
            xades_signer().sign_challenge(challenge, nip, certificate_data, certificate_password),
-         {:ok, %{reference_number: ref, operation_token: op_token}} <-
+         {:ok, %{reference_number: ref, auth_token: auth_token}} <-
            ksef_client().authenticate_xades(signed_xml),
-         :ok <- poll_until_ready(ref, op_token),
-         {:ok, tokens} <- ksef_client().redeem_tokens(op_token) do
+         :ok <- poll_until_ready(ref, auth_token),
+         {:ok, tokens} <- ksef_client().redeem_tokens(auth_token) do
       Logger.info("KSeF XADES authentication successful for NIP #{nip}")
       {:ok, tokens}
     else
@@ -42,21 +42,21 @@ defmodule KsefHub.KsefClient.Auth do
     end
   end
 
-  defp poll_until_ready(reference_number, operation_token, attempt \\ 0)
+  defp poll_until_ready(reference_number, auth_token, attempt \\ 0)
 
-  defp poll_until_ready(_reference_number, _operation_token, attempt)
+  defp poll_until_ready(_reference_number, _auth_token, attempt)
        when attempt >= @max_poll_attempts do
     {:error, :auth_timeout}
   end
 
-  defp poll_until_ready(reference_number, operation_token, attempt) do
-    case ksef_client().poll_auth_status(reference_number, operation_token) do
+  defp poll_until_ready(reference_number, auth_token, attempt) do
+    case ksef_client().poll_auth_status(reference_number, auth_token) do
       {:ok, :success} ->
         :ok
 
       {:ok, :pending} ->
         Process.sleep(@poll_interval_ms)
-        poll_until_ready(reference_number, operation_token, attempt + 1)
+        poll_until_ready(reference_number, auth_token, attempt + 1)
 
       {:error, _} = error ->
         error

@@ -20,11 +20,12 @@ defmodule KsefHub.Sync.SyncWorkerTest do
   end
 
   describe "perform/1" do
-    test "skips sync when no active credential", %{company: company} do
-      assert :ok = SyncWorker.perform(%Oban.Job{args: %{"company_id" => company.id}})
+    test "cancels sync when no active credential", %{company: company} do
+      assert {:cancel, :no_credential} =
+               SyncWorker.perform(%Oban.Job{args: %{"company_id" => company.id}})
     end
 
-    test "skips sync when no owner certificate", %{company: company} do
+    test "cancels sync when no owner certificate", %{company: company} do
       {:ok, _cred} =
         Credentials.create_credential(%{
           nip: company.nip,
@@ -32,7 +33,8 @@ defmodule KsefHub.Sync.SyncWorkerTest do
           is_active: true
         })
 
-      assert :ok = SyncWorker.perform(%Oban.Job{args: %{"company_id" => company.id}})
+      assert {:cancel, :no_certificate} =
+               SyncWorker.perform(%Oban.Job{args: %{"company_id" => company.id}})
     end
 
     test "syncs invoices when credential, certificate, and tokens are available", %{
