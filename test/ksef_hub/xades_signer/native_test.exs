@@ -215,6 +215,14 @@ defmodule KsefHub.XadesSigner.NativeTest do
       p12_data = File.read!(p12_path)
       {p12_data, password}
     after
+      # Overwrite sensitive files before deletion
+      for path <- [key_path, pass_path, p12_path] do
+        if File.exists?(path) do
+          size = File.stat!(path).size
+          File.write!(path, :binary.copy(<<0>>, size))
+        end
+      end
+
       File.rm(key_path)
       File.rm(cert_path)
       File.rm(p12_path)

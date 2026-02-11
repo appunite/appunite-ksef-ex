@@ -144,6 +144,7 @@ defmodule KsefHub.XadesSigner.Native do
 
       [{:PrivateKeyInfo, der, :not_encrypted} | _] ->
         # PKCS8-wrapped key (openssl outputs this for EC keys)
+        # :public_key.der_decode(:PrivateKeyInfo, ...) returns ECPrivateKey directly for EC keys
         extract_ec_private_key_binary(:public_key.der_decode(:PrivateKeyInfo, der))
 
       [{type, _der, _enc} | _] ->

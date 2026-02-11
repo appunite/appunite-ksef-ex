@@ -99,28 +99,7 @@ defmodule KsefHub.Sync.SyncWorker do
 
     case {income_result, expense_result} do
       {{:ok, ic, if_}, {:ok, ec, ef}} ->
-        total_failed = if_ + ef
-
-        if total_failed > 0 do
-          Logger.warning(
-            "Sync complete for company #{company_id}: #{ic} income, #{ec} expense invoices (#{total_failed} failed downloads)"
-          )
-        else
-          Logger.info(
-            "Sync complete for company #{company_id}: #{ic} income, #{ec} expense invoices"
-          )
-        end
-
-        meta = %{"income_count" => ic, "expense_count" => ec}
-
-        meta =
-          if total_failed > 0,
-            do: Map.put(meta, "error", "#{total_failed} invoice downloads failed"),
-            else: meta
-
-        store_meta(job, meta)
-        broadcast_sync_completed(company_id, %{income: ic, expense: ec})
-        {:ok, :full}
+        handle_both_succeeded(company_id, job, ic, if_, ec, ef)
 
       {{:ok, ic, if_}, {:error, reason}} ->
         Logger.error(
@@ -168,6 +147,42 @@ defmodule KsefHub.Sync.SyncWorker do
     end
   end
 
+  @spec handle_both_succeeded(
+          Ecto.UUID.t(),
+          Oban.Job.t(),
+          non_neg_integer(),
+          non_neg_integer(),
+          non_neg_integer(),
+          non_neg_integer()
+        ) :: {:ok, :full} | {:ok, :partial, map()}
+  defp handle_both_succeeded(company_id, job, ic, if_, ec, ef) do
+    total_failed = if_ + ef
+
+    if total_failed > 0 do
+      Logger.warning(
+        "Sync complete for company #{company_id}: #{ic} income, #{ec} expense invoices (#{total_failed} failed downloads)"
+      )
+    else
+      Logger.info("Sync complete for company #{company_id}: #{ic} income, #{ec} expense invoices")
+    end
+
+    meta = %{"income_count" => ic, "expense_count" => ec}
+
+    meta =
+      if total_failed > 0,
+        do: Map.put(meta, "error", "#{total_failed} invoice downloads failed"),
+        else: meta
+
+    store_meta(job, meta)
+    broadcast_sync_completed(company_id, %{income: ic, expense: ec})
+
+    if total_failed > 0 do
+      {:ok, :partial, %{failed_downloads: total_failed}}
+    else
+      {:ok, :full}
+    end
+  end
+
   @spec broadcast_sync_completed(Ecto.UUID.t(), map()) :: :ok
   defp broadcast_sync_completed(company_id, stats) do
     case Phoenix.PubSub.broadcast(
@@ -197,6 +212,9 @@ defmodule KsefHub.Sync.SyncWorker do
            checkpoint.last_seen_timestamp
          ) do
       {:ok, count, nil, failed} ->
+        {:ok, count, failed}
+
+      {:ok, count, _max_timestamp, failed} when failed > 0 ->
         {:ok, count, failed}
 
       {:ok, count, max_timestamp, failed} ->
