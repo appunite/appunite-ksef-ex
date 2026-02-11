@@ -28,7 +28,7 @@ if [ -n "${SHARED_URL}" ] && [ -n "${SHARED_FILENAME}" ]; then
   for xsd_url in $(grep -oP "select=\"'\\Khttps?://[^']*\\.xsd" "${XSL_DIR}/${SHARED_FILENAME}" || true); do
     xsd_file=$(basename "${xsd_url}")
     echo "  Downloading ${xsd_file}..."
-    if curl --connect-timeout 10 --max-time 30 -fsSL "${xsd_url}" -o "${XSL_DIR}/${xsd_file}" 2>/dev/null; then
+    if curl ${CURL_OPTS} "${xsd_url}" -o "${XSL_DIR}/${xsd_file}" 2>/dev/null; then
       echo "    OK"
     else
       echo "    Failed (creating placeholder)"

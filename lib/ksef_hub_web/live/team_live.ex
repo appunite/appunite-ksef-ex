@@ -211,7 +211,7 @@ defmodule KsefHubWeb.TeamLive do
       <div class="p-5">
         <h2 class="text-base font-semibold mb-3">Members</h2>
         <div class="overflow-x-auto" data-testid="member-list">
-          <table class="table table-sm" data-testid="pending-invitations">
+          <table class="table table-sm" data-testid="team-table">
             <thead>
               <tr class="border-b border-base-300">
                 <th class="text-left py-3 px-2 text-xs font-medium text-base-content/60 uppercase tracking-wide">
