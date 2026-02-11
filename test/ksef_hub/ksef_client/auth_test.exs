@@ -68,10 +68,10 @@ defmodule KsefHub.KsefClient.AuthTest do
 
       KsefHub.XadesSigner.Mock
       |> expect(:sign_challenge, fn _, _, _, _ ->
-        {:error, {:xmlsec1_failed, 1, "signing error"}}
+        {:error, {:signing_failed, "invalid certificate"}}
       end)
 
-      assert {:error, {:xmlsec1_failed, 1, _}} =
+      assert {:error, {:signing_failed, _}} =
                Auth.authenticate("1234567890", "cert-data", "cert-pass")
     end
   end

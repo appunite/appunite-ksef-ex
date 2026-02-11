@@ -72,6 +72,10 @@ defmodule KsefHub.Sync.SyncWorker do
     end
   end
 
+  @spec handle_sync_result(
+          {:ok, :full} | {:ok, :partial, map()} | {:error, term()},
+          Credentials.Credential.t()
+        ) :: :ok | {:error, term()}
   defp handle_sync_result({:ok, :full}, credential) do
     case Credentials.update_last_sync(credential) do
       {:ok, _} -> :ok
@@ -82,47 +86,50 @@ defmodule KsefHub.Sync.SyncWorker do
   defp handle_sync_result({:ok, :partial, _details}, _credential), do: :ok
   defp handle_sync_result({:error, reason}, _credential), do: {:error, reason}
 
+  @spec get_access_token(Ecto.UUID.t()) :: {:ok, String.t()} | {:error, term()}
   defp get_access_token(company_id) do
     TokenManager.ensure_access_token(company_id)
   end
 
+  @spec sync_all_types(String.t(), String.t(), Ecto.UUID.t(), Oban.Job.t()) ::
+          {:ok, :full} | {:ok, :partial, map()} | {:error, term()}
   defp sync_all_types(access_token, nip, company_id, job) do
     income_result = sync_type(access_token, "income", nip, company_id)
     expense_result = sync_type(access_token, "expense", nip, company_id)
 
     case {income_result, expense_result} do
-      {{:ok, ic}, {:ok, ec}} ->
-        Logger.info(
-          "Sync complete for company #{company_id}: #{ic} income, #{ec} expense invoices"
-        )
+      {{:ok, ic, if_}, {:ok, ec, ef}} ->
+        handle_both_succeeded(company_id, job, ic, if_, ec, ef)
 
-        store_meta(job, %{"income_count" => ic, "expense_count" => ec})
-        broadcast_sync_completed(company_id, %{income: ic, expense: ec})
-        {:ok, :full}
-
-      {{:ok, ic}, {:error, reason}} ->
+      {{:ok, ic, if_}, {:error, reason}} ->
         Logger.error(
           "Expense sync failed for company #{company_id}: #{inspect(reason)} (#{ic} income invoices synced)"
         )
 
-        store_meta(job, %{
+        meta = %{
           "income_count" => ic,
           "error" => inspect(reason),
           "failed_type" => "expense"
-        })
+        }
+
+        meta = if if_ > 0, do: Map.put(meta, "income_failed", if_), else: meta
+        store_meta(job, meta)
 
         {:ok, :partial, %{succeeded: :income, failed: {:expense, reason}}}
 
-      {{:error, reason}, {:ok, ec}} ->
+      {{:error, reason}, {:ok, ec, ef}} ->
         Logger.error(
           "Income sync failed for company #{company_id}: #{inspect(reason)} (#{ec} expense invoices synced)"
         )
 
-        store_meta(job, %{
+        meta = %{
           "expense_count" => ec,
           "error" => inspect(reason),
           "failed_type" => "income"
-        })
+        }
+
+        meta = if ef > 0, do: Map.put(meta, "expense_failed", ef), else: meta
+        store_meta(job, meta)
 
         {:ok, :partial, %{succeeded: :expense, failed: {:income, reason}}}
 
@@ -140,6 +147,43 @@ defmodule KsefHub.Sync.SyncWorker do
     end
   end
 
+  @spec handle_both_succeeded(
+          Ecto.UUID.t(),
+          Oban.Job.t(),
+          non_neg_integer(),
+          non_neg_integer(),
+          non_neg_integer(),
+          non_neg_integer()
+        ) :: {:ok, :full} | {:ok, :partial, map()}
+  defp handle_both_succeeded(company_id, job, ic, if_, ec, ef) do
+    total_failed = if_ + ef
+
+    if total_failed > 0 do
+      Logger.warning(
+        "Sync complete for company #{company_id}: #{ic} income, #{ec} expense invoices (#{total_failed} failed downloads)"
+      )
+    else
+      Logger.info("Sync complete for company #{company_id}: #{ic} income, #{ec} expense invoices")
+    end
+
+    meta = %{"income_count" => ic, "expense_count" => ec}
+
+    meta =
+      if total_failed > 0,
+        do: Map.put(meta, "error", "#{total_failed} invoice downloads failed"),
+        else: meta
+
+    store_meta(job, meta)
+    broadcast_sync_completed(company_id, %{income: ic, expense: ec})
+
+    if total_failed > 0 do
+      {:ok, :partial, %{failed_downloads: total_failed}}
+    else
+      {:ok, :full}
+    end
+  end
+
+  @spec broadcast_sync_completed(Ecto.UUID.t(), map()) :: :ok
   defp broadcast_sync_completed(company_id, stats) do
     case Phoenix.PubSub.broadcast(
            KsefHub.PubSub,
@@ -155,6 +199,8 @@ defmodule KsefHub.Sync.SyncWorker do
     end
   end
 
+  @spec sync_type(String.t(), String.t(), String.t(), Ecto.UUID.t()) ::
+          {:ok, non_neg_integer(), non_neg_integer()} | {:error, term()}
   defp sync_type(access_token, type, nip, company_id) do
     checkpoint = Checkpoints.get_or_init(type, company_id)
 
@@ -165,13 +211,16 @@ defmodule KsefHub.Sync.SyncWorker do
            company_id,
            checkpoint.last_seen_timestamp
          ) do
-      {:ok, count, nil} ->
-        {:ok, count}
+      {:ok, count, nil, failed} ->
+        {:ok, count, failed}
 
-      {:ok, count, max_timestamp} ->
+      {:ok, count, _max_timestamp, failed} when failed > 0 ->
+        {:ok, count, failed}
+
+      {:ok, count, max_timestamp, failed} ->
         case Checkpoints.advance(type, company_id, max_timestamp) do
           {:ok, _checkpoint} ->
-            {:ok, count}
+            {:ok, count, failed}
 
           {:error, reason} ->
             {:error, {:checkpoint_advance_failed, reason}}
@@ -182,6 +231,7 @@ defmodule KsefHub.Sync.SyncWorker do
     end
   end
 
+  @spec store_meta(Oban.Job.t(), map()) :: :ok | {non_neg_integer(), nil}
   defp store_meta(%Oban.Job{id: id}, attrs) when is_integer(id) do
     import Ecto.Query, only: [where: 2]
 

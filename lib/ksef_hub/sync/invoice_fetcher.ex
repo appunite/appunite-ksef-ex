@@ -12,50 +12,63 @@ defmodule KsefHub.Sync.InvoiceFetcher do
   @overlap_minutes 10
   @max_pages 100
 
+  @spec ksef_client() :: module()
   defp ksef_client, do: Application.get_env(:ksef_hub, :ksef_client, KsefHub.KsefClient.Live)
 
   @doc """
   Fetches all invoices for a given type since the checkpoint, downloads XML,
-  parses, and upserts. Returns `{:ok, count, max_timestamp}`.
+  parses, and upserts. Returns `{:ok, count, max_timestamp, failed_count}`.
   """
   @spec fetch_all(String.t(), String.t(), String.t(), Ecto.UUID.t(), DateTime.t()) ::
-          {:ok, non_neg_integer(), DateTime.t() | nil} | {:error, term()}
+          {:ok, non_neg_integer(), DateTime.t() | nil, non_neg_integer()} | {:error, term()}
   def fetch_all(access_token, type, nip, company_id, checkpoint_timestamp) do
     from = DateTime.add(checkpoint_timestamp, -@overlap_minutes * 60)
 
     ctx = %{token: access_token, type: type, nip: nip, company_id: company_id}
-    do_fetch(ctx, from, 0, 0, nil)
+    do_fetch(ctx, from, 0, 0, 0, nil)
   end
 
-  defp do_fetch(_ctx, _from, page, count, max_ts) when page >= @max_pages do
+  @spec do_fetch(
+          map(),
+          DateTime.t(),
+          non_neg_integer(),
+          non_neg_integer(),
+          non_neg_integer(),
+          DateTime.t() | nil
+        ) ::
+          {:ok, non_neg_integer(), DateTime.t() | nil, non_neg_integer()} | {:error, term()}
+  defp do_fetch(_ctx, _from, page, count, failed, max_ts) when page >= @max_pages do
     Logger.warning("Sync hit max page limit (#{@max_pages})")
-    {:ok, count, max_ts}
+    {:ok, count, max_ts, failed}
   end
 
-  defp do_fetch(ctx, from, page_offset, count, max_ts) do
+  defp do_fetch(ctx, from, page_offset, count, failed, max_ts) do
     filters = %{type: ctx.type, date_from: from}
     opts = [page_offset: page_offset, page_size: 100]
 
     case ksef_client().query_invoice_metadata(ctx.token, filters, opts) do
       {:ok, %{invoices: [], has_more: false}} ->
-        {:ok, count, max_ts}
+        {:ok, count, max_ts, failed}
 
       {:ok, %{invoices: headers} = result} ->
-        {new_count, new_max_ts} = process_invoices(ctx, headers, count, max_ts)
+        {new_count, new_failed, new_max_ts} =
+          process_invoices(ctx, headers, count, failed, max_ts)
 
         next_action = decide_next_action(result, new_max_ts, max_ts)
-        handle_next_action(next_action, ctx, from, page_offset, new_count, new_max_ts)
+        handle_next_action(next_action, ctx, from, page_offset, new_count, new_failed, new_max_ts)
 
       {:error, {:rate_limited, retry_after}} ->
         Logger.warning("Rate limited, waiting #{retry_after}s")
         Process.sleep(retry_after * 1000 + :rand.uniform(1000))
-        do_fetch(ctx, from, page_offset, count, max_ts)
+        do_fetch(ctx, from, page_offset, count, failed, max_ts)
 
       {:error, reason} ->
         {:error, reason}
     end
   end
 
+  @spec decide_next_action(map(), DateTime.t() | nil, DateTime.t() | nil) ::
+          :narrow_range | :truncation_no_progress | :next_page | :done
   defp decide_next_action(%{is_truncated: true, has_more: true}, new_max_ts, old_max_ts)
        when new_max_ts == nil or new_max_ts == old_max_ts do
     :narrow_range
@@ -70,44 +83,59 @@ defmodule KsefHub.Sync.InvoiceFetcher do
   defp decide_next_action(%{has_more: true}, _new_max_ts, _old_max_ts), do: :next_page
   defp decide_next_action(_result, _new_max_ts, _old_max_ts), do: :done
 
-  defp handle_next_action(:truncation_no_progress, _ctx, _from, _offset, _count, _max_ts) do
+  @spec handle_next_action(
+          atom(),
+          map(),
+          DateTime.t(),
+          non_neg_integer(),
+          non_neg_integer(),
+          non_neg_integer(),
+          DateTime.t() | nil
+        ) ::
+          {:ok, non_neg_integer(), DateTime.t() | nil, non_neg_integer()} | {:error, term()}
+  defp handle_next_action(:truncation_no_progress, _ctx, _from, _offset, _count, _failed, _max_ts) do
     Logger.error("Truncated response with no forward progress, aborting sync")
     {:error, :truncation_no_progress}
   end
 
-  defp handle_next_action(:narrow_range, _ctx, _from, _offset, _count, nil) do
+  defp handle_next_action(:narrow_range, _ctx, _from, _offset, _count, _failed, nil) do
     Logger.error("Cannot narrow range: max_ts is nil")
     {:error, :truncation_no_progress}
   end
 
-  defp handle_next_action(:narrow_range, ctx, _from, _offset, count, max_ts) do
-    do_fetch(ctx, max_ts, 0, count, max_ts)
+  defp handle_next_action(:narrow_range, ctx, _from, _offset, count, failed, max_ts) do
+    do_fetch(ctx, max_ts, 0, count, failed, max_ts)
   end
 
-  defp handle_next_action(:next_page, ctx, from, offset, count, max_ts) do
-    do_fetch(ctx, from, offset + 1, count, max_ts)
+  defp handle_next_action(:next_page, ctx, from, offset, count, failed, max_ts) do
+    do_fetch(ctx, from, offset + 1, count, failed, max_ts)
   end
 
-  defp handle_next_action(:done, _ctx, _from, _offset, count, max_ts) do
-    {:ok, count, max_ts}
+  defp handle_next_action(:done, _ctx, _from, _offset, count, failed, max_ts) do
+    {:ok, count, max_ts, failed}
   end
 
-  defp process_invoices(ctx, headers, count, max_ts) do
-    Enum.reduce(headers, {count, max_ts}, fn header, {acc_count, acc_max_ts} ->
-      ksef_number = header["ksefReferenceNumber"] || header["invoiceReferenceNumber"]
+  @spec process_invoices(map(), [map()], non_neg_integer(), non_neg_integer(), DateTime.t() | nil) ::
+          {non_neg_integer(), non_neg_integer(), DateTime.t() | nil}
+  defp process_invoices(ctx, headers, count, failed, max_ts) do
+    Enum.reduce(headers, {count, failed, max_ts}, fn header,
+                                                     {acc_count, acc_failed, acc_max_ts} ->
+      ksef_number = header["ksefNumber"]
 
       case download_and_upsert(ctx, ksef_number, header) do
         {:ok, invoice} ->
           new_max = pick_max_timestamp(acc_max_ts, invoice.permanent_storage_date)
-          {acc_count + 1, new_max}
+          {acc_count + 1, acc_failed, new_max}
 
         {:error, reason} ->
           Logger.error("Failed to process invoice #{ksef_number}: #{inspect(reason)}")
-          {acc_count, acc_max_ts}
+          {acc_count, acc_failed + 1, acc_max_ts}
       end
     end)
   end
 
+  @spec download_and_upsert(map(), String.t() | nil, map()) ::
+          {:ok, Invoices.Invoice.t()} | {:error, term()}
   defp download_and_upsert(ctx, ksef_number, header) do
     with {:ok, xml} <- ksef_client().download_invoice(ctx.token, ksef_number),
          {:ok, parsed} <- Parser.parse(xml) do
@@ -119,7 +147,7 @@ defmodule KsefHub.Sync.InvoiceFetcher do
           type: invoice_type,
           xml_content: xml,
           company_id: ctx.company_id,
-          ksef_acquisition_date: parse_header_date(header["acquisitionTimestamp"]),
+          ksef_acquisition_date: parse_header_date(header["acquisitionDate"]),
           permanent_storage_date: parse_header_date(header["permanentStorageDate"])
         })
         |> Map.drop([:line_items])
@@ -128,6 +156,7 @@ defmodule KsefHub.Sync.InvoiceFetcher do
     end
   end
 
+  @spec parse_header_date(String.t() | nil) :: DateTime.t() | nil
   defp parse_header_date(nil), do: nil
 
   defp parse_header_date(str) do
@@ -137,6 +166,7 @@ defmodule KsefHub.Sync.InvoiceFetcher do
     end
   end
 
+  @spec pick_max_timestamp(DateTime.t() | nil, DateTime.t() | nil) :: DateTime.t() | nil
   defp pick_max_timestamp(nil, new), do: new
   defp pick_max_timestamp(old, nil), do: old
 

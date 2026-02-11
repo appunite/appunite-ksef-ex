@@ -18,7 +18,7 @@ config :ksef_hub,
   ecto_repos: [KsefHub.Repo],
   generators: [timestamp_type: :utc_datetime],
   ksef_client: KsefHub.KsefClient.Live,
-  xades_signer: KsefHub.XadesSigner.Xmlsec1,
+  xades_signer: KsefHub.XadesSigner.Native,
   pkcs12_converter: KsefHub.Credentials.Pkcs12Converter.Openssl,
   ksef_api_url: "https://api-test.ksef.mf.gov.pl"
 
