@@ -24,7 +24,7 @@ defmodule KsefHubWeb.Api.InvoiceController do
   operation(:index,
     summary: "List invoices",
     description:
-      "Returns invoices for the company associated with the API token, with optional filtering.",
+      "Returns a paginated list of invoices for the company associated with the API token, with optional filtering.",
     parameters: [
       type: [
         in: :query,
@@ -60,6 +60,16 @@ defmodule KsefHubWeb.Api.InvoiceController do
         in: :query,
         description: "Filter invoices issued on or before this date (ISO 8601).",
         schema: %Schema{type: :string, format: :date}
+      ],
+      page: [
+        in: :query,
+        description: "Page number (1-based, default 1).",
+        schema: %Schema{type: :integer, minimum: 1, default: 1}
+      ],
+      per_page: [
+        in: :query,
+        description: "Results per page (default 25, max 100).",
+        schema: %Schema{type: :integer, minimum: 1, maximum: 100, default: 25}
       ]
     ],
     responses: %{
@@ -71,8 +81,17 @@ defmodule KsefHubWeb.Api.InvoiceController do
   def index(conn, params) do
     company_id = conn.assigns.current_company.id
     filters = build_filters(params)
-    invoices = Invoices.list_invoices(company_id, filters)
-    json(conn, %{data: Enum.map(invoices, &invoice_json/1)})
+    result = Invoices.list_invoices_paginated(company_id, filters)
+
+    json(conn, %{
+      data: Enum.map(result.entries, &invoice_json/1),
+      meta: %{
+        page: result.page,
+        per_page: result.per_page,
+        total_count: result.total_count,
+        total_pages: result.total_pages
+      }
+    })
   end
 
   operation(:show,
@@ -271,6 +290,8 @@ defmodule KsefHubWeb.Api.InvoiceController do
     |> maybe_put(:query, params["query"])
     |> maybe_put_date(:date_from, params["date_from"])
     |> maybe_put_date(:date_to, params["date_to"])
+    |> maybe_put_integer(:page, params["page"])
+    |> maybe_put_integer(:per_page, params["per_page"])
   end
 
   @spec maybe_put(map(), atom(), String.t() | nil) :: map()
@@ -287,6 +308,21 @@ defmodule KsefHubWeb.Api.InvoiceController do
       {:ok, date} -> Map.put(map, key, date)
       _ -> map
     end
+  end
+
+  @spec maybe_put_integer(map(), atom(), String.t() | nil) :: map()
+  defp maybe_put_integer(map, _key, nil), do: map
+  defp maybe_put_integer(map, _key, ""), do: map
+
+  defp maybe_put_integer(map, key, value) when is_binary(value) do
+    case Integer.parse(value) do
+      {int, ""} -> Map.put(map, key, int)
+      _ -> map
+    end
+  end
+
+  defp maybe_put_integer(map, key, value) when is_integer(value) do
+    Map.put(map, key, value)
   end
 
   @spec invoice_json(KsefHub.Invoices.Invoice.t()) :: map()

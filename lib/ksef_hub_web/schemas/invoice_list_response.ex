@@ -1,6 +1,7 @@
 defmodule KsefHubWeb.Schemas.InvoiceListResponse do
   @moduledoc """
-  OpenAPI response schema wrapping a list of invoices in a `data` key.
+  OpenAPI response schema wrapping a list of invoices in a `data` key
+  with pagination metadata in `meta`.
   """
 
   require OpenApiSpex
@@ -9,11 +10,12 @@ defmodule KsefHubWeb.Schemas.InvoiceListResponse do
 
   OpenApiSpex.schema(%{
     title: "InvoiceListResponse",
-    description: "List of invoices response.",
+    description: "Paginated list of invoices response.",
     type: :object,
     properties: %{
-      data: %Schema{type: :array, items: KsefHubWeb.Schemas.Invoice}
+      data: %Schema{type: :array, items: KsefHubWeb.Schemas.Invoice},
+      meta: KsefHubWeb.Schemas.PaginationMeta
     },
-    required: [:data]
+    required: [:data, :meta]
   })
 end
