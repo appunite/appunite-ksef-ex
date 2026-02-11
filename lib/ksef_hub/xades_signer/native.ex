@@ -30,6 +30,24 @@ defmodule KsefHub.XadesSigner.Native do
   alias KsefHub.SecureTemp
   alias KsefHub.XadesSigner.AuthTokenRequest
 
+  @doc """
+  Signs a KSeF authentication challenge with XADES-BES using a PKCS12 certificate.
+
+  Extracts the EC private key and certificate from the PKCS12 bundle, then produces
+  an enveloped XML signature over the `AuthTokenRequest` document.
+
+  ## Parameters
+
+    - `challenge` — challenge string returned by `KsefClient.get_challenge/0`
+    - `nip` — company NIP (tax identification number)
+    - `certificate_data` — raw PKCS12 binary (`.p12` file contents)
+    - `certificate_password` — password protecting the PKCS12 bundle
+
+  ## Returns
+
+    - `{:ok, signed_xml}` — complete signed AuthTokenRequest XML string
+    - `{:error, reason}` — PKCS12 extraction or signing failed
+  """
   @impl true
   @spec sign_challenge(String.t(), String.t(), binary(), String.t()) ::
           {:ok, String.t()} | {:error, term()}
