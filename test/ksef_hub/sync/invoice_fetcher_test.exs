@@ -37,8 +37,8 @@ defmodule KsefHub.Sync.InvoiceFetcherTest do
          %{
            invoices: [
              %{
-               "ksefReferenceNumber" => "FETCH-001",
-               "acquisitionTimestamp" => storage_date,
+               "ksefNumber" => "FETCH-001",
+               "acquisitionDate" => storage_date,
                "permanentStorageDate" => storage_date
              }
            ],
@@ -75,8 +75,8 @@ defmodule KsefHub.Sync.InvoiceFetcherTest do
              %{
                invoices: [
                  %{
-                   "ksefReferenceNumber" => "PAGE-001",
-                   "acquisitionTimestamp" => storage_date,
+                   "ksefNumber" => "PAGE-001",
+                   "acquisitionDate" => storage_date,
                    "permanentStorageDate" => storage_date
                  }
                ],

@@ -94,15 +94,9 @@ defmodule KsefHub.Sync.InvoiceFetcher do
   end
 
   defp process_invoices(ctx, headers, count, failed, max_ts) do
-    # TODO: remove debug log after fixing field mapping
-    if headers != [] do
-      Logger.debug("First invoice header keys: #{inspect(Map.keys(List.first(headers)))}")
-      Logger.debug("First invoice header: #{inspect(List.first(headers))}")
-    end
-
     Enum.reduce(headers, {count, failed, max_ts}, fn header,
                                                      {acc_count, acc_failed, acc_max_ts} ->
-      ksef_number = header["ksefReferenceNumber"] || header["invoiceReferenceNumber"]
+      ksef_number = header["ksefNumber"]
 
       case download_and_upsert(ctx, ksef_number, header) do
         {:ok, invoice} ->
@@ -127,7 +121,7 @@ defmodule KsefHub.Sync.InvoiceFetcher do
           type: invoice_type,
           xml_content: xml,
           company_id: ctx.company_id,
-          ksef_acquisition_date: parse_header_date(header["acquisitionTimestamp"]),
+          ksef_acquisition_date: parse_header_date(header["acquisitionDate"]),
           permanent_storage_date: parse_header_date(header["permanentStorageDate"])
         })
         |> Map.drop([:line_items])

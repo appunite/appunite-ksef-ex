@@ -118,8 +118,8 @@ defmodule KsefHub.Sync.SyncWorkerTest do
          %{
            invoices: [
              %{
-               "ksefReferenceNumber" => "KSEF-INCOME-001",
-               "acquisitionTimestamp" => storage_date,
+               "ksefNumber" => "KSEF-INCOME-001",
+               "acquisitionDate" => storage_date,
                "permanentStorageDate" => storage_date
              }
            ],
