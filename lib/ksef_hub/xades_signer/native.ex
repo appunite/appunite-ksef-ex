@@ -234,7 +234,8 @@ defmodule KsefHub.XadesSigner.Native do
     # 3. Sign SignedInfo
     signed_info_xml = build_signed_info(body_digest, props_digest)
     signature_der = :crypto.sign(:ecdsa, :sha256, signed_info_xml, [ec_key, :secp256r1])
-    signature_b64 = Base.encode64(signature_der)
+    signature_raw = der_signature_to_raw(signature_der, 32)
+    signature_b64 = Base.encode64(signature_raw)
 
     # 4. Assemble final XML
     assemble_signed_xml(challenge, nip, signed_info_xml, signature_b64, cert_meta, props_xml)
@@ -328,6 +329,32 @@ defmodule KsefHub.XadesSigner.Native do
       "</ds:Object>" <>
       "</ds:Signature>" <>
       "</AuthTokenRequest>"
+  end
+
+  # Converts DER-encoded ECDSA signature to raw r||s format (IEEE P1363).
+  # XML Digital Signature 1.1 expects r||s, each zero-padded to `byte_len`.
+  # For P-256: byte_len=32, so output is always 64 bytes.
+  @spec der_signature_to_raw(binary(), pos_integer()) :: binary()
+  defp der_signature_to_raw(der, byte_len) do
+    <<0x30, _seq_len::8, 0x02, r_len::8, r_bytes::binary-size(r_len), 0x02, s_len::8,
+      s_bytes::binary-size(s_len)>> = der
+
+    pad_or_trim(r_bytes, byte_len) <> pad_or_trim(s_bytes, byte_len)
+  end
+
+  @spec pad_or_trim(binary(), pos_integer()) :: binary()
+  defp pad_or_trim(bytes, target) when byte_size(bytes) == target, do: bytes
+
+  defp pad_or_trim(bytes, target) when byte_size(bytes) > target do
+    # ASN.1 INTEGER may have a leading 0x00 for positive sign — strip it
+    trim = byte_size(bytes) - target
+    <<_::binary-size(trim), trimmed::binary-size(target)>> = bytes
+    trimmed
+  end
+
+  defp pad_or_trim(bytes, target) when byte_size(bytes) < target do
+    pad = target - byte_size(bytes)
+    :binary.copy(<<0>>, pad) <> bytes
   end
 
   @spec escape_xml(String.t()) :: String.t()

@@ -105,9 +105,17 @@ defmodule KsefHub.XadesSigner.NativeTest do
     } do
       {:ok, signed_xml} = Native.sign_challenge(@challenge, @nip, p12_data, password)
 
-      # Extract SignatureValue
+      # Extract SignatureValue (raw r||s format, 64 bytes for P-256)
       [_, sig_b64] = Regex.run(~r/<ds:SignatureValue>([^<]+)</, signed_xml)
-      signature_der = Base.decode64!(sig_b64)
+      signature_raw = Base.decode64!(sig_b64)
+      assert byte_size(signature_raw) == 64
+
+      # Convert r||s back to DER for :crypto.verify
+      <<r::binary-size(32), s::binary-size(32)>> = signature_raw
+      r_der = der_integer(r)
+      s_der = der_integer(s)
+      seq_content = r_der <> s_der
+      signature_der = <<0x30, byte_size(seq_content)::8>> <> seq_content
 
       # Extract certificate and get public key point (uncompressed EC point)
       [_, cert_b64] = Regex.run(~r/<ds:X509Certificate>([^<]+)</, signed_xml)
@@ -140,6 +148,18 @@ defmodule KsefHub.XadesSigner.NativeTest do
     test "returns error for wrong password", %{p12_data: p12_data} do
       assert {:error, _} = Native.sign_challenge(@challenge, @nip, p12_data, "wrong-password")
     end
+  end
+
+  # Encode a raw big-endian integer as ASN.1 DER INTEGER
+  @spec der_integer(binary()) :: binary()
+  defp der_integer(bytes) do
+    # Strip leading zeros
+    trimmed = String.trim_leading(bytes, <<0>>)
+    trimmed = if trimmed == "", do: <<0>>, else: trimmed
+
+    # Add leading 0x00 if high bit is set (ASN.1 positive integer)
+    padded = if :binary.first(trimmed) >= 128, do: <<0>> <> trimmed, else: trimmed
+    <<0x02, byte_size(padded)::8>> <> padded
   end
 
   # Generate a self-signed ECDSA P-256 certificate and PKCS12 bundle for testing
