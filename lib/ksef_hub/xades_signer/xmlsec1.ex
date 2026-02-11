@@ -33,11 +33,30 @@ defmodule KsefHub.XadesSigner.Xmlsec1 do
         xml_path
       ]
 
-      task = Task.async(fn -> System.cmd("xmlsec1", args, stderr_to_stdout: true) end)
+      task =
+        Task.async(fn ->
+          try do
+            System.cmd("xmlsec1", args, stderr_to_stdout: true)
+          rescue
+            e in ErlangError ->
+              {:error, e}
+          end
+        end)
 
       case Task.yield(task, 30_000) || Task.shutdown(task, :brutal_kill) do
         {:ok, {_output, 0}} ->
           {:ok, File.read!(signed_path)}
+
+        {:ok, {:error, %ErlangError{original: :enoent}}} ->
+          Logger.error(
+            "xmlsec1 not found. Install it: brew install xmlsec1 (macOS) or apt-get install xmlsec1 (Linux)"
+          )
+
+          {:error, {:xmlsec1_not_found, "xmlsec1 binary not found in PATH"}}
+
+        {:ok, {:error, %ErlangError{original: reason}}} ->
+          Logger.error("xmlsec1 failed to start: #{inspect(reason)}")
+          {:error, {:xmlsec1_failed, 0, inspect(reason)}}
 
         {:ok, {output, exit_code}} ->
           Logger.error("xmlsec1 failed (exit #{exit_code}): #{output}")

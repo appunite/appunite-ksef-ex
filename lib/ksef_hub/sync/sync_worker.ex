@@ -22,12 +22,20 @@ defmodule KsefHub.Sync.SyncWorker do
       |> handle_sync_result(credential)
     else
       {:error, :no_credential} ->
-        Logger.info("Sync skipped for company #{company_id}: no active credential configured")
-        :ok
+        Logger.warning(
+          "Sync skipped for company #{company_id}: no active credential configured (create one in the UI)"
+        )
+
+        store_meta(job, %{"error" => "no_credential"})
+        {:cancel, :no_credential}
 
       {:error, :no_certificate} ->
-        Logger.info("Sync skipped for company #{company_id}: no owner certificate uploaded")
-        :ok
+        Logger.warning(
+          "Sync skipped for company #{company_id}: no owner certificate uploaded (upload one in the UI)"
+        )
+
+        store_meta(job, %{"error" => "no_certificate"})
+        {:cancel, :no_certificate}
 
       {:error, :reauth_required} ->
         Logger.warning("Sync skipped for company #{company_id}: XADES re-authentication required")
