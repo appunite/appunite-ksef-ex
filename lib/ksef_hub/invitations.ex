@@ -126,8 +126,6 @@ defmodule KsefHub.Invitations do
           | {:error, :already_member}
           | {:error, Ecto.Changeset.t()}
   defp do_accept_invitation(invitation, user) do
-    now = DateTime.utc_now() |> DateTime.truncate(:second)
-
     Multi.new()
     |> Multi.run(:check_membership, fn _repo, _changes ->
       if Companies.get_membership(user.id, invitation.company_id),
@@ -135,20 +133,7 @@ defmodule KsefHub.Invitations do
         else: {:ok, :not_member}
     end)
     |> Multi.run(:invitation, fn _repo, _changes ->
-      {count, _} =
-        from(i in Invitation,
-          where: i.id == ^invitation.id and i.status == "pending" and i.expires_at > ^now
-        )
-        |> Repo.update_all(set: [status: "accepted", updated_at: now])
-
-      if count == 1 do
-        {:ok, Repo.get!(Invitation, invitation.id)}
-      else
-        case Repo.get(Invitation, invitation.id) do
-          %Invitation{expires_at: expires_at} when expires_at <= now -> {:error, :expired}
-          _ -> {:error, :not_found}
-        end
-      end
+      do_atomic_accept(invitation.id)
     end)
     |> Multi.insert(:membership, fn _changes ->
       %Membership{user_id: user.id, company_id: invitation.company_id}
@@ -170,6 +155,33 @@ defmodule KsefHub.Invitations do
 
       {:error, _step, changeset, _changes} ->
         {:error, changeset}
+    end
+  end
+
+  @spec do_atomic_accept(Ecto.UUID.t()) ::
+          {:ok, Invitation.t()} | {:error, :not_found} | {:error, :expired}
+  defp do_atomic_accept(invitation_id) do
+    now = DateTime.utc_now() |> DateTime.truncate(:second)
+
+    {count, _} =
+      from(i in Invitation,
+        where: i.id == ^invitation_id and i.status == "pending" and i.expires_at > ^now
+      )
+      |> Repo.update_all(set: [status: "accepted", updated_at: now])
+
+    if count == 1 do
+      {:ok, Repo.get!(Invitation, invitation_id)}
+    else
+      classify_accept_failure(invitation_id, now)
+    end
+  end
+
+  @spec classify_accept_failure(Ecto.UUID.t(), DateTime.t()) ::
+          {:error, :not_found} | {:error, :expired}
+  defp classify_accept_failure(invitation_id, now) do
+    case Repo.get(Invitation, invitation_id) do
+      %Invitation{expires_at: expires_at} when expires_at <= now -> {:error, :expired}
+      _ -> {:error, :not_found}
     end
   end
 
