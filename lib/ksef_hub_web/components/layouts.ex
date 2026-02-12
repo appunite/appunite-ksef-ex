@@ -92,10 +92,13 @@ defmodule KsefHubWeb.Layouts do
                     <input type="hidden" name="return_to" value={@current_path || "/dashboard"} />
                     <button
                       type="submit"
-                      class={["w-full text-left", company.id == @current_company.id && "active"]}
+                      class={[
+                        "w-full text-left min-w-0",
+                        company.id == @current_company.id && "active"
+                      ]}
                     >
-                      <span class="truncate">{company.name}</span>
-                      <span class="text-xs text-base-content/50">{company.nip}</span>
+                      <span class="block truncate">{company.name}</span>
+                      <span class="block text-xs text-base-content/50">{company.nip}</span>
                     </button>
                   </form>
                 </li>

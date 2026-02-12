@@ -380,6 +380,7 @@ defmodule KsefHubWeb.CoreComponents do
 
   slot :col, required: true do
     attr :label, :string
+    attr :class, :string
   end
 
   slot :action, doc: "the slot for showing user actions in the last table column"
@@ -396,7 +397,10 @@ defmodule KsefHubWeb.CoreComponents do
         <tr class="border-b border-base-300">
           <th
             :for={col <- @col}
-            class="text-left py-3 px-2 text-xs font-medium text-base-content/60 uppercase tracking-wide"
+            class={[
+              "text-left py-3 px-2 text-xs font-medium text-base-content/60 uppercase tracking-wide",
+              col[:class]
+            ]}
           >
             {col[:label]}
           </th>
@@ -414,7 +418,7 @@ defmodule KsefHubWeb.CoreComponents do
           <td
             :for={col <- @col}
             phx-click={@row_click && @row_click.(row)}
-            class={["py-3 px-2", @row_click && "hover:cursor-pointer"]}
+            class={["py-3 px-2", @row_click && "hover:cursor-pointer", col[:class]]}
           >
             {render_slot(col, @row_item.(row))}
           </td>
