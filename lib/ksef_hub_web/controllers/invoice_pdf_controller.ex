@@ -50,15 +50,15 @@ defmodule KsefHubWeb.InvoicePdfController do
 
     metadata = %{ksef_number: invoice.ksef_number}
 
-    with {:ok, html} <- pdf_mod.generate_html(invoice.xml_content, metadata),
-         {:ok, pdf_binary} <- pdf_mod.generate_pdf(html) do
-      filename = sanitize_filename("#{invoice.invoice_number}.pdf")
+    case pdf_mod.generate_pdf(invoice.xml_content, metadata) do
+      {:ok, pdf_binary} ->
+        filename = sanitize_filename("#{invoice.invoice_number}.pdf")
 
-      conn
-      |> put_resp_content_type("application/pdf")
-      |> put_resp_header("content-disposition", ~s(attachment; filename="#{filename}"))
-      |> send_resp(200, pdf_binary)
-    else
+        conn
+        |> put_resp_content_type("application/pdf")
+        |> put_resp_header("content-disposition", ~s(attachment; filename="#{filename}"))
+        |> send_resp(200, pdf_binary)
+
       {:error, reason} ->
         Logger.error("PDF generation failed for invoice #{invoice.id}: #{sanitize_error(reason)}")
 

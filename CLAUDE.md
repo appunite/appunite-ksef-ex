@@ -13,7 +13,7 @@ See `docs/prd.md` for full product requirements.
 | Database | PostgreSQL (Supabase) via Ecto |
 | Auth (UI) | Google Sign-In, email allowlist (`ALLOWED_EMAILS` env) |
 | Auth (API) | Bearer API tokens (hashed, revocable) |
-| PDF pipeline | xsltproc (gov.pl XSL) + Gotenberg (HTML to PDF) |
+| PDF pipeline | ksef-pdf microservice (ghcr.io/appunite/ksef-pdf) |
 | XADES signing | xmlsec1 (CLI, called via System.cmd) |
 | Background sync | GenServer worker, 15-min cron |
 | API docs | open_api_spex (OpenAPI 3.0 + SwaggerUI) |
@@ -84,7 +84,7 @@ docker compose up
 ### System dependencies (required in Docker and CI)
 
 ```bash
-apt-get install -y xsltproc xmlsec1
+apt-get install -y xmlsec1
 ```
 
 ## Tests
@@ -132,7 +132,7 @@ Phoenix contexts are the primary boundaries. Each context owns its schema, queri
 | `KsefHub.Invoices` | CRUD, filtering, approval/rejection of invoices |
 | `KsefHub.Credentials` | Certificate upload, encryption, expiry tracking |
 | `KsefHub.KsefClient` | All KSeF API communication (auth, query, download) |
-| `KsefHub.Pdf` | XML to HTML (xsltproc) to PDF (Gotenberg) pipeline |
+| `KsefHub.Pdf` | PDF and HTML generation via ksef-pdf microservice |
 | `KsefHub.Accounts` | API token generation, validation, usage tracking |
 
 ### Dependency Injection with Behaviours
@@ -171,7 +171,7 @@ defp ksef_client, do: Application.get_env(:ksef_hub, :ksef_client, KsefHub.KsefC
 
 **Invoice Sync (every 15 min):** Load certificate -> authenticate -> query invoice headers (incremental, since last sync) -> download each XML (rate-limited) -> parse FA(3) -> upsert to DB -> update last_sync_at -> terminate session.
 
-**PDF Generation:** FA(3) XML + gov.pl XSL -> xsltproc --nonet -> HTML -> Gotenberg -> PDF.
+**PDF Generation:** FA(3) XML -> ksef-pdf microservice -> PDF.
 
 ## Code Style
 
@@ -288,7 +288,7 @@ Keep explicit attrs only when testing validation logic (e.g., missing required f
 
 ### Mocking with Mox
 
-- Define behaviours for all external dependencies (KSeF API, Gotenberg, xmlsec1)
+- Define behaviours for all external dependencies (KSeF API, ksef-pdf, xmlsec1)
 - Use `Mox.defmock/2` in `test_helper.exs`
 - Use `expect/3` for specific call expectations in tests
 - Use `stub/3` for default returns in setup blocks
@@ -448,13 +448,6 @@ end
 - Multiple date formats: ISO8601 with and without fractional seconds
 - Test with real-world XML samples covering edge cases
 
-### Gov.pl stylesheets
-
-- Bundle `fa3-styl.xsl` and `WspolneSzablonyWizualizacji.xsl` locally
-- Modify import paths to reference local files (remote imports fail on Linux)
-- Use `xsltproc --nonet` to prevent any network access during transformation
-- Maintain `scripts/update-ksef-stylesheet.sh` to fetch and patch new versions
-
 ## Environment Variables
 
 | Variable | Description |
@@ -464,7 +457,7 @@ end
 | `ALLOWED_EMAILS` | Comma-separated list of superadmin emails |
 | `GOOGLE_CLIENT_ID` | Google OAuth client ID |
 | `GOOGLE_CLIENT_SECRET` | Google OAuth client secret |
-| `GOTENBERG_URL` | Gotenberg sidecar URL (e.g., `http://localhost:3000`) |
+| `KSEF_PDF_URL` | KSeF PDF microservice URL (e.g., `http://localhost:3001`) |
 | `KSEF_API_URL` | KSeF environment URL (`https://ksef-test.mf.gov.pl` or `https://ksef.mf.gov.pl`) |
 | `GCP_SECRET_NAME` | Secret Manager resource name for encryption key |
 

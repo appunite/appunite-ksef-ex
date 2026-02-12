@@ -10,9 +10,8 @@ Embedding KSeF complexity (certificate auth, XML parsing, rate limits, gov.pl st
 
 - **Elixir** + **Phoenix 1.8** (REST API + LiveView admin UI)
 - **PostgreSQL** via Supabase + Ecto
-- **xsltproc** — gov.pl XSL stylesheet transformation
 - **xmlsec1** — XADES certificate signing
-- **Gotenberg** — HTML to PDF conversion
+- **ksef-pdf** — PDF + HTML generation microservice (ghcr.io/appunite/ksef-pdf)
 - **Tailwind CSS** + **DaisyUI** — admin UI styling
 
 ## Getting Started
@@ -21,7 +20,7 @@ Embedding KSeF complexity (certificate auth, XML parsing, rate limits, gov.pl st
 
 - Erlang 28+ / Elixir 1.18+ (see `.tool-versions`)
 - PostgreSQL (or Supabase)
-- `xsltproc` and `xmlsec1` for full functionality
+- `xmlsec1` for XADES signing
 
 ### Setup
 
@@ -41,7 +40,7 @@ cp .env.example .env
 # - SECRET_KEY_BASE
 # - KSEF_API_URL
 # - GOOGLE_CLIENT_ID / GOOGLE_CLIENT_SECRET
-# - GOTENBERG_URL
+# - KSEF_PDF_URL
 # - GCP_SECRET_NAME
 ```
 
@@ -51,7 +50,7 @@ See the full list in [`CLAUDE.md`](CLAUDE.md#environment-variables).
 
 ```bash
 make docker.build
-make docker.up     # starts app + Gotenberg sidecar
+make docker.up     # starts app + ksef-pdf sidecar
 ```
 
 ## Available Make Targets
@@ -125,7 +124,7 @@ curl -H "Authorization: Bearer <token>" http://localhost:4000/api/expenses
                  (Supabase)
 ```
 
-**PDF pipeline:** FA(3) XML → xsltproc (gov.pl XSL) → HTML → Gotenberg → PDF
+**PDF pipeline:** FA(3) XML → ksef-pdf microservice → PDF
 
 ## Project Structure
 

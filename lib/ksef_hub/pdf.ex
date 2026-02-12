@@ -1,38 +1,30 @@
 defmodule KsefHub.Pdf do
   @moduledoc """
-  PDF generation pipeline. Orchestrates Xsltproc (XML → HTML) and Gotenberg (HTML → PDF)
-  with fallback to a basic HTML template when xsltproc is unavailable.
+  PDF generation pipeline. Delegates to the ksef-pdf microservice for both
+  HTML preview and PDF generation from FA(3) XML.
   """
 
   @behaviour KsefHub.Pdf.Behaviour
 
-  require Logger
-
-  alias KsefHub.Pdf.{FallbackTemplate, Gotenberg, Xsltproc}
+  alias KsefHub.Pdf.KsefPdfService
 
   @doc """
-  Transforms FA(3) XML into HTML using xsltproc with the gov.pl stylesheet.
-  Falls back to a basic HTML template when xsltproc is unavailable.
+  Generates an HTML preview of FA(3) XML via the ksef-pdf microservice.
   """
+  @spec generate_html(String.t()) :: {:ok, String.t()} | {:error, term()}
   @spec generate_html(String.t(), map()) :: {:ok, String.t()} | {:error, term()}
   @impl true
   def generate_html(xml_content, metadata \\ %{}) do
-    case Xsltproc.transform(xml_content, metadata) do
-      {:ok, html} ->
-        {:ok, html}
-
-      {:error, _reason} ->
-        Logger.debug("Xsltproc failed, using fallback template")
-        FallbackTemplate.render(xml_content, metadata)
-    end
+    KsefPdfService.generate_html(xml_content, metadata)
   end
 
   @doc """
-  Converts HTML into a PDF binary via the Gotenberg sidecar.
+  Generates a PDF from FA(3) XML via the ksef-pdf microservice.
   """
   @spec generate_pdf(String.t()) :: {:ok, binary()} | {:error, term()}
+  @spec generate_pdf(String.t(), map()) :: {:ok, binary()} | {:error, term()}
   @impl true
-  def generate_pdf(html) do
-    Gotenberg.convert(html)
+  def generate_pdf(xml_content, metadata \\ %{}) do
+    KsefPdfService.generate_pdf(xml_content, metadata)
   end
 end
