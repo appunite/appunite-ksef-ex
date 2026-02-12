@@ -30,8 +30,8 @@ if ksef_api_url = System.get_env("KSEF_API_URL") do
   config :ksef_hub, :ksef_api_url, ksef_api_url
 end
 
-if gotenberg_url = System.get_env("GOTENBERG_URL") do
-  config :ksef_hub, :gotenberg_url, gotenberg_url
+if ksef_pdf_url = System.get_env("KSEF_PDF_URL") do
+  config :ksef_hub, :ksef_pdf_url, ksef_pdf_url
 end
 
 if gcp_secret_name = System.get_env("GCP_SECRET_NAME") do

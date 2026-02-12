@@ -12,7 +12,7 @@ spec:
       annotations:
         autoscaling.knative.dev/minScale: "0"
         autoscaling.knative.dev/maxScale: "3"
-        run.googleapis.com/container-dependencies: '{"ksef-hub":["gotenberg"]}'
+        run.googleapis.com/container-dependencies: '{"ksef-hub":["ksef-pdf"]}'
         run.googleapis.com/startup-cpu-boost: "true"
     spec:
       containerConcurrency: 80
@@ -48,8 +48,8 @@ spec:
               value: "ksef-hub.appunite.com"
             - name: KSEF_API_URL
               value: "https://ksef-test.mf.gov.pl"
-            - name: GOTENBERG_URL
-              value: "http://localhost:3000"
+            - name: KSEF_PDF_URL
+              value: "http://localhost:3001"
             - name: POOL_SIZE
               value: "5"
             - name: DATABASE_URL
@@ -83,9 +83,9 @@ spec:
                   key: latest
                   name: ksef-encryption-key
 
-        # --- Gotenberg sidecar (PDF generation) ---
-        - name: gotenberg
-          image: gotenberg/gotenberg:8
+        # --- KSeF PDF sidecar (PDF + HTML generation) ---
+        - name: ksef-pdf
+          image: ghcr.io/appunite/ksef-pdf:latest
           resources:
             limits:
               memory: 256Mi
@@ -93,7 +93,7 @@ spec:
           startupProbe:
             httpGet:
               path: /health
-              port: 3000
+              port: 3001
             initialDelaySeconds: 3
             periodSeconds: 3
             failureThreshold: 5

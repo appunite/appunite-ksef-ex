@@ -1,10 +1,10 @@
 services:
-  gotenberg:
-    image: gotenberg/gotenberg:8
+  ksef-pdf:
+    image: ghcr.io/appunite/ksef-pdf:latest
     ports:
-      - "3000:3000"
+      - "3001:3001"
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:3000/health"]
+      test: ["CMD", "wget", "-qO-", "http://localhost:3001/health"]
       interval: 10s
       timeout: 5s
       retries: 3

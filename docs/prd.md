@@ -22,7 +22,7 @@ KSeF integration is complex:
 |------------|-------------|
 | **Certificate Auth** | Requires PKCS12 certificates, XADES-ENVELOPED signatures |
 | **XML Parsing** | FA(3) schema with Polish field names, nested structure |
-| **PDF Generation** | Must use official gov.pl XSL stylesheets for compliance |
+| **PDF Generation** | Must produce compliant invoice PDFs matching the official portal |
 | **Rate Limits** | 8 req/s download, 2 req/s query |
 | **Session Management** | 1-hour TTL, requires refresh or re-auth |
 
@@ -46,7 +46,7 @@ Embedding this complexity into consumer applications (payroll, accounting, ETL) 
 | Auth (UI) | **Email/password + Google Sign-In** | Self-service sign-up, Google as additional option |
 | Auth (API) | **API tokens** | Generated per consumer application |
 | Sync | **15-min cron** | Reliable polling |
-| PDF | **xsltproc + Gotenberg** | Gov.pl stylesheets → HTML → PDF |
+| PDF | **ksef-pdf microservice** | FA(3) XML → PDF/HTML via sidecar |
 | XADES Signing | **xmlsec1** | Certificate signing for KSeF auth |
 | Deployment | **Docker + GCP Cloud Run** | Containerized, scalable |
 | UI Styling | **Tailwind + DaisyUI** | Light, clean, CSS-only (no JS lock-in), easy to replace |
@@ -75,7 +75,8 @@ docs/adr/
 ├── 0003-ksef-authentication.md
 ├── 0004-pdf-generation-xsltproc.md
 ├── 0005-xades-signing-xmlsec1.md
-└── ...
+├── ...
+└── 0015-ksef-pdf-microservice.md
 ```
 
 ### 4. Idiomatic Elixir
@@ -258,8 +259,7 @@ flowchart TB
         end
 
         subgraph pdf["PDF Pipeline"]
-            xslt["xsltproc\n(gov.pl XSL)"]
-            gotenberg["Gotenberg\n(sidecar)"]
+            ksefpdf["ksef-pdf\n(sidecar)"]
         end
 
         xmlsec["xmlsec1\n(XADES)"]
@@ -281,7 +281,7 @@ flowchart TB
     xmlsec --> ksef
     phoenix --> db
     membership --> db
-    xslt --> gotenberg
+    phoenix --> ksefpdf
 
     app1 -->|API token| api
     app2 -->|API token| api
@@ -350,24 +350,18 @@ sequenceDiagram
 ```mermaid
 flowchart LR
     xml["FA(3) XML"]
-    xsl["Gov.pl XSL\n(bundled)"]
-    xsltproc["xsltproc\n--nonet"]
-    html["HTML"]
-    gotenberg["Gotenberg"]
+    svc["ksef-pdf\nmicroservice"]
     pdf["PDF"]
 
-    xml --> xsltproc
-    xsl --> xsltproc
-    xsltproc --> html
-    html --> gotenberg
-    gotenberg --> pdf
+    xml --> svc
+    svc --> pdf
 ```
 
 **Key points:**
-- Use official gov.pl XSL stylesheets (legal compliance)
-- Bundle stylesheets locally (no runtime downloads)
-- `--nonet` flag prevents network access during transformation
-- Fallback HTML template if xsltproc unavailable
+- Uses the official open-source KSeF PDF generator (CIRFMF/ksef-pdf-generator)
+- Runs as a sidecar container (ghcr.io/appunite/ksef-pdf)
+- Produces output matching the official government portal
+- Also provides HTML preview endpoint
 
 ### Sync Flow
 
@@ -422,20 +416,13 @@ Based on implementing KSeF integration in Swift, these lessons inform this proje
 | Multiple date formats | Handle ISO8601 with/without fractional seconds |
 | Test with real XML samples | Include sample invoices in test suite |
 
-### 3. Gov.pl Stylesheets
+### 3. PDF Generation
 
 | Lesson | Application |
 |--------|-------------|
-| Must use official XSL for compliance | Bundle `fa3-styl.xsl` and `WspolneSzablonyWizualizacji.xsl` |
-| Remote imports fail on Linux | Modify import paths to local |
-| Schema versions change (FA(3) → FA(4)) | Script to update stylesheets |
-| xsltproc works on both macOS and Linux | Use as primary method |
-
-**Stylesheet update script needed:**
-```bash
-./scripts/update-ksef-stylesheet.sh
-# Downloads from gov.pl, modifies imports, validates
-```
+| Must produce compliant invoice PDFs | Use official open-source KSeF PDF generator |
+| xsltproc + Gotenberg pipeline had quality issues | Replaced by ksef-pdf microservice |
+| Schema versions change (FA(3) → FA(4)) | Update ksef-pdf Docker image |
 
 ### 4. Security
 
@@ -559,12 +546,11 @@ CREATE INDEX idx_invoices_ksef_number ON invoices(ksef_number);
 ```dockerfile
 # Dockerfile
 
-# Required for XSLT transformation (gov.pl stylesheets)
-RUN apt-get install -y xsltproc
-
 # Required for XADES certificate signing
 RUN apt-get install -y xmlsec1
 ```
+
+PDF generation is handled by the ksef-pdf sidecar container — no additional system dependencies needed.
 
 ---
 

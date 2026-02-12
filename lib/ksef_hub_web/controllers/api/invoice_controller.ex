@@ -217,8 +217,7 @@ defmodule KsefHubWeb.Api.InvoiceController do
 
   operation(:pdf,
     summary: "Download invoice PDF",
-    description:
-      "Generates a PDF rendering of the invoice from its FA(3) XML via xsltproc and Gotenberg.",
+    description: "Generates a PDF rendering of the invoice from its FA(3) XML.",
     parameters: [
       id: [
         in: :path,
@@ -241,15 +240,15 @@ defmodule KsefHubWeb.Api.InvoiceController do
 
     metadata = %{ksef_number: invoice.ksef_number}
 
-    with {:ok, html_content} <- pdf_mod.generate_html(invoice.xml_content, metadata),
-         {:ok, pdf_binary} <- pdf_mod.generate_pdf(html_content) do
-      filename = sanitize_filename("#{invoice.invoice_number}.pdf")
+    case pdf_mod.generate_pdf(invoice.xml_content, metadata) do
+      {:ok, pdf_binary} ->
+        filename = sanitize_filename("#{invoice.invoice_number}.pdf")
 
-      conn
-      |> put_resp_content_type("application/pdf")
-      |> put_resp_header("content-disposition", ~s(attachment; filename="#{filename}"))
-      |> send_resp(200, pdf_binary)
-    else
+        conn
+        |> put_resp_content_type("application/pdf")
+        |> put_resp_header("content-disposition", ~s(attachment; filename="#{filename}"))
+        |> send_resp(200, pdf_binary)
+
       {:error, reason} ->
         Logger.error("PDF generation failed for invoice #{id}: #{sanitize_error(reason)}")
 

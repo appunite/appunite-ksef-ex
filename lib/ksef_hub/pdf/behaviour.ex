@@ -5,5 +5,6 @@ defmodule KsefHub.Pdf.Behaviour do
 
   @callback generate_html(xml_content :: String.t(), metadata :: map()) ::
               {:ok, String.t()} | {:error, term()}
-  @callback generate_pdf(html :: String.t()) :: {:ok, binary()} | {:error, term()}
+  @callback generate_pdf(xml_content :: String.t(), metadata :: map()) ::
+              {:ok, binary()} | {:error, term()}
 end
