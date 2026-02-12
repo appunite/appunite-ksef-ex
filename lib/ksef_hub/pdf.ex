@@ -11,6 +11,7 @@ defmodule KsefHub.Pdf do
   @doc """
   Generates an HTML preview of FA(3) XML via the ksef-pdf microservice.
   """
+  @spec generate_html(String.t()) :: {:ok, String.t()} | {:error, term()}
   @spec generate_html(String.t(), map()) :: {:ok, String.t()} | {:error, term()}
   @impl true
   def generate_html(xml_content, metadata \\ %{}) do
@@ -20,6 +21,7 @@ defmodule KsefHub.Pdf do
   @doc """
   Generates a PDF from FA(3) XML via the ksef-pdf microservice.
   """
+  @spec generate_pdf(String.t()) :: {:ok, binary()} | {:error, term()}
   @spec generate_pdf(String.t(), map()) :: {:ok, binary()} | {:error, term()}
   @impl true
   def generate_pdf(xml_content, metadata \\ %{}) do

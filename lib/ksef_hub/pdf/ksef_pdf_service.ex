@@ -4,6 +4,8 @@ defmodule KsefHub.Pdf.KsefPdfService do
   Generates PDF and HTML from FA(3) XML via the sidecar service.
   """
 
+  @behaviour KsefHub.Pdf.Behaviour
+
   require Logger
 
   @receive_timeout 30_000
@@ -12,7 +14,9 @@ defmodule KsefHub.Pdf.KsefPdfService do
   Generates a PDF from FA(3) XML via the ksef-pdf microservice.
   Returns `{:ok, pdf_binary}` or `{:error, reason}`.
   """
+  @spec generate_pdf(String.t()) :: {:ok, binary()} | {:error, term()}
   @spec generate_pdf(String.t(), map()) :: {:ok, binary()} | {:error, term()}
+  @impl true
   def generate_pdf(xml_content, metadata \\ %{}) when is_binary(xml_content) do
     post("/generate/pdf", xml_content, metadata)
   end
@@ -21,60 +25,59 @@ defmodule KsefHub.Pdf.KsefPdfService do
   Generates HTML from FA(3) XML via the ksef-pdf microservice.
   Returns `{:ok, html_string}` or `{:error, reason}`.
   """
+  @spec generate_html(String.t()) :: {:ok, String.t()} | {:error, term()}
   @spec generate_html(String.t(), map()) :: {:ok, String.t()} | {:error, term()}
+  @impl true
   def generate_html(xml_content, metadata \\ %{}) when is_binary(xml_content) do
     post("/generate/html", xml_content, metadata)
   end
 
   @spec post(String.t(), String.t(), map()) :: {:ok, binary()} | {:error, term()}
   defp post(path, xml_content, metadata) do
-    case ksef_pdf_url() do
-      nil ->
-        {:error, :ksef_pdf_not_configured}
+    with {:ok, base_url} <- fetch_url() do
+      do_request(base_url, path, xml_content, metadata)
+    end
+  end
 
-      base_url ->
-        url = "#{base_url}#{path}"
-        headers = build_headers(metadata)
+  @spec fetch_url() :: {:ok, String.t()} | {:error, :ksef_pdf_not_configured}
+  defp fetch_url do
+    case Application.get_env(:ksef_hub, :ksef_pdf_url) do
+      nil -> {:error, :ksef_pdf_not_configured}
+      url -> {:ok, url}
+    end
+  end
 
-        case Req.post(url,
-               body: xml_content,
-               headers: headers,
-               receive_timeout: @receive_timeout
-             ) do
-          {:ok, %{status: 200, body: body}} ->
-            {:ok, body}
+  @spec do_request(String.t(), String.t(), String.t(), map()) ::
+          {:ok, binary()} | {:error, term()}
+  defp do_request(base_url, path, xml_content, metadata) do
+    url = "#{base_url}#{path}"
+    headers = build_headers(metadata)
 
-          {:ok, %{status: status, body: body}} ->
-            Logger.error("ksef-pdf returned #{status} (body: #{safe_size(body)} bytes)")
-            {:error, {:ksef_pdf_error, status}}
+    case Req.post(url, body: xml_content, headers: headers, receive_timeout: @receive_timeout) do
+      {:ok, %{status: 200, body: body}} ->
+        {:ok, body}
 
-          {:error, reason} ->
-            Logger.error("ksef-pdf request failed: #{inspect(reason)}")
-            {:error, {:request_failed, reason}}
-        end
+      {:ok, %{status: status, body: body}} ->
+        Logger.error("ksef-pdf returned #{status} (body: #{safe_size(body)} bytes)")
+        {:error, {:ksef_pdf_error, status}}
+
+      {:error, reason} ->
+        Logger.error("ksef-pdf request failed: #{inspect(reason)}")
+        {:error, {:request_failed, reason}}
     end
   end
 
   @spec build_headers(map()) :: [{String.t(), String.t()}]
   defp build_headers(metadata) do
-    headers = [{"content-type", "application/xml"}]
-
-    headers =
-      case metadata[:ksef_number] do
-        nil -> headers
-        number -> [{"x-ksef-number", number} | headers]
-      end
-
-    case metadata[:ksef_qrcode] do
-      nil -> headers
-      qrcode -> [{"x-ksef-qrcode", qrcode} | headers]
-    end
+    [{"content-type", "application/xml"}]
+    |> maybe_add_header("x-ksef-number", Map.get(metadata, :ksef_number))
+    |> maybe_add_header("x-ksef-qrcode", Map.get(metadata, :ksef_qrcode))
   end
 
-  @spec ksef_pdf_url() :: String.t() | nil
-  defp ksef_pdf_url do
-    Application.get_env(:ksef_hub, :ksef_pdf_url)
-  end
+  @spec maybe_add_header([{String.t(), String.t()}], String.t(), term()) ::
+          [{String.t(), String.t()}]
+  defp maybe_add_header(headers, _name, nil), do: headers
+  defp maybe_add_header(headers, name, value), do: [{name, to_string(value)} | headers]
 
   @spec safe_size(term()) :: non_neg_integer()
   defp safe_size(val) when is_binary(val), do: byte_size(val)
