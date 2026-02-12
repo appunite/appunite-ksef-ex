@@ -8,8 +8,15 @@ defmodule KsefHub.Invoices do
   alias KsefHub.Invoices.Invoice
   alias KsefHub.Repo
 
+  @list_fields Invoice.__schema__(:fields) -- [:xml_content]
+  @max_per_page 100
+  @default_per_page 25
+
   @doc """
   Returns a list of invoices for a company matching the given filters.
+
+  Excludes `xml_content` from results for performance. Supports pagination
+  via `:page` (1-based, default 1) and `:per_page` (default 25, max 100).
 
   ## Filters
     * `:type` - "income" or "expense"
@@ -19,14 +26,61 @@ defmodule KsefHub.Invoices do
     * `:seller_nip` - filter by seller NIP
     * `:buyer_nip` - filter by buyer NIP
     * `:query` - search across invoice_number, seller_name, buyer_name
+    * `:page` - page number (1-based, default 1)
+    * `:per_page` - results per page (default 25, max 100)
   """
   @spec list_invoices(Ecto.UUID.t(), map()) :: [Invoice.t()]
   def list_invoices(company_id, filters \\ %{}) do
+    {page, per_page} = extract_pagination(filters)
+    do_list_invoices(company_id, filters, page, per_page)
+  end
+
+  @doc """
+  Returns the count of invoices for a company matching the given filters.
+
+  Uses the same filter logic as `list_invoices/2` but returns only the count.
+  """
+  @spec count_invoices(Ecto.UUID.t(), map()) :: non_neg_integer()
+  def count_invoices(company_id, filters \\ %{}) do
     Invoice
     |> where([i], i.company_id == ^company_id)
     |> apply_filters(filters)
-    |> order_by([i], desc: i.issue_date, desc: i.inserted_at)
-    |> Repo.all()
+    |> Repo.aggregate(:count)
+  end
+
+  @doc """
+  Returns a paginated result map with entries and metadata.
+
+  ## Return value
+    %{
+      entries: [Invoice.t()],
+      page: integer(),
+      per_page: integer(),
+      total_count: integer(),
+      total_pages: integer()
+    }
+  """
+  @spec list_invoices_paginated(Ecto.UUID.t(), map()) :: %{
+          entries: [Invoice.t()],
+          page: pos_integer(),
+          per_page: pos_integer(),
+          total_count: non_neg_integer(),
+          total_pages: non_neg_integer()
+        }
+  def list_invoices_paginated(company_id, filters \\ %{}) do
+    {page, per_page} = extract_pagination(filters)
+
+    entries = do_list_invoices(company_id, filters, page, per_page)
+    total_count = count_invoices(company_id, filters)
+    total_pages = max(ceil(total_count / per_page), 1)
+
+    %{
+      entries: entries,
+      page: page,
+      per_page: per_page,
+      total_count: total_count,
+      total_pages: total_pages
+    }
   end
 
   @doc "Fetches an invoice by UUID scoped to a company, raising if not found."
@@ -169,6 +223,18 @@ defmodule KsefHub.Invoices do
 
   # --- Private ---
 
+  @spec do_list_invoices(Ecto.UUID.t(), map(), pos_integer(), pos_integer()) :: [Invoice.t()]
+  defp do_list_invoices(company_id, filters, page, per_page) do
+    Invoice
+    |> where([i], i.company_id == ^company_id)
+    |> apply_filters(filters)
+    |> order_by([i], desc: i.issue_date, desc: i.inserted_at)
+    |> select([i], struct(i, ^@list_fields))
+    |> limit(^per_page)
+    |> offset(^((page - 1) * per_page))
+    |> Repo.all()
+  end
+
   @spec apply_filters(Ecto.Queryable.t(), map()) :: Ecto.Query.t()
   defp apply_filters(query, filters) do
     Enum.reduce(filters, query, fn
@@ -211,4 +277,18 @@ defmodule KsefHub.Invoices do
         q
     end)
   end
+
+  @spec extract_pagination(map()) :: {pos_integer(), pos_integer()}
+  defp extract_pagination(filters) do
+    page = filters |> Map.get(:page, 1) |> clamp(1, 1_000_000)
+    per_page = filters |> Map.get(:per_page, @default_per_page) |> clamp(1, @max_per_page)
+    {page, per_page}
+  end
+
+  @spec clamp(term(), integer(), integer()) :: integer()
+  defp clamp(value, min_val, max_val) when is_integer(value) do
+    value |> max(min_val) |> min(max_val)
+  end
+
+  defp clamp(_, min_val, _max_val), do: min_val
 end

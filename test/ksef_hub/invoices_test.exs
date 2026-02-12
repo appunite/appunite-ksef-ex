@@ -146,6 +146,93 @@ defmodule KsefHub.InvoicesTest do
       assert [%{invoice_number: "FV\\2025\\001"}] =
                Invoices.list_invoices(company.id, %{query: "FV\\2025"})
     end
+
+    test "paginates with default page 1 and per_page 25", %{company: company} do
+      for i <- 1..30 do
+        insert(:invoice,
+          company: company,
+          invoice_number: "FV/#{String.pad_leading("#{i}", 3, "0")}"
+        )
+      end
+
+      result = Invoices.list_invoices(company.id)
+      assert length(result) == 25
+    end
+
+    test "respects page and per_page", %{company: company} do
+      for i <- 1..10 do
+        insert(:invoice, company: company, issue_date: Date.add(~D[2025-01-01], -i))
+      end
+
+      page1 = Invoices.list_invoices(company.id, %{per_page: 3, page: 1})
+      page2 = Invoices.list_invoices(company.id, %{per_page: 3, page: 2})
+
+      assert length(page1) == 3
+      assert length(page2) == 3
+
+      # Pages should not overlap
+      page1_ids = MapSet.new(page1, & &1.id)
+      page2_ids = MapSet.new(page2, & &1.id)
+      assert MapSet.disjoint?(page1_ids, page2_ids)
+    end
+
+    test "caps per_page at 100", %{company: company} do
+      for i <- 1..105 do
+        insert(:invoice, company: company, invoice_number: "FV/#{i}")
+      end
+
+      result = Invoices.list_invoices(company.id, %{per_page: 200})
+      assert length(result) == 100
+    end
+
+    test "excludes xml_content from list results", %{company: company} do
+      insert(:invoice, company: company, xml_content: "<xml>big content</xml>")
+
+      [invoice] = Invoices.list_invoices(company.id)
+      assert is_nil(invoice.xml_content)
+    end
+  end
+
+  describe "count_invoices/2" do
+    test "returns count scoped to company", %{company: company} do
+      insert(:invoice, company: company)
+      insert(:invoice, company: company)
+      other = insert(:company)
+      insert(:invoice, company: other)
+
+      assert Invoices.count_invoices(company.id) == 2
+    end
+
+    test "applies filters to count", %{company: company} do
+      insert(:invoice, company: company, type: "income")
+      insert(:invoice, company: company, type: "expense")
+
+      assert Invoices.count_invoices(company.id, %{type: "income"}) == 1
+    end
+  end
+
+  describe "list_invoices_paginated/2" do
+    test "returns paginated result with metadata", %{company: company} do
+      for i <- 1..10 do
+        insert(:invoice, company: company, invoice_number: "FV/#{i}")
+      end
+
+      result = Invoices.list_invoices_paginated(company.id, %{per_page: 3, page: 2})
+
+      assert length(result.entries) == 3
+      assert result.page == 2
+      assert result.per_page == 3
+      assert result.total_count == 10
+      assert result.total_pages == 4
+    end
+
+    test "returns total_pages of 1 when no results", %{company: company} do
+      result = Invoices.list_invoices_paginated(company.id)
+
+      assert result.entries == []
+      assert result.total_count == 0
+      assert result.total_pages == 1
+    end
   end
 
   describe "get_invoice!/2" do
