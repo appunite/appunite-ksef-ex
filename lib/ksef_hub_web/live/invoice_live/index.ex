@@ -90,6 +90,7 @@ defmodule KsefHubWeb.InvoiceLive.Index do
   defp maybe_put_search(map, _key, ""), do: map
   defp maybe_put_search(map, key, value), do: Map.put(map, key, value)
 
+  @spec maybe_put_page(map(), atom(), String.t() | nil) :: map()
   defp maybe_put_page(map, _key, nil), do: map
   defp maybe_put_page(map, _key, ""), do: map
 
@@ -106,27 +107,13 @@ defmodule KsefHubWeb.InvoiceLive.Index do
 
   @spec pagination_params(map(), pos_integer()) :: map()
   defp pagination_params(filters, target_page) do
-    params = %{}
-    params = if filters[:type], do: Map.put(params, "type", filters[:type]), else: params
-    params = if filters[:status], do: Map.put(params, "status", filters[:status]), else: params
-
-    params =
-      if filters[:date_from],
-        do: Map.put(params, "date_from", Date.to_iso8601(filters[:date_from])),
-        else: params
-
-    params =
-      if filters[:date_to],
-        do: Map.put(params, "date_to", Date.to_iso8601(filters[:date_to])),
-        else: params
-
-    params = if filters[:query], do: Map.put(params, "query", filters[:query]), else: params
-
-    if target_page > 1 do
-      Map.put(params, "page", Integer.to_string(target_page))
-    else
-      params
-    end
+    %{}
+    |> maybe_put("type", filters[:type])
+    |> maybe_put("status", filters[:status])
+    |> maybe_put("date_from", filters[:date_from] && Date.to_iso8601(filters[:date_from]))
+    |> maybe_put("date_to", filters[:date_to] && Date.to_iso8601(filters[:date_to]))
+    |> maybe_put("query", filters[:query])
+    |> maybe_put("page", if(target_page > 1, do: Integer.to_string(target_page)))
   end
 
   @spec visible_pages(pos_integer(), pos_integer()) :: [pos_integer()]

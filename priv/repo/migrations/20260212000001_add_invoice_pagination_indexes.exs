@@ -5,9 +5,10 @@ defmodule KsefHub.Repo.Migrations.AddInvoicePaginationIndexes do
     execute("CREATE EXTENSION IF NOT EXISTS pg_trgm")
 
     # Compound index for default ORDER BY (company_id, issue_date DESC, inserted_at DESC)
-    create index(:invoices, [:company_id, :issue_date, :inserted_at],
-             name: :invoices_company_date_idx
-           )
+    execute("""
+    CREATE INDEX invoices_company_date_idx
+    ON invoices (company_id, issue_date DESC, inserted_at DESC)
+    """)
 
     # Compound index for filtered listings by type and status
     create index(:invoices, [:company_id, :type, :status],
@@ -37,10 +38,6 @@ defmodule KsefHub.Repo.Migrations.AddInvoicePaginationIndexes do
                      name: :invoices_company_type_status_idx
                    )
 
-    drop_if_exists index(:invoices, [:company_id, :issue_date, :inserted_at],
-                     name: :invoices_company_date_idx
-                   )
-
-    execute("DROP EXTENSION IF EXISTS pg_trgm")
+    execute("DROP INDEX IF EXISTS invoices_company_date_idx")
   end
 end

@@ -77,7 +77,6 @@ defmodule KsefHub.Invoices do
         }
   def list_invoices_paginated(company_id, filters \\ %{}) do
     {page, per_page} = extract_pagination(filters)
-    filters = Map.merge(filters, %{page: page, per_page: per_page})
 
     entries = list_invoices(company_id, filters)
     total_count = count_invoices(company_id, filters)

@@ -310,7 +310,7 @@ defmodule KsefHubWeb.Api.InvoiceController do
     end
   end
 
-  @spec maybe_put_integer(map(), atom(), String.t() | nil) :: map()
+  @spec maybe_put_integer(map(), atom(), String.t() | integer() | nil) :: map()
   defp maybe_put_integer(map, _key, nil), do: map
   defp maybe_put_integer(map, _key, ""), do: map
 
