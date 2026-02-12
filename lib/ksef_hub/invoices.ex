@@ -32,15 +32,7 @@ defmodule KsefHub.Invoices do
   @spec list_invoices(Ecto.UUID.t(), map()) :: [Invoice.t()]
   def list_invoices(company_id, filters \\ %{}) do
     {page, per_page} = extract_pagination(filters)
-
-    Invoice
-    |> where([i], i.company_id == ^company_id)
-    |> apply_filters(filters)
-    |> order_by([i], desc: i.issue_date, desc: i.inserted_at)
-    |> select([i], struct(i, ^@list_fields))
-    |> limit(^per_page)
-    |> offset(^((page - 1) * per_page))
-    |> Repo.all()
+    do_list_invoices(company_id, filters, page, per_page)
   end
 
   @doc """
@@ -78,7 +70,7 @@ defmodule KsefHub.Invoices do
   def list_invoices_paginated(company_id, filters \\ %{}) do
     {page, per_page} = extract_pagination(filters)
 
-    entries = list_invoices(company_id, filters)
+    entries = do_list_invoices(company_id, filters, page, per_page)
     total_count = count_invoices(company_id, filters)
     total_pages = max(ceil(total_count / per_page), 1)
 
@@ -231,6 +223,18 @@ defmodule KsefHub.Invoices do
 
   # --- Private ---
 
+  @spec do_list_invoices(Ecto.UUID.t(), map(), pos_integer(), pos_integer()) :: [Invoice.t()]
+  defp do_list_invoices(company_id, filters, page, per_page) do
+    Invoice
+    |> where([i], i.company_id == ^company_id)
+    |> apply_filters(filters)
+    |> order_by([i], desc: i.issue_date, desc: i.inserted_at)
+    |> select([i], struct(i, ^@list_fields))
+    |> limit(^per_page)
+    |> offset(^((page - 1) * per_page))
+    |> Repo.all()
+  end
+
   @spec apply_filters(Ecto.Queryable.t(), map()) :: Ecto.Query.t()
   defp apply_filters(query, filters) do
     Enum.reduce(filters, query, fn
@@ -281,7 +285,7 @@ defmodule KsefHub.Invoices do
     {page, per_page}
   end
 
-  @spec clamp(integer(), integer(), integer()) :: integer()
+  @spec clamp(term(), integer(), integer()) :: integer()
   defp clamp(value, min_val, max_val) when is_integer(value) do
     value |> max(min_val) |> min(max_val)
   end
