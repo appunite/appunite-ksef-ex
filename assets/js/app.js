@@ -25,11 +25,21 @@ import {LiveSocket} from "phoenix_live_view"
 import {hooks as colocatedHooks} from "phoenix-colocated/ksef_hub"
 import topbar from "../vendor/topbar"
 
+const SidebarToggle = {
+  mounted() {
+    this.el.addEventListener("toggle-sidebar", () => {
+      document.documentElement.classList.toggle("sidebar-collapsed")
+      const collapsed = document.documentElement.classList.contains("sidebar-collapsed")
+      localStorage.setItem("sidebar-collapsed", String(collapsed))
+    })
+  }
+}
+
 const csrfToken = document.querySelector("meta[name='csrf-token']").getAttribute("content")
 const liveSocket = new LiveSocket("/live", Socket, {
   longPollFallbackMs: 2500,
   params: {_csrf_token: csrfToken},
-  hooks: {...colocatedHooks},
+  hooks: {...colocatedHooks, SidebarToggle},
 })
 
 // Show progress bar on live navigation and form submits

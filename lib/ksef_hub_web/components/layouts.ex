@@ -27,7 +27,7 @@ defmodule KsefHubWeb.Layouts do
   @spec app(map()) :: Phoenix.LiveView.Rendered.t()
   def app(assigns) do
     ~H"""
-    <div class="drawer lg:drawer-open">
+    <div id="sidebar-drawer" class="drawer lg:drawer-open" phx-hook="SidebarToggle">
       <input id="sidebar-toggle" type="checkbox" class="drawer-toggle" />
 
       <div class="drawer-content flex flex-col min-h-screen">
@@ -42,29 +42,26 @@ defmodule KsefHubWeb.Layouts do
             <span class="text-lg font-bold">KSeF Hub</span>
           </div>
         </div>
-        
-    <!-- Main content -->
+        <!-- Main content -->
         <main class="flex-1 p-4 sm:p-6 lg:p-8">
           <div class="mx-auto max-w-6xl">
             {@inner_content}
           </div>
         </main>
       </div>
-      
-    <!-- Sidebar -->
+      <!-- Sidebar -->
       <div class="drawer-side z-40">
         <label for="sidebar-toggle" aria-label="close sidebar" class="drawer-overlay"></label>
         <aside class="bg-base-200 min-h-full w-64 flex flex-col">
           <!-- Logo -->
           <div class="p-4 border-b border-base-300">
             <a href={~p"/dashboard"} class="flex items-center gap-2">
-              <.icon name="hero-document-text" class="size-6 text-primary" />
-              <span class="text-xl font-bold">KSeF Hub</span>
+              <.icon name="hero-document-text" class="size-6 text-primary shrink-0" />
+              <span class="sidebar-text text-xl font-bold">KSeF Hub</span>
             </a>
           </div>
-          
-    <!-- Company Selector -->
-          <div :if={@current_company} class="p-4 border-b border-base-300">
+          <!-- Company Selector -->
+          <div :if={@current_company} class="sidebar-company-selector p-4 border-b border-base-300">
             <div class="dropdown w-full">
               <div
                 tabindex="0"
@@ -109,46 +106,91 @@ defmodule KsefHubWeb.Layouts do
           <nav class="flex-1 p-4">
             <ul class="menu gap-1">
               <li>
-                <.nav_link path={~p"/dashboard"} current={@current_path} icon="hero-home">
+                <.nav_link
+                  path={~p"/dashboard"}
+                  current={@current_path}
+                  icon="hero-home"
+                  label="Dashboard"
+                >
                   Dashboard
                 </.nav_link>
               </li>
               <li>
-                <.nav_link path={~p"/invoices"} current={@current_path} icon="hero-document-text">
+                <.nav_link
+                  path={~p"/invoices"}
+                  current={@current_path}
+                  icon="hero-document-text"
+                  label="Invoices"
+                >
                   Invoices
                 </.nav_link>
               </li>
               <li :if={@current_role == "owner"}>
-                <.nav_link path={~p"/certificates"} current={@current_path} icon="hero-shield-check">
+                <.nav_link
+                  path={~p"/certificates"}
+                  current={@current_path}
+                  icon="hero-shield-check"
+                  label="Certificates"
+                >
                   Certificates
                 </.nav_link>
               </li>
               <li :if={@current_role == "owner"}>
-                <.nav_link path={~p"/tokens"} current={@current_path} icon="hero-key">
+                <.nav_link
+                  path={~p"/tokens"}
+                  current={@current_path}
+                  icon="hero-key"
+                  label="API Tokens"
+                >
                   API Tokens
                 </.nav_link>
               </li>
               <li :if={@current_role == "owner"}>
-                <.nav_link path={~p"/team"} current={@current_path} icon="hero-user-group">
+                <.nav_link
+                  path={~p"/team"}
+                  current={@current_path}
+                  icon="hero-user-group"
+                  label="Team"
+                >
                   Team
                 </.nav_link>
               </li>
               <li>
-                <.nav_link path={~p"/syncs"} current={@current_path} icon="hero-arrow-path">
+                <.nav_link
+                  path={~p"/syncs"}
+                  current={@current_path}
+                  icon="hero-arrow-path"
+                  label="Syncs"
+                >
                   Syncs
                 </.nav_link>
               </li>
               <li>
-                <.nav_link path={~p"/companies"} current={@current_path} icon="hero-building-office-2">
+                <.nav_link
+                  path={~p"/companies"}
+                  current={@current_path}
+                  icon="hero-building-office-2"
+                  label="Companies"
+                >
                   Companies
                 </.nav_link>
               </li>
             </ul>
           </nav>
-          
-    <!-- Footer: theme toggle + user -->
-          <div class="p-4 border-t border-base-300 space-y-3">
-            <div class="flex justify-center">
+          <!-- Toggle button -->
+          <div class="hidden lg:flex p-2 justify-center border-t border-base-300">
+            <button
+              aria-label="Toggle sidebar"
+              class="btn btn-ghost btn-sm btn-square"
+              onclick="this.closest('[phx-hook=SidebarToggle]').dispatchEvent(new Event('toggle-sidebar'))"
+            >
+              <.icon name="hero-chevron-double-right" class="size-4 sidebar-expand-icon" />
+              <.icon name="hero-chevron-double-left" class="size-4 sidebar-collapse-icon" />
+            </button>
+          </div>
+          <!-- Footer: theme toggle + user -->
+          <div class="sidebar-footer p-4 border-t border-base-300 space-y-3">
+            <div class="sidebar-theme-toggle flex justify-center">
               <.theme_toggle />
             </div>
             <div :if={@current_user} class="flex items-center gap-2 text-sm">
@@ -159,14 +201,14 @@ defmodule KsefHubWeb.Layouts do
                   </span>
                 </div>
               </div>
-              <div class="flex-1 truncate">
+              <div class="sidebar-user-info flex-1 truncate">
                 <p class="font-medium truncate">{@current_user.email}</p>
               </div>
               <.link
                 href={~p"/users/log-out"}
                 method="delete"
                 aria-label="Log out"
-                class="btn btn-ghost btn-xs"
+                class="sidebar-user-info btn btn-ghost btn-xs"
               >
                 <.icon name="hero-arrow-right-on-rectangle" class="size-4" />
               </.link>
@@ -183,6 +225,7 @@ defmodule KsefHubWeb.Layouts do
   attr :path, :string, required: true
   attr :current, :string, default: nil
   attr :icon, :string, required: true
+  attr :label, :string, required: true, doc: "tooltip text shown when sidebar is collapsed"
   slot :inner_block, required: true
 
   @spec nav_link(map()) :: Phoenix.LiveView.Rendered.t()
@@ -195,9 +238,9 @@ defmodule KsefHubWeb.Layouts do
     assigns = assign(assigns, :active, active)
 
     ~H"""
-    <a href={@path} class={[@active && "active"]}>
-      <.icon name={@icon} class="size-5" />
-      {render_slot(@inner_block)}
+    <a href={@path} class={["tooltip-right", @active && "active"]} data-tip={@label}>
+      <.icon name={@icon} class="size-5 shrink-0" />
+      <span class="sidebar-text">{render_slot(@inner_block)}</span>
     </a>
     """
   end

@@ -104,3 +104,104 @@
 [data-phx-session], [data-phx-teleported-src] { display: contents }
 
 /* This file is for your main application CSS */
+
+/* Sidebar collapse/expand transitions */
+.drawer aside {
+  transition: width 200ms ease-in-out;
+}
+
+.drawer .sidebar-text {
+  transition: opacity 150ms ease-in-out;
+  white-space: nowrap;
+  overflow: hidden;
+}
+
+.sidebar-collapsed .sidebar-text {
+  opacity: 0;
+  width: 0;
+  display: none;
+}
+
+.sidebar-collapsed aside {
+  width: 4rem !important;
+}
+
+.sidebar-collapsed .sidebar-company-selector {
+  display: none;
+}
+
+.sidebar-collapsed .sidebar-theme-toggle {
+  display: none;
+}
+
+/* When collapsed, style nav items as centered icon buttons */
+.sidebar-collapsed .menu a {
+  justify-content: center;
+  padding: 0.5rem;
+  width: 2.5rem;
+  height: 2.5rem;
+  margin-inline: auto;
+  border-radius: 0.5rem;
+}
+
+.sidebar-collapsed nav {
+  padding-inline: 0.5rem;
+}
+
+/* Collapsed footer: center items */
+.sidebar-collapsed .sidebar-footer {
+  align-items: center;
+}
+
+.sidebar-collapsed .sidebar-user-info {
+  display: none;
+}
+
+/* Main content transition to match sidebar */
+.drawer .drawer-content {
+  transition: margin-left 200ms ease-in-out;
+}
+
+/* Toggle button icons: show collapse arrow by default, expand arrow when collapsed */
+.sidebar-expand-icon {
+  display: none;
+}
+
+.sidebar-collapsed .sidebar-collapse-icon {
+  display: none;
+}
+
+.sidebar-collapsed .sidebar-expand-icon {
+  display: block;
+}
+
+/* Allow tooltip to escape the drawer overflow on desktop when collapsed */
+@media (min-width: 1024px) {
+  .sidebar-collapsed .drawer-side {
+    overflow: visible !important;
+  }
+
+  .sidebar-collapsed aside {
+    overflow: visible;
+  }
+
+  .sidebar-collapsed .menu a.tooltip-right {
+    @apply tooltip tooltip-right;
+    overflow: visible;
+  }
+
+  .sidebar-collapsed .menu a.tooltip-right::before {
+    z-index: 100;
+    white-space: nowrap;
+  }
+
+  .sidebar-collapsed .menu a.tooltip-right::after {
+    z-index: 100;
+  }
+}
+
+/* Hide tooltip when sidebar is expanded */
+html:not(.sidebar-collapsed) .menu a.tooltip-right::before,
+html:not(.sidebar-collapsed) .menu a.tooltip-right::after {
+  display: none !important;
+}

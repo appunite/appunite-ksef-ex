@@ -29,6 +29,11 @@
         window.addEventListener("phx:set-theme", (e) => setTheme(e.target.dataset.phxTheme));
       })();
     </script>
+    <script>
+      if (localStorage.getItem("sidebar-collapsed") === "true") {
+        document.documentElement.classList.add("sidebar-collapsed");
+      }
+    </script>
   </head>
   <body>
     {@inner_content}
