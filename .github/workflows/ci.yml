@@ -114,6 +114,19 @@ jobs:
           docker push "${IMAGE_NAME}:${{ github.sha }}"
           docker push "${IMAGE_NAME}:latest"
 
+      - name: Build and push ksef-pdf sidecar
+        env:
+          KSEF_PDF_IMAGE: europe-central2-docker.pkg.dev/au-ksef-ex/ksef-hub/ksef-pdf
+        run: |
+          git clone --depth 1 --branch feature/html-output \
+            https://github.com/emilwojtaszek/ksef-pdf-generator.git /tmp/ksef-pdf
+          docker build \
+            -t "${KSEF_PDF_IMAGE}:${{ github.sha }}" \
+            -t "${KSEF_PDF_IMAGE}:latest" \
+            /tmp/ksef-pdf
+          docker push "${KSEF_PDF_IMAGE}:${{ github.sha }}"
+          docker push "${KSEF_PDF_IMAGE}:latest"
+
       - name: Run database migrations
         run: |
           MIGRATE_ARGS=(

@@ -85,7 +85,7 @@ spec:
 
         # --- KSeF PDF sidecar (PDF + HTML generation) ---
         - name: ksef-pdf
-          image: europe-central2-docker.pkg.dev/au-ksef-ex/ghcr-remote/appunite/ksef-pdf:latest
+          image: europe-central2-docker.pkg.dev/au-ksef-ex/ksef-hub/ksef-pdf:latest
           resources:
             limits:
               memory: 256Mi
