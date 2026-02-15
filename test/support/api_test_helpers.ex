@@ -43,30 +43,30 @@ defmodule KsefHubWeb.ApiTestHelpers do
   user's membership to reviewer. Token creation requires owner role, so we
   create as owner first and downgrade afterward.
   """
-  @spec create_reviewer_with_token(map()) :: %{
-          user: KsefHub.Accounts.User.t(),
-          company: KsefHub.Companies.Company.t(),
-          token: String.t(),
-          api_token: KsefHub.Accounts.ApiToken.t()
-        }
+  @spec create_reviewer_with_token(map()) ::
+          {:ok,
+           %{
+             user: KsefHub.Accounts.User.t(),
+             company: KsefHub.Companies.Company.t(),
+             token: String.t(),
+             api_token: KsefHub.Accounts.ApiToken.t()
+           }}
+          | {:error, term()}
   def create_reviewer_with_token(attrs \\ %{}) do
     user = insert(:user, google_uid: "uid-#{System.unique_integer([:positive])}")
     company = insert(:company)
     membership = insert(:membership, user: user, company: company, role: "owner")
 
-    {:ok, result} =
-      Accounts.create_api_token(
-        user.id,
-        company.id,
-        Map.merge(%{name: "Reviewer Token"}, attrs)
-      )
-
-    # Downgrade to reviewer after token creation
-    membership
-    |> Ecto.Changeset.change(role: "reviewer")
-    |> KsefHub.Repo.update!()
-
-    %{user: user, company: company, token: result.token, api_token: result.api_token}
+    with {:ok, result} <-
+           Accounts.create_api_token(
+             user.id,
+             company.id,
+             Map.merge(%{name: "Reviewer Token"}, attrs)
+           ),
+         {:ok, _membership} <-
+           membership |> Ecto.Changeset.change(role: "reviewer") |> KsefHub.Repo.update() do
+      {:ok, %{user: user, company: company, token: result.token, api_token: result.api_token}}
+    end
   end
 
   @doc """

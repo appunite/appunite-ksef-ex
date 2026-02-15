@@ -9,9 +9,9 @@ defmodule KsefHubWeb.Plugs.ApiAuth do
 
   import Plug.Conn
   import Phoenix.Controller
+  import KsefHubWeb.AuthHelpers, only: [resolve_role: 2]
 
   alias KsefHub.Accounts
-  alias KsefHub.Companies
 
   @doc false
   @spec init(Keyword.t()) :: Keyword.t()
@@ -43,14 +43,6 @@ defmodule KsefHubWeb.Plugs.ApiAuth do
         |> put_status(:unauthorized)
         |> json(%{error: "Invalid or missing API token"})
         |> halt()
-    end
-  end
-
-  @spec resolve_role(Ecto.UUID.t(), Ecto.UUID.t()) :: String.t() | nil
-  defp resolve_role(user_id, company_id) do
-    case Companies.get_membership(user_id, company_id) do
-      %{role: role} -> role
-      nil -> nil
     end
   end
 end

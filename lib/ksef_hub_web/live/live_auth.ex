@@ -9,6 +9,8 @@ defmodule KsefHubWeb.LiveAuth do
   import Phoenix.LiveView
   import Phoenix.Component
 
+  import KsefHubWeb.AuthHelpers, only: [resolve_role: 2]
+
   alias KsefHub.Accounts
   alias KsefHub.Companies
   alias KsefHub.Companies.Company
@@ -80,7 +82,7 @@ defmodule KsefHubWeb.LiveAuth do
     companies = Companies.list_companies_for_user(user.id)
     resolved = resolve_company(companies, session["current_company_id"])
     current_company = resolved || List.first(companies)
-    current_role = resolve_role(user.id, current_company)
+    current_role = resolve_role(user.id, current_company && current_company.id)
 
     socket
     |> assign(:current_user, user)
@@ -91,16 +93,6 @@ defmodule KsefHubWeb.LiveAuth do
     |> attach_hook(:set_current_path, :handle_params, fn _params, uri, socket ->
       {:cont, assign(socket, :current_path, URI.parse(uri).path)}
     end)
-  end
-
-  @spec resolve_role(Ecto.UUID.t(), Company.t() | nil) :: String.t() | nil
-  defp resolve_role(_user_id, nil), do: nil
-
-  defp resolve_role(user_id, company) do
-    case Companies.get_membership(user_id, company.id) do
-      %{role: role} -> role
-      nil -> nil
-    end
   end
 
   @spec maybe_redirect_for_company(Phoenix.LiveView.Socket.t()) ::

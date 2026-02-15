@@ -151,13 +151,12 @@ defmodule KsefHubWeb.InvoiceLive.ShowTest do
       insert(:membership, user: reviewer, company: company, role: "reviewer")
 
       conn = build_conn() |> log_in_user(reviewer, %{current_company_id: company.id})
+      stub(KsefHub.Pdf.Mock, :generate_html, fn _xml, _meta -> {:error, :no_xml} end)
       %{conn: conn, company: company}
     end
 
     test "reviewer can view expense invoice", %{conn: conn, company: company} do
       invoice = insert(:invoice, type: "expense", company: company)
-
-      stub(KsefHub.Pdf.Mock, :generate_html, fn _xml, _meta -> {:error, :no_xml} end)
 
       {:ok, _view, html} = live(conn, ~p"/invoices/#{invoice.id}")
       assert html =~ invoice.invoice_number
@@ -165,8 +164,6 @@ defmodule KsefHubWeb.InvoiceLive.ShowTest do
 
     test "reviewer is redirected when viewing income invoice", %{conn: conn, company: company} do
       invoice = insert(:invoice, type: "income", company: company)
-
-      stub(KsefHub.Pdf.Mock, :generate_html, fn _xml, _meta -> {:error, :no_xml} end)
 
       assert {:error, {:redirect, %{to: "/invoices"}}} =
                live(conn, ~p"/invoices/#{invoice.id}")

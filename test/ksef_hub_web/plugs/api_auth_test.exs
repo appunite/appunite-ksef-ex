@@ -92,7 +92,7 @@ defmodule KsefHubWeb.Plugs.ApiAuthTest do
     end
 
     test "assigns reviewer role for reviewer-created token", %{conn: conn} do
-      %{token: token} = create_reviewer_with_token()
+      {:ok, %{token: token}} = create_reviewer_with_token()
 
       conn =
         conn
