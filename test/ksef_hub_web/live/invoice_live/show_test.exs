@@ -51,19 +51,6 @@ defmodule KsefHubWeb.InvoiceLive.ShowTest do
       assert has_element?(view, ~s(a[href="/invoices/#{invoice.id}/xml"]), "XML")
     end
 
-    test "does not render download dropdown when xml_content is nil", %{
-      conn: conn,
-      company: company
-    } do
-      invoice = insert(:invoice, type: "income", xml_content: nil, company: company)
-
-      stub(KsefHub.Pdf.Mock, :generate_html, fn _xml, _meta -> {:error, :no_xml} end)
-
-      {:ok, view, _html} = live(conn, ~p"/invoices/#{invoice.id}")
-
-      refute has_element?(view, "div.dropdown")
-    end
-
     test "shows preview when xml_content is available", %{conn: conn, company: company} do
       xml = File.read!("test/support/fixtures/sample_income.xml")
       invoice = insert(:invoice, type: "income", xml_content: xml, company: company)

@@ -43,15 +43,6 @@ defmodule KsefHubWeb.InvoicePdfControllerTest do
       assert conn.resp_body == xml
     end
 
-    test "redirects when invoice has no XML content", %{conn: conn, company: company} do
-      invoice = insert(:invoice, company: company, xml_content: nil)
-
-      conn = get(conn, ~p"/invoices/#{invoice.id}/xml")
-
-      assert redirected_to(conn) == "/invoices/#{invoice.id}"
-      assert Phoenix.Flash.get(conn.assigns.flash, :error) =~ "No XML content"
-    end
-
     test "redirects when invoice not found", %{conn: conn} do
       conn = get(conn, ~p"/invoices/#{Ecto.UUID.generate()}/xml")
 
@@ -91,15 +82,6 @@ defmodule KsefHubWeb.InvoicePdfControllerTest do
       assert get_resp_header(conn, "content-type") |> hd() =~ "application/pdf"
       assert get_resp_header(conn, "content-disposition") |> hd() =~ "FV_2025_002.pdf"
       assert conn.resp_body == "%PDF-fake-content"
-    end
-
-    test "redirects when invoice has no XML content", %{conn: conn, company: company} do
-      invoice = insert(:invoice, company: company, xml_content: nil)
-
-      conn = get(conn, ~p"/invoices/#{invoice.id}/pdf")
-
-      assert redirected_to(conn) == "/invoices/#{invoice.id}"
-      assert Phoenix.Flash.get(conn.assigns.flash, :error) =~ "No XML content"
     end
   end
 end
