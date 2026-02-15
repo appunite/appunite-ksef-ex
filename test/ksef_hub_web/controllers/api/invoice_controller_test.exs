@@ -219,5 +219,14 @@ defmodule KsefHubWeb.Api.InvoiceControllerTest do
         conn |> api_conn(token) |> post("/api/invoices/#{income.id}/reject")
       end
     end
+
+    test "reviewer token returns 404 for income invoice xml", %{conn: conn} do
+      {:ok, %{company: company, token: token}} = create_reviewer_with_token()
+      income = insert(:invoice, company: company, type: "income")
+
+      assert_error_sent 404, fn ->
+        conn |> api_conn(token) |> get("/api/invoices/#{income.id}/xml")
+      end
+    end
   end
 end

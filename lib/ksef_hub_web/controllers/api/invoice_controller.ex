@@ -261,7 +261,7 @@ defmodule KsefHubWeb.Api.InvoiceController do
   @spec xml(Plug.Conn.t(), map()) :: Plug.Conn.t()
   def xml(conn, %{"id" => id}) do
     company_id = conn.assigns.current_company.id
-    invoice = Invoices.get_invoice!(company_id, id)
+    invoice = Invoices.get_invoice!(company_id, id, role: conn.assigns[:current_role])
 
     send_attachment(conn, "application/xml", "#{invoice.invoice_number}.xml", invoice.xml_content)
   end
