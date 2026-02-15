@@ -39,9 +39,9 @@ defmodule KsefHubWeb.ApiTestHelpers do
   end
 
   @doc """
-  Creates a user, company, reviewer membership, and company-scoped API token.
-
-  Same as `create_owner_with_token/1` but with `role: "reviewer"`.
+  Creates a user, company, and company-scoped API token, then changes the
+  user's membership to reviewer. Token creation requires owner role, so we
+  create as owner first and downgrade afterward.
   """
   @spec create_reviewer_with_token(map()) :: %{
           user: KsefHub.Accounts.User.t(),
@@ -52,7 +52,7 @@ defmodule KsefHubWeb.ApiTestHelpers do
   def create_reviewer_with_token(attrs \\ %{}) do
     user = insert(:user, google_uid: "uid-#{System.unique_integer([:positive])}")
     company = insert(:company)
-    insert(:membership, user: user, company: company, role: "reviewer")
+    membership = insert(:membership, user: user, company: company, role: "owner")
 
     {:ok, result} =
       Accounts.create_api_token(
@@ -60,6 +60,11 @@ defmodule KsefHubWeb.ApiTestHelpers do
         company.id,
         Map.merge(%{name: "Reviewer Token"}, attrs)
       )
+
+    # Downgrade to reviewer after token creation
+    membership
+    |> Ecto.Changeset.change(role: "reviewer")
+    |> KsefHub.Repo.update!()
 
     %{user: user, company: company, token: result.token, api_token: result.api_token}
   end
