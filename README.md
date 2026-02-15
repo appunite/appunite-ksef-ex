@@ -41,7 +41,7 @@ cp .env.example .env
 # - KSEF_API_URL
 # - GOOGLE_CLIENT_ID / GOOGLE_CLIENT_SECRET
 # - KSEF_PDF_URL
-# - GCP_SECRET_NAME
+# - CREDENTIAL_ENCRYPTION_KEY
 ```
 
 See the full list in [`CLAUDE.md`](CLAUDE.md#environment-variables).

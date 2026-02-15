@@ -133,7 +133,7 @@ jobs:
             --region "${GCP_REGION}"
             --image "${IMAGE_NAME}:${{ github.sha }}"
             --command "bin/ksef_hub"
-            --set-secrets "DATABASE_URL=database-url:latest,SECRET_KEY_BASE=secret-key-base:latest,GOOGLE_CLIENT_ID=google-client-id:latest,GOOGLE_CLIENT_SECRET=google-client-secret:latest,ALLOWED_EMAILS=allowed-emails:latest,GCP_SECRET_NAME=ksef-encryption-key:latest"
+            --set-secrets "DATABASE_URL=database-url:latest,SECRET_KEY_BASE=secret-key-base:latest,GOOGLE_CLIENT_ID=google-client-id:latest,GOOGLE_CLIENT_SECRET=google-client-secret:latest,CREDENTIAL_ENCRYPTION_KEY=credential-encryption-key:latest"
             --set-env-vars "KSEF_API_URL=https://ksef-test.mf.gov.pl,POOL_SIZE=2"
             --service-account "ksef-hub-runner@${GCP_PROJECT_ID}.iam.gserviceaccount.com"
           )
