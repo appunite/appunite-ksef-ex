@@ -61,6 +61,16 @@ defmodule KsefHubWeb.InvoicePdfControllerTest do
 
       assert redirected_to(conn) == "/companies"
     end
+
+    test "redirects when invoice belongs to different company", %{conn: conn} do
+      other_company = insert(:company)
+      invoice = insert(:invoice, company: other_company)
+
+      conn = get(conn, ~p"/invoices/#{invoice.id}/xml")
+
+      assert redirected_to(conn) == "/invoices"
+      assert Phoenix.Flash.get(conn.assigns.flash, :error) =~ "not found"
+    end
   end
 
   describe "show/2 (PDF)" do

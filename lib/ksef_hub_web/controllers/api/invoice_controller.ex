@@ -12,7 +12,7 @@ defmodule KsefHubWeb.Api.InvoiceController do
 
   import KsefHubWeb.ChangesetHelpers
   import KsefHubWeb.ErrorHelpers, only: [sanitize_error: 1]
-  import KsefHubWeb.FilenameHelpers, only: [sanitize_filename: 1]
+  import KsefHubWeb.FilenameHelpers, only: [send_attachment: 4]
 
   alias KsefHub.Invoices
   alias KsefHubWeb.Schemas
@@ -254,12 +254,8 @@ defmodule KsefHubWeb.Api.InvoiceController do
   def xml(conn, %{"id" => id}) do
     company_id = conn.assigns.current_company.id
     invoice = Invoices.get_invoice!(company_id, id)
-    filename = sanitize_filename("#{invoice.invoice_number}.xml")
 
-    conn
-    |> put_resp_content_type("application/xml")
-    |> put_resp_header("content-disposition", ~s(attachment; filename="#{filename}"))
-    |> send_resp(200, invoice.xml_content || "")
+    send_attachment(conn, "application/xml", "#{invoice.invoice_number}.xml", invoice.xml_content)
   end
 
   operation(:pdf,
@@ -289,12 +285,7 @@ defmodule KsefHubWeb.Api.InvoiceController do
 
     case pdf_mod.generate_pdf(invoice.xml_content, metadata) do
       {:ok, pdf_binary} ->
-        filename = sanitize_filename("#{invoice.invoice_number}.pdf")
-
-        conn
-        |> put_resp_content_type("application/pdf")
-        |> put_resp_header("content-disposition", ~s(attachment; filename="#{filename}"))
-        |> send_resp(200, pdf_binary)
+        send_attachment(conn, "application/pdf", "#{invoice.invoice_number}.pdf", pdf_binary)
 
       {:error, reason} ->
         Logger.error("PDF generation failed for invoice #{id}: #{sanitize_error(reason)}")
