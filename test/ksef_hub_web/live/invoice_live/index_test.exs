@@ -69,7 +69,7 @@ defmodule KsefHubWeb.InvoiceLive.IndexTest do
 
       view
       |> element("form[phx-change=filter]")
-      |> render_change(%{"type" => "income"})
+      |> render_change(%{"filters" => %{"type" => "income"}})
 
       assert_patched(view, "/invoices?type=income")
     end
@@ -124,7 +124,7 @@ defmodule KsefHubWeb.InvoiceLive.IndexTest do
 
       view
       |> element("form[phx-change=filter]")
-      |> render_change(%{"type" => "income"})
+      |> render_change(%{"filters" => %{"type" => "income"}})
 
       # Should not include page param (defaults to page 1)
       assert_patched(view, "/invoices?type=income")

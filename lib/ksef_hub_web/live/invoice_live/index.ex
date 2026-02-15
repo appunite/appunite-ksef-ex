@@ -56,7 +56,7 @@ defmodule KsefHubWeb.InvoiceLive.Index do
   end
 
   @impl true
-  def handle_event("filter", params, socket) do
+  def handle_event("filter", %{"filters" => params}, socket) do
     query_params =
       %{}
       |> maybe_put("type", params["type"])
