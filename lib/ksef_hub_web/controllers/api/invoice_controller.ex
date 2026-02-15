@@ -251,6 +251,13 @@ defmodule KsefHubWeb.Api.InvoiceController do
     }
   )
 
+  @doc """
+  Download invoice XML.
+
+  Returns the raw FA(3) XML content of the invoice identified by the `id` path
+  parameter (UUID).
+  """
+  @spec xml(Plug.Conn.t(), map()) :: Plug.Conn.t()
   def xml(conn, %{"id" => id}) do
     company_id = conn.assigns.current_company.id
     invoice = Invoices.get_invoice!(company_id, id)

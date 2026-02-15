@@ -129,7 +129,6 @@ defmodule KsefHub.Factory do
       gross_amount: Decimal.new("1230.00"),
       currency: "PLN",
       status: "pending",
-      xml_content: "<Faktura>default</Faktura>",
       company: build(:company)
     }
   end

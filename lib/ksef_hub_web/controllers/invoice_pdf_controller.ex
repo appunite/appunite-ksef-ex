@@ -39,27 +39,28 @@ defmodule KsefHubWeb.InvoicePdfController do
   @spec with_invoice(Plug.Conn.t(), String.t(), (Plug.Conn.t(), map() -> Plug.Conn.t())) ::
           Plug.Conn.t()
   defp with_invoice(conn, id, fun) do
-    case get_session(conn, :current_company_id) do
-      nil ->
+    with {:company, company_id} when not is_nil(company_id) <-
+           {:company, get_session(conn, :current_company_id)},
+         {:invoice, %{} = invoice} <-
+           {:invoice, Invoices.get_invoice(company_id, id)},
+         {:xml, %{xml_content: xml} = invoice} when not is_nil(xml) <-
+           {:xml, invoice} do
+      fun.(conn, invoice)
+    else
+      {:company, nil} ->
         conn
         |> put_flash(:error, "Please select a company first.")
         |> redirect(to: ~p"/companies")
 
-      company_id ->
-        case Invoices.get_invoice(company_id, id) do
-          nil ->
-            conn
-            |> put_flash(:error, "Invoice not found.")
-            |> redirect(to: ~p"/invoices")
+      {:invoice, nil} ->
+        conn
+        |> put_flash(:error, "Invoice not found.")
+        |> redirect(to: ~p"/invoices")
 
-          %{xml_content: nil} = invoice ->
-            conn
-            |> put_flash(:error, "No XML content available for this invoice.")
-            |> redirect(to: ~p"/invoices/#{invoice.id}")
-
-          invoice ->
-            fun.(conn, invoice)
-        end
+      {:xml, %{xml_content: nil} = invoice} ->
+        conn
+        |> put_flash(:error, "No XML content available for this invoice.")
+        |> redirect(to: ~p"/invoices/#{invoice.id}")
     end
   end
 

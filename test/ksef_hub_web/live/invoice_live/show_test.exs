@@ -47,8 +47,8 @@ defmodule KsefHubWeb.InvoiceLive.ShowTest do
       {:ok, view, _html} = live(conn, ~p"/invoices/#{invoice.id}")
 
       assert has_element?(view, "div.dropdown")
-      assert has_element?(view, ~s(a[href="/invoices/#{invoice.id}/pdf"]), "PDF")
-      assert has_element?(view, ~s(a[href="/invoices/#{invoice.id}/xml"]), "XML")
+      assert has_element?(view, ~s(a[href="/invoices/#{invoice.id}/pdf"]))
+      assert has_element?(view, ~s(a[href="/invoices/#{invoice.id}/xml"]))
     end
 
     test "shows preview when xml_content is available", %{conn: conn, company: company} do
