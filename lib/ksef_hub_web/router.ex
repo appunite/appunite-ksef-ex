@@ -90,6 +90,7 @@ defmodule KsefHubWeb.Router do
     post "/switch-company/:id", CompanySwitchController, :update
     get "/switch-company/:id", CompanySwitchController, :update
     get "/invoices/:id/pdf", InvoicePdfController, :show
+    get "/invoices/:id/xml", InvoicePdfController, :xml
   end
 
   # OpenAPI spec (public, no auth required)
@@ -108,6 +109,7 @@ defmodule KsefHubWeb.Router do
     post "/invoices/:id/reject", InvoiceController, :reject
     get "/invoices/:id/html", InvoiceController, :html
     get "/invoices/:id/pdf", InvoiceController, :pdf
+    get "/invoices/:id/xml", InvoiceController, :xml
 
     resources "/tokens", TokenController, only: [:index, :create, :delete]
   end

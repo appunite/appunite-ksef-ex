@@ -11,6 +11,44 @@ defmodule KsefHubWeb.InvoicePdfController do
 
   alias KsefHub.Invoices
 
+  @doc "Downloads the raw FA(3) XML of the invoice."
+  @spec xml(Plug.Conn.t(), map()) :: Plug.Conn.t()
+  def xml(%{assigns: %{current_user: %{id: _}}} = conn, %{"id" => id}) do
+    case get_session(conn, :current_company_id) do
+      nil ->
+        conn
+        |> put_flash(:error, "Please select a company first.")
+        |> redirect(to: ~p"/companies")
+
+      company_id ->
+        case Invoices.get_invoice(company_id, id) do
+          nil ->
+            conn
+            |> put_flash(:error, "Invoice not found.")
+            |> redirect(to: ~p"/invoices")
+
+          %{xml_content: nil} = invoice ->
+            conn
+            |> put_flash(:error, "No XML content available for this invoice.")
+            |> redirect(to: ~p"/invoices/#{invoice.id}")
+
+          invoice ->
+            filename = sanitize_filename("#{invoice.invoice_number}.xml")
+
+            conn
+            |> put_resp_content_type("application/xml")
+            |> put_resp_header("content-disposition", ~s(attachment; filename="#{filename}"))
+            |> send_resp(200, invoice.xml_content)
+        end
+    end
+  end
+
+  def xml(conn, _params) do
+    conn
+    |> put_flash(:error, "You must be logged in to download invoices.")
+    |> redirect(to: ~p"/invoices")
+  end
+
   @doc "Downloads a PDF rendering of the invoice's FA(3) XML."
   @spec show(Plug.Conn.t(), map()) :: Plug.Conn.t()
   def show(%{assigns: %{current_user: %{id: _}}} = conn, %{"id" => id}) do

@@ -109,13 +109,19 @@ defmodule KsefHubWeb.InvoiceLive.Show do
       </:subtitle>
       <:actions>
         <div class="flex gap-2">
-          <.link
-            :if={@invoice.xml_content}
-            href={~p"/invoices/#{@invoice.id}/pdf"}
-            class="btn btn-sm btn-outline"
-          >
-            <.icon name="hero-arrow-down-tray" class="size-4" /> PDF
-          </.link>
+          <div :if={@invoice.xml_content} class="dropdown dropdown-end">
+            <div tabindex="0" role="button" class="btn btn-sm btn-outline">
+              <.icon name="hero-arrow-down-tray" class="size-4" /> Download
+              <.icon name="hero-chevron-down" class="size-3" />
+            </div>
+            <ul
+              tabindex="0"
+              class="dropdown-content z-50 menu p-2 border border-base-300 bg-base-100 rounded-box w-44"
+            >
+              <li><a href={~p"/invoices/#{@invoice.id}/pdf"}>PDF</a></li>
+              <li><a href={~p"/invoices/#{@invoice.id}/xml"}>XML</a></li>
+            </ul>
+          </div>
           <button
             :if={@invoice.type == "expense" && @invoice.status == "pending"}
             phx-click="approve"

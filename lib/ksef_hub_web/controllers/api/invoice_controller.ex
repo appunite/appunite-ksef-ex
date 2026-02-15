@@ -234,6 +234,34 @@ defmodule KsefHubWeb.Api.InvoiceController do
     end
   end
 
+  operation(:xml,
+    summary: "Download invoice XML",
+    description: "Returns the raw FA(3) XML content of the invoice.",
+    parameters: [
+      id: [
+        in: :path,
+        description: "Invoice UUID.",
+        schema: %Schema{type: :string, format: :uuid}
+      ]
+    ],
+    responses: %{
+      200 => {"XML file", "application/xml", %Schema{type: :string}},
+      401 => {"Unauthorized", "application/json", Schemas.ErrorResponse},
+      404 => {"Not found", "application/json", Schemas.ErrorResponse}
+    }
+  )
+
+  def xml(conn, %{"id" => id}) do
+    company_id = conn.assigns.current_company.id
+    invoice = Invoices.get_invoice!(company_id, id)
+    filename = sanitize_filename("#{invoice.invoice_number}.xml")
+
+    conn
+    |> put_resp_content_type("application/xml")
+    |> put_resp_header("content-disposition", ~s(attachment; filename="#{filename}"))
+    |> send_resp(200, invoice.xml_content || "")
+  end
+
   operation(:pdf,
     summary: "Download invoice PDF",
     description: "Generates a PDF rendering of the invoice from its FA(3) XML.",
