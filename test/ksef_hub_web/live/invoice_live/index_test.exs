@@ -130,4 +130,49 @@ defmodule KsefHubWeb.InvoiceLive.IndexTest do
       assert_patched(view, "/invoices?type=income")
     end
   end
+
+  describe "reviewer role" do
+    setup %{conn: _conn} do
+      {:ok, reviewer} =
+        Accounts.get_or_create_google_user(%{
+          uid: "g-rev-1",
+          email: "reviewer@example.com",
+          name: "Reviewer"
+        })
+
+      company = insert(:company)
+      insert(:membership, user: reviewer, company: company, role: "reviewer")
+
+      conn = build_conn() |> log_in_user(reviewer, %{current_company_id: company.id})
+      %{conn: conn, company: company}
+    end
+
+    test "reviewer sees only expense invoices", %{conn: conn, company: company} do
+      insert(:invoice, type: "income", invoice_number: "FV/INC/999", company: company)
+      insert(:invoice, type: "expense", invoice_number: "FV/EXP/999", company: company)
+
+      {:ok, _view, html} = live(conn, ~p"/invoices")
+      refute html =~ "FV/INC/999"
+      assert html =~ "FV/EXP/999"
+    end
+
+    test "reviewer cannot see income invoices via type=income URL param", %{
+      conn: conn,
+      company: company
+    } do
+      insert(:invoice, type: "income", invoice_number: "FV/INC/888", company: company)
+      insert(:invoice, type: "expense", invoice_number: "FV/EXP/888", company: company)
+
+      {:ok, _view, html} = live(conn, ~p"/invoices?type=income")
+      refute html =~ "FV/INC/888"
+      assert html =~ "FV/EXP/888"
+    end
+
+    test "reviewer sees locked type filter", %{conn: conn, company: company} do
+      insert(:invoice, type: "expense", company: company)
+
+      {:ok, view, _html} = live(conn, ~p"/invoices")
+      assert has_element?(view, "select[disabled]")
+    end
+  end
 end

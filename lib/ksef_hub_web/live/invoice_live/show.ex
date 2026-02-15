@@ -28,7 +28,9 @@ defmodule KsefHubWeb.InvoiceLive.Show do
          |> redirect(to: ~p"/companies")}
 
       true ->
-        case Invoices.get_invoice(company.id, id) do
+        role = socket.assigns[:current_role]
+
+        case Invoices.get_invoice(company.id, id, role: role) do
           nil ->
             {:ok,
              socket

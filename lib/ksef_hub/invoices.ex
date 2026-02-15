@@ -29,8 +29,9 @@ defmodule KsefHub.Invoices do
     * `:page` - page number (1-based, default 1)
     * `:per_page` - results per page (default 25, max 100)
   """
-  @spec list_invoices(Ecto.UUID.t(), map()) :: [Invoice.t()]
-  def list_invoices(company_id, filters \\ %{}) do
+  @spec list_invoices(Ecto.UUID.t(), map(), keyword()) :: [Invoice.t()]
+  def list_invoices(company_id, filters \\ %{}, opts \\ []) do
+    filters = scope_by_role(filters, opts[:role])
     {page, per_page} = extract_pagination(filters)
     do_list_invoices(company_id, filters, page, per_page)
   end
@@ -40,8 +41,10 @@ defmodule KsefHub.Invoices do
 
   Uses the same filter logic as `list_invoices/2` but returns only the count.
   """
-  @spec count_invoices(Ecto.UUID.t(), map()) :: non_neg_integer()
-  def count_invoices(company_id, filters \\ %{}) do
+  @spec count_invoices(Ecto.UUID.t(), map(), keyword()) :: non_neg_integer()
+  def count_invoices(company_id, filters \\ %{}, opts \\ []) do
+    filters = scope_by_role(filters, opts[:role])
+
     Invoice
     |> where([i], i.company_id == ^company_id)
     |> apply_filters(filters)
@@ -60,18 +63,19 @@ defmodule KsefHub.Invoices do
       total_pages: integer()
     }
   """
-  @spec list_invoices_paginated(Ecto.UUID.t(), map()) :: %{
+  @spec list_invoices_paginated(Ecto.UUID.t(), map(), keyword()) :: %{
           entries: [Invoice.t()],
           page: pos_integer(),
           per_page: pos_integer(),
           total_count: non_neg_integer(),
           total_pages: non_neg_integer()
         }
-  def list_invoices_paginated(company_id, filters \\ %{}) do
+  def list_invoices_paginated(company_id, filters \\ %{}, opts \\ []) do
+    filters = scope_by_role(filters, opts[:role])
     {page, per_page} = extract_pagination(filters)
 
     entries = do_list_invoices(company_id, filters, page, per_page)
-    total_count = count_invoices(company_id, filters)
+    total_count = count_invoices(company_id, filters, opts)
     total_pages = max(ceil(total_count / per_page), 1)
 
     %{
@@ -84,18 +88,20 @@ defmodule KsefHub.Invoices do
   end
 
   @doc "Fetches an invoice by UUID scoped to a company, raising if not found."
-  @spec get_invoice!(Ecto.UUID.t(), Ecto.UUID.t()) :: Invoice.t()
-  def get_invoice!(company_id, id) do
+  @spec get_invoice!(Ecto.UUID.t(), Ecto.UUID.t(), keyword()) :: Invoice.t()
+  def get_invoice!(company_id, id, opts \\ []) do
     Invoice
     |> where([i], i.company_id == ^company_id and i.id == ^id)
+    |> maybe_scope_type_by_role(opts[:role])
     |> Repo.one!()
   end
 
   @doc "Fetches an invoice by UUID scoped to a company, returning nil if not found."
-  @spec get_invoice(Ecto.UUID.t(), Ecto.UUID.t()) :: Invoice.t() | nil
-  def get_invoice(company_id, id) do
+  @spec get_invoice(Ecto.UUID.t(), Ecto.UUID.t(), keyword()) :: Invoice.t() | nil
+  def get_invoice(company_id, id, opts \\ []) do
     Invoice
     |> where([i], i.company_id == ^company_id and i.id == ^id)
+    |> maybe_scope_type_by_role(opts[:role])
     |> Repo.one()
   end
 
@@ -222,6 +228,14 @@ defmodule KsefHub.Invoices do
   end
 
   # --- Private ---
+
+  @spec scope_by_role(map(), String.t() | nil) :: map()
+  defp scope_by_role(filters, "reviewer"), do: Map.put(filters, :type, "expense")
+  defp scope_by_role(filters, _role), do: filters
+
+  @spec maybe_scope_type_by_role(Ecto.Queryable.t(), String.t() | nil) :: Ecto.Query.t()
+  defp maybe_scope_type_by_role(query, "reviewer"), do: where(query, [i], i.type == "expense")
+  defp maybe_scope_type_by_role(query, _role), do: query
 
   @spec do_list_invoices(Ecto.UUID.t(), map(), pos_integer(), pos_integer()) :: [Invoice.t()]
   defp do_list_invoices(company_id, filters, page, per_page) do

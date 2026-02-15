@@ -80,8 +80,9 @@ defmodule KsefHubWeb.Api.InvoiceController do
 
   def index(conn, params) do
     company_id = conn.assigns.current_company.id
+    role = conn.assigns[:current_role]
     filters = build_filters(params)
-    result = Invoices.list_invoices_paginated(company_id, filters)
+    result = Invoices.list_invoices_paginated(company_id, filters, role: role)
 
     json(conn, %{
       data: Enum.map(result.entries, &invoice_json/1),
@@ -113,7 +114,7 @@ defmodule KsefHubWeb.Api.InvoiceController do
 
   def show(conn, %{"id" => id}) do
     company_id = conn.assigns.current_company.id
-    invoice = Invoices.get_invoice!(company_id, id)
+    invoice = Invoices.get_invoice!(company_id, id, role: conn.assigns[:current_role])
     json(conn, %{data: invoice_json(invoice)})
   end
 
@@ -137,7 +138,7 @@ defmodule KsefHubWeb.Api.InvoiceController do
 
   def approve(conn, %{"id" => id}) do
     company_id = conn.assigns.current_company.id
-    invoice = Invoices.get_invoice!(company_id, id)
+    invoice = Invoices.get_invoice!(company_id, id, role: conn.assigns[:current_role])
 
     case Invoices.approve_invoice(invoice) do
       {:ok, updated} ->
@@ -175,7 +176,7 @@ defmodule KsefHubWeb.Api.InvoiceController do
 
   def reject(conn, %{"id" => id}) do
     company_id = conn.assigns.current_company.id
-    invoice = Invoices.get_invoice!(company_id, id)
+    invoice = Invoices.get_invoice!(company_id, id, role: conn.assigns[:current_role])
 
     case Invoices.reject_invoice(invoice) do
       {:ok, updated} ->
@@ -214,7 +215,7 @@ defmodule KsefHubWeb.Api.InvoiceController do
 
   def html(conn, %{"id" => id}) do
     company_id = conn.assigns.current_company.id
-    invoice = Invoices.get_invoice!(company_id, id)
+    invoice = Invoices.get_invoice!(company_id, id, role: conn.assigns[:current_role])
     pdf_mod = Application.get_env(:ksef_hub, :pdf_generator, KsefHub.Pdf)
 
     metadata = %{ksef_number: invoice.ksef_number}
@@ -260,7 +261,7 @@ defmodule KsefHubWeb.Api.InvoiceController do
   @spec xml(Plug.Conn.t(), map()) :: Plug.Conn.t()
   def xml(conn, %{"id" => id}) do
     company_id = conn.assigns.current_company.id
-    invoice = Invoices.get_invoice!(company_id, id)
+    invoice = Invoices.get_invoice!(company_id, id, role: conn.assigns[:current_role])
 
     send_attachment(conn, "application/xml", "#{invoice.invoice_number}.xml", invoice.xml_content)
   end
@@ -285,7 +286,7 @@ defmodule KsefHubWeb.Api.InvoiceController do
 
   def pdf(conn, %{"id" => id}) do
     company_id = conn.assigns.current_company.id
-    invoice = Invoices.get_invoice!(company_id, id)
+    invoice = Invoices.get_invoice!(company_id, id, role: conn.assigns[:current_role])
     pdf_mod = Application.get_env(:ksef_hub, :pdf_generator, KsefHub.Pdf)
 
     metadata = %{ksef_number: invoice.ksef_number}

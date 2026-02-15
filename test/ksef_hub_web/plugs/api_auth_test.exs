@@ -79,5 +79,27 @@ defmodule KsefHubWeb.Plugs.ApiAuthTest do
       assert updated.request_count == 1
       assert updated.last_used_at != nil
     end
+
+    test "assigns current_role from token creator's membership", %{conn: conn} do
+      %{token: token} = create_owner_with_token()
+
+      conn =
+        conn
+        |> api_conn(token)
+        |> get("/api/invoices")
+
+      assert conn.assigns.current_role == "owner"
+    end
+
+    test "assigns reviewer role for reviewer-created token", %{conn: conn} do
+      {:ok, %{token: token}} = create_reviewer_with_token()
+
+      conn =
+        conn
+        |> api_conn(token)
+        |> get("/api/invoices")
+
+      assert conn.assigns.current_role == "reviewer"
+    end
   end
 end

@@ -17,32 +17,41 @@ defmodule KsefHubWeb.InvoiceLive.Index do
   def handle_params(params, _uri, socket) do
     filters = parse_filters(params)
 
+    role = socket.assigns[:current_role]
+
     result =
       case socket.assigns[:current_company] do
         %{id: company_id} ->
-          Invoices.list_invoices_paginated(company_id, filters)
+          Invoices.list_invoices_paginated(company_id, filters, role: role)
 
         _ ->
           %{entries: [], page: 1, per_page: 25, total_count: 0, total_pages: 1}
       end
 
-    {:noreply, assign(socket, filter_assigns(filters, result))}
+    {:noreply, assign(socket, filter_assigns(filters, result, role))}
   end
 
-  @spec filter_assigns(map(), map()) :: keyword()
-  defp filter_assigns(filters, result) do
+  @spec filter_assigns(map(), map(), String.t() | nil) :: keyword()
+  defp filter_assigns(filters, result, role) do
+    form =
+      %{
+        "type" => filters[:type] || "",
+        "status" => filters[:status] || "",
+        "date_from" => (filters[:date_from] && Date.to_iso8601(filters[:date_from])) || "",
+        "date_to" => (filters[:date_to] && Date.to_iso8601(filters[:date_to])) || "",
+        "query" => filters[:query] || ""
+      }
+      |> to_form(as: :filters)
+
     [
       invoices: result.entries,
       filters: filters,
+      form: form,
       page: result.page,
       per_page: result.per_page,
       total_count: result.total_count,
       total_pages: result.total_pages,
-      type_filter: filters[:type] || "",
-      status_filter: filters[:status] || "",
-      date_from: (filters[:date_from] && Date.to_iso8601(filters[:date_from])) || "",
-      date_to: (filters[:date_to] && Date.to_iso8601(filters[:date_to])) || "",
-      search: filters[:query] || ""
+      is_reviewer: role == "reviewer"
     ]
   end
 
@@ -147,48 +156,70 @@ defmodule KsefHubWeb.InvoiceLive.Index do
     </.header>
 
     <!-- Filters -->
-    <form phx-change="filter" class="flex flex-wrap gap-3 mt-4 mb-6 items-end">
+    <.form for={@form} phx-change="filter" class="flex flex-wrap gap-3 mt-4 mb-6 items-end">
       <div class="form-control w-32">
         <label class="label"><span class="label-text text-xs">Type</span></label>
-        <select name="type" class="select select-sm select-bordered">
+        <select
+          :if={!@is_reviewer}
+          name={@form[:type].name}
+          class="select select-sm select-bordered"
+        >
           <option value="">All</option>
-          <option value="income" selected={@type_filter == "income"}>Income</option>
-          <option value="expense" selected={@type_filter == "expense"}>Expense</option>
+          <option value="income" selected={@form[:type].value == "income"}>Income</option>
+          <option value="expense" selected={@form[:type].value == "expense"}>Expense</option>
+        </select>
+        <select
+          :if={@is_reviewer}
+          name={@form[:type].name}
+          class="select select-sm select-bordered"
+          disabled
+        >
+          <option value="expense" selected>Expense</option>
         </select>
       </div>
 
       <div class="form-control w-32">
         <label class="label"><span class="label-text text-xs">Status</span></label>
-        <select name="status" class="select select-sm select-bordered">
+        <select name={@form[:status].name} class="select select-sm select-bordered">
           <option value="">All</option>
-          <option value="pending" selected={@status_filter == "pending"}>Pending</option>
-          <option value="approved" selected={@status_filter == "approved"}>Approved</option>
-          <option value="rejected" selected={@status_filter == "rejected"}>Rejected</option>
+          <option value="pending" selected={@form[:status].value == "pending"}>Pending</option>
+          <option value="approved" selected={@form[:status].value == "approved"}>Approved</option>
+          <option value="rejected" selected={@form[:status].value == "rejected"}>Rejected</option>
         </select>
       </div>
 
       <div class="form-control w-36">
         <label class="label"><span class="label-text text-xs">From</span></label>
-        <input type="date" name="date_from" value={@date_from} class="input input-sm input-bordered" />
+        <input
+          type="date"
+          name={@form[:date_from].name}
+          value={@form[:date_from].value}
+          class="input input-sm input-bordered"
+        />
       </div>
 
       <div class="form-control w-36">
         <label class="label"><span class="label-text text-xs">To</span></label>
-        <input type="date" name="date_to" value={@date_to} class="input input-sm input-bordered" />
+        <input
+          type="date"
+          name={@form[:date_to].name}
+          value={@form[:date_to].value}
+          class="input input-sm input-bordered"
+        />
       </div>
 
       <div class="form-control flex-1 min-w-48">
         <label class="label"><span class="label-text text-xs">Search</span></label>
         <input
           type="text"
-          name="query"
-          value={@search}
+          name={@form[:query].name}
+          value={@form[:query].value}
           placeholder="Invoice number, seller, buyer..."
           phx-debounce="300"
           class="input input-sm input-bordered"
         />
       </div>
-    </form>
+    </.form>
 
     <!-- Invoice Table -->
     <div class="overflow-x-auto">

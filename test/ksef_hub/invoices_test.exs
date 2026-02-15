@@ -275,6 +275,80 @@ defmodule KsefHub.InvoicesTest do
     end
   end
 
+  describe "role-based scoping" do
+    test "list_invoices_paginated with role: reviewer returns only expense invoices", %{
+      company: company
+    } do
+      insert(:invoice, type: "income", company: company)
+      insert(:invoice, type: "expense", company: company)
+
+      result = Invoices.list_invoices_paginated(company.id, %{}, role: "reviewer")
+
+      assert length(result.entries) == 1
+      assert hd(result.entries).type == "expense"
+      assert result.total_count == 1
+    end
+
+    test "list_invoices_paginated with role: reviewer overrides user-supplied type: income filter",
+         %{company: company} do
+      insert(:invoice, type: "income", company: company)
+      insert(:invoice, type: "expense", company: company)
+
+      result = Invoices.list_invoices_paginated(company.id, %{type: "income"}, role: "reviewer")
+
+      assert length(result.entries) == 1
+      assert hd(result.entries).type == "expense"
+    end
+
+    test "get_invoice with role: reviewer returns nil for income invoice", %{company: company} do
+      income = insert(:invoice, type: "income", company: company)
+
+      assert is_nil(Invoices.get_invoice(company.id, income.id, role: "reviewer"))
+    end
+
+    test "get_invoice with role: reviewer returns expense invoice", %{company: company} do
+      expense = insert(:invoice, type: "expense", company: company)
+
+      assert %Invoice{} = Invoices.get_invoice(company.id, expense.id, role: "reviewer")
+    end
+
+    test "get_invoice! with role: reviewer raises for income invoice", %{company: company} do
+      income = insert(:invoice, type: "income", company: company)
+
+      assert_raise Ecto.NoResultsError, fn ->
+        Invoices.get_invoice!(company.id, income.id, role: "reviewer")
+      end
+    end
+
+    test "list_invoices_paginated with role: owner returns all invoices", %{company: company} do
+      insert(:invoice, type: "income", company: company)
+      insert(:invoice, type: "expense", company: company)
+
+      result = Invoices.list_invoices_paginated(company.id, %{}, role: "owner")
+
+      assert result.total_count == 2
+    end
+
+    test "list_invoices_paginated with role: nil returns all invoices (backward compat)", %{
+      company: company
+    } do
+      insert(:invoice, type: "income", company: company)
+      insert(:invoice, type: "expense", company: company)
+
+      result = Invoices.list_invoices_paginated(company.id, %{}, role: nil)
+
+      assert result.total_count == 2
+    end
+
+    test "count_invoices with role: reviewer counts only expense invoices", %{company: company} do
+      insert(:invoice, type: "income", company: company)
+      insert(:invoice, type: "expense", company: company)
+      insert(:invoice, type: "expense", company: company)
+
+      assert Invoices.count_invoices(company.id, %{}, role: "reviewer") == 2
+    end
+  end
+
   describe "count_by_type_and_status/1" do
     test "returns counts scoped to company", %{company: company} do
       insert(:invoice, type: "income", company: company)

@@ -137,4 +137,36 @@ defmodule KsefHubWeb.InvoiceLive.ShowTest do
       refute has_element?(view, "button", "Reject")
     end
   end
+
+  describe "reviewer role" do
+    setup %{conn: _conn} do
+      {:ok, reviewer} =
+        Accounts.get_or_create_google_user(%{
+          uid: "g-rev-show-1",
+          email: "reviewer-show@example.com",
+          name: "Reviewer"
+        })
+
+      company = insert(:company)
+      insert(:membership, user: reviewer, company: company, role: "reviewer")
+
+      conn = build_conn() |> log_in_user(reviewer, %{current_company_id: company.id})
+      stub(KsefHub.Pdf.Mock, :generate_html, fn _xml, _meta -> {:error, :no_xml} end)
+      %{conn: conn, company: company}
+    end
+
+    test "reviewer can view expense invoice", %{conn: conn, company: company} do
+      invoice = insert(:invoice, type: "expense", company: company)
+
+      {:ok, _view, html} = live(conn, ~p"/invoices/#{invoice.id}")
+      assert html =~ invoice.invoice_number
+    end
+
+    test "reviewer is redirected when viewing income invoice", %{conn: conn, company: company} do
+      invoice = insert(:invoice, type: "income", company: company)
+
+      assert {:error, {:redirect, %{to: "/invoices"}}} =
+               live(conn, ~p"/invoices/#{invoice.id}")
+    end
+  end
 end

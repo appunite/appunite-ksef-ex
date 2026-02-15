@@ -8,6 +8,7 @@ defmodule KsefHubWeb.InvoicePdfController do
 
   import KsefHubWeb.ErrorHelpers, only: [sanitize_error: 1]
   import KsefHubWeb.FilenameHelpers, only: [send_attachment: 4]
+  import KsefHubWeb.AuthHelpers, only: [resolve_role: 2]
 
   alias KsefHub.Invoices
 
@@ -39,10 +40,13 @@ defmodule KsefHubWeb.InvoicePdfController do
   @spec with_invoice(Plug.Conn.t(), String.t(), (Plug.Conn.t(), map() -> Plug.Conn.t())) ::
           Plug.Conn.t()
   defp with_invoice(conn, id, fun) do
+    user_id = conn.assigns[:current_user] && conn.assigns.current_user.id
+
     with {:company, company_id} when not is_nil(company_id) <-
            {:company, get_session(conn, :current_company_id)},
+         role <- resolve_role(user_id, company_id),
          {:invoice, %{} = invoice} <-
-           {:invoice, Invoices.get_invoice(company_id, id)},
+           {:invoice, Invoices.get_invoice(company_id, id, role: role)},
          {:xml, %{xml_content: xml} = invoice} when not is_nil(xml) <-
            {:xml, invoice} do
       fun.(conn, invoice)

@@ -9,6 +9,7 @@ defmodule KsefHubWeb.Plugs.ApiAuth do
 
   import Plug.Conn
   import Phoenix.Controller
+  import KsefHubWeb.AuthHelpers, only: [resolve_role: 2]
 
   alias KsefHub.Accounts
 
@@ -22,10 +23,12 @@ defmodule KsefHubWeb.Plugs.ApiAuth do
     with ["Bearer " <> token] <- get_req_header(conn, "authorization"),
          {:ok, api_token} <- Accounts.validate_api_token(token) do
       Accounts.track_token_usage(api_token.id)
+      role = resolve_role(api_token.created_by_id, api_token.company_id)
 
       conn
       |> assign(:api_token, api_token)
       |> assign(:current_company, api_token.company)
+      |> assign(:current_role, role)
     else
       {:error, :expired} ->
         conn
