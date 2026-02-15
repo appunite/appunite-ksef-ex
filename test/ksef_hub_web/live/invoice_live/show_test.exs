@@ -38,6 +38,19 @@ defmodule KsefHubWeb.InvoiceLive.ShowTest do
       assert html =~ invoice.buyer_name
     end
 
+    test "renders download dropdown with PDF and XML links", %{conn: conn, company: company} do
+      xml = File.read!("test/support/fixtures/sample_income.xml")
+      invoice = insert(:invoice, type: "income", xml_content: xml, company: company)
+
+      stub(KsefHub.Pdf.Mock, :generate_html, fn _xml, _meta -> {:ok, "<html>preview</html>"} end)
+
+      {:ok, view, _html} = live(conn, ~p"/invoices/#{invoice.id}")
+
+      assert has_element?(view, "div.dropdown")
+      assert has_element?(view, ~s(a[href="/invoices/#{invoice.id}/pdf"]))
+      assert has_element?(view, ~s(a[href="/invoices/#{invoice.id}/xml"]))
+    end
+
     test "shows preview when xml_content is available", %{conn: conn, company: company} do
       xml = File.read!("test/support/fixtures/sample_income.xml")
       invoice = insert(:invoice, type: "income", xml_content: xml, company: company)
