@@ -121,6 +121,7 @@ defmodule KsefHub.Factory do
       seller_name: "Seller Sp. z o.o.",
       buyer_nip: "0987654321",
       buyer_name: "Buyer S.A.",
+      xml_content: "<Faktura>sample</Faktura>",
       invoice_number: sequence(:invoice_number, &"FV/2025/#{&1}"),
       issue_date: Date.utc_today(),
       net_amount: Decimal.new("1000.00"),

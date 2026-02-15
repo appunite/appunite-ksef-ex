@@ -59,6 +59,7 @@ defmodule KsefHub.Invoices.Invoice do
     ])
     |> validate_required([
       :type,
+      :xml_content,
       :seller_nip,
       :seller_name,
       :invoice_number,
