@@ -12,20 +12,31 @@ defmodule KsefHub.Sync.SyncWorker do
   alias KsefHub.KsefClient.{Authenticator, TokenManager}
   alias KsefHub.Sync.{Checkpoints, InvoiceFetcher}
 
+  @doc """
+  Syncs invoices from KSeF for a single company.
+
+  Expects `%{"company_id" => uuid}` in the job args. Loads the company's
+  credential and certificate, obtains (or re-authenticates for) a KSeF access
+  token, then fetches income and expense invoices.
+
+  Returns `:ok` on success, `{:cancel, reason}` for permanent failures
+  (missing credential/certificate), or `{:error, reason}` for retryable failures.
+  """
   @impl Oban.Worker
   def perform(%Oban.Job{args: %{"company_id" => company_id}} = job) do
     with {:ok, credential} <- load_active_credential(company_id),
          :ok <- verify_owner_certificate(company_id),
          {:ok, access_token} <- get_access_token(company_id) do
-      sync_result = sync_all_types(access_token, credential.nip, company_id, job)
+      result =
+        access_token
+        |> sync_all_types(credential.nip, company_id, job)
+        |> handle_sync_result(credential)
 
-      # Terminate the KSeF session after sync completes successfully.
+      # Terminate the KSeF session only after the entire workflow succeeds.
       # On failure, keep the session alive so Oban retries can reuse the token.
-      unless match?({:error, _}, sync_result) do
-        terminate_session_safely(access_token, company_id)
-      end
+      if result == :ok, do: terminate_session_safely(access_token, company_id)
 
-      handle_sync_result(sync_result, credential)
+      result
     else
       {:error, :no_credential} ->
         Logger.warning(
