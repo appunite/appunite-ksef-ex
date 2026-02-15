@@ -11,7 +11,7 @@ See `docs/prd.md` for full product requirements.
 | Language | Elixir 1.16+ / OTP 26+ |
 | Framework | Phoenix 1.8 + LiveView |
 | Database | PostgreSQL (Supabase) via Ecto |
-| Auth (UI) | Google Sign-In, email allowlist (`ALLOWED_EMAILS` env) |
+| Auth (UI) | Google Sign-In (company membership RBAC) |
 | Auth (API) | Bearer API tokens (hashed, revocable) |
 | PDF pipeline | ksef-pdf microservice (ghcr.io/appunite/ksef-pdf) |
 | XADES signing | xmlsec1 (CLI, called via System.cmd) |
@@ -389,7 +389,7 @@ Trade-offs and implications.
 
 - PKCS12 certificates encrypted at rest with AES-256-GCM
 - Certificate password encrypted separately (AES-256-GCM)
-- Encryption key sourced from Secret Manager (never in code or env vars)
+- Encryption key: base64-decoded `CREDENTIAL_ENCRYPTION_KEY` (32 bytes), falls back to `SHA256(SECRET_KEY_BASE)`
 - Audit log on every certificate operation (upload, decrypt, use for signing)
 
 ### Temp file security (xmlsec1 interaction)
@@ -453,13 +453,12 @@ end
 | Variable | Description |
 |----------|-------------|
 | `DATABASE_URL` | PostgreSQL connection string (Supabase) |
-| `SECRET_KEY_BASE` | Phoenix secret key |
-| `ALLOWED_EMAILS` | Comma-separated list of superadmin emails |
+| `SECRET_KEY_BASE` | Phoenix secret key (also used to derive encryption key) |
+| `CREDENTIAL_ENCRYPTION_KEY` | Base64-encoded 32-byte AES-256 key for certificate encryption at rest. Falls back to `SHA256(SECRET_KEY_BASE)` if not set |
 | `GOOGLE_CLIENT_ID` | Google OAuth client ID |
 | `GOOGLE_CLIENT_SECRET` | Google OAuth client secret |
 | `KSEF_PDF_URL` | KSeF PDF microservice URL (e.g., `http://localhost:3001`) |
 | `KSEF_API_URL` | KSeF environment URL (`https://ksef-test.mf.gov.pl` or `https://ksef.mf.gov.pl`) |
-| `GCP_SECRET_NAME` | Secret Manager resource name for encryption key |
 
 ## Useful References
 

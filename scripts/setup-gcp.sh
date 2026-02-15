@@ -103,8 +103,7 @@ SECRETS=(
   "secret-key-base"
   "google-client-id"
   "google-client-secret"
-  "allowed-emails"
-  "ksef-encryption-key"
+  "credential-encryption-key"
 )
 
 for secret in "${SECRETS[@]}"; do

@@ -72,16 +72,11 @@ spec:
                 secretKeyRef:
                   key: latest
                   name: google-client-secret
-            - name: ALLOWED_EMAILS
+            - name: CREDENTIAL_ENCRYPTION_KEY
               valueFrom:
                 secretKeyRef:
                   key: latest
-                  name: allowed-emails
-            - name: GCP_SECRET_NAME
-              valueFrom:
-                secretKeyRef:
-                  key: latest
-                  name: ksef-encryption-key
+                  name: credential-encryption-key
 
         # --- KSeF PDF sidecar (PDF + HTML generation) ---
         - name: ksef-pdf
