@@ -39,6 +39,32 @@ defmodule KsefHubWeb.ApiTestHelpers do
   end
 
   @doc """
+  Creates a user, company, reviewer membership, and company-scoped API token.
+
+  Same as `create_owner_with_token/1` but with `role: "reviewer"`.
+  """
+  @spec create_reviewer_with_token(map()) :: %{
+          user: KsefHub.Accounts.User.t(),
+          company: KsefHub.Companies.Company.t(),
+          token: String.t(),
+          api_token: KsefHub.Accounts.ApiToken.t()
+        }
+  def create_reviewer_with_token(attrs \\ %{}) do
+    user = insert(:user, google_uid: "uid-#{System.unique_integer([:positive])}")
+    company = insert(:company)
+    insert(:membership, user: user, company: company, role: "reviewer")
+
+    {:ok, result} =
+      Accounts.create_api_token(
+        user.id,
+        company.id,
+        Map.merge(%{name: "Reviewer Token"}, attrs)
+      )
+
+    %{user: user, company: company, token: result.token, api_token: result.api_token}
+  end
+
+  @doc """
   Builds a conn with Bearer authorization, JSON accept, and content-type headers.
   """
   @spec api_conn(Plug.Conn.t(), String.t()) :: Plug.Conn.t()

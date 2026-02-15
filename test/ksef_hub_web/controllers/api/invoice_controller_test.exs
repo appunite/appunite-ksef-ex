@@ -138,6 +138,7 @@ defmodule KsefHubWeb.Api.InvoiceControllerTest do
     end
   end
 
+<<<<<<< HEAD
   describe "xml" do
     test "returns XML content with correct headers", %{conn: conn} do
       %{company: company, token: token} = create_owner_with_token()
@@ -165,6 +166,56 @@ defmodule KsefHubWeb.Api.InvoiceControllerTest do
 
       assert_error_sent 404, fn ->
         conn |> api_conn(token) |> get("/api/invoices/#{invoice.id}/xml")
+=======
+  describe "reviewer role scoping" do
+    test "reviewer token returns only expense invoices from index", %{conn: conn} do
+      %{company: company, token: token} = create_reviewer_with_token()
+      insert(:invoice, company: company, type: "income", seller_name: "Income Seller")
+      insert(:invoice, company: company, type: "expense", seller_name: "Expense Seller")
+
+      conn = conn |> api_conn(token) |> get("/api/invoices")
+
+      body = Jason.decode!(conn.resp_body)
+      assert length(body["data"]) == 1
+      assert hd(body["data"])["type"] == "expense"
+      assert body["meta"]["total_count"] == 1
+    end
+
+    test "reviewer token returns 404 for income invoice show", %{conn: conn} do
+      %{company: company, token: token} = create_reviewer_with_token()
+      income = insert(:invoice, company: company, type: "income")
+
+      assert_error_sent 404, fn ->
+        conn |> api_conn(token) |> get("/api/invoices/#{income.id}")
+      end
+    end
+
+    test "reviewer token can access expense invoice show", %{conn: conn} do
+      %{company: company, token: token} = create_reviewer_with_token()
+      expense = insert(:invoice, company: company, type: "expense")
+
+      conn = conn |> api_conn(token) |> get("/api/invoices/#{expense.id}")
+
+      assert conn.status == 200
+      assert Jason.decode!(conn.resp_body)["data"]["id"] == expense.id
+    end
+
+    test "reviewer token returns 404 for income invoice approve", %{conn: conn} do
+      %{company: company, token: token} = create_reviewer_with_token()
+      income = insert(:invoice, company: company, type: "income")
+
+      assert_error_sent 404, fn ->
+        conn |> api_conn(token) |> post("/api/invoices/#{income.id}/approve")
+      end
+    end
+
+    test "reviewer token returns 404 for income invoice reject", %{conn: conn} do
+      %{company: company, token: token} = create_reviewer_with_token()
+      income = insert(:invoice, company: company, type: "income")
+
+      assert_error_sent 404, fn ->
+        conn |> api_conn(token) |> post("/api/invoices/#{income.id}/reject")
+>>>>>>> 4857640 (test: add reviewer role restriction tests)
       end
     end
   end
