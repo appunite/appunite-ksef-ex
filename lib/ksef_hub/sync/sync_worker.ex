@@ -17,9 +17,15 @@ defmodule KsefHub.Sync.SyncWorker do
     with {:ok, credential} <- load_active_credential(company_id),
          :ok <- verify_owner_certificate(company_id),
          {:ok, access_token} <- get_access_token(company_id) do
-      access_token
-      |> sync_all_types(credential.nip, company_id, job)
-      |> handle_sync_result(credential)
+      sync_result = sync_all_types(access_token, credential.nip, company_id, job)
+
+      # Terminate the KSeF session after sync completes successfully.
+      # On failure, keep the session alive so Oban retries can reuse the token.
+      unless match?({:error, _}, sync_result) do
+        terminate_session_safely(access_token, company_id)
+      end
+
+      handle_sync_result(sync_result, credential)
     else
       {:error, :no_credential} ->
         Logger.warning(
@@ -250,6 +256,24 @@ defmodule KsefHub.Sync.SyncWorker do
         {:error, reason}
     end
   end
+
+  @spec terminate_session_safely(String.t(), Ecto.UUID.t()) :: :ok
+  defp terminate_session_safely(access_token, company_id) do
+    case ksef_client().terminate_session(access_token) do
+      :ok ->
+        Logger.info("KSeF session terminated for company #{company_id}")
+
+      {:error, reason} ->
+        Logger.warning(
+          "Failed to terminate KSeF session for company #{company_id}: #{inspect(reason)}"
+        )
+    end
+
+    :ok
+  end
+
+  @spec ksef_client() :: module()
+  defp ksef_client, do: Application.get_env(:ksef_hub, :ksef_client, KsefHub.KsefClient.Live)
 
   @spec store_meta(Oban.Job.t(), map()) :: :ok | {non_neg_integer(), nil}
   defp store_meta(%Oban.Job{id: id}, attrs) when is_integer(id) do

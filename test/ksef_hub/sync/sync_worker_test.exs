@@ -73,6 +73,7 @@ defmodule KsefHub.Sync.SyncWorkerTest do
       |> expect(:query_invoice_metadata, 2, fn "access-tok", _filters, _opts ->
         {:ok, %{invoices: [], has_more: false, is_truncated: false}}
       end)
+      |> expect(:terminate_session, fn "access-tok" -> :ok end)
 
       assert :ok = SyncWorker.perform(%Oban.Job{args: %{"company_id" => company.id}})
 
@@ -149,6 +150,7 @@ defmodule KsefHub.Sync.SyncWorkerTest do
       |> expect(:query_invoice_metadata, 2, fn "reauth-access", _filters, _opts ->
         {:ok, %{invoices: [], has_more: false, is_truncated: false}}
       end)
+      |> expect(:terminate_session, fn "reauth-access" -> :ok end)
 
       assert :ok = SyncWorker.perform(%Oban.Job{args: %{"company_id" => company.id}})
     end
@@ -236,6 +238,7 @@ defmodule KsefHub.Sync.SyncWorkerTest do
       |> expect(:query_invoice_metadata, 2, fn "fresh-access", _filters, _opts ->
         {:ok, %{invoices: [], has_more: false, is_truncated: false}}
       end)
+      |> expect(:terminate_session, fn "fresh-access" -> :ok end)
 
       assert :ok = SyncWorker.perform(%Oban.Job{args: %{"company_id" => company.id}})
     end
@@ -331,6 +334,7 @@ defmodule KsefHub.Sync.SyncWorkerTest do
       |> expect(:download_invoice, fn "access-tok", "KSEF-INCOME-001" ->
         {:ok, xml}
       end)
+      |> expect(:terminate_session, fn "access-tok" -> :ok end)
 
       assert :ok = SyncWorker.perform(%Oban.Job{args: %{"company_id" => company.id}})
 
