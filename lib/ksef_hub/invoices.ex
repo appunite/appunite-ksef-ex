@@ -75,7 +75,7 @@ defmodule KsefHub.Invoices do
     {page, per_page} = extract_pagination(filters)
 
     entries = do_list_invoices(company_id, filters, page, per_page)
-    total_count = count_invoices(company_id, filters)
+    total_count = count_invoices(company_id, filters, opts)
     total_pages = max(ceil(total_count / per_page), 1)
 
     %{

@@ -32,7 +32,7 @@ Restrict the `reviewer` role so it can only see expense invoices. Income invoice
 
 **Enforcement points:**
 
-1. **Context layer (`KsefHub.Invoices`)** — `list_invoices_paginated/2` and `get_invoice/2` accept a `role` parameter. When role is `"reviewer"`, an automatic `type: "expense"` filter is applied. This is the single source of truth for the restriction.
+1. **Context layer (`KsefHub.Invoices`)** — `list_invoices_paginated/3` and `get_invoice/3` accept a `role` option via the `opts` keyword list. When role is `"reviewer"`, an automatic `type: "expense"` filter is applied. This is the single source of truth for the restriction.
 
 2. **LiveView** — `InvoiceLive.Index` and `InvoiceLive.Show` pass `current_role` from socket assigns to context functions. Reviewers see the "Type" filter dropdown but only with the "expense" option (or the filter is hidden entirely). Attempting to navigate to an income invoice by ID returns "Invoice not found."
 
