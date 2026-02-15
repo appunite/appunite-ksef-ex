@@ -117,7 +117,6 @@ defmodule KsefHub.Factory do
   def invoice_factory do
     %Invoice{
       type: "income",
-      xml_content: "<Faktura/>",
       seller_nip: "1234567890",
       seller_name: "Seller Sp. z o.o.",
       buyer_nip: "0987654321",
