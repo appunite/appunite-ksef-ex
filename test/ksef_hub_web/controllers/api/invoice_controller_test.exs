@@ -137,4 +137,35 @@ defmodule KsefHubWeb.Api.InvoiceControllerTest do
       end
     end
   end
+
+  describe "xml" do
+    test "returns XML content with correct headers", %{conn: conn} do
+      %{company: company, token: token} = create_owner_with_token()
+      xml = "<Faktura>test</Faktura>"
+
+      invoice =
+        insert(:invoice,
+          company: company,
+          xml_content: xml,
+          invoice_number: "FV/2025/001"
+        )
+
+      conn = conn |> api_conn(token) |> get("/api/invoices/#{invoice.id}/xml")
+
+      assert conn.status == 200
+      assert get_resp_header(conn, "content-type") |> hd() =~ "application/xml"
+      assert get_resp_header(conn, "content-disposition") |> hd() =~ "FV_2025_001.xml"
+      assert conn.resp_body == xml
+    end
+
+    test "returns 404 for invoice from different company", %{conn: conn} do
+      %{token: token} = create_owner_with_token()
+      other_company = insert(:company)
+      invoice = insert(:invoice, company: other_company, xml_content: "<xml/>")
+
+      assert_error_sent 404, fn ->
+        conn |> api_conn(token) |> get("/api/invoices/#{invoice.id}/xml")
+      end
+    end
+  end
 end
