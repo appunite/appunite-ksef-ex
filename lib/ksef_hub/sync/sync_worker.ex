@@ -9,17 +9,34 @@ defmodule KsefHub.Sync.SyncWorker do
   require Logger
 
   alias KsefHub.Credentials
-  alias KsefHub.KsefClient.TokenManager
+  alias KsefHub.KsefClient.{Authenticator, TokenManager}
   alias KsefHub.Sync.{Checkpoints, InvoiceFetcher}
 
+  @doc """
+  Syncs invoices from KSeF for a single company.
+
+  Expects `%{"company_id" => uuid}` in the job args. Loads the company's
+  credential and certificate, obtains (or re-authenticates for) a KSeF access
+  token, then fetches income and expense invoices.
+
+  Returns `:ok` on success, `{:cancel, reason}` for permanent failures
+  (missing credential/certificate), or `{:error, reason}` for retryable failures.
+  """
   @impl Oban.Worker
   def perform(%Oban.Job{args: %{"company_id" => company_id}} = job) do
     with {:ok, credential} <- load_active_credential(company_id),
          :ok <- verify_owner_certificate(company_id),
          {:ok, access_token} <- get_access_token(company_id) do
-      access_token
-      |> sync_all_types(credential.nip, company_id, job)
-      |> handle_sync_result(credential)
+      result =
+        access_token
+        |> sync_all_types(credential.nip, company_id, job)
+        |> handle_sync_result(credential)
+
+      # Terminate the KSeF session only after the entire workflow succeeds.
+      # On failure, keep the session alive so Oban retries can reuse the token.
+      if result == :ok, do: terminate_session_safely(access_token, company_id)
+
+      result
     else
       {:error, :no_credential} ->
         Logger.warning(
@@ -37,10 +54,13 @@ defmodule KsefHub.Sync.SyncWorker do
         store_meta(job, %{"error" => "no_certificate"})
         {:cancel, :no_certificate}
 
-      {:error, :reauth_required} ->
-        Logger.warning("Sync skipped for company #{company_id}: XADES re-authentication required")
-        store_meta(job, %{"error" => "reauth_required"})
-        {:cancel, :reauth_required}
+      {:error, {:reauth_failed, reason}} ->
+        Logger.error(
+          "Sync failed for company #{company_id}: re-authentication failed: #{inspect(reason)}"
+        )
+
+        store_meta(job, %{"error" => "reauth_failed: #{inspect(reason)}"})
+        {:error, {:reauth_failed, reason}}
 
       {:error, reason} ->
         Logger.error("Sync failed for company #{company_id}: #{inspect(reason)}")
@@ -88,7 +108,24 @@ defmodule KsefHub.Sync.SyncWorker do
 
   @spec get_access_token(Ecto.UUID.t()) :: {:ok, String.t()} | {:error, term()}
   defp get_access_token(company_id) do
-    TokenManager.ensure_access_token(company_id)
+    case TokenManager.ensure_access_token(company_id) do
+      {:ok, token} -> {:ok, token}
+      {:error, :reauth_required} -> attempt_reauth(company_id)
+      error -> error
+    end
+  end
+
+  @permanent_reauth_errors [:no_credential, :no_certificate]
+
+  @spec attempt_reauth(Ecto.UUID.t()) :: {:ok, String.t()} | {:error, term()}
+  defp attempt_reauth(company_id) do
+    Logger.info("Attempting XADES re-authentication for company #{company_id}")
+
+    case Authenticator.authenticate_and_store(company_id) do
+      {:ok, access_token} -> {:ok, access_token}
+      {:error, reason} when reason in @permanent_reauth_errors -> {:error, reason}
+      {:error, reason} -> {:error, {:reauth_failed, reason}}
+    end
   end
 
   @spec sync_all_types(String.t(), String.t(), Ecto.UUID.t(), Oban.Job.t()) ::
@@ -230,6 +267,24 @@ defmodule KsefHub.Sync.SyncWorker do
         {:error, reason}
     end
   end
+
+  @spec terminate_session_safely(String.t(), Ecto.UUID.t()) :: :ok
+  defp terminate_session_safely(access_token, company_id) do
+    case ksef_client().terminate_session(access_token) do
+      :ok ->
+        Logger.info("KSeF session terminated for company #{company_id}")
+
+      {:error, reason} ->
+        Logger.warning(
+          "Failed to terminate KSeF session for company #{company_id}: #{inspect(reason)}"
+        )
+    end
+
+    :ok
+  end
+
+  @spec ksef_client() :: module()
+  defp ksef_client, do: Application.get_env(:ksef_hub, :ksef_client, KsefHub.KsefClient.Live)
 
   @spec store_meta(Oban.Job.t(), map()) :: :ok | {non_neg_integer(), nil}
   defp store_meta(%Oban.Job{id: id}, attrs) when is_integer(id) do
