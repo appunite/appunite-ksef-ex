@@ -42,18 +42,26 @@ defmodule KsefHub.KsefClient.Authenticator do
   @spec load_credential(Ecto.UUID.t()) ::
           {:ok, Credentials.Credential.t()} | {:error, :no_credential}
   defp load_credential(company_id) do
-    case Credentials.get_active_credential(company_id) do
-      nil -> {:error, :no_credential}
-      credential -> {:ok, credential}
-    end
+    company_id
+    |> Credentials.get_active_credential()
+    |> normalize_credential()
   end
+
+  @spec normalize_credential(Credentials.Credential.t() | nil) ::
+          {:ok, Credentials.Credential.t()} | {:error, :no_credential}
+  defp normalize_credential(nil), do: {:error, :no_credential}
+  defp normalize_credential(%Credentials.Credential{} = credential), do: {:ok, credential}
 
   @spec load_certificate(Ecto.UUID.t()) ::
           {:ok, Credentials.UserCertificate.t()} | {:error, :no_certificate}
   defp load_certificate(company_id) do
-    case Credentials.get_certificate_for_company(company_id) do
-      nil -> {:error, :no_certificate}
-      cert -> {:ok, cert}
-    end
+    company_id
+    |> Credentials.get_certificate_for_company()
+    |> normalize_certificate()
   end
+
+  @spec normalize_certificate(Credentials.UserCertificate.t() | nil) ::
+          {:ok, Credentials.UserCertificate.t()} | {:error, :no_certificate}
+  defp normalize_certificate(nil), do: {:error, :no_certificate}
+  defp normalize_certificate(%Credentials.UserCertificate{} = cert), do: {:ok, cert}
 end
