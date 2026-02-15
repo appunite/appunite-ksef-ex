@@ -29,7 +29,8 @@ config :ksef_hub, Oban,
     {Oban.Plugins.Cron,
      crontab: [
        {"*/15 * * * *", KsefHub.Sync.SyncDispatcher}
-     ]}
+     ]},
+    {Oban.Plugins.Lifeline, rescue_after: :timer.minutes(15)}
   ],
   queues: [sync: 1, default: 5]
 
