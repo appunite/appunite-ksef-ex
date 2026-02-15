@@ -1,7 +1,10 @@
 defmodule KsefHub.Credentials.Encryption do
   @moduledoc """
   AES-256-GCM encryption for certificate data and tokens.
-  Key is sourced from application config (Secret Manager in production).
+
+  The encryption key is loaded from `:ksef_hub, :credential_encryption_key` (a
+  base64-encoded 32-byte AES key). When not set, falls back to
+  `SHA256(SECRET_KEY_BASE)` for backward compatibility.
   """
 
   @aad "KsefHub.Credentials.Encryption"
@@ -12,6 +15,7 @@ defmodule KsefHub.Credentials.Encryption do
   Encrypts plaintext with AES-256-GCM.
   Returns `{:ok, ciphertext}` where ciphertext includes IV + tag + encrypted data.
   """
+  @spec encrypt(binary()) :: {:ok, binary()}
   def encrypt(plaintext) when is_binary(plaintext) do
     key = get_encryption_key()
     iv = :crypto.strong_rand_bytes(@iv_bytes)
@@ -26,6 +30,7 @@ defmodule KsefHub.Credentials.Encryption do
   Decrypts ciphertext encrypted with `encrypt/1`.
   Returns `{:ok, plaintext}` or `{:error, :decryption_failed}`.
   """
+  @spec decrypt(binary()) :: {:ok, binary()} | {:error, :decryption_failed | :invalid_ciphertext}
   def decrypt(<<iv::binary-size(@iv_bytes), tag::binary-size(@tag_bytes), ciphertext::binary>>) do
     key = get_encryption_key()
 
@@ -37,17 +42,14 @@ defmodule KsefHub.Credentials.Encryption do
 
   def decrypt(_), do: {:error, :invalid_ciphertext}
 
+  @spec get_encryption_key() :: <<_::256>>
   defp get_encryption_key do
-    case Application.get_env(:ksef_hub, :encryption_key) do
+    case Application.get_env(:ksef_hub, :credential_encryption_key) do
       nil ->
-        # Fallback: derive from SECRET_KEY_BASE for development
         secret = Application.get_env(:ksef_hub, KsefHubWeb.Endpoint)[:secret_key_base]
         :crypto.hash(:sha256, secret)
 
-      key when byte_size(key) == 32 ->
-        key
-
-      base64_key when is_binary(base64_key) ->
+      base64_key ->
         Base.decode64!(base64_key)
     end
   end

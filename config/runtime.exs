@@ -34,8 +34,31 @@ if ksef_pdf_url = System.get_env("KSEF_PDF_URL") do
   config :ksef_hub, :ksef_pdf_url, ksef_pdf_url
 end
 
-if gcp_secret_name = System.get_env("GCP_SECRET_NAME") do
-  config :ksef_hub, :gcp_secret_name, gcp_secret_name
+if credential_encryption_key = System.get_env("CREDENTIAL_ENCRYPTION_KEY") do
+  case Base.decode64(credential_encryption_key) do
+    {:ok, key} when byte_size(key) == 32 ->
+      config :ksef_hub, :credential_encryption_key, credential_encryption_key
+
+    {:ok, key} ->
+      raise """
+      CREDENTIAL_ENCRYPTION_KEY must decode to exactly 32 bytes (AES-256).
+      Got #{byte_size(key)} bytes after base64-decoding.
+
+      Generate a valid key with:
+        elixir -e ':crypto.strong_rand_bytes(32) |> Base.encode64() |> IO.puts()'
+      """
+
+    :error ->
+      raise """
+      CREDENTIAL_ENCRYPTION_KEY is not valid base64.
+
+      Generate a valid key with:
+        elixir -e ':crypto.strong_rand_bytes(32) |> Base.encode64() |> IO.puts()'
+
+      To migrate from SHA256-derived key, compute:
+        elixir -e ':crypto.hash(:sha256, "<your SECRET_KEY_BASE>") |> Base.encode64() |> IO.puts()'
+      """
+  end
 end
 
 # Allow DATABASE_URL override in dev (e.g. to connect to Supabase from local machine)
