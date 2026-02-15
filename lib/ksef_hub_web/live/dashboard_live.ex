@@ -35,6 +35,7 @@ defmodule KsefHubWeb.DashboardLive do
       nil ->
         assign(socket,
           page_title: "Dashboard",
+          is_reviewer: socket.assigns[:current_role] == "reviewer",
           total_income: 0,
           total_expense: 0,
           total_invoices: 0,
@@ -51,8 +52,9 @@ defmodule KsefHubWeb.DashboardLive do
         counts = Invoices.count_by_type_and_status(company.id)
         credential = Credentials.get_active_credential(company.id)
         user_cert = Credentials.get_certificate_for_company(company.id)
+        is_reviewer = socket.assigns[:current_role] == "reviewer"
 
-        total_income = count_type(counts, "income")
+        total_income = if is_reviewer, do: 0, else: count_type(counts, "income")
         total_expense = count_type(counts, "expense")
         pending_expense = Map.get(counts, {"expense", "pending"}, 0)
         approved_expense = Map.get(counts, {"expense", "approved"}, 0)
@@ -60,6 +62,7 @@ defmodule KsefHubWeb.DashboardLive do
 
         assign(socket,
           page_title: "Dashboard",
+          is_reviewer: is_reviewer,
           total_income: total_income,
           total_expense: total_expense,
           total_invoices: total_income + total_expense,
@@ -93,6 +96,7 @@ defmodule KsefHubWeb.DashboardLive do
     <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mt-4">
       <.stat_card title="Total Invoices" value={@total_invoices} icon="hero-document-text" />
       <.stat_card
+        :if={!@is_reviewer}
         title="Income"
         value={@total_income}
         icon="hero-arrow-down-tray"

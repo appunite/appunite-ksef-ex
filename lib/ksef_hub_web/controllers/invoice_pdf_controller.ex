@@ -9,6 +9,7 @@ defmodule KsefHubWeb.InvoicePdfController do
   import KsefHubWeb.ErrorHelpers, only: [sanitize_error: 1]
   import KsefHubWeb.FilenameHelpers, only: [send_attachment: 4]
 
+  alias KsefHub.Companies
   alias KsefHub.Invoices
 
   @doc "Downloads the raw FA(3) XML of the invoice."
@@ -41,8 +42,9 @@ defmodule KsefHubWeb.InvoicePdfController do
   defp with_invoice(conn, id, fun) do
     with {:company, company_id} when not is_nil(company_id) <-
            {:company, get_session(conn, :current_company_id)},
+         role <- resolve_role(conn, company_id),
          {:invoice, %{} = invoice} <-
-           {:invoice, Invoices.get_invoice(company_id, id)},
+           {:invoice, Invoices.get_invoice(company_id, id, role: role)},
          {:xml, %{xml_content: xml} = invoice} when not is_nil(xml) <-
            {:xml, invoice} do
       fun.(conn, invoice)
@@ -69,6 +71,20 @@ defmodule KsefHubWeb.InvoicePdfController do
     conn
     |> put_flash(:error, "You must be logged in to download invoices.")
     |> redirect(to: ~p"/invoices")
+  end
+
+  @spec resolve_role(Plug.Conn.t(), Ecto.UUID.t()) :: String.t() | nil
+  defp resolve_role(conn, company_id) do
+    case conn.assigns[:current_user] do
+      %{id: user_id} ->
+        case Companies.get_membership(user_id, company_id) do
+          %{role: role} -> role
+          nil -> nil
+        end
+
+      _ ->
+        nil
+    end
   end
 
   @spec generate_and_send_pdf(Plug.Conn.t(), map()) :: Plug.Conn.t()

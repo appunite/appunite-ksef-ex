@@ -11,6 +11,7 @@ defmodule KsefHubWeb.Plugs.ApiAuth do
   import Phoenix.Controller
 
   alias KsefHub.Accounts
+  alias KsefHub.Companies
 
   @doc false
   @spec init(Keyword.t()) :: Keyword.t()
@@ -22,10 +23,12 @@ defmodule KsefHubWeb.Plugs.ApiAuth do
     with ["Bearer " <> token] <- get_req_header(conn, "authorization"),
          {:ok, api_token} <- Accounts.validate_api_token(token) do
       Accounts.track_token_usage(api_token.id)
+      role = resolve_role(api_token.created_by_id, api_token.company_id)
 
       conn
       |> assign(:api_token, api_token)
       |> assign(:current_company, api_token.company)
+      |> assign(:current_role, role)
     else
       {:error, :expired} ->
         conn
@@ -40,6 +43,14 @@ defmodule KsefHubWeb.Plugs.ApiAuth do
         |> put_status(:unauthorized)
         |> json(%{error: "Invalid or missing API token"})
         |> halt()
+    end
+  end
+
+  @spec resolve_role(Ecto.UUID.t(), Ecto.UUID.t()) :: String.t() | nil
+  defp resolve_role(user_id, company_id) do
+    case Companies.get_membership(user_id, company_id) do
+      %{role: role} -> role
+      nil -> nil
     end
   end
 end

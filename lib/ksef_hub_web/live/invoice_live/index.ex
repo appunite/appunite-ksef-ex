@@ -17,20 +17,22 @@ defmodule KsefHubWeb.InvoiceLive.Index do
   def handle_params(params, _uri, socket) do
     filters = parse_filters(params)
 
+    role = socket.assigns[:current_role]
+
     result =
       case socket.assigns[:current_company] do
         %{id: company_id} ->
-          Invoices.list_invoices_paginated(company_id, filters)
+          Invoices.list_invoices_paginated(company_id, filters, role: role)
 
         _ ->
           %{entries: [], page: 1, per_page: 25, total_count: 0, total_pages: 1}
       end
 
-    {:noreply, assign(socket, filter_assigns(filters, result))}
+    {:noreply, assign(socket, filter_assigns(filters, result, role))}
   end
 
-  @spec filter_assigns(map(), map()) :: keyword()
-  defp filter_assigns(filters, result) do
+  @spec filter_assigns(map(), map(), String.t() | nil) :: keyword()
+  defp filter_assigns(filters, result, role) do
     [
       invoices: result.entries,
       filters: filters,
@@ -42,7 +44,8 @@ defmodule KsefHubWeb.InvoiceLive.Index do
       status_filter: filters[:status] || "",
       date_from: (filters[:date_from] && Date.to_iso8601(filters[:date_from])) || "",
       date_to: (filters[:date_to] && Date.to_iso8601(filters[:date_to])) || "",
-      search: filters[:query] || ""
+      search: filters[:query] || "",
+      is_reviewer: role == "reviewer"
     ]
   end
 
@@ -150,10 +153,13 @@ defmodule KsefHubWeb.InvoiceLive.Index do
     <form phx-change="filter" class="flex flex-wrap gap-3 mt-4 mb-6 items-end">
       <div class="form-control w-32">
         <label class="label"><span class="label-text text-xs">Type</span></label>
-        <select name="type" class="select select-sm select-bordered">
+        <select :if={!@is_reviewer} name="type" class="select select-sm select-bordered">
           <option value="">All</option>
           <option value="income" selected={@type_filter == "income"}>Income</option>
           <option value="expense" selected={@type_filter == "expense"}>Expense</option>
+        </select>
+        <select :if={@is_reviewer} name="type" class="select select-sm select-bordered" disabled>
+          <option value="expense" selected>Expense</option>
         </select>
       </div>
 
