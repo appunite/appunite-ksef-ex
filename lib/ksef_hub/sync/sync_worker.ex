@@ -9,7 +9,7 @@ defmodule KsefHub.Sync.SyncWorker do
   require Logger
 
   alias KsefHub.Credentials
-  alias KsefHub.KsefClient.TokenManager
+  alias KsefHub.KsefClient.{Authenticator, TokenManager}
   alias KsefHub.Sync.{Checkpoints, InvoiceFetcher}
 
   @impl Oban.Worker
@@ -37,10 +37,13 @@ defmodule KsefHub.Sync.SyncWorker do
         store_meta(job, %{"error" => "no_certificate"})
         {:cancel, :no_certificate}
 
-      {:error, :reauth_required} ->
-        Logger.warning("Sync skipped for company #{company_id}: XADES re-authentication required")
-        store_meta(job, %{"error" => "reauth_required"})
-        {:cancel, :reauth_required}
+      {:error, {:reauth_failed, reason}} ->
+        Logger.error(
+          "Sync failed for company #{company_id}: re-authentication failed: #{inspect(reason)}"
+        )
+
+        store_meta(job, %{"error" => "reauth_failed: #{inspect(reason)}"})
+        {:error, {:reauth_failed, reason}}
 
       {:error, reason} ->
         Logger.error("Sync failed for company #{company_id}: #{inspect(reason)}")
@@ -88,7 +91,24 @@ defmodule KsefHub.Sync.SyncWorker do
 
   @spec get_access_token(Ecto.UUID.t()) :: {:ok, String.t()} | {:error, term()}
   defp get_access_token(company_id) do
-    TokenManager.ensure_access_token(company_id)
+    case TokenManager.ensure_access_token(company_id) do
+      {:ok, token} -> {:ok, token}
+      {:error, :reauth_required} -> attempt_reauth(company_id)
+      error -> error
+    end
+  end
+
+  @permanent_reauth_errors [:no_credential, :no_certificate]
+
+  @spec attempt_reauth(Ecto.UUID.t()) :: {:ok, String.t()} | {:error, term()}
+  defp attempt_reauth(company_id) do
+    Logger.info("Attempting XADES re-authentication for company #{company_id}")
+
+    case Authenticator.authenticate_and_store(company_id) do
+      {:ok, access_token} -> {:ok, access_token}
+      {:error, reason} when reason in @permanent_reauth_errors -> {:error, reason}
+      {:error, reason} -> {:error, {:reauth_failed, reason}}
+    end
   end
 
   @spec sync_all_types(String.t(), String.t(), Ecto.UUID.t(), Oban.Job.t()) ::
