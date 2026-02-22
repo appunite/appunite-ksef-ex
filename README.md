@@ -146,6 +146,7 @@ lib/
 ## Documentation
 
 - [`docs/prd.md`](docs/prd.md) — Product Requirements Document
+- [`docs/sidecar-services.md`](docs/sidecar-services.md) — Sidecar microservices (ksef-pdf, au-ksef-unstructured)
 - `docs/adr/` — Architecture Decision Records
 
 ## License
