@@ -15,6 +15,7 @@ defmodule KsefHubWeb.Api.InvoiceController do
   import KsefHubWeb.FilenameHelpers, only: [send_attachment: 4]
 
   alias KsefHub.Invoices
+  alias KsefHub.Invoices.Invoice
   alias KsefHubWeb.Schemas
   alias OpenApiSpex.Schema
 
@@ -30,6 +31,11 @@ defmodule KsefHubWeb.Api.InvoiceController do
         in: :query,
         description: "Filter by invoice type.",
         schema: %Schema{type: :string, enum: ["income", "expense"]}
+      ],
+      source: [
+        in: :query,
+        description: "Filter by invoice source.",
+        schema: %Schema{type: :string, enum: ["ksef", "manual"]}
       ],
       status: [
         in: :query,
@@ -93,6 +99,34 @@ defmodule KsefHubWeb.Api.InvoiceController do
         total_pages: result.total_pages
       }
     })
+  end
+
+  operation(:create,
+    summary: "Create manual invoice",
+    description:
+      "Creates a manual invoice for the company. If a ksef_number is provided and matches an existing invoice, the new invoice is flagged as a suspected duplicate.",
+    request_body: {"Invoice to create", "application/json", Schemas.CreateInvoiceRequest},
+    responses: %{
+      201 => {"Created invoice", "application/json", Schemas.InvoiceResponse},
+      401 => {"Unauthorized", "application/json", Schemas.ErrorResponse},
+      422 => {"Validation error", "application/json", Schemas.ErrorResponse}
+    }
+  )
+
+  def create(conn, params) do
+    company_id = conn.assigns.current_company.id
+
+    case Invoices.create_manual_invoice(company_id, atomize_keys(params)) do
+      {:ok, invoice} ->
+        conn
+        |> put_status(:created)
+        |> json(%{data: invoice_json(invoice)})
+
+      {:error, changeset} ->
+        conn
+        |> put_status(:unprocessable_entity)
+        |> json(%{error: changeset_errors(changeset)})
+    end
   end
 
   operation(:show,
@@ -194,6 +228,82 @@ defmodule KsefHubWeb.Api.InvoiceController do
     end
   end
 
+  operation(:confirm_duplicate,
+    summary: "Confirm duplicate invoice",
+    description: "Confirms that this invoice is a duplicate of the referenced original.",
+    parameters: [
+      id: [
+        in: :path,
+        description: "Invoice UUID.",
+        schema: %Schema{type: :string, format: :uuid}
+      ]
+    ],
+    responses: %{
+      200 => {"Confirmed duplicate", "application/json", Schemas.InvoiceResponse},
+      401 => {"Unauthorized", "application/json", Schemas.ErrorResponse},
+      404 => {"Not found", "application/json", Schemas.ErrorResponse},
+      422 => {"Not a duplicate", "application/json", Schemas.ErrorResponse}
+    }
+  )
+
+  def confirm_duplicate(conn, %{"id" => id}) do
+    company_id = conn.assigns.current_company.id
+    invoice = Invoices.get_invoice!(company_id, id, role: conn.assigns[:current_role])
+
+    case Invoices.confirm_duplicate(invoice) do
+      {:ok, updated} ->
+        json(conn, %{data: invoice_json(updated)})
+
+      {:error, :not_a_duplicate} ->
+        conn
+        |> put_status(:unprocessable_entity)
+        |> json(%{error: "Invoice is not a duplicate"})
+
+      {:error, changeset} ->
+        conn
+        |> put_status(:unprocessable_entity)
+        |> json(%{error: changeset_errors(changeset)})
+    end
+  end
+
+  operation(:dismiss_duplicate,
+    summary: "Dismiss duplicate invoice",
+    description: "Dismisses the duplicate flag on this invoice.",
+    parameters: [
+      id: [
+        in: :path,
+        description: "Invoice UUID.",
+        schema: %Schema{type: :string, format: :uuid}
+      ]
+    ],
+    responses: %{
+      200 => {"Dismissed duplicate", "application/json", Schemas.InvoiceResponse},
+      401 => {"Unauthorized", "application/json", Schemas.ErrorResponse},
+      404 => {"Not found", "application/json", Schemas.ErrorResponse},
+      422 => {"Not a duplicate", "application/json", Schemas.ErrorResponse}
+    }
+  )
+
+  def dismiss_duplicate(conn, %{"id" => id}) do
+    company_id = conn.assigns.current_company.id
+    invoice = Invoices.get_invoice!(company_id, id, role: conn.assigns[:current_role])
+
+    case Invoices.dismiss_duplicate(invoice) do
+      {:ok, updated} ->
+        json(conn, %{data: invoice_json(updated)})
+
+      {:error, :not_a_duplicate} ->
+        conn
+        |> put_status(:unprocessable_entity)
+        |> json(%{error: "Invoice is not a duplicate"})
+
+      {:error, changeset} ->
+        conn
+        |> put_status(:unprocessable_entity)
+        |> json(%{error: changeset_errors(changeset)})
+    end
+  end
+
   operation(:html,
     summary: "Get invoice HTML preview",
     description:
@@ -216,6 +326,18 @@ defmodule KsefHubWeb.Api.InvoiceController do
   def html(conn, %{"id" => id}) do
     company_id = conn.assigns.current_company.id
     invoice = Invoices.get_invoice!(company_id, id, role: conn.assigns[:current_role])
+
+    if is_nil(invoice.xml_content) do
+      conn
+      |> put_status(:unprocessable_entity)
+      |> json(%{error: "Invoice has no XML content"})
+    else
+      do_html(conn, id, invoice)
+    end
+  end
+
+  @spec do_html(Plug.Conn.t(), String.t(), Invoice.t()) :: Plug.Conn.t()
+  defp do_html(conn, id, invoice) do
     pdf_mod = Application.get_env(:ksef_hub, :pdf_generator, KsefHub.Pdf)
 
     metadata = %{ksef_number: invoice.ksef_number}
@@ -263,7 +385,13 @@ defmodule KsefHubWeb.Api.InvoiceController do
     company_id = conn.assigns.current_company.id
     invoice = Invoices.get_invoice!(company_id, id, role: conn.assigns[:current_role])
 
-    send_attachment(conn, "application/xml", "#{invoice.invoice_number}.xml", invoice.xml_content)
+    if is_nil(invoice.xml_content) do
+      conn
+      |> put_status(:unprocessable_entity)
+      |> json(%{error: "Invoice has no XML content"})
+    else
+      send_attachment(conn, "application/xml", "#{invoice.invoice_number}.xml", invoice.xml_content)
+    end
   end
 
   operation(:pdf,
@@ -287,6 +415,18 @@ defmodule KsefHubWeb.Api.InvoiceController do
   def pdf(conn, %{"id" => id}) do
     company_id = conn.assigns.current_company.id
     invoice = Invoices.get_invoice!(company_id, id, role: conn.assigns[:current_role])
+
+    if is_nil(invoice.xml_content) do
+      conn
+      |> put_status(:unprocessable_entity)
+      |> json(%{error: "Invoice has no XML content"})
+    else
+      do_pdf(conn, id, invoice)
+    end
+  end
+
+  @spec do_pdf(Plug.Conn.t(), String.t(), Invoice.t()) :: Plug.Conn.t()
+  defp do_pdf(conn, id, invoice) do
     pdf_mod = Application.get_env(:ksef_hub, :pdf_generator, KsefHub.Pdf)
 
     metadata = %{ksef_number: invoice.ksef_number}
@@ -311,6 +451,7 @@ defmodule KsefHubWeb.Api.InvoiceController do
     %{}
     |> maybe_put(:type, params["type"])
     |> maybe_put(:status, params["status"])
+    |> maybe_put(:source, params["source"])
     |> maybe_put(:seller_nip, params["seller_nip"])
     |> maybe_put(:buyer_nip, params["buyer_nip"])
     |> maybe_put(:query, params["query"])
@@ -351,7 +492,7 @@ defmodule KsefHubWeb.Api.InvoiceController do
     Map.put(map, key, value)
   end
 
-  @spec invoice_json(KsefHub.Invoices.Invoice.t()) :: map()
+  @spec invoice_json(Invoice.t()) :: map()
   defp invoice_json(invoice) do
     %{
       id: invoice.id,
@@ -368,10 +509,25 @@ defmodule KsefHubWeb.Api.InvoiceController do
       gross_amount: invoice.gross_amount,
       currency: invoice.currency,
       status: invoice.status,
+      source: invoice.source,
+      duplicate_of_id: invoice.duplicate_of_id,
+      duplicate_status: invoice.duplicate_status,
       ksef_acquisition_date: invoice.ksef_acquisition_date,
       permanent_storage_date: invoice.permanent_storage_date,
       inserted_at: invoice.inserted_at,
       updated_at: invoice.updated_at
     }
+  end
+
+  @create_allowed_keys ~w(type ksef_number seller_nip seller_name buyer_nip buyer_name
+    invoice_number issue_date net_amount vat_amount gross_amount currency)
+
+  @spec atomize_keys(map()) :: map()
+  defp atomize_keys(params) do
+    for {key, value} <- params,
+        key in @create_allowed_keys,
+        into: %{} do
+      {String.to_existing_atom(key), value}
+    end
   end
 end

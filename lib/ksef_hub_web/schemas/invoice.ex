@@ -34,6 +34,23 @@ defmodule KsefHubWeb.Schemas.Invoice do
       gross_amount: %Schema{type: :string, description: "Decimal as string."},
       currency: %Schema{type: :string, description: "ISO 4217 currency code.", example: "PLN"},
       status: %Schema{type: :string, enum: ["pending", "approved", "rejected"]},
+      source: %Schema{
+        type: :string,
+        enum: ["ksef", "manual"],
+        description: "Invoice origin: synced from KSeF or manually created."
+      },
+      duplicate_of_id: %Schema{
+        type: :string,
+        format: :uuid,
+        nullable: true,
+        description: "ID of the original invoice this is a duplicate of."
+      },
+      duplicate_status: %Schema{
+        type: :string,
+        enum: ["suspected", "confirmed", "dismissed"],
+        nullable: true,
+        description: "Duplicate review status. Only set when duplicate_of_id is present."
+      },
       ksef_acquisition_date: %Schema{
         type: :string,
         format: :"date-time",
@@ -65,6 +82,9 @@ defmodule KsefHubWeb.Schemas.Invoice do
       gross_amount: "1230.00",
       currency: "PLN",
       status: "pending",
+      source: "ksef",
+      duplicate_of_id: nil,
+      duplicate_status: nil,
       ksef_acquisition_date: "2024-01-15T10:30:00Z",
       permanent_storage_date: "2024-01-16T00:00:00Z",
       inserted_at: "2024-01-15T10:35:00Z",
