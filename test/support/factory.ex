@@ -117,6 +117,7 @@ defmodule KsefHub.Factory do
   def invoice_factory do
     %Invoice{
       type: "income",
+      source: "ksef",
       seller_nip: "1234567890",
       seller_name: "Seller Sp. z o.o.",
       buyer_nip: "0987654321",
@@ -127,6 +128,27 @@ defmodule KsefHub.Factory do
       net_amount: Decimal.new("1000.00"),
       vat_amount: Decimal.new("230.00"),
       gross_amount: Decimal.new("1230.00"),
+      currency: "PLN",
+      status: "pending",
+      company: build(:company)
+    }
+  end
+
+  @doc "Builds a manual `Invoice` without xml_content, suitable for manual entry."
+  @spec manual_invoice_factory() :: Invoice.t()
+  def manual_invoice_factory do
+    %Invoice{
+      type: "expense",
+      source: "manual",
+      seller_nip: "1234567890",
+      seller_name: "Manual Seller Sp. z o.o.",
+      buyer_nip: "0987654321",
+      buyer_name: "Manual Buyer S.A.",
+      invoice_number: sequence(:invoice_number, &"FV/MANUAL/#{&1}"),
+      issue_date: Date.utc_today(),
+      net_amount: Decimal.new("2000.00"),
+      vat_amount: Decimal.new("460.00"),
+      gross_amount: Decimal.new("2460.00"),
       currency: "PLN",
       status: "pending",
       company: build(:company)

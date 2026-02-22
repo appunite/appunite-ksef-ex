@@ -169,6 +169,161 @@ defmodule KsefHubWeb.Api.InvoiceControllerTest do
     end
   end
 
+  describe "create" do
+    test "creates a manual invoice and returns 201", %{conn: conn} do
+      %{token: token} = create_owner_with_token()
+
+      body =
+        Jason.encode!(%{
+          type: "expense",
+          seller_nip: "1234567890",
+          seller_name: "Seller Sp. z o.o.",
+          buyer_nip: "0987654321",
+          buyer_name: "Buyer S.A.",
+          invoice_number: "FV/2026/001",
+          issue_date: "2026-02-20",
+          net_amount: "1000.00",
+          gross_amount: "1230.00"
+        })
+
+      conn = conn |> api_conn(token) |> post("/api/invoices", body)
+
+      assert conn.status == 201
+      data = Jason.decode!(conn.resp_body)["data"]
+      assert data["source"] == "manual"
+      assert data["type"] == "expense"
+      assert data["seller_nip"] == "1234567890"
+      assert is_nil(data["duplicate_of_id"])
+    end
+
+    test "creates manual invoice and detects duplicate by ksef_number", %{conn: conn} do
+      %{company: company, token: token} = create_owner_with_token()
+      existing = insert(:invoice, ksef_number: "dup-ksef-123", company: company)
+
+      body =
+        Jason.encode!(%{
+          type: "expense",
+          ksef_number: "dup-ksef-123",
+          seller_nip: "1234567890",
+          seller_name: "Seller Sp. z o.o.",
+          buyer_nip: "0987654321",
+          buyer_name: "Buyer S.A.",
+          invoice_number: "FV/2026/002",
+          issue_date: "2026-02-20",
+          net_amount: "1000.00",
+          gross_amount: "1230.00"
+        })
+
+      conn = conn |> api_conn(token) |> post("/api/invoices", body)
+
+      assert conn.status == 201
+      data = Jason.decode!(conn.resp_body)["data"]
+      assert data["duplicate_of_id"] == existing.id
+      assert data["duplicate_status"] == "suspected"
+    end
+
+    test "returns 422 with validation errors for invalid data", %{conn: conn} do
+      %{token: token} = create_owner_with_token()
+
+      body = Jason.encode!(%{type: "expense"})
+
+      conn = conn |> api_conn(token) |> post("/api/invoices", body)
+
+      assert conn.status == 422
+      assert Jason.decode!(conn.resp_body)["error"]
+    end
+  end
+
+  describe "confirm_duplicate" do
+    test "confirms a suspected duplicate invoice", %{conn: conn} do
+      %{company: company, token: token} = create_owner_with_token()
+      original = insert(:invoice, ksef_number: "confirm-orig", company: company)
+
+      duplicate =
+        insert(:manual_invoice,
+          ksef_number: "confirm-orig",
+          company: company,
+          duplicate_of_id: original.id,
+          duplicate_status: "suspected"
+        )
+
+      conn =
+        conn |> api_conn(token) |> post("/api/invoices/#{duplicate.id}/confirm-duplicate")
+
+      assert conn.status == 200
+      assert Jason.decode!(conn.resp_body)["data"]["duplicate_status"] == "confirmed"
+    end
+
+    test "returns 422 for non-duplicate invoice", %{conn: conn} do
+      %{company: company, token: token} = create_owner_with_token()
+      invoice = insert(:invoice, company: company)
+
+      conn =
+        conn |> api_conn(token) |> post("/api/invoices/#{invoice.id}/confirm-duplicate")
+
+      assert conn.status == 422
+      assert Jason.decode!(conn.resp_body)["error"] == "Invoice is not a duplicate"
+    end
+  end
+
+  describe "dismiss_duplicate" do
+    test "dismisses a suspected duplicate invoice", %{conn: conn} do
+      %{company: company, token: token} = create_owner_with_token()
+      original = insert(:invoice, ksef_number: "dismiss-orig", company: company)
+
+      duplicate =
+        insert(:manual_invoice,
+          ksef_number: "dismiss-orig",
+          company: company,
+          duplicate_of_id: original.id,
+          duplicate_status: "suspected"
+        )
+
+      conn =
+        conn |> api_conn(token) |> post("/api/invoices/#{duplicate.id}/dismiss-duplicate")
+
+      assert conn.status == 200
+      assert Jason.decode!(conn.resp_body)["data"]["duplicate_status"] == "dismissed"
+    end
+
+    test "returns 422 for non-duplicate invoice", %{conn: conn} do
+      %{company: company, token: token} = create_owner_with_token()
+      invoice = insert(:invoice, company: company)
+
+      conn =
+        conn |> api_conn(token) |> post("/api/invoices/#{invoice.id}/dismiss-duplicate")
+
+      assert conn.status == 422
+      assert Jason.decode!(conn.resp_body)["error"] == "Invoice is not a duplicate"
+    end
+  end
+
+  describe "xml with nil xml_content" do
+    test "returns 422 for invoice without xml_content", %{conn: conn} do
+      %{company: company, token: token} = create_owner_with_token()
+      invoice = insert(:manual_invoice, company: company)
+
+      conn = conn |> api_conn(token) |> get("/api/invoices/#{invoice.id}/xml")
+
+      assert conn.status == 422
+      assert Jason.decode!(conn.resp_body)["error"] == "Invoice has no XML content"
+    end
+  end
+
+  describe "source filter" do
+    test "filters invoices by source in index", %{conn: conn} do
+      %{company: company, token: token} = create_owner_with_token()
+      insert(:invoice, company: company, source: "ksef")
+      insert(:manual_invoice, company: company, source: "manual")
+
+      conn = conn |> api_conn(token) |> get("/api/invoices?source=manual")
+
+      body = Jason.decode!(conn.resp_body)
+      assert length(body["data"]) == 1
+      assert hd(body["data"])["source"] == "manual"
+    end
+  end
+
   describe "reviewer role scoping" do
     test "reviewer token returns only expense invoices from index", %{conn: conn} do
       {:ok, %{company: company, token: token}} = create_reviewer_with_token()
