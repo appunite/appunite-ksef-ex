@@ -390,7 +390,12 @@ defmodule KsefHubWeb.Api.InvoiceController do
       |> put_status(:unprocessable_entity)
       |> json(%{error: "Invoice has no XML content"})
     else
-      send_attachment(conn, "application/xml", "#{invoice.invoice_number}.xml", invoice.xml_content)
+      send_attachment(
+        conn,
+        "application/xml",
+        "#{invoice.invoice_number}.xml",
+        invoice.xml_content
+      )
     end
   end
 

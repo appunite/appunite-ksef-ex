@@ -172,7 +172,9 @@ defmodule KsefHub.Invoices do
     |> Invoice.changeset(attrs)
     |> Repo.insert(
       on_conflict: {:replace, @upsert_replace_fields},
-      conflict_target: {:unsafe_fragment, ~s|("company_id","ksef_number") WHERE ksef_number IS NOT NULL AND duplicate_of_id IS NULL|},
+      conflict_target:
+        {:unsafe_fragment,
+         ~s|("company_id","ksef_number") WHERE ksef_number IS NOT NULL AND duplicate_of_id IS NULL|},
       returning: true
     )
   end
@@ -238,7 +240,8 @@ defmodule KsefHub.Invoices do
 
   Only valid when `duplicate_of_id` is set and `duplicate_status` is `"suspected"`.
   """
-  @spec confirm_duplicate(Invoice.t()) :: {:ok, Invoice.t()} | {:error, Ecto.Changeset.t() | :not_a_duplicate}
+  @spec confirm_duplicate(Invoice.t()) ::
+          {:ok, Invoice.t()} | {:error, Ecto.Changeset.t() | :not_a_duplicate}
   def confirm_duplicate(%Invoice{duplicate_of_id: nil}), do: {:error, :not_a_duplicate}
 
   def confirm_duplicate(%Invoice{} = invoice) do
@@ -252,7 +255,8 @@ defmodule KsefHub.Invoices do
 
   Only valid when `duplicate_of_id` is set. Sets `duplicate_status` to `"dismissed"`.
   """
-  @spec dismiss_duplicate(Invoice.t()) :: {:ok, Invoice.t()} | {:error, Ecto.Changeset.t() | :not_a_duplicate}
+  @spec dismiss_duplicate(Invoice.t()) ::
+          {:ok, Invoice.t()} | {:error, Ecto.Changeset.t() | :not_a_duplicate}
   def dismiss_duplicate(%Invoice{duplicate_of_id: nil}), do: {:error, :not_a_duplicate}
 
   def dismiss_duplicate(%Invoice{} = invoice) do
