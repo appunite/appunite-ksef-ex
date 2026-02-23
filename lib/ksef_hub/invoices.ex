@@ -458,13 +458,15 @@ defmodule KsefHub.Invoices do
 
   # --- Invoice-Tag Associations ---
 
-  @doc "Adds a tag to an invoice."
+  @doc """
+  Adds a tag to an invoice. Idempotent — duplicate associations are silently ignored.
+  """
   @spec add_invoice_tag(Ecto.UUID.t(), Ecto.UUID.t()) ::
           {:ok, InvoiceTag.t()} | {:error, Ecto.Changeset.t()}
   def add_invoice_tag(invoice_id, tag_id) do
     invoice_id
     |> InvoiceTag.changeset(tag_id)
-    |> Repo.insert()
+    |> Repo.insert(on_conflict: :nothing)
   end
 
   @doc "Removes a tag from an invoice."

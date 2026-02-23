@@ -168,13 +168,14 @@ defmodule KsefHub.Invoices.TagsTest do
       assert hd(tags).id == tag.id
     end
 
-    test "returns error for duplicate association" do
+    test "is idempotent for duplicate association" do
       company = insert(:company)
       tag = insert(:tag, company: company)
       invoice = insert(:invoice, company: company)
       insert(:invoice_tag, invoice: invoice, tag: tag)
 
-      assert {:error, _} = Invoices.add_invoice_tag(invoice.id, tag.id)
+      assert {:ok, _} = Invoices.add_invoice_tag(invoice.id, tag.id)
+      assert length(Invoices.list_invoice_tags(invoice.id)) == 1
     end
   end
 
