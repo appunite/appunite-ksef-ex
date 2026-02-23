@@ -14,8 +14,9 @@ See `docs/prd.md` for full product requirements.
 | Auth (UI) | Google Sign-In (company membership RBAC) |
 | Auth (API) | Bearer API tokens (hashed, revocable) |
 | PDF pipeline | ksef-pdf microservice (ghcr.io/appunite/ksef-pdf) |
+| ML predictions | au-payroll-model-categories sidecar (ghcr.io/appunite/au-payroll-model-categories) |
 | XADES signing | xmlsec1 (CLI, called via System.cmd) |
-| Background sync | GenServer worker, 15-min cron |
+| Background jobs | Oban (async workers, 15-min sync cron) |
 | API docs | open_api_spex (OpenAPI 3.0 + SwaggerUI) |
 | UI styling | Tailwind CSS + DaisyUI |
 | Deployment | Docker, GCP Cloud Run |
@@ -28,6 +29,7 @@ lib/
 │   ├── invoices/                 # Invoice context (income + expense)
 │   ├── credentials/              # Certificate storage & encryption
 │   ├── ksef_client/              # KSeF API client (auth, query, download)
+│   ├── predictions/              # ML prediction sidecar client + Oban worker
 │   ├── sync_worker.ex            # GenServer — 15-min sync cron
 │   └── pdf/                      # PDF generation pipeline
 │
@@ -133,6 +135,7 @@ Phoenix contexts are the primary boundaries. Each context owns its schema, queri
 | `KsefHub.Credentials` | Certificate upload, encryption, expiry tracking |
 | `KsefHub.KsefClient` | All KSeF API communication (auth, query, download) |
 | `KsefHub.Pdf` | PDF and HTML generation via ksef-pdf microservice |
+| `KsefHub.Predictions` | ML-based category/tag prediction via sidecar |
 | `KsefHub.Accounts` | API token generation, validation, usage tracking |
 
 ### Dependency Injection with Behaviours
@@ -459,6 +462,7 @@ end
 | `GOOGLE_CLIENT_SECRET` | Google OAuth client secret |
 | `KSEF_PDF_URL` | KSeF PDF microservice URL (e.g., `http://localhost:3001`) |
 | `KSEF_API_URL` | KSeF environment URL (`https://ksef-test.mf.gov.pl` or `https://ksef.mf.gov.pl`) |
+| `PREDICTION_SERVICE_URL` | ML prediction sidecar URL (e.g., `http://localhost:8080`) |
 
 ## Useful References
 
