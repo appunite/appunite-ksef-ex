@@ -259,6 +259,11 @@ defmodule KsefHubWeb.Api.InvoiceController do
         |> put_status(:unprocessable_entity)
         |> json(%{error: "Invoice is not a duplicate"})
 
+      {:error, :invalid_status} ->
+        conn
+        |> put_status(:unprocessable_entity)
+        |> json(%{error: "Duplicate can only be confirmed from suspected status"})
+
       {:error, changeset} ->
         conn
         |> put_status(:unprocessable_entity)
@@ -296,6 +301,11 @@ defmodule KsefHubWeb.Api.InvoiceController do
         conn
         |> put_status(:unprocessable_entity)
         |> json(%{error: "Invoice is not a duplicate"})
+
+      {:error, :invalid_status} ->
+        conn
+        |> put_status(:unprocessable_entity)
+        |> json(%{error: "Duplicate has already been dismissed"})
 
       {:error, changeset} ->
         conn

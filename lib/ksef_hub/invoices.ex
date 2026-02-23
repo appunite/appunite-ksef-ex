@@ -240,31 +240,40 @@ defmodule KsefHub.Invoices do
   Confirms a suspected duplicate invoice.
 
   Only valid when `duplicate_of_id` is set and `duplicate_status` is `"suspected"`.
+  Returns `{:error, :not_a_duplicate}` when no duplicate_of_id is set,
+  or `{:error, :invalid_status}` when duplicate_status is not `"suspected"`.
   """
   @spec confirm_duplicate(Invoice.t()) ::
-          {:ok, Invoice.t()} | {:error, Ecto.Changeset.t() | :not_a_duplicate}
+          {:ok, Invoice.t()} | {:error, Ecto.Changeset.t() | :not_a_duplicate | :invalid_status}
   def confirm_duplicate(%Invoice{duplicate_of_id: nil}), do: {:error, :not_a_duplicate}
 
-  def confirm_duplicate(%Invoice{} = invoice) do
+  def confirm_duplicate(%Invoice{duplicate_status: "suspected"} = invoice) do
     invoice
     |> Invoice.duplicate_changeset(%{duplicate_status: "confirmed"})
     |> Repo.update()
   end
 
-  @doc """
-  Dismisses a suspected duplicate invoice.
+  def confirm_duplicate(%Invoice{}), do: {:error, :invalid_status}
 
-  Only valid when `duplicate_of_id` is set. Sets `duplicate_status` to `"dismissed"`.
+  @doc """
+  Dismisses a duplicate invoice.
+
+  Valid when `duplicate_of_id` is set and `duplicate_status` is `"suspected"` or `"confirmed"`.
+  Returns `{:error, :not_a_duplicate}` when no duplicate_of_id is set,
+  or `{:error, :invalid_status}` when duplicate_status is not dismissable.
   """
   @spec dismiss_duplicate(Invoice.t()) ::
-          {:ok, Invoice.t()} | {:error, Ecto.Changeset.t() | :not_a_duplicate}
+          {:ok, Invoice.t()} | {:error, Ecto.Changeset.t() | :not_a_duplicate | :invalid_status}
   def dismiss_duplicate(%Invoice{duplicate_of_id: nil}), do: {:error, :not_a_duplicate}
 
-  def dismiss_duplicate(%Invoice{} = invoice) do
+  def dismiss_duplicate(%Invoice{duplicate_status: status} = invoice)
+      when status in ~w(suspected confirmed) do
     invoice
     |> Invoice.duplicate_changeset(%{duplicate_status: "dismissed"})
     |> Repo.update()
   end
+
+  def dismiss_duplicate(%Invoice{}), do: {:error, :invalid_status}
 
   @doc """
   Returns invoice counts grouped by type and status for a company.
