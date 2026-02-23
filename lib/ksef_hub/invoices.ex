@@ -233,7 +233,23 @@ defmodule KsefHub.Invoices do
       |> Map.merge(%{source: "manual", company_id: company_id})
 
     attrs = detect_duplicate(company_id, attrs)
-    create_invoice(attrs)
+
+    case create_invoice(attrs) do
+      {:ok, _invoice} = success ->
+        success
+
+      {:error, %Ecto.Changeset{} = changeset} ->
+        if unique_ksef_number_conflict?(changeset) do
+          attrs
+          |> Map.merge(%{
+            duplicate_of_id: find_original_id(company_id, attrs),
+            duplicate_status: "suspected"
+          })
+          |> create_invoice()
+        else
+          {:error, changeset}
+        end
+    end
   end
 
   @doc """
@@ -296,23 +312,37 @@ defmodule KsefHub.Invoices do
 
   @spec detect_duplicate(Ecto.UUID.t(), map()) :: map()
   defp detect_duplicate(company_id, attrs) do
+    case find_original_id(company_id, attrs) do
+      nil ->
+        attrs
+
+      original_id ->
+        Map.merge(attrs, %{duplicate_of_id: original_id, duplicate_status: "suspected"})
+    end
+  end
+
+  @spec find_original_id(Ecto.UUID.t(), map()) :: Ecto.UUID.t() | nil
+  defp find_original_id(company_id, attrs) do
     ksef_number = attrs[:ksef_number] || attrs["ksef_number"]
 
     if ksef_number && ksef_number != "" do
-      existing =
-        Invoice
-        |> where([i], i.company_id == ^company_id and i.ksef_number == ^ksef_number)
-        |> where([i], is_nil(i.duplicate_of_id))
-        |> Repo.one()
-
-      if existing do
-        Map.merge(attrs, %{duplicate_of_id: existing.id, duplicate_status: "suspected"})
-      else
-        attrs
-      end
-    else
-      attrs
+      Invoice
+      |> where([i], i.company_id == ^company_id and i.ksef_number == ^ksef_number)
+      |> where([i], is_nil(i.duplicate_of_id))
+      |> select([i], i.id)
+      |> Repo.one()
     end
+  end
+
+  @spec unique_ksef_number_conflict?(Ecto.Changeset.t()) :: boolean()
+  defp unique_ksef_number_conflict?(changeset) do
+    Enum.any?(changeset.errors, fn
+      {:company_id, {_, [constraint: :unique, constraint_name: name]}} ->
+        name == "invoices_company_id_ksef_number_unique_non_duplicate"
+
+      _ ->
+        false
+    end)
   end
 
   @spec scope_by_role(map(), String.t() | nil) :: map()
