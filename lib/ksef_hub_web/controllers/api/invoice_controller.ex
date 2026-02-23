@@ -574,32 +574,7 @@ defmodule KsefHubWeb.Api.InvoiceController do
       tags = Invoices.list_invoice_tags(id)
       json(conn, %{data: Enum.map(tags, &tag_json/1)})
     else
-      {:error, :invalid_tag_ids} ->
-        conn
-        |> put_status(:unprocessable_entity)
-        |> json(%{error: "Invalid tag_ids payload"})
-
-      false ->
-        conn
-        |> put_status(:unprocessable_entity)
-        |> json(%{error: "One or more tags not found in this company"})
-
-      {:error, :tag_not_in_company} ->
-        conn
-        |> put_status(:unprocessable_entity)
-        |> json(%{error: "One or more tags not found in this company"})
-
-      {:error, %Ecto.Changeset{} = changeset} ->
-        conn
-        |> put_status(:unprocessable_entity)
-        |> json(%{error: changeset_errors(changeset)})
-
-      {:error, reason} ->
-        Logger.warning("Failed to add tags for invoice #{id}: #{inspect(reason)}")
-
-        conn
-        |> put_status(:unprocessable_entity)
-        |> json(%{error: "Failed to add tags"})
+      error -> render_tag_error(conn, id, error)
     end
   end
 
@@ -634,27 +609,7 @@ defmodule KsefHubWeb.Api.InvoiceController do
          {:ok, _} <- Invoices.mark_prediction_manual(invoice) do
       json(conn, %{data: Enum.map(tags, &tag_json/1)})
     else
-      {:error, :invalid_tag_ids} ->
-        conn
-        |> put_status(:unprocessable_entity)
-        |> json(%{error: "Invalid tag_ids payload"})
-
-      false ->
-        conn
-        |> put_status(:unprocessable_entity)
-        |> json(%{error: "One or more tags not found in this company"})
-
-      {:error, %Ecto.Changeset{} = changeset} ->
-        conn
-        |> put_status(:unprocessable_entity)
-        |> json(%{error: changeset_errors(changeset)})
-
-      {:error, reason} ->
-        Logger.warning("Failed to set tags for invoice #{id}: #{inspect(reason)}")
-
-        conn
-        |> put_status(:unprocessable_entity)
-        |> json(%{error: "Failed to set tags"})
+      error -> render_tag_error(conn, id, error)
     end
   end
 
@@ -768,6 +723,39 @@ defmodule KsefHubWeb.Api.InvoiceController do
   end
 
   defp validate_tag_ids(_), do: {:error, :invalid_tag_ids}
+
+  @spec render_tag_error(Plug.Conn.t(), Ecto.UUID.t(), term()) :: Plug.Conn.t()
+  defp render_tag_error(conn, _id, {:error, :invalid_tag_ids}) do
+    conn
+    |> put_status(:unprocessable_entity)
+    |> json(%{error: "Invalid tag_ids payload"})
+  end
+
+  defp render_tag_error(conn, _id, false) do
+    conn
+    |> put_status(:unprocessable_entity)
+    |> json(%{error: "One or more tags not found in this company"})
+  end
+
+  defp render_tag_error(conn, _id, {:error, :tag_not_in_company}) do
+    conn
+    |> put_status(:unprocessable_entity)
+    |> json(%{error: "One or more tags not found in this company"})
+  end
+
+  defp render_tag_error(conn, _id, {:error, %Ecto.Changeset{} = changeset}) do
+    conn
+    |> put_status(:unprocessable_entity)
+    |> json(%{error: changeset_errors(changeset)})
+  end
+
+  defp render_tag_error(conn, id, {:error, reason}) do
+    Logger.warning("Tag operation failed for invoice #{id}: #{inspect(reason)}")
+
+    conn
+    |> put_status(:unprocessable_entity)
+    |> json(%{error: "Tag operation failed"})
+  end
 
   @spec add_tags_sequentially(Ecto.UUID.t(), [Ecto.UUID.t()], Ecto.UUID.t()) ::
           :ok | {:error, term()}
