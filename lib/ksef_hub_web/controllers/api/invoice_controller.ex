@@ -522,6 +522,11 @@ defmodule KsefHubWeb.Api.InvoiceController do
          {:ok, updated} <- Invoices.set_invoice_category(invoice, category_id) do
       json(conn, %{data: invoice_json(updated)})
     else
+      {:error, :invalid_uuid} ->
+        conn
+        |> put_status(:unprocessable_entity)
+        |> json(%{error: "Invalid UUID format"})
+
       {:error, :category_not_found} ->
         conn
         |> put_status(:unprocessable_entity)
@@ -719,21 +724,29 @@ defmodule KsefHubWeb.Api.InvoiceController do
   defp validate_tag_ids(nil), do: {:ok, []}
 
   defp validate_tag_ids(ids) when is_list(ids) do
-    if Enum.all?(ids, &is_binary/1), do: {:ok, ids}, else: {:error, :invalid_tag_ids}
+    if Enum.all?(ids, &valid_uuid?/1), do: {:ok, ids}, else: {:error, :invalid_tag_ids}
   end
 
   defp validate_tag_ids(_), do: {:error, :invalid_tag_ids}
 
-  @spec validate_category_company(Ecto.UUID.t() | nil, Ecto.UUID.t()) ::
-          :ok | {:error, :category_not_found}
+  @spec validate_category_company(String.t() | nil, Ecto.UUID.t()) ::
+          :ok | {:error, :category_not_found | :invalid_uuid}
   defp validate_category_company(nil, _company_id), do: :ok
 
   defp validate_category_company(category_id, company_id) do
-    case Invoices.get_category(company_id, category_id) do
-      {:ok, _} -> :ok
-      {:error, :not_found} -> {:error, :category_not_found}
+    if valid_uuid?(category_id) do
+      case Invoices.get_category(company_id, category_id) do
+        {:ok, _} -> :ok
+        {:error, :not_found} -> {:error, :category_not_found}
+      end
+    else
+      {:error, :invalid_uuid}
     end
   end
+
+  @spec valid_uuid?(term()) :: boolean()
+  defp valid_uuid?(value) when is_binary(value), do: match?({:ok, _}, Ecto.UUID.cast(value))
+  defp valid_uuid?(_), do: false
 
   @spec invoice_json(Invoice.t()) :: map()
   defp invoice_json(invoice) do
