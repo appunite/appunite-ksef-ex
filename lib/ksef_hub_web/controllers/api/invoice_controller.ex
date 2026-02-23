@@ -529,7 +529,7 @@ defmodule KsefHubWeb.Api.InvoiceController do
         |> put_status(:unprocessable_entity)
         |> json(%{error: "Invalid UUID format"})
 
-      {:error, :category_not_found} ->
+      {:error, reason} when reason in [:category_not_found, :category_not_in_company] ->
         conn
         |> put_status(:unprocessable_entity)
         |> json(%{error: "Category not found in this company"})

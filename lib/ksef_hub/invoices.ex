@@ -447,26 +447,63 @@ defmodule KsefHub.Invoices do
 
   # --- Invoice-Category Assignment ---
 
-  @doc "Assigns or clears a category on an invoice."
+  @doc """
+  Assigns or clears a category on an invoice.
+
+  When `category_id` is not nil, verifies the category belongs to the same
+  company as the invoice before updating.
+  """
   @spec set_invoice_category(Invoice.t(), Ecto.UUID.t() | nil) ::
-          {:ok, Invoice.t()} | {:error, Ecto.Changeset.t()}
-  def set_invoice_category(%Invoice{} = invoice, category_id) do
+          {:ok, Invoice.t()} | {:error, Ecto.Changeset.t() | :category_not_in_company}
+  def set_invoice_category(%Invoice{} = invoice, nil) do
     invoice
-    |> Invoice.category_changeset(%{category_id: category_id})
+    |> Invoice.category_changeset(%{category_id: nil})
     |> Repo.update()
+  end
+
+  def set_invoice_category(%Invoice{} = invoice, category_id) do
+    category_exists? =
+      Category
+      |> where([c], c.id == ^category_id and c.company_id == ^invoice.company_id)
+      |> Repo.exists?()
+
+    if category_exists? do
+      invoice
+      |> Invoice.category_changeset(%{category_id: category_id})
+      |> Repo.update()
+    else
+      {:error, :category_not_in_company}
+    end
   end
 
   # --- Invoice-Tag Associations ---
 
   @doc """
   Adds a tag to an invoice. Idempotent — duplicate associations are silently ignored.
+
+  Verifies the tag belongs to the same company as the invoice before inserting.
   """
   @spec add_invoice_tag(Ecto.UUID.t(), Ecto.UUID.t()) ::
-          {:ok, InvoiceTag.t()} | {:error, Ecto.Changeset.t()}
+          {:ok, InvoiceTag.t()} | {:error, Ecto.Changeset.t() | :tag_not_in_company}
   def add_invoice_tag(invoice_id, tag_id) do
-    invoice_id
-    |> InvoiceTag.changeset(tag_id)
-    |> Repo.insert(on_conflict: :nothing)
+    company_id =
+      Invoice
+      |> where([i], i.id == ^invoice_id)
+      |> select([i], i.company_id)
+      |> Repo.one!()
+
+    tag_in_company? =
+      Tag
+      |> where([t], t.id == ^tag_id and t.company_id == ^company_id)
+      |> Repo.exists?()
+
+    if tag_in_company? do
+      invoice_id
+      |> InvoiceTag.changeset(tag_id)
+      |> Repo.insert(on_conflict: :nothing)
+    else
+      {:error, :tag_not_in_company}
+    end
   end
 
   @doc "Removes a tag from an invoice."
@@ -496,12 +533,14 @@ defmodule KsefHub.Invoices do
   @spec set_invoice_tags(Ecto.UUID.t(), [Ecto.UUID.t()]) ::
           {:ok, [Tag.t()]} | {:error, Ecto.Changeset.t()}
   def set_invoice_tags(invoice_id, tag_ids) do
+    unique_tag_ids = Enum.uniq(tag_ids)
+
     Repo.transaction(fn ->
       InvoiceTag
       |> where([it], it.invoice_id == ^invoice_id)
       |> Repo.delete_all()
 
-      Enum.each(tag_ids, &insert_invoice_tag!(invoice_id, &1))
+      Enum.each(unique_tag_ids, &insert_invoice_tag!(invoice_id, &1))
       list_invoice_tags(invoice_id)
     end)
   end
