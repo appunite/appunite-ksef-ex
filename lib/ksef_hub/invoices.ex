@@ -49,6 +49,7 @@ defmodule KsefHub.Invoices do
     Invoice
     |> where([i], i.company_id == ^company_id)
     |> apply_filters(filters)
+    |> subquery()
     |> Repo.aggregate(:count)
   end
 
@@ -94,6 +95,16 @@ defmodule KsefHub.Invoices do
     Invoice
     |> where([i], i.company_id == ^company_id and i.id == ^id)
     |> maybe_scope_type_by_role(opts[:role])
+    |> Repo.one!()
+  end
+
+  @doc "Fetches an invoice by UUID with category and tags preloaded."
+  @spec get_invoice_with_details!(Ecto.UUID.t(), Ecto.UUID.t(), keyword()) :: Invoice.t()
+  def get_invoice_with_details!(company_id, id, opts \\ []) do
+    Invoice
+    |> where([i], i.company_id == ^company_id and i.id == ^id)
+    |> maybe_scope_type_by_role(opts[:role])
+    |> preload([:category, :tags])
     |> Repo.one!()
   end
 
@@ -326,8 +337,8 @@ defmodule KsefHub.Invoices do
   @doc "Fetches a category by ID scoped to a company."
   @spec get_category(Ecto.UUID.t(), Ecto.UUID.t()) :: {:ok, Category.t()} | {:error, :not_found}
   def get_category(company_id, id) do
-    Category
-    |> where([c], c.company_id == ^company_id and c.id == ^id)
+    company_id
+    |> category_query(id)
     |> Repo.one()
     |> case do
       nil -> {:error, :not_found}
@@ -338,9 +349,7 @@ defmodule KsefHub.Invoices do
   @doc "Fetches a category by ID scoped to a company, raising if not found."
   @spec get_category!(Ecto.UUID.t(), Ecto.UUID.t()) :: Category.t()
   def get_category!(company_id, id) do
-    Category
-    |> where([c], c.company_id == ^company_id and c.id == ^id)
-    |> Repo.one!()
+    company_id |> category_query(id) |> Repo.one!()
   end
 
   @doc "Creates a category for a company."
@@ -385,8 +394,8 @@ defmodule KsefHub.Invoices do
   @doc "Fetches a tag by ID scoped to a company."
   @spec get_tag(Ecto.UUID.t(), Ecto.UUID.t()) :: {:ok, Tag.t()} | {:error, :not_found}
   def get_tag(company_id, id) do
-    Tag
-    |> where([t], t.company_id == ^company_id and t.id == ^id)
+    company_id
+    |> tag_query(id)
     |> Repo.one()
     |> case do
       nil -> {:error, :not_found}
@@ -397,9 +406,7 @@ defmodule KsefHub.Invoices do
   @doc "Fetches a tag by ID scoped to a company, raising if not found."
   @spec get_tag!(Ecto.UUID.t(), Ecto.UUID.t()) :: Tag.t()
   def get_tag!(company_id, id) do
-    Tag
-    |> where([t], t.company_id == ^company_id and t.id == ^id)
-    |> Repo.one!()
+    company_id |> tag_query(id) |> Repo.one!()
   end
 
   @doc "Creates a tag for a company."
@@ -423,6 +430,19 @@ defmodule KsefHub.Invoices do
   @spec delete_tag(Tag.t()) :: {:ok, Tag.t()} | {:error, Ecto.Changeset.t()}
   def delete_tag(%Tag{} = tag) do
     Repo.delete(tag)
+  end
+
+  @doc "Checks whether all given tag IDs belong to a company."
+  @spec tags_belong_to_company?([Ecto.UUID.t()], Ecto.UUID.t()) :: boolean()
+  def tags_belong_to_company?([], _company_id), do: true
+
+  def tags_belong_to_company?(tag_ids, company_id) do
+    count =
+      Tag
+      |> where([t], t.company_id == ^company_id and t.id in ^tag_ids)
+      |> Repo.aggregate(:count)
+
+    count == length(Enum.uniq(tag_ids))
   end
 
   # --- Invoice-Category Assignment ---
@@ -478,22 +498,11 @@ defmodule KsefHub.Invoices do
       |> where([it], it.invoice_id == ^invoice_id)
       |> Repo.delete_all()
 
-      now = NaiveDateTime.utc_now() |> NaiveDateTime.truncate(:second)
-
-      entries =
-        Enum.map(tag_ids, fn tag_id ->
-          %{
-            id: Ecto.UUID.generate(),
-            invoice_id: invoice_id,
-            tag_id: tag_id,
-            inserted_at: now,
-            updated_at: now
-          }
-        end)
-
-      if entries != [] do
-        Repo.insert_all(InvoiceTag, entries)
-      end
+      Enum.each(tag_ids, fn tag_id ->
+        %InvoiceTag{}
+        |> InvoiceTag.changeset(%{invoice_id: invoice_id, tag_id: tag_id})
+        |> Repo.insert!()
+      end)
 
       list_invoice_tags(invoice_id)
     end)
@@ -626,4 +635,14 @@ defmodule KsefHub.Invoices do
   end
 
   defp clamp(_, min_val, _max_val), do: min_val
+
+  @spec category_query(Ecto.UUID.t(), Ecto.UUID.t()) :: Ecto.Query.t()
+  defp category_query(company_id, id) do
+    where(Category, [c], c.company_id == ^company_id and c.id == ^id)
+  end
+
+  @spec tag_query(Ecto.UUID.t(), Ecto.UUID.t()) :: Ecto.Query.t()
+  defp tag_query(company_id, id) do
+    where(Tag, [t], t.company_id == ^company_id and t.id == ^id)
+  end
 end

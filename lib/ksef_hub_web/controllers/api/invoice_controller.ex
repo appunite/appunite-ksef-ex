@@ -13,11 +13,15 @@ defmodule KsefHubWeb.Api.InvoiceController do
   import KsefHubWeb.ChangesetHelpers
   import KsefHubWeb.ErrorHelpers, only: [sanitize_error: 1]
   import KsefHubWeb.FilenameHelpers, only: [send_attachment: 4]
+  import KsefHubWeb.JsonHelpers, only: [category_json: 1, tag_json: 1, atomize_keys: 2]
 
   alias KsefHub.Invoices
   alias KsefHub.Invoices.Invoice
   alias KsefHubWeb.Schemas
   alias OpenApiSpex.Schema
+
+  @create_allowed_keys ~w(type ksef_number seller_nip seller_name buyer_nip buyer_name
+    invoice_number issue_date net_amount vat_amount gross_amount currency)
 
   tags(["Invoices"])
   security([%{"bearer" => []}])
@@ -76,6 +80,16 @@ defmodule KsefHubWeb.Api.InvoiceController do
         in: :query,
         description: "Results per page (default 25, max 100).",
         schema: %Schema{type: :integer, minimum: 1, maximum: 100, default: 25}
+      ],
+      category_id: [
+        in: :query,
+        description: "Filter by category UUID.",
+        schema: %Schema{type: :string, format: :uuid}
+      ],
+      "tag_ids[]": [
+        in: :query,
+        description: "Filter by one or more tag UUIDs.",
+        schema: %Schema{type: :array, items: %Schema{type: :string, format: :uuid}}
       ]
     ],
     responses: %{
@@ -120,7 +134,7 @@ defmodule KsefHubWeb.Api.InvoiceController do
   def create(conn, params) do
     company_id = conn.assigns.current_company.id
 
-    case Invoices.create_manual_invoice(company_id, atomize_keys(params)) do
+    case Invoices.create_manual_invoice(company_id, atomize_keys(params, @create_allowed_keys)) do
       {:ok, invoice} ->
         conn
         |> put_status(:created)
@@ -156,8 +170,7 @@ defmodule KsefHubWeb.Api.InvoiceController do
     company_id = conn.assigns.current_company.id
 
     invoice =
-      Invoices.get_invoice!(company_id, id, role: conn.assigns[:current_role])
-      |> KsefHub.Repo.preload([:category, :tags])
+      Invoices.get_invoice_with_details!(company_id, id, role: conn.assigns[:current_role])
 
     json(conn, %{data: invoice_json(invoice)})
   end
@@ -547,16 +560,14 @@ defmodule KsefHubWeb.Api.InvoiceController do
     _invoice = Invoices.get_invoice!(company_id, id, role: conn.assigns[:current_role])
     tag_ids = params["tag_ids"] || []
 
-    case validate_tags_company(tag_ids, company_id) do
-      :ok ->
-        Enum.each(tag_ids, fn tag_id -> Invoices.add_invoice_tag(id, tag_id) end)
-        tags = Invoices.list_invoice_tags(id)
-        json(conn, %{data: Enum.map(tags, &tag_json/1)})
-
-      {:error, :tags_not_found} ->
-        conn
-        |> put_status(:unprocessable_entity)
-        |> json(%{error: "One or more tags not found in this company"})
+    if Invoices.tags_belong_to_company?(tag_ids, company_id) do
+      Enum.each(tag_ids, fn tag_id -> Invoices.add_invoice_tag(id, tag_id) end)
+      tags = Invoices.list_invoice_tags(id)
+      json(conn, %{data: Enum.map(tags, &tag_json/1)})
+    else
+      conn
+      |> put_status(:unprocessable_entity)
+      |> json(%{error: "One or more tags not found in this company"})
     end
   end
 
@@ -586,14 +597,13 @@ defmodule KsefHubWeb.Api.InvoiceController do
     _invoice = Invoices.get_invoice!(company_id, id, role: conn.assigns[:current_role])
     tag_ids = params["tag_ids"] || []
 
-    with :ok <- validate_tags_company(tag_ids, company_id),
-         {:ok, tags} <- Invoices.set_invoice_tags(id, tag_ids) do
+    if Invoices.tags_belong_to_company?(tag_ids, company_id) do
+      {:ok, tags} = Invoices.set_invoice_tags(id, tag_ids)
       json(conn, %{data: Enum.map(tags, &tag_json/1)})
     else
-      {:error, :tags_not_found} ->
-        conn
-        |> put_status(:unprocessable_entity)
-        |> json(%{error: "One or more tags not found in this company"})
+      conn
+      |> put_status(:unprocessable_entity)
+      |> json(%{error: "One or more tags not found in this company"})
     end
   end
 
@@ -702,22 +712,6 @@ defmodule KsefHubWeb.Api.InvoiceController do
     end
   end
 
-  @spec validate_tags_company([Ecto.UUID.t()], Ecto.UUID.t()) ::
-          :ok | {:error, :tags_not_found}
-  defp validate_tags_company([], _company_id), do: :ok
-
-  defp validate_tags_company(tag_ids, company_id) do
-    existing = Invoices.list_tags(company_id)
-    existing_ids = MapSet.new(existing, & &1.id)
-    requested = MapSet.new(tag_ids)
-
-    if MapSet.subset?(requested, existing_ids) do
-      :ok
-    else
-      {:error, :tags_not_found}
-    end
-  end
-
   @spec invoice_json(Invoice.t()) :: map()
   defp invoice_json(invoice) do
     base = %{
@@ -752,49 +746,12 @@ defmodule KsefHubWeb.Api.InvoiceController do
 
   @spec maybe_add_category(map(), Invoice.t()) :: map()
   defp maybe_add_category(json, %{category: %Ecto.Association.NotLoaded{}}), do: json
-
   defp maybe_add_category(json, %{category: nil}), do: Map.put(json, :category, nil)
 
-  defp maybe_add_category(json, %{category: category}) do
-    Map.put(json, :category, %{
-      id: category.id,
-      name: category.name,
-      emoji: category.emoji,
-      description: category.description,
-      sort_order: category.sort_order,
-      inserted_at: category.inserted_at,
-      updated_at: category.updated_at
-    })
-  end
+  defp maybe_add_category(json, %{category: category}),
+    do: Map.put(json, :category, category_json(category))
 
   @spec maybe_add_tags(map(), Invoice.t()) :: map()
   defp maybe_add_tags(json, %{tags: %Ecto.Association.NotLoaded{}}), do: json
-
-  defp maybe_add_tags(json, %{tags: tags}) do
-    Map.put(json, :tags, Enum.map(tags, &tag_json/1))
-  end
-
-  @spec tag_json(map()) :: map()
-  defp tag_json(tag) do
-    %{
-      id: tag.id,
-      name: tag.name,
-      description: tag.description,
-      usage_count: Map.get(tag, :usage_count, 0),
-      inserted_at: tag.inserted_at,
-      updated_at: tag.updated_at
-    }
-  end
-
-  @create_allowed_keys ~w(type ksef_number seller_nip seller_name buyer_nip buyer_name
-    invoice_number issue_date net_amount vat_amount gross_amount currency)
-
-  @spec atomize_keys(map()) :: map()
-  defp atomize_keys(params) do
-    for {key, value} <- params,
-        key in @create_allowed_keys,
-        into: %{} do
-      {String.to_existing_atom(key), value}
-    end
-  end
+  defp maybe_add_tags(json, %{tags: tags}), do: Map.put(json, :tags, Enum.map(tags, &tag_json/1))
 end

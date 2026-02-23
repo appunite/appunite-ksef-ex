@@ -9,11 +9,13 @@ defmodule KsefHubWeb.Api.CategoryController do
   use OpenApiSpex.ControllerSpecs
 
   import KsefHubWeb.ChangesetHelpers
+  import KsefHubWeb.JsonHelpers, only: [category_json: 1, atomize_keys: 2]
 
   alias KsefHub.Invoices
-  alias KsefHub.Invoices.Category
   alias KsefHubWeb.Schemas
   alias OpenApiSpex.Schema
+
+  @category_allowed_keys ~w(name emoji description sort_order)
 
   tags(["Categories"])
   security([%{"bearer" => []}])
@@ -83,9 +85,8 @@ defmodule KsefHubWeb.Api.CategoryController do
   @spec create(Plug.Conn.t(), map()) :: Plug.Conn.t()
   def create(conn, params) do
     company_id = conn.assigns.current_company.id
-    attrs = Map.take(params, ~w(name emoji description sort_order))
 
-    case Invoices.create_category(company_id, atomize_category_keys(attrs)) do
+    case Invoices.create_category(company_id, atomize_keys(params, @category_allowed_keys)) do
       {:ok, category} ->
         conn
         |> put_status(:created)
@@ -123,8 +124,8 @@ defmodule KsefHubWeb.Api.CategoryController do
     company_id = conn.assigns.current_company.id
 
     with {:ok, category} <- Invoices.get_category(company_id, id),
-         attrs = Map.take(params, ~w(name emoji description sort_order)),
-         {:ok, updated} <- Invoices.update_category(category, atomize_category_keys(attrs)) do
+         {:ok, updated} <-
+           Invoices.update_category(category, atomize_keys(params, @category_allowed_keys)) do
       json(conn, %{data: category_json(updated)})
     else
       {:error, :not_found} ->
@@ -172,31 +173,5 @@ defmodule KsefHubWeb.Api.CategoryController do
         |> put_status(:not_found)
         |> json(%{error: "Category not found"})
     end
-  end
-
-  # --- Private ---
-
-  @category_allowed_keys ~w(name emoji description sort_order)
-
-  @spec atomize_category_keys(map()) :: map()
-  defp atomize_category_keys(params) do
-    for {key, value} <- params,
-        key in @category_allowed_keys,
-        into: %{} do
-      {String.to_existing_atom(key), value}
-    end
-  end
-
-  @spec category_json(Category.t()) :: map()
-  defp category_json(category) do
-    %{
-      id: category.id,
-      name: category.name,
-      emoji: category.emoji,
-      description: category.description,
-      sort_order: category.sort_order,
-      inserted_at: category.inserted_at,
-      updated_at: category.updated_at
-    }
   end
 end

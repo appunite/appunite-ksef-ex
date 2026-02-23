@@ -9,11 +9,13 @@ defmodule KsefHubWeb.Api.TagController do
   use OpenApiSpex.ControllerSpecs
 
   import KsefHubWeb.ChangesetHelpers
+  import KsefHubWeb.JsonHelpers, only: [tag_json: 1, atomize_keys: 2]
 
   alias KsefHub.Invoices
-  alias KsefHub.Invoices.Tag
   alias KsefHubWeb.Schemas
   alias OpenApiSpex.Schema
+
+  @tag_allowed_keys ~w(name description)
 
   tags(["Tags"])
   security([%{"bearer" => []}])
@@ -84,9 +86,8 @@ defmodule KsefHubWeb.Api.TagController do
   @spec create(Plug.Conn.t(), map()) :: Plug.Conn.t()
   def create(conn, params) do
     company_id = conn.assigns.current_company.id
-    attrs = Map.take(params, ~w(name description))
 
-    case Invoices.create_tag(company_id, atomize_tag_keys(attrs)) do
+    case Invoices.create_tag(company_id, atomize_keys(params, @tag_allowed_keys)) do
       {:ok, tag} ->
         conn
         |> put_status(:created)
@@ -124,8 +125,7 @@ defmodule KsefHubWeb.Api.TagController do
     company_id = conn.assigns.current_company.id
 
     with {:ok, tag} <- Invoices.get_tag(company_id, id),
-         attrs = Map.take(params, ~w(name description)),
-         {:ok, updated} <- Invoices.update_tag(tag, atomize_tag_keys(attrs)) do
+         {:ok, updated} <- Invoices.update_tag(tag, atomize_keys(params, @tag_allowed_keys)) do
       json(conn, %{data: tag_json(updated)})
     else
       {:error, :not_found} ->
@@ -172,30 +172,5 @@ defmodule KsefHubWeb.Api.TagController do
         |> put_status(:not_found)
         |> json(%{error: "Tag not found"})
     end
-  end
-
-  # --- Private ---
-
-  @tag_allowed_keys ~w(name description)
-
-  @spec atomize_tag_keys(map()) :: map()
-  defp atomize_tag_keys(params) do
-    for {key, value} <- params,
-        key in @tag_allowed_keys,
-        into: %{} do
-      {String.to_existing_atom(key), value}
-    end
-  end
-
-  @spec tag_json(Tag.t()) :: map()
-  defp tag_json(tag) do
-    %{
-      id: tag.id,
-      name: tag.name,
-      description: tag.description,
-      usage_count: tag.usage_count,
-      inserted_at: tag.inserted_at,
-      updated_at: tag.updated_at
-    }
   end
 end
