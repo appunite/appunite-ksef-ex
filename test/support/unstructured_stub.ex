@@ -3,7 +3,7 @@ defmodule KsefHub.Unstructured.StubService do
   @behaviour KsefHub.Unstructured.Behaviour
 
   @impl true
-  def extract(_pdf_binary, _opts \\ []) do
+  def extract(_pdf_binary, _opts) do
     {:ok,
      %{
        "seller_nip" => "1234567890",

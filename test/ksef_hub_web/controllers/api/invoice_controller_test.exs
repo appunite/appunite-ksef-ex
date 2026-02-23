@@ -570,8 +570,10 @@ defmodule KsefHubWeb.Api.InvoiceControllerTest do
     test "returns 415 for non-PDF file", %{conn: conn} do
       %{token: token} = create_owner_with_token()
 
+      path = create_temp_non_pdf()
+
       upload = %Plug.Upload{
-        path: create_temp_pdf(),
+        path: path,
         content_type: "text/plain",
         filename: "invoice.txt"
       }
@@ -631,6 +633,26 @@ defmodule KsefHubWeb.Api.InvoiceControllerTest do
       data = Jason.decode!(conn.resp_body)["data"]
       refute Map.has_key?(data, "pdf_content")
     end
+
+    test "returns 201 for income-type upload", %{conn: conn} do
+      %{token: token} = create_owner_with_token()
+
+      upload = %Plug.Upload{
+        path: create_temp_pdf(),
+        content_type: "application/pdf",
+        filename: "income_invoice.pdf"
+      }
+
+      conn =
+        conn
+        |> api_conn_multipart(token)
+        |> post("/api/invoices/upload", %{"file" => upload, "type" => "income"})
+
+      assert conn.status == 201
+      data = Jason.decode!(conn.resp_body)["data"]
+      assert data["type"] == "income"
+      assert data["source"] == "pdf_upload"
+    end
   end
 
   describe "update (PATCH)" do
@@ -685,6 +707,18 @@ defmodule KsefHubWeb.Api.InvoiceControllerTest do
       assert conn.status == 200
       data = Jason.decode!(conn.resp_body)["data"]
       assert data["extraction_status"] == "complete"
+    end
+
+    test "returns 422 for invalid update data", %{conn: conn} do
+      %{company: company, token: token} = create_owner_with_token()
+
+      invoice =
+        insert(:pdf_upload_invoice, company: company, extraction_status: "partial")
+
+      body = Jason.encode!(%{seller_nip: "not-a-nip"})
+      conn = conn |> api_conn(token) |> patch("/api/invoices/#{invoice.id}", body)
+
+      assert conn.status == 422
     end
 
     test "returns 422 for non-pdf_upload invoice", %{conn: conn} do
@@ -1039,6 +1073,13 @@ defmodule KsefHubWeb.Api.InvoiceControllerTest do
   defp create_temp_pdf do
     path = Path.join(System.tmp_dir!(), "test_invoice_#{System.unique_integer([:positive])}.pdf")
     File.write!(path, "%PDF-1.4 fake test content")
+    path
+  end
+
+  @spec create_temp_non_pdf() :: String.t()
+  defp create_temp_non_pdf do
+    path = Path.join(System.tmp_dir!(), "test_file_#{System.unique_integer([:positive])}.txt")
+    File.write!(path, "not a pdf file at all")
     path
   end
 end

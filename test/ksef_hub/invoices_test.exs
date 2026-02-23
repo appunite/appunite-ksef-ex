@@ -646,6 +646,23 @@ defmodule KsefHub.InvoicesTest do
 
       assert {:ok, %Invoice{status: "approved"}} = Invoices.approve_invoice(invoice)
     end
+
+    test "rejects approval of failed-extraction invoice", %{company: company} do
+      invoice =
+        insert(:pdf_upload_invoice,
+          company: company,
+          type: "expense",
+          extraction_status: "failed"
+        )
+
+      assert {:error, :incomplete_extraction} = Invoices.approve_invoice(invoice)
+    end
+
+    test "allows approval of invoice with nil extraction_status", %{company: company} do
+      invoice = insert(:invoice, company: company, type: "expense", extraction_status: nil)
+
+      assert {:ok, %Invoice{status: "approved"}} = Invoices.approve_invoice(invoice)
+    end
   end
 
   describe "list_invoices source filter with pdf_upload" do
@@ -663,6 +680,44 @@ defmodule KsefHub.InvoicesTest do
 
       [invoice] = Invoices.list_invoices(company.id)
       assert is_nil(invoice.pdf_content)
+    end
+  end
+
+  describe "recalculate_extraction_status/2" do
+    test "returns complete when all critical fields present", %{company: company} do
+      invoice =
+        insert(:pdf_upload_invoice,
+          company: company,
+          extraction_status: "partial",
+          seller_nip: "1234567890",
+          seller_name: "Seller",
+          invoice_number: "FV/001",
+          issue_date: ~D[2026-02-20],
+          net_amount: Decimal.new("100"),
+          gross_amount: Decimal.new("123")
+        )
+
+      attrs = %{buyer_name: "Buyer"}
+      result = Invoices.recalculate_extraction_status(invoice, attrs)
+      assert result[:extraction_status] == "complete"
+    end
+
+    test "returns partial when critical field is missing", %{company: company} do
+      invoice =
+        insert(:pdf_upload_invoice,
+          company: company,
+          extraction_status: "complete",
+          seller_nip: "1234567890",
+          seller_name: "Seller",
+          invoice_number: "FV/001",
+          issue_date: ~D[2026-02-20],
+          net_amount: Decimal.new("100"),
+          gross_amount: Decimal.new("123")
+        )
+
+      attrs = %{seller_nip: nil}
+      result = Invoices.recalculate_extraction_status(invoice, attrs)
+      assert result[:extraction_status] == "partial"
     end
   end
 

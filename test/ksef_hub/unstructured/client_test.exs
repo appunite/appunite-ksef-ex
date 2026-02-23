@@ -5,7 +5,7 @@ defmodule KsefHub.Unstructured.ClientTest do
 
   describe "extract/2" do
     test "returns error when URL not configured" do
-      assert {:error, :unstructured_service_not_configured} = Client.extract("pdf data")
+      assert {:error, :unstructured_service_not_configured} = Client.extract("pdf data", [])
     end
   end
 

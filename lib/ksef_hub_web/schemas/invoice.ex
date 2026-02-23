@@ -22,13 +22,23 @@ defmodule KsefHubWeb.Schemas.Invoice do
       seller_nip: %Schema{
         type: :string,
         pattern: "^\\d{10}$",
-        description: "Seller 10-digit NIP."
+        nullable: true,
+        description: "Seller 10-digit NIP. May be null for partial pdf_upload extractions."
       },
-      seller_name: %Schema{type: :string},
-      buyer_nip: %Schema{type: :string, pattern: "^\\d{10}$", description: "Buyer 10-digit NIP."},
-      buyer_name: %Schema{type: :string},
-      invoice_number: %Schema{type: :string, description: "Sequential invoice number."},
-      issue_date: %Schema{type: :string, format: :date},
+      seller_name: %Schema{type: :string, nullable: true},
+      buyer_nip: %Schema{
+        type: :string,
+        pattern: "^\\d{10}$",
+        nullable: true,
+        description: "Buyer 10-digit NIP."
+      },
+      buyer_name: %Schema{type: :string, nullable: true},
+      invoice_number: %Schema{
+        type: :string,
+        nullable: true,
+        description: "Sequential invoice number."
+      },
+      issue_date: %Schema{type: :string, format: :date, nullable: true},
       net_amount: %Schema{type: :string, description: "Decimal as string."},
       vat_amount: %Schema{type: :string, description: "Decimal as string."},
       gross_amount: %Schema{type: :string, description: "Decimal as string."},
@@ -134,7 +144,7 @@ defmodule KsefHubWeb.Schemas.Invoice do
       inserted_at: %Schema{type: :string, format: :"date-time"},
       updated_at: %Schema{type: :string, format: :"date-time"}
     },
-    required: [:id, :type, :status, :seller_nip, :buyer_nip, :issue_date],
+    required: [:id, :type, :status],
     example: %{
       id: "a1b2c3d4-e5f6-7890-abcd-ef1234567890",
       ksef_number: "1234567890-20240101-ABC123DEF456-78",

@@ -94,6 +94,7 @@ defmodule KsefHub.Invoices.Invoice do
     |> validate_inclusion(:type, @valid_types)
     |> validate_inclusion(:status, @valid_statuses)
     |> validate_inclusion(:source, @valid_sources)
+    |> validate_length(:original_filename, max: 255)
     |> validate_source_requirements()
     |> validate_duplicate_status()
     |> foreign_key_constraint(:company_id)

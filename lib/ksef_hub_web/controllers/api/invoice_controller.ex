@@ -44,7 +44,7 @@ defmodule KsefHubWeb.Api.InvoiceController do
       source: [
         in: :query,
         description: "Filter by invoice source.",
-        schema: %Schema{type: :string, enum: ["ksef", "manual"]}
+        schema: %Schema{type: :string, enum: ["ksef", "manual", "pdf_upload"]}
       ],
       status: [
         in: :query,
@@ -235,7 +235,7 @@ defmodule KsefHubWeb.Api.InvoiceController do
         schema: %Schema{type: :string, format: :uuid}
       ]
     ],
-    request_body: {"Invoice fields to update", "application/json", Schemas.CreateInvoiceRequest},
+    request_body: {"Invoice fields to update", "application/json", Schemas.UpdateInvoiceRequest},
     responses: %{
       200 => {"Updated invoice", "application/json", Schemas.InvoiceResponse},
       401 => {"Unauthorized", "application/json", Schemas.ErrorResponse},
@@ -255,7 +255,7 @@ defmodule KsefHubWeb.Api.InvoiceController do
   @spec do_update(Plug.Conn.t(), Invoice.t(), map()) :: Plug.Conn.t()
   defp do_update(conn, %Invoice{source: "pdf_upload"} = invoice, params) do
     update_attrs = atomize_keys(params, @update_allowed_keys)
-    update_attrs = maybe_recalculate_extraction_status(invoice, update_attrs)
+    update_attrs = Invoices.recalculate_extraction_status(invoice, update_attrs)
 
     case Invoices.update_invoice(invoice, update_attrs) do
       {:ok, updated} ->
@@ -598,28 +598,28 @@ defmodule KsefHubWeb.Api.InvoiceController do
   def pdf(conn, %{"id" => id}) do
     company_id = conn.assigns.current_company.id
     invoice = Invoices.get_invoice!(company_id, id, role: conn.assigns[:current_role])
-    serve_pdf(conn, id, invoice)
+    serve_pdf(conn, invoice)
   end
 
-  @spec serve_pdf(Plug.Conn.t(), String.t(), Invoice.t()) :: Plug.Conn.t()
-  defp serve_pdf(conn, _id, %Invoice{source: "pdf_upload", pdf_content: content} = invoice)
+  @spec serve_pdf(Plug.Conn.t(), Invoice.t()) :: Plug.Conn.t()
+  defp serve_pdf(conn, %Invoice{source: "pdf_upload", pdf_content: content} = invoice)
        when not is_nil(content) do
     filename = invoice.original_filename || "#{invoice.invoice_number || "invoice"}.pdf"
     send_attachment(conn, "application/pdf", filename, content)
   end
 
-  defp serve_pdf(conn, id, %Invoice{xml_content: xml} = invoice) when not is_nil(xml) do
-    do_pdf(conn, id, invoice)
+  defp serve_pdf(conn, %Invoice{xml_content: xml} = invoice) when not is_nil(xml) do
+    do_pdf(conn, invoice)
   end
 
-  defp serve_pdf(conn, _id, _invoice) do
+  defp serve_pdf(conn, _invoice) do
     conn
     |> put_status(:unprocessable_entity)
     |> json(%{error: "Invoice has no downloadable content"})
   end
 
-  @spec do_pdf(Plug.Conn.t(), String.t(), Invoice.t()) :: Plug.Conn.t()
-  defp do_pdf(conn, id, invoice) do
+  @spec do_pdf(Plug.Conn.t(), Invoice.t()) :: Plug.Conn.t()
+  defp do_pdf(conn, invoice) do
     pdf_mod = Application.get_env(:ksef_hub, :pdf_generator, KsefHub.Pdf)
 
     metadata = %{ksef_number: invoice.ksef_number}
@@ -629,7 +629,7 @@ defmodule KsefHubWeb.Api.InvoiceController do
         send_attachment(conn, "application/pdf", "#{invoice.invoice_number}.pdf", pdf_binary)
 
       {:error, reason} ->
-        Logger.error("PDF generation failed for invoice #{id}: #{sanitize_error(reason)}")
+        Logger.error("PDF generation failed for invoice #{invoice.id}: #{sanitize_error(reason)}")
 
         conn
         |> put_status(:internal_server_error)
@@ -934,7 +934,7 @@ defmodule KsefHubWeb.Api.InvoiceController do
   defp valid_uuid?(value) when is_binary(value), do: match?({:ok, _}, Ecto.UUID.cast(value))
   defp valid_uuid?(_), do: false
 
-  @spec validate_file_present(map()) :: {:ok, Plug.Upload.t()} | Plug.Conn.t()
+  @spec validate_file_present(map()) :: {:ok, Plug.Upload.t()} | {:error, :missing_file}
   defp validate_file_present(%{"file" => %Plug.Upload{} = upload}), do: {:ok, upload}
 
   defp validate_file_present(_params) do
@@ -945,9 +945,20 @@ defmodule KsefHubWeb.Api.InvoiceController do
   defp validate_type_present(%{"type" => type}) when type in ~w(income expense), do: {:ok, type}
   defp validate_type_present(_params), do: {:error, :missing_type}
 
+  @pdf_magic_bytes <<0x25, 0x50, 0x44, 0x46>>
+
   @spec validate_content_type(Plug.Upload.t()) :: :ok | {:error, :invalid_content_type}
-  defp validate_content_type(%Plug.Upload{content_type: "application/pdf"}), do: :ok
-  defp validate_content_type(_upload), do: {:error, :invalid_content_type}
+  defp validate_content_type(%Plug.Upload{path: path}) do
+    case File.open(path, [:read, :binary]) do
+      {:ok, io} ->
+        header = IO.binread(io, 4)
+        File.close(io)
+        if header == @pdf_magic_bytes, do: :ok, else: {:error, :invalid_content_type}
+
+      _ ->
+        {:error, :invalid_content_type}
+    end
+  end
 
   @spec validate_file_size(Plug.Upload.t()) :: :ok | {:error, :file_too_large}
   defp validate_file_size(%Plug.Upload{path: path}) do
@@ -956,22 +967,6 @@ defmodule KsefHubWeb.Api.InvoiceController do
       {:ok, _} -> {:error, :file_too_large}
       _ -> {:error, :file_too_large}
     end
-  end
-
-  @critical_fields ~w(seller_nip seller_name invoice_number issue_date net_amount gross_amount)a
-
-  @spec maybe_recalculate_extraction_status(Invoice.t(), map()) :: map()
-  defp maybe_recalculate_extraction_status(invoice, attrs) do
-    merged = Map.merge(Map.from_struct(invoice), attrs)
-
-    all_present? =
-      Enum.all?(@critical_fields, fn field ->
-        value = Map.get(merged, field)
-        value != nil && value != ""
-      end)
-
-    new_status = if all_present?, do: "complete", else: "partial"
-    Map.put(attrs, :extraction_status, new_status)
   end
 
   @spec invoice_json(Invoice.t()) :: map()

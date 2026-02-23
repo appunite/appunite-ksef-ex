@@ -14,6 +14,7 @@ defmodule KsefHub.Invoices do
   @list_fields Invoice.__schema__(:fields) -- [:xml_content, :pdf_content]
   @max_per_page 100
   @default_per_page 25
+  @critical_extraction_fields ~w(seller_nip seller_name invoice_number issue_date net_amount gross_amount)a
 
   @doc """
   Returns a list of invoices for a company matching the given filters.
@@ -210,6 +211,27 @@ defmodule KsefHub.Invoices do
   end
 
   @doc """
+  Recalculates extraction status based on the presence of critical fields.
+
+  Merges the given `attrs` over the invoice's current values, then checks
+  whether all critical fields are present. Returns updated attrs with the
+  new `:extraction_status` value.
+  """
+  @spec recalculate_extraction_status(Invoice.t(), map()) :: map()
+  def recalculate_extraction_status(%Invoice{} = invoice, attrs) do
+    merged = Map.merge(Map.from_struct(invoice), attrs)
+
+    all_present? =
+      Enum.all?(@critical_extraction_fields, fn field ->
+        value = Map.get(merged, field)
+        value != nil && value != ""
+      end)
+
+    new_status = if all_present?, do: "complete", else: "partial"
+    Map.put(attrs, :extraction_status, new_status)
+  end
+
+  @doc """
   Approves an expense invoice.
   """
   @spec approve_invoice(Invoice.t()) ::
@@ -217,7 +239,8 @@ defmodule KsefHub.Invoices do
           | {:error, Ecto.Changeset.t()}
           | {:error, {:invalid_type, String.t()}}
           | {:error, :incomplete_extraction}
-  def approve_invoice(%Invoice{type: "expense", extraction_status: "partial"}) do
+  def approve_invoice(%Invoice{type: "expense", extraction_status: status})
+      when status in ["partial", "failed"] do
     {:error, :incomplete_extraction}
   end
 
@@ -307,8 +330,8 @@ defmodule KsefHub.Invoices do
   @spec create_pdf_upload_invoice(Ecto.UUID.t(), binary(), map()) ::
           {:ok, Invoice.t()} | {:error, term()}
   def create_pdf_upload_invoice(company_id, pdf_binary, opts) do
-    type = opts[:type] || opts["type"]
-    filename = opts[:filename] || opts["filename"]
+    type = opts[:type]
+    filename = opts[:filename]
 
     case unstructured_client().extract(pdf_binary, filename: filename || "invoice.pdf") do
       {:ok, extracted} ->
@@ -347,7 +370,7 @@ defmodule KsefHub.Invoices do
   @spec do_create_pdf_upload_failed(Ecto.UUID.t(), binary(), String.t(), String.t() | nil) ::
           {:ok, Invoice.t()} | {:error, term()}
   defp do_create_pdf_upload_failed(company_id, pdf_binary, type, filename) do
-    attrs = %{
+    %{
       source: "pdf_upload",
       type: type,
       company_id: company_id,
@@ -355,31 +378,22 @@ defmodule KsefHub.Invoices do
       original_filename: filename,
       extraction_status: "failed"
     }
-
-    case create_invoice(attrs) do
-      {:ok, invoice} ->
-        {:ok, invoice}
-
-      {:error, changeset} ->
-        {:error, changeset}
-    end
+    |> create_invoice()
   end
 
-  @spec maybe_enqueue_prediction(String.t(), Invoice.t()) :: :ok
+  @spec maybe_enqueue_prediction(String.t(), Invoice.t()) :: :ok | :skip | :enqueue_failed
   defp maybe_enqueue_prediction("complete", invoice), do: enqueue_prediction(invoice)
   defp maybe_enqueue_prediction(_status, _invoice), do: :ok
 
-  @critical_fields ~w(seller_nip seller_name invoice_number issue_date net_amount gross_amount)
-
   @spec determine_extraction_status(map()) :: String.t()
   defp determine_extraction_status(extracted) do
-    present =
-      Enum.count(@critical_fields, fn field ->
-        value = extracted[field] || extracted[String.to_existing_atom(field)]
+    all_present? =
+      Enum.all?(@critical_extraction_fields, fn field ->
+        value = extracted[Atom.to_string(field)]
         value != nil && value != ""
       end)
 
-    if present == length(@critical_fields), do: "complete", else: "partial"
+    if all_present?, do: "complete", else: "partial"
   end
 
   @spec build_pdf_upload_attrs(
@@ -422,10 +436,8 @@ defmodule KsefHub.Invoices do
 
   @spec get_extracted_string(map(), String.t()) :: String.t() | nil
   defp get_extracted_string(data, key) do
-    value = data[key] || data[String.to_existing_atom(key)]
+    value = data[key]
     if is_binary(value) && value != "", do: value, else: nil
-  rescue
-    ArgumentError -> nil
   end
 
   @spec get_extracted_date(map(), String.t()) :: Date.t() | nil

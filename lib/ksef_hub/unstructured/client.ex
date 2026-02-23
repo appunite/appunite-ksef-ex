@@ -15,7 +15,7 @@ defmodule KsefHub.Unstructured.Client do
   @doc "Extracts structured invoice data from a PDF binary."
   @spec extract(binary(), keyword()) :: {:ok, map()} | {:error, term()}
   @impl true
-  def extract(pdf_binary, opts \\ []) when is_binary(pdf_binary) do
+  def extract(pdf_binary, opts) when is_binary(pdf_binary) do
     with {:ok, base_url} <- fetch_url(),
          {:ok, token} <- fetch_token() do
       filename = Keyword.get(opts, :filename, "invoice.pdf")
