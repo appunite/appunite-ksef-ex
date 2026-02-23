@@ -47,6 +47,36 @@ defmodule KsefHub.InvoicesTest do
       assert {:error, changeset} = Invoices.create_invoice(attrs)
       assert errors_on(changeset).company_id
     end
+
+    test "ksef source requires xml_content", %{company: company} do
+      attrs = params_for(:invoice, source: "ksef", xml_content: nil, company_id: company.id)
+      assert {:error, changeset} = Invoices.create_invoice(attrs)
+      assert errors_on(changeset).xml_content
+    end
+
+    test "manual source requires buyer fields and amounts", %{company: company} do
+      attrs =
+        params_for(:manual_invoice,
+          buyer_nip: nil,
+          buyer_name: nil,
+          net_amount: nil,
+          gross_amount: nil,
+          company_id: company.id
+        )
+
+      assert {:error, changeset} = Invoices.create_invoice(attrs)
+      errors = errors_on(changeset)
+      assert errors.buyer_nip
+      assert errors.buyer_name
+      assert errors.net_amount
+      assert errors.gross_amount
+    end
+
+    test "rejects invalid source", %{company: company} do
+      attrs = params_for(:invoice, source: "invalid", company_id: company.id)
+      assert {:error, changeset} = Invoices.create_invoice(attrs)
+      assert "is invalid" in errors_on(changeset).source
+    end
   end
 
   describe "upsert_invoice/1" do
@@ -346,6 +376,267 @@ defmodule KsefHub.InvoicesTest do
       insert(:invoice, type: "expense", company: company)
 
       assert Invoices.count_invoices(company.id, %{}, role: "reviewer") == 2
+    end
+  end
+
+  describe "create_manual_invoice/2" do
+    test "creates a manual invoice with valid attributes", %{company: company} do
+      attrs = %{
+        type: "expense",
+        seller_nip: "1234567890",
+        seller_name: "Seller Sp. z o.o.",
+        buyer_nip: "0987654321",
+        buyer_name: "Buyer S.A.",
+        invoice_number: "FV/2026/001",
+        issue_date: ~D[2026-02-20],
+        net_amount: Decimal.new("1000.00"),
+        gross_amount: Decimal.new("1230.00")
+      }
+
+      assert {:ok, %Invoice{} = invoice} = Invoices.create_manual_invoice(company.id, attrs)
+      assert invoice.source == "manual"
+      assert invoice.company_id == company.id
+      assert is_nil(invoice.xml_content)
+      assert is_nil(invoice.duplicate_of_id)
+    end
+
+    test "creates manual invoice with ksef_number (no existing match)", %{company: company} do
+      attrs = %{
+        type: "expense",
+        ksef_number: "manual-ksef-123",
+        seller_nip: "1234567890",
+        seller_name: "Seller Sp. z o.o.",
+        buyer_nip: "0987654321",
+        buyer_name: "Buyer S.A.",
+        invoice_number: "FV/2026/002",
+        issue_date: ~D[2026-02-20],
+        net_amount: Decimal.new("1000.00"),
+        gross_amount: Decimal.new("1230.00")
+      }
+
+      assert {:ok, %Invoice{} = invoice} = Invoices.create_manual_invoice(company.id, attrs)
+      assert invoice.ksef_number == "manual-ksef-123"
+      assert is_nil(invoice.duplicate_of_id)
+    end
+
+    test "auto-detects duplicate when ksef_number matches existing invoice", %{company: company} do
+      existing = insert(:invoice, ksef_number: "existing-123", company: company)
+
+      attrs = %{
+        type: "expense",
+        ksef_number: "existing-123",
+        seller_nip: "1234567890",
+        seller_name: "Seller Sp. z o.o.",
+        buyer_nip: "0987654321",
+        buyer_name: "Buyer S.A.",
+        invoice_number: "FV/2026/003",
+        issue_date: ~D[2026-02-20],
+        net_amount: Decimal.new("1000.00"),
+        gross_amount: Decimal.new("1230.00")
+      }
+
+      assert {:ok, %Invoice{} = invoice} = Invoices.create_manual_invoice(company.id, attrs)
+      assert invoice.duplicate_of_id == existing.id
+      assert invoice.duplicate_status == "suspected"
+    end
+
+    test "does not detect duplicate across different companies", %{company: company} do
+      other = insert(:company)
+      insert(:invoice, ksef_number: "cross-company-123", company: other)
+
+      attrs = %{
+        type: "expense",
+        ksef_number: "cross-company-123",
+        seller_nip: "1234567890",
+        seller_name: "Seller Sp. z o.o.",
+        buyer_nip: "0987654321",
+        buyer_name: "Buyer S.A.",
+        invoice_number: "FV/2026/004",
+        issue_date: ~D[2026-02-20],
+        net_amount: Decimal.new("1000.00"),
+        gross_amount: Decimal.new("1230.00")
+      }
+
+      assert {:ok, %Invoice{} = invoice} = Invoices.create_manual_invoice(company.id, attrs)
+      assert is_nil(invoice.duplicate_of_id)
+    end
+
+    test "strips ksef_acquisition_date and permanent_storage_date", %{company: company} do
+      attrs = %{
+        type: "expense",
+        seller_nip: "1234567890",
+        seller_name: "Seller Sp. z o.o.",
+        buyer_nip: "0987654321",
+        buyer_name: "Buyer S.A.",
+        invoice_number: "FV/2026/005",
+        issue_date: ~D[2026-02-20],
+        net_amount: Decimal.new("1000.00"),
+        gross_amount: Decimal.new("1230.00"),
+        ksef_acquisition_date: DateTime.utc_now(),
+        permanent_storage_date: DateTime.utc_now()
+      }
+
+      assert {:ok, %Invoice{} = invoice} = Invoices.create_manual_invoice(company.id, attrs)
+      assert is_nil(invoice.ksef_acquisition_date)
+      assert is_nil(invoice.permanent_storage_date)
+    end
+
+    test "creates manual invoice with income type", %{company: company} do
+      attrs = %{
+        type: "income",
+        seller_nip: "1234567890",
+        seller_name: "Seller Sp. z o.o.",
+        buyer_nip: "0987654321",
+        buyer_name: "Buyer S.A.",
+        invoice_number: "FV/2026/006",
+        issue_date: ~D[2026-02-20],
+        net_amount: Decimal.new("1000.00"),
+        gross_amount: Decimal.new("1230.00")
+      }
+
+      assert {:ok, %Invoice{} = invoice} = Invoices.create_manual_invoice(company.id, attrs)
+      assert invoice.type == "income"
+      assert invoice.source == "manual"
+    end
+  end
+
+  describe "upsert_invoice/1 with manual invoices" do
+    test "upsert overrides manual invoice with KSeF data", %{company: company} do
+      # Create a manual invoice with a ksef_number (backdate to distinguish insert vs update)
+      insert(:manual_invoice,
+        ksef_number: "sync-override-1",
+        company: company,
+        seller_name: "Manual Seller",
+        inserted_at: NaiveDateTime.add(NaiveDateTime.utc_now(), -60)
+      )
+
+      # Simulate KSeF sync upserting the same ksef_number
+      attrs =
+        params_for(:invoice,
+          ksef_number: "sync-override-1",
+          company_id: company.id,
+          seller_name: "KSeF Seller"
+        )
+
+      assert {:ok, updated, :updated} = Invoices.upsert_invoice(attrs)
+      assert updated.seller_name == "KSeF Seller"
+      assert updated.source == "ksef"
+    end
+  end
+
+  describe "confirm_duplicate/1" do
+    test "confirms a suspected duplicate", %{company: company} do
+      original = insert(:invoice, ksef_number: "orig-1", company: company)
+
+      duplicate =
+        insert(:manual_invoice,
+          ksef_number: "orig-1",
+          company: company,
+          duplicate_of_id: original.id,
+          duplicate_status: "suspected"
+        )
+
+      assert {:ok, %Invoice{duplicate_status: "confirmed"}} =
+               Invoices.confirm_duplicate(duplicate)
+    end
+
+    test "returns error for non-duplicate invoice", %{company: company} do
+      invoice = insert(:invoice, company: company)
+      assert {:error, :not_a_duplicate} = Invoices.confirm_duplicate(invoice)
+    end
+
+    test "returns invalid_status when already confirmed", %{company: company} do
+      original = insert(:invoice, ksef_number: "orig-c1", company: company)
+
+      duplicate =
+        insert(:manual_invoice,
+          ksef_number: "orig-c1",
+          company: company,
+          duplicate_of_id: original.id,
+          duplicate_status: "confirmed"
+        )
+
+      assert {:error, :invalid_status} = Invoices.confirm_duplicate(duplicate)
+    end
+
+    test "returns invalid_status when already dismissed", %{company: company} do
+      original = insert(:invoice, ksef_number: "orig-c2", company: company)
+
+      duplicate =
+        insert(:manual_invoice,
+          ksef_number: "orig-c2",
+          company: company,
+          duplicate_of_id: original.id,
+          duplicate_status: "dismissed"
+        )
+
+      assert {:error, :invalid_status} = Invoices.confirm_duplicate(duplicate)
+    end
+  end
+
+  describe "dismiss_duplicate/1" do
+    test "dismisses a suspected duplicate", %{company: company} do
+      original = insert(:invoice, ksef_number: "orig-2", company: company)
+
+      duplicate =
+        insert(:manual_invoice,
+          ksef_number: "orig-2",
+          company: company,
+          duplicate_of_id: original.id,
+          duplicate_status: "suspected"
+        )
+
+      assert {:ok, %Invoice{duplicate_status: "dismissed"}} =
+               Invoices.dismiss_duplicate(duplicate)
+    end
+
+    test "dismisses a confirmed duplicate", %{company: company} do
+      original = insert(:invoice, ksef_number: "orig-d1", company: company)
+
+      duplicate =
+        insert(:manual_invoice,
+          ksef_number: "orig-d1",
+          company: company,
+          duplicate_of_id: original.id,
+          duplicate_status: "confirmed"
+        )
+
+      assert {:ok, %Invoice{duplicate_status: "dismissed"}} =
+               Invoices.dismiss_duplicate(duplicate)
+    end
+
+    test "returns error for non-duplicate invoice", %{company: company} do
+      invoice = insert(:invoice, company: company)
+      assert {:error, :not_a_duplicate} = Invoices.dismiss_duplicate(invoice)
+    end
+
+    test "returns invalid_status when already dismissed", %{company: company} do
+      original = insert(:invoice, ksef_number: "orig-d2", company: company)
+
+      duplicate =
+        insert(:manual_invoice,
+          ksef_number: "orig-d2",
+          company: company,
+          duplicate_of_id: original.id,
+          duplicate_status: "dismissed"
+        )
+
+      assert {:error, :invalid_status} = Invoices.dismiss_duplicate(duplicate)
+    end
+  end
+
+  describe "source filter" do
+    test "filters invoices by source", %{company: company} do
+      insert(:invoice, company: company, source: "ksef")
+      insert(:manual_invoice, company: company, source: "manual")
+
+      ksef_results = Invoices.list_invoices(company.id, %{source: "ksef"})
+      manual_results = Invoices.list_invoices(company.id, %{source: "manual"})
+
+      assert length(ksef_results) == 1
+      assert hd(ksef_results).source == "ksef"
+      assert length(manual_results) == 1
+      assert hd(manual_results).source == "manual"
     end
   end
 

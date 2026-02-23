@@ -1,6 +1,6 @@
 defmodule KsefHub.Invoices do
   @moduledoc """
-  The Invoices context. Manages income and expense invoices synced from KSeF.
+  The Invoices context. Manages income and expense invoices from KSeF sync or manual entry.
   """
 
   import Ecto.Query
@@ -25,6 +25,7 @@ defmodule KsefHub.Invoices do
     * `:date_to` - latest issue_date (inclusive)
     * `:seller_nip` - filter by seller NIP
     * `:buyer_nip` - filter by buyer NIP
+    * `:source` - "ksef" or "manual"
     * `:query` - search across invoice_number, seller_name, buyer_name
     * `:page` - page number (1-based, default 1)
     * `:per_page` - results per page (default 25, max 100)
@@ -105,10 +106,13 @@ defmodule KsefHub.Invoices do
     |> Repo.one()
   end
 
-  @doc "Fetches an invoice by its KSeF reference number within a company."
+  @doc "Fetches an invoice by its KSeF reference number within a company (excludes duplicates)."
   @spec get_invoice_by_ksef_number(Ecto.UUID.t(), String.t()) :: Invoice.t() | nil
   def get_invoice_by_ksef_number(company_id, ksef_number) do
-    Repo.get_by(Invoice, company_id: company_id, ksef_number: ksef_number)
+    Invoice
+    |> where([i], i.company_id == ^company_id and i.ksef_number == ^ksef_number)
+    |> where([i], is_nil(i.duplicate_of_id))
+    |> Repo.one()
   end
 
   @doc """
@@ -146,6 +150,7 @@ defmodule KsefHub.Invoices do
   end
 
   @upsert_replace_fields [
+    :source,
     :xml_content,
     :seller_nip,
     :seller_name,
@@ -169,7 +174,12 @@ defmodule KsefHub.Invoices do
     |> Invoice.changeset(attrs)
     |> Repo.insert(
       on_conflict: {:replace, @upsert_replace_fields},
-      conflict_target: [:company_id, :ksef_number],
+      # Ecto's conflict_target doesn't support partial index WHERE clauses natively,
+      # so we use {:unsafe_fragment, ...}. The fragment is a static string (no interpolation),
+      # so there is no SQL injection risk. It must match the partial unique index definition.
+      conflict_target:
+        {:unsafe_fragment,
+         ~s|("company_id","ksef_number") WHERE ksef_number IS NOT NULL AND duplicate_of_id IS NULL|},
       returning: true
     )
   end
@@ -211,6 +221,81 @@ defmodule KsefHub.Invoices do
   def reject_invoice(%Invoice{type: type}), do: {:error, {:invalid_type, type}}
 
   @doc """
+  Creates a manual invoice, optionally detecting duplicates by ksef_number.
+
+  Forces `source: "manual"` and strips KSeF-only fields. If a `ksef_number` is
+  provided and an existing non-duplicate invoice with the same (company_id, ksef_number)
+  exists, the new invoice is marked as a suspected duplicate.
+  """
+  @spec create_manual_invoice(Ecto.UUID.t(), map()) ::
+          {:ok, Invoice.t()} | {:error, Ecto.Changeset.t()}
+  def create_manual_invoice(company_id, attrs) do
+    attrs =
+      attrs
+      |> Map.drop([:ksef_acquisition_date, :permanent_storage_date])
+      |> Map.drop(["ksef_acquisition_date", "permanent_storage_date"])
+      |> Map.merge(%{source: "manual", company_id: company_id})
+
+    attrs = detect_duplicate(company_id, attrs)
+
+    case create_invoice(attrs) do
+      {:ok, _invoice} = success ->
+        success
+
+      {:error, %Ecto.Changeset{} = changeset} ->
+        if unique_ksef_number_conflict?(changeset) do
+          attrs
+          |> Map.merge(%{
+            duplicate_of_id: find_original_id(company_id, attrs),
+            duplicate_status: "suspected"
+          })
+          |> create_invoice()
+        else
+          {:error, changeset}
+        end
+    end
+  end
+
+  @doc """
+  Confirms a suspected duplicate invoice.
+
+  Only valid when `duplicate_of_id` is set and `duplicate_status` is `"suspected"`.
+  Returns `{:error, :not_a_duplicate}` when no duplicate_of_id is set,
+  or `{:error, :invalid_status}` when duplicate_status is not `"suspected"`.
+  """
+  @spec confirm_duplicate(Invoice.t()) ::
+          {:ok, Invoice.t()} | {:error, Ecto.Changeset.t() | :not_a_duplicate | :invalid_status}
+  def confirm_duplicate(%Invoice{duplicate_of_id: nil}), do: {:error, :not_a_duplicate}
+
+  def confirm_duplicate(%Invoice{duplicate_status: "suspected"} = invoice) do
+    invoice
+    |> Invoice.duplicate_changeset(%{duplicate_status: "confirmed"})
+    |> Repo.update()
+  end
+
+  def confirm_duplicate(%Invoice{}), do: {:error, :invalid_status}
+
+  @doc """
+  Dismisses a duplicate invoice.
+
+  Valid when `duplicate_of_id` is set and `duplicate_status` is `"suspected"` or `"confirmed"`.
+  Returns `{:error, :not_a_duplicate}` when no duplicate_of_id is set,
+  or `{:error, :invalid_status}` when duplicate_status is not dismissable.
+  """
+  @spec dismiss_duplicate(Invoice.t()) ::
+          {:ok, Invoice.t()} | {:error, Ecto.Changeset.t() | :not_a_duplicate | :invalid_status}
+  def dismiss_duplicate(%Invoice{duplicate_of_id: nil}), do: {:error, :not_a_duplicate}
+
+  def dismiss_duplicate(%Invoice{duplicate_status: status} = invoice)
+      when status in ~w(suspected confirmed) do
+    invoice
+    |> Invoice.duplicate_changeset(%{duplicate_status: "dismissed"})
+    |> Repo.update()
+  end
+
+  def dismiss_duplicate(%Invoice{}), do: {:error, :invalid_status}
+
+  @doc """
   Returns invoice counts grouped by type and status for a company.
   """
   @spec count_by_type_and_status(Ecto.UUID.t()) :: %{
@@ -228,6 +313,43 @@ defmodule KsefHub.Invoices do
   end
 
   # --- Private ---
+
+  @spec detect_duplicate(Ecto.UUID.t(), map()) :: map()
+  defp detect_duplicate(company_id, attrs) do
+    case find_original_id(company_id, attrs) do
+      nil ->
+        attrs
+
+      original_id ->
+        Map.merge(attrs, %{duplicate_of_id: original_id, duplicate_status: "suspected"})
+    end
+  end
+
+  @spec find_original_id(Ecto.UUID.t(), map()) :: Ecto.UUID.t() | nil
+  defp find_original_id(company_id, attrs) do
+    ksef_number = attrs[:ksef_number] || attrs["ksef_number"]
+
+    if ksef_number && ksef_number != "" do
+      Invoice
+      |> where([i], i.company_id == ^company_id and i.ksef_number == ^ksef_number)
+      |> where([i], is_nil(i.duplicate_of_id))
+      |> select([i], i.id)
+      |> Repo.one()
+    else
+      nil
+    end
+  end
+
+  @spec unique_ksef_number_conflict?(Ecto.Changeset.t()) :: boolean()
+  defp unique_ksef_number_conflict?(changeset) do
+    Enum.any?(changeset.errors, fn
+      {:company_id, {_, [constraint: :unique, constraint_name: name]}} ->
+        name == "invoices_company_id_ksef_number_unique_non_duplicate"
+
+      _ ->
+        false
+    end)
+  end
 
   @spec scope_by_role(map(), String.t() | nil) :: map()
   defp scope_by_role(filters, "reviewer"), do: Map.put(filters, :type, "expense")
@@ -286,6 +408,9 @@ defmodule KsefHub.Invoices do
             fragment("? ILIKE ? ESCAPE '\\'", i.seller_name, ^pattern) or
             fragment("? ILIKE ? ESCAPE '\\'", i.buyer_name, ^pattern)
         )
+
+      {:source, source}, q when source in ~w(ksef manual) ->
+        where(q, [i], i.source == ^source)
 
       _, q ->
         q
