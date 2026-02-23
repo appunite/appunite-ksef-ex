@@ -52,7 +52,9 @@ defmodule KsefHub.Unstructured.Client do
     url = "#{base_url}/extract"
 
     case Req.post(url,
-           form_multipart: [file: {pdf_binary, filename: filename, content_type: "application/pdf"}],
+           form_multipart: [
+             file: {pdf_binary, filename: filename, content_type: "application/pdf"}
+           ],
            headers: [{"authorization", "Bearer #{token}"}],
            receive_timeout: @receive_timeout
          ) do

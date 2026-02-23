@@ -156,8 +156,7 @@ defmodule KsefHubWeb.Api.InvoiceController do
     summary: "Upload PDF invoice",
     description:
       "Uploads a PDF invoice file for automatic data extraction via the au-ksef-unstructured service. If extraction is incomplete, the invoice is created with extraction_status 'partial' and can be completed via PATCH.",
-    request_body:
-      {"PDF invoice upload", "multipart/form-data", Schemas.UploadInvoiceRequest},
+    request_body: {"PDF invoice upload", "multipart/form-data", Schemas.UploadInvoiceRequest},
     responses: %{
       201 => {"Created invoice", "application/json", Schemas.InvoiceResponse},
       401 => {"Unauthorized", "application/json", Schemas.ErrorResponse},
@@ -236,8 +235,7 @@ defmodule KsefHubWeb.Api.InvoiceController do
         schema: %Schema{type: :string, format: :uuid}
       ]
     ],
-    request_body:
-      {"Invoice fields to update", "application/json", Schemas.CreateInvoiceRequest},
+    request_body: {"Invoice fields to update", "application/json", Schemas.CreateInvoiceRequest},
     responses: %{
       200 => {"Updated invoice", "application/json", Schemas.InvoiceResponse},
       401 => {"Unauthorized", "application/json", Schemas.ErrorResponse},
@@ -335,7 +333,10 @@ defmodule KsefHubWeb.Api.InvoiceController do
       {:error, :incomplete_extraction} ->
         conn
         |> put_status(:unprocessable_entity)
-        |> json(%{error: "Cannot approve invoice with incomplete extraction. Fill in missing fields first."})
+        |> json(%{
+          error:
+            "Cannot approve invoice with incomplete extraction. Fill in missing fields first."
+        })
 
       {:error, {:invalid_type, _type}} ->
         conn

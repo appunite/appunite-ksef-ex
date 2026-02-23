@@ -37,8 +37,7 @@ defmodule KsefHubWeb.Schemas.Invoice do
       source: %Schema{
         type: :string,
         enum: ["ksef", "manual", "pdf_upload"],
-        description:
-          "Invoice origin: synced from KSeF, manually created, or uploaded as PDF."
+        description: "Invoice origin: synced from KSeF, manually created, or uploaded as PDF."
       },
       extraction_status: %Schema{
         type: :string,

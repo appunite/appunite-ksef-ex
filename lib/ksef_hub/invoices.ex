@@ -324,7 +324,10 @@ defmodule KsefHub.Invoices do
           {:ok, Invoice.t()} | {:error, term()}
   defp do_create_pdf_upload(company_id, pdf_binary, type, filename, extracted) do
     extraction_status = determine_extraction_status(extracted)
-    invoice_attrs = build_pdf_upload_attrs(extracted, company_id, pdf_binary, type, filename, extraction_status)
+
+    invoice_attrs =
+      build_pdf_upload_attrs(extracted, company_id, pdf_binary, type, filename, extraction_status)
+
     invoice_attrs = detect_duplicate(company_id, invoice_attrs)
 
     case create_invoice(invoice_attrs) do
@@ -375,9 +378,23 @@ defmodule KsefHub.Invoices do
     if present == length(@critical_fields), do: "complete", else: "partial"
   end
 
-  @spec build_pdf_upload_attrs(map(), Ecto.UUID.t(), binary(), String.t(), String.t() | nil, String.t()) ::
+  @spec build_pdf_upload_attrs(
+          map(),
+          Ecto.UUID.t(),
+          binary(),
+          String.t(),
+          String.t() | nil,
+          String.t()
+        ) ::
           map()
-  defp build_pdf_upload_attrs(extracted, company_id, pdf_binary, type, filename, extraction_status) do
+  defp build_pdf_upload_attrs(
+         extracted,
+         company_id,
+         pdf_binary,
+         type,
+         filename,
+         extraction_status
+       ) do
     %{
       source: "pdf_upload",
       type: type,
