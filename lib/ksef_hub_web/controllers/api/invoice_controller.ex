@@ -84,6 +84,8 @@ defmodule KsefHubWeb.Api.InvoiceController do
     }
   )
 
+  @doc "Lists invoices for the token's company with optional filters and pagination."
+  @spec index(Plug.Conn.t(), map()) :: Plug.Conn.t()
   def index(conn, params) do
     company_id = conn.assigns.current_company.id
     role = conn.assigns[:current_role]
@@ -113,6 +115,8 @@ defmodule KsefHubWeb.Api.InvoiceController do
     }
   )
 
+  @doc "Creates a manual invoice, auto-detecting duplicates by ksef_number."
+  @spec create(Plug.Conn.t(), map()) :: Plug.Conn.t()
   def create(conn, params) do
     company_id = conn.assigns.current_company.id
 
@@ -146,6 +150,8 @@ defmodule KsefHubWeb.Api.InvoiceController do
     }
   )
 
+  @doc "Returns a single invoice by UUID."
+  @spec show(Plug.Conn.t(), map()) :: Plug.Conn.t()
   def show(conn, %{"id" => id}) do
     company_id = conn.assigns.current_company.id
     invoice = Invoices.get_invoice!(company_id, id, role: conn.assigns[:current_role])
@@ -170,6 +176,8 @@ defmodule KsefHubWeb.Api.InvoiceController do
     }
   )
 
+  @doc "Approves an expense invoice."
+  @spec approve(Plug.Conn.t(), map()) :: Plug.Conn.t()
   def approve(conn, %{"id" => id}) do
     company_id = conn.assigns.current_company.id
     invoice = Invoices.get_invoice!(company_id, id, role: conn.assigns[:current_role])
@@ -208,6 +216,8 @@ defmodule KsefHubWeb.Api.InvoiceController do
     }
   )
 
+  @doc "Rejects an expense invoice."
+  @spec reject(Plug.Conn.t(), map()) :: Plug.Conn.t()
   def reject(conn, %{"id" => id}) do
     company_id = conn.assigns.current_company.id
     invoice = Invoices.get_invoice!(company_id, id, role: conn.assigns[:current_role])
@@ -246,6 +256,8 @@ defmodule KsefHubWeb.Api.InvoiceController do
     }
   )
 
+  @doc "Confirms a suspected duplicate invoice."
+  @spec confirm_duplicate(Plug.Conn.t(), map()) :: Plug.Conn.t()
   def confirm_duplicate(conn, %{"id" => id}) do
     company_id = conn.assigns.current_company.id
     invoice = Invoices.get_invoice!(company_id, id, role: conn.assigns[:current_role])
@@ -289,6 +301,8 @@ defmodule KsefHubWeb.Api.InvoiceController do
     }
   )
 
+  @doc "Dismisses the duplicate flag on an invoice."
+  @spec dismiss_duplicate(Plug.Conn.t(), map()) :: Plug.Conn.t()
   def dismiss_duplicate(conn, %{"id" => id}) do
     company_id = conn.assigns.current_company.id
     invoice = Invoices.get_invoice!(company_id, id, role: conn.assigns[:current_role])
@@ -334,6 +348,8 @@ defmodule KsefHubWeb.Api.InvoiceController do
     }
   )
 
+  @doc "Generates an HTML rendering of the invoice from its FA(3) XML."
+  @spec html(Plug.Conn.t(), map()) :: Plug.Conn.t()
   def html(conn, %{"id" => id}) do
     company_id = conn.assigns.current_company.id
     invoice = Invoices.get_invoice!(company_id, id, role: conn.assigns[:current_role])
@@ -386,12 +402,7 @@ defmodule KsefHubWeb.Api.InvoiceController do
     }
   )
 
-  @doc """
-  Download invoice XML.
-
-  Returns the raw FA(3) XML content of the invoice identified by the `id` path
-  parameter (UUID).
-  """
+  @doc "Returns the raw FA(3) XML content of the invoice."
   @spec xml(Plug.Conn.t(), map()) :: Plug.Conn.t()
   def xml(conn, %{"id" => id}) do
     company_id = conn.assigns.current_company.id
@@ -430,6 +441,8 @@ defmodule KsefHubWeb.Api.InvoiceController do
     }
   )
 
+  @doc "Generates a PDF rendering of the invoice from its FA(3) XML."
+  @spec pdf(Plug.Conn.t(), map()) :: Plug.Conn.t()
   def pdf(conn, %{"id" => id}) do
     company_id = conn.assigns.current_company.id
     invoice = Invoices.get_invoice!(company_id, id, role: conn.assigns[:current_role])
