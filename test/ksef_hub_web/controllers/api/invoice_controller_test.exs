@@ -379,39 +379,20 @@ defmodule KsefHubWeb.Api.InvoiceControllerTest do
     end
   end
 
-  describe "xml with nil xml_content" do
-    test "returns 422 for invoice without xml_content", %{conn: conn} do
-      %{company: company, token: token} = create_owner_with_token()
-      invoice = insert(:manual_invoice, company: company)
+  describe "content endpoints with nil xml_content" do
+    for endpoint <- ~w(xml html pdf) do
+      test "#{endpoint} returns 422 for invoice without xml_content", %{conn: conn} do
+        %{company: company, token: token} = create_owner_with_token()
+        invoice = insert(:manual_invoice, company: company)
 
-      conn = conn |> api_conn(token) |> get("/api/invoices/#{invoice.id}/xml")
+        conn =
+          conn
+          |> api_conn(token)
+          |> get("/api/invoices/#{invoice.id}/#{unquote(endpoint)}")
 
-      assert conn.status == 422
-      assert Jason.decode!(conn.resp_body)["error"] == "Invoice has no XML content"
-    end
-  end
-
-  describe "html with nil xml_content" do
-    test "returns 422 for invoice without xml_content", %{conn: conn} do
-      %{company: company, token: token} = create_owner_with_token()
-      invoice = insert(:manual_invoice, company: company)
-
-      conn = conn |> api_conn(token) |> get("/api/invoices/#{invoice.id}/html")
-
-      assert conn.status == 422
-      assert Jason.decode!(conn.resp_body)["error"] == "Invoice has no XML content"
-    end
-  end
-
-  describe "pdf with nil xml_content" do
-    test "returns 422 for invoice without xml_content", %{conn: conn} do
-      %{company: company, token: token} = create_owner_with_token()
-      invoice = insert(:manual_invoice, company: company)
-
-      conn = conn |> api_conn(token) |> get("/api/invoices/#{invoice.id}/pdf")
-
-      assert conn.status == 422
-      assert Jason.decode!(conn.resp_body)["error"] == "Invoice has no XML content"
+        assert conn.status == 422
+        assert Jason.decode!(conn.resp_body)["error"] == "Invoice has no XML content"
+      end
     end
   end
 
