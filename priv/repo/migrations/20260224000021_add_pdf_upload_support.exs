@@ -1,0 +1,11 @@
+defmodule KsefHub.Repo.Migrations.AddPdfUploadSupport do
+  use Ecto.Migration
+
+  def change do
+    alter table(:invoices) do
+      add :pdf_content, :binary
+      add :extraction_status, :string
+      add :original_filename, :string
+    end
+  end
+end
