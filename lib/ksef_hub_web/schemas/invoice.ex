@@ -39,6 +39,22 @@ defmodule KsefHubWeb.Schemas.Invoice do
         enum: ["ksef", "manual"],
         description: "Invoice origin: synced from KSeF or manually created."
       },
+      category_id: %Schema{
+        type: :string,
+        format: :uuid,
+        nullable: true,
+        description: "ID of the assigned category."
+      },
+      category: %Schema{
+        nullable: true,
+        description: "Category details (included in show response).",
+        allOf: [KsefHubWeb.Schemas.Category]
+      },
+      tags: %Schema{
+        type: :array,
+        items: KsefHubWeb.Schemas.Tag,
+        description: "Tags assigned to this invoice (included in show response)."
+      },
       duplicate_of_id: %Schema{
         type: :string,
         format: :uuid,
