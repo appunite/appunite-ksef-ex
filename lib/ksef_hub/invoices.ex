@@ -174,6 +174,9 @@ defmodule KsefHub.Invoices do
     |> Invoice.changeset(attrs)
     |> Repo.insert(
       on_conflict: {:replace, @upsert_replace_fields},
+      # Ecto's conflict_target doesn't support partial index WHERE clauses natively,
+      # so we use {:unsafe_fragment, ...}. The fragment is a static string (no interpolation),
+      # so there is no SQL injection risk. It must match the partial unique index definition.
       conflict_target:
         {:unsafe_fragment,
          ~s|("company_id","ksef_number") WHERE ksef_number IS NOT NULL AND duplicate_of_id IS NULL|},
@@ -332,6 +335,8 @@ defmodule KsefHub.Invoices do
       |> where([i], is_nil(i.duplicate_of_id))
       |> select([i], i.id)
       |> Repo.one()
+    else
+      nil
     end
   end
 

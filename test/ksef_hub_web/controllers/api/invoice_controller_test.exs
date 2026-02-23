@@ -296,6 +296,25 @@ defmodule KsefHubWeb.Api.InvoiceControllerTest do
       assert conn.status == 422
       assert Jason.decode!(conn.resp_body)["error"] == "Invoice is not a duplicate"
     end
+
+    test "dismisses a confirmed duplicate invoice", %{conn: conn} do
+      %{company: company, token: token} = create_owner_with_token()
+      original = insert(:invoice, ksef_number: "dismiss-conf", company: company)
+
+      duplicate =
+        insert(:manual_invoice,
+          ksef_number: "dismiss-conf",
+          company: company,
+          duplicate_of_id: original.id,
+          duplicate_status: "confirmed"
+        )
+
+      conn =
+        conn |> api_conn(token) |> post("/api/invoices/#{duplicate.id}/dismiss-duplicate")
+
+      assert conn.status == 200
+      assert Jason.decode!(conn.resp_body)["data"]["duplicate_status"] == "dismissed"
+    end
   end
 
   describe "xml with nil xml_content" do
