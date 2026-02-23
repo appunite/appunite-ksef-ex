@@ -419,7 +419,7 @@ defmodule KsefHubWeb.Api.InvoiceControllerTest do
   end
 
   describe "source filter" do
-    test "filters invoices by source in index", %{conn: conn} do
+    test "filters invoices by source=manual in index", %{conn: conn} do
       %{company: company, token: token} = create_owner_with_token()
       insert(:invoice, company: company, source: "ksef")
       insert(:manual_invoice, company: company, source: "manual")
@@ -429,6 +429,18 @@ defmodule KsefHubWeb.Api.InvoiceControllerTest do
       body = Jason.decode!(conn.resp_body)
       assert length(body["data"]) == 1
       assert hd(body["data"])["source"] == "manual"
+    end
+
+    test "filters invoices by source=ksef in index", %{conn: conn} do
+      %{company: company, token: token} = create_owner_with_token()
+      insert(:invoice, company: company, source: "ksef")
+      insert(:manual_invoice, company: company, source: "manual")
+
+      conn = conn |> api_conn(token) |> get("/api/invoices?source=ksef")
+
+      body = Jason.decode!(conn.resp_body)
+      assert length(body["data"]) == 1
+      assert hd(body["data"])["source"] == "ksef"
     end
   end
 
