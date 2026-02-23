@@ -264,6 +264,24 @@ defmodule KsefHubWeb.Api.InvoiceControllerTest do
       assert conn.status == 422
       assert Jason.decode!(conn.resp_body)["error"] == "Invoice is not a duplicate"
     end
+
+    test "returns 404 for invoice from different company", %{conn: conn} do
+      %{token: token} = create_owner_with_token()
+      other_company = insert(:company)
+      original = insert(:invoice, ksef_number: "cross-confirm", company: other_company)
+
+      duplicate =
+        insert(:manual_invoice,
+          ksef_number: "cross-confirm",
+          company: other_company,
+          duplicate_of_id: original.id,
+          duplicate_status: "suspected"
+        )
+
+      assert_error_sent 404, fn ->
+        conn |> api_conn(token) |> post("/api/invoices/#{duplicate.id}/confirm-duplicate")
+      end
+    end
   end
 
   describe "dismiss_duplicate" do
@@ -295,6 +313,24 @@ defmodule KsefHubWeb.Api.InvoiceControllerTest do
 
       assert conn.status == 422
       assert Jason.decode!(conn.resp_body)["error"] == "Invoice is not a duplicate"
+    end
+
+    test "returns 404 for invoice from different company", %{conn: conn} do
+      %{token: token} = create_owner_with_token()
+      other_company = insert(:company)
+      original = insert(:invoice, ksef_number: "cross-dismiss", company: other_company)
+
+      duplicate =
+        insert(:manual_invoice,
+          ksef_number: "cross-dismiss",
+          company: other_company,
+          duplicate_of_id: original.id,
+          duplicate_status: "suspected"
+        )
+
+      assert_error_sent 404, fn ->
+        conn |> api_conn(token) |> post("/api/invoices/#{duplicate.id}/dismiss-duplicate")
+      end
     end
 
     test "dismisses a confirmed duplicate invoice", %{conn: conn} do
