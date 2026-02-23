@@ -56,54 +56,62 @@ defmodule KsefHub.Predictions do
   @spec apply_predictions(Invoice.t(), map(), map()) ::
           {:ok, Invoice.t()} | {:error, term()}
   defp apply_predictions(invoice, cat_result, tag_result) do
+    resolution = resolve_predictions(invoice.company_id, cat_result, tag_result)
+    persist_and_apply(invoice, resolution)
+  end
+
+  @spec resolve_predictions(Ecto.UUID.t(), map(), map()) :: map()
+  defp resolve_predictions(company_id, cat_result, tag_result) do
     cat_name = cat_result["predicted_label"]
     cat_confidence = cat_result["confidence"] || 0.0
-    cat_probabilities = cat_result["probabilities"]
-    model_version = cat_result["model_version"] || tag_result["model_version"]
-
     tag_name = tag_result["predicted_label"]
     tag_confidence = tag_result["confidence"] || 0.0
-    tag_probabilities = tag_result["probabilities"]
 
-    cat_above_threshold? = cat_confidence >= @confidence_threshold
-    tag_above_threshold? = tag_confidence >= @confidence_threshold
+    matching_category = find_category_by_name(company_id, cat_name)
+    matching_tag = find_tag_by_name(company_id, tag_name)
 
-    matching_category = find_category_by_name(invoice.company_id, cat_name)
-    matching_tag = find_tag_by_name(invoice.company_id, tag_name)
+    apply_category? = cat_confidence >= @confidence_threshold and matching_category != nil
+    apply_tag? = tag_confidence >= @confidence_threshold and matching_tag != nil
 
-    apply_category? = cat_above_threshold? and matching_category != nil
-    apply_tag? = tag_above_threshold? and matching_tag != nil
-
-    status =
-      if apply_category? or apply_tag?,
-        do: "predicted",
-        else: "needs_review"
-
-    now = DateTime.utc_now() |> DateTime.truncate(:microsecond)
-
-    prediction_attrs = %{
-      prediction_status: status,
-      prediction_category_name: cat_name,
-      prediction_tag_name: tag_name,
-      prediction_category_confidence: cat_confidence,
-      prediction_tag_confidence: tag_confidence,
-      prediction_model_version: model_version,
-      prediction_category_probabilities: cat_probabilities,
-      prediction_tag_probabilities: tag_probabilities,
-      prediction_predicted_at: now
+    %{
+      attrs: build_prediction_attrs(cat_result, tag_result, apply_category?, apply_tag?),
+      category: if(apply_category?, do: matching_category),
+      tag: if(apply_tag?, do: matching_tag)
     }
+  end
 
+  @spec build_prediction_attrs(map(), map(), boolean(), boolean()) :: map()
+  defp build_prediction_attrs(cat_result, tag_result, apply_category?, apply_tag?) do
+    status = if apply_category? or apply_tag?, do: "predicted", else: "needs_review"
+
+    %{
+      prediction_status: status,
+      prediction_category_name: cat_result["predicted_label"],
+      prediction_tag_name: tag_result["predicted_label"],
+      prediction_category_confidence: cat_result["confidence"] || 0.0,
+      prediction_tag_confidence: tag_result["confidence"] || 0.0,
+      prediction_model_version: cat_result["model_version"] || tag_result["model_version"],
+      prediction_category_probabilities: cat_result["probabilities"],
+      prediction_tag_probabilities: tag_result["probabilities"],
+      prediction_predicted_at: DateTime.utc_now() |> DateTime.truncate(:microsecond)
+    }
+  end
+
+  @spec persist_and_apply(Invoice.t(), map()) :: {:ok, Invoice.t()} | {:error, term()}
+  defp persist_and_apply(invoice, %{attrs: attrs, category: category, tag: tag}) do
     Repo.transaction(fn ->
-      case invoice |> Invoice.prediction_changeset(prediction_attrs) |> Repo.update() do
-        {:ok, updated} ->
-          if apply_category?, do: apply_category_safely(updated, matching_category)
-          if apply_tag?, do: apply_tag_safely(updated, matching_tag)
-          Repo.get!(Invoice, updated.id)
-
-        {:error, changeset} ->
-          Repo.rollback(changeset)
-      end
+      updated = update_prediction_fields!(invoice, attrs)
+      if category, do: apply_category_safely(updated, category)
+      if tag, do: apply_tag_safely(updated, tag)
+      Repo.get!(Invoice, updated.id)
     end)
+  end
+
+  @spec update_prediction_fields!(Invoice.t(), map()) :: Invoice.t()
+  defp update_prediction_fields!(invoice, attrs) do
+    invoice
+    |> Invoice.prediction_changeset(attrs)
+    |> Repo.update!()
   end
 
   @spec apply_category_safely(Invoice.t(), Category.t()) :: :ok
