@@ -319,6 +319,7 @@ defmodule KsefHubWeb.Api.InvoiceController do
       200 => {"HTML content", "text/html", %Schema{type: :string}},
       401 => {"Unauthorized", "application/json", Schemas.ErrorResponse},
       404 => {"Not found", "application/json", Schemas.ErrorResponse},
+      422 => {"No XML content", "application/json", Schemas.ErrorResponse},
       500 => {"Generation failed", "application/json", Schemas.ErrorResponse}
     }
   )
@@ -370,7 +371,8 @@ defmodule KsefHubWeb.Api.InvoiceController do
     responses: %{
       200 => {"XML file", "application/xml", %Schema{type: :string}},
       401 => {"Unauthorized", "application/json", Schemas.ErrorResponse},
-      404 => {"Not found", "application/json", Schemas.ErrorResponse}
+      404 => {"Not found", "application/json", Schemas.ErrorResponse},
+      422 => {"No XML content", "application/json", Schemas.ErrorResponse}
     }
   )
 
@@ -413,6 +415,7 @@ defmodule KsefHubWeb.Api.InvoiceController do
       200 => {"PDF file", "application/pdf", %Schema{type: :string, format: :binary}},
       401 => {"Unauthorized", "application/json", Schemas.ErrorResponse},
       404 => {"Not found", "application/json", Schemas.ErrorResponse},
+      422 => {"No XML content", "application/json", Schemas.ErrorResponse},
       500 => {"Generation failed", "application/json", Schemas.ErrorResponse}
     }
   )

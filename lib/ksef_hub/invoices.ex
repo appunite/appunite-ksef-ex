@@ -25,6 +25,7 @@ defmodule KsefHub.Invoices do
     * `:date_to` - latest issue_date (inclusive)
     * `:seller_nip` - filter by seller NIP
     * `:buyer_nip` - filter by buyer NIP
+    * `:source` - "ksef" or "manual"
     * `:query` - search across invoice_number, seller_name, buyer_name
     * `:page` - page number (1-based, default 1)
     * `:per_page` - results per page (default 25, max 100)
