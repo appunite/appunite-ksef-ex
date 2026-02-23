@@ -15,7 +15,7 @@ defmodule KsefHub.Invoices.Tag do
     field :usage_count, :integer, virtual: true, default: 0
 
     belongs_to :company, KsefHub.Companies.Company
-    many_to_many :invoices, KsefHub.Invoices.Invoice, join_through: "invoice_tags"
+    many_to_many :invoices, KsefHub.Invoices.Invoice, join_through: KsefHub.Invoices.InvoiceTag
 
     timestamps()
   end

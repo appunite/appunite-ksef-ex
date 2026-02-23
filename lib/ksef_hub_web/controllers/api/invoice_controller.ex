@@ -558,16 +558,22 @@ defmodule KsefHubWeb.Api.InvoiceController do
   def add_tags(conn, %{"id" => id} = params) do
     company_id = conn.assigns.current_company.id
     _invoice = Invoices.get_invoice!(company_id, id, role: conn.assigns[:current_role])
-    tag_ids = params["tag_ids"] || []
 
-    if Invoices.tags_belong_to_company?(tag_ids, company_id) do
+    with {:ok, tag_ids} <- validate_tag_ids(params["tag_ids"]),
+         true <- Invoices.tags_belong_to_company?(tag_ids, company_id) do
       Enum.each(tag_ids, fn tag_id -> Invoices.add_invoice_tag(id, tag_id) end)
       tags = Invoices.list_invoice_tags(id)
       json(conn, %{data: Enum.map(tags, &tag_json/1)})
     else
-      conn
-      |> put_status(:unprocessable_entity)
-      |> json(%{error: "One or more tags not found in this company"})
+      {:error, :invalid_tag_ids} ->
+        conn
+        |> put_status(:unprocessable_entity)
+        |> json(%{error: "Invalid tag_ids payload"})
+
+      false ->
+        conn
+        |> put_status(:unprocessable_entity)
+        |> json(%{error: "One or more tags not found in this company"})
     end
   end
 
@@ -595,15 +601,21 @@ defmodule KsefHubWeb.Api.InvoiceController do
   def set_tags(conn, %{"id" => id} = params) do
     company_id = conn.assigns.current_company.id
     _invoice = Invoices.get_invoice!(company_id, id, role: conn.assigns[:current_role])
-    tag_ids = params["tag_ids"] || []
 
-    if Invoices.tags_belong_to_company?(tag_ids, company_id) do
-      {:ok, tags} = Invoices.set_invoice_tags(id, tag_ids)
+    with {:ok, tag_ids} <- validate_tag_ids(params["tag_ids"]),
+         true <- Invoices.tags_belong_to_company?(tag_ids, company_id),
+         {:ok, tags} <- Invoices.set_invoice_tags(id, tag_ids) do
       json(conn, %{data: Enum.map(tags, &tag_json/1)})
     else
-      conn
-      |> put_status(:unprocessable_entity)
-      |> json(%{error: "One or more tags not found in this company"})
+      {:error, :invalid_tag_ids} ->
+        conn
+        |> put_status(:unprocessable_entity)
+        |> json(%{error: "Invalid tag_ids payload"})
+
+      false ->
+        conn
+        |> put_status(:unprocessable_entity)
+        |> json(%{error: "One or more tags not found in this company"})
     end
   end
 
@@ -696,10 +708,21 @@ defmodule KsefHubWeb.Api.InvoiceController do
     Map.put(map, key, value)
   end
 
-  @spec maybe_put_list(map(), atom(), list() | nil) :: map()
+  @spec maybe_put_list(map(), atom(), list() | String.t() | nil) :: map()
   defp maybe_put_list(map, _key, nil), do: map
   defp maybe_put_list(map, _key, []), do: map
   defp maybe_put_list(map, key, values) when is_list(values), do: Map.put(map, key, values)
+  defp maybe_put_list(map, key, value) when is_binary(value), do: Map.put(map, key, [value])
+  defp maybe_put_list(map, _key, _invalid), do: map
+
+  @spec validate_tag_ids(term()) :: {:ok, [String.t()]} | {:error, :invalid_tag_ids}
+  defp validate_tag_ids(nil), do: {:ok, []}
+
+  defp validate_tag_ids(ids) when is_list(ids) do
+    if Enum.all?(ids, &is_binary/1), do: {:ok, ids}, else: {:error, :invalid_tag_ids}
+  end
+
+  defp validate_tag_ids(_), do: {:error, :invalid_tag_ids}
 
   @spec validate_category_company(Ecto.UUID.t() | nil, Ecto.UUID.t()) ::
           :ok | {:error, :category_not_found}

@@ -462,8 +462,8 @@ defmodule KsefHub.Invoices do
   @spec add_invoice_tag(Ecto.UUID.t(), Ecto.UUID.t()) ::
           {:ok, InvoiceTag.t()} | {:error, Ecto.Changeset.t()}
   def add_invoice_tag(invoice_id, tag_id) do
-    %InvoiceTag{}
-    |> InvoiceTag.changeset(%{invoice_id: invoice_id, tag_id: tag_id})
+    invoice_id
+    |> InvoiceTag.changeset(tag_id)
     |> Repo.insert()
   end
 
@@ -491,21 +491,25 @@ defmodule KsefHub.Invoices do
   end
 
   @doc "Replaces all tags on an invoice with the given tag IDs."
-  @spec set_invoice_tags(Ecto.UUID.t(), [Ecto.UUID.t()]) :: {:ok, [Tag.t()]}
+  @spec set_invoice_tags(Ecto.UUID.t(), [Ecto.UUID.t()]) ::
+          {:ok, [Tag.t()]} | {:error, Ecto.Changeset.t()}
   def set_invoice_tags(invoice_id, tag_ids) do
     Repo.transaction(fn ->
       InvoiceTag
       |> where([it], it.invoice_id == ^invoice_id)
       |> Repo.delete_all()
 
-      Enum.each(tag_ids, fn tag_id ->
-        %InvoiceTag{}
-        |> InvoiceTag.changeset(%{invoice_id: invoice_id, tag_id: tag_id})
-        |> Repo.insert!()
-      end)
-
+      Enum.each(tag_ids, &insert_invoice_tag!(invoice_id, &1))
       list_invoice_tags(invoice_id)
     end)
+  end
+
+  @spec insert_invoice_tag!(Ecto.UUID.t(), Ecto.UUID.t()) :: :ok
+  defp insert_invoice_tag!(invoice_id, tag_id) do
+    case invoice_id |> InvoiceTag.changeset(tag_id) |> Repo.insert() do
+      {:ok, _} -> :ok
+      {:error, changeset} -> Repo.rollback(changeset)
+    end
   end
 
   # --- Private ---

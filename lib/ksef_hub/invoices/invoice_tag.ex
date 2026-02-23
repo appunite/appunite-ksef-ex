@@ -16,12 +16,11 @@ defmodule KsefHub.Invoices.InvoiceTag do
     timestamps()
   end
 
-  @doc "Builds a changeset for invoice-tag association."
-  @spec changeset(t() | Ecto.Changeset.t(), map()) :: Ecto.Changeset.t()
-  def changeset(invoice_tag, attrs) do
-    invoice_tag
-    |> cast(attrs, [:invoice_id, :tag_id])
-    |> validate_required([:invoice_id, :tag_id])
+  @doc "Builds a changeset for an invoice-tag association with server-set FKs."
+  @spec changeset(Ecto.UUID.t(), Ecto.UUID.t()) :: Ecto.Changeset.t()
+  def changeset(invoice_id, tag_id) do
+    %__MODULE__{}
+    |> change(%{invoice_id: invoice_id, tag_id: tag_id})
     |> unique_constraint([:invoice_id, :tag_id])
     |> foreign_key_constraint(:invoice_id)
     |> foreign_key_constraint(:tag_id)

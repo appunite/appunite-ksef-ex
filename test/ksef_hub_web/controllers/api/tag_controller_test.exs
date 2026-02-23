@@ -110,6 +110,16 @@ defmodule KsefHubWeb.Api.TagControllerTest do
 
       assert conn.status == 404
     end
+
+    test "returns 422 for invalid update", %{conn: conn} do
+      %{company: company, token: token} = create_owner_with_token()
+      tag = insert(:tag, company: company)
+
+      body = Jason.encode!(%{name: ""})
+      conn = conn |> api_conn(token) |> put("/api/tags/#{tag.id}", body)
+
+      assert conn.status == 422
+    end
   end
 
   describe "delete" do
