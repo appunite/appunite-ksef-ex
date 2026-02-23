@@ -37,6 +37,9 @@ defmodule KsefHub.Invoices.Invoice do
     belongs_to :company, KsefHub.Companies.Company
     belongs_to :duplicate_of, __MODULE__
     has_many :duplicates, __MODULE__, foreign_key: :duplicate_of_id
+    belongs_to :category, KsefHub.Invoices.Category
+    has_many :invoice_tags, KsefHub.Invoices.InvoiceTag
+    many_to_many :tags, KsefHub.Invoices.Tag, join_through: KsefHub.Invoices.InvoiceTag
 
     timestamps()
   end
@@ -64,7 +67,8 @@ defmodule KsefHub.Invoices.Invoice do
       :duplicate_of_id,
       :duplicate_status,
       :ksef_acquisition_date,
-      :permanent_storage_date
+      :permanent_storage_date,
+      :category_id
     ])
     |> validate_required([
       :type,
@@ -83,6 +87,7 @@ defmodule KsefHub.Invoices.Invoice do
     |> validate_duplicate_status()
     |> foreign_key_constraint(:company_id)
     |> foreign_key_constraint(:duplicate_of_id)
+    |> foreign_key_constraint(:category_id)
     |> unique_constraint([:company_id, :ksef_number],
       name: :invoices_company_id_ksef_number_unique_non_duplicate
     )
@@ -95,6 +100,14 @@ defmodule KsefHub.Invoices.Invoice do
     |> cast(attrs, [:duplicate_of_id, :duplicate_status])
     |> validate_duplicate_status()
     |> foreign_key_constraint(:duplicate_of_id)
+  end
+
+  @doc "Builds a changeset for assigning or clearing a category."
+  @spec category_changeset(t(), map()) :: Ecto.Changeset.t()
+  def category_changeset(invoice, attrs) do
+    invoice
+    |> cast(attrs, [:category_id])
+    |> foreign_key_constraint(:category_id)
   end
 
   @spec validate_source_requirements(Ecto.Changeset.t()) :: Ecto.Changeset.t()
