@@ -162,15 +162,19 @@ defmodule KsefHubWeb.Api.TagController do
   def delete(conn, %{"id" => id}) do
     company_id = conn.assigns.current_company.id
 
-    case Invoices.get_tag(company_id, id) do
-      {:ok, tag} ->
-        {:ok, _} = Invoices.delete_tag(tag)
-        json(conn, %{message: "Tag deleted"})
-
+    with {:ok, tag} <- Invoices.get_tag(company_id, id),
+         {:ok, _} <- Invoices.delete_tag(tag) do
+      json(conn, %{message: "Tag deleted"})
+    else
       {:error, :not_found} ->
         conn
         |> put_status(:not_found)
         |> json(%{error: "Tag not found"})
+
+      {:error, _reason} ->
+        conn
+        |> put_status(:internal_server_error)
+        |> json(%{error: "Failed to delete tag"})
     end
   end
 end

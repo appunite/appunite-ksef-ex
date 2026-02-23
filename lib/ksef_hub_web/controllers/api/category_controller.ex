@@ -163,15 +163,19 @@ defmodule KsefHubWeb.Api.CategoryController do
   def delete(conn, %{"id" => id}) do
     company_id = conn.assigns.current_company.id
 
-    case Invoices.get_category(company_id, id) do
-      {:ok, category} ->
-        {:ok, _} = Invoices.delete_category(category)
-        json(conn, %{message: "Category deleted"})
-
+    with {:ok, category} <- Invoices.get_category(company_id, id),
+         {:ok, _} <- Invoices.delete_category(category) do
+      json(conn, %{message: "Category deleted"})
+    else
       {:error, :not_found} ->
         conn
         |> put_status(:not_found)
         |> json(%{error: "Category not found"})
+
+      {:error, _reason} ->
+        conn
+        |> put_status(:internal_server_error)
+        |> json(%{error: "Failed to delete category"})
     end
   end
 end

@@ -68,7 +68,9 @@ defmodule KsefHub.Invoices.Invoice do
       :duplicate_status,
       :ksef_acquisition_date,
       :permanent_storage_date,
-      :category_id
+      :duplicate_status,
+      :ksef_acquisition_date,
+      :permanent_storage_date
     ])
     |> validate_required([
       :type,
@@ -87,7 +89,6 @@ defmodule KsefHub.Invoices.Invoice do
     |> validate_duplicate_status()
     |> foreign_key_constraint(:company_id)
     |> foreign_key_constraint(:duplicate_of_id)
-    |> foreign_key_constraint(:category_id)
     |> unique_constraint([:company_id, :ksef_number],
       name: :invoices_company_id_ksef_number_unique_non_duplicate
     )
