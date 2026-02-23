@@ -499,11 +499,17 @@ defmodule KsefHub.Invoices do
   Marks an invoice's prediction status as `"manual"`, indicating the user
   overrode or manually set the category/tags.
   """
-  @spec mark_prediction_manual(Invoice.t()) :: {:ok, Invoice.t()} | {:error, Ecto.Changeset.t()}
+  @spec mark_prediction_manual(Invoice.t() | Ecto.UUID.t()) ::
+          {:ok, Invoice.t()} | {:error, Ecto.Changeset.t()}
   def mark_prediction_manual(%Invoice{} = invoice) do
     invoice
     |> Invoice.prediction_changeset(%{prediction_status: "manual"})
     |> Repo.update()
+  end
+
+  def mark_prediction_manual(invoice_id) when is_binary(invoice_id) do
+    invoice = Repo.get!(Invoice, invoice_id)
+    mark_prediction_manual(invoice)
   end
 
   # --- Invoice-Tag Associations ---
@@ -522,6 +528,16 @@ defmodule KsefHub.Invoices do
       |> select([i], i.company_id)
       |> Repo.one!()
 
+    add_invoice_tag(invoice_id, tag_id, company_id)
+  end
+
+  @doc """
+  Adds a tag to an invoice with a known company_id, skipping the per-tag
+  company lookup. Use when company ownership is already validated by the caller.
+  """
+  @spec add_invoice_tag(Ecto.UUID.t(), Ecto.UUID.t(), Ecto.UUID.t()) ::
+          {:ok, InvoiceTag.t()} | {:error, Ecto.Changeset.t() | :tag_not_in_company}
+  def add_invoice_tag(invoice_id, tag_id, company_id) do
     tag_in_company? =
       Tag
       |> where([t], t.id == ^tag_id and t.company_id == ^company_id)
@@ -721,7 +737,7 @@ defmodule KsefHub.Invoices do
     where(Tag, [t], t.company_id == ^company_id and t.id == ^id)
   end
 
-  @spec enqueue_prediction(Invoice.t()) :: :ok | :skip
+  @spec enqueue_prediction(Invoice.t()) :: :ok | :skip | :enqueue_failed
   defp enqueue_prediction(invoice) do
     case PredictionWorker.maybe_enqueue(invoice) do
       {:ok, _job} ->
@@ -734,6 +750,8 @@ defmodule KsefHub.Invoices do
         Logger.warning(
           "Failed to enqueue prediction for invoice #{invoice.id}: #{inspect(reason)}"
         )
+
+        :enqueue_failed
     end
   end
 end

@@ -565,12 +565,12 @@ defmodule KsefHubWeb.Api.InvoiceController do
   @spec add_tags(Plug.Conn.t(), map()) :: Plug.Conn.t()
   def add_tags(conn, %{"id" => id} = params) do
     company_id = conn.assigns.current_company.id
-    invoice = Invoices.get_invoice!(company_id, id, role: conn.assigns[:current_role])
+    Invoices.get_invoice!(company_id, id, role: conn.assigns[:current_role])
 
     with {:ok, tag_ids} <- validate_tag_ids(params["tag_ids"]),
          true <- Invoices.tags_belong_to_company?(tag_ids, company_id),
-         :ok <- add_tags_sequentially(id, tag_ids),
-         {:ok, _} <- Invoices.mark_prediction_manual(invoice) do
+         :ok <- add_tags_sequentially(id, tag_ids, company_id),
+         {:ok, _} <- Invoices.mark_prediction_manual(id) do
       tags = Invoices.list_invoice_tags(id)
       json(conn, %{data: Enum.map(tags, &tag_json/1)})
     else
@@ -614,12 +614,12 @@ defmodule KsefHubWeb.Api.InvoiceController do
   @spec set_tags(Plug.Conn.t(), map()) :: Plug.Conn.t()
   def set_tags(conn, %{"id" => id} = params) do
     company_id = conn.assigns.current_company.id
-    invoice = Invoices.get_invoice!(company_id, id, role: conn.assigns[:current_role])
+    Invoices.get_invoice!(company_id, id, role: conn.assigns[:current_role])
 
     with {:ok, tag_ids} <- validate_tag_ids(params["tag_ids"]),
          true <- Invoices.tags_belong_to_company?(tag_ids, company_id),
          {:ok, tags} <- Invoices.set_invoice_tags(id, tag_ids),
-         {:ok, _} <- Invoices.mark_prediction_manual(invoice) do
+         {:ok, _} <- Invoices.mark_prediction_manual(id) do
       json(conn, %{data: Enum.map(tags, &tag_json/1)})
     else
       {:error, :invalid_tag_ids} ->
@@ -750,12 +750,13 @@ defmodule KsefHubWeb.Api.InvoiceController do
 
   defp validate_tag_ids(_), do: {:error, :invalid_tag_ids}
 
-  @spec add_tags_sequentially(Ecto.UUID.t(), [Ecto.UUID.t()]) :: :ok | {:error, term()}
-  defp add_tags_sequentially(_invoice_id, []), do: :ok
+  @spec add_tags_sequentially(Ecto.UUID.t(), [Ecto.UUID.t()], Ecto.UUID.t()) ::
+          :ok | {:error, term()}
+  defp add_tags_sequentially(_invoice_id, [], _company_id), do: :ok
 
-  defp add_tags_sequentially(invoice_id, tag_ids) do
+  defp add_tags_sequentially(invoice_id, tag_ids, company_id) do
     Enum.reduce_while(tag_ids, :ok, fn tag_id, :ok ->
-      case Invoices.add_invoice_tag(invoice_id, tag_id) do
+      case Invoices.add_invoice_tag(invoice_id, tag_id, company_id) do
         {:ok, _} -> {:cont, :ok}
         {:error, reason} -> {:halt, {:error, reason}}
       end
