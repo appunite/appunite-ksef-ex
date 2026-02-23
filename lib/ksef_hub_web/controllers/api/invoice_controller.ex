@@ -520,8 +520,8 @@ defmodule KsefHubWeb.Api.InvoiceController do
     category_id = params["category_id"]
 
     with :ok <- validate_category_company(category_id, company_id),
-         {:ok, _updated} <- Invoices.set_invoice_category(invoice, category_id) do
-      if category_id, do: Invoices.mark_prediction_manual(invoice)
+         {:ok, updated} <- Invoices.set_invoice_category(invoice, category_id) do
+      if category_id, do: Invoices.mark_prediction_manual(updated)
       invoice = Invoices.get_invoice_with_details!(company_id, id, role: role)
       json(conn, %{data: invoice_json(invoice)})
     else
@@ -614,7 +614,7 @@ defmodule KsefHubWeb.Api.InvoiceController do
     with {:ok, tag_ids} <- validate_tag_ids(params["tag_ids"]),
          true <- Invoices.tags_belong_to_company?(tag_ids, company_id),
          {:ok, tags} <- Invoices.set_invoice_tags(id, tag_ids) do
-      Invoices.mark_prediction_manual(invoice)
+      if tag_ids != [], do: Invoices.mark_prediction_manual(invoice)
       json(conn, %{data: Enum.map(tags, &tag_json/1)})
     else
       {:error, :invalid_tag_ids} ->

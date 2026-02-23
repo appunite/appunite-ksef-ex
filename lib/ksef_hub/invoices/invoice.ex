@@ -137,9 +137,15 @@ defmodule KsefHub.Invoices.Invoice do
   @doc "Builds a changeset for updating ML prediction fields."
   @spec prediction_changeset(t(), map()) :: Ecto.Changeset.t()
   def prediction_changeset(invoice, attrs) do
-    invoice
-    |> cast(attrs, @prediction_fields)
-    |> validate_inclusion(:prediction_status, @valid_prediction_statuses)
+    changeset =
+      invoice
+      |> cast(attrs, @prediction_fields)
+
+    if get_field(changeset, :prediction_status) do
+      validate_inclusion(changeset, :prediction_status, @valid_prediction_statuses)
+    else
+      changeset
+    end
   end
 
   @spec validate_source_requirements(Ecto.Changeset.t()) :: Ecto.Changeset.t()

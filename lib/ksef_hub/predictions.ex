@@ -26,11 +26,7 @@ defmodule KsefHub.Predictions do
   """
   @spec predict_and_apply(Invoice.t()) ::
           {:ok, Invoice.t()} | {:error, term()} | {:skip, atom()}
-  def predict_and_apply(%Invoice{type: type}) when type != "expense" do
-    {:skip, :not_expense}
-  end
-
-  def predict_and_apply(%Invoice{} = invoice) do
+  def predict_and_apply(%Invoice{type: "expense"} = invoice) do
     input = build_input(invoice)
 
     with {:ok, cat_result} <- prediction_client().predict_category(input),
@@ -38,6 +34,8 @@ defmodule KsefHub.Predictions do
       apply_predictions(invoice, cat_result, tag_result)
     end
   end
+
+  def predict_and_apply(%Invoice{}), do: {:skip, :not_expense}
 
   @spec build_input(Invoice.t()) :: map()
   defp build_input(invoice) do
@@ -103,7 +101,7 @@ defmodule KsefHub.Predictions do
       updated = update_prediction_fields!(invoice, attrs)
       if category, do: apply_category_safely(updated, category)
       if tag, do: apply_tag_safely(updated, tag)
-      Repo.get!(Invoice, updated.id)
+      Repo.reload!(updated)
     end)
   end
 

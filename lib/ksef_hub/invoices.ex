@@ -258,12 +258,19 @@ defmodule KsefHub.Invoices do
 
       {:error, %Ecto.Changeset{} = changeset} ->
         if unique_ksef_number_conflict?(changeset) do
-          attrs
-          |> Map.merge(%{
-            duplicate_of_id: find_original_id(company_id, attrs),
-            duplicate_status: "suspected"
-          })
-          |> create_invoice()
+          case attrs
+               |> Map.merge(%{
+                 duplicate_of_id: find_original_id(company_id, attrs),
+                 duplicate_status: "suspected"
+               })
+               |> create_invoice() do
+            {:ok, invoice} ->
+              PredictionWorker.maybe_enqueue(invoice)
+              {:ok, invoice}
+
+            error ->
+              error
+          end
         else
           {:error, changeset}
         end

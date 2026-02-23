@@ -17,9 +17,11 @@ defmodule KsefHub.Predictions.PredictionWorker do
   @doc """
   Conditionally enqueues a prediction job for an expense invoice.
 
-  Returns `{:ok, %Oban.Job{}}` for expense invoices or `:skip` for others.
+  Returns `{:ok, %Oban.Job{}}` for expense invoices, `{:error, changeset}`
+  on Oban insert failure, or `:skip` for non-expense invoices.
   """
-  @spec maybe_enqueue(Invoices.Invoice.t()) :: {:ok, Oban.Job.t()} | :skip
+  @spec maybe_enqueue(Invoices.Invoice.t()) ::
+          {:ok, Oban.Job.t()} | {:error, Ecto.Changeset.t()} | :skip
   def maybe_enqueue(%{type: "expense", id: id, company_id: company_id}) do
     %{invoice_id: id, company_id: company_id}
     |> new()
@@ -35,14 +37,14 @@ defmodule KsefHub.Predictions.PredictionWorker do
       nil ->
         {:cancel, "invoice not found"}
 
-      %{type: type} when type != "expense" ->
-        {:cancel, "not an expense invoice"}
-
       %{prediction_status: "manual"} ->
         {:cancel, "already manually classified"}
 
-      invoice ->
+      %{type: "expense"} = invoice ->
         run_prediction(invoice)
+
+      _non_expense ->
+        {:cancel, "not an expense invoice"}
     end
   end
 
