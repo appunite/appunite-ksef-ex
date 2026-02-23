@@ -10,6 +10,20 @@ services:
       retries: 3
       start_period: 10s
 
+  unstructured:
+    image: ghcr.io/appunite/au-ksef-unstructured:latest
+    ports:
+      - "3002:8080"
+    environment:
+      - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY}
+      - API_TOKEN=${UNSTRUCTURED_API_TOKEN}
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://localhost:8080/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+      start_period: 30s
+
   prediction-service:
     image: ghcr.io/appunite/au-payroll-model-categories:latest
     ports:
