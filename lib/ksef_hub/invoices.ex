@@ -5,6 +5,8 @@ defmodule KsefHub.Invoices do
 
   import Ecto.Query
 
+  require Logger
+
   alias KsefHub.Invoices.{Category, Invoice, InvoiceTag, Tag}
   alias KsefHub.Predictions.PredictionWorker
   alias KsefHub.Repo
@@ -154,7 +156,7 @@ defmodule KsefHub.Invoices do
     case do_upsert(company_id, attrs) do
       {:ok, invoice} ->
         action = if invoice.inserted_at == invoice.updated_at, do: :inserted, else: :updated
-        if action == :inserted, do: PredictionWorker.maybe_enqueue(invoice)
+        if action == :inserted, do: enqueue_prediction(invoice)
         {:ok, invoice, action}
 
       {:error, changeset} ->
@@ -253,7 +255,7 @@ defmodule KsefHub.Invoices do
 
     case create_invoice(attrs) do
       {:ok, invoice} ->
-        PredictionWorker.maybe_enqueue(invoice)
+        enqueue_prediction(invoice)
         {:ok, invoice}
 
       {:error, %Ecto.Changeset{} = changeset} ->
@@ -276,7 +278,7 @@ defmodule KsefHub.Invoices do
     |> create_invoice()
     |> case do
       {:ok, invoice} ->
-        PredictionWorker.maybe_enqueue(invoice)
+        enqueue_prediction(invoice)
         {:ok, invoice}
 
       error ->
@@ -717,5 +719,21 @@ defmodule KsefHub.Invoices do
   @spec tag_query(Ecto.UUID.t(), Ecto.UUID.t()) :: Ecto.Query.t()
   defp tag_query(company_id, id) do
     where(Tag, [t], t.company_id == ^company_id and t.id == ^id)
+  end
+
+  @spec enqueue_prediction(Invoice.t()) :: :ok | :skip
+  defp enqueue_prediction(invoice) do
+    case PredictionWorker.maybe_enqueue(invoice) do
+      {:ok, _job} ->
+        :ok
+
+      :skip ->
+        :skip
+
+      {:error, reason} ->
+        Logger.warning(
+          "Failed to enqueue prediction for invoice #{invoice.id}: #{inspect(reason)}"
+        )
+    end
   end
 end

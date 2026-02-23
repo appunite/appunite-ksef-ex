@@ -34,8 +34,11 @@ defmodule KsefHub.Predictions.PredictionService do
       url = "#{base_url}/health"
 
       case Req.get(url, receive_timeout: @receive_timeout) do
-        {:ok, %{status: 200, body: body}} ->
+        {:ok, %{status: 200, body: body}} when is_map(body) ->
           {:ok, body}
+
+        {:ok, %{status: 200, body: body}} ->
+          {:error, {:invalid_payload, body}}
 
         {:ok, %{status: status}} ->
           {:error, {:prediction_service_error, status}}

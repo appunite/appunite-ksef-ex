@@ -35,6 +35,17 @@ if ksef_pdf_url = System.get_env("KSEF_PDF_URL") do
 end
 
 if prediction_service_url = System.get_env("PREDICTION_SERVICE_URL") do
+  if config_env() == :prod do
+    uri = URI.parse(prediction_service_url)
+
+    if uri.scheme != "https" do
+      raise """
+      PREDICTION_SERVICE_URL must use HTTPS in production.
+      Got: #{prediction_service_url}
+      """
+    end
+  end
+
   config :ksef_hub, :prediction_service_url, prediction_service_url
 end
 
