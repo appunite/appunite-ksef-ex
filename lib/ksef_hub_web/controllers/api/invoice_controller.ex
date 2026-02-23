@@ -595,9 +595,11 @@ defmodule KsefHubWeb.Api.InvoiceController do
         |> json(%{error: changeset_errors(changeset)})
 
       {:error, reason} ->
+        Logger.warning("Failed to add tags for invoice #{id}: #{inspect(reason)}")
+
         conn
         |> put_status(:unprocessable_entity)
-        |> json(%{error: "Failed to add tags: #{inspect(reason)}"})
+        |> json(%{error: "Failed to add tags"})
     end
   end
 
@@ -648,9 +650,11 @@ defmodule KsefHubWeb.Api.InvoiceController do
         |> json(%{error: changeset_errors(changeset)})
 
       {:error, reason} ->
+        Logger.warning("Failed to set tags for invoice #{id}: #{inspect(reason)}")
+
         conn
         |> put_status(:unprocessable_entity)
-        |> json(%{error: "Failed to set tags: #{inspect(reason)}"})
+        |> json(%{error: "Failed to set tags"})
     end
   end
 
