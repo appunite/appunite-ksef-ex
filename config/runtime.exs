@@ -34,6 +34,21 @@ if ksef_pdf_url = System.get_env("KSEF_PDF_URL") do
   config :ksef_hub, :ksef_pdf_url, ksef_pdf_url
 end
 
+if prediction_service_url = System.get_env("PREDICTION_SERVICE_URL") do
+  if config_env() == :prod do
+    uri = URI.parse(prediction_service_url)
+
+    if uri.scheme != "https" do
+      raise """
+      PREDICTION_SERVICE_URL must use HTTPS in production.
+      Got: #{prediction_service_url}
+      """
+    end
+  end
+
+  config :ksef_hub, :prediction_service_url, prediction_service_url
+end
+
 if credential_encryption_key = System.get_env("CREDENTIAL_ENCRYPTION_KEY") do
   case Base.decode64(credential_encryption_key) do
     {:ok, key} when byte_size(key) == 32 ->

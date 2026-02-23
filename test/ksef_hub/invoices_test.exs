@@ -102,6 +102,33 @@ defmodule KsefHub.InvoicesTest do
       assert updated.id == original.id
       assert updated.seller_name == "Updated Name"
     end
+
+    test "preserves prediction fields on re-sync update", %{company: company} do
+      original =
+        insert(:invoice,
+          ksef_number: "upsert-pred",
+          company: company,
+          type: "expense",
+          prediction_status: "predicted",
+          prediction_category_name: "finance:invoices",
+          prediction_category_confidence: 0.92,
+          prediction_tag_name: "monthly",
+          prediction_tag_confidence: 0.85,
+          prediction_model_version: "v1.0",
+          inserted_at: NaiveDateTime.add(NaiveDateTime.utc_now(), -60)
+        )
+
+      attrs = params_for(:invoice, ksef_number: "upsert-pred", company_id: company.id)
+
+      {:ok, updated, :updated} =
+        Invoices.upsert_invoice(%{attrs | seller_name: "Updated Seller"})
+
+      assert updated.id == original.id
+      assert updated.seller_name == "Updated Seller"
+      assert updated.prediction_status == "predicted"
+      assert updated.prediction_category_name == "finance:invoices"
+      assert updated.prediction_category_confidence == 0.92
+    end
   end
 
   describe "list_invoices/2" do

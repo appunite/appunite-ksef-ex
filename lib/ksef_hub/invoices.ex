@@ -5,7 +5,10 @@ defmodule KsefHub.Invoices do
 
   import Ecto.Query
 
+  require Logger
+
   alias KsefHub.Invoices.{Category, Invoice, InvoiceTag, Tag}
+  alias KsefHub.Predictions.PredictionWorker
   alias KsefHub.Repo
 
   @list_fields Invoice.__schema__(:fields) -- [:xml_content]
@@ -153,6 +156,7 @@ defmodule KsefHub.Invoices do
     case do_upsert(company_id, attrs) do
       {:ok, invoice} ->
         action = if invoice.inserted_at == invoice.updated_at, do: :inserted, else: :updated
+        if action == :inserted, do: enqueue_prediction(invoice)
         {:ok, invoice, action}
 
       {:error, changeset} ->
@@ -250,20 +254,35 @@ defmodule KsefHub.Invoices do
     attrs = detect_duplicate(company_id, attrs)
 
     case create_invoice(attrs) do
-      {:ok, _invoice} = success ->
-        success
+      {:ok, invoice} ->
+        enqueue_prediction(invoice)
+        {:ok, invoice}
 
       {:error, %Ecto.Changeset{} = changeset} ->
         if unique_ksef_number_conflict?(changeset) do
-          attrs
-          |> Map.merge(%{
-            duplicate_of_id: find_original_id(company_id, attrs),
-            duplicate_status: "suspected"
-          })
-          |> create_invoice()
+          retry_as_duplicate(company_id, attrs)
         else
           {:error, changeset}
         end
+    end
+  end
+
+  @spec retry_as_duplicate(Ecto.UUID.t(), map()) ::
+          {:ok, Invoice.t()} | {:error, Ecto.Changeset.t()}
+  defp retry_as_duplicate(company_id, attrs) do
+    attrs
+    |> Map.merge(%{
+      duplicate_of_id: find_original_id(company_id, attrs),
+      duplicate_status: "suspected"
+    })
+    |> create_invoice()
+    |> case do
+      {:ok, invoice} ->
+        enqueue_prediction(invoice)
+        {:ok, invoice}
+
+      error ->
+        error
     end
   end
 
@@ -476,6 +495,17 @@ defmodule KsefHub.Invoices do
     end
   end
 
+  @doc """
+  Marks an invoice's prediction status as `"manual"`, indicating the user
+  overrode or manually set the category/tags.
+  """
+  @spec mark_prediction_manual(Invoice.t()) :: {:ok, Invoice.t()} | {:error, Ecto.Changeset.t()}
+  def mark_prediction_manual(%Invoice{} = invoice) do
+    invoice
+    |> Invoice.prediction_changeset(%{prediction_status: "manual"})
+    |> Repo.update()
+  end
+
   # --- Invoice-Tag Associations ---
 
   @doc """
@@ -492,6 +522,16 @@ defmodule KsefHub.Invoices do
       |> select([i], i.company_id)
       |> Repo.one!()
 
+    add_invoice_tag(invoice_id, tag_id, company_id)
+  end
+
+  @doc """
+  Adds a tag to an invoice with a known company_id, skipping the per-tag
+  company lookup. Use when company ownership is already validated by the caller.
+  """
+  @spec add_invoice_tag(Ecto.UUID.t(), Ecto.UUID.t(), Ecto.UUID.t()) ::
+          {:ok, InvoiceTag.t()} | {:error, Ecto.Changeset.t() | :tag_not_in_company}
+  def add_invoice_tag(invoice_id, tag_id, company_id) do
     tag_in_company? =
       Tag
       |> where([t], t.id == ^tag_id and t.company_id == ^company_id)
@@ -689,5 +729,23 @@ defmodule KsefHub.Invoices do
   @spec tag_query(Ecto.UUID.t(), Ecto.UUID.t()) :: Ecto.Query.t()
   defp tag_query(company_id, id) do
     where(Tag, [t], t.company_id == ^company_id and t.id == ^id)
+  end
+
+  @spec enqueue_prediction(Invoice.t()) :: :ok | :skip | :enqueue_failed
+  defp enqueue_prediction(invoice) do
+    case PredictionWorker.maybe_enqueue(invoice) do
+      {:ok, _job} ->
+        :ok
+
+      :skip ->
+        :skip
+
+      {:error, reason} ->
+        Logger.warning(
+          "Failed to enqueue prediction for invoice #{invoice.id}: #{inspect(reason)}"
+        )
+
+        :enqueue_failed
+    end
   end
 end

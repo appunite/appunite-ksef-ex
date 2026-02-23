@@ -520,7 +520,8 @@ defmodule KsefHubWeb.Api.InvoiceController do
     category_id = params["category_id"]
 
     with :ok <- validate_category_company(category_id, company_id),
-         {:ok, _updated} <- Invoices.set_invoice_category(invoice, category_id) do
+         {:ok, updated} <- Invoices.set_invoice_category(invoice, category_id),
+         {:ok, _} <- Invoices.mark_prediction_manual(updated) do
       invoice = Invoices.get_invoice_with_details!(company_id, id, role: role)
       json(conn, %{data: invoice_json(invoice)})
     else
@@ -564,23 +565,16 @@ defmodule KsefHubWeb.Api.InvoiceController do
   @spec add_tags(Plug.Conn.t(), map()) :: Plug.Conn.t()
   def add_tags(conn, %{"id" => id} = params) do
     company_id = conn.assigns.current_company.id
-    _invoice = Invoices.get_invoice!(company_id, id, role: conn.assigns[:current_role])
+    invoice = Invoices.get_invoice!(company_id, id, role: conn.assigns[:current_role])
 
     with {:ok, tag_ids} <- validate_tag_ids(params["tag_ids"]),
-         true <- Invoices.tags_belong_to_company?(tag_ids, company_id) do
-      Enum.each(tag_ids, fn tag_id -> Invoices.add_invoice_tag(id, tag_id) end)
+         true <- Invoices.tags_belong_to_company?(tag_ids, company_id),
+         :ok <- add_tags_sequentially(id, tag_ids, company_id),
+         {:ok, _} <- Invoices.mark_prediction_manual(invoice) do
       tags = Invoices.list_invoice_tags(id)
       json(conn, %{data: Enum.map(tags, &tag_json/1)})
     else
-      {:error, :invalid_tag_ids} ->
-        conn
-        |> put_status(:unprocessable_entity)
-        |> json(%{error: "Invalid tag_ids payload"})
-
-      false ->
-        conn
-        |> put_status(:unprocessable_entity)
-        |> json(%{error: "One or more tags not found in this company"})
+      error -> render_tag_error(conn, id, error)
     end
   end
 
@@ -607,27 +601,15 @@ defmodule KsefHubWeb.Api.InvoiceController do
   @spec set_tags(Plug.Conn.t(), map()) :: Plug.Conn.t()
   def set_tags(conn, %{"id" => id} = params) do
     company_id = conn.assigns.current_company.id
-    _invoice = Invoices.get_invoice!(company_id, id, role: conn.assigns[:current_role])
+    invoice = Invoices.get_invoice!(company_id, id, role: conn.assigns[:current_role])
 
     with {:ok, tag_ids} <- validate_tag_ids(params["tag_ids"]),
          true <- Invoices.tags_belong_to_company?(tag_ids, company_id),
-         {:ok, tags} <- Invoices.set_invoice_tags(id, tag_ids) do
+         {:ok, tags} <- Invoices.set_invoice_tags(id, tag_ids),
+         {:ok, _} <- Invoices.mark_prediction_manual(invoice) do
       json(conn, %{data: Enum.map(tags, &tag_json/1)})
     else
-      {:error, :invalid_tag_ids} ->
-        conn
-        |> put_status(:unprocessable_entity)
-        |> json(%{error: "Invalid tag_ids payload"})
-
-      false ->
-        conn
-        |> put_status(:unprocessable_entity)
-        |> json(%{error: "One or more tags not found in this company"})
-
-      {:error, changeset} ->
-        conn
-        |> put_status(:unprocessable_entity)
-        |> json(%{error: changeset_errors(changeset)})
+      error -> render_tag_error(conn, id, error)
     end
   end
 
@@ -742,6 +724,52 @@ defmodule KsefHubWeb.Api.InvoiceController do
 
   defp validate_tag_ids(_), do: {:error, :invalid_tag_ids}
 
+  @spec render_tag_error(Plug.Conn.t(), Ecto.UUID.t(), term()) :: Plug.Conn.t()
+  defp render_tag_error(conn, _id, {:error, :invalid_tag_ids}) do
+    conn
+    |> put_status(:unprocessable_entity)
+    |> json(%{error: "Invalid tag_ids payload"})
+  end
+
+  defp render_tag_error(conn, _id, false) do
+    conn
+    |> put_status(:unprocessable_entity)
+    |> json(%{error: "One or more tags not found in this company"})
+  end
+
+  defp render_tag_error(conn, _id, {:error, :tag_not_in_company}) do
+    conn
+    |> put_status(:unprocessable_entity)
+    |> json(%{error: "One or more tags not found in this company"})
+  end
+
+  defp render_tag_error(conn, _id, {:error, %Ecto.Changeset{} = changeset}) do
+    conn
+    |> put_status(:unprocessable_entity)
+    |> json(%{error: changeset_errors(changeset)})
+  end
+
+  defp render_tag_error(conn, id, {:error, reason}) do
+    Logger.warning("Tag operation failed for invoice #{id}: #{inspect(reason)}")
+
+    conn
+    |> put_status(:unprocessable_entity)
+    |> json(%{error: "Tag operation failed"})
+  end
+
+  @spec add_tags_sequentially(Ecto.UUID.t(), [Ecto.UUID.t()], Ecto.UUID.t()) ::
+          :ok | {:error, term()}
+  defp add_tags_sequentially(_invoice_id, [], _company_id), do: :ok
+
+  defp add_tags_sequentially(invoice_id, tag_ids, company_id) do
+    Enum.reduce_while(tag_ids, :ok, fn tag_id, :ok ->
+      case Invoices.add_invoice_tag(invoice_id, tag_id, company_id) do
+        {:ok, _} -> {:cont, :ok}
+        {:error, reason} -> {:halt, {:error, reason}}
+      end
+    end)
+  end
+
   @spec validate_category_company(String.t() | nil, Ecto.UUID.t()) ::
           :ok | {:error, :category_not_found | :invalid_uuid}
   defp validate_category_company(nil, _company_id), do: :ok
@@ -784,6 +812,13 @@ defmodule KsefHubWeb.Api.InvoiceController do
       duplicate_status: invoice.duplicate_status,
       ksef_acquisition_date: invoice.ksef_acquisition_date,
       permanent_storage_date: invoice.permanent_storage_date,
+      prediction_status: invoice.prediction_status,
+      prediction_category_name: invoice.prediction_category_name,
+      prediction_tag_name: invoice.prediction_tag_name,
+      prediction_category_confidence: invoice.prediction_category_confidence,
+      prediction_tag_confidence: invoice.prediction_tag_confidence,
+      prediction_model_version: invoice.prediction_model_version,
+      prediction_predicted_at: invoice.prediction_predicted_at,
       inserted_at: invoice.inserted_at,
       updated_at: invoice.updated_at
     }

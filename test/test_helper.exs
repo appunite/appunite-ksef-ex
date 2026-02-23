@@ -13,3 +13,5 @@ Mox.defmock(KsefHub.Credentials.Pkcs12Converter.Mock,
 Mox.defmock(KsefHub.Credentials.CertificateInfo.Mock,
   for: KsefHub.Credentials.CertificateInfo.Behaviour
 )
+
+Mox.defmock(KsefHub.Predictions.Mock, for: KsefHub.Predictions.Behaviour)
