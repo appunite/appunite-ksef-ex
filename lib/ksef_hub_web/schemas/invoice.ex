@@ -39,10 +39,15 @@ defmodule KsefHubWeb.Schemas.Invoice do
         description: "Sequential invoice number."
       },
       issue_date: %Schema{type: :string, format: :date, nullable: true},
-      net_amount: %Schema{type: :string, description: "Decimal as string."},
-      vat_amount: %Schema{type: :string, description: "Decimal as string."},
-      gross_amount: %Schema{type: :string, description: "Decimal as string."},
-      currency: %Schema{type: :string, description: "ISO 4217 currency code.", example: "PLN"},
+      net_amount: %Schema{type: :string, nullable: true, description: "Decimal as string."},
+      vat_amount: %Schema{type: :string, nullable: true, description: "Decimal as string."},
+      gross_amount: %Schema{type: :string, nullable: true, description: "Decimal as string."},
+      currency: %Schema{
+        type: :string,
+        nullable: true,
+        description: "ISO 4217 currency code.",
+        example: "PLN"
+      },
       status: %Schema{type: :string, enum: ["pending", "approved", "rejected"]},
       source: %Schema{
         type: :string,
@@ -179,6 +184,26 @@ defmodule KsefHubWeb.Schemas.Invoice do
       permanent_storage_date: "2024-01-16T00:00:00Z",
       inserted_at: "2024-01-15T10:35:00Z",
       updated_at: "2024-01-15T10:35:00Z"
+    },
+    "x-pdf-upload-example": %{
+      id: "b2c3d4e5-f6a7-8901-bcde-f12345678901",
+      type: "expense",
+      source: "pdf_upload",
+      status: "pending",
+      extraction_status: "partial",
+      original_filename: "invoice_february.pdf",
+      seller_nip: "1234567890",
+      seller_name: "Dostawca Sp. z o.o.",
+      buyer_nip: nil,
+      buyer_name: nil,
+      invoice_number: "FV/2026/042",
+      issue_date: "2026-02-20",
+      net_amount: "5000.00",
+      vat_amount: nil,
+      gross_amount: "6150.00",
+      currency: "PLN",
+      inserted_at: "2026-02-20T14:30:00Z",
+      updated_at: "2026-02-20T14:30:00Z"
     }
   })
 end

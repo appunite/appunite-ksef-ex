@@ -61,10 +61,8 @@ defmodule KsefHub.Unstructured.Client do
       {:ok, %{status: 200, body: body}} when is_map(body) ->
         {:ok, body}
 
-      {:ok, %{status: status, body: body}} ->
-        Logger.error(
-          "Unstructured service returned #{status} for /extract: #{inspect(body, limit: 200)}"
-        )
+      {:ok, %{status: status}} ->
+        Logger.error("Unstructured service returned #{status} for /extract")
 
         {:error, {:unstructured_service_error, status}}
 

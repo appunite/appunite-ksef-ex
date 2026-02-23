@@ -587,7 +587,9 @@ defmodule KsefHubWeb.Api.InvoiceControllerTest do
       assert Jason.decode!(conn.resp_body)["error"] =~ "PDF"
     end
 
-    test "returns 502 when extraction service fails", %{conn: conn} do
+    test "creates invoice with failed extraction status when extraction service fails", %{
+      conn: conn
+    } do
       %{token: token} = create_owner_with_token()
 
       Mox.expect(KsefHub.Unstructured.Mock, :extract, fn _pdf, _opts ->
@@ -1073,6 +1075,7 @@ defmodule KsefHubWeb.Api.InvoiceControllerTest do
   defp create_temp_pdf do
     path = Path.join(System.tmp_dir!(), "test_invoice_#{System.unique_integer([:positive])}.pdf")
     File.write!(path, "%PDF-1.4 fake test content")
+    on_exit(fn -> File.rm(path) end)
     path
   end
 
@@ -1080,6 +1083,7 @@ defmodule KsefHubWeb.Api.InvoiceControllerTest do
   defp create_temp_non_pdf do
     path = Path.join(System.tmp_dir!(), "test_file_#{System.unique_integer([:positive])}.txt")
     File.write!(path, "not a pdf file at all")
+    on_exit(fn -> File.rm(path) end)
     path
   end
 end

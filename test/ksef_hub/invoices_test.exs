@@ -719,6 +719,24 @@ defmodule KsefHub.InvoicesTest do
       result = Invoices.recalculate_extraction_status(invoice, attrs)
       assert result[:extraction_status] == "partial"
     end
+
+    test "treats empty string as missing field", %{company: company} do
+      invoice =
+        insert(:pdf_upload_invoice,
+          company: company,
+          extraction_status: "complete",
+          seller_nip: "1234567890",
+          seller_name: "Seller",
+          invoice_number: "FV/001",
+          issue_date: ~D[2026-02-20],
+          net_amount: Decimal.new("100"),
+          gross_amount: Decimal.new("123")
+        )
+
+      attrs = %{seller_nip: ""}
+      result = Invoices.recalculate_extraction_status(invoice, attrs)
+      assert result[:extraction_status] == "partial"
+    end
   end
 
   describe "upsert_invoice/1 with manual invoices" do

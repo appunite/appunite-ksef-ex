@@ -44,7 +44,15 @@ Invoices with `extraction_status: "partial"` cannot be approved. Users must fill
 
 ### Synchronous extraction
 
-Extraction is synchronous (up to 120s timeout). This is simpler than async and avoids polling/notification complexity. If the service fails, the invoice is still created with `extraction_status: "failed"`.
+Extraction is synchronous in the initial implementation. This is simpler than async and avoids polling/notification complexity. If the service fails, the invoice is still created with `extraction_status: "failed"`.
+
+**Mitigations and future evolution:**
+
+1. **Timeout** — start with a timeout based on measured 95th-percentile latency (target 30-45s). The current 120s ceiling is a safety bound, not an SLO.
+2. **Async path** — if synchronous extraction proves too slow or ties up connections, move to accepting uploads with `202 Accepted`, enqueuing extraction in an Oban job, and letting clients poll `extraction_status`.
+3. **Concurrency cap** — add an upload-route concurrency limit or rate-limit to bound simultaneous extractions and protect downstream resources.
+
+See ADR 0021 for the related storage refactoring that would complement an async design.
 
 ### PDF download behavior
 

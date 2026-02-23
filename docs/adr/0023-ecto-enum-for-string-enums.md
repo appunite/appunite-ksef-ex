@@ -1,4 +1,4 @@
-# 0022. Replace String Enums with Ecto.Enum
+# 0023. Replace String Enums with Ecto.Enum
 
 Date: 2026-02-24
 

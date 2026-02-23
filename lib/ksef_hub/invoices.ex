@@ -136,9 +136,16 @@ defmodule KsefHub.Invoices do
   @spec create_invoice(map()) :: {:ok, Invoice.t()} | {:error, Ecto.Changeset.t()}
   def create_invoice(attrs) do
     company_id = attrs[:company_id] || attrs["company_id"]
+    {pdf_content, attrs} = Map.pop(attrs, :pdf_content)
 
-    %Invoice{}
-    |> Ecto.Changeset.change(%{company_id: company_id})
+    base =
+      %Invoice{}
+      |> Ecto.Changeset.change(%{company_id: company_id})
+
+    base =
+      if pdf_content, do: Ecto.Changeset.put_change(base, :pdf_content, pdf_content), else: base
+
+    base
     |> Invoice.changeset(attrs)
     |> Repo.insert()
   end

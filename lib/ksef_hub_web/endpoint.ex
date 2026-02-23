@@ -43,9 +43,8 @@ defmodule KsefHubWeb.Endpoint do
   plug Plug.Telemetry, event_prefix: [:phoenix, :endpoint]
 
   plug Plug.Parsers,
-    parsers: [:urlencoded, :multipart, :json],
+    parsers: [:urlencoded, {:multipart, length: 12_000_000}, :json],
     pass: ["*/*"],
-    length: 12_000_000,
     json_decoder: Phoenix.json_library()
 
   plug Plug.MethodOverride

@@ -84,7 +84,6 @@ defmodule KsefHub.Invoices.Invoice do
       :duplicate_status,
       :ksef_acquisition_date,
       :permanent_storage_date,
-      :pdf_content,
       :extraction_status,
       :original_filename
     ])

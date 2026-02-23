@@ -7,5 +7,7 @@ defmodule KsefHub.Repo.Migrations.AddPdfUploadSupport do
       add :extraction_status, :string
       add :original_filename, :string
     end
+
+    create index(:invoices, [:extraction_status])
   end
 end
