@@ -21,7 +21,8 @@ config :ksef_hub,
   xades_signer: KsefHub.XadesSigner.Native,
   pkcs12_converter: KsefHub.Credentials.Pkcs12Converter.Openssl,
   ksef_api_url: "https://api-test.ksef.mf.gov.pl",
-  prediction_client: KsefHub.Predictions.PredictionService
+  prediction_client: KsefHub.Predictions.PredictionService,
+  unstructured_client: KsefHub.Unstructured.Client
 
 # Oban background jobs
 config :ksef_hub, Oban,
