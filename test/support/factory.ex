@@ -12,7 +12,7 @@ defmodule KsefHub.Factory do
   alias KsefHub.Companies.{Company, Membership}
   alias KsefHub.Credentials.{Credential, UserCertificate}
   alias KsefHub.Invitations.Invitation
-  alias KsefHub.Invoices.Invoice
+  alias KsefHub.Invoices.{Category, Invoice, InvoiceTag, Tag}
   alias KsefHub.Sync.Checkpoint
 
   @doc "Builds a `User` with sequenced email and google_uid."
@@ -152,6 +152,37 @@ defmodule KsefHub.Factory do
       currency: "PLN",
       status: "pending",
       company: build(:company)
+    }
+  end
+
+  @doc "Builds a `Category` with sequenced name in group:target format and associated company."
+  @spec category_factory() :: Category.t()
+  def category_factory do
+    %Category{
+      name: sequence(:category_name, &"operations:category-#{&1}"),
+      emoji: "📦",
+      description: "Test category",
+      sort_order: 0,
+      company: build(:company)
+    }
+  end
+
+  @doc "Builds a `Tag` with sequenced name and associated company."
+  @spec tag_factory() :: Tag.t()
+  def tag_factory do
+    %Tag{
+      name: sequence(:tag_name, &"tag-#{&1}"),
+      description: "Test tag",
+      company: build(:company)
+    }
+  end
+
+  @doc "Builds an `InvoiceTag` linking an invoice to a tag."
+  @spec invoice_tag_factory() :: InvoiceTag.t()
+  def invoice_tag_factory do
+    %InvoiceTag{
+      invoice: build(:invoice),
+      tag: build(:tag)
     }
   end
 
