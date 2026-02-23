@@ -36,6 +36,7 @@ defmodule KsefHub.Invoices.Invoice do
 
     belongs_to :company, KsefHub.Companies.Company
     belongs_to :duplicate_of, __MODULE__
+    has_many :duplicates, __MODULE__, foreign_key: :duplicate_of_id
 
     timestamps()
   end

@@ -150,6 +150,7 @@ defmodule KsefHub.Invoices do
   end
 
   @upsert_replace_fields [
+    :source,
     :xml_content,
     :seller_nip,
     :seller_name,
