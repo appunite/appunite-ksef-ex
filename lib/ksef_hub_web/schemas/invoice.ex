@@ -39,6 +39,22 @@ defmodule KsefHubWeb.Schemas.Invoice do
         enum: ["ksef", "manual"],
         description: "Invoice origin: synced from KSeF or manually created."
       },
+      category_id: %Schema{
+        type: :string,
+        format: :uuid,
+        nullable: true,
+        description: "ID of the assigned category."
+      },
+      category: %Schema{
+        nullable: true,
+        description: "Category details (included in show response).",
+        allOf: [KsefHubWeb.Schemas.Category]
+      },
+      tags: %Schema{
+        type: :array,
+        items: KsefHubWeb.Schemas.Tag,
+        description: "Tags assigned to this invoice (included in show response)."
+      },
       duplicate_of_id: %Schema{
         type: :string,
         format: :uuid,
@@ -83,6 +99,18 @@ defmodule KsefHubWeb.Schemas.Invoice do
       currency: "PLN",
       status: "pending",
       source: "ksef",
+      category_id: "d4c3b2a1-9876-5432-fedc-ba0987654321",
+      category: %{
+        id: "d4c3b2a1-9876-5432-fedc-ba0987654321",
+        name: "finance:invoices",
+        emoji: "💰",
+        description: "Financial invoices",
+        sort_order: 0
+      },
+      tags: [
+        %{id: "e5d4c3b2-a198-7654-3210-fedcba098765", name: "urgent", usage_count: 3},
+        %{id: "f6e5d4c3-b2a1-9876-5432-10fedcba0987", name: "quarterly", usage_count: 7}
+      ],
       duplicate_of_id: nil,
       duplicate_status: nil,
       ksef_acquisition_date: "2024-01-15T10:30:00Z",

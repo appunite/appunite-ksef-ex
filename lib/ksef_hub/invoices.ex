@@ -5,7 +5,7 @@ defmodule KsefHub.Invoices do
 
   import Ecto.Query
 
-  alias KsefHub.Invoices.Invoice
+  alias KsefHub.Invoices.{Category, Invoice, InvoiceTag, Tag}
   alias KsefHub.Repo
 
   @list_fields Invoice.__schema__(:fields) -- [:xml_content]
@@ -49,6 +49,7 @@ defmodule KsefHub.Invoices do
     Invoice
     |> where([i], i.company_id == ^company_id)
     |> apply_filters(filters)
+    |> subquery()
     |> Repo.aggregate(:count)
   end
 
@@ -94,6 +95,16 @@ defmodule KsefHub.Invoices do
     Invoice
     |> where([i], i.company_id == ^company_id and i.id == ^id)
     |> maybe_scope_type_by_role(opts[:role])
+    |> Repo.one!()
+  end
+
+  @doc "Fetches an invoice by UUID with category and tags preloaded."
+  @spec get_invoice_with_details!(Ecto.UUID.t(), Ecto.UUID.t(), keyword()) :: Invoice.t()
+  def get_invoice_with_details!(company_id, id, opts \\ []) do
+    Invoice
+    |> where([i], i.company_id == ^company_id and i.id == ^id)
+    |> maybe_scope_type_by_role(opts[:role])
+    |> preload([:category, :tags])
     |> Repo.one!()
   end
 
@@ -312,6 +323,236 @@ defmodule KsefHub.Invoices do
     end)
   end
 
+  # --- Categories ---
+
+  @doc "Returns all categories for a company, ordered by sort_order then name."
+  @spec list_categories(Ecto.UUID.t()) :: [Category.t()]
+  def list_categories(company_id) do
+    Category
+    |> where([c], c.company_id == ^company_id)
+    |> order_by([c], asc: c.sort_order, asc: c.name)
+    |> Repo.all()
+  end
+
+  @doc "Fetches a category by ID scoped to a company."
+  @spec get_category(Ecto.UUID.t(), Ecto.UUID.t()) :: {:ok, Category.t()} | {:error, :not_found}
+  def get_category(company_id, id) do
+    company_id
+    |> category_query(id)
+    |> Repo.one()
+    |> case do
+      nil -> {:error, :not_found}
+      category -> {:ok, category}
+    end
+  end
+
+  @doc "Fetches a category by ID scoped to a company, raising if not found."
+  @spec get_category!(Ecto.UUID.t(), Ecto.UUID.t()) :: Category.t()
+  def get_category!(company_id, id) do
+    company_id |> category_query(id) |> Repo.one!()
+  end
+
+  @doc "Creates a category for a company."
+  @spec create_category(Ecto.UUID.t(), map()) ::
+          {:ok, Category.t()} | {:error, Ecto.Changeset.t()}
+  def create_category(company_id, attrs) do
+    %Category{}
+    |> Ecto.Changeset.change(%{company_id: company_id})
+    |> Category.changeset(attrs)
+    |> Repo.insert()
+  end
+
+  @doc "Updates a category."
+  @spec update_category(Category.t(), map()) ::
+          {:ok, Category.t()} | {:error, Ecto.Changeset.t()}
+  def update_category(%Category{} = category, attrs) do
+    category
+    |> Category.changeset(attrs)
+    |> Repo.update()
+  end
+
+  @doc "Deletes a category. Associated invoices get category_id nilified."
+  @spec delete_category(Category.t()) :: {:ok, Category.t()} | {:error, Ecto.Changeset.t()}
+  def delete_category(%Category{} = category) do
+    Repo.delete(category)
+  end
+
+  # --- Tags ---
+
+  @doc "Returns all tags for a company with usage counts, ordered by count desc then name."
+  @spec list_tags(Ecto.UUID.t()) :: [Tag.t()]
+  def list_tags(company_id) do
+    Tag
+    |> where([t], t.company_id == ^company_id)
+    |> join(:left, [t], it in InvoiceTag, on: it.tag_id == t.id)
+    |> group_by([t, _it], t.id)
+    |> select_merge([t, it], %{usage_count: count(it.id)})
+    |> order_by([t, it], desc: count(it.id), asc: t.name)
+    |> Repo.all()
+  end
+
+  @doc "Fetches a tag by ID scoped to a company."
+  @spec get_tag(Ecto.UUID.t(), Ecto.UUID.t()) :: {:ok, Tag.t()} | {:error, :not_found}
+  def get_tag(company_id, id) do
+    company_id
+    |> tag_query(id)
+    |> Repo.one()
+    |> case do
+      nil -> {:error, :not_found}
+      tag -> {:ok, tag}
+    end
+  end
+
+  @doc "Fetches a tag by ID scoped to a company, raising if not found."
+  @spec get_tag!(Ecto.UUID.t(), Ecto.UUID.t()) :: Tag.t()
+  def get_tag!(company_id, id) do
+    company_id |> tag_query(id) |> Repo.one!()
+  end
+
+  @doc "Creates a tag for a company."
+  @spec create_tag(Ecto.UUID.t(), map()) :: {:ok, Tag.t()} | {:error, Ecto.Changeset.t()}
+  def create_tag(company_id, attrs) do
+    %Tag{}
+    |> Ecto.Changeset.change(%{company_id: company_id})
+    |> Tag.changeset(attrs)
+    |> Repo.insert()
+  end
+
+  @doc "Updates a tag."
+  @spec update_tag(Tag.t(), map()) :: {:ok, Tag.t()} | {:error, Ecto.Changeset.t()}
+  def update_tag(%Tag{} = tag, attrs) do
+    tag
+    |> Tag.changeset(attrs)
+    |> Repo.update()
+  end
+
+  @doc "Deletes a tag. Associated join records are cascade deleted."
+  @spec delete_tag(Tag.t()) :: {:ok, Tag.t()} | {:error, Ecto.Changeset.t()}
+  def delete_tag(%Tag{} = tag) do
+    Repo.delete(tag)
+  end
+
+  @doc "Checks whether all given tag IDs belong to a company."
+  @spec tags_belong_to_company?([Ecto.UUID.t()], Ecto.UUID.t()) :: boolean()
+  def tags_belong_to_company?([], _company_id), do: true
+
+  def tags_belong_to_company?(tag_ids, company_id) do
+    count =
+      Tag
+      |> where([t], t.company_id == ^company_id and t.id in ^tag_ids)
+      |> Repo.aggregate(:count)
+
+    count == length(Enum.uniq(tag_ids))
+  end
+
+  # --- Invoice-Category Assignment ---
+
+  @doc """
+  Assigns or clears a category on an invoice.
+
+  When `category_id` is not nil, verifies the category belongs to the same
+  company as the invoice before updating.
+  """
+  @spec set_invoice_category(Invoice.t(), Ecto.UUID.t() | nil) ::
+          {:ok, Invoice.t()} | {:error, Ecto.Changeset.t() | :category_not_in_company}
+  def set_invoice_category(%Invoice{} = invoice, nil) do
+    invoice
+    |> Invoice.category_changeset(%{category_id: nil})
+    |> Repo.update()
+  end
+
+  def set_invoice_category(%Invoice{} = invoice, category_id) do
+    category_exists? =
+      Category
+      |> where([c], c.id == ^category_id and c.company_id == ^invoice.company_id)
+      |> Repo.exists?()
+
+    if category_exists? do
+      invoice
+      |> Invoice.category_changeset(%{category_id: category_id})
+      |> Repo.update()
+    else
+      {:error, :category_not_in_company}
+    end
+  end
+
+  # --- Invoice-Tag Associations ---
+
+  @doc """
+  Adds a tag to an invoice. Idempotent — duplicate associations are silently ignored.
+
+  Verifies the tag belongs to the same company as the invoice before inserting.
+  """
+  @spec add_invoice_tag(Ecto.UUID.t(), Ecto.UUID.t()) ::
+          {:ok, InvoiceTag.t()} | {:error, Ecto.Changeset.t() | :tag_not_in_company}
+  def add_invoice_tag(invoice_id, tag_id) do
+    company_id =
+      Invoice
+      |> where([i], i.id == ^invoice_id)
+      |> select([i], i.company_id)
+      |> Repo.one!()
+
+    tag_in_company? =
+      Tag
+      |> where([t], t.id == ^tag_id and t.company_id == ^company_id)
+      |> Repo.exists?()
+
+    if tag_in_company? do
+      invoice_id
+      |> InvoiceTag.changeset(tag_id)
+      |> Repo.insert(on_conflict: :nothing)
+    else
+      {:error, :tag_not_in_company}
+    end
+  end
+
+  @doc "Removes a tag from an invoice."
+  @spec remove_invoice_tag(Ecto.UUID.t(), Ecto.UUID.t()) ::
+          {:ok, InvoiceTag.t()} | {:error, :not_found}
+  def remove_invoice_tag(invoice_id, tag_id) do
+    InvoiceTag
+    |> where([it], it.invoice_id == ^invoice_id and it.tag_id == ^tag_id)
+    |> Repo.one()
+    |> case do
+      nil -> {:error, :not_found}
+      invoice_tag -> Repo.delete(invoice_tag)
+    end
+  end
+
+  @doc "Lists tags for an invoice, ordered by name."
+  @spec list_invoice_tags(Ecto.UUID.t()) :: [Tag.t()]
+  def list_invoice_tags(invoice_id) do
+    Tag
+    |> join(:inner, [t], it in InvoiceTag, on: it.tag_id == t.id)
+    |> where([_t, it], it.invoice_id == ^invoice_id)
+    |> order_by([t, _it], asc: t.name)
+    |> Repo.all()
+  end
+
+  @doc "Replaces all tags on an invoice with the given tag IDs."
+  @spec set_invoice_tags(Ecto.UUID.t(), [Ecto.UUID.t()]) ::
+          {:ok, [Tag.t()]} | {:error, Ecto.Changeset.t()}
+  def set_invoice_tags(invoice_id, tag_ids) do
+    unique_tag_ids = Enum.uniq(tag_ids)
+
+    Repo.transaction(fn ->
+      InvoiceTag
+      |> where([it], it.invoice_id == ^invoice_id)
+      |> Repo.delete_all()
+
+      Enum.each(unique_tag_ids, &insert_invoice_tag!(invoice_id, &1))
+      list_invoice_tags(invoice_id)
+    end)
+  end
+
+  @spec insert_invoice_tag!(Ecto.UUID.t(), Ecto.UUID.t()) :: :ok
+  defp insert_invoice_tag!(invoice_id, tag_id) do
+    case invoice_id |> InvoiceTag.changeset(tag_id) |> Repo.insert() do
+      {:ok, _} -> :ok
+      {:error, changeset} -> Repo.rollback(changeset)
+    end
+  end
+
   # --- Private ---
 
   @spec detect_duplicate(Ecto.UUID.t(), map()) :: map()
@@ -412,6 +653,15 @@ defmodule KsefHub.Invoices do
       {:source, source}, q when source in ~w(ksef manual) ->
         where(q, [i], i.source == ^source)
 
+      {:category_id, category_id}, q when is_binary(category_id) and category_id != "" ->
+        where(q, [i], i.category_id == ^category_id)
+
+      {:tag_ids, tag_ids}, q when is_list(tag_ids) and tag_ids != [] ->
+        q
+        |> join(:inner, [i], it in InvoiceTag, on: it.invoice_id == i.id)
+        |> where([..., it], it.tag_id in ^tag_ids)
+        |> distinct(true)
+
       _, q ->
         q
     end)
@@ -430,4 +680,14 @@ defmodule KsefHub.Invoices do
   end
 
   defp clamp(_, min_val, _max_val), do: min_val
+
+  @spec category_query(Ecto.UUID.t(), Ecto.UUID.t()) :: Ecto.Query.t()
+  defp category_query(company_id, id) do
+    where(Category, [c], c.company_id == ^company_id and c.id == ^id)
+  end
+
+  @spec tag_query(Ecto.UUID.t(), Ecto.UUID.t()) :: Ecto.Query.t()
+  defp tag_query(company_id, id) do
+    where(Tag, [t], t.company_id == ^company_id and t.id == ^id)
+  end
 end
