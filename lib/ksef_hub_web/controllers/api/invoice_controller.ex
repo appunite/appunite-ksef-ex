@@ -565,12 +565,12 @@ defmodule KsefHubWeb.Api.InvoiceController do
   @spec add_tags(Plug.Conn.t(), map()) :: Plug.Conn.t()
   def add_tags(conn, %{"id" => id} = params) do
     company_id = conn.assigns.current_company.id
-    Invoices.get_invoice!(company_id, id, role: conn.assigns[:current_role])
+    invoice = Invoices.get_invoice!(company_id, id, role: conn.assigns[:current_role])
 
     with {:ok, tag_ids} <- validate_tag_ids(params["tag_ids"]),
          true <- Invoices.tags_belong_to_company?(tag_ids, company_id),
          :ok <- add_tags_sequentially(id, tag_ids, company_id),
-         {:ok, _} <- Invoices.mark_prediction_manual(id) do
+         {:ok, _} <- Invoices.mark_prediction_manual(invoice) do
       tags = Invoices.list_invoice_tags(id)
       json(conn, %{data: Enum.map(tags, &tag_json/1)})
     else
@@ -584,10 +584,20 @@ defmodule KsefHubWeb.Api.InvoiceController do
         |> put_status(:unprocessable_entity)
         |> json(%{error: "One or more tags not found in this company"})
 
-      {:error, changeset} ->
+      {:error, :tag_not_in_company} ->
+        conn
+        |> put_status(:unprocessable_entity)
+        |> json(%{error: "One or more tags not found in this company"})
+
+      {:error, %Ecto.Changeset{} = changeset} ->
         conn
         |> put_status(:unprocessable_entity)
         |> json(%{error: changeset_errors(changeset)})
+
+      {:error, reason} ->
+        conn
+        |> put_status(:unprocessable_entity)
+        |> json(%{error: "Failed to add tags: #{inspect(reason)}"})
     end
   end
 
@@ -614,12 +624,12 @@ defmodule KsefHubWeb.Api.InvoiceController do
   @spec set_tags(Plug.Conn.t(), map()) :: Plug.Conn.t()
   def set_tags(conn, %{"id" => id} = params) do
     company_id = conn.assigns.current_company.id
-    Invoices.get_invoice!(company_id, id, role: conn.assigns[:current_role])
+    invoice = Invoices.get_invoice!(company_id, id, role: conn.assigns[:current_role])
 
     with {:ok, tag_ids} <- validate_tag_ids(params["tag_ids"]),
          true <- Invoices.tags_belong_to_company?(tag_ids, company_id),
          {:ok, tags} <- Invoices.set_invoice_tags(id, tag_ids),
-         {:ok, _} <- Invoices.mark_prediction_manual(id) do
+         {:ok, _} <- Invoices.mark_prediction_manual(invoice) do
       json(conn, %{data: Enum.map(tags, &tag_json/1)})
     else
       {:error, :invalid_tag_ids} ->
@@ -632,10 +642,15 @@ defmodule KsefHubWeb.Api.InvoiceController do
         |> put_status(:unprocessable_entity)
         |> json(%{error: "One or more tags not found in this company"})
 
-      {:error, changeset} ->
+      {:error, %Ecto.Changeset{} = changeset} ->
         conn
         |> put_status(:unprocessable_entity)
         |> json(%{error: changeset_errors(changeset)})
+
+      {:error, reason} ->
+        conn
+        |> put_status(:unprocessable_entity)
+        |> json(%{error: "Failed to set tags: #{inspect(reason)}"})
     end
   end
 

@@ -499,17 +499,11 @@ defmodule KsefHub.Invoices do
   Marks an invoice's prediction status as `"manual"`, indicating the user
   overrode or manually set the category/tags.
   """
-  @spec mark_prediction_manual(Invoice.t() | Ecto.UUID.t()) ::
-          {:ok, Invoice.t()} | {:error, Ecto.Changeset.t()}
+  @spec mark_prediction_manual(Invoice.t()) :: {:ok, Invoice.t()} | {:error, Ecto.Changeset.t()}
   def mark_prediction_manual(%Invoice{} = invoice) do
     invoice
     |> Invoice.prediction_changeset(%{prediction_status: "manual"})
     |> Repo.update()
-  end
-
-  def mark_prediction_manual(invoice_id) when is_binary(invoice_id) do
-    invoice = Repo.get!(Invoice, invoice_id)
-    mark_prediction_manual(invoice)
   end
 
   # --- Invoice-Tag Associations ---
