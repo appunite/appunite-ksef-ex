@@ -6,6 +6,7 @@ defmodule KsefHub.Repo.Migrations.CreateTags do
       add :id, :binary_id, primary_key: true
       add :name, :string, null: false
       add :description, :string
+
       add :company_id, references(:companies, type: :binary_id, on_delete: :delete_all),
         null: false
 
@@ -17,8 +18,10 @@ defmodule KsefHub.Repo.Migrations.CreateTags do
 
     create table(:invoice_tags, primary_key: false) do
       add :id, :binary_id, primary_key: true
+
       add :invoice_id, references(:invoices, type: :binary_id, on_delete: :delete_all),
         null: false
+
       add :tag_id, references(:tags, type: :binary_id, on_delete: :delete_all), null: false
 
       timestamps()

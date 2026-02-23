@@ -641,7 +641,9 @@ defmodule KsefHubWeb.Api.InvoiceControllerTest do
       conn = conn |> api_conn(token) |> post("/api/invoices/#{invoice.id}/tags", body)
 
       assert conn.status == 422
-      assert Jason.decode!(conn.resp_body)["error"] == "One or more tags not found in this company"
+
+      assert Jason.decode!(conn.resp_body)["error"] ==
+               "One or more tags not found in this company"
     end
   end
 

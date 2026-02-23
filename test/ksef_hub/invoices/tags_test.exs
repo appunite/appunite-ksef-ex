@@ -21,7 +21,11 @@ defmodule KsefHub.Invoices.TagsTest do
 
       tags = Invoices.list_tags(company.id)
 
-      assert [%{name: "beta", usage_count: 2}, %{name: "alpha", usage_count: 1}, %{name: "gamma", usage_count: 0}] =
+      assert [
+               %{name: "beta", usage_count: 2},
+               %{name: "alpha", usage_count: 1},
+               %{name: "gamma", usage_count: 0}
+             ] =
                tags
     end
 

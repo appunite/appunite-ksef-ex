@@ -319,7 +319,7 @@ defmodule KsefHub.Invoices do
   def list_categories(company_id) do
     Category
     |> where([c], c.company_id == ^company_id)
-    |> order_by([c], [asc: c.sort_order, asc: c.name])
+    |> order_by([c], asc: c.sort_order, asc: c.name)
     |> Repo.all()
   end
 
@@ -378,7 +378,7 @@ defmodule KsefHub.Invoices do
     |> join(:left, [t], it in InvoiceTag, on: it.tag_id == t.id)
     |> group_by([t, _it], t.id)
     |> select_merge([t, it], %{usage_count: count(it.id)})
-    |> order_by([t, it], [desc: count(it.id), asc: t.name])
+    |> order_by([t, it], desc: count(it.id), asc: t.name)
     |> Repo.all()
   end
 

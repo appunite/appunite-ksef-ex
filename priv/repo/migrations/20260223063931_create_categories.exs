@@ -8,6 +8,7 @@ defmodule KsefHub.Repo.Migrations.CreateCategories do
       add :emoji, :string
       add :description, :string
       add :sort_order, :integer, null: false, default: 0
+
       add :company_id, references(:companies, type: :binary_id, on_delete: :delete_all),
         null: false
 

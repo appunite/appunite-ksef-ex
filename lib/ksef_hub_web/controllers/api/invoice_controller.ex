@@ -547,22 +547,12 @@ defmodule KsefHubWeb.Api.InvoiceController do
     _invoice = Invoices.get_invoice!(company_id, id, role: conn.assigns[:current_role])
     tag_ids = params["tag_ids"] || []
 
-    with :ok <- validate_tags_company(tag_ids, company_id) do
-      results =
-        Enum.map(tag_ids, fn tag_id ->
-          Invoices.add_invoice_tag(id, tag_id)
-        end)
-
-      errors = Enum.filter(results, &match?({:error, _}, &1))
-
-      if errors == [] do
+    case validate_tags_company(tag_ids, company_id) do
+      :ok ->
+        Enum.each(tag_ids, fn tag_id -> Invoices.add_invoice_tag(id, tag_id) end)
         tags = Invoices.list_invoice_tags(id)
         json(conn, %{data: Enum.map(tags, &tag_json/1)})
-      else
-        tags = Invoices.list_invoice_tags(id)
-        json(conn, %{data: Enum.map(tags, &tag_json/1)})
-      end
-    else
+
       {:error, :tags_not_found} ->
         conn
         |> put_status(:unprocessable_entity)
