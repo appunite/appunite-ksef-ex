@@ -329,7 +329,7 @@ defmodule KsefHub.Invoices do
 
     case create_invoice(invoice_attrs) do
       {:ok, invoice} ->
-        enqueue_prediction(invoice)
+        if extraction_status == "complete", do: enqueue_prediction(invoice)
         {:ok, invoice}
 
       {:error, %Ecto.Changeset{} = changeset} ->

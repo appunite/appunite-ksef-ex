@@ -527,6 +527,145 @@ defmodule KsefHub.InvoicesTest do
     end
   end
 
+  describe "create_pdf_upload_invoice/3" do
+    test "creates invoice with complete extraction", %{company: company} do
+      Mox.expect(KsefHub.Unstructured.Mock, :extract, fn _pdf, _opts ->
+        {:ok,
+         %{
+           "seller_nip" => "1234567890",
+           "seller_name" => "PDF Seller Sp. z o.o.",
+           "buyer_nip" => "0987654321",
+           "buyer_name" => "PDF Buyer S.A.",
+           "invoice_number" => "FV/PDF/001",
+           "issue_date" => "2026-02-20",
+           "net_amount" => "1000.00",
+           "vat_amount" => "230.00",
+           "gross_amount" => "1230.00",
+           "currency" => "PLN"
+         }}
+      end)
+
+      assert {:ok, %Invoice{} = invoice} =
+               Invoices.create_pdf_upload_invoice(company.id, "pdf-data", %{
+                 type: "expense",
+                 filename: "test.pdf"
+               })
+
+      assert invoice.source == "pdf_upload"
+      assert invoice.extraction_status == "complete"
+      assert invoice.seller_nip == "1234567890"
+      assert invoice.seller_name == "PDF Seller Sp. z o.o."
+      assert invoice.invoice_number == "FV/PDF/001"
+      assert invoice.issue_date == ~D[2026-02-20]
+      assert invoice.net_amount == Decimal.new("1000.00")
+      assert invoice.pdf_content == "pdf-data"
+      assert invoice.original_filename == "test.pdf"
+    end
+
+    test "creates invoice with partial extraction when fields missing", %{company: company} do
+      Mox.expect(KsefHub.Unstructured.Mock, :extract, fn _pdf, _opts ->
+        {:ok,
+         %{
+           "seller_name" => "Partial Seller",
+           "invoice_number" => "FV/PARTIAL/001"
+         }}
+      end)
+
+      assert {:ok, %Invoice{} = invoice} =
+               Invoices.create_pdf_upload_invoice(company.id, "pdf-data", %{
+                 type: "expense",
+                 filename: "partial.pdf"
+               })
+
+      assert invoice.source == "pdf_upload"
+      assert invoice.extraction_status == "partial"
+      assert invoice.seller_name == "Partial Seller"
+      assert is_nil(invoice.seller_nip)
+      assert is_nil(invoice.issue_date)
+    end
+
+    test "creates invoice with failed extraction when service errors", %{company: company} do
+      Mox.expect(KsefHub.Unstructured.Mock, :extract, fn _pdf, _opts ->
+        {:error, {:unstructured_service_error, 500}}
+      end)
+
+      assert {:ok, %Invoice{} = invoice} =
+               Invoices.create_pdf_upload_invoice(company.id, "pdf-data", %{
+                 type: "expense",
+                 filename: "failed.pdf"
+               })
+
+      assert invoice.source == "pdf_upload"
+      assert invoice.extraction_status == "failed"
+      assert is_nil(invoice.seller_nip)
+    end
+
+    test "detects duplicates via extracted ksef_number", %{company: company} do
+      existing = insert(:invoice, ksef_number: "pdf-dup-123", company: company)
+
+      Mox.expect(KsefHub.Unstructured.Mock, :extract, fn _pdf, _opts ->
+        {:ok,
+         %{
+           "ksef_number" => "pdf-dup-123",
+           "seller_nip" => "1234567890",
+           "seller_name" => "Seller",
+           "invoice_number" => "FV/PDF/DUP",
+           "issue_date" => "2026-02-20",
+           "net_amount" => "1000.00",
+           "gross_amount" => "1230.00"
+         }}
+      end)
+
+      assert {:ok, %Invoice{} = invoice} =
+               Invoices.create_pdf_upload_invoice(company.id, "pdf-data", %{type: "expense"})
+
+      assert invoice.duplicate_of_id == existing.id
+      assert invoice.duplicate_status == "suspected"
+    end
+  end
+
+  describe "approve_invoice/1 with extraction_status" do
+    test "rejects approval of partial-extraction invoice", %{company: company} do
+      invoice =
+        insert(:pdf_upload_invoice,
+          company: company,
+          type: "expense",
+          extraction_status: "partial"
+        )
+
+      assert {:error, :incomplete_extraction} = Invoices.approve_invoice(invoice)
+    end
+
+    test "allows approval of complete-extraction invoice", %{company: company} do
+      invoice =
+        insert(:pdf_upload_invoice,
+          company: company,
+          type: "expense",
+          extraction_status: "complete"
+        )
+
+      assert {:ok, %Invoice{status: "approved"}} = Invoices.approve_invoice(invoice)
+    end
+  end
+
+  describe "list_invoices source filter with pdf_upload" do
+    test "filters invoices by source=pdf_upload", %{company: company} do
+      insert(:invoice, company: company, source: "ksef")
+      insert(:pdf_upload_invoice, company: company, source: "pdf_upload")
+
+      results = Invoices.list_invoices(company.id, %{source: "pdf_upload"})
+      assert length(results) == 1
+      assert hd(results).source == "pdf_upload"
+    end
+
+    test "excludes pdf_content from list results", %{company: company} do
+      insert(:pdf_upload_invoice, company: company, pdf_content: "large pdf data")
+
+      [invoice] = Invoices.list_invoices(company.id)
+      assert is_nil(invoice.pdf_content)
+    end
+  end
+
   describe "upsert_invoice/1 with manual invoices" do
     test "upsert overrides manual invoice with KSeF data", %{company: company} do
       # Create a manual invoice with a ksef_number (backdate to distinguish insert vs update)
