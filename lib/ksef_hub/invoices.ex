@@ -332,7 +332,7 @@ defmodule KsefHub.Invoices do
 
     case create_invoice(invoice_attrs) do
       {:ok, invoice} ->
-        if extraction_status == "complete", do: enqueue_prediction(invoice)
+        maybe_enqueue_prediction(extraction_status, invoice)
         {:ok, invoice}
 
       {:error, %Ecto.Changeset{} = changeset} ->
@@ -364,6 +364,10 @@ defmodule KsefHub.Invoices do
         {:error, changeset}
     end
   end
+
+  @spec maybe_enqueue_prediction(String.t(), Invoice.t()) :: :ok
+  defp maybe_enqueue_prediction("complete", invoice), do: enqueue_prediction(invoice)
+  defp maybe_enqueue_prediction(_status, _invoice), do: :ok
 
   @critical_fields ~w(seller_nip seller_name invoice_number issue_date net_amount gross_amount)
 
