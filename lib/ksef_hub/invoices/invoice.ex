@@ -13,6 +13,7 @@ defmodule KsefHub.Invoices.Invoice do
   @valid_statuses ~w(pending approved rejected)
   @valid_sources ~w(ksef manual)
   @valid_duplicate_statuses ~w(suspected confirmed dismissed)
+  @valid_prediction_statuses ~w(pending predicted needs_review manual)
 
   schema "invoices" do
     field :ksef_number, :string
@@ -33,6 +34,16 @@ defmodule KsefHub.Invoices.Invoice do
     field :duplicate_status, :string
     field :ksef_acquisition_date, :utc_datetime_usec
     field :permanent_storage_date, :utc_datetime_usec
+
+    field :prediction_status, :string
+    field :prediction_category_name, :string
+    field :prediction_tag_name, :string
+    field :prediction_category_confidence, :float
+    field :prediction_tag_confidence, :float
+    field :prediction_model_version, :string
+    field :prediction_category_probabilities, :map
+    field :prediction_tag_probabilities, :map
+    field :prediction_predicted_at, :utc_datetime_usec
 
     belongs_to :company, KsefHub.Companies.Company
     belongs_to :duplicate_of, __MODULE__
@@ -109,6 +120,26 @@ defmodule KsefHub.Invoices.Invoice do
     invoice
     |> cast(attrs, [:category_id])
     |> foreign_key_constraint(:category_id)
+  end
+
+  @prediction_fields [
+    :prediction_status,
+    :prediction_category_name,
+    :prediction_tag_name,
+    :prediction_category_confidence,
+    :prediction_tag_confidence,
+    :prediction_model_version,
+    :prediction_category_probabilities,
+    :prediction_tag_probabilities,
+    :prediction_predicted_at
+  ]
+
+  @doc "Builds a changeset for updating ML prediction fields."
+  @spec prediction_changeset(t(), map()) :: Ecto.Changeset.t()
+  def prediction_changeset(invoice, attrs) do
+    invoice
+    |> cast(attrs, @prediction_fields)
+    |> validate_inclusion(:prediction_status, @valid_prediction_statuses)
   end
 
   @spec validate_source_requirements(Ecto.Changeset.t()) :: Ecto.Changeset.t()
