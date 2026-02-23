@@ -515,12 +515,14 @@ defmodule KsefHubWeb.Api.InvoiceController do
   @spec set_category(Plug.Conn.t(), map()) :: Plug.Conn.t()
   def set_category(conn, %{"id" => id} = params) do
     company_id = conn.assigns.current_company.id
-    invoice = Invoices.get_invoice!(company_id, id, role: conn.assigns[:current_role])
+    role = conn.assigns[:current_role]
+    invoice = Invoices.get_invoice!(company_id, id, role: role)
     category_id = params["category_id"]
 
     with :ok <- validate_category_company(category_id, company_id),
-         {:ok, updated} <- Invoices.set_invoice_category(invoice, category_id) do
-      json(conn, %{data: invoice_json(updated)})
+         {:ok, _updated} <- Invoices.set_invoice_category(invoice, category_id) do
+      invoice = Invoices.get_invoice_with_details!(company_id, id, role: role)
+      json(conn, %{data: invoice_json(invoice)})
     else
       {:error, :invalid_uuid} ->
         conn
@@ -621,6 +623,11 @@ defmodule KsefHubWeb.Api.InvoiceController do
         conn
         |> put_status(:unprocessable_entity)
         |> json(%{error: "One or more tags not found in this company"})
+
+      {:error, changeset} ->
+        conn
+        |> put_status(:unprocessable_entity)
+        |> json(%{error: changeset_errors(changeset)})
     end
   end
 
@@ -652,14 +659,20 @@ defmodule KsefHubWeb.Api.InvoiceController do
     company_id = conn.assigns.current_company.id
     _invoice = Invoices.get_invoice!(company_id, id, role: conn.assigns[:current_role])
 
-    case Invoices.remove_invoice_tag(id, tag_id) do
-      {:ok, _} ->
-        json(conn, %{message: "Tag removed"})
+    if valid_uuid?(tag_id) do
+      case Invoices.remove_invoice_tag(id, tag_id) do
+        {:ok, _} ->
+          json(conn, %{message: "Tag removed"})
 
-      {:error, :not_found} ->
-        conn
-        |> put_status(:not_found)
-        |> json(%{error: "Tag not associated with this invoice"})
+        {:error, :not_found} ->
+          conn
+          |> put_status(:not_found)
+          |> json(%{error: "Tag not associated with this invoice"})
+      end
+    else
+      conn
+      |> put_status(:unprocessable_entity)
+      |> json(%{error: "Invalid UUID format"})
     end
   end
 
