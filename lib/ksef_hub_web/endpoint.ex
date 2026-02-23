@@ -45,6 +45,7 @@ defmodule KsefHubWeb.Endpoint do
   plug Plug.Parsers,
     parsers: [:urlencoded, :multipart, :json],
     pass: ["*/*"],
+    length: 12_000_000,
     json_decoder: Phoenix.json_library()
 
   plug Plug.MethodOverride

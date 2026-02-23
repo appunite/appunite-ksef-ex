@@ -36,8 +36,21 @@ defmodule KsefHubWeb.Schemas.Invoice do
       status: %Schema{type: :string, enum: ["pending", "approved", "rejected"]},
       source: %Schema{
         type: :string,
-        enum: ["ksef", "manual"],
-        description: "Invoice origin: synced from KSeF or manually created."
+        enum: ["ksef", "manual", "pdf_upload"],
+        description:
+          "Invoice origin: synced from KSeF, manually created, or uploaded as PDF."
+      },
+      extraction_status: %Schema{
+        type: :string,
+        enum: ["complete", "partial", "failed"],
+        nullable: true,
+        description:
+          "PDF extraction quality. Only set for pdf_upload source. complete=all fields extracted, partial=some fields missing, failed=extraction error."
+      },
+      original_filename: %Schema{
+        type: :string,
+        nullable: true,
+        description: "Original filename of the uploaded PDF."
       },
       category_id: %Schema{
         type: :string,
