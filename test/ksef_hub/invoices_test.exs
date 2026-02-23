@@ -480,6 +480,48 @@ defmodule KsefHub.InvoicesTest do
       assert is_nil(invoice.ksef_acquisition_date)
       assert is_nil(invoice.permanent_storage_date)
     end
+
+    test "creates manual invoice with income type", %{company: company} do
+      attrs = %{
+        type: "income",
+        seller_nip: "1234567890",
+        seller_name: "Seller Sp. z o.o.",
+        buyer_nip: "0987654321",
+        buyer_name: "Buyer S.A.",
+        invoice_number: "FV/2026/006",
+        issue_date: ~D[2026-02-20],
+        net_amount: Decimal.new("1000.00"),
+        gross_amount: Decimal.new("1230.00")
+      }
+
+      assert {:ok, %Invoice{} = invoice} = Invoices.create_manual_invoice(company.id, attrs)
+      assert invoice.type == "income"
+      assert invoice.source == "manual"
+    end
+  end
+
+  describe "upsert_invoice/1 with manual invoices" do
+    test "upsert overrides manual invoice with KSeF data", %{company: company} do
+      # Create a manual invoice with a ksef_number (backdate to distinguish insert vs update)
+      insert(:manual_invoice,
+        ksef_number: "sync-override-1",
+        company: company,
+        seller_name: "Manual Seller",
+        inserted_at: NaiveDateTime.add(NaiveDateTime.utc_now(), -60)
+      )
+
+      # Simulate KSeF sync upserting the same ksef_number
+      attrs =
+        params_for(:invoice,
+          ksef_number: "sync-override-1",
+          company_id: company.id,
+          seller_name: "KSeF Seller"
+        )
+
+      assert {:ok, updated, :updated} = Invoices.upsert_invoice(attrs)
+      assert updated.seller_name == "KSeF Seller"
+      assert updated.source == "ksef"
+    end
   end
 
   describe "confirm_duplicate/1" do
@@ -502,6 +544,34 @@ defmodule KsefHub.InvoicesTest do
       invoice = insert(:invoice, company: company)
       assert {:error, :not_a_duplicate} = Invoices.confirm_duplicate(invoice)
     end
+
+    test "returns invalid_status when already confirmed", %{company: company} do
+      original = insert(:invoice, ksef_number: "orig-c1", company: company)
+
+      duplicate =
+        insert(:manual_invoice,
+          ksef_number: "orig-c1",
+          company: company,
+          duplicate_of_id: original.id,
+          duplicate_status: "confirmed"
+        )
+
+      assert {:error, :invalid_status} = Invoices.confirm_duplicate(duplicate)
+    end
+
+    test "returns invalid_status when already dismissed", %{company: company} do
+      original = insert(:invoice, ksef_number: "orig-c2", company: company)
+
+      duplicate =
+        insert(:manual_invoice,
+          ksef_number: "orig-c2",
+          company: company,
+          duplicate_of_id: original.id,
+          duplicate_status: "dismissed"
+        )
+
+      assert {:error, :invalid_status} = Invoices.confirm_duplicate(duplicate)
+    end
   end
 
   describe "dismiss_duplicate/1" do
@@ -520,9 +590,38 @@ defmodule KsefHub.InvoicesTest do
                Invoices.dismiss_duplicate(duplicate)
     end
 
+    test "dismisses a confirmed duplicate", %{company: company} do
+      original = insert(:invoice, ksef_number: "orig-d1", company: company)
+
+      duplicate =
+        insert(:manual_invoice,
+          ksef_number: "orig-d1",
+          company: company,
+          duplicate_of_id: original.id,
+          duplicate_status: "confirmed"
+        )
+
+      assert {:ok, %Invoice{duplicate_status: "dismissed"}} =
+               Invoices.dismiss_duplicate(duplicate)
+    end
+
     test "returns error for non-duplicate invoice", %{company: company} do
       invoice = insert(:invoice, company: company)
       assert {:error, :not_a_duplicate} = Invoices.dismiss_duplicate(invoice)
+    end
+
+    test "returns invalid_status when already dismissed", %{company: company} do
+      original = insert(:invoice, ksef_number: "orig-d2", company: company)
+
+      duplicate =
+        insert(:manual_invoice,
+          ksef_number: "orig-d2",
+          company: company,
+          duplicate_of_id: original.id,
+          duplicate_status: "dismissed"
+        )
+
+      assert {:error, :invalid_status} = Invoices.dismiss_duplicate(duplicate)
     end
   end
 

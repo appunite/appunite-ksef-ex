@@ -310,6 +310,95 @@ defmodule KsefHubWeb.Api.InvoiceControllerTest do
     end
   end
 
+  describe "html with nil xml_content" do
+    test "returns 422 for invoice without xml_content", %{conn: conn} do
+      %{company: company, token: token} = create_owner_with_token()
+      invoice = insert(:manual_invoice, company: company)
+
+      conn = conn |> api_conn(token) |> get("/api/invoices/#{invoice.id}/html")
+
+      assert conn.status == 422
+      assert Jason.decode!(conn.resp_body)["error"] == "Invoice has no XML content"
+    end
+  end
+
+  describe "pdf with nil xml_content" do
+    test "returns 422 for invoice without xml_content", %{conn: conn} do
+      %{company: company, token: token} = create_owner_with_token()
+      invoice = insert(:manual_invoice, company: company)
+
+      conn = conn |> api_conn(token) |> get("/api/invoices/#{invoice.id}/pdf")
+
+      assert conn.status == 422
+      assert Jason.decode!(conn.resp_body)["error"] == "Invoice has no XML content"
+    end
+  end
+
+  describe "confirm_duplicate status transitions" do
+    test "returns 422 when confirming already confirmed duplicate", %{conn: conn} do
+      %{company: company, token: token} = create_owner_with_token()
+      original = insert(:invoice, ksef_number: "confirm-trans", company: company)
+
+      duplicate =
+        insert(:manual_invoice,
+          ksef_number: "confirm-trans",
+          company: company,
+          duplicate_of_id: original.id,
+          duplicate_status: "confirmed"
+        )
+
+      conn =
+        conn |> api_conn(token) |> post("/api/invoices/#{duplicate.id}/confirm-duplicate")
+
+      assert conn.status == 422
+
+      assert Jason.decode!(conn.resp_body)["error"] ==
+               "Duplicate can only be confirmed from suspected status"
+    end
+
+    test "returns 422 when confirming dismissed duplicate", %{conn: conn} do
+      %{company: company, token: token} = create_owner_with_token()
+      original = insert(:invoice, ksef_number: "confirm-dis", company: company)
+
+      duplicate =
+        insert(:manual_invoice,
+          ksef_number: "confirm-dis",
+          company: company,
+          duplicate_of_id: original.id,
+          duplicate_status: "dismissed"
+        )
+
+      conn =
+        conn |> api_conn(token) |> post("/api/invoices/#{duplicate.id}/confirm-duplicate")
+
+      assert conn.status == 422
+
+      assert Jason.decode!(conn.resp_body)["error"] ==
+               "Duplicate can only be confirmed from suspected status"
+    end
+  end
+
+  describe "dismiss_duplicate status transitions" do
+    test "returns 422 when dismissing already dismissed duplicate", %{conn: conn} do
+      %{company: company, token: token} = create_owner_with_token()
+      original = insert(:invoice, ksef_number: "dismiss-trans", company: company)
+
+      duplicate =
+        insert(:manual_invoice,
+          ksef_number: "dismiss-trans",
+          company: company,
+          duplicate_of_id: original.id,
+          duplicate_status: "dismissed"
+        )
+
+      conn =
+        conn |> api_conn(token) |> post("/api/invoices/#{duplicate.id}/dismiss-duplicate")
+
+      assert conn.status == 422
+      assert Jason.decode!(conn.resp_body)["error"] == "Duplicate has already been dismissed"
+    end
+  end
+
   describe "source filter" do
     test "filters invoices by source in index", %{conn: conn} do
       %{company: company, token: token} = create_owner_with_token()
