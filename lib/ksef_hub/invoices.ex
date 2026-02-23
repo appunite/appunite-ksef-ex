@@ -6,6 +6,7 @@ defmodule KsefHub.Invoices do
   import Ecto.Query
 
   alias KsefHub.Invoices.{Category, Invoice, InvoiceTag, Tag}
+  alias KsefHub.Predictions.PredictionWorker
   alias KsefHub.Repo
 
   @list_fields Invoice.__schema__(:fields) -- [:xml_content]
@@ -153,6 +154,7 @@ defmodule KsefHub.Invoices do
     case do_upsert(company_id, attrs) do
       {:ok, invoice} ->
         action = if invoice.inserted_at == invoice.updated_at, do: :inserted, else: :updated
+        if action == :inserted, do: PredictionWorker.maybe_enqueue(invoice)
         {:ok, invoice, action}
 
       {:error, changeset} ->
@@ -250,8 +252,9 @@ defmodule KsefHub.Invoices do
     attrs = detect_duplicate(company_id, attrs)
 
     case create_invoice(attrs) do
-      {:ok, _invoice} = success ->
-        success
+      {:ok, invoice} ->
+        PredictionWorker.maybe_enqueue(invoice)
+        {:ok, invoice}
 
       {:error, %Ecto.Changeset{} = changeset} ->
         if unique_ksef_number_conflict?(changeset) do
@@ -474,6 +477,17 @@ defmodule KsefHub.Invoices do
     else
       {:error, :category_not_in_company}
     end
+  end
+
+  @doc """
+  Marks an invoice's prediction status as `"manual"`, indicating the user
+  overrode or manually set the category/tags.
+  """
+  @spec mark_prediction_manual(Invoice.t()) :: {:ok, Invoice.t()} | {:error, Ecto.Changeset.t()}
+  def mark_prediction_manual(%Invoice{} = invoice) do
+    invoice
+    |> Invoice.prediction_changeset(%{prediction_status: "manual"})
+    |> Repo.update()
   end
 
   # --- Invoice-Tag Associations ---

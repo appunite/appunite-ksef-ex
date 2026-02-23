@@ -521,6 +521,7 @@ defmodule KsefHubWeb.Api.InvoiceController do
 
     with :ok <- validate_category_company(category_id, company_id),
          {:ok, _updated} <- Invoices.set_invoice_category(invoice, category_id) do
+      if category_id, do: Invoices.mark_prediction_manual(invoice)
       invoice = Invoices.get_invoice_with_details!(company_id, id, role: role)
       json(conn, %{data: invoice_json(invoice)})
     else
@@ -564,11 +565,12 @@ defmodule KsefHubWeb.Api.InvoiceController do
   @spec add_tags(Plug.Conn.t(), map()) :: Plug.Conn.t()
   def add_tags(conn, %{"id" => id} = params) do
     company_id = conn.assigns.current_company.id
-    _invoice = Invoices.get_invoice!(company_id, id, role: conn.assigns[:current_role])
+    invoice = Invoices.get_invoice!(company_id, id, role: conn.assigns[:current_role])
 
     with {:ok, tag_ids} <- validate_tag_ids(params["tag_ids"]),
          true <- Invoices.tags_belong_to_company?(tag_ids, company_id) do
       Enum.each(tag_ids, fn tag_id -> Invoices.add_invoice_tag(id, tag_id) end)
+      if tag_ids != [], do: Invoices.mark_prediction_manual(invoice)
       tags = Invoices.list_invoice_tags(id)
       json(conn, %{data: Enum.map(tags, &tag_json/1)})
     else
@@ -607,11 +609,12 @@ defmodule KsefHubWeb.Api.InvoiceController do
   @spec set_tags(Plug.Conn.t(), map()) :: Plug.Conn.t()
   def set_tags(conn, %{"id" => id} = params) do
     company_id = conn.assigns.current_company.id
-    _invoice = Invoices.get_invoice!(company_id, id, role: conn.assigns[:current_role])
+    invoice = Invoices.get_invoice!(company_id, id, role: conn.assigns[:current_role])
 
     with {:ok, tag_ids} <- validate_tag_ids(params["tag_ids"]),
          true <- Invoices.tags_belong_to_company?(tag_ids, company_id),
          {:ok, tags} <- Invoices.set_invoice_tags(id, tag_ids) do
+      Invoices.mark_prediction_manual(invoice)
       json(conn, %{data: Enum.map(tags, &tag_json/1)})
     else
       {:error, :invalid_tag_ids} ->
@@ -784,6 +787,13 @@ defmodule KsefHubWeb.Api.InvoiceController do
       duplicate_status: invoice.duplicate_status,
       ksef_acquisition_date: invoice.ksef_acquisition_date,
       permanent_storage_date: invoice.permanent_storage_date,
+      prediction_status: invoice.prediction_status,
+      prediction_category_name: invoice.prediction_category_name,
+      prediction_tag_name: invoice.prediction_tag_name,
+      prediction_category_confidence: invoice.prediction_category_confidence,
+      prediction_tag_confidence: invoice.prediction_tag_confidence,
+      prediction_model_version: invoice.prediction_model_version,
+      prediction_predicted_at: invoice.prediction_predicted_at,
       inserted_at: invoice.inserted_at,
       updated_at: invoice.updated_at
     }

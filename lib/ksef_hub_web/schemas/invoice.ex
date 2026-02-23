@@ -79,6 +79,46 @@ defmodule KsefHubWeb.Schemas.Invoice do
         nullable: true,
         description: "When the invoice entered permanent KSeF storage."
       },
+      prediction_status: %Schema{
+        type: :string,
+        enum: ["pending", "predicted", "needs_review", "manual"],
+        nullable: true,
+        description:
+          "ML prediction status. nil=not applicable, pending=awaiting, predicted=auto-applied (>=80%), needs_review=stored but not applied (<80%), manual=user overrode."
+      },
+      prediction_category_name: %Schema{
+        type: :string,
+        nullable: true,
+        description: "Category name predicted by the ML model."
+      },
+      prediction_tag_name: %Schema{
+        type: :string,
+        nullable: true,
+        description: "Tag name predicted by the ML model."
+      },
+      prediction_category_confidence: %Schema{
+        type: :number,
+        format: :float,
+        nullable: true,
+        description: "Confidence score (0.0-1.0) for the predicted category."
+      },
+      prediction_tag_confidence: %Schema{
+        type: :number,
+        format: :float,
+        nullable: true,
+        description: "Confidence score (0.0-1.0) for the predicted tag."
+      },
+      prediction_model_version: %Schema{
+        type: :string,
+        nullable: true,
+        description: "Version of the ML model that generated the prediction."
+      },
+      prediction_predicted_at: %Schema{
+        type: :string,
+        format: :"date-time",
+        nullable: true,
+        description: "When the ML prediction was generated."
+      },
       inserted_at: %Schema{type: :string, format: :"date-time"},
       updated_at: %Schema{type: :string, format: :"date-time"}
     },
