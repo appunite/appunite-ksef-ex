@@ -150,11 +150,15 @@ defmodule KsefHubWeb.Api.InvoiceController do
     }
   )
 
-  @doc "Returns a single invoice by UUID."
+  @doc "Returns a single invoice by UUID with category and tags preloaded."
   @spec show(Plug.Conn.t(), map()) :: Plug.Conn.t()
   def show(conn, %{"id" => id}) do
     company_id = conn.assigns.current_company.id
-    invoice = Invoices.get_invoice!(company_id, id, role: conn.assigns[:current_role])
+
+    invoice =
+      Invoices.get_invoice!(company_id, id, role: conn.assigns[:current_role])
+      |> KsefHub.Repo.preload([:category, :tags])
+
     json(conn, %{data: invoice_json(invoice)})
   end
 
@@ -475,6 +479,173 @@ defmodule KsefHubWeb.Api.InvoiceController do
     end
   end
 
+  operation(:set_category,
+    summary: "Set invoice category",
+    description: "Assigns or clears the category on an invoice.",
+    parameters: [
+      id: [
+        in: :path,
+        description: "Invoice UUID.",
+        schema: %Schema{type: :string, format: :uuid}
+      ]
+    ],
+    request_body: {"Category assignment", "application/json", Schemas.SetCategoryRequest},
+    responses: %{
+      200 => {"Updated invoice", "application/json", Schemas.InvoiceResponse},
+      401 => {"Unauthorized", "application/json", Schemas.ErrorResponse},
+      404 => {"Not found", "application/json", Schemas.ErrorResponse},
+      422 => {"Validation error", "application/json", Schemas.ErrorResponse}
+    }
+  )
+
+  @doc "Sets or clears the category on an invoice."
+  @spec set_category(Plug.Conn.t(), map()) :: Plug.Conn.t()
+  def set_category(conn, %{"id" => id} = params) do
+    company_id = conn.assigns.current_company.id
+    invoice = Invoices.get_invoice!(company_id, id, role: conn.assigns[:current_role])
+    category_id = params["category_id"]
+
+    with :ok <- validate_category_company(category_id, company_id),
+         {:ok, updated} <- Invoices.set_invoice_category(invoice, category_id) do
+      json(conn, %{data: invoice_json(updated)})
+    else
+      {:error, :category_not_found} ->
+        conn
+        |> put_status(:unprocessable_entity)
+        |> json(%{error: "Category not found in this company"})
+
+      {:error, changeset} ->
+        conn
+        |> put_status(:unprocessable_entity)
+        |> json(%{error: changeset_errors(changeset)})
+    end
+  end
+
+  operation(:add_tags,
+    summary: "Add tags to invoice",
+    description: "Adds one or more tags to an invoice without removing existing tags.",
+    parameters: [
+      id: [
+        in: :path,
+        description: "Invoice UUID.",
+        schema: %Schema{type: :string, format: :uuid}
+      ]
+    ],
+    request_body: {"Tags to add", "application/json", Schemas.InvoiceTagsRequest},
+    responses: %{
+      200 => {"Invoice tags", "application/json", Schemas.TagListResponse},
+      401 => {"Unauthorized", "application/json", Schemas.ErrorResponse},
+      404 => {"Not found", "application/json", Schemas.ErrorResponse},
+      422 => {"Validation error", "application/json", Schemas.ErrorResponse}
+    }
+  )
+
+  @doc "Adds tags to an invoice."
+  @spec add_tags(Plug.Conn.t(), map()) :: Plug.Conn.t()
+  def add_tags(conn, %{"id" => id} = params) do
+    company_id = conn.assigns.current_company.id
+    _invoice = Invoices.get_invoice!(company_id, id, role: conn.assigns[:current_role])
+    tag_ids = params["tag_ids"] || []
+
+    with :ok <- validate_tags_company(tag_ids, company_id) do
+      results =
+        Enum.map(tag_ids, fn tag_id ->
+          Invoices.add_invoice_tag(id, tag_id)
+        end)
+
+      errors = Enum.filter(results, &match?({:error, _}, &1))
+
+      if errors == [] do
+        tags = Invoices.list_invoice_tags(id)
+        json(conn, %{data: Enum.map(tags, &tag_json/1)})
+      else
+        tags = Invoices.list_invoice_tags(id)
+        json(conn, %{data: Enum.map(tags, &tag_json/1)})
+      end
+    else
+      {:error, :tags_not_found} ->
+        conn
+        |> put_status(:unprocessable_entity)
+        |> json(%{error: "One or more tags not found in this company"})
+    end
+  end
+
+  operation(:set_tags,
+    summary: "Set invoice tags",
+    description: "Replaces all tags on an invoice with the given list.",
+    parameters: [
+      id: [
+        in: :path,
+        description: "Invoice UUID.",
+        schema: %Schema{type: :string, format: :uuid}
+      ]
+    ],
+    request_body: {"Tags to set", "application/json", Schemas.InvoiceTagsRequest},
+    responses: %{
+      200 => {"Invoice tags", "application/json", Schemas.TagListResponse},
+      401 => {"Unauthorized", "application/json", Schemas.ErrorResponse},
+      404 => {"Not found", "application/json", Schemas.ErrorResponse},
+      422 => {"Validation error", "application/json", Schemas.ErrorResponse}
+    }
+  )
+
+  @doc "Replaces all tags on an invoice."
+  @spec set_tags(Plug.Conn.t(), map()) :: Plug.Conn.t()
+  def set_tags(conn, %{"id" => id} = params) do
+    company_id = conn.assigns.current_company.id
+    _invoice = Invoices.get_invoice!(company_id, id, role: conn.assigns[:current_role])
+    tag_ids = params["tag_ids"] || []
+
+    with :ok <- validate_tags_company(tag_ids, company_id),
+         {:ok, tags} <- Invoices.set_invoice_tags(id, tag_ids) do
+      json(conn, %{data: Enum.map(tags, &tag_json/1)})
+    else
+      {:error, :tags_not_found} ->
+        conn
+        |> put_status(:unprocessable_entity)
+        |> json(%{error: "One or more tags not found in this company"})
+    end
+  end
+
+  operation(:remove_tag,
+    summary: "Remove tag from invoice",
+    description: "Removes a single tag from an invoice.",
+    parameters: [
+      id: [
+        in: :path,
+        description: "Invoice UUID.",
+        schema: %Schema{type: :string, format: :uuid}
+      ],
+      tag_id: [
+        in: :path,
+        description: "Tag UUID to remove.",
+        schema: %Schema{type: :string, format: :uuid}
+      ]
+    ],
+    responses: %{
+      200 => {"Tag removed", "application/json", Schemas.MessageResponse},
+      401 => {"Unauthorized", "application/json", Schemas.ErrorResponse},
+      404 => {"Not found", "application/json", Schemas.ErrorResponse}
+    }
+  )
+
+  @doc "Removes a tag from an invoice."
+  @spec remove_tag(Plug.Conn.t(), map()) :: Plug.Conn.t()
+  def remove_tag(conn, %{"id" => id, "tag_id" => tag_id}) do
+    company_id = conn.assigns.current_company.id
+    _invoice = Invoices.get_invoice!(company_id, id, role: conn.assigns[:current_role])
+
+    case Invoices.remove_invoice_tag(id, tag_id) do
+      {:ok, _} ->
+        json(conn, %{message: "Tag removed"})
+
+      {:error, :not_found} ->
+        conn
+        |> put_status(:not_found)
+        |> json(%{error: "Tag not associated with this invoice"})
+    end
+  end
+
   # --- Private ---
 
   @spec build_filters(map()) :: map()
@@ -490,6 +661,8 @@ defmodule KsefHubWeb.Api.InvoiceController do
     |> maybe_put_date(:date_to, params["date_to"])
     |> maybe_put_integer(:page, params["page"])
     |> maybe_put_integer(:per_page, params["per_page"])
+    |> maybe_put(:category_id, params["category_id"])
+    |> maybe_put_list(:tag_ids, params["tag_ids[]"] || params["tag_ids"])
   end
 
   @spec maybe_put(map(), atom(), String.t() | nil) :: map()
@@ -523,9 +696,41 @@ defmodule KsefHubWeb.Api.InvoiceController do
     Map.put(map, key, value)
   end
 
+  @spec maybe_put_list(map(), atom(), list() | nil) :: map()
+  defp maybe_put_list(map, _key, nil), do: map
+  defp maybe_put_list(map, _key, []), do: map
+  defp maybe_put_list(map, key, values) when is_list(values), do: Map.put(map, key, values)
+
+  @spec validate_category_company(Ecto.UUID.t() | nil, Ecto.UUID.t()) ::
+          :ok | {:error, :category_not_found}
+  defp validate_category_company(nil, _company_id), do: :ok
+
+  defp validate_category_company(category_id, company_id) do
+    case Invoices.get_category(company_id, category_id) do
+      {:ok, _} -> :ok
+      {:error, :not_found} -> {:error, :category_not_found}
+    end
+  end
+
+  @spec validate_tags_company([Ecto.UUID.t()], Ecto.UUID.t()) ::
+          :ok | {:error, :tags_not_found}
+  defp validate_tags_company([], _company_id), do: :ok
+
+  defp validate_tags_company(tag_ids, company_id) do
+    existing = Invoices.list_tags(company_id)
+    existing_ids = MapSet.new(existing, & &1.id)
+    requested = MapSet.new(tag_ids)
+
+    if MapSet.subset?(requested, existing_ids) do
+      :ok
+    else
+      {:error, :tags_not_found}
+    end
+  end
+
   @spec invoice_json(Invoice.t()) :: map()
   defp invoice_json(invoice) do
-    %{
+    base = %{
       id: invoice.id,
       ksef_number: invoice.ksef_number,
       type: invoice.type,
@@ -541,12 +746,53 @@ defmodule KsefHubWeb.Api.InvoiceController do
       currency: invoice.currency,
       status: invoice.status,
       source: invoice.source,
+      category_id: invoice.category_id,
       duplicate_of_id: invoice.duplicate_of_id,
       duplicate_status: invoice.duplicate_status,
       ksef_acquisition_date: invoice.ksef_acquisition_date,
       permanent_storage_date: invoice.permanent_storage_date,
       inserted_at: invoice.inserted_at,
       updated_at: invoice.updated_at
+    }
+
+    base
+    |> maybe_add_category(invoice)
+    |> maybe_add_tags(invoice)
+  end
+
+  @spec maybe_add_category(map(), Invoice.t()) :: map()
+  defp maybe_add_category(json, %{category: %Ecto.Association.NotLoaded{}}), do: json
+
+  defp maybe_add_category(json, %{category: nil}), do: Map.put(json, :category, nil)
+
+  defp maybe_add_category(json, %{category: category}) do
+    Map.put(json, :category, %{
+      id: category.id,
+      name: category.name,
+      emoji: category.emoji,
+      description: category.description,
+      sort_order: category.sort_order,
+      inserted_at: category.inserted_at,
+      updated_at: category.updated_at
+    })
+  end
+
+  @spec maybe_add_tags(map(), Invoice.t()) :: map()
+  defp maybe_add_tags(json, %{tags: %Ecto.Association.NotLoaded{}}), do: json
+
+  defp maybe_add_tags(json, %{tags: tags}) do
+    Map.put(json, :tags, Enum.map(tags, &tag_json/1))
+  end
+
+  @spec tag_json(map()) :: map()
+  defp tag_json(tag) do
+    %{
+      id: tag.id,
+      name: tag.name,
+      description: tag.description,
+      usage_count: Map.get(tag, :usage_count, 0),
+      inserted_at: tag.inserted_at,
+      updated_at: tag.updated_at
     }
   end
 

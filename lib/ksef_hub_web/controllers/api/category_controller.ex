@@ -1,0 +1,202 @@
+defmodule KsefHubWeb.Api.CategoryController do
+  @moduledoc """
+  REST API controller for category operations.
+
+  All actions are scoped to the company associated with the authenticated API token.
+  """
+
+  use KsefHubWeb, :controller
+  use OpenApiSpex.ControllerSpecs
+
+  import KsefHubWeb.ChangesetHelpers
+
+  alias KsefHub.Invoices
+  alias KsefHub.Invoices.Category
+  alias KsefHubWeb.Schemas
+  alias OpenApiSpex.Schema
+
+  tags(["Categories"])
+  security([%{"bearer" => []}])
+
+  operation(:index,
+    summary: "List categories",
+    description: "Returns all categories for the company, ordered by sort_order then name.",
+    responses: %{
+      200 => {"Category list", "application/json", Schemas.CategoryListResponse},
+      401 => {"Unauthorized", "application/json", Schemas.ErrorResponse}
+    }
+  )
+
+  @doc "Lists all categories for the token's company."
+  @spec index(Plug.Conn.t(), map()) :: Plug.Conn.t()
+  def index(conn, _params) do
+    company_id = conn.assigns.current_company.id
+    categories = Invoices.list_categories(company_id)
+    json(conn, %{data: Enum.map(categories, &category_json/1)})
+  end
+
+  operation(:show,
+    summary: "Get category",
+    description: "Returns a single category by ID.",
+    parameters: [
+      id: [
+        in: :path,
+        description: "Category UUID.",
+        schema: %Schema{type: :string, format: :uuid}
+      ]
+    ],
+    responses: %{
+      200 => {"Category", "application/json", Schemas.CategoryResponse},
+      401 => {"Unauthorized", "application/json", Schemas.ErrorResponse},
+      404 => {"Not found", "application/json", Schemas.ErrorResponse}
+    }
+  )
+
+  @doc "Returns a single category by UUID."
+  @spec show(Plug.Conn.t(), map()) :: Plug.Conn.t()
+  def show(conn, %{"id" => id}) do
+    company_id = conn.assigns.current_company.id
+
+    case Invoices.get_category(company_id, id) do
+      {:ok, category} ->
+        json(conn, %{data: category_json(category)})
+
+      {:error, :not_found} ->
+        conn
+        |> put_status(:not_found)
+        |> json(%{error: "Category not found"})
+    end
+  end
+
+  operation(:create,
+    summary: "Create category",
+    description: "Creates a new category for the company.",
+    request_body: {"Category to create", "application/json", Schemas.CreateCategoryRequest},
+    responses: %{
+      201 => {"Created category", "application/json", Schemas.CategoryResponse},
+      401 => {"Unauthorized", "application/json", Schemas.ErrorResponse},
+      422 => {"Validation error", "application/json", Schemas.ErrorResponse}
+    }
+  )
+
+  @doc "Creates a category for the token's company."
+  @spec create(Plug.Conn.t(), map()) :: Plug.Conn.t()
+  def create(conn, params) do
+    company_id = conn.assigns.current_company.id
+    attrs = Map.take(params, ~w(name emoji description sort_order))
+
+    case Invoices.create_category(company_id, atomize_category_keys(attrs)) do
+      {:ok, category} ->
+        conn
+        |> put_status(:created)
+        |> json(%{data: category_json(category)})
+
+      {:error, changeset} ->
+        conn
+        |> put_status(:unprocessable_entity)
+        |> json(%{error: changeset_errors(changeset)})
+    end
+  end
+
+  operation(:update,
+    summary: "Update category",
+    description: "Updates an existing category.",
+    parameters: [
+      id: [
+        in: :path,
+        description: "Category UUID.",
+        schema: %Schema{type: :string, format: :uuid}
+      ]
+    ],
+    request_body: {"Category updates", "application/json", Schemas.UpdateCategoryRequest},
+    responses: %{
+      200 => {"Updated category", "application/json", Schemas.CategoryResponse},
+      401 => {"Unauthorized", "application/json", Schemas.ErrorResponse},
+      404 => {"Not found", "application/json", Schemas.ErrorResponse},
+      422 => {"Validation error", "application/json", Schemas.ErrorResponse}
+    }
+  )
+
+  @doc "Updates a category."
+  @spec update(Plug.Conn.t(), map()) :: Plug.Conn.t()
+  def update(conn, %{"id" => id} = params) do
+    company_id = conn.assigns.current_company.id
+
+    with {:ok, category} <- Invoices.get_category(company_id, id),
+         attrs = Map.take(params, ~w(name emoji description sort_order)),
+         {:ok, updated} <- Invoices.update_category(category, atomize_category_keys(attrs)) do
+      json(conn, %{data: category_json(updated)})
+    else
+      {:error, :not_found} ->
+        conn
+        |> put_status(:not_found)
+        |> json(%{error: "Category not found"})
+
+      {:error, changeset} ->
+        conn
+        |> put_status(:unprocessable_entity)
+        |> json(%{error: changeset_errors(changeset)})
+    end
+  end
+
+  operation(:delete,
+    summary: "Delete category",
+    description:
+      "Deletes a category. Invoices assigned to this category will have their category cleared.",
+    parameters: [
+      id: [
+        in: :path,
+        description: "Category UUID.",
+        schema: %Schema{type: :string, format: :uuid}
+      ]
+    ],
+    responses: %{
+      200 => {"Deleted", "application/json", Schemas.MessageResponse},
+      401 => {"Unauthorized", "application/json", Schemas.ErrorResponse},
+      404 => {"Not found", "application/json", Schemas.ErrorResponse}
+    }
+  )
+
+  @doc "Deletes a category."
+  @spec delete(Plug.Conn.t(), map()) :: Plug.Conn.t()
+  def delete(conn, %{"id" => id}) do
+    company_id = conn.assigns.current_company.id
+
+    case Invoices.get_category(company_id, id) do
+      {:ok, category} ->
+        {:ok, _} = Invoices.delete_category(category)
+        json(conn, %{message: "Category deleted"})
+
+      {:error, :not_found} ->
+        conn
+        |> put_status(:not_found)
+        |> json(%{error: "Category not found"})
+    end
+  end
+
+  # --- Private ---
+
+  @category_allowed_keys ~w(name emoji description sort_order)
+
+  @spec atomize_category_keys(map()) :: map()
+  defp atomize_category_keys(params) do
+    for {key, value} <- params,
+        key in @category_allowed_keys,
+        into: %{} do
+      {String.to_existing_atom(key), value}
+    end
+  end
+
+  @spec category_json(Category.t()) :: map()
+  defp category_json(category) do
+    %{
+      id: category.id,
+      name: category.name,
+      emoji: category.emoji,
+      description: category.description,
+      sort_order: category.sort_order,
+      inserted_at: category.inserted_at,
+      updated_at: category.updated_at
+    }
+  end
+end

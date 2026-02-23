@@ -112,6 +112,13 @@ defmodule KsefHubWeb.Router do
     get "/invoices/:id/html", InvoiceController, :html
     get "/invoices/:id/pdf", InvoiceController, :pdf
     get "/invoices/:id/xml", InvoiceController, :xml
+    put "/invoices/:id/category", InvoiceController, :set_category
+    post "/invoices/:id/tags", InvoiceController, :add_tags
+    put "/invoices/:id/tags", InvoiceController, :set_tags
+    delete "/invoices/:id/tags/:tag_id", InvoiceController, :remove_tag
+
+    resources "/categories", CategoryController, except: [:new, :edit]
+    resources "/tags", TagController, except: [:new, :edit]
 
     resources "/tokens", TokenController, only: [:index, :create, :delete]
   end

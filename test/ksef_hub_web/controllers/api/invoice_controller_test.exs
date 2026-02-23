@@ -547,4 +547,188 @@ defmodule KsefHubWeb.Api.InvoiceControllerTest do
       end
     end
   end
+
+  describe "show with category and tags" do
+    test "includes category and tags in show response", %{conn: conn} do
+      %{company: company, token: token} = create_owner_with_token()
+      category = insert(:category, company: company, name: "ops:test")
+      tag = insert(:tag, company: company, name: "urgent")
+      invoice = insert(:invoice, company: company, category_id: category.id)
+      insert(:invoice_tag, invoice: invoice, tag: tag)
+
+      conn = conn |> api_conn(token) |> get("/api/invoices/#{invoice.id}")
+
+      data = Jason.decode!(conn.resp_body)["data"]
+      assert data["category_id"] == category.id
+      assert data["category"]["name"] == "ops:test"
+      assert length(data["tags"]) == 1
+      assert hd(data["tags"])["name"] == "urgent"
+    end
+
+    test "includes category_id in list response", %{conn: conn} do
+      %{company: company, token: token} = create_owner_with_token()
+      category = insert(:category, company: company)
+      insert(:invoice, company: company, category_id: category.id)
+
+      conn = conn |> api_conn(token) |> get("/api/invoices")
+
+      data = Jason.decode!(conn.resp_body)["data"]
+      assert hd(data)["category_id"] == category.id
+    end
+  end
+
+  describe "set_category" do
+    test "assigns a category to an invoice", %{conn: conn} do
+      %{company: company, token: token} = create_owner_with_token()
+      category = insert(:category, company: company)
+      invoice = insert(:invoice, company: company)
+
+      body = Jason.encode!(%{category_id: category.id})
+      conn = conn |> api_conn(token) |> put("/api/invoices/#{invoice.id}/category", body)
+
+      assert conn.status == 200
+      assert Jason.decode!(conn.resp_body)["data"]["category_id"] == category.id
+    end
+
+    test "clears category with null", %{conn: conn} do
+      %{company: company, token: token} = create_owner_with_token()
+      category = insert(:category, company: company)
+      invoice = insert(:invoice, company: company, category_id: category.id)
+
+      body = Jason.encode!(%{category_id: nil})
+      conn = conn |> api_conn(token) |> put("/api/invoices/#{invoice.id}/category", body)
+
+      assert conn.status == 200
+      assert is_nil(Jason.decode!(conn.resp_body)["data"]["category_id"])
+    end
+
+    test "returns 422 for category from different company", %{conn: conn} do
+      %{company: company, token: token} = create_owner_with_token()
+      other_company = insert(:company)
+      category = insert(:category, company: other_company)
+      invoice = insert(:invoice, company: company)
+
+      body = Jason.encode!(%{category_id: category.id})
+      conn = conn |> api_conn(token) |> put("/api/invoices/#{invoice.id}/category", body)
+
+      assert conn.status == 422
+      assert Jason.decode!(conn.resp_body)["error"] == "Category not found in this company"
+    end
+  end
+
+  describe "add_tags" do
+    test "adds tags to an invoice", %{conn: conn} do
+      %{company: company, token: token} = create_owner_with_token()
+      tag = insert(:tag, company: company, name: "urgent")
+      invoice = insert(:invoice, company: company)
+
+      body = Jason.encode!(%{tag_ids: [tag.id]})
+      conn = conn |> api_conn(token) |> post("/api/invoices/#{invoice.id}/tags", body)
+
+      assert conn.status == 200
+      data = Jason.decode!(conn.resp_body)["data"]
+      assert length(data) == 1
+      assert hd(data)["name"] == "urgent"
+    end
+
+    test "returns 422 for tags from different company", %{conn: conn} do
+      %{company: company, token: token} = create_owner_with_token()
+      other_company = insert(:company)
+      tag = insert(:tag, company: other_company)
+      invoice = insert(:invoice, company: company)
+
+      body = Jason.encode!(%{tag_ids: [tag.id]})
+      conn = conn |> api_conn(token) |> post("/api/invoices/#{invoice.id}/tags", body)
+
+      assert conn.status == 422
+      assert Jason.decode!(conn.resp_body)["error"] == "One or more tags not found in this company"
+    end
+  end
+
+  describe "set_tags" do
+    test "replaces all tags on an invoice", %{conn: conn} do
+      %{company: company, token: token} = create_owner_with_token()
+      tag1 = insert(:tag, company: company, name: "alpha")
+      tag2 = insert(:tag, company: company, name: "beta")
+      invoice = insert(:invoice, company: company)
+      insert(:invoice_tag, invoice: invoice, tag: tag1)
+
+      body = Jason.encode!(%{tag_ids: [tag2.id]})
+      conn = conn |> api_conn(token) |> put("/api/invoices/#{invoice.id}/tags", body)
+
+      assert conn.status == 200
+      data = Jason.decode!(conn.resp_body)["data"]
+      assert length(data) == 1
+      assert hd(data)["name"] == "beta"
+    end
+
+    test "clears all tags with empty list", %{conn: conn} do
+      %{company: company, token: token} = create_owner_with_token()
+      tag = insert(:tag, company: company)
+      invoice = insert(:invoice, company: company)
+      insert(:invoice_tag, invoice: invoice, tag: tag)
+
+      body = Jason.encode!(%{tag_ids: []})
+      conn = conn |> api_conn(token) |> put("/api/invoices/#{invoice.id}/tags", body)
+
+      assert conn.status == 200
+      assert Jason.decode!(conn.resp_body)["data"] == []
+    end
+  end
+
+  describe "remove_tag" do
+    test "removes a tag from an invoice", %{conn: conn} do
+      %{company: company, token: token} = create_owner_with_token()
+      tag = insert(:tag, company: company)
+      invoice = insert(:invoice, company: company)
+      insert(:invoice_tag, invoice: invoice, tag: tag)
+
+      conn = conn |> api_conn(token) |> delete("/api/invoices/#{invoice.id}/tags/#{tag.id}")
+
+      assert conn.status == 200
+      assert Jason.decode!(conn.resp_body)["message"] == "Tag removed"
+    end
+
+    test "returns 404 when tag is not associated", %{conn: conn} do
+      %{company: company, token: token} = create_owner_with_token()
+      tag = insert(:tag, company: company)
+      invoice = insert(:invoice, company: company)
+
+      conn = conn |> api_conn(token) |> delete("/api/invoices/#{invoice.id}/tags/#{tag.id}")
+
+      assert conn.status == 404
+    end
+  end
+
+  describe "filtering by category_id" do
+    test "filters invoices by category_id", %{conn: conn} do
+      %{company: company, token: token} = create_owner_with_token()
+      category = insert(:category, company: company)
+      insert(:invoice, company: company, category_id: category.id, seller_name: "Cat Invoice")
+      insert(:invoice, company: company, seller_name: "No Cat Invoice")
+
+      conn = conn |> api_conn(token) |> get("/api/invoices?category_id=#{category.id}")
+
+      body = Jason.decode!(conn.resp_body)
+      assert length(body["data"]) == 1
+      assert hd(body["data"])["seller_name"] == "Cat Invoice"
+    end
+  end
+
+  describe "filtering by tag_ids" do
+    test "filters invoices by tag_ids", %{conn: conn} do
+      %{company: company, token: token} = create_owner_with_token()
+      tag = insert(:tag, company: company)
+      invoice = insert(:invoice, company: company, seller_name: "Tagged")
+      insert(:invoice, company: company, seller_name: "Untagged")
+      insert(:invoice_tag, invoice: invoice, tag: tag)
+
+      conn =
+        conn |> api_conn(token) |> get("/api/invoices?tag_ids[]=#{tag.id}")
+
+      body = Jason.decode!(conn.resp_body)
+      assert length(body["data"]) == 1
+      assert hd(body["data"])["seller_name"] == "Tagged"
+    end
+  end
 end
