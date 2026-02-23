@@ -11,7 +11,8 @@ defmodule KsefHub.Invoices.Invoice do
 
   @valid_types ~w(income expense)
   @valid_statuses ~w(pending approved rejected)
-  @valid_sources ~w(ksef manual)
+  @valid_sources ~w(ksef manual pdf_upload)
+  @valid_extraction_statuses ~w(complete partial failed)
   @valid_duplicate_statuses ~w(suspected confirmed dismissed)
   @valid_prediction_statuses ~w(pending predicted needs_review manual)
 
@@ -44,6 +45,10 @@ defmodule KsefHub.Invoices.Invoice do
     field :prediction_category_probabilities, :map
     field :prediction_tag_probabilities, :map
     field :prediction_predicted_at, :utc_datetime_usec
+
+    field :pdf_content, :binary
+    field :extraction_status, :string
+    field :original_filename, :string
 
     belongs_to :company, KsefHub.Companies.Company
     belongs_to :duplicate_of, __MODULE__
@@ -79,18 +84,11 @@ defmodule KsefHub.Invoices.Invoice do
       :duplicate_status,
       :ksef_acquisition_date,
       :permanent_storage_date,
-      :duplicate_status,
-      :ksef_acquisition_date,
-      :permanent_storage_date
+      :pdf_content,
+      :extraction_status,
+      :original_filename
     ])
-    |> validate_required([
-      :type,
-      :seller_nip,
-      :seller_name,
-      :invoice_number,
-      :issue_date,
-      :company_id
-    ])
+    |> validate_required([:type, :company_id])
     |> validate_format(:seller_nip, ~r/^\d{10}$/, message: "must be a 10-digit NIP")
     |> validate_format(:buyer_nip, ~r/^\d{10}$/, message: "must be a 10-digit NIP")
     |> validate_inclusion(:type, @valid_types)
@@ -154,13 +152,44 @@ defmodule KsefHub.Invoices.Invoice do
 
     case source do
       "ksef" ->
-        validate_required(changeset, [:xml_content])
+        validate_required(changeset, [
+          :xml_content,
+          :seller_nip,
+          :seller_name,
+          :invoice_number,
+          :issue_date
+        ])
 
       "manual" ->
-        validate_required(changeset, [:buyer_nip, :buyer_name, :net_amount, :gross_amount])
+        validate_required(changeset, [
+          :seller_nip,
+          :seller_name,
+          :invoice_number,
+          :issue_date,
+          :buyer_nip,
+          :buyer_name,
+          :net_amount,
+          :gross_amount
+        ])
+
+      "pdf_upload" ->
+        changeset
+        |> validate_required([:pdf_content])
+        |> validate_extraction_status()
 
       _ ->
         changeset
+    end
+  end
+
+  @spec validate_extraction_status(Ecto.Changeset.t()) :: Ecto.Changeset.t()
+  defp validate_extraction_status(changeset) do
+    extraction_status = get_field(changeset, :extraction_status)
+
+    if extraction_status do
+      validate_inclusion(changeset, :extraction_status, @valid_extraction_statuses)
+    else
+      changeset
     end
   end
 
