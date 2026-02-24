@@ -97,7 +97,7 @@ defmodule KsefHubWeb.Api.InvoiceControllerTest do
   describe "approve" do
     test "approves expense invoice from token's company", %{conn: conn} do
       %{company: company, token: token} = create_owner_with_token()
-      invoice = insert(:invoice, company: company, type: "expense", status: "pending")
+      invoice = insert(:invoice, company: company, type: :expense, status: :pending)
 
       conn = conn |> api_conn(token) |> post("/api/invoices/#{invoice.id}/approve")
 
@@ -108,7 +108,7 @@ defmodule KsefHubWeb.Api.InvoiceControllerTest do
     test "returns 404 when approving invoice from different company", %{conn: conn} do
       %{token: token} = create_owner_with_token()
       other_company = insert(:company)
-      invoice = insert(:invoice, company: other_company, type: "expense", status: "pending")
+      invoice = insert(:invoice, company: other_company, type: :expense, status: :pending)
 
       assert_error_sent 404, fn ->
         conn |> api_conn(token) |> post("/api/invoices/#{invoice.id}/approve")
@@ -119,7 +119,7 @@ defmodule KsefHubWeb.Api.InvoiceControllerTest do
   describe "reject" do
     test "rejects expense invoice from token's company", %{conn: conn} do
       %{company: company, token: token} = create_owner_with_token()
-      invoice = insert(:invoice, company: company, type: "expense", status: "pending")
+      invoice = insert(:invoice, company: company, type: :expense, status: :pending)
 
       conn = conn |> api_conn(token) |> post("/api/invoices/#{invoice.id}/reject")
 
@@ -130,7 +130,7 @@ defmodule KsefHubWeb.Api.InvoiceControllerTest do
     test "returns 404 when rejecting invoice from different company", %{conn: conn} do
       %{token: token} = create_owner_with_token()
       other_company = insert(:company)
-      invoice = insert(:invoice, company: other_company, type: "expense", status: "pending")
+      invoice = insert(:invoice, company: other_company, type: :expense, status: :pending)
 
       assert_error_sent 404, fn ->
         conn |> api_conn(token) |> post("/api/invoices/#{invoice.id}/reject")
@@ -804,8 +804,8 @@ defmodule KsefHubWeb.Api.InvoiceControllerTest do
   describe "reviewer role scoping" do
     test "reviewer token returns only expense invoices from index", %{conn: conn} do
       {:ok, %{company: company, token: token}} = create_reviewer_with_token()
-      insert(:invoice, company: company, type: "income", seller_name: "Income Seller")
-      insert(:invoice, company: company, type: "expense", seller_name: "Expense Seller")
+      insert(:invoice, company: company, type: :income, seller_name: "Income Seller")
+      insert(:invoice, company: company, type: :expense, seller_name: "Expense Seller")
 
       conn = conn |> api_conn(token) |> get("/api/invoices")
 
@@ -817,7 +817,7 @@ defmodule KsefHubWeb.Api.InvoiceControllerTest do
 
     test "reviewer token returns 404 for income invoice show", %{conn: conn} do
       {:ok, %{company: company, token: token}} = create_reviewer_with_token()
-      income = insert(:invoice, company: company, type: "income")
+      income = insert(:invoice, company: company, type: :income)
 
       assert_error_sent 404, fn ->
         conn |> api_conn(token) |> get("/api/invoices/#{income.id}")
@@ -826,7 +826,7 @@ defmodule KsefHubWeb.Api.InvoiceControllerTest do
 
     test "reviewer token can access expense invoice show", %{conn: conn} do
       {:ok, %{company: company, token: token}} = create_reviewer_with_token()
-      expense = insert(:invoice, company: company, type: "expense")
+      expense = insert(:invoice, company: company, type: :expense)
 
       conn = conn |> api_conn(token) |> get("/api/invoices/#{expense.id}")
 
@@ -836,7 +836,7 @@ defmodule KsefHubWeb.Api.InvoiceControllerTest do
 
     test "reviewer token returns 404 for income invoice approve", %{conn: conn} do
       {:ok, %{company: company, token: token}} = create_reviewer_with_token()
-      income = insert(:invoice, company: company, type: "income")
+      income = insert(:invoice, company: company, type: :income)
 
       assert_error_sent 404, fn ->
         conn |> api_conn(token) |> post("/api/invoices/#{income.id}/approve")
@@ -845,7 +845,7 @@ defmodule KsefHubWeb.Api.InvoiceControllerTest do
 
     test "reviewer token returns 404 for income invoice reject", %{conn: conn} do
       {:ok, %{company: company, token: token}} = create_reviewer_with_token()
-      income = insert(:invoice, company: company, type: "income")
+      income = insert(:invoice, company: company, type: :income)
 
       assert_error_sent 404, fn ->
         conn |> api_conn(token) |> post("/api/invoices/#{income.id}/reject")
@@ -854,7 +854,7 @@ defmodule KsefHubWeb.Api.InvoiceControllerTest do
 
     test "reviewer token returns 404 for income invoice xml", %{conn: conn} do
       {:ok, %{company: company, token: token}} = create_reviewer_with_token()
-      income = insert(:invoice, company: company, type: "income")
+      income = insert(:invoice, company: company, type: :income)
 
       assert_error_sent 404, fn ->
         conn |> api_conn(token) |> get("/api/invoices/#{income.id}/xml")

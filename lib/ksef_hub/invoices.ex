@@ -24,13 +24,13 @@ defmodule KsefHub.Invoices do
   via `:page` (1-based, default 1) and `:per_page` (default 25, max 100).
 
   ## Filters
-    * `:type` - "income" or "expense"
-    * `:status` - "pending", "approved", or "rejected"
+    * `:type` - `:income` or `:expense`
+    * `:status` - `:pending`, `:approved`, or `:rejected`
     * `:date_from` - earliest issue_date (inclusive)
     * `:date_to` - latest issue_date (inclusive)
     * `:seller_nip` - filter by seller NIP
     * `:buyer_nip` - filter by buyer NIP
-    * `:source` - "ksef", "manual", or "pdf_upload"
+    * `:source` - `:ksef`, `:manual`, or `:pdf_upload`
     * `:query` - search across invoice_number, seller_name, buyer_name
     * `:page` - page number (1-based, default 1)
     * `:per_page` - results per page (default 25, max 100)
@@ -278,7 +278,7 @@ defmodule KsefHub.Invoices do
   @doc """
   Creates a manual invoice, optionally detecting duplicates by ksef_number.
 
-  Forces `source: "manual"` and strips KSeF-only fields. If a `ksef_number` is
+  Forces `source: :manual` and strips KSeF-only fields. If a `ksef_number` is
   provided and an existing non-duplicate invoice with the same (company_id, ksef_number)
   exists, the new invoice is marked as a suspected duplicate.
   """
@@ -333,13 +333,13 @@ defmodule KsefHub.Invoices do
 
   Calls the extraction sidecar to parse the PDF, maps extracted fields to invoice
   attrs, determines extraction status based on which critical fields are present,
-  and creates the invoice. Missing fields result in `extraction_status: "partial"`
+  and creates the invoice. Missing fields result in `extraction_status: :partial`
   rather than validation errors.
 
   ## Parameters
     * `company_id` - the company UUID
     * `pdf_binary` - raw PDF file content
-    * `opts` - must include `:type` ("income" or "expense"), optionally `:filename`
+    * `opts` - must include `:type` (`:income` or `:expense`), optionally `:filename`
   """
   @spec create_pdf_upload_invoice(Ecto.UUID.t(), binary(), map()) ::
           {:ok, Invoice.t()} | {:error, term()}
@@ -490,9 +490,9 @@ defmodule KsefHub.Invoices do
   @doc """
   Confirms a suspected duplicate invoice.
 
-  Only valid when `duplicate_of_id` is set and `duplicate_status` is `"suspected"`.
+  Only valid when `duplicate_of_id` is set and `duplicate_status` is `:suspected`.
   Returns `{:error, :not_a_duplicate}` when no duplicate_of_id is set,
-  or `{:error, :invalid_status}` when duplicate_status is not `"suspected"`.
+  or `{:error, :invalid_status}` when duplicate_status is not `:suspected`.
   """
   @spec confirm_duplicate(Invoice.t()) ::
           {:ok, Invoice.t()} | {:error, Ecto.Changeset.t() | :not_a_duplicate | :invalid_status}
@@ -509,7 +509,7 @@ defmodule KsefHub.Invoices do
   @doc """
   Dismisses a duplicate invoice.
 
-  Valid when `duplicate_of_id` is set and `duplicate_status` is `"suspected"` or `"confirmed"`.
+  Valid when `duplicate_of_id` is set and `duplicate_status` is `:suspected` or `:confirmed`.
   Returns `{:error, :not_a_duplicate}` when no duplicate_of_id is set,
   or `{:error, :invalid_status}` when duplicate_status is not dismissable.
   """
@@ -697,7 +697,7 @@ defmodule KsefHub.Invoices do
   end
 
   @doc """
-  Marks an invoice's prediction status as `"manual"`, indicating the user
+  Marks an invoice's prediction status as `:manual`, indicating the user
   overrode or manually set the category/tags.
   """
   @spec mark_prediction_manual(Invoice.t()) :: {:ok, Invoice.t()} | {:error, Ecto.Changeset.t()}

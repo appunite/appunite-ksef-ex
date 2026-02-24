@@ -35,9 +35,9 @@ defmodule KsefHubWeb.DashboardLiveTest do
     end
 
     test "shows invoice counts", %{conn: conn, company: company} do
-      insert(:invoice, type: "income", status: "pending", company: company)
-      insert(:invoice, type: "income", status: "pending", company: company)
-      insert(:invoice, type: "expense", status: "pending", company: company)
+      insert(:invoice, type: :income, status: :pending, company: company)
+      insert(:invoice, type: :income, status: :pending, company: company)
+      insert(:invoice, type: :expense, status: :pending, company: company)
 
       {:ok, view, _html} = live(conn, ~p"/dashboard")
       assert has_element?(view, "[class*='text-2xl font-bold']", "3")
@@ -59,7 +59,7 @@ defmodule KsefHubWeb.DashboardLiveTest do
       assert has_element?(view, "[class*='text-2xl font-bold']", "0")
 
       # Create an invoice and broadcast sync
-      insert(:invoice, type: "income", status: "pending", company: company)
+      insert(:invoice, type: :income, status: :pending, company: company)
       send(view.pid, {:sync_completed, %{income: 1, expense: 0}})
 
       # Counts should update after sync event

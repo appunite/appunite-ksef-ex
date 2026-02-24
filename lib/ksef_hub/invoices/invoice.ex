@@ -59,6 +59,18 @@ defmodule KsefHub.Invoices.Invoice do
     timestamps()
   end
 
+  @doc "Returns the list of valid invoice types."
+  @spec types() :: [invoice_type()]
+  def types, do: Ecto.Enum.values(__MODULE__, :type)
+
+  @doc "Returns the list of valid invoice statuses."
+  @spec statuses() :: [invoice_status()]
+  def statuses, do: Ecto.Enum.values(__MODULE__, :status)
+
+  @doc "Returns the list of valid invoice sources."
+  @spec sources() :: [invoice_source()]
+  def sources, do: Ecto.Enum.values(__MODULE__, :source)
+
   @doc "Builds a changeset for invoice creation/update."
   @spec changeset(t() | Ecto.Changeset.t(), map()) :: Ecto.Changeset.t()
   def changeset(invoice, attrs) do

@@ -20,7 +20,7 @@ defmodule KsefHub.Invitations.InvitationTest do
 
       attrs = %{
         email: "invitee@example.com",
-        role: "accountant"
+        role: :accountant
       }
 
       changeset = Invitation.changeset(invitation, attrs)
@@ -50,7 +50,7 @@ defmodule KsefHub.Invitations.InvitationTest do
         }
         |> Invitation.changeset(%{
           email: "test@example.com",
-          role: "owner"
+          role: :owner
         })
 
       assert %{role: ["is invalid"]} = errors_on(changeset)
@@ -67,7 +67,7 @@ defmodule KsefHub.Invitations.InvitationTest do
         }
         |> Invitation.changeset(%{
           email: "test@example.com",
-          role: "accountant",
+          role: :accountant,
           status: "accepted",
           expires_at: DateTime.add(DateTime.utc_now(), -3600)
         })
@@ -90,7 +90,7 @@ defmodule KsefHub.Invitations.InvitationTest do
         }
         |> Invitation.changeset(%{
           email: "not-an-email",
-          role: "accountant"
+          role: :accountant
         })
 
       assert %{email: ["must be a valid email address"]} = errors_on(changeset)
@@ -107,7 +107,7 @@ defmodule KsefHub.Invitations.InvitationTest do
         }
         |> Invitation.changeset(%{
           email: "UPPER@Example.COM",
-          role: "accountant"
+          role: :accountant
         })
 
       assert Ecto.Changeset.get_change(changeset, :email) == "upper@example.com"
@@ -132,7 +132,7 @@ defmodule KsefHub.Invitations.InvitationTest do
       changeset =
         Invitation.changeset(invitation, %{
           email: "test@example.com",
-          role: "accountant",
+          role: :accountant,
           company_id: attacker_company.id,
           invited_by_id: attacker_user.id,
           token_hash: "attacker-hash",
@@ -170,7 +170,7 @@ defmodule KsefHub.Invitations.InvitationTest do
         }
         |> Invitation.changeset(%{
           email: "dupe@example.com",
-          role: "accountant"
+          role: :accountant
         })
         |> Repo.insert()
 

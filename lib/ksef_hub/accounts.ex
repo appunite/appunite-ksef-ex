@@ -336,7 +336,7 @@ defmodule KsefHub.Accounts do
           | {:error, :unauthorized}
           | {:error, Ecto.Changeset.t()}
   def create_api_token(user_id, company_id, attrs) do
-    if Companies.has_role?(user_id, company_id, "owner") do
+    if Companies.has_role?(user_id, company_id, :owner) do
       do_create_api_token(user_id, company_id, attrs)
     else
       {:error, :unauthorized}
@@ -436,7 +436,7 @@ defmodule KsefHub.Accounts do
           | {:error, :not_found}
           | {:error, Ecto.Changeset.t()}
   def revoke_api_token(user_id, company_id, token_id) do
-    if Companies.has_role?(user_id, company_id, "owner") do
+    if Companies.has_role?(user_id, company_id, :owner) do
       do_revoke_api_token(user_id, company_id, token_id)
     else
       {:error, :unauthorized}

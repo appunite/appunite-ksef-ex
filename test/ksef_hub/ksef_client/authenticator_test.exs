@@ -14,7 +14,7 @@ defmodule KsefHub.KsefClient.AuthenticatorTest do
   setup do
     company = insert(:company, nip: "1234567890")
     user = insert(:user)
-    insert(:membership, user: user, company: company, role: "owner")
+    insert(:membership, user: user, company: company, role: :owner)
     %{company: company, user: user}
   end
 

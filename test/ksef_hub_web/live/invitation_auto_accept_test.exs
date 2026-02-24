@@ -16,7 +16,7 @@ defmodule KsefHubWeb.InvitationAutoAcceptTest do
       {:ok, _} =
         Invitations.create_invitation(owner.id, company.id, %{
           email: "newuser@example.com",
-          role: "accountant"
+          role: :accountant
         })
 
       {:ok, lv, _html} = live(conn, ~p"/users/register")

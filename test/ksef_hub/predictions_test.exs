@@ -24,7 +24,7 @@ defmodule KsefHub.PredictionsTest do
       invoice =
         insert(:manual_invoice,
           company: company,
-          type: "expense"
+          type: :expense
         )
 
       expect_predictions(
@@ -61,7 +61,7 @@ defmodule KsefHub.PredictionsTest do
     test "stores predictions as needs_review when confidence < 80%", %{company: company} do
       {:ok, _category} = Invoices.create_category(company.id, %{name: "finance:invoices"})
 
-      invoice = insert(:manual_invoice, company: company, type: "expense")
+      invoice = insert(:manual_invoice, company: company, type: :expense)
 
       expect_predictions(
         category: %{
@@ -89,7 +89,7 @@ defmodule KsefHub.PredictionsTest do
     end
 
     test "skips non-expense invoices", %{company: company} do
-      invoice = insert(:invoice, company: company, type: "income")
+      invoice = insert(:invoice, company: company, type: :income)
 
       assert {:skip, :not_expense} = Predictions.predict_and_apply(invoice)
     end
@@ -98,7 +98,7 @@ defmodule KsefHub.PredictionsTest do
       company: company
     } do
       # No categories or tags created for this company
-      invoice = insert(:manual_invoice, company: company, type: "expense")
+      invoice = insert(:manual_invoice, company: company, type: :expense)
 
       expect_predictions(
         category: %{
@@ -123,7 +123,7 @@ defmodule KsefHub.PredictionsTest do
     end
 
     test "handles prediction service errors gracefully", %{company: company} do
-      invoice = insert(:manual_invoice, company: company, type: "expense")
+      invoice = insert(:manual_invoice, company: company, type: :expense)
 
       KsefHub.Predictions.Mock
       |> expect(:predict_category, fn _input ->
@@ -137,7 +137,7 @@ defmodule KsefHub.PredictionsTest do
     test "sets predicted when only tag matches above threshold", %{company: company} do
       {:ok, tag} = Invoices.create_tag(company.id, %{name: "monthly"})
 
-      invoice = insert(:manual_invoice, company: company, type: "expense")
+      invoice = insert(:manual_invoice, company: company, type: :expense)
 
       expect_predictions(
         category: %{
@@ -165,7 +165,7 @@ defmodule KsefHub.PredictionsTest do
     test "sets predicted when only category matches above threshold", %{company: company} do
       {:ok, category} = Invoices.create_category(company.id, %{name: "finance:invoices"})
 
-      invoice = insert(:manual_invoice, company: company, type: "expense")
+      invoice = insert(:manual_invoice, company: company, type: :expense)
 
       expect_predictions(
         category: %{
@@ -190,7 +190,7 @@ defmodule KsefHub.PredictionsTest do
     end
 
     test "returns error when category succeeds but tag prediction fails", %{company: company} do
-      invoice = insert(:manual_invoice, company: company, type: "expense")
+      invoice = insert(:manual_invoice, company: company, type: :expense)
 
       KsefHub.Predictions.Mock
       |> expect(:predict_category, fn _input ->
@@ -216,7 +216,7 @@ defmodule KsefHub.PredictionsTest do
     test "auto-applies at exact 80% confidence boundary", %{company: company} do
       {:ok, category} = Invoices.create_category(company.id, %{name: "finance:invoices"})
 
-      invoice = insert(:manual_invoice, company: company, type: "expense")
+      invoice = insert(:manual_invoice, company: company, type: :expense)
 
       expect_predictions(
         category: %{
@@ -242,7 +242,7 @@ defmodule KsefHub.PredictionsTest do
     end
 
     test "stores full probability distributions", %{company: company} do
-      invoice = insert(:manual_invoice, company: company, type: "expense")
+      invoice = insert(:manual_invoice, company: company, type: :expense)
 
       cat_probs = %{"finance:invoices" => 0.60, "hr:payroll" => 0.30, "other:misc" => 0.10}
       tag_probs = %{"monthly" => 0.55, "quarterly" => 0.45}
@@ -275,7 +275,7 @@ defmodule KsefHub.PredictionsTest do
       invoice =
         insert(:manual_invoice,
           company: company,
-          type: "expense",
+          type: :expense,
           prediction_status: :predicted
         )
 
@@ -284,7 +284,7 @@ defmodule KsefHub.PredictionsTest do
     end
 
     test "works when prediction_status is nil", %{company: company} do
-      invoice = insert(:manual_invoice, company: company, type: "expense")
+      invoice = insert(:manual_invoice, company: company, type: :expense)
       assert invoice.prediction_status == nil
 
       assert {:ok, updated} = Invoices.mark_prediction_manual(invoice)
@@ -295,7 +295,7 @@ defmodule KsefHub.PredictionsTest do
       invoice =
         insert(:manual_invoice,
           company: company,
-          type: "expense",
+          type: :expense,
           prediction_status: :needs_review
         )
 

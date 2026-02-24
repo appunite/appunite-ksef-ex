@@ -94,7 +94,7 @@ defmodule KsefHubWeb.TeamLiveTest do
       {:ok, _} =
         Invitations.create_invitation(owner.id, company.id, %{
           email: "pending@example.com",
-          role: "reviewer"
+          role: :reviewer
         })
 
       {:ok, view, _html} = live(conn, ~p"/team")
@@ -106,7 +106,7 @@ defmodule KsefHubWeb.TeamLiveTest do
       {:ok, %{invitation: invitation}} =
         Invitations.create_invitation(owner.id, company.id, %{
           email: "cancel-me@example.com",
-          role: "accountant"
+          role: :accountant
         })
 
       {:ok, view, _html} = live(conn, ~p"/team")

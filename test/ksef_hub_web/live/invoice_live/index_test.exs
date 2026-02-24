@@ -29,8 +29,8 @@ defmodule KsefHubWeb.InvoiceLive.IndexTest do
     end
 
     test "shows invoices in table", %{conn: conn, company: company} do
-      insert(:invoice, type: "income", invoice_number: "FV/2025/001", company: company)
-      insert(:invoice, type: "expense", invoice_number: "FV/2025/002", company: company)
+      insert(:invoice, type: :income, invoice_number: "FV/2025/001", company: company)
+      insert(:invoice, type: :expense, invoice_number: "FV/2025/002", company: company)
 
       {:ok, _view, html} = live(conn, ~p"/invoices")
       assert html =~ "FV/2025/001"
@@ -45,8 +45,8 @@ defmodule KsefHubWeb.InvoiceLive.IndexTest do
 
   describe "filters" do
     setup %{conn: conn, company: company} do
-      income = insert(:invoice, type: "income", invoice_number: "FV/INC/001", company: company)
-      expense = insert(:invoice, type: "expense", invoice_number: "FV/EXP/001", company: company)
+      income = insert(:invoice, type: :income, invoice_number: "FV/INC/001", company: company)
+      expense = insert(:invoice, type: :expense, invoice_number: "FV/EXP/001", company: company)
       %{conn: conn, income: income, expense: expense}
     end
 
@@ -115,7 +115,7 @@ defmodule KsefHubWeb.InvoiceLive.IndexTest do
       for i <- 1..30 do
         insert(:invoice,
           company: company,
-          type: "income",
+          type: :income,
           invoice_number: "FV/#{String.pad_leading("#{i}", 3, "0")}"
         )
       end
@@ -148,8 +148,8 @@ defmodule KsefHubWeb.InvoiceLive.IndexTest do
     end
 
     test "reviewer sees only expense invoices", %{conn: conn, company: company} do
-      insert(:invoice, type: "income", invoice_number: "FV/INC/999", company: company)
-      insert(:invoice, type: "expense", invoice_number: "FV/EXP/999", company: company)
+      insert(:invoice, type: :income, invoice_number: "FV/INC/999", company: company)
+      insert(:invoice, type: :expense, invoice_number: "FV/EXP/999", company: company)
 
       {:ok, _view, html} = live(conn, ~p"/invoices")
       refute html =~ "FV/INC/999"
@@ -160,8 +160,8 @@ defmodule KsefHubWeb.InvoiceLive.IndexTest do
       conn: conn,
       company: company
     } do
-      insert(:invoice, type: "income", invoice_number: "FV/INC/888", company: company)
-      insert(:invoice, type: "expense", invoice_number: "FV/EXP/888", company: company)
+      insert(:invoice, type: :income, invoice_number: "FV/INC/888", company: company)
+      insert(:invoice, type: :expense, invoice_number: "FV/EXP/888", company: company)
 
       {:ok, _view, html} = live(conn, ~p"/invoices?type=income")
       refute html =~ "FV/INC/888"
@@ -169,7 +169,7 @@ defmodule KsefHubWeb.InvoiceLive.IndexTest do
     end
 
     test "reviewer sees locked type filter", %{conn: conn, company: company} do
-      insert(:invoice, type: "expense", company: company)
+      insert(:invoice, type: :expense, company: company)
 
       {:ok, view, _html} = live(conn, ~p"/invoices")
       assert has_element?(view, "select[disabled]")

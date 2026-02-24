@@ -21,6 +21,10 @@ defmodule KsefHub.Sync.Checkpoint do
     timestamps()
   end
 
+  @doc "Returns the list of valid checkpoint types."
+  @spec checkpoint_types() :: [checkpoint_type()]
+  def checkpoint_types, do: Ecto.Enum.values(__MODULE__, :checkpoint_type)
+
   @doc "Builds a changeset for checkpoint creation/update."
   @spec changeset(t(), map()) :: Ecto.Changeset.t()
   def changeset(checkpoint, attrs) do
