@@ -102,6 +102,17 @@ defmodule KsefHub.Unstructured.ClientTest do
 
       assert {:error, {:unstructured_service_error, 503}} = Client.health()
     end
+
+    test "returns error on network failure" do
+      setup_unstructured_config()
+
+      Req.Test.stub(Client, fn conn ->
+        Req.Test.transport_error(conn, :econnrefused)
+      end)
+
+      assert {:error, {:request_failed, %Req.TransportError{reason: :econnrefused}}} =
+               Client.health()
+    end
   end
 
   @spec setup_unstructured_config() :: :ok

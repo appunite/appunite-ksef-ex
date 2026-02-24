@@ -82,6 +82,17 @@ defmodule KsefHub.Predictions.PredictionServiceTest do
       assert {:error, {:prediction_service_error, 422}} =
                PredictionService.predict_tag(%{invoice_title: "Test"})
     end
+
+    test "returns error on network failure" do
+      setup_prediction_config()
+
+      Req.Test.stub(PredictionService, fn conn ->
+        Req.Test.transport_error(conn, :econnrefused)
+      end)
+
+      assert {:error, {:request_failed, %Req.TransportError{reason: :econnrefused}}} =
+               PredictionService.predict_tag(%{invoice_title: "Test"})
+    end
   end
 
   describe "health/0" do
