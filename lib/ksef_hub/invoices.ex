@@ -29,7 +29,7 @@ defmodule KsefHub.Invoices do
     * `:date_to` - latest issue_date (inclusive)
     * `:seller_nip` - filter by seller NIP
     * `:buyer_nip` - filter by buyer NIP
-    * `:source` - "ksef" or "manual"
+    * `:source` - "ksef", "manual", or "pdf_upload"
     * `:query` - search across invoice_number, seller_name, buyer_name
     * `:page` - page number (1-based, default 1)
     * `:per_page` - results per page (default 25, max 100)
@@ -344,8 +344,8 @@ defmodule KsefHub.Invoices do
       {:ok, extracted} ->
         do_create_pdf_upload(company_id, pdf_binary, type, filename, extracted)
 
-      {:error, reason} ->
-        Logger.warning("PDF extraction failed: #{inspect(reason)}")
+      {:error, _reason} ->
+        Logger.warning("PDF extraction failed for file: #{filename || "invoice.pdf"}")
         do_create_pdf_upload_failed(company_id, pdf_binary, type, filename)
     end
   end

@@ -66,8 +66,12 @@ defmodule KsefHub.Unstructured.Client do
 
         {:error, {:unstructured_service_error, status}}
 
+      {:error, %{__struct__: struct_name} = reason} ->
+        Logger.error("Unstructured service request failed for /extract: #{inspect(struct_name)}")
+        {:error, {:request_failed, reason}}
+
       {:error, reason} ->
-        Logger.error("Unstructured service request failed for /extract: #{inspect(reason)}")
+        Logger.error("Unstructured service request failed for /extract")
         {:error, {:request_failed, reason}}
     end
   end

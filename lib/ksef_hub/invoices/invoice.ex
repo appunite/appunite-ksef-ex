@@ -174,7 +174,7 @@ defmodule KsefHub.Invoices.Invoice do
 
       "pdf_upload" ->
         changeset
-        |> validate_required([:pdf_content])
+        |> validate_required([:pdf_content, :extraction_status])
         |> validate_extraction_status()
 
       _ ->
