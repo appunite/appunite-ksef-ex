@@ -1,5 +1,5 @@
 defmodule KsefHub.Predictions.PredictionServiceTest do
-  use ExUnit.Case, async: true
+  use ExUnit.Case, async: false
 
   alias KsefHub.Predictions.PredictionService
 
@@ -128,6 +128,7 @@ defmodule KsefHub.Predictions.PredictionServiceTest do
     end
   end
 
+  @spec setup_prediction_config() :: :ok
   defp setup_prediction_config do
     Application.put_env(:ksef_hub, :prediction_service_url, "http://localhost:8080")
 

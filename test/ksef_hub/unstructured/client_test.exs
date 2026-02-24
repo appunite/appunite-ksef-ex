@@ -1,5 +1,5 @@
 defmodule KsefHub.Unstructured.ClientTest do
-  use ExUnit.Case, async: true
+  use ExUnit.Case, async: false
 
   alias KsefHub.Unstructured.Client
 
@@ -104,6 +104,7 @@ defmodule KsefHub.Unstructured.ClientTest do
     end
   end
 
+  @spec setup_unstructured_config() :: :ok
   defp setup_unstructured_config do
     Application.put_env(:ksef_hub, :unstructured_url, "http://localhost:9000")
     Application.put_env(:ksef_hub, :unstructured_api_token, "test-token")
