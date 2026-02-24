@@ -24,13 +24,13 @@ config :ksef_hub,
   prediction_client: KsefHub.Predictions.PredictionService,
   unstructured_client: KsefHub.Unstructured.Client
 
-# Oban background jobs
+# Oban background jobs (sync interval overridable via SYNC_INTERVAL_MINUTES in runtime.exs)
 config :ksef_hub, Oban,
   repo: KsefHub.Repo,
   plugins: [
     {Oban.Plugins.Cron,
      crontab: [
-       {"*/15 * * * *", KsefHub.Sync.SyncDispatcher}
+       {"0 * * * *", KsefHub.Sync.SyncDispatcher}
      ]},
     {Oban.Plugins.Lifeline, rescue_after: :timer.minutes(15)}
   ],

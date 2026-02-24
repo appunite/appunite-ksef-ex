@@ -1,8 +1,9 @@
 defmodule KsefHub.Sync.SyncDispatcher do
   @moduledoc """
   Oban cron worker that dispatches per-company sync jobs.
-  Runs every 15 minutes, queries all companies with active credentials,
-  and enqueues one SyncWorker job per company.
+  Runs on a configurable interval (SYNC_INTERVAL_MINUTES env var, default 60 min),
+  queries all companies with active credentials, and enqueues one SyncWorker job
+  per company.
   """
 
   use Oban.Worker, queue: :default, max_attempts: 1
