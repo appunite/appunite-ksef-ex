@@ -341,7 +341,7 @@ defmodule KsefHub.Sync.SyncWorkerTest do
       # Verify invoice was created
       invoice = KsefHub.Invoices.get_invoice_by_ksef_number(company.id, "KSEF-INCOME-001")
       assert invoice != nil
-      assert invoice.type == "income"
+      assert invoice.type == :income
       assert invoice.seller_nip == "1234567890"
       assert invoice.invoice_number == "FV/2025/001"
     end

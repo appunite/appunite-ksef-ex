@@ -116,7 +116,7 @@ defmodule KsefHub.Factory do
   @spec invoice_factory() :: Invoice.t()
   def invoice_factory do
     %Invoice{
-      type: "income",
+      type: :income,
       source: "ksef",
       seller_nip: "1234567890",
       seller_name: "Seller Sp. z o.o.",
@@ -129,7 +129,7 @@ defmodule KsefHub.Factory do
       vat_amount: Decimal.new("230.00"),
       gross_amount: Decimal.new("1230.00"),
       currency: "PLN",
-      status: "pending",
+      status: :pending,
       company: build(:company)
     }
   end
@@ -138,7 +138,7 @@ defmodule KsefHub.Factory do
   @spec manual_invoice_factory() :: Invoice.t()
   def manual_invoice_factory do
     %Invoice{
-      type: "expense",
+      type: :expense,
       source: "manual",
       seller_nip: "1234567890",
       seller_name: "Manual Seller Sp. z o.o.",
@@ -150,7 +150,7 @@ defmodule KsefHub.Factory do
       vat_amount: Decimal.new("460.00"),
       gross_amount: Decimal.new("2460.00"),
       currency: "PLN",
-      status: "pending",
+      status: :pending,
       company: build(:company)
     }
   end
@@ -159,7 +159,7 @@ defmodule KsefHub.Factory do
   @spec pdf_upload_invoice_factory() :: Invoice.t()
   def pdf_upload_invoice_factory do
     %Invoice{
-      type: "expense",
+      type: :expense,
       source: "pdf_upload",
       seller_nip: "1234567890",
       seller_name: "Extracted Seller Sp. z o.o.",
@@ -171,7 +171,7 @@ defmodule KsefHub.Factory do
       vat_amount: Decimal.new("230.00"),
       gross_amount: Decimal.new("1230.00"),
       currency: "PLN",
-      status: "pending",
+      status: :pending,
       pdf_content: "%PDF-1.4 fake content",
       extraction_status: "complete",
       original_filename: "invoice.pdf",

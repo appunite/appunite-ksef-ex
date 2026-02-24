@@ -79,17 +79,17 @@ defmodule KsefHub.Invoices.ParserTest do
   describe "determine_type/2" do
     test "returns income when our NIP is seller" do
       invoice = %{seller_nip: "1234567890", buyer_nip: "9999999999"}
-      assert Parser.determine_type(invoice, "1234567890") == "income"
+      assert Parser.determine_type(invoice, "1234567890") == :income
     end
 
     test "returns expense when our NIP is buyer" do
       invoice = %{seller_nip: "9999999999", buyer_nip: "1234567890"}
-      assert Parser.determine_type(invoice, "1234567890") == "expense"
+      assert Parser.determine_type(invoice, "1234567890") == :expense
     end
 
     test "defaults to income when NIP not found" do
       invoice = %{seller_nip: "1111111111", buyer_nip: "2222222222"}
-      assert Parser.determine_type(invoice, "3333333333") == "income"
+      assert Parser.determine_type(invoice, "3333333333") == :income
     end
   end
 end

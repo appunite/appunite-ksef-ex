@@ -250,13 +250,13 @@ defmodule KsefHub.Invoices do
           | {:error, Ecto.Changeset.t()}
           | {:error, {:invalid_type, String.t()}}
           | {:error, :incomplete_extraction}
-  def approve_invoice(%Invoice{type: "expense", extraction_status: status})
+  def approve_invoice(%Invoice{type: :expense, extraction_status: status})
       when status in ["partial", "failed"] do
     {:error, :incomplete_extraction}
   end
 
-  def approve_invoice(%Invoice{type: "expense"} = invoice) do
-    update_invoice(invoice, %{status: "approved"})
+  def approve_invoice(%Invoice{type: :expense} = invoice) do
+    update_invoice(invoice, %{status: :approved})
   end
 
   def approve_invoice(%Invoice{type: type}), do: {:error, {:invalid_type, type}}
@@ -268,8 +268,8 @@ defmodule KsefHub.Invoices do
           {:ok, Invoice.t()}
           | {:error, Ecto.Changeset.t()}
           | {:error, {:invalid_type, String.t()}}
-  def reject_invoice(%Invoice{type: "expense"} = invoice) do
-    update_invoice(invoice, %{status: "rejected"})
+  def reject_invoice(%Invoice{type: :expense} = invoice) do
+    update_invoice(invoice, %{status: :rejected})
   end
 
   def reject_invoice(%Invoice{type: type}), do: {:error, {:invalid_type, type}}
@@ -529,7 +529,7 @@ defmodule KsefHub.Invoices do
   Returns invoice counts grouped by type and status for a company.
   """
   @spec count_by_type_and_status(Ecto.UUID.t()) :: %{
-          {String.t(), String.t()} => non_neg_integer()
+          {atom(), atom()} => non_neg_integer()
         }
   def count_by_type_and_status(company_id) do
     Invoice
@@ -833,11 +833,11 @@ defmodule KsefHub.Invoices do
   end
 
   @spec scope_by_role(map(), String.t() | nil) :: map()
-  defp scope_by_role(filters, "reviewer"), do: Map.put(filters, :type, "expense")
+  defp scope_by_role(filters, "reviewer"), do: Map.put(filters, :type, :expense)
   defp scope_by_role(filters, _role), do: filters
 
   @spec maybe_scope_type_by_role(Ecto.Queryable.t(), String.t() | nil) :: Ecto.Query.t()
-  defp maybe_scope_type_by_role(query, "reviewer"), do: where(query, [i], i.type == "expense")
+  defp maybe_scope_type_by_role(query, "reviewer"), do: where(query, [i], i.type == :expense)
   defp maybe_scope_type_by_role(query, _role), do: query
 
   @spec do_list_invoices(Ecto.UUID.t(), map(), pos_integer(), pos_integer()) :: [Invoice.t()]
@@ -855,10 +855,10 @@ defmodule KsefHub.Invoices do
   @spec apply_filters(Ecto.Queryable.t(), map()) :: Ecto.Query.t()
   defp apply_filters(query, filters) do
     Enum.reduce(filters, query, fn
-      {:type, type}, q when type in ~w(income expense) ->
+      {:type, type}, q when type in [:income, :expense] ->
         where(q, [i], i.type == ^type)
 
-      {:status, status}, q when status in ~w(pending approved rejected) ->
+      {:status, status}, q when status in [:pending, :approved, :rejected] ->
         where(q, [i], i.status == ^status)
 
       {:date_from, %Date{} = date}, q ->

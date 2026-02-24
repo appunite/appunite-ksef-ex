@@ -9,8 +9,6 @@ defmodule KsefHub.Invoices.Invoice do
   @primary_key {:id, :binary_id, autogenerate: true}
   @foreign_key_type :binary_id
 
-  @valid_types ~w(income expense)
-  @valid_statuses ~w(pending approved rejected)
   @valid_sources ~w(ksef manual pdf_upload)
   @valid_extraction_statuses ~w(complete partial failed)
   @valid_duplicate_statuses ~w(suspected confirmed dismissed)
@@ -18,7 +16,7 @@ defmodule KsefHub.Invoices.Invoice do
 
   schema "invoices" do
     field :ksef_number, :string
-    field :type, :string
+    field :type, Ecto.Enum, values: [:income, :expense]
     field :xml_content, :string
     field :seller_nip, :string
     field :seller_name, :string
@@ -30,7 +28,7 @@ defmodule KsefHub.Invoices.Invoice do
     field :vat_amount, :decimal
     field :gross_amount, :decimal
     field :currency, :string, default: "PLN"
-    field :status, :string, default: "pending"
+    field :status, Ecto.Enum, values: [:pending, :approved, :rejected], default: :pending
     field :source, :string, default: "ksef"
     field :duplicate_status, :string
     field :ksef_acquisition_date, :utc_datetime_usec
@@ -90,8 +88,6 @@ defmodule KsefHub.Invoices.Invoice do
     |> validate_required([:type, :company_id])
     |> validate_format(:seller_nip, ~r/^\d{10}$/, message: "must be a 10-digit NIP")
     |> validate_format(:buyer_nip, ~r/^\d{10}$/, message: "must be a 10-digit NIP")
-    |> validate_inclusion(:type, @valid_types)
-    |> validate_inclusion(:status, @valid_statuses)
     |> validate_inclusion(:source, @valid_sources)
     |> validate_length(:original_filename, max: 255)
     |> validate_source_requirements()

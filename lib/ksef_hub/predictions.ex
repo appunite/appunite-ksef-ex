@@ -26,7 +26,7 @@ defmodule KsefHub.Predictions do
   """
   @spec predict_and_apply(Invoice.t()) ::
           {:ok, Invoice.t()} | {:error, term()} | {:skip, atom()}
-  def predict_and_apply(%Invoice{type: "expense"} = invoice) do
+  def predict_and_apply(%Invoice{type: :expense} = invoice) do
     input = build_input(invoice)
 
     with {:ok, cat_result} <- prediction_client().predict_category(input),

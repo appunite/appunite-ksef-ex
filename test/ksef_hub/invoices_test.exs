@@ -21,14 +21,14 @@ defmodule KsefHub.InvoicesTest do
 
       assert {:ok, %Invoice{} = invoice} = Invoices.create_invoice(attrs)
       assert invoice.ksef_number == "1234567890-20250101-ABC123-01"
-      assert invoice.type == "income"
-      assert invoice.status == "pending"
+      assert invoice.type == :income
+      assert invoice.status == :pending
       assert invoice.currency == "PLN"
       assert invoice.company_id == company.id
     end
 
     test "returns error with invalid type", %{company: company} do
-      attrs = params_for(:invoice, type: "invalid", company_id: company.id)
+      attrs = params_for(:invoice, type: :invalid, company_id: company.id)
       assert {:error, changeset} = Invoices.create_invoice(attrs)
       assert "is invalid" in errors_on(changeset).type
     end
@@ -108,7 +108,7 @@ defmodule KsefHub.InvoicesTest do
         insert(:invoice,
           ksef_number: "upsert-pred",
           company: company,
-          type: "expense",
+          type: :expense,
           prediction_status: "predicted",
           prediction_category_name: "finance:invoices",
           prediction_category_confidence: 0.92,
@@ -141,19 +141,19 @@ defmodule KsefHub.InvoicesTest do
     end
 
     test "filters by type", %{company: company} do
-      insert(:invoice, type: "income", company: company)
-      insert(:invoice, type: "expense", company: company)
+      insert(:invoice, type: :income, company: company)
+      insert(:invoice, type: :expense, company: company)
 
-      assert [%{type: "income"}] = Invoices.list_invoices(company.id, %{type: "income"})
-      assert [%{type: "expense"}] = Invoices.list_invoices(company.id, %{type: "expense"})
+      assert [%{type: :income}] = Invoices.list_invoices(company.id, %{type: :income})
+      assert [%{type: :expense}] = Invoices.list_invoices(company.id, %{type: :expense})
     end
 
     test "filters by status", %{company: company} do
-      inv = insert(:invoice, type: "expense", company: company)
+      inv = insert(:invoice, type: :expense, company: company)
       Invoices.approve_invoice(inv)
 
-      assert [%{status: "approved"}] = Invoices.list_invoices(company.id, %{status: "approved"})
-      assert [] = Invoices.list_invoices(company.id, %{status: "rejected"})
+      assert [%{status: :approved}] = Invoices.list_invoices(company.id, %{status: :approved})
+      assert [] = Invoices.list_invoices(company.id, %{status: :rejected})
     end
 
     test "filters by date range", %{company: company} do
@@ -261,10 +261,10 @@ defmodule KsefHub.InvoicesTest do
     end
 
     test "applies filters to count", %{company: company} do
-      insert(:invoice, company: company, type: "income")
-      insert(:invoice, company: company, type: "expense")
+      insert(:invoice, company: company, type: :income)
+      insert(:invoice, company: company, type: :expense)
 
-      assert Invoices.count_invoices(company.id, %{type: "income"}) == 1
+      assert Invoices.count_invoices(company.id, %{type: :income}) == 1
     end
   end
 
@@ -310,25 +310,25 @@ defmodule KsefHub.InvoicesTest do
 
   describe "approve_invoice/1" do
     test "approves an expense invoice", %{company: company} do
-      inv = insert(:invoice, type: "expense", company: company)
-      assert {:ok, %Invoice{status: "approved"}} = Invoices.approve_invoice(inv)
+      inv = insert(:invoice, type: :expense, company: company)
+      assert {:ok, %Invoice{status: :approved}} = Invoices.approve_invoice(inv)
     end
 
     test "rejects approving an income invoice", %{company: company} do
-      inv = insert(:invoice, type: "income", company: company)
-      assert {:error, {:invalid_type, "income"}} = Invoices.approve_invoice(inv)
+      inv = insert(:invoice, type: :income, company: company)
+      assert {:error, {:invalid_type, :income}} = Invoices.approve_invoice(inv)
     end
   end
 
   describe "reject_invoice/1" do
     test "rejects an expense invoice", %{company: company} do
-      inv = insert(:invoice, type: "expense", company: company)
-      assert {:ok, %Invoice{status: "rejected"}} = Invoices.reject_invoice(inv)
+      inv = insert(:invoice, type: :expense, company: company)
+      assert {:ok, %Invoice{status: :rejected}} = Invoices.reject_invoice(inv)
     end
 
     test "rejects rejecting an income invoice", %{company: company} do
-      inv = insert(:invoice, type: "income", company: company)
-      assert {:error, {:invalid_type, "income"}} = Invoices.reject_invoice(inv)
+      inv = insert(:invoice, type: :income, company: company)
+      assert {:error, {:invalid_type, :income}} = Invoices.reject_invoice(inv)
     end
   end
 
@@ -336,41 +336,41 @@ defmodule KsefHub.InvoicesTest do
     test "list_invoices_paginated with role: reviewer returns only expense invoices", %{
       company: company
     } do
-      insert(:invoice, type: "income", company: company)
-      insert(:invoice, type: "expense", company: company)
+      insert(:invoice, type: :income, company: company)
+      insert(:invoice, type: :expense, company: company)
 
       result = Invoices.list_invoices_paginated(company.id, %{}, role: "reviewer")
 
       assert length(result.entries) == 1
-      assert hd(result.entries).type == "expense"
+      assert hd(result.entries).type == :expense
       assert result.total_count == 1
     end
 
     test "list_invoices_paginated with role: reviewer overrides user-supplied type: income filter",
          %{company: company} do
-      insert(:invoice, type: "income", company: company)
-      insert(:invoice, type: "expense", company: company)
+      insert(:invoice, type: :income, company: company)
+      insert(:invoice, type: :expense, company: company)
 
-      result = Invoices.list_invoices_paginated(company.id, %{type: "income"}, role: "reviewer")
+      result = Invoices.list_invoices_paginated(company.id, %{type: :income}, role: "reviewer")
 
       assert length(result.entries) == 1
-      assert hd(result.entries).type == "expense"
+      assert hd(result.entries).type == :expense
     end
 
     test "get_invoice with role: reviewer returns nil for income invoice", %{company: company} do
-      income = insert(:invoice, type: "income", company: company)
+      income = insert(:invoice, type: :income, company: company)
 
       assert is_nil(Invoices.get_invoice(company.id, income.id, role: "reviewer"))
     end
 
     test "get_invoice with role: reviewer returns expense invoice", %{company: company} do
-      expense = insert(:invoice, type: "expense", company: company)
+      expense = insert(:invoice, type: :expense, company: company)
 
       assert %Invoice{} = Invoices.get_invoice(company.id, expense.id, role: "reviewer")
     end
 
     test "get_invoice! with role: reviewer raises for income invoice", %{company: company} do
-      income = insert(:invoice, type: "income", company: company)
+      income = insert(:invoice, type: :income, company: company)
 
       assert_raise Ecto.NoResultsError, fn ->
         Invoices.get_invoice!(company.id, income.id, role: "reviewer")
@@ -378,8 +378,8 @@ defmodule KsefHub.InvoicesTest do
     end
 
     test "list_invoices_paginated with role: owner returns all invoices", %{company: company} do
-      insert(:invoice, type: "income", company: company)
-      insert(:invoice, type: "expense", company: company)
+      insert(:invoice, type: :income, company: company)
+      insert(:invoice, type: :expense, company: company)
 
       result = Invoices.list_invoices_paginated(company.id, %{}, role: "owner")
 
@@ -389,8 +389,8 @@ defmodule KsefHub.InvoicesTest do
     test "list_invoices_paginated with role: nil returns all invoices (backward compat)", %{
       company: company
     } do
-      insert(:invoice, type: "income", company: company)
-      insert(:invoice, type: "expense", company: company)
+      insert(:invoice, type: :income, company: company)
+      insert(:invoice, type: :expense, company: company)
 
       result = Invoices.list_invoices_paginated(company.id, %{}, role: nil)
 
@@ -398,9 +398,9 @@ defmodule KsefHub.InvoicesTest do
     end
 
     test "count_invoices with role: reviewer counts only expense invoices", %{company: company} do
-      insert(:invoice, type: "income", company: company)
-      insert(:invoice, type: "expense", company: company)
-      insert(:invoice, type: "expense", company: company)
+      insert(:invoice, type: :income, company: company)
+      insert(:invoice, type: :expense, company: company)
+      insert(:invoice, type: :expense, company: company)
 
       assert Invoices.count_invoices(company.id, %{}, role: "reviewer") == 2
     end
@@ -409,7 +409,7 @@ defmodule KsefHub.InvoicesTest do
   describe "create_manual_invoice/2" do
     test "creates a manual invoice with valid attributes", %{company: company} do
       attrs = %{
-        type: "expense",
+        type: :expense,
         seller_nip: "1234567890",
         seller_name: "Seller Sp. z o.o.",
         buyer_nip: "0987654321",
@@ -429,7 +429,7 @@ defmodule KsefHub.InvoicesTest do
 
     test "creates manual invoice with ksef_number (no existing match)", %{company: company} do
       attrs = %{
-        type: "expense",
+        type: :expense,
         ksef_number: "manual-ksef-123",
         seller_nip: "1234567890",
         seller_name: "Seller Sp. z o.o.",
@@ -450,7 +450,7 @@ defmodule KsefHub.InvoicesTest do
       existing = insert(:invoice, ksef_number: "existing-123", company: company)
 
       attrs = %{
-        type: "expense",
+        type: :expense,
         ksef_number: "existing-123",
         seller_nip: "1234567890",
         seller_name: "Seller Sp. z o.o.",
@@ -472,7 +472,7 @@ defmodule KsefHub.InvoicesTest do
       insert(:invoice, ksef_number: "cross-company-123", company: other)
 
       attrs = %{
-        type: "expense",
+        type: :expense,
         ksef_number: "cross-company-123",
         seller_nip: "1234567890",
         seller_name: "Seller Sp. z o.o.",
@@ -490,7 +490,7 @@ defmodule KsefHub.InvoicesTest do
 
     test "strips ksef_acquisition_date and permanent_storage_date", %{company: company} do
       attrs = %{
-        type: "expense",
+        type: :expense,
         seller_nip: "1234567890",
         seller_name: "Seller Sp. z o.o.",
         buyer_nip: "0987654321",
@@ -510,7 +510,7 @@ defmodule KsefHub.InvoicesTest do
 
     test "creates manual invoice with income type", %{company: company} do
       attrs = %{
-        type: "income",
+        type: :income,
         seller_nip: "1234567890",
         seller_name: "Seller Sp. z o.o.",
         buyer_nip: "0987654321",
@@ -522,7 +522,7 @@ defmodule KsefHub.InvoicesTest do
       }
 
       assert {:ok, %Invoice{} = invoice} = Invoices.create_manual_invoice(company.id, attrs)
-      assert invoice.type == "income"
+      assert invoice.type == :income
       assert invoice.source == "manual"
     end
   end
@@ -547,7 +547,7 @@ defmodule KsefHub.InvoicesTest do
 
       assert {:ok, %Invoice{} = invoice} =
                Invoices.create_pdf_upload_invoice(company.id, "pdf-data", %{
-                 type: "expense",
+                 type: :expense,
                  filename: "test.pdf"
                })
 
@@ -573,7 +573,7 @@ defmodule KsefHub.InvoicesTest do
 
       assert {:ok, %Invoice{} = invoice} =
                Invoices.create_pdf_upload_invoice(company.id, "pdf-data", %{
-                 type: "expense",
+                 type: :expense,
                  filename: "partial.pdf"
                })
 
@@ -591,7 +591,7 @@ defmodule KsefHub.InvoicesTest do
 
       assert {:ok, %Invoice{} = invoice} =
                Invoices.create_pdf_upload_invoice(company.id, "pdf-data", %{
-                 type: "expense",
+                 type: :expense,
                  filename: "failed.pdf"
                })
 
@@ -617,7 +617,7 @@ defmodule KsefHub.InvoicesTest do
       end)
 
       assert {:ok, %Invoice{} = invoice} =
-               Invoices.create_pdf_upload_invoice(company.id, "pdf-data", %{type: "expense"})
+               Invoices.create_pdf_upload_invoice(company.id, "pdf-data", %{type: :expense})
 
       assert invoice.duplicate_of_id == existing.id
       assert invoice.duplicate_status == "suspected"
@@ -629,7 +629,7 @@ defmodule KsefHub.InvoicesTest do
       invoice =
         insert(:pdf_upload_invoice,
           company: company,
-          type: "expense",
+          type: :expense,
           extraction_status: "partial"
         )
 
@@ -640,18 +640,18 @@ defmodule KsefHub.InvoicesTest do
       invoice =
         insert(:pdf_upload_invoice,
           company: company,
-          type: "expense",
+          type: :expense,
           extraction_status: "complete"
         )
 
-      assert {:ok, %Invoice{status: "approved"}} = Invoices.approve_invoice(invoice)
+      assert {:ok, %Invoice{status: :approved}} = Invoices.approve_invoice(invoice)
     end
 
     test "rejects approval of failed-extraction invoice", %{company: company} do
       invoice =
         insert(:pdf_upload_invoice,
           company: company,
-          type: "expense",
+          type: :expense,
           extraction_status: "failed"
         )
 
@@ -659,9 +659,9 @@ defmodule KsefHub.InvoicesTest do
     end
 
     test "allows approval of invoice with nil extraction_status", %{company: company} do
-      invoice = insert(:invoice, company: company, type: "expense", extraction_status: nil)
+      invoice = insert(:invoice, company: company, type: :expense, extraction_status: nil)
 
-      assert {:ok, %Invoice{status: "approved"}} = Invoices.approve_invoice(invoice)
+      assert {:ok, %Invoice{status: :approved}} = Invoices.approve_invoice(invoice)
     end
   end
 
@@ -881,16 +881,16 @@ defmodule KsefHub.InvoicesTest do
 
   describe "count_by_type_and_status/1" do
     test "returns counts scoped to company", %{company: company} do
-      insert(:invoice, type: "income", company: company)
-      insert(:invoice, type: "expense", company: company)
+      insert(:invoice, type: :income, company: company)
+      insert(:invoice, type: :expense, company: company)
 
       # Invoice in another company should not be counted
       other = insert(:company)
-      insert(:invoice, type: "income", company: other)
+      insert(:invoice, type: :income, company: other)
 
       counts = Invoices.count_by_type_and_status(company.id)
-      assert counts[{"income", "pending"}] == 1
-      assert counts[{"expense", "pending"}] == 1
+      assert counts[{:income, :pending}] == 1
+      assert counts[{:expense, :pending}] == 1
     end
   end
 end

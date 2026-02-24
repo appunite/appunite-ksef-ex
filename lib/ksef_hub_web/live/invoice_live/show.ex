@@ -125,14 +125,14 @@ defmodule KsefHubWeb.InvoiceLive.Show do
             </ul>
           </div>
           <button
-            :if={@invoice.type == "expense" && @invoice.status == "pending"}
+            :if={@invoice.type == :expense && @invoice.status == :pending}
             phx-click="approve"
             class="btn btn-sm btn-success"
           >
             Approve
           </button>
           <button
-            :if={@invoice.type == "expense" && @invoice.status == "pending"}
+            :if={@invoice.type == :expense && @invoice.status == :pending}
             phx-click="reject"
             class="btn btn-sm btn-error"
           >

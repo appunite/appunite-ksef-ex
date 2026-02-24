@@ -41,12 +41,12 @@ defmodule KsefHub.Invoices.Parser do
   Determines invoice type (income/expense) based on our NIP.
   If our NIP matches Podmiot1 (seller), it's income. If Podmiot2 (buyer), expense.
   """
-  @spec determine_type(map(), String.t()) :: String.t()
+  @spec determine_type(map(), String.t()) :: :income | :expense
   def determine_type(parsed_invoice, our_nip) do
     cond do
-      parsed_invoice.seller_nip == our_nip -> "income"
-      parsed_invoice.buyer_nip == our_nip -> "expense"
-      true -> "income"
+      parsed_invoice.seller_nip == our_nip -> :income
+      parsed_invoice.buyer_nip == our_nip -> :expense
+      true -> :income
     end
   end
 

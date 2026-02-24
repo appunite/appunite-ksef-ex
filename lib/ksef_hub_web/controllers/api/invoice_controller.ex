@@ -805,11 +805,24 @@ defmodule KsefHubWeb.Api.InvoiceController do
 
   # --- Private ---
 
+  @spec cast_enum_param(String.t() | nil, module(), atom()) :: atom() | nil
+  defp cast_enum_param(nil, _schema, _field), do: nil
+  defp cast_enum_param("", _schema, _field), do: nil
+
+  defp cast_enum_param(value, schema, field) when is_binary(value) do
+    type = schema.__schema__(:type, field)
+
+    case Ecto.Type.cast(type, value) do
+      {:ok, atom} -> atom
+      :error -> nil
+    end
+  end
+
   @spec build_filters(map()) :: map()
   defp build_filters(params) do
     %{}
-    |> maybe_put(:type, params["type"])
-    |> maybe_put(:status, params["status"])
+    |> maybe_put(:type, cast_enum_param(params["type"], Invoice, :type))
+    |> maybe_put(:status, cast_enum_param(params["status"], Invoice, :status))
     |> maybe_put(:source, params["source"])
     |> maybe_put(:seller_nip, params["seller_nip"])
     |> maybe_put(:buyer_nip, params["buyer_nip"])

@@ -50,19 +50,19 @@ defmodule KsefHubWeb.InvoiceComponentsTest do
 
   describe "type_badge/1" do
     test "renders income badge with success style" do
-      html = render_component(&InvoiceComponents.type_badge/1, type: "income")
+      html = render_component(&InvoiceComponents.type_badge/1, type: :income)
       assert html =~ "text-success"
       assert html =~ "income"
     end
 
     test "renders expense badge with warning style" do
-      html = render_component(&InvoiceComponents.type_badge/1, type: "expense")
+      html = render_component(&InvoiceComponents.type_badge/1, type: :expense)
       assert html =~ "text-warning"
       assert html =~ "expense"
     end
 
     test "renders unknown type with base badge only" do
-      html = render_component(&InvoiceComponents.type_badge/1, type: "unknown")
+      html = render_component(&InvoiceComponents.type_badge/1, type: :unknown)
       assert html =~ "rounded-md"
       assert html =~ "unknown"
       refute html =~ "text-success"
@@ -72,25 +72,25 @@ defmodule KsefHubWeb.InvoiceComponentsTest do
 
   describe "status_badge/1" do
     test "renders pending badge" do
-      html = render_component(&InvoiceComponents.status_badge/1, status: "pending")
+      html = render_component(&InvoiceComponents.status_badge/1, status: :pending)
       assert html =~ "text-warning"
       assert html =~ "pending"
     end
 
     test "renders approved badge" do
-      html = render_component(&InvoiceComponents.status_badge/1, status: "approved")
+      html = render_component(&InvoiceComponents.status_badge/1, status: :approved)
       assert html =~ "text-success"
       assert html =~ "approved"
     end
 
     test "renders rejected badge" do
-      html = render_component(&InvoiceComponents.status_badge/1, status: "rejected")
+      html = render_component(&InvoiceComponents.status_badge/1, status: :rejected)
       assert html =~ "text-error"
       assert html =~ "rejected"
     end
 
     test "renders unknown status with base badge only" do
-      html = render_component(&InvoiceComponents.status_badge/1, status: "cancelled")
+      html = render_component(&InvoiceComponents.status_badge/1, status: :cancelled)
       assert html =~ "rounded-md"
       assert html =~ "cancelled"
       refute html =~ "text-warning"
