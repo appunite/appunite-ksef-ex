@@ -253,7 +253,7 @@ defmodule KsefHubWeb.Api.InvoiceController do
   end
 
   @spec do_update(Plug.Conn.t(), Invoice.t(), map()) :: Plug.Conn.t()
-  defp do_update(conn, %Invoice{source: "pdf_upload"} = invoice, params) do
+  defp do_update(conn, %Invoice{source: :pdf_upload} = invoice, params) do
     update_attrs = atomize_keys(params, @update_allowed_keys)
     update_attrs = Invoices.recalculate_extraction_status(invoice, update_attrs)
 
@@ -602,7 +602,7 @@ defmodule KsefHubWeb.Api.InvoiceController do
   end
 
   @spec serve_pdf(Plug.Conn.t(), Invoice.t()) :: Plug.Conn.t()
-  defp serve_pdf(conn, %Invoice{source: "pdf_upload", pdf_content: content} = invoice)
+  defp serve_pdf(conn, %Invoice{source: :pdf_upload, pdf_content: content} = invoice)
        when not is_nil(content) do
     filename = invoice.original_filename || "#{invoice.invoice_number || "invoice"}.pdf"
     send_attachment(conn, "application/pdf", filename, content)
@@ -823,7 +823,7 @@ defmodule KsefHubWeb.Api.InvoiceController do
     %{}
     |> maybe_put(:type, cast_enum_param(params["type"], Invoice, :type))
     |> maybe_put(:status, cast_enum_param(params["status"], Invoice, :status))
-    |> maybe_put(:source, params["source"])
+    |> maybe_put(:source, cast_enum_param(params["source"], Invoice, :source))
     |> maybe_put(:seller_nip, params["seller_nip"])
     |> maybe_put(:buyer_nip, params["buyer_nip"])
     |> maybe_put(:query, params["query"])

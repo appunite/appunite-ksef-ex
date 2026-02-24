@@ -117,7 +117,7 @@ defmodule KsefHub.Factory do
   def invoice_factory do
     %Invoice{
       type: :income,
-      source: "ksef",
+      source: :ksef,
       seller_nip: "1234567890",
       seller_name: "Seller Sp. z o.o.",
       buyer_nip: "0987654321",
@@ -139,7 +139,7 @@ defmodule KsefHub.Factory do
   def manual_invoice_factory do
     %Invoice{
       type: :expense,
-      source: "manual",
+      source: :manual,
       seller_nip: "1234567890",
       seller_name: "Manual Seller Sp. z o.o.",
       buyer_nip: "0987654321",
@@ -160,7 +160,7 @@ defmodule KsefHub.Factory do
   def pdf_upload_invoice_factory do
     %Invoice{
       type: :expense,
-      source: "pdf_upload",
+      source: :pdf_upload,
       seller_nip: "1234567890",
       seller_name: "Extracted Seller Sp. z o.o.",
       buyer_nip: "0987654321",
@@ -173,7 +173,7 @@ defmodule KsefHub.Factory do
       currency: "PLN",
       status: :pending,
       pdf_content: "%PDF-1.4 fake content",
-      extraction_status: "complete",
+      extraction_status: :complete,
       original_filename: "invoice.pdf",
       company: build(:company)
     }

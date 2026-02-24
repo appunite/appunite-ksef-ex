@@ -9,11 +9,6 @@ defmodule KsefHub.Invoices.Invoice do
   @primary_key {:id, :binary_id, autogenerate: true}
   @foreign_key_type :binary_id
 
-  @valid_sources ~w(ksef manual pdf_upload)
-  @valid_extraction_statuses ~w(complete partial failed)
-  @valid_duplicate_statuses ~w(suspected confirmed dismissed)
-  @valid_prediction_statuses ~w(pending predicted needs_review manual)
-
   schema "invoices" do
     field :ksef_number, :string
     field :type, Ecto.Enum, values: [:income, :expense]
@@ -29,12 +24,12 @@ defmodule KsefHub.Invoices.Invoice do
     field :gross_amount, :decimal
     field :currency, :string, default: "PLN"
     field :status, Ecto.Enum, values: [:pending, :approved, :rejected], default: :pending
-    field :source, :string, default: "ksef"
-    field :duplicate_status, :string
+    field :source, Ecto.Enum, values: [:ksef, :manual, :pdf_upload], default: :ksef
+    field :duplicate_status, Ecto.Enum, values: [:suspected, :confirmed, :dismissed]
     field :ksef_acquisition_date, :utc_datetime_usec
     field :permanent_storage_date, :utc_datetime_usec
 
-    field :prediction_status, :string
+    field :prediction_status, Ecto.Enum, values: [:pending, :predicted, :needs_review, :manual]
     field :prediction_category_name, :string
     field :prediction_tag_name, :string
     field :prediction_category_confidence, :float
@@ -45,7 +40,7 @@ defmodule KsefHub.Invoices.Invoice do
     field :prediction_predicted_at, :utc_datetime_usec
 
     field :pdf_content, :binary
-    field :extraction_status, :string
+    field :extraction_status, Ecto.Enum, values: [:complete, :partial, :failed]
     field :original_filename, :string
 
     belongs_to :company, KsefHub.Companies.Company
@@ -88,10 +83,8 @@ defmodule KsefHub.Invoices.Invoice do
     |> validate_required([:type, :company_id])
     |> validate_format(:seller_nip, ~r/^\d{10}$/, message: "must be a 10-digit NIP")
     |> validate_format(:buyer_nip, ~r/^\d{10}$/, message: "must be a 10-digit NIP")
-    |> validate_inclusion(:source, @valid_sources)
     |> validate_length(:original_filename, max: 255)
     |> validate_source_requirements()
-    |> validate_duplicate_status()
     |> foreign_key_constraint(:company_id)
     |> foreign_key_constraint(:duplicate_of_id)
     |> unique_constraint([:company_id, :ksef_number],
@@ -104,7 +97,6 @@ defmodule KsefHub.Invoices.Invoice do
   def duplicate_changeset(invoice, attrs) do
     invoice
     |> cast(attrs, [:duplicate_of_id, :duplicate_status])
-    |> validate_duplicate_status()
     |> foreign_key_constraint(:duplicate_of_id)
   end
 
@@ -131,15 +123,8 @@ defmodule KsefHub.Invoices.Invoice do
   @doc "Builds a changeset for updating ML prediction fields."
   @spec prediction_changeset(t(), map()) :: Ecto.Changeset.t()
   def prediction_changeset(invoice, attrs) do
-    changeset =
-      invoice
-      |> cast(attrs, @prediction_fields)
-
-    if get_field(changeset, :prediction_status) do
-      validate_inclusion(changeset, :prediction_status, @valid_prediction_statuses)
-    else
-      changeset
-    end
+    invoice
+    |> cast(attrs, @prediction_fields)
   end
 
   @spec validate_source_requirements(Ecto.Changeset.t()) :: Ecto.Changeset.t()
@@ -147,7 +132,7 @@ defmodule KsefHub.Invoices.Invoice do
     source = get_field(changeset, :source)
 
     case source do
-      "ksef" ->
+      :ksef ->
         validate_required(changeset, [
           :xml_content,
           :seller_nip,
@@ -156,7 +141,7 @@ defmodule KsefHub.Invoices.Invoice do
           :issue_date
         ])
 
-      "manual" ->
+      :manual ->
         validate_required(changeset, [
           :seller_nip,
           :seller_name,
@@ -168,25 +153,13 @@ defmodule KsefHub.Invoices.Invoice do
           :gross_amount
         ])
 
-      "pdf_upload" ->
+      :pdf_upload ->
         changeset
         |> validate_required([:pdf_content, :extraction_status])
         |> validate_pdf_content_size()
-        |> validate_extraction_status()
 
       _ ->
         changeset
-    end
-  end
-
-  @spec validate_extraction_status(Ecto.Changeset.t()) :: Ecto.Changeset.t()
-  defp validate_extraction_status(changeset) do
-    extraction_status = get_field(changeset, :extraction_status)
-
-    if extraction_status do
-      validate_inclusion(changeset, :extraction_status, @valid_extraction_statuses)
-    else
-      changeset
     end
   end
 
@@ -200,17 +173,6 @@ defmodule KsefHub.Invoices.Invoice do
 
       _ ->
         changeset
-    end
-  end
-
-  @spec validate_duplicate_status(Ecto.Changeset.t()) :: Ecto.Changeset.t()
-  defp validate_duplicate_status(changeset) do
-    duplicate_status = get_field(changeset, :duplicate_status)
-
-    if duplicate_status do
-      validate_inclusion(changeset, :duplicate_status, @valid_duplicate_statuses)
-    else
-      changeset
     end
   end
 end

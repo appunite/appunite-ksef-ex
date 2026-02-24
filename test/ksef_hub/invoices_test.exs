@@ -49,7 +49,7 @@ defmodule KsefHub.InvoicesTest do
     end
 
     test "ksef source requires xml_content", %{company: company} do
-      attrs = params_for(:invoice, source: "ksef", xml_content: nil, company_id: company.id)
+      attrs = params_for(:invoice, source: :ksef, xml_content: nil, company_id: company.id)
       assert {:error, changeset} = Invoices.create_invoice(attrs)
       assert errors_on(changeset).xml_content
     end
@@ -73,7 +73,7 @@ defmodule KsefHub.InvoicesTest do
     end
 
     test "rejects invalid source", %{company: company} do
-      attrs = params_for(:invoice, source: "invalid", company_id: company.id)
+      attrs = params_for(:invoice, source: :invalid, company_id: company.id)
       assert {:error, changeset} = Invoices.create_invoice(attrs)
       assert "is invalid" in errors_on(changeset).source
     end
@@ -109,7 +109,7 @@ defmodule KsefHub.InvoicesTest do
           ksef_number: "upsert-pred",
           company: company,
           type: :expense,
-          prediction_status: "predicted",
+          prediction_status: :predicted,
           prediction_category_name: "finance:invoices",
           prediction_category_confidence: 0.92,
           prediction_tag_name: "monthly",
@@ -125,7 +125,7 @@ defmodule KsefHub.InvoicesTest do
 
       assert updated.id == original.id
       assert updated.seller_name == "Updated Seller"
-      assert updated.prediction_status == "predicted"
+      assert updated.prediction_status == :predicted
       assert updated.prediction_category_name == "finance:invoices"
       assert updated.prediction_category_confidence == 0.92
     end
@@ -421,7 +421,7 @@ defmodule KsefHub.InvoicesTest do
       }
 
       assert {:ok, %Invoice{} = invoice} = Invoices.create_manual_invoice(company.id, attrs)
-      assert invoice.source == "manual"
+      assert invoice.source == :manual
       assert invoice.company_id == company.id
       assert is_nil(invoice.xml_content)
       assert is_nil(invoice.duplicate_of_id)
@@ -464,7 +464,7 @@ defmodule KsefHub.InvoicesTest do
 
       assert {:ok, %Invoice{} = invoice} = Invoices.create_manual_invoice(company.id, attrs)
       assert invoice.duplicate_of_id == existing.id
-      assert invoice.duplicate_status == "suspected"
+      assert invoice.duplicate_status == :suspected
     end
 
     test "does not detect duplicate across different companies", %{company: company} do
@@ -523,7 +523,7 @@ defmodule KsefHub.InvoicesTest do
 
       assert {:ok, %Invoice{} = invoice} = Invoices.create_manual_invoice(company.id, attrs)
       assert invoice.type == :income
-      assert invoice.source == "manual"
+      assert invoice.source == :manual
     end
   end
 
@@ -551,8 +551,8 @@ defmodule KsefHub.InvoicesTest do
                  filename: "test.pdf"
                })
 
-      assert invoice.source == "pdf_upload"
-      assert invoice.extraction_status == "complete"
+      assert invoice.source == :pdf_upload
+      assert invoice.extraction_status == :complete
       assert invoice.seller_nip == "1234567890"
       assert invoice.seller_name == "PDF Seller Sp. z o.o."
       assert invoice.invoice_number == "FV/PDF/001"
@@ -577,8 +577,8 @@ defmodule KsefHub.InvoicesTest do
                  filename: "partial.pdf"
                })
 
-      assert invoice.source == "pdf_upload"
-      assert invoice.extraction_status == "partial"
+      assert invoice.source == :pdf_upload
+      assert invoice.extraction_status == :partial
       assert invoice.seller_name == "Partial Seller"
       assert is_nil(invoice.seller_nip)
       assert is_nil(invoice.issue_date)
@@ -595,8 +595,8 @@ defmodule KsefHub.InvoicesTest do
                  filename: "failed.pdf"
                })
 
-      assert invoice.source == "pdf_upload"
-      assert invoice.extraction_status == "failed"
+      assert invoice.source == :pdf_upload
+      assert invoice.extraction_status == :failed
       assert is_nil(invoice.seller_nip)
     end
 
@@ -620,7 +620,7 @@ defmodule KsefHub.InvoicesTest do
                Invoices.create_pdf_upload_invoice(company.id, "pdf-data", %{type: :expense})
 
       assert invoice.duplicate_of_id == existing.id
-      assert invoice.duplicate_status == "suspected"
+      assert invoice.duplicate_status == :suspected
     end
   end
 
@@ -630,7 +630,7 @@ defmodule KsefHub.InvoicesTest do
         insert(:pdf_upload_invoice,
           company: company,
           type: :expense,
-          extraction_status: "partial"
+          extraction_status: :partial
         )
 
       assert {:error, :incomplete_extraction} = Invoices.approve_invoice(invoice)
@@ -641,7 +641,7 @@ defmodule KsefHub.InvoicesTest do
         insert(:pdf_upload_invoice,
           company: company,
           type: :expense,
-          extraction_status: "complete"
+          extraction_status: :complete
         )
 
       assert {:ok, %Invoice{status: :approved}} = Invoices.approve_invoice(invoice)
@@ -652,7 +652,7 @@ defmodule KsefHub.InvoicesTest do
         insert(:pdf_upload_invoice,
           company: company,
           type: :expense,
-          extraction_status: "failed"
+          extraction_status: :failed
         )
 
       assert {:error, :incomplete_extraction} = Invoices.approve_invoice(invoice)
@@ -667,12 +667,12 @@ defmodule KsefHub.InvoicesTest do
 
   describe "list_invoices source filter with pdf_upload" do
     test "filters invoices by source=pdf_upload", %{company: company} do
-      insert(:invoice, company: company, source: "ksef")
-      insert(:pdf_upload_invoice, company: company, source: "pdf_upload")
+      insert(:invoice, company: company, source: :ksef)
+      insert(:pdf_upload_invoice, company: company, source: :pdf_upload)
 
-      results = Invoices.list_invoices(company.id, %{source: "pdf_upload"})
+      results = Invoices.list_invoices(company.id, %{source: :pdf_upload})
       assert length(results) == 1
-      assert hd(results).source == "pdf_upload"
+      assert hd(results).source == :pdf_upload
     end
 
     test "excludes pdf_content from list results", %{company: company} do
@@ -688,7 +688,7 @@ defmodule KsefHub.InvoicesTest do
       invoice =
         insert(:pdf_upload_invoice,
           company: company,
-          extraction_status: "partial",
+          extraction_status: :partial,
           seller_nip: "1234567890",
           seller_name: "Seller",
           invoice_number: "FV/001",
@@ -699,14 +699,14 @@ defmodule KsefHub.InvoicesTest do
 
       attrs = %{buyer_name: "Buyer"}
       result = Invoices.recalculate_extraction_status(invoice, attrs)
-      assert result[:extraction_status] == "complete"
+      assert result[:extraction_status] == :complete
     end
 
     test "returns partial when critical field is missing", %{company: company} do
       invoice =
         insert(:pdf_upload_invoice,
           company: company,
-          extraction_status: "complete",
+          extraction_status: :complete,
           seller_nip: "1234567890",
           seller_name: "Seller",
           invoice_number: "FV/001",
@@ -717,14 +717,14 @@ defmodule KsefHub.InvoicesTest do
 
       attrs = %{seller_nip: nil}
       result = Invoices.recalculate_extraction_status(invoice, attrs)
-      assert result[:extraction_status] == "partial"
+      assert result[:extraction_status] == :partial
     end
 
     test "treats empty string as missing field", %{company: company} do
       invoice =
         insert(:pdf_upload_invoice,
           company: company,
-          extraction_status: "complete",
+          extraction_status: :complete,
           seller_nip: "1234567890",
           seller_name: "Seller",
           invoice_number: "FV/001",
@@ -735,7 +735,7 @@ defmodule KsefHub.InvoicesTest do
 
       attrs = %{seller_nip: ""}
       result = Invoices.recalculate_extraction_status(invoice, attrs)
-      assert result[:extraction_status] == "partial"
+      assert result[:extraction_status] == :partial
     end
   end
 
@@ -759,7 +759,7 @@ defmodule KsefHub.InvoicesTest do
 
       assert {:ok, updated, :updated} = Invoices.upsert_invoice(attrs)
       assert updated.seller_name == "KSeF Seller"
-      assert updated.source == "ksef"
+      assert updated.source == :ksef
     end
   end
 
@@ -772,10 +772,10 @@ defmodule KsefHub.InvoicesTest do
           ksef_number: "orig-1",
           company: company,
           duplicate_of_id: original.id,
-          duplicate_status: "suspected"
+          duplicate_status: :suspected
         )
 
-      assert {:ok, %Invoice{duplicate_status: "confirmed"}} =
+      assert {:ok, %Invoice{duplicate_status: :confirmed}} =
                Invoices.confirm_duplicate(duplicate)
     end
 
@@ -792,7 +792,7 @@ defmodule KsefHub.InvoicesTest do
           ksef_number: "orig-c1",
           company: company,
           duplicate_of_id: original.id,
-          duplicate_status: "confirmed"
+          duplicate_status: :confirmed
         )
 
       assert {:error, :invalid_status} = Invoices.confirm_duplicate(duplicate)
@@ -806,7 +806,7 @@ defmodule KsefHub.InvoicesTest do
           ksef_number: "orig-c2",
           company: company,
           duplicate_of_id: original.id,
-          duplicate_status: "dismissed"
+          duplicate_status: :dismissed
         )
 
       assert {:error, :invalid_status} = Invoices.confirm_duplicate(duplicate)
@@ -822,10 +822,10 @@ defmodule KsefHub.InvoicesTest do
           ksef_number: "orig-2",
           company: company,
           duplicate_of_id: original.id,
-          duplicate_status: "suspected"
+          duplicate_status: :suspected
         )
 
-      assert {:ok, %Invoice{duplicate_status: "dismissed"}} =
+      assert {:ok, %Invoice{duplicate_status: :dismissed}} =
                Invoices.dismiss_duplicate(duplicate)
     end
 
@@ -837,10 +837,10 @@ defmodule KsefHub.InvoicesTest do
           ksef_number: "orig-d1",
           company: company,
           duplicate_of_id: original.id,
-          duplicate_status: "confirmed"
+          duplicate_status: :confirmed
         )
 
-      assert {:ok, %Invoice{duplicate_status: "dismissed"}} =
+      assert {:ok, %Invoice{duplicate_status: :dismissed}} =
                Invoices.dismiss_duplicate(duplicate)
     end
 
@@ -857,7 +857,7 @@ defmodule KsefHub.InvoicesTest do
           ksef_number: "orig-d2",
           company: company,
           duplicate_of_id: original.id,
-          duplicate_status: "dismissed"
+          duplicate_status: :dismissed
         )
 
       assert {:error, :invalid_status} = Invoices.dismiss_duplicate(duplicate)
@@ -866,16 +866,16 @@ defmodule KsefHub.InvoicesTest do
 
   describe "source filter" do
     test "filters invoices by source", %{company: company} do
-      insert(:invoice, company: company, source: "ksef")
-      insert(:manual_invoice, company: company, source: "manual")
+      insert(:invoice, company: company, source: :ksef)
+      insert(:manual_invoice, company: company, source: :manual)
 
-      ksef_results = Invoices.list_invoices(company.id, %{source: "ksef"})
-      manual_results = Invoices.list_invoices(company.id, %{source: "manual"})
+      ksef_results = Invoices.list_invoices(company.id, %{source: :ksef})
+      manual_results = Invoices.list_invoices(company.id, %{source: :manual})
 
       assert length(ksef_results) == 1
-      assert hd(ksef_results).source == "ksef"
+      assert hd(ksef_results).source == :ksef
       assert length(manual_results) == 1
-      assert hd(manual_results).source == "manual"
+      assert hd(manual_results).source == :manual
     end
   end
 

@@ -270,7 +270,7 @@ defmodule KsefHubWeb.Api.InvoiceControllerTest do
           ksef_number: "confirm-orig",
           company: company,
           duplicate_of_id: original.id,
-          duplicate_status: "suspected"
+          duplicate_status: :suspected
         )
 
       conn =
@@ -301,7 +301,7 @@ defmodule KsefHubWeb.Api.InvoiceControllerTest do
           ksef_number: "cross-confirm",
           company: other_company,
           duplicate_of_id: original.id,
-          duplicate_status: "suspected"
+          duplicate_status: :suspected
         )
 
       assert_error_sent 404, fn ->
@@ -320,7 +320,7 @@ defmodule KsefHubWeb.Api.InvoiceControllerTest do
           ksef_number: "dismiss-orig",
           company: company,
           duplicate_of_id: original.id,
-          duplicate_status: "suspected"
+          duplicate_status: :suspected
         )
 
       conn =
@@ -351,7 +351,7 @@ defmodule KsefHubWeb.Api.InvoiceControllerTest do
           ksef_number: "cross-dismiss",
           company: other_company,
           duplicate_of_id: original.id,
-          duplicate_status: "suspected"
+          duplicate_status: :suspected
         )
 
       assert_error_sent 404, fn ->
@@ -368,7 +368,7 @@ defmodule KsefHubWeb.Api.InvoiceControllerTest do
           ksef_number: "dismiss-conf",
           company: company,
           duplicate_of_id: original.id,
-          duplicate_status: "confirmed"
+          duplicate_status: :confirmed
         )
 
       conn =
@@ -419,7 +419,7 @@ defmodule KsefHubWeb.Api.InvoiceControllerTest do
           ksef_number: "confirm-trans",
           company: company,
           duplicate_of_id: original.id,
-          duplicate_status: "confirmed"
+          duplicate_status: :confirmed
         )
 
       conn =
@@ -440,7 +440,7 @@ defmodule KsefHubWeb.Api.InvoiceControllerTest do
           ksef_number: "confirm-dis",
           company: company,
           duplicate_of_id: original.id,
-          duplicate_status: "dismissed"
+          duplicate_status: :dismissed
         )
 
       conn =
@@ -463,7 +463,7 @@ defmodule KsefHubWeb.Api.InvoiceControllerTest do
           ksef_number: "dismiss-trans",
           company: company,
           duplicate_of_id: original.id,
-          duplicate_status: "dismissed"
+          duplicate_status: :dismissed
         )
 
       conn =
@@ -664,7 +664,7 @@ defmodule KsefHubWeb.Api.InvoiceControllerTest do
       invoice =
         insert(:pdf_upload_invoice,
           company: company,
-          extraction_status: "partial",
+          extraction_status: :partial,
           seller_nip: nil,
           issue_date: nil,
           net_amount: nil,
@@ -693,7 +693,7 @@ defmodule KsefHubWeb.Api.InvoiceControllerTest do
       invoice =
         insert(:pdf_upload_invoice,
           company: company,
-          extraction_status: "partial",
+          extraction_status: :partial,
           seller_nip: "1234567890",
           seller_name: "Seller",
           invoice_number: "FV/1",
@@ -715,7 +715,7 @@ defmodule KsefHubWeb.Api.InvoiceControllerTest do
       %{company: company, token: token} = create_owner_with_token()
 
       invoice =
-        insert(:pdf_upload_invoice, company: company, extraction_status: "partial")
+        insert(:pdf_upload_invoice, company: company, extraction_status: :partial)
 
       body = Jason.encode!(%{seller_nip: "not-a-nip"})
       conn = conn |> api_conn(token) |> patch("/api/invoices/#{invoice.id}", body)
@@ -778,8 +778,8 @@ defmodule KsefHubWeb.Api.InvoiceControllerTest do
   describe "source filter" do
     test "filters invoices by source=manual in index", %{conn: conn} do
       %{company: company, token: token} = create_owner_with_token()
-      insert(:invoice, company: company, source: "ksef")
-      insert(:manual_invoice, company: company, source: "manual")
+      insert(:invoice, company: company, source: :ksef)
+      insert(:manual_invoice, company: company, source: :manual)
 
       conn = conn |> api_conn(token) |> get("/api/invoices?source=manual")
 
@@ -790,8 +790,8 @@ defmodule KsefHubWeb.Api.InvoiceControllerTest do
 
     test "filters invoices by source=ksef in index", %{conn: conn} do
       %{company: company, token: token} = create_owner_with_token()
-      insert(:invoice, company: company, source: "ksef")
-      insert(:manual_invoice, company: company, source: "manual")
+      insert(:invoice, company: company, source: :ksef)
+      insert(:manual_invoice, company: company, source: :manual)
 
       conn = conn |> api_conn(token) |> get("/api/invoices?source=ksef")
 
@@ -1051,8 +1051,8 @@ defmodule KsefHubWeb.Api.InvoiceControllerTest do
   describe "source filter with pdf_upload" do
     test "filters invoices by source=pdf_upload", %{conn: conn} do
       %{company: company, token: token} = create_owner_with_token()
-      insert(:invoice, company: company, source: "ksef")
-      insert(:pdf_upload_invoice, company: company, source: "pdf_upload")
+      insert(:invoice, company: company, source: :ksef)
+      insert(:pdf_upload_invoice, company: company, source: :pdf_upload)
 
       conn = conn |> api_conn(token) |> get("/api/invoices?source=pdf_upload")
 

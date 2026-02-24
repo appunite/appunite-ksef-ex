@@ -80,7 +80,7 @@ defmodule KsefHub.Predictions do
 
   @spec build_prediction_attrs(map(), map(), boolean(), boolean()) :: map()
   defp build_prediction_attrs(cat_result, tag_result, apply_category?, apply_tag?) do
-    status = if apply_category? or apply_tag?, do: "predicted", else: "needs_review"
+    status = if apply_category? or apply_tag?, do: :predicted, else: :needs_review
 
     %{
       prediction_status: status,

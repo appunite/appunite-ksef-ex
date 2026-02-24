@@ -37,7 +37,7 @@ defmodule KsefHub.Predictions.PredictionWorker do
       nil ->
         {:cancel, "invoice not found"}
 
-      %{prediction_status: "manual"} ->
+      %{prediction_status: :manual} ->
         {:cancel, "already manually classified"}
 
       %{type: :expense} = invoice ->

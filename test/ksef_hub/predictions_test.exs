@@ -44,7 +44,7 @@ defmodule KsefHub.PredictionsTest do
 
       assert {:ok, updated} = Predictions.predict_and_apply(invoice)
 
-      assert updated.prediction_status == "predicted"
+      assert updated.prediction_status == :predicted
       assert updated.prediction_category_name == "finance:invoices"
       assert updated.prediction_tag_name == "monthly"
       assert updated.prediction_category_confidence == 0.92
@@ -80,7 +80,7 @@ defmodule KsefHub.PredictionsTest do
 
       assert {:ok, updated} = Predictions.predict_and_apply(invoice)
 
-      assert updated.prediction_status == "needs_review"
+      assert updated.prediction_status == :needs_review
       assert updated.prediction_category_name == "finance:invoices"
       assert updated.prediction_category_confidence == 0.65
 
@@ -118,7 +118,7 @@ defmodule KsefHub.PredictionsTest do
       assert {:ok, updated} = Predictions.predict_and_apply(invoice)
 
       # High confidence but no match -> needs_review
-      assert updated.prediction_status == "needs_review"
+      assert updated.prediction_status == :needs_review
       assert updated.category_id == nil
     end
 
@@ -156,7 +156,7 @@ defmodule KsefHub.PredictionsTest do
 
       assert {:ok, updated} = Predictions.predict_and_apply(invoice)
 
-      assert updated.prediction_status == "predicted"
+      assert updated.prediction_status == :predicted
       updated = Invoices.get_invoice_with_details!(company.id, updated.id)
       assert updated.category_id == nil
       assert Enum.any?(updated.tags, &(&1.id == tag.id))
@@ -184,7 +184,7 @@ defmodule KsefHub.PredictionsTest do
 
       assert {:ok, updated} = Predictions.predict_and_apply(invoice)
 
-      assert updated.prediction_status == "predicted"
+      assert updated.prediction_status == :predicted
       updated = Invoices.get_invoice_with_details!(company.id, updated.id)
       assert updated.category_id == category.id
     end
@@ -236,7 +236,7 @@ defmodule KsefHub.PredictionsTest do
       assert {:ok, updated} = Predictions.predict_and_apply(invoice)
 
       # 0.80 is >= threshold -> predicted; 0.79 is < threshold -> not applied
-      assert updated.prediction_status == "predicted"
+      assert updated.prediction_status == :predicted
       updated = Invoices.get_invoice_with_details!(company.id, updated.id)
       assert updated.category_id == category.id
     end
@@ -276,11 +276,11 @@ defmodule KsefHub.PredictionsTest do
         insert(:manual_invoice,
           company: company,
           type: "expense",
-          prediction_status: "predicted"
+          prediction_status: :predicted
         )
 
       assert {:ok, updated} = Invoices.mark_prediction_manual(invoice)
-      assert updated.prediction_status == "manual"
+      assert updated.prediction_status == :manual
     end
 
     test "works when prediction_status is nil", %{company: company} do
@@ -288,7 +288,7 @@ defmodule KsefHub.PredictionsTest do
       assert invoice.prediction_status == nil
 
       assert {:ok, updated} = Invoices.mark_prediction_manual(invoice)
-      assert updated.prediction_status == "manual"
+      assert updated.prediction_status == :manual
     end
 
     test "works when prediction_status is needs_review", %{company: company} do
@@ -296,11 +296,11 @@ defmodule KsefHub.PredictionsTest do
         insert(:manual_invoice,
           company: company,
           type: "expense",
-          prediction_status: "needs_review"
+          prediction_status: :needs_review
         )
 
       assert {:ok, updated} = Invoices.mark_prediction_manual(invoice)
-      assert updated.prediction_status == "manual"
+      assert updated.prediction_status == :manual
     end
   end
 
