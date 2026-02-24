@@ -7,6 +7,7 @@ defmodule KsefHub.Invoices do
 
   require Logger
 
+  alias KsefHub.Companies.Membership
   alias KsefHub.Invoices.{Category, Invoice, InvoiceTag, Tag}
   alias KsefHub.Predictions.PredictionWorker
   alias KsefHub.Repo
@@ -529,7 +530,7 @@ defmodule KsefHub.Invoices do
   Returns invoice counts grouped by type and status for a company.
   """
   @spec count_by_type_and_status(Ecto.UUID.t()) :: %{
-          {atom(), atom()} => non_neg_integer()
+          {Invoice.invoice_type(), Invoice.invoice_status()} => non_neg_integer()
         }
   def count_by_type_and_status(company_id) do
     Invoice
@@ -832,11 +833,11 @@ defmodule KsefHub.Invoices do
     end)
   end
 
-  @spec scope_by_role(map(), atom() | nil) :: map()
+  @spec scope_by_role(map(), Membership.role() | nil) :: map()
   defp scope_by_role(filters, :reviewer), do: Map.put(filters, :type, :expense)
   defp scope_by_role(filters, _role), do: filters
 
-  @spec maybe_scope_type_by_role(Ecto.Queryable.t(), atom() | nil) :: Ecto.Query.t()
+  @spec maybe_scope_type_by_role(Ecto.Queryable.t(), Membership.role() | nil) :: Ecto.Query.t()
   defp maybe_scope_type_by_role(query, :reviewer), do: where(query, [i], i.type == :expense)
   defp maybe_scope_type_by_role(query, _role), do: query
 

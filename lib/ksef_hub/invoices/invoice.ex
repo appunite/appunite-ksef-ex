@@ -5,6 +5,12 @@ defmodule KsefHub.Invoices.Invoice do
   import Ecto.Changeset
 
   @type t :: %__MODULE__{}
+  @type invoice_type :: :income | :expense
+  @type invoice_status :: :pending | :approved | :rejected
+  @type invoice_source :: :ksef | :manual | :pdf_upload
+  @type extraction_status :: :complete | :partial | :failed
+  @type duplicate_status :: :suspected | :confirmed | :dismissed
+  @type prediction_status :: :pending | :predicted | :needs_review | :manual
 
   @primary_key {:id, :binary_id, autogenerate: true}
   @foreign_key_type :binary_id

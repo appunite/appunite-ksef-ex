@@ -12,6 +12,7 @@ defmodule KsefHub.Companies.Membership do
   import Ecto.Changeset
 
   @type t :: %__MODULE__{}
+  @type role :: :owner | :accountant | :reviewer
 
   @primary_key {:id, :binary_id, autogenerate: true}
   @foreign_key_type :binary_id

@@ -18,6 +18,8 @@ defmodule KsefHub.Invitations.Invitation do
   import Ecto.Changeset
 
   @type t :: %__MODULE__{}
+  @type invitation_role :: :accountant | :reviewer
+  @type invitation_status :: :pending | :accepted | :cancelled
 
   @primary_key {:id, :binary_id, autogenerate: true}
   @foreign_key_type :binary_id

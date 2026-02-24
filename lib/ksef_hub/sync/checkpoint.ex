@@ -5,6 +5,7 @@ defmodule KsefHub.Sync.Checkpoint do
   import Ecto.Changeset
 
   @type t :: %__MODULE__{}
+  @type checkpoint_type :: :income | :expense
 
   @primary_key {:id, :binary_id, autogenerate: true}
   @foreign_key_type :binary_id

@@ -10,7 +10,7 @@ defmodule KsefHub.Sync.SyncWorker do
 
   alias KsefHub.Credentials
   alias KsefHub.KsefClient.{Authenticator, TokenManager}
-  alias KsefHub.Sync.{Checkpoints, InvoiceFetcher}
+  alias KsefHub.Sync.{Checkpoint, Checkpoints, InvoiceFetcher}
 
   @doc """
   Syncs invoices from KSeF for a single company.
@@ -236,7 +236,7 @@ defmodule KsefHub.Sync.SyncWorker do
     end
   end
 
-  @spec sync_type(String.t(), atom(), String.t(), Ecto.UUID.t()) ::
+  @spec sync_type(String.t(), Checkpoint.checkpoint_type(), String.t(), Ecto.UUID.t()) ::
           {:ok, non_neg_integer(), non_neg_integer()} | {:error, term()}
   defp sync_type(access_token, type, nip, company_id) do
     checkpoint = Checkpoints.get_or_init(type, company_id)
