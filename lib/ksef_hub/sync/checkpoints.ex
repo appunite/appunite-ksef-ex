@@ -13,7 +13,7 @@ defmodule KsefHub.Sync.Checkpoints do
   Gets or initializes a checkpoint for the given type and company.
   If none exists, returns a checkpoint starting from `default_lookback_days` ago.
   """
-  @spec get_or_init(String.t(), Ecto.UUID.t()) :: Checkpoint.t()
+  @spec get_or_init(atom(), Ecto.UUID.t()) :: Checkpoint.t()
   def get_or_init(checkpoint_type, company_id) do
     case Repo.get_by(Checkpoint, checkpoint_type: checkpoint_type, company_id: company_id) do
       nil ->
@@ -32,7 +32,7 @@ defmodule KsefHub.Sync.Checkpoints do
   @doc """
   Advances the checkpoint to a new timestamp. Persists via upsert.
   """
-  @spec advance(String.t(), Ecto.UUID.t(), DateTime.t()) ::
+  @spec advance(atom(), Ecto.UUID.t(), DateTime.t()) ::
           {:ok, Checkpoint.t()} | {:error, Ecto.Changeset.t()}
   def advance(checkpoint_type, company_id, new_timestamp) do
     %Checkpoint{}

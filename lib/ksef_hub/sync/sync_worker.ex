@@ -131,8 +131,8 @@ defmodule KsefHub.Sync.SyncWorker do
   @spec sync_all_types(String.t(), String.t(), Ecto.UUID.t(), Oban.Job.t()) ::
           {:ok, :full} | {:ok, :partial, map()} | {:error, term()}
   defp sync_all_types(access_token, nip, company_id, job) do
-    income_result = sync_type(access_token, "income", nip, company_id)
-    expense_result = sync_type(access_token, "expense", nip, company_id)
+    income_result = sync_type(access_token, :income, nip, company_id)
+    expense_result = sync_type(access_token, :expense, nip, company_id)
 
     case {income_result, expense_result} do
       {{:ok, ic, if_}, {:ok, ec, ef}} ->
@@ -236,7 +236,7 @@ defmodule KsefHub.Sync.SyncWorker do
     end
   end
 
-  @spec sync_type(String.t(), String.t(), String.t(), Ecto.UUID.t()) ::
+  @spec sync_type(String.t(), atom(), String.t(), Ecto.UUID.t()) ::
           {:ok, non_neg_integer(), non_neg_integer()} | {:error, term()}
   defp sync_type(access_token, type, nip, company_id) do
     checkpoint = Checkpoints.get_or_init(type, company_id)

@@ -64,7 +64,7 @@ defmodule KsefHub.Invitations do
         company_id: company_id,
         invited_by_id: user_id,
         token_hash: token_hash,
-        status: "pending",
+        status: :pending,
         expires_at: expires_at
       }
       |> Invitation.changeset(attrs)
@@ -165,9 +165,9 @@ defmodule KsefHub.Invitations do
 
     {count, _} =
       from(i in Invitation,
-        where: i.id == ^invitation_id and i.status == "pending" and i.expires_at > ^now
+        where: i.id == ^invitation_id and i.status == :pending and i.expires_at > ^now
       )
-      |> Repo.update_all(set: [status: "accepted", updated_at: now])
+      |> Repo.update_all(set: [status: :accepted, updated_at: now])
 
     if count == 1 do
       {:ok, Repo.get!(Invitation, invitation_id)}
@@ -199,7 +199,7 @@ defmodule KsefHub.Invitations do
   @spec cancel_invitation(Ecto.UUID.t(), Ecto.UUID.t()) ::
           {:ok, Invitation.t()} | {:error, :unauthorized} | {:error, :not_found}
   def cancel_invitation(user_id, invitation_id) do
-    with %Invitation{status: "pending"} = invitation <- Repo.get(Invitation, invitation_id),
+    with %Invitation{status: :pending} = invitation <- Repo.get(Invitation, invitation_id),
          {:ok, _membership} <- Companies.authorize(user_id, invitation.company_id, [:owner]) do
       do_atomic_cancel(invitation_id)
     else
@@ -215,9 +215,9 @@ defmodule KsefHub.Invitations do
 
     {count, _} =
       from(i in Invitation,
-        where: i.id == ^invitation_id and i.status == "pending"
+        where: i.id == ^invitation_id and i.status == :pending
       )
-      |> Repo.update_all(set: [status: "cancelled", updated_at: now])
+      |> Repo.update_all(set: [status: :cancelled, updated_at: now])
 
     if count == 1 do
       {:ok, Repo.get!(Invitation, invitation_id)}
@@ -239,7 +239,7 @@ defmodule KsefHub.Invitations do
 
     Invitation
     |> where([i], i.company_id == ^company_id)
-    |> where([i], i.status == "pending")
+    |> where([i], i.status == :pending)
     |> where([i], i.expires_at > ^now)
     |> order_by([i], desc: i.inserted_at)
     |> Repo.all()
@@ -263,7 +263,7 @@ defmodule KsefHub.Invitations do
     invitations =
       Invitation
       |> where([i], i.email == ^email)
-      |> where([i], i.status == "pending")
+      |> where([i], i.status == :pending)
       |> where([i], i.expires_at > ^now)
       |> Repo.all()
 
@@ -292,7 +292,7 @@ defmodule KsefHub.Invitations do
   @spec get_pending_invitation_by_hash(String.t()) :: Invitation.t() | nil
   defp get_pending_invitation_by_hash(token_hash) do
     Invitation
-    |> where([i], i.token_hash == ^token_hash and i.status == "pending")
+    |> where([i], i.token_hash == ^token_hash and i.status == :pending)
     |> Repo.one()
   end
 

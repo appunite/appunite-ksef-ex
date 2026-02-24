@@ -14,7 +14,7 @@ defmodule KsefHub.Invitations.InvitationTest do
         company_id: company.id,
         invited_by_id: user.id,
         token_hash: "abc123hash",
-        status: "pending",
+        status: :pending,
         expires_at: DateTime.add(DateTime.utc_now(), 7 * 24 * 3600)
       }
 
@@ -45,7 +45,7 @@ defmodule KsefHub.Invitations.InvitationTest do
           company_id: Ecto.UUID.generate(),
           invited_by_id: Ecto.UUID.generate(),
           token_hash: "hash",
-          status: "pending",
+          status: :pending,
           expires_at: DateTime.add(DateTime.utc_now(), 7 * 24 * 3600)
         }
         |> Invitation.changeset(%{
@@ -62,7 +62,7 @@ defmodule KsefHub.Invitations.InvitationTest do
           company_id: Ecto.UUID.generate(),
           invited_by_id: Ecto.UUID.generate(),
           token_hash: "hash",
-          status: "pending",
+          status: :pending,
           expires_at: DateTime.add(DateTime.utc_now(), 7 * 24 * 3600)
         }
         |> Invitation.changeset(%{
@@ -73,7 +73,7 @@ defmodule KsefHub.Invitations.InvitationTest do
         })
 
       # Status and expires_at should remain as set on the struct
-      assert Ecto.Changeset.get_field(changeset, :status) == "pending"
+      assert Ecto.Changeset.get_field(changeset, :status) == :pending
 
       assert DateTime.diff(Ecto.Changeset.get_field(changeset, :expires_at), DateTime.utc_now()) >
                6 * 24 * 3600
@@ -85,7 +85,7 @@ defmodule KsefHub.Invitations.InvitationTest do
           company_id: Ecto.UUID.generate(),
           invited_by_id: Ecto.UUID.generate(),
           token_hash: "hash",
-          status: "pending",
+          status: :pending,
           expires_at: DateTime.add(DateTime.utc_now(), 7 * 24 * 3600)
         }
         |> Invitation.changeset(%{
@@ -102,7 +102,7 @@ defmodule KsefHub.Invitations.InvitationTest do
           company_id: Ecto.UUID.generate(),
           invited_by_id: Ecto.UUID.generate(),
           token_hash: "hash",
-          status: "pending",
+          status: :pending,
           expires_at: DateTime.add(DateTime.utc_now(), 7 * 24 * 3600)
         }
         |> Invitation.changeset(%{
@@ -124,7 +124,7 @@ defmodule KsefHub.Invitations.InvitationTest do
         company_id: original_company.id,
         invited_by_id: original_user.id,
         token_hash: "original-hash",
-        status: "pending",
+        status: :pending,
         expires_at: original_expires
       }
 
@@ -144,7 +144,7 @@ defmodule KsefHub.Invitations.InvitationTest do
       assert Ecto.Changeset.get_field(changeset, :company_id) == original_company.id
       assert Ecto.Changeset.get_field(changeset, :invited_by_id) == original_user.id
       assert Ecto.Changeset.get_field(changeset, :token_hash) == "original-hash"
-      assert Ecto.Changeset.get_field(changeset, :status) == "pending"
+      assert Ecto.Changeset.get_field(changeset, :status) == :pending
       assert Ecto.Changeset.get_field(changeset, :expires_at) == original_expires
     end
 
@@ -156,7 +156,7 @@ defmodule KsefHub.Invitations.InvitationTest do
         company: company,
         invited_by: user,
         email: "dupe@example.com",
-        status: "pending"
+        status: :pending
       )
 
       {:error, changeset} =
@@ -164,7 +164,7 @@ defmodule KsefHub.Invitations.InvitationTest do
           company_id: company.id,
           invited_by_id: user.id,
           token_hash: "different-hash",
-          status: "pending",
+          status: :pending,
           expires_at:
             DateTime.add(DateTime.utc_now(), 7 * 24 * 3600) |> DateTime.truncate(:second)
         }

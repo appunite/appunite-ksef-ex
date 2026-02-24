@@ -261,7 +261,7 @@ defmodule KsefHub.KsefClient.Live do
         Map.put(
           query,
           "subjectType",
-          if(filters[:type] == "income", do: "Subject1", else: "Subject2")
+          if(filters[:type] == :income, do: "Subject1", else: "Subject2")
         )
       else
         query

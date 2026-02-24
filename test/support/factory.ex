@@ -103,9 +103,9 @@ defmodule KsefHub.Factory do
 
     %Invitation{
       email: sequence(:invitation_email, &"invitee#{&1}@example.com"),
-      role: "accountant",
+      role: :accountant,
       token_hash: :crypto.hash(:sha256, token) |> Base.encode16(case: :lower),
-      status: "pending",
+      status: :pending,
       expires_at: DateTime.add(DateTime.utc_now(), 7 * 24 * 3600) |> DateTime.truncate(:second),
       company: build(:company),
       invited_by: build(:user)
@@ -227,7 +227,7 @@ defmodule KsefHub.Factory do
   @spec checkpoint_factory() :: Checkpoint.t()
   def checkpoint_factory do
     %Checkpoint{
-      checkpoint_type: "income",
+      checkpoint_type: :income,
       last_seen_timestamp: DateTime.utc_now(),
       company: build(:company)
     }

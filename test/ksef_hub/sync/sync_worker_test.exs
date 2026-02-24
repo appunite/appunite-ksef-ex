@@ -308,7 +308,7 @@ defmodule KsefHub.Sync.SyncWorkerTest do
 
       # Income query returns one invoice header
       KsefHub.KsefClient.Mock
-      |> expect(:query_invoice_metadata, fn "access-tok", %{type: "income"}, _opts ->
+      |> expect(:query_invoice_metadata, fn "access-tok", %{type: :income}, _opts ->
         {:ok,
          %{
            invoices: [
@@ -325,7 +325,7 @@ defmodule KsefHub.Sync.SyncWorkerTest do
 
       # Expense query returns empty
       KsefHub.KsefClient.Mock
-      |> expect(:query_invoice_metadata, fn "access-tok", %{type: "expense"}, _opts ->
+      |> expect(:query_invoice_metadata, fn "access-tok", %{type: :expense}, _opts ->
         {:ok, %{invoices: [], has_more: false, is_truncated: false}}
       end)
 

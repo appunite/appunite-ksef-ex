@@ -10,7 +10,7 @@ defmodule KsefHubWeb.InvitationAcceptLiveTest do
   setup %{conn: conn} do
     company = insert(:company, name: "Acme Corp")
     owner = insert(:user)
-    insert(:membership, user: owner, company: company, role: "owner")
+    insert(:membership, user: owner, company: company, role: :owner)
     %{conn: conn, company: company, owner: owner}
   end
 
@@ -86,7 +86,7 @@ defmodule KsefHubWeb.InvitationAcceptLiveTest do
         })
 
       # Now add membership, simulating the user joined through another path
-      insert(:membership, user: already_member, company: company, role: "accountant")
+      insert(:membership, user: already_member, company: company, role: :accountant)
 
       already_conn = log_in_user(conn, already_member)
 

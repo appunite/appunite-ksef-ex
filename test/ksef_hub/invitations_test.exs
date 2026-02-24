@@ -24,8 +24,8 @@ defmodule KsefHub.InvitationsTest do
                Invitations.create_invitation(owner.id, company.id, attrs)
 
       assert invitation.email == "new@example.com"
-      assert invitation.role == "accountant"
-      assert invitation.status == "pending"
+      assert invitation.role == :accountant
+      assert invitation.status == :pending
       assert invitation.company_id == company.id
       assert invitation.invited_by_id == owner.id
       assert is_binary(token)
@@ -114,7 +114,7 @@ defmodule KsefHub.InvitationsTest do
       assert {:ok, %{invitation: accepted_invitation, membership: membership}} =
                Invitations.accept_invitation(token, accepter)
 
-      assert accepted_invitation.status == "accepted"
+      assert accepted_invitation.status == :accepted
       assert membership.user_id == accepter.id
       assert membership.company_id == company.id
       assert membership.role == :accountant
@@ -181,7 +181,7 @@ defmodule KsefHub.InvitationsTest do
         })
 
       assert {:ok, cancelled} = Invitations.cancel_invitation(owner.id, invitation.id)
-      assert cancelled.status == "cancelled"
+      assert cancelled.status == :cancelled
     end
 
     test "non-owner cannot cancel invitation" do
