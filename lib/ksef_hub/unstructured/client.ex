@@ -18,10 +18,12 @@ defmodule KsefHub.Unstructured.Client do
   def extract(pdf_binary, opts) when is_binary(pdf_binary) do
     with {:ok, base_url} <- fetch_url(),
          {:ok, token} <- fetch_token() do
-      filename = Keyword.get(opts, :filename, "invoice.pdf")
+      filename = opts |> Keyword.get(:filename, "invoice.pdf") |> sanitize_filename()
       do_extract(base_url, token, pdf_binary, filename)
     end
   end
+
+  def extract(_pdf_binary, _opts), do: {:error, :invalid_pdf}
 
   @doc "Checks the health of the extraction service."
   @spec health() :: {:ok, map()} | {:error, term()}
@@ -90,5 +92,10 @@ defmodule KsefHub.Unstructured.Client do
       nil -> {:error, :unstructured_token_not_configured}
       token -> {:ok, token}
     end
+  end
+
+  @spec sanitize_filename(String.t()) :: String.t()
+  defp sanitize_filename(filename) do
+    Regex.replace(~r/[\r\n\x00-\x1f]/, filename, "_")
   end
 end

@@ -172,9 +172,11 @@ defmodule KsefHub.Invoices.Invoice do
           :gross_amount
         ])
 
+      # TODO: move pdf_content to invoice_documents table (ADR 0021)
       "pdf_upload" ->
         changeset
         |> validate_required([:pdf_content, :extraction_status])
+        |> validate_pdf_content_size()
         |> validate_extraction_status()
 
       _ ->
@@ -190,6 +192,19 @@ defmodule KsefHub.Invoices.Invoice do
       validate_inclusion(changeset, :extraction_status, @valid_extraction_statuses)
     else
       changeset
+    end
+  end
+
+  @max_pdf_bytes 10_000_000
+
+  @spec validate_pdf_content_size(Ecto.Changeset.t()) :: Ecto.Changeset.t()
+  defp validate_pdf_content_size(changeset) do
+    case get_field(changeset, :pdf_content) do
+      content when is_binary(content) and byte_size(content) > @max_pdf_bytes ->
+        add_error(changeset, :pdf_content, "must be at most 10MB")
+
+      _ ->
+        changeset
     end
   end
 

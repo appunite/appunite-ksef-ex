@@ -226,16 +226,20 @@ defmodule KsefHub.Invoices do
   """
   @spec recalculate_extraction_status(Invoice.t(), map()) :: map()
   def recalculate_extraction_status(%Invoice{} = invoice, attrs) do
-    merged = Map.merge(Map.from_struct(invoice), attrs)
-
-    all_present? =
-      Enum.all?(@critical_extraction_fields, fn field ->
-        value = Map.get(merged, field)
-        value != nil && value != ""
-      end)
-
-    new_status = if all_present?, do: "complete", else: "partial"
+    atom_attrs = atomize_known_keys(attrs)
+    merged = Map.merge(Map.from_struct(invoice), atom_attrs)
+    new_status = if all_critical_fields_present?(merged), do: "complete", else: "partial"
     Map.put(attrs, :extraction_status, new_status)
+  end
+
+  @spec atomize_known_keys(map()) :: map()
+  defp atomize_known_keys(attrs) do
+    Map.new(attrs, fn
+      {k, v} when is_binary(k) -> {String.to_existing_atom(k), v}
+      {k, v} -> {k, v}
+    end)
+  rescue
+    ArgumentError -> attrs
   end
 
   @doc """
@@ -288,17 +292,27 @@ defmodule KsefHub.Invoices do
 
     attrs = detect_duplicate(company_id, attrs)
 
-    case create_invoice(attrs) do
+    case create_or_retry_duplicate(company_id, attrs) do
       {:ok, invoice} ->
         enqueue_prediction(invoice)
         {:ok, invoice}
 
+      error ->
+        error
+    end
+  end
+
+  @spec create_or_retry_duplicate(Ecto.UUID.t(), map()) ::
+          {:ok, Invoice.t()} | {:error, Ecto.Changeset.t()}
+  defp create_or_retry_duplicate(company_id, attrs) do
+    case create_invoice(attrs) do
+      {:ok, invoice} ->
+        {:ok, invoice}
+
       {:error, %Ecto.Changeset{} = changeset} ->
-        if unique_ksef_number_conflict?(changeset) do
-          retry_as_duplicate(company_id, attrs)
-        else
-          {:error, changeset}
-        end
+        if unique_ksef_number_conflict?(changeset),
+          do: retry_as_duplicate(company_id, attrs),
+          else: {:error, changeset}
     end
   end
 
@@ -311,14 +325,6 @@ defmodule KsefHub.Invoices do
       duplicate_status: "suspected"
     })
     |> create_invoice()
-    |> case do
-      {:ok, invoice} ->
-        enqueue_prediction(invoice)
-        {:ok, invoice}
-
-      error ->
-        error
-    end
   end
 
   @doc """
@@ -360,17 +366,13 @@ defmodule KsefHub.Invoices do
 
     invoice_attrs = detect_duplicate(company_id, invoice_attrs)
 
-    case create_invoice(invoice_attrs) do
+    case create_or_retry_duplicate(company_id, invoice_attrs) do
       {:ok, invoice} ->
         maybe_enqueue_prediction(extraction_status, invoice)
         {:ok, invoice}
 
-      {:error, %Ecto.Changeset{} = changeset} ->
-        if unique_ksef_number_conflict?(changeset) do
-          retry_as_duplicate(company_id, invoice_attrs)
-        else
-          {:error, changeset}
-        end
+      error ->
+        error
     end
   end
 
@@ -394,13 +396,15 @@ defmodule KsefHub.Invoices do
 
   @spec determine_extraction_status(map()) :: String.t()
   defp determine_extraction_status(extracted) do
-    all_present? =
-      Enum.all?(@critical_extraction_fields, fn field ->
-        value = extracted[Atom.to_string(field)]
-        value != nil && value != ""
-      end)
+    if all_critical_fields_present?(extracted), do: "complete", else: "partial"
+  end
 
-    if all_present?, do: "complete", else: "partial"
+  @spec all_critical_fields_present?(map()) :: boolean()
+  defp all_critical_fields_present?(map) do
+    Enum.all?(@critical_extraction_fields, fn field ->
+      value = Map.get(map, field) || Map.get(map, Atom.to_string(field))
+      value != nil && value != ""
+    end)
   end
 
   @spec build_pdf_upload_attrs(
@@ -473,10 +477,9 @@ defmodule KsefHub.Invoices do
 
   @spec parse_decimal(String.t()) :: Decimal.t() | nil
   defp parse_decimal(value) do
-    case Decimal.parse(value) do
+    case value |> String.trim() |> Decimal.parse() do
       {decimal, ""} -> decimal
-      {decimal, _} -> decimal
-      :error -> nil
+      _ -> nil
     end
   end
 
