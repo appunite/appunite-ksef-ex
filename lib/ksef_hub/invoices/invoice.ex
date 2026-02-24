@@ -172,7 +172,6 @@ defmodule KsefHub.Invoices.Invoice do
           :gross_amount
         ])
 
-      # TODO: move pdf_content to invoice_documents table (ADR 0021)
       "pdf_upload" ->
         changeset
         |> validate_required([:pdf_content, :extraction_status])
