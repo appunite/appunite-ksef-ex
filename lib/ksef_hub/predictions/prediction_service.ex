@@ -83,11 +83,8 @@ defmodule KsefHub.Predictions.PredictionService do
 
   @spec build_req(String.t()) :: Req.Request.t()
   defp build_req(base_url) do
-    options = [base_url: base_url, receive_timeout: @receive_timeout]
-
-    case Application.get_env(:ksef_hub, :prediction_service_req_options) do
-      nil -> Req.new(options)
-      extra -> Req.new(Keyword.merge(options, extra))
-    end
+    [base_url: base_url, receive_timeout: @receive_timeout]
+    |> Keyword.merge(Application.get_env(:ksef_hub, :prediction_service_req_options, []))
+    |> Req.new()
   end
 end

@@ -3,6 +3,8 @@ defmodule KsefHub.Predictions.PredictionServiceTest do
 
   alias KsefHub.Predictions.PredictionService
 
+  @moduletag capture_log: true
+
   describe "predict_category/1" do
     test "returns error when URL not configured" do
       assert {:error, :prediction_service_not_configured} =
@@ -13,6 +15,9 @@ defmodule KsefHub.Predictions.PredictionServiceTest do
       setup_prediction_config()
 
       Req.Test.stub(PredictionService, fn conn ->
+        assert conn.method == "POST"
+        assert conn.request_path == "/predict/category"
+
         Req.Test.json(conn, %{"category" => "office", "confidence" => 0.95})
       end)
 
@@ -55,6 +60,9 @@ defmodule KsefHub.Predictions.PredictionServiceTest do
       setup_prediction_config()
 
       Req.Test.stub(PredictionService, fn conn ->
+        assert conn.method == "POST"
+        assert conn.request_path == "/predict/tag"
+
         Req.Test.json(conn, %{"tag" => "recurring", "confidence" => 0.88})
       end)
 
@@ -85,6 +93,9 @@ defmodule KsefHub.Predictions.PredictionServiceTest do
       setup_prediction_config()
 
       Req.Test.stub(PredictionService, fn conn ->
+        assert conn.method == "GET"
+        assert conn.request_path == "/health"
+
         Req.Test.json(conn, %{"status" => "healthy", "model_version" => "1.2.0"})
       end)
 

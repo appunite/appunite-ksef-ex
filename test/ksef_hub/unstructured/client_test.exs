@@ -3,6 +3,8 @@ defmodule KsefHub.Unstructured.ClientTest do
 
   alias KsefHub.Unstructured.Client
 
+  @moduletag capture_log: true
+
   describe "extract/2" do
     test "returns error when URL not configured" do
       assert {:error, :unstructured_service_not_configured} = Client.extract("pdf data", [])
@@ -15,10 +17,18 @@ defmodule KsefHub.Unstructured.ClientTest do
       assert {:error, :unstructured_token_not_configured} = Client.extract("pdf data", [])
     end
 
+    test "returns error for non-binary input" do
+      assert {:error, :invalid_pdf} = Client.extract(123, [])
+    end
+
     test "returns extracted data on 200 success" do
       setup_unstructured_config()
 
       Req.Test.stub(Client, fn conn ->
+        assert conn.method == "POST"
+        assert conn.request_path == "/extract"
+        assert Plug.Conn.get_req_header(conn, "authorization") == ["Bearer test-token"]
+
         Req.Test.json(conn, %{"seller_nip" => "1234567890"})
       end)
 
@@ -60,6 +70,9 @@ defmodule KsefHub.Unstructured.ClientTest do
       setup_unstructured_config()
 
       Req.Test.stub(Client, fn conn ->
+        assert conn.method == "GET"
+        assert conn.request_path == "/health"
+
         Req.Test.json(conn, %{"status" => "ok"})
       end)
 
