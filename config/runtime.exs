@@ -68,6 +68,33 @@ if prediction_service_url = System.get_env("PREDICTION_SERVICE_URL") do
   config :ksef_hub, :prediction_service_url, prediction_service_url
 end
 
+if sync_interval_env = System.get_env("SYNC_INTERVAL_MINUTES") do
+  valid_intervals = [1, 2, 3, 4, 5, 6, 10, 12, 15, 20, 30, 60]
+
+  sync_minutes =
+    with {n, ""} <- Integer.parse(sync_interval_env),
+         true <- n in valid_intervals do
+      n
+    else
+      _ ->
+        raise """
+        SYNC_INTERVAL_MINUTES must be a divisor of 60: #{inspect(valid_intervals)}.
+        Got: #{inspect(sync_interval_env)}
+        """
+    end
+
+  sync_cron = if sync_minutes == 60, do: "0 * * * *", else: "*/#{sync_minutes} * * * *"
+
+  config :ksef_hub, Oban,
+    plugins: [
+      {Oban.Plugins.Cron,
+       crontab: [
+         {sync_cron, KsefHub.Sync.SyncDispatcher}
+       ]},
+      {Oban.Plugins.Lifeline, rescue_after: :timer.minutes(15)}
+    ]
+end
+
 if credential_encryption_key = System.get_env("CREDENTIAL_ENCRYPTION_KEY") do
   case Base.decode64(credential_encryption_key) do
     {:ok, key} when byte_size(key) == 32 ->

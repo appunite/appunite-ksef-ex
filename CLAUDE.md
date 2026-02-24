@@ -16,7 +16,7 @@ See `docs/prd.md` for full product requirements.
 | PDF pipeline | ksef-pdf microservice (ghcr.io/appunite/ksef-pdf) |
 | ML predictions | au-payroll-model-categories sidecar (ghcr.io/appunite/au-payroll-model-categories) |
 | XADES signing | xmlsec1 (CLI, called via System.cmd) |
-| Background jobs | Oban (async workers, 15-min sync cron) |
+| Background jobs | Oban (async workers, 60-min sync cron) |
 | API docs | open_api_spex (OpenAPI 3.0 + SwaggerUI) |
 | UI styling | Tailwind CSS + DaisyUI |
 | Deployment | Docker, GCP Cloud Run |
@@ -30,7 +30,7 @@ lib/
 │   ├── credentials/              # Certificate storage & encryption
 │   ├── ksef_client/              # KSeF API client (auth, query, download)
 │   ├── predictions/              # ML prediction sidecar client + Oban worker
-│   ├── sync_worker.ex            # GenServer — 15-min sync cron
+│   ├── sync_worker.ex            # GenServer — 60-min sync cron
 │   └── pdf/                      # PDF generation pipeline
 │
 └── ksef_hub_web/                 # Web layer
@@ -172,7 +172,7 @@ defp ksef_client, do: Application.get_env(:ksef_hub, :ksef_client, KsefHub.KsefC
 
 **KSeF Authentication:** getChallenge(nip) -> sign with XADES (xmlsec1 + PKCS12 cert) -> authenticate(signed challenge) -> redeemToken -> session (1h TTL) -> terminateSession on completion.
 
-**Invoice Sync (every 15 min):** Load certificate -> authenticate -> query invoice headers (incremental, since last sync) -> download each XML (rate-limited) -> parse FA(3) -> upsert to DB -> update last_sync_at -> terminate session.
+**Invoice Sync (every 60 min):** Load certificate -> authenticate -> query invoice headers (incremental, since last sync) -> download each XML (rate-limited) -> parse FA(3) -> upsert to DB -> update last_sync_at -> terminate session.
 
 **PDF Generation:** FA(3) XML -> ksef-pdf microservice -> PDF.
 
@@ -461,8 +461,9 @@ end
 | `GOOGLE_CLIENT_ID` | Google OAuth client ID |
 | `GOOGLE_CLIENT_SECRET` | Google OAuth client secret |
 | `KSEF_PDF_URL` | KSeF PDF microservice URL (e.g., `http://localhost:3001`) |
-| `KSEF_API_URL` | KSeF environment URL (`https://ksef-test.mf.gov.pl` or `https://ksef.mf.gov.pl`) |
+| `KSEF_API_URL` | KSeF v2 API URL (`https://api-test.ksef.mf.gov.pl` for test, `https://api.ksef.mf.gov.pl` for production) |
 | `PREDICTION_SERVICE_URL` | ML prediction sidecar URL (e.g., `http://localhost:8080`) |
+| `SYNC_INTERVAL_MINUTES` | KSeF sync cron interval in minutes (default: `60`) |
 
 ## Useful References
 
