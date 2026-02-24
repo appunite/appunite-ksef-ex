@@ -31,9 +31,7 @@ defmodule KsefHub.Predictions.PredictionService do
   @impl true
   def health do
     with {:ok, base_url} <- fetch_url() do
-      url = "#{base_url}/health"
-
-      case Req.get(url, receive_timeout: @receive_timeout) do
+      case base_url |> build_req() |> Req.get(url: "/health") do
         {:ok, %{status: 200, body: body}} when is_map(body) ->
           {:ok, body}
 
@@ -66,9 +64,7 @@ defmodule KsefHub.Predictions.PredictionService do
 
   @spec do_request(String.t(), String.t(), map()) :: {:ok, map()} | {:error, term()}
   defp do_request(base_url, path, input) do
-    url = "#{base_url}#{path}"
-
-    case Req.post(url, json: input, receive_timeout: @receive_timeout) do
+    case base_url |> build_req() |> Req.post(url: path, json: input) do
       {:ok, %{status: 200, body: body}} when is_map(body) ->
         {:ok, body}
 
@@ -83,5 +79,12 @@ defmodule KsefHub.Predictions.PredictionService do
         Logger.error("Prediction service request failed for #{path}: #{inspect(reason)}")
         {:error, {:request_failed, reason}}
     end
+  end
+
+  @spec build_req(String.t()) :: Req.Request.t()
+  defp build_req(base_url) do
+    [base_url: base_url, receive_timeout: @receive_timeout]
+    |> Keyword.merge(Application.get_env(:ksef_hub, :prediction_service_req_options, []))
+    |> Req.new()
   end
 end

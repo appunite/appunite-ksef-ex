@@ -30,9 +30,7 @@ defmodule KsefHub.Unstructured.Client do
   @impl true
   def health do
     with {:ok, base_url} <- fetch_url() do
-      url = "#{base_url}/health"
-
-      case Req.get(url, receive_timeout: @receive_timeout) do
+      case base_url |> build_req() |> Req.get(url: "/health") do
         {:ok, %{status: 200, body: body}} when is_map(body) ->
           {:ok, body}
 
@@ -51,14 +49,14 @@ defmodule KsefHub.Unstructured.Client do
   @spec do_extract(String.t(), String.t(), binary(), String.t()) ::
           {:ok, map()} | {:error, term()}
   defp do_extract(base_url, token, pdf_binary, filename) do
-    url = "#{base_url}/extract"
-
-    case Req.post(url,
+    case base_url
+         |> build_req()
+         |> Req.post(
+           url: "/extract",
            form_multipart: [
              file: {pdf_binary, filename: filename, content_type: "application/pdf"}
            ],
-           headers: [{"authorization", "Bearer #{token}"}],
-           receive_timeout: @receive_timeout
+           headers: [{"authorization", "Bearer #{token}"}]
          ) do
       {:ok, %{status: 200, body: body}} when is_map(body) ->
         {:ok, body}
@@ -76,6 +74,13 @@ defmodule KsefHub.Unstructured.Client do
         Logger.error("Unstructured service request failed for /extract")
         {:error, {:request_failed, reason}}
     end
+  end
+
+  @spec build_req(String.t()) :: Req.Request.t()
+  defp build_req(base_url) do
+    [base_url: base_url, receive_timeout: @receive_timeout]
+    |> Keyword.merge(Application.get_env(:ksef_hub, :unstructured_req_options, []))
+    |> Req.new()
   end
 
   @spec fetch_url() :: {:ok, String.t()} | {:error, :unstructured_service_not_configured}

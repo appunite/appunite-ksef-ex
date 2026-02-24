@@ -290,8 +290,6 @@ defmodule KsefHub.Invoices do
       |> Map.drop(["ksef_acquisition_date", "permanent_storage_date"])
       |> Map.merge(%{source: "manual", company_id: company_id})
 
-    attrs = detect_duplicate(company_id, attrs)
-
     case create_or_retry_duplicate(company_id, attrs) do
       {:ok, invoice} ->
         enqueue_prediction(invoice)
@@ -305,6 +303,8 @@ defmodule KsefHub.Invoices do
   @spec create_or_retry_duplicate(Ecto.UUID.t(), map()) ::
           {:ok, Invoice.t()} | {:error, Ecto.Changeset.t()}
   defp create_or_retry_duplicate(company_id, attrs) do
+    attrs = detect_duplicate(company_id, attrs)
+
     case create_invoice(attrs) do
       {:ok, invoice} ->
         {:ok, invoice}
@@ -363,8 +363,6 @@ defmodule KsefHub.Invoices do
 
     invoice_attrs =
       build_pdf_upload_attrs(extracted, company_id, pdf_binary, type, filename, extraction_status)
-
-    invoice_attrs = detect_duplicate(company_id, invoice_attrs)
 
     case create_or_retry_duplicate(company_id, invoice_attrs) do
       {:ok, invoice} ->
