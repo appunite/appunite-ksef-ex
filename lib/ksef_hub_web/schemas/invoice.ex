@@ -22,22 +22,49 @@ defmodule KsefHubWeb.Schemas.Invoice do
       seller_nip: %Schema{
         type: :string,
         pattern: "^\\d{10}$",
-        description: "Seller 10-digit NIP."
+        nullable: true,
+        description: "Seller 10-digit NIP. May be null for partial pdf_upload extractions."
       },
-      seller_name: %Schema{type: :string},
-      buyer_nip: %Schema{type: :string, pattern: "^\\d{10}$", description: "Buyer 10-digit NIP."},
-      buyer_name: %Schema{type: :string},
-      invoice_number: %Schema{type: :string, description: "Sequential invoice number."},
-      issue_date: %Schema{type: :string, format: :date},
-      net_amount: %Schema{type: :string, description: "Decimal as string."},
-      vat_amount: %Schema{type: :string, description: "Decimal as string."},
-      gross_amount: %Schema{type: :string, description: "Decimal as string."},
-      currency: %Schema{type: :string, description: "ISO 4217 currency code.", example: "PLN"},
+      seller_name: %Schema{type: :string, nullable: true},
+      buyer_nip: %Schema{
+        type: :string,
+        pattern: "^\\d{10}$",
+        nullable: true,
+        description: "Buyer 10-digit NIP."
+      },
+      buyer_name: %Schema{type: :string, nullable: true},
+      invoice_number: %Schema{
+        type: :string,
+        nullable: true,
+        description: "Sequential invoice number."
+      },
+      issue_date: %Schema{type: :string, format: :date, nullable: true},
+      net_amount: %Schema{type: :string, nullable: true, description: "Decimal as string."},
+      vat_amount: %Schema{type: :string, nullable: true, description: "Decimal as string."},
+      gross_amount: %Schema{type: :string, nullable: true, description: "Decimal as string."},
+      currency: %Schema{
+        type: :string,
+        nullable: true,
+        description: "ISO 4217 currency code.",
+        example: "PLN"
+      },
       status: %Schema{type: :string, enum: ["pending", "approved", "rejected"]},
       source: %Schema{
         type: :string,
-        enum: ["ksef", "manual"],
-        description: "Invoice origin: synced from KSeF or manually created."
+        enum: ["ksef", "manual", "pdf_upload"],
+        description: "Invoice origin: synced from KSeF, manually created, or uploaded as PDF."
+      },
+      extraction_status: %Schema{
+        type: :string,
+        enum: ["complete", "partial", "failed"],
+        nullable: true,
+        description:
+          "PDF extraction quality. Only set for pdf_upload source. complete=all fields extracted, partial=some fields missing, failed=extraction error."
+      },
+      original_filename: %Schema{
+        type: :string,
+        nullable: true,
+        description: "Original filename of the uploaded PDF."
       },
       category_id: %Schema{
         type: :string,
@@ -122,7 +149,7 @@ defmodule KsefHubWeb.Schemas.Invoice do
       inserted_at: %Schema{type: :string, format: :"date-time"},
       updated_at: %Schema{type: :string, format: :"date-time"}
     },
-    required: [:id, :type, :status, :seller_nip, :buyer_nip, :issue_date],
+    required: [:id, :type, :status],
     example: %{
       id: "a1b2c3d4-e5f6-7890-abcd-ef1234567890",
       ksef_number: "1234567890-20240101-ABC123DEF456-78",
@@ -157,6 +184,26 @@ defmodule KsefHubWeb.Schemas.Invoice do
       permanent_storage_date: "2024-01-16T00:00:00Z",
       inserted_at: "2024-01-15T10:35:00Z",
       updated_at: "2024-01-15T10:35:00Z"
+    },
+    "x-pdf-upload-example": %{
+      id: "b2c3d4e5-f6a7-8901-bcde-f12345678901",
+      type: "expense",
+      source: "pdf_upload",
+      status: "pending",
+      extraction_status: "partial",
+      original_filename: "invoice_february.pdf",
+      seller_nip: "1234567890",
+      seller_name: "Dostawca Sp. z o.o.",
+      buyer_nip: nil,
+      buyer_name: nil,
+      invoice_number: "FV/2026/042",
+      issue_date: "2026-02-20",
+      net_amount: "5000.00",
+      vat_amount: nil,
+      gross_amount: "6150.00",
+      currency: "PLN",
+      inserted_at: "2026-02-20T14:30:00Z",
+      updated_at: "2026-02-20T14:30:00Z"
     }
   })
 end

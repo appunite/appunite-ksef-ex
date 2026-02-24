@@ -34,6 +34,25 @@ if ksef_pdf_url = System.get_env("KSEF_PDF_URL") do
   config :ksef_hub, :ksef_pdf_url, ksef_pdf_url
 end
 
+if unstructured_url = System.get_env("UNSTRUCTURED_URL") do
+  if config_env() == :prod do
+    uri = URI.parse(unstructured_url)
+
+    if uri.scheme != "https" do
+      raise """
+      UNSTRUCTURED_URL must use HTTPS in production.
+      Got: #{unstructured_url}
+      """
+    end
+  end
+
+  config :ksef_hub, :unstructured_url, unstructured_url
+end
+
+if unstructured_api_token = System.get_env("UNSTRUCTURED_API_TOKEN") do
+  config :ksef_hub, :unstructured_api_token, unstructured_api_token
+end
+
 if prediction_service_url = System.get_env("PREDICTION_SERVICE_URL") do
   if config_env() == :prod do
     uri = URI.parse(prediction_service_url)

@@ -105,6 +105,8 @@ defmodule KsefHubWeb.Router do
     pipe_through [:api, :api_auth]
 
     resources "/invoices", InvoiceController, only: [:index, :show, :create]
+    post "/invoices/upload", InvoiceController, :upload
+    patch "/invoices/:id", InvoiceController, :update
     post "/invoices/:id/approve", InvoiceController, :approve
     post "/invoices/:id/reject", InvoiceController, :reject
     post "/invoices/:id/confirm-duplicate", InvoiceController, :confirm_duplicate

@@ -11,9 +11,10 @@ defmodule KsefHub.Invoices do
   alias KsefHub.Predictions.PredictionWorker
   alias KsefHub.Repo
 
-  @list_fields Invoice.__schema__(:fields) -- [:xml_content]
+  @list_fields Invoice.__schema__(:fields) -- [:xml_content, :pdf_content]
   @max_per_page 100
   @default_per_page 25
+  @critical_extraction_fields ~w(seller_nip seller_name invoice_number issue_date net_amount gross_amount)a
 
   @doc """
   Returns a list of invoices for a company matching the given filters.
@@ -28,7 +29,7 @@ defmodule KsefHub.Invoices do
     * `:date_to` - latest issue_date (inclusive)
     * `:seller_nip` - filter by seller NIP
     * `:buyer_nip` - filter by buyer NIP
-    * `:source` - "ksef" or "manual"
+    * `:source` - "ksef", "manual", or "pdf_upload"
     * `:query` - search across invoice_number, seller_name, buyer_name
     * `:page` - page number (1-based, default 1)
     * `:per_page` - results per page (default 25, max 100)
@@ -135,9 +136,16 @@ defmodule KsefHub.Invoices do
   @spec create_invoice(map()) :: {:ok, Invoice.t()} | {:error, Ecto.Changeset.t()}
   def create_invoice(attrs) do
     company_id = attrs[:company_id] || attrs["company_id"]
+    {pdf_content, attrs} = Map.pop(attrs, :pdf_content)
 
-    %Invoice{}
-    |> Ecto.Changeset.change(%{company_id: company_id})
+    base =
+      %Invoice{}
+      |> Ecto.Changeset.change(%{company_id: company_id})
+
+    base =
+      if pdf_content, do: Ecto.Changeset.put_change(base, :pdf_content, pdf_content), else: base
+
+    base
     |> Invoice.changeset(attrs)
     |> Repo.insert()
   end
@@ -210,12 +218,43 @@ defmodule KsefHub.Invoices do
   end
 
   @doc """
+  Recalculates extraction status based on the presence of critical fields.
+
+  Merges the given `attrs` over the invoice's current values, then checks
+  whether all critical fields are present. Returns updated attrs with the
+  new `:extraction_status` value.
+  """
+  @spec recalculate_extraction_status(Invoice.t(), map()) :: map()
+  def recalculate_extraction_status(%Invoice{} = invoice, attrs) do
+    atom_attrs = atomize_known_keys(attrs)
+    merged = Map.merge(Map.from_struct(invoice), atom_attrs)
+    new_status = if all_critical_fields_present?(merged), do: "complete", else: "partial"
+    Map.put(attrs, :extraction_status, new_status)
+  end
+
+  @spec atomize_known_keys(map()) :: map()
+  defp atomize_known_keys(attrs) do
+    Map.new(attrs, fn
+      {k, v} when is_binary(k) -> {String.to_existing_atom(k), v}
+      {k, v} -> {k, v}
+    end)
+  rescue
+    ArgumentError -> attrs
+  end
+
+  @doc """
   Approves an expense invoice.
   """
   @spec approve_invoice(Invoice.t()) ::
           {:ok, Invoice.t()}
           | {:error, Ecto.Changeset.t()}
           | {:error, {:invalid_type, String.t()}}
+          | {:error, :incomplete_extraction}
+  def approve_invoice(%Invoice{type: "expense", extraction_status: status})
+      when status in ["partial", "failed"] do
+    {:error, :incomplete_extraction}
+  end
+
   def approve_invoice(%Invoice{type: "expense"} = invoice) do
     update_invoice(invoice, %{status: "approved"})
   end
@@ -253,17 +292,27 @@ defmodule KsefHub.Invoices do
 
     attrs = detect_duplicate(company_id, attrs)
 
-    case create_invoice(attrs) do
+    case create_or_retry_duplicate(company_id, attrs) do
       {:ok, invoice} ->
         enqueue_prediction(invoice)
         {:ok, invoice}
 
+      error ->
+        error
+    end
+  end
+
+  @spec create_or_retry_duplicate(Ecto.UUID.t(), map()) ::
+          {:ok, Invoice.t()} | {:error, Ecto.Changeset.t()}
+  defp create_or_retry_duplicate(company_id, attrs) do
+    case create_invoice(attrs) do
+      {:ok, invoice} ->
+        {:ok, invoice}
+
       {:error, %Ecto.Changeset{} = changeset} ->
-        if unique_ksef_number_conflict?(changeset) do
-          retry_as_duplicate(company_id, attrs)
-        else
-          {:error, changeset}
-        end
+        if unique_ksef_number_conflict?(changeset),
+          do: retry_as_duplicate(company_id, attrs),
+          else: {:error, changeset}
     end
   end
 
@@ -276,14 +325,167 @@ defmodule KsefHub.Invoices do
       duplicate_status: "suspected"
     })
     |> create_invoice()
-    |> case do
+  end
+
+  @doc """
+  Creates an invoice from an uploaded PDF via the unstructured extraction service.
+
+  Calls the extraction sidecar to parse the PDF, maps extracted fields to invoice
+  attrs, determines extraction status based on which critical fields are present,
+  and creates the invoice. Missing fields result in `extraction_status: "partial"`
+  rather than validation errors.
+
+  ## Parameters
+    * `company_id` - the company UUID
+    * `pdf_binary` - raw PDF file content
+    * `opts` - must include `:type` ("income" or "expense"), optionally `:filename`
+  """
+  @spec create_pdf_upload_invoice(Ecto.UUID.t(), binary(), map()) ::
+          {:ok, Invoice.t()} | {:error, term()}
+  def create_pdf_upload_invoice(company_id, pdf_binary, opts) do
+    type = opts[:type]
+    filename = opts[:filename]
+
+    case unstructured_client().extract(pdf_binary, filename: filename || "invoice.pdf") do
+      {:ok, extracted} ->
+        do_create_pdf_upload(company_id, pdf_binary, type, filename, extracted)
+
+      {:error, _reason} ->
+        Logger.warning("PDF extraction failed for file: #{filename || "invoice.pdf"}")
+        do_create_pdf_upload_failed(company_id, pdf_binary, type, filename)
+    end
+  end
+
+  @spec do_create_pdf_upload(Ecto.UUID.t(), binary(), String.t(), String.t() | nil, map()) ::
+          {:ok, Invoice.t()} | {:error, term()}
+  defp do_create_pdf_upload(company_id, pdf_binary, type, filename, extracted) do
+    extraction_status = determine_extraction_status(extracted)
+
+    invoice_attrs =
+      build_pdf_upload_attrs(extracted, company_id, pdf_binary, type, filename, extraction_status)
+
+    invoice_attrs = detect_duplicate(company_id, invoice_attrs)
+
+    case create_or_retry_duplicate(company_id, invoice_attrs) do
       {:ok, invoice} ->
-        enqueue_prediction(invoice)
+        maybe_enqueue_prediction(extraction_status, invoice)
         {:ok, invoice}
 
       error ->
         error
     end
+  end
+
+  @spec do_create_pdf_upload_failed(Ecto.UUID.t(), binary(), String.t(), String.t() | nil) ::
+          {:ok, Invoice.t()} | {:error, term()}
+  defp do_create_pdf_upload_failed(company_id, pdf_binary, type, filename) do
+    %{
+      source: "pdf_upload",
+      type: type,
+      company_id: company_id,
+      pdf_content: pdf_binary,
+      original_filename: filename,
+      extraction_status: "failed"
+    }
+    |> create_invoice()
+  end
+
+  @spec maybe_enqueue_prediction(String.t(), Invoice.t()) :: :ok | :skip | :enqueue_failed
+  defp maybe_enqueue_prediction("complete", invoice), do: enqueue_prediction(invoice)
+  defp maybe_enqueue_prediction(_status, _invoice), do: :ok
+
+  @spec determine_extraction_status(map()) :: String.t()
+  defp determine_extraction_status(extracted) do
+    if all_critical_fields_present?(extracted), do: "complete", else: "partial"
+  end
+
+  @spec all_critical_fields_present?(map()) :: boolean()
+  defp all_critical_fields_present?(map) do
+    Enum.all?(@critical_extraction_fields, fn field ->
+      value = Map.get(map, field) || Map.get(map, Atom.to_string(field))
+      value != nil && value != ""
+    end)
+  end
+
+  @spec build_pdf_upload_attrs(
+          map(),
+          Ecto.UUID.t(),
+          binary(),
+          String.t(),
+          String.t() | nil,
+          String.t()
+        ) ::
+          map()
+  defp build_pdf_upload_attrs(
+         extracted,
+         company_id,
+         pdf_binary,
+         type,
+         filename,
+         extraction_status
+       ) do
+    %{
+      source: "pdf_upload",
+      type: type,
+      company_id: company_id,
+      pdf_content: pdf_binary,
+      original_filename: filename,
+      extraction_status: extraction_status,
+      ksef_number: get_extracted_string(extracted, "ksef_number"),
+      seller_nip: get_extracted_string(extracted, "seller_nip"),
+      seller_name: get_extracted_string(extracted, "seller_name"),
+      buyer_nip: get_extracted_string(extracted, "buyer_nip"),
+      buyer_name: get_extracted_string(extracted, "buyer_name"),
+      invoice_number: get_extracted_string(extracted, "invoice_number"),
+      issue_date: get_extracted_date(extracted, "issue_date"),
+      net_amount: get_extracted_decimal(extracted, "net_amount"),
+      vat_amount: get_extracted_decimal(extracted, "vat_amount"),
+      gross_amount: get_extracted_decimal(extracted, "gross_amount"),
+      currency: get_extracted_string(extracted, "currency") || "PLN"
+    }
+  end
+
+  @spec get_extracted_string(map(), String.t()) :: String.t() | nil
+  defp get_extracted_string(data, key) do
+    value = data[key]
+    if is_binary(value) && value != "", do: value, else: nil
+  end
+
+  @spec get_extracted_date(map(), String.t()) :: Date.t() | nil
+  defp get_extracted_date(data, key) do
+    case get_extracted_string(data, key) do
+      nil -> nil
+      value -> parse_date(value)
+    end
+  end
+
+  @spec parse_date(String.t()) :: Date.t() | nil
+  defp parse_date(value) do
+    case Date.from_iso8601(value) do
+      {:ok, date} -> date
+      _ -> nil
+    end
+  end
+
+  @spec get_extracted_decimal(map(), String.t()) :: Decimal.t() | nil
+  defp get_extracted_decimal(data, key) do
+    case get_extracted_string(data, key) do
+      nil -> nil
+      value -> parse_decimal(value)
+    end
+  end
+
+  @spec parse_decimal(String.t()) :: Decimal.t() | nil
+  defp parse_decimal(value) do
+    case value |> String.trim() |> Decimal.parse() do
+      {decimal, ""} -> decimal
+      _ -> nil
+    end
+  end
+
+  @spec unstructured_client() :: module()
+  defp unstructured_client do
+    Application.get_env(:ksef_hub, :unstructured_client, KsefHub.Unstructured.Client)
   end
 
   @doc """
@@ -690,7 +892,7 @@ defmodule KsefHub.Invoices do
             fragment("? ILIKE ? ESCAPE '\\'", i.buyer_name, ^pattern)
         )
 
-      {:source, source}, q when source in ~w(ksef manual) ->
+      {:source, source}, q when source in ~w(ksef manual pdf_upload) ->
         where(q, [i], i.source == ^source)
 
       {:category_id, category_id}, q when is_binary(category_id) and category_id != "" ->

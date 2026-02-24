@@ -155,6 +155,30 @@ defmodule KsefHub.Factory do
     }
   end
 
+  @doc "Builds a pdf_upload `Invoice` with pdf_content and extraction_status."
+  @spec pdf_upload_invoice_factory() :: Invoice.t()
+  def pdf_upload_invoice_factory do
+    %Invoice{
+      type: "expense",
+      source: "pdf_upload",
+      seller_nip: "1234567890",
+      seller_name: "Extracted Seller Sp. z o.o.",
+      buyer_nip: "0987654321",
+      buyer_name: "Extracted Buyer S.A.",
+      invoice_number: sequence(:invoice_number, &"FV/PDF/#{&1}"),
+      issue_date: Date.utc_today(),
+      net_amount: Decimal.new("1000.00"),
+      vat_amount: Decimal.new("230.00"),
+      gross_amount: Decimal.new("1230.00"),
+      currency: "PLN",
+      status: "pending",
+      pdf_content: "%PDF-1.4 fake content",
+      extraction_status: "complete",
+      original_filename: "invoice.pdf",
+      company: build(:company)
+    }
+  end
+
   @doc "Builds a `Category` with sequenced name in group:target format and associated company."
   @spec category_factory() :: Category.t()
   def category_factory do

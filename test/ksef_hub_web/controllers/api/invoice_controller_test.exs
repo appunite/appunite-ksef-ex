@@ -380,7 +380,7 @@ defmodule KsefHubWeb.Api.InvoiceControllerTest do
   end
 
   describe "content endpoints with nil xml_content" do
-    for endpoint <- ~w(xml html pdf) do
+    for endpoint <- ~w(xml html) do
       test "#{endpoint} returns 422 for invoice without xml_content", %{conn: conn} do
         %{company: company, token: token} = create_owner_with_token()
         invoice = insert(:manual_invoice, company: company)
@@ -393,6 +393,19 @@ defmodule KsefHubWeb.Api.InvoiceControllerTest do
         assert conn.status == 422
         assert Jason.decode!(conn.resp_body)["error"] == "Invoice has no XML content"
       end
+    end
+
+    test "pdf returns 422 for invoice without xml_content or pdf_content", %{conn: conn} do
+      %{company: company, token: token} = create_owner_with_token()
+      invoice = insert(:manual_invoice, company: company)
+
+      conn =
+        conn
+        |> api_conn(token)
+        |> get("/api/invoices/#{invoice.id}/pdf")
+
+      assert conn.status == 422
+      assert Jason.decode!(conn.resp_body)["error"] == "Invoice has no downloadable content"
     end
   end
 
@@ -458,6 +471,307 @@ defmodule KsefHubWeb.Api.InvoiceControllerTest do
 
       assert conn.status == 422
       assert Jason.decode!(conn.resp_body)["error"] == "Duplicate has already been dismissed"
+    end
+  end
+
+  describe "upload" do
+    test "returns 201 with extracted data", %{conn: conn} do
+      %{token: token} = create_owner_with_token()
+
+      Mox.expect(KsefHub.Unstructured.Mock, :extract, fn _pdf, _opts ->
+        {:ok,
+         %{
+           "seller_nip" => "1234567890",
+           "seller_name" => "Upload Seller Sp. z o.o.",
+           "buyer_nip" => "0987654321",
+           "buyer_name" => "Upload Buyer S.A.",
+           "invoice_number" => "FV/UPLOAD/001",
+           "issue_date" => "2026-02-20",
+           "net_amount" => "1000.00",
+           "vat_amount" => "230.00",
+           "gross_amount" => "1230.00",
+           "currency" => "PLN"
+         }}
+      end)
+
+      upload = %Plug.Upload{
+        path: create_temp_pdf(),
+        content_type: "application/pdf",
+        filename: "invoice.pdf"
+      }
+
+      conn =
+        conn
+        |> api_conn_multipart(token)
+        |> post("/api/invoices/upload", %{"file" => upload, "type" => "expense"})
+
+      assert conn.status == 201
+      data = Jason.decode!(conn.resp_body)["data"]
+      assert data["source"] == "pdf_upload"
+      assert data["extraction_status"] == "complete"
+      assert data["seller_name"] == "Upload Seller Sp. z o.o."
+      assert data["original_filename"] == "invoice.pdf"
+    end
+
+    test "returns 201 with partial extraction", %{conn: conn} do
+      %{token: token} = create_owner_with_token()
+
+      Mox.expect(KsefHub.Unstructured.Mock, :extract, fn _pdf, _opts ->
+        {:ok, %{"seller_name" => "Partial Seller"}}
+      end)
+
+      upload = %Plug.Upload{
+        path: create_temp_pdf(),
+        content_type: "application/pdf",
+        filename: "partial.pdf"
+      }
+
+      conn =
+        conn
+        |> api_conn_multipart(token)
+        |> post("/api/invoices/upload", %{"file" => upload, "type" => "expense"})
+
+      assert conn.status == 201
+      data = Jason.decode!(conn.resp_body)["data"]
+      assert data["extraction_status"] == "partial"
+      assert data["seller_name"] == "Partial Seller"
+    end
+
+    test "returns 422 when file missing", %{conn: conn} do
+      %{token: token} = create_owner_with_token()
+
+      conn =
+        conn
+        |> api_conn_multipart(token)
+        |> post("/api/invoices/upload", %{"type" => "expense"})
+
+      assert conn.status == 422
+      assert Jason.decode!(conn.resp_body)["error"] =~ "Missing required file"
+    end
+
+    test "returns 422 when type missing", %{conn: conn} do
+      %{token: token} = create_owner_with_token()
+
+      upload = %Plug.Upload{
+        path: create_temp_pdf(),
+        content_type: "application/pdf",
+        filename: "invoice.pdf"
+      }
+
+      conn =
+        conn
+        |> api_conn_multipart(token)
+        |> post("/api/invoices/upload", %{"file" => upload})
+
+      assert conn.status == 422
+      assert Jason.decode!(conn.resp_body)["error"] =~ "Missing or invalid type"
+    end
+
+    test "returns 415 for non-PDF file", %{conn: conn} do
+      %{token: token} = create_owner_with_token()
+
+      path = create_temp_non_pdf()
+
+      upload = %Plug.Upload{
+        path: path,
+        content_type: "text/plain",
+        filename: "invoice.txt"
+      }
+
+      conn =
+        conn
+        |> api_conn_multipart(token)
+        |> post("/api/invoices/upload", %{"file" => upload, "type" => "expense"})
+
+      assert conn.status == 415
+      assert Jason.decode!(conn.resp_body)["error"] =~ "PDF"
+    end
+
+    test "creates invoice with failed extraction status when extraction service fails", %{
+      conn: conn
+    } do
+      %{token: token} = create_owner_with_token()
+
+      Mox.expect(KsefHub.Unstructured.Mock, :extract, fn _pdf, _opts ->
+        {:error, {:unstructured_service_error, 500}}
+      end)
+
+      upload = %Plug.Upload{
+        path: create_temp_pdf(),
+        content_type: "application/pdf",
+        filename: "fail.pdf"
+      }
+
+      conn =
+        conn
+        |> api_conn_multipart(token)
+        |> post("/api/invoices/upload", %{"file" => upload, "type" => "expense"})
+
+      # Extraction failure still creates an invoice (with failed status)
+      assert conn.status == 201
+      data = Jason.decode!(conn.resp_body)["data"]
+      assert data["extraction_status"] == "failed"
+    end
+
+    test "does not include pdf_content in response", %{conn: conn} do
+      %{token: token} = create_owner_with_token()
+
+      Mox.expect(KsefHub.Unstructured.Mock, :extract, fn _pdf, _opts ->
+        {:ok, %{"seller_name" => "Test"}}
+      end)
+
+      upload = %Plug.Upload{
+        path: create_temp_pdf(),
+        content_type: "application/pdf",
+        filename: "invoice.pdf"
+      }
+
+      conn =
+        conn
+        |> api_conn_multipart(token)
+        |> post("/api/invoices/upload", %{"file" => upload, "type" => "expense"})
+
+      assert conn.status == 201
+      data = Jason.decode!(conn.resp_body)["data"]
+      refute Map.has_key?(data, "pdf_content")
+    end
+
+    test "returns 201 for income-type upload", %{conn: conn} do
+      %{token: token} = create_owner_with_token()
+
+      upload = %Plug.Upload{
+        path: create_temp_pdf(),
+        content_type: "application/pdf",
+        filename: "income_invoice.pdf"
+      }
+
+      conn =
+        conn
+        |> api_conn_multipart(token)
+        |> post("/api/invoices/upload", %{"file" => upload, "type" => "income"})
+
+      assert conn.status == 201
+      data = Jason.decode!(conn.resp_body)["data"]
+      assert data["type"] == "income"
+      assert data["source"] == "pdf_upload"
+    end
+  end
+
+  describe "update (PATCH)" do
+    test "updates fields on a pdf_upload invoice", %{conn: conn} do
+      %{company: company, token: token} = create_owner_with_token()
+
+      invoice =
+        insert(:pdf_upload_invoice,
+          company: company,
+          extraction_status: "partial",
+          seller_nip: nil,
+          issue_date: nil,
+          net_amount: nil,
+          gross_amount: nil
+        )
+
+      body =
+        Jason.encode!(%{
+          seller_nip: "1111111111",
+          issue_date: "2026-03-01",
+          net_amount: "500.00",
+          gross_amount: "615.00"
+        })
+
+      conn = conn |> api_conn(token) |> patch("/api/invoices/#{invoice.id}", body)
+
+      assert conn.status == 200
+      data = Jason.decode!(conn.resp_body)["data"]
+      assert data["seller_nip"] == "1111111111"
+      assert data["net_amount"] == "500.00"
+    end
+
+    test "recalculates extraction_status to complete", %{conn: conn} do
+      %{company: company, token: token} = create_owner_with_token()
+
+      invoice =
+        insert(:pdf_upload_invoice,
+          company: company,
+          extraction_status: "partial",
+          seller_nip: "1234567890",
+          seller_name: "Seller",
+          invoice_number: "FV/1",
+          issue_date: ~D[2026-01-01],
+          net_amount: nil,
+          gross_amount: nil
+        )
+
+      body = Jason.encode!(%{net_amount: "500.00", gross_amount: "615.00"})
+
+      conn = conn |> api_conn(token) |> patch("/api/invoices/#{invoice.id}", body)
+
+      assert conn.status == 200
+      data = Jason.decode!(conn.resp_body)["data"]
+      assert data["extraction_status"] == "complete"
+    end
+
+    test "returns 422 for invalid update data", %{conn: conn} do
+      %{company: company, token: token} = create_owner_with_token()
+
+      invoice =
+        insert(:pdf_upload_invoice, company: company, extraction_status: "partial")
+
+      body = Jason.encode!(%{seller_nip: "not-a-nip"})
+      conn = conn |> api_conn(token) |> patch("/api/invoices/#{invoice.id}", body)
+
+      assert conn.status == 422
+    end
+
+    test "returns 422 for non-pdf_upload invoice", %{conn: conn} do
+      %{company: company, token: token} = create_owner_with_token()
+      invoice = insert(:invoice, company: company)
+
+      body = Jason.encode!(%{seller_name: "New Name"})
+      conn = conn |> api_conn(token) |> patch("/api/invoices/#{invoice.id}", body)
+
+      assert conn.status == 422
+      assert Jason.decode!(conn.resp_body)["error"] =~ "Only pdf_upload"
+    end
+  end
+
+  describe "pdf download for pdf_upload invoices" do
+    test "returns original uploaded PDF", %{conn: conn} do
+      %{company: company, token: token} = create_owner_with_token()
+
+      invoice =
+        insert(:pdf_upload_invoice,
+          company: company,
+          pdf_content: "fake-pdf-bytes",
+          original_filename: "my_invoice.pdf"
+        )
+
+      conn = conn |> api_conn(token) |> get("/api/invoices/#{invoice.id}/pdf")
+
+      assert conn.status == 200
+      assert get_resp_header(conn, "content-type") |> hd() =~ "application/pdf"
+      assert get_resp_header(conn, "content-disposition") |> hd() =~ "my_invoice.pdf"
+      assert conn.resp_body == "fake-pdf-bytes"
+    end
+
+    test "xml returns 422 for pdf_upload invoice", %{conn: conn} do
+      %{company: company, token: token} = create_owner_with_token()
+      invoice = insert(:pdf_upload_invoice, company: company)
+
+      conn = conn |> api_conn(token) |> get("/api/invoices/#{invoice.id}/xml")
+
+      assert conn.status == 422
+      assert Jason.decode!(conn.resp_body)["error"] == "Invoice has no XML content"
+    end
+
+    test "html returns 422 for pdf_upload invoice", %{conn: conn} do
+      %{company: company, token: token} = create_owner_with_token()
+      invoice = insert(:pdf_upload_invoice, company: company)
+
+      conn = conn |> api_conn(token) |> get("/api/invoices/#{invoice.id}/html")
+
+      assert conn.status == 422
+      assert Jason.decode!(conn.resp_body)["error"] == "Invoice has no XML content"
     end
   end
 
@@ -732,5 +1046,44 @@ defmodule KsefHubWeb.Api.InvoiceControllerTest do
       assert length(body["data"]) == 1
       assert hd(body["data"])["seller_name"] == "Tagged"
     end
+  end
+
+  describe "source filter with pdf_upload" do
+    test "filters invoices by source=pdf_upload", %{conn: conn} do
+      %{company: company, token: token} = create_owner_with_token()
+      insert(:invoice, company: company, source: "ksef")
+      insert(:pdf_upload_invoice, company: company, source: "pdf_upload")
+
+      conn = conn |> api_conn(token) |> get("/api/invoices?source=pdf_upload")
+
+      body = Jason.decode!(conn.resp_body)
+      assert length(body["data"]) == 1
+      assert hd(body["data"])["source"] == "pdf_upload"
+    end
+  end
+
+  # --- Helpers ---
+
+  @spec api_conn_multipart(Plug.Conn.t(), String.t()) :: Plug.Conn.t()
+  defp api_conn_multipart(conn, token) do
+    conn
+    |> Plug.Conn.put_req_header("authorization", "Bearer #{token}")
+    |> Plug.Conn.put_req_header("accept", "application/json")
+  end
+
+  @spec create_temp_pdf() :: String.t()
+  defp create_temp_pdf do
+    path = Path.join(System.tmp_dir!(), "test_invoice_#{System.unique_integer([:positive])}.pdf")
+    File.write!(path, "%PDF-1.4 fake test content")
+    on_exit(fn -> File.rm(path) end)
+    path
+  end
+
+  @spec create_temp_non_pdf() :: String.t()
+  defp create_temp_non_pdf do
+    path = Path.join(System.tmp_dir!(), "test_file_#{System.unique_integer([:positive])}.txt")
+    File.write!(path, "not a pdf file at all")
+    on_exit(fn -> File.rm(path) end)
+    path
   end
 end

@@ -33,6 +33,7 @@ defmodule KsefHub.DataCase do
     KsefHub.DataCase.setup_sandbox(tags)
     # Stub prediction mock so Oban inline jobs don't fail in unrelated tests
     Mox.stub_with(KsefHub.Predictions.Mock, KsefHub.Predictions.StubService)
+    Mox.stub_with(KsefHub.Unstructured.Mock, KsefHub.Unstructured.StubService)
     :ok
   end
 

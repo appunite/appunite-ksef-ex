@@ -15,3 +15,4 @@ Mox.defmock(KsefHub.Credentials.CertificateInfo.Mock,
 )
 
 Mox.defmock(KsefHub.Predictions.Mock, for: KsefHub.Predictions.Behaviour)
+Mox.defmock(KsefHub.Unstructured.Mock, for: KsefHub.Unstructured.Behaviour)
