@@ -16,7 +16,7 @@ defmodule KsefHubWeb.TeamLiveTest do
       })
 
     company = insert(:company, name: "Team Corp")
-    insert(:membership, user: owner, company: company, role: "owner")
+    insert(:membership, user: owner, company: company, role: :owner)
 
     conn = log_in_user(conn, owner, %{current_company_id: company.id})
     %{conn: conn, owner: owner, company: company}
@@ -37,7 +37,7 @@ defmodule KsefHubWeb.TeamLiveTest do
           name: "Accountant"
         })
 
-      insert(:membership, user: non_owner, company: company, role: "accountant")
+      insert(:membership, user: non_owner, company: company, role: :accountant)
       non_owner_conn = log_in_user(conn, non_owner, %{current_company_id: company.id})
 
       assert {:error, {:redirect, %{to: "/dashboard", flash: flash}}} =
@@ -50,7 +50,7 @@ defmodule KsefHubWeb.TeamLiveTest do
   describe "member list" do
     test "displays all members", %{conn: conn, company: company} do
       member = insert(:user, name: "Bob Accountant", email: "bob@example.com")
-      insert(:membership, user: member, company: company, role: "accountant")
+      insert(:membership, user: member, company: company, role: :accountant)
 
       {:ok, view, _html} = live(conn, ~p"/team")
       assert has_element?(view, "[data-testid='member-list']")
@@ -75,7 +75,7 @@ defmodule KsefHubWeb.TeamLiveTest do
 
     test "shows error when inviting existing member", %{conn: conn, company: company} do
       existing = insert(:user, email: "existing@example.com")
-      insert(:membership, user: existing, company: company, role: "accountant")
+      insert(:membership, user: existing, company: company, role: :accountant)
 
       {:ok, view, _html} = live(conn, ~p"/team")
 
@@ -138,7 +138,7 @@ defmodule KsefHubWeb.TeamLiveTest do
 
     test "owner can remove a non-owner member", %{conn: conn, company: company} do
       member = insert(:user, name: "Remove Me", email: "removeme@example.com")
-      insert(:membership, user: member, company: company, role: "accountant")
+      insert(:membership, user: member, company: company, role: :accountant)
 
       {:ok, view, _html} = live(conn, ~p"/team")
       assert has_element?(view, "[data-testid='member-list'] td", "Remove Me")

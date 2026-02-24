@@ -96,7 +96,7 @@ defmodule KsefHubWeb.TeamLive do
       nil ->
         {:noreply, put_flash(socket, :error, "Member not found.")}
 
-      %{role: "owner"} ->
+      %{role: :owner} ->
         {:noreply, put_flash(socket, :error, "Cannot remove company owner.")}
 
       membership ->
@@ -243,7 +243,7 @@ defmodule KsefHubWeb.TeamLive do
                 <td>—</td>
                 <td>
                   <button
-                    :if={member.role != "owner"}
+                    :if={member.role != :owner}
                     phx-click="remove_member"
                     phx-value-user-id={member.user.id}
                     data-confirm="Remove this member from the company?"

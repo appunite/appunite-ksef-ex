@@ -15,7 +15,7 @@ defmodule KsefHubWeb.SyncLiveTest do
       })
 
     company = insert(:company)
-    insert(:membership, user: user, company: company, role: "owner")
+    insert(:membership, user: user, company: company, role: :owner)
 
     conn = conn |> log_in_user(user, %{current_company_id: company.id})
     %{conn: conn, user: user, company: company}

@@ -11,7 +11,7 @@ defmodule KsefHubWeb.CompanyLiveTest do
       user = insert(:user)
       # User needs at least one company to not be redirected to /companies/new
       existing = insert(:company)
-      insert(:membership, user: user, company: existing, role: "owner")
+      insert(:membership, user: user, company: existing, role: :owner)
 
       {:ok, view, _html} =
         conn
@@ -28,14 +28,14 @@ defmodule KsefHubWeb.CompanyLiveTest do
       assert new_company
 
       membership = Companies.get_membership(user.id, new_company.id)
-      assert membership.role == "owner"
+      assert membership.role == :owner
     end
 
     test "lists only user's companies", %{conn: conn} do
       user = insert(:user)
       company = insert(:company, name: "My Visible Co")
       _other = insert(:company, name: "Someone Else Co")
-      insert(:membership, user: user, company: company, role: "owner")
+      insert(:membership, user: user, company: company, role: :owner)
 
       {:ok, view, _html} =
         conn

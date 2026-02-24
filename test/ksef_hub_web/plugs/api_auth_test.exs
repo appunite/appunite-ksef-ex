@@ -88,7 +88,7 @@ defmodule KsefHubWeb.Plugs.ApiAuthTest do
         |> api_conn(token)
         |> get("/api/invoices")
 
-      assert conn.assigns.current_role == "owner"
+      assert conn.assigns.current_role == :owner
     end
 
     test "assigns reviewer role for reviewer-created token", %{conn: conn} do
@@ -99,7 +99,7 @@ defmodule KsefHubWeb.Plugs.ApiAuthTest do
         |> api_conn(token)
         |> get("/api/invoices")
 
-      assert conn.assigns.current_role == "reviewer"
+      assert conn.assigns.current_role == :reviewer
     end
   end
 end

@@ -45,7 +45,7 @@ defmodule KsefHubWeb.LiveAuth do
   end
 
   def on_mount(:require_owner, _params, _session, socket) do
-    if socket.assigns[:current_role] == "owner" do
+    if socket.assigns[:current_role] == :owner do
       {:cont, socket}
     else
       {:halt,

@@ -51,7 +51,7 @@ defmodule KsefHub.Invitations do
 
     Multi.new()
     |> Multi.run(:authorize, fn _repo, _changes ->
-      Companies.authorize(user_id, company_id, ["owner"])
+      Companies.authorize(user_id, company_id, [:owner])
     end)
     |> Multi.run(:check_member, fn _repo, _changes ->
       case check_not_already_member(company_id, email) do
@@ -200,7 +200,7 @@ defmodule KsefHub.Invitations do
           {:ok, Invitation.t()} | {:error, :unauthorized} | {:error, :not_found}
   def cancel_invitation(user_id, invitation_id) do
     with %Invitation{status: "pending"} = invitation <- Repo.get(Invitation, invitation_id),
-         {:ok, _membership} <- Companies.authorize(user_id, invitation.company_id, ["owner"]) do
+         {:ok, _membership} <- Companies.authorize(user_id, invitation.company_id, [:owner]) do
       do_atomic_cancel(invitation_id)
     else
       %Invitation{} -> {:error, :not_found}

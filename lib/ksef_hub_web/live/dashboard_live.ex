@@ -35,7 +35,7 @@ defmodule KsefHubWeb.DashboardLive do
       nil ->
         assign(socket,
           page_title: "Dashboard",
-          is_reviewer: socket.assigns[:current_role] == "reviewer",
+          is_reviewer: socket.assigns[:current_role] == :reviewer,
           total_income: 0,
           total_expense: 0,
           total_invoices: 0,
@@ -52,7 +52,7 @@ defmodule KsefHubWeb.DashboardLive do
         counts = Invoices.count_by_type_and_status(company.id)
         credential = Credentials.get_active_credential(company.id)
         user_cert = Credentials.get_certificate_for_company(company.id)
-        is_reviewer = socket.assigns[:current_role] == "reviewer"
+        is_reviewer = socket.assigns[:current_role] == :reviewer
 
         total_income = if is_reviewer, do: 0, else: count_type(counts, :income)
         total_expense = count_type(counts, :expense)

@@ -20,7 +20,7 @@ defmodule KsefHubWeb.InvoiceLive.ShowTest do
       })
 
     company = insert(:company)
-    insert(:membership, user: user, company: company, role: "owner")
+    insert(:membership, user: user, company: company, role: :owner)
 
     conn = conn |> log_in_user(user, %{current_company_id: company.id})
     %{conn: conn, user: user, company: company}
@@ -148,7 +148,7 @@ defmodule KsefHubWeb.InvoiceLive.ShowTest do
         })
 
       company = insert(:company)
-      insert(:membership, user: reviewer, company: company, role: "reviewer")
+      insert(:membership, user: reviewer, company: company, role: :reviewer)
 
       conn = build_conn() |> log_in_user(reviewer, %{current_company_id: company.id})
       stub(KsefHub.Pdf.Mock, :generate_html, fn _xml, _meta -> {:error, :no_xml} end)

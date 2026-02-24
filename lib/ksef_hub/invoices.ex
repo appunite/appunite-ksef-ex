@@ -832,12 +832,12 @@ defmodule KsefHub.Invoices do
     end)
   end
 
-  @spec scope_by_role(map(), String.t() | nil) :: map()
-  defp scope_by_role(filters, "reviewer"), do: Map.put(filters, :type, :expense)
+  @spec scope_by_role(map(), atom() | nil) :: map()
+  defp scope_by_role(filters, :reviewer), do: Map.put(filters, :type, :expense)
   defp scope_by_role(filters, _role), do: filters
 
-  @spec maybe_scope_type_by_role(Ecto.Queryable.t(), String.t() | nil) :: Ecto.Query.t()
-  defp maybe_scope_type_by_role(query, "reviewer"), do: where(query, [i], i.type == :expense)
+  @spec maybe_scope_type_by_role(Ecto.Queryable.t(), atom() | nil) :: Ecto.Query.t()
+  defp maybe_scope_type_by_role(query, :reviewer), do: where(query, [i], i.type == :expense)
   defp maybe_scope_type_by_role(query, _role), do: query
 
   @spec do_list_invoices(Ecto.UUID.t(), map(), pos_integer(), pos_integer()) :: [Invoice.t()]

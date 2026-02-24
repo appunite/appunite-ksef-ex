@@ -10,7 +10,7 @@ defmodule KsefHubWeb.TokenLive do
 
   @impl true
   def mount(_params, _session, socket) do
-    if socket.assigns.current_role != "owner" do
+    if socket.assigns.current_role != :owner do
       {:ok,
        socket
        |> put_flash(:error, "Only company owners can manage API tokens.")

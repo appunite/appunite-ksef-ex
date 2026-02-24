@@ -10,7 +10,7 @@ defmodule KsefHub.InvitationsTest do
     setup do
       company = insert(:company)
       owner = insert(:user)
-      insert(:membership, user: owner, company: company, role: "owner")
+      insert(:membership, user: owner, company: company, role: :owner)
       %{company: company, owner: owner}
     end
 
@@ -46,7 +46,7 @@ defmodule KsefHub.InvitationsTest do
       owner: owner
     } do
       existing_user = insert(:user, email: "existing@example.com")
-      insert(:membership, user: existing_user, company: company, role: "accountant")
+      insert(:membership, user: existing_user, company: company, role: :accountant)
 
       attrs = %{email: "existing@example.com", role: "accountant"}
 
@@ -65,7 +65,7 @@ defmodule KsefHub.InvitationsTest do
 
     test "rejects non-owner caller", %{company: company} do
       non_owner = insert(:user)
-      insert(:membership, user: non_owner, company: company, role: "accountant")
+      insert(:membership, user: non_owner, company: company, role: :accountant)
 
       attrs = %{email: "new@example.com", role: "accountant"}
 
@@ -96,7 +96,7 @@ defmodule KsefHub.InvitationsTest do
     setup do
       company = insert(:company)
       owner = insert(:user)
-      insert(:membership, user: owner, company: company, role: "owner")
+      insert(:membership, user: owner, company: company, role: :owner)
       %{company: company, owner: owner}
     end
 
@@ -117,7 +117,7 @@ defmodule KsefHub.InvitationsTest do
       assert accepted_invitation.status == "accepted"
       assert membership.user_id == accepter.id
       assert membership.company_id == company.id
-      assert membership.role == "accountant"
+      assert membership.role == :accountant
     end
 
     test "rejects expired token", %{company: company, owner: owner} do
@@ -162,7 +162,7 @@ defmodule KsefHub.InvitationsTest do
         Invitations.create_invitation(owner.id, company.id, attrs)
 
       member = insert(:user, email: "member@example.com")
-      insert(:membership, user: member, company: company, role: "reviewer")
+      insert(:membership, user: member, company: company, role: :reviewer)
 
       assert {:error, :already_member} = Invitations.accept_invitation(token, member)
     end
@@ -172,7 +172,7 @@ defmodule KsefHub.InvitationsTest do
     test "owner cancels pending invitation" do
       company = insert(:company)
       owner = insert(:user)
-      insert(:membership, user: owner, company: company, role: "owner")
+      insert(:membership, user: owner, company: company, role: :owner)
 
       {:ok, %{invitation: invitation}} =
         Invitations.create_invitation(owner.id, company.id, %{
@@ -188,8 +188,8 @@ defmodule KsefHub.InvitationsTest do
       company = insert(:company)
       owner = insert(:user)
       non_owner = insert(:user)
-      insert(:membership, user: owner, company: company, role: "owner")
-      insert(:membership, user: non_owner, company: company, role: "accountant")
+      insert(:membership, user: owner, company: company, role: :owner)
+      insert(:membership, user: non_owner, company: company, role: :accountant)
 
       {:ok, %{invitation: invitation}} =
         Invitations.create_invitation(owner.id, company.id, %{
@@ -205,8 +205,8 @@ defmodule KsefHub.InvitationsTest do
       company_b = insert(:company)
       owner_a = insert(:user)
       owner_b = insert(:user)
-      insert(:membership, user: owner_a, company: company_a, role: "owner")
-      insert(:membership, user: owner_b, company: company_b, role: "owner")
+      insert(:membership, user: owner_a, company: company_a, role: :owner)
+      insert(:membership, user: owner_b, company: company_b, role: :owner)
 
       {:ok, %{invitation: invitation}} =
         Invitations.create_invitation(owner_a.id, company_a.id, %{
@@ -220,7 +220,7 @@ defmodule KsefHub.InvitationsTest do
     test "cannot cancel non-pending invitation" do
       company = insert(:company)
       owner = insert(:user)
-      insert(:membership, user: owner, company: company, role: "owner")
+      insert(:membership, user: owner, company: company, role: :owner)
 
       {:ok, %{invitation: invitation, token: token}} =
         Invitations.create_invitation(owner.id, company.id, %{
@@ -240,8 +240,8 @@ defmodule KsefHub.InvitationsTest do
       company = insert(:company)
       other_company = insert(:company)
       owner = insert(:user)
-      insert(:membership, user: owner, company: company, role: "owner")
-      insert(:membership, user: owner, company: other_company, role: "owner")
+      insert(:membership, user: owner, company: company, role: :owner)
+      insert(:membership, user: owner, company: other_company, role: :owner)
 
       {:ok, %{invitation: inv1}} =
         Invitations.create_invitation(owner.id, company.id, %{
@@ -278,8 +278,8 @@ defmodule KsefHub.InvitationsTest do
       company2 = insert(:company)
       owner1 = insert(:user)
       owner2 = insert(:user)
-      insert(:membership, user: owner1, company: company1, role: "owner")
-      insert(:membership, user: owner2, company: company2, role: "owner")
+      insert(:membership, user: owner1, company: company1, role: :owner)
+      insert(:membership, user: owner2, company: company2, role: :owner)
 
       {:ok, _} =
         Invitations.create_invitation(owner1.id, company1.id, %{
@@ -309,7 +309,7 @@ defmodule KsefHub.InvitationsTest do
     test "skips expired invitations" do
       company = insert(:company)
       owner = insert(:user)
-      insert(:membership, user: owner, company: company, role: "owner")
+      insert(:membership, user: owner, company: company, role: :owner)
 
       {:ok, %{invitation: invitation}} =
         Invitations.create_invitation(owner.id, company.id, %{

@@ -118,17 +118,17 @@ defmodule KsefHubWeb.Layouts do
                   Invoices
                 </.nav_link>
               </li>
-              <li :if={@current_role == "owner"}>
+              <li :if={@current_role == :owner}>
                 <.nav_link path={~p"/certificates"} current={@current_path} icon="hero-shield-check">
                   Certificates
                 </.nav_link>
               </li>
-              <li :if={@current_role == "owner"}>
+              <li :if={@current_role == :owner}>
                 <.nav_link path={~p"/tokens"} current={@current_path} icon="hero-key">
                   API Tokens
                 </.nav_link>
               </li>
-              <li :if={@current_role == "owner"}>
+              <li :if={@current_role == :owner}>
                 <.nav_link path={~p"/team"} current={@current_path} icon="hero-user-group">
                   Team
                 </.nav_link>

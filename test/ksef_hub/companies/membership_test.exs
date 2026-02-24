@@ -12,7 +12,7 @@ defmodule KsefHub.Companies.MembershipTest do
 
       changeset =
         %Membership{user_id: user.id, company_id: company.id}
-        |> Membership.changeset(%{role: "owner"})
+        |> Membership.changeset(%{role: :owner})
 
       assert changeset.valid?
     end
@@ -22,7 +22,7 @@ defmodule KsefHub.Companies.MembershipTest do
 
       changeset =
         %Membership{company_id: company.id}
-        |> Membership.changeset(%{role: "owner"})
+        |> Membership.changeset(%{role: :owner})
 
       assert errors_on(changeset).user_id
     end
@@ -32,7 +32,7 @@ defmodule KsefHub.Companies.MembershipTest do
 
       changeset =
         %Membership{user_id: user.id}
-        |> Membership.changeset(%{role: "owner"})
+        |> Membership.changeset(%{role: :owner})
 
       assert errors_on(changeset).company_id
     end
@@ -52,7 +52,7 @@ defmodule KsefHub.Companies.MembershipTest do
       user = insert(:user)
       company = insert(:company)
 
-      for role <- ~w(owner accountant reviewer) do
+      for role <- [:owner, :accountant, :reviewer] do
         changeset =
           %Membership{user_id: user.id, company_id: company.id}
           |> Membership.changeset(%{role: role})
@@ -79,7 +79,7 @@ defmodule KsefHub.Companies.MembershipTest do
 
       changeset =
         %Membership{user_id: user.id, company_id: company.id}
-        |> Membership.changeset(%{role: "owner", user_id: other_user.id})
+        |> Membership.changeset(%{role: :owner, user_id: other_user.id})
 
       # user_id should remain as set on the struct, not overwritten by attrs
       assert Ecto.Changeset.get_field(changeset, :user_id) == user.id
@@ -92,7 +92,7 @@ defmodule KsefHub.Companies.MembershipTest do
 
       {:error, changeset} =
         %Membership{user_id: user.id, company_id: company.id}
-        |> Membership.changeset(%{role: "accountant"})
+        |> Membership.changeset(%{role: :accountant})
         |> Repo.insert()
 
       assert "already a member of this company" in errors_on(changeset).user_id

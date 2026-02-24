@@ -16,7 +16,7 @@ defmodule KsefHubWeb.Api.TokenControllerTest do
 
       # Create token for different company
       company2 = insert(:company)
-      insert(:membership, user: user, company: company2, role: "owner")
+      insert(:membership, user: user, company: company2, role: :owner)
       {:ok, _} = Accounts.create_api_token(user.id, company2.id, %{name: "Other Company"})
 
       conn = conn |> api_conn(token) |> get("/api/tokens")
@@ -65,7 +65,7 @@ defmodule KsefHubWeb.Api.TokenControllerTest do
         )
 
       membership
-      |> Ecto.Changeset.change(role: "accountant")
+      |> Ecto.Changeset.change(role: :accountant)
       |> KsefHub.Repo.update!()
 
       conn =
@@ -95,7 +95,7 @@ defmodule KsefHubWeb.Api.TokenControllerTest do
       %{user: user, token: token} = create_owner_with_token()
 
       company2 = insert(:company)
-      insert(:membership, user: user, company: company2, role: "owner")
+      insert(:membership, user: user, company: company2, role: :owner)
 
       {:ok, %{api_token: other_token}} =
         Accounts.create_api_token(user.id, company2.id, %{name: "Other"})
@@ -111,14 +111,14 @@ defmodule KsefHubWeb.Api.TokenControllerTest do
       # Create a company with an owner who creates a token
       owner = insert(:user, google_uid: "uid-#{System.unique_integer([:positive])}")
       company = insert(:company)
-      insert(:membership, user: owner, company: company, role: "owner")
+      insert(:membership, user: owner, company: company, role: :owner)
 
       {:ok, %{api_token: target}} =
         Accounts.create_api_token(owner.id, company.id, %{name: "Target Token"})
 
       # Create an accountant with a token for the same company
       accountant = insert(:user, google_uid: "uid-#{System.unique_integer([:positive])}")
-      insert(:membership, user: accountant, company: company, role: "accountant")
+      insert(:membership, user: accountant, company: company, role: :accountant)
 
       {:ok, %{token: acct_plain_token}} =
         Accounts.create_api_token(accountant.id, %{name: "Acct Token"})

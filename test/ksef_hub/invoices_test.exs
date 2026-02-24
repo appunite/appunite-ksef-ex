@@ -339,7 +339,7 @@ defmodule KsefHub.InvoicesTest do
       insert(:invoice, type: :income, company: company)
       insert(:invoice, type: :expense, company: company)
 
-      result = Invoices.list_invoices_paginated(company.id, %{}, role: "reviewer")
+      result = Invoices.list_invoices_paginated(company.id, %{}, role: :reviewer)
 
       assert length(result.entries) == 1
       assert hd(result.entries).type == :expense
@@ -351,7 +351,7 @@ defmodule KsefHub.InvoicesTest do
       insert(:invoice, type: :income, company: company)
       insert(:invoice, type: :expense, company: company)
 
-      result = Invoices.list_invoices_paginated(company.id, %{type: :income}, role: "reviewer")
+      result = Invoices.list_invoices_paginated(company.id, %{type: :income}, role: :reviewer)
 
       assert length(result.entries) == 1
       assert hd(result.entries).type == :expense
@@ -360,20 +360,20 @@ defmodule KsefHub.InvoicesTest do
     test "get_invoice with role: reviewer returns nil for income invoice", %{company: company} do
       income = insert(:invoice, type: :income, company: company)
 
-      assert is_nil(Invoices.get_invoice(company.id, income.id, role: "reviewer"))
+      assert is_nil(Invoices.get_invoice(company.id, income.id, role: :reviewer))
     end
 
     test "get_invoice with role: reviewer returns expense invoice", %{company: company} do
       expense = insert(:invoice, type: :expense, company: company)
 
-      assert %Invoice{} = Invoices.get_invoice(company.id, expense.id, role: "reviewer")
+      assert %Invoice{} = Invoices.get_invoice(company.id, expense.id, role: :reviewer)
     end
 
     test "get_invoice! with role: reviewer raises for income invoice", %{company: company} do
       income = insert(:invoice, type: :income, company: company)
 
       assert_raise Ecto.NoResultsError, fn ->
-        Invoices.get_invoice!(company.id, income.id, role: "reviewer")
+        Invoices.get_invoice!(company.id, income.id, role: :reviewer)
       end
     end
 
@@ -381,7 +381,7 @@ defmodule KsefHub.InvoicesTest do
       insert(:invoice, type: :income, company: company)
       insert(:invoice, type: :expense, company: company)
 
-      result = Invoices.list_invoices_paginated(company.id, %{}, role: "owner")
+      result = Invoices.list_invoices_paginated(company.id, %{}, role: :owner)
 
       assert result.total_count == 2
     end
@@ -402,7 +402,7 @@ defmodule KsefHub.InvoicesTest do
       insert(:invoice, type: :expense, company: company)
       insert(:invoice, type: :expense, company: company)
 
-      assert Invoices.count_invoices(company.id, %{}, role: "reviewer") == 2
+      assert Invoices.count_invoices(company.id, %{}, role: :reviewer) == 2
     end
   end
 

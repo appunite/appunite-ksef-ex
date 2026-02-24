@@ -15,7 +15,7 @@ defmodule KsefHubWeb.TokenLiveTest do
       })
 
     company = insert(:company)
-    insert(:membership, user: user, company: company, role: "owner")
+    insert(:membership, user: user, company: company, role: :owner)
 
     conn = conn |> log_in_user(user, %{current_company_id: company.id})
     %{conn: conn, user: user, company: company}
@@ -38,7 +38,7 @@ defmodule KsefHubWeb.TokenLiveTest do
         Accounts.create_api_token(user.id, company.id, %{name: "This Company Token"})
 
       other_company = insert(:company)
-      insert(:membership, user: user, company: other_company, role: "owner")
+      insert(:membership, user: user, company: other_company, role: :owner)
 
       {:ok, %{api_token: hidden_token}} =
         Accounts.create_api_token(user.id, other_company.id, %{name: "Other Company Token"})
@@ -64,7 +64,7 @@ defmodule KsefHubWeb.TokenLiveTest do
           name: "Non-Owner"
         })
 
-      insert(:membership, user: non_owner, company: company, role: "accountant")
+      insert(:membership, user: non_owner, company: company, role: :accountant)
 
       conn =
         build_conn()

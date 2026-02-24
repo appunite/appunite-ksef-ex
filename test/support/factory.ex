@@ -50,7 +50,7 @@ defmodule KsefHub.Factory do
   @spec membership_factory() :: Membership.t()
   def membership_factory do
     %Membership{
-      role: "owner",
+      role: :owner,
       user: build(:user),
       company: build(:company)
     }

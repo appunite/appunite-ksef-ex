@@ -11,7 +11,7 @@ defmodule KsefHubWeb.InvitationAutoAcceptTest do
     test "sign up with pending invitation auto-creates membership", %{conn: conn} do
       company = insert(:company, name: "Pending Corp")
       owner = insert(:user)
-      insert(:membership, user: owner, company: company, role: "owner")
+      insert(:membership, user: owner, company: company, role: :owner)
 
       {:ok, _} =
         Invitations.create_invitation(owner.id, company.id, %{
@@ -39,7 +39,7 @@ defmodule KsefHubWeb.InvitationAutoAcceptTest do
 
       membership = Companies.get_membership(user.id, company.id)
       assert membership
-      assert membership.role == "accountant"
+      assert membership.role == :accountant
     end
   end
 end

@@ -121,8 +121,8 @@ defmodule KsefHub.CompaniesTest do
       company_b = insert(:company, name: "Beta")
       _company_c = insert(:company, name: "Gamma")
 
-      insert(:membership, user: user, company: company_a, role: "owner")
-      insert(:membership, user: user, company: company_b, role: "accountant")
+      insert(:membership, user: user, company: company_a, role: :owner)
+      insert(:membership, user: user, company: company_b, role: :accountant)
 
       companies = Companies.list_companies_for_user(user.id)
       assert length(companies) == 2
@@ -195,11 +195,11 @@ defmodule KsefHub.CompaniesTest do
     test "returns membership for user and company" do
       user = insert(:user)
       company = insert(:company)
-      membership = insert(:membership, user: user, company: company, role: "accountant")
+      membership = insert(:membership, user: user, company: company, role: :accountant)
 
       assert %Membership{} = found = Companies.get_membership(user.id, company.id)
       assert found.id == membership.id
-      assert found.role == "accountant"
+      assert found.role == :accountant
     end
 
     test "returns nil when no membership exists" do
@@ -214,7 +214,7 @@ defmodule KsefHub.CompaniesTest do
     test "returns membership for user and company" do
       user = insert(:user)
       company = insert(:company)
-      insert(:membership, user: user, company: company, role: "owner")
+      insert(:membership, user: user, company: company, role: :owner)
 
       assert %Membership{} = Companies.get_membership!(user.id, company.id)
     end
@@ -238,10 +238,10 @@ defmodule KsefHub.CompaniesTest do
                Companies.create_membership(%{
                  user_id: user.id,
                  company_id: company.id,
-                 role: "accountant"
+                 role: :accountant
                })
 
-      assert membership.role == "accountant"
+      assert membership.role == :accountant
       assert membership.user_id == user.id
       assert membership.company_id == company.id
     end
@@ -255,7 +255,7 @@ defmodule KsefHub.CompaniesTest do
                Companies.create_membership(%{
                  user_id: user.id,
                  company_id: company.id,
-                 role: "accountant"
+                 role: :accountant
                })
 
       assert "already a member of this company" in errors_on(changeset).user_id
@@ -274,7 +274,7 @@ defmodule KsefHub.CompaniesTest do
       assert company.nip == "1234567890"
       assert membership.user_id == user.id
       assert membership.company_id == company.id
-      assert membership.role == "owner"
+      assert membership.role == :owner
     end
 
     test "rolls back if company creation fails" do
@@ -305,8 +305,8 @@ defmodule KsefHub.CompaniesTest do
       company = insert(:company)
       user1 = insert(:user, name: "Alice")
       user2 = insert(:user, name: "Bob")
-      insert(:membership, user: user1, company: company, role: "owner")
-      insert(:membership, user: user2, company: company, role: "accountant")
+      insert(:membership, user: user1, company: company, role: :owner)
+      insert(:membership, user: user2, company: company, role: :accountant)
 
       members = Companies.list_members(company.id)
       assert length(members) == 2
@@ -319,8 +319,8 @@ defmodule KsefHub.CompaniesTest do
       other_company = insert(:company)
       user1 = insert(:user)
       user2 = insert(:user)
-      insert(:membership, user: user1, company: company, role: "owner")
-      insert(:membership, user: user2, company: other_company, role: "owner")
+      insert(:membership, user: user1, company: company, role: :owner)
+      insert(:membership, user: user2, company: other_company, role: :owner)
 
       members = Companies.list_members(company.id)
       assert length(members) == 1
@@ -332,7 +332,7 @@ defmodule KsefHub.CompaniesTest do
     test "deletes a membership" do
       company = insert(:company)
       user = insert(:user)
-      membership = insert(:membership, user: user, company: company, role: "accountant")
+      membership = insert(:membership, user: user, company: company, role: :accountant)
 
       assert {:ok, _deleted} = Companies.delete_membership(membership)
       assert is_nil(Companies.get_membership(user.id, company.id))
@@ -343,18 +343,18 @@ defmodule KsefHub.CompaniesTest do
     test "updates the role of a membership" do
       company = insert(:company)
       user = insert(:user)
-      membership = insert(:membership, user: user, company: company, role: "accountant")
+      membership = insert(:membership, user: user, company: company, role: :accountant)
 
-      assert {:ok, updated} = Companies.update_membership_role(membership, "reviewer")
-      assert updated.role == "reviewer"
+      assert {:ok, updated} = Companies.update_membership_role(membership, :reviewer)
+      assert updated.role == :reviewer
     end
 
     test "rejects invalid role" do
       company = insert(:company)
       user = insert(:user)
-      membership = insert(:membership, user: user, company: company, role: "accountant")
+      membership = insert(:membership, user: user, company: company, role: :accountant)
 
-      assert {:error, changeset} = Companies.update_membership_role(membership, "superadmin")
+      assert {:error, changeset} = Companies.update_membership_role(membership, :superadmin)
       assert "is invalid" in errors_on(changeset)[:role]
     end
   end
@@ -363,33 +363,33 @@ defmodule KsefHub.CompaniesTest do
     test "returns true when user has the specified role" do
       user = insert(:user)
       company = insert(:company)
-      insert(:membership, user: user, company: company, role: "owner")
+      insert(:membership, user: user, company: company, role: :owner)
 
-      assert Companies.has_role?(user.id, company.id, "owner")
+      assert Companies.has_role?(user.id, company.id, :owner)
     end
 
     test "returns false when user has a different role" do
       user = insert(:user)
       company = insert(:company)
-      insert(:membership, user: user, company: company, role: "accountant")
+      insert(:membership, user: user, company: company, role: :accountant)
 
-      refute Companies.has_role?(user.id, company.id, "owner")
+      refute Companies.has_role?(user.id, company.id, :owner)
     end
 
     test "returns false when user has no membership" do
       user = insert(:user)
       company = insert(:company)
 
-      refute Companies.has_role?(user.id, company.id, "owner")
+      refute Companies.has_role?(user.id, company.id, :owner)
     end
 
     test "accepts a list of roles" do
       user = insert(:user)
       company = insert(:company)
-      insert(:membership, user: user, company: company, role: "accountant")
+      insert(:membership, user: user, company: company, role: :accountant)
 
-      assert Companies.has_role?(user.id, company.id, ~w(owner accountant))
-      refute Companies.has_role?(user.id, company.id, ~w(owner reviewer))
+      assert Companies.has_role?(user.id, company.id, [:owner, :accountant])
+      refute Companies.has_role?(user.id, company.id, [:owner, :reviewer])
     end
   end
 
@@ -397,19 +397,19 @@ defmodule KsefHub.CompaniesTest do
     test "returns {:ok, membership} when user has required role" do
       user = insert(:user)
       company = insert(:company)
-      insert(:membership, user: user, company: company, role: "owner")
+      insert(:membership, user: user, company: company, role: :owner)
 
-      assert {:ok, %Membership{role: "owner"}} =
-               Companies.authorize(user.id, company.id, ~w(owner))
+      assert {:ok, %Membership{role: :owner}} =
+               Companies.authorize(user.id, company.id, [:owner])
     end
 
     test "returns {:error, :unauthorized} when user has wrong role" do
       user = insert(:user)
       company = insert(:company)
-      insert(:membership, user: user, company: company, role: "reviewer")
+      insert(:membership, user: user, company: company, role: :reviewer)
 
       assert {:error, :unauthorized} =
-               Companies.authorize(user.id, company.id, ~w(owner))
+               Companies.authorize(user.id, company.id, [:owner])
     end
 
     test "returns {:error, :unauthorized} when user has no membership" do
@@ -417,7 +417,7 @@ defmodule KsefHub.CompaniesTest do
       company = insert(:company)
 
       assert {:error, :unauthorized} =
-               Companies.authorize(user.id, company.id, ~w(owner))
+               Companies.authorize(user.id, company.id, [:owner])
     end
   end
 end

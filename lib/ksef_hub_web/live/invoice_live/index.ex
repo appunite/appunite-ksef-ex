@@ -52,7 +52,7 @@ defmodule KsefHubWeb.InvoiceLive.Index do
       per_page: result.per_page,
       total_count: result.total_count,
       total_pages: result.total_pages,
-      is_reviewer: role == "reviewer"
+      is_reviewer: role == :reviewer
     ]
   end
 
