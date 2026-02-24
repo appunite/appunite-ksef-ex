@@ -37,6 +37,8 @@ config :ksef_hub, :pkcs12_converter, KsefHub.Credentials.Pkcs12Converter.Mock
 config :ksef_hub, :certificate_info, KsefHub.Credentials.CertificateInfo.Mock
 config :ksef_hub, :prediction_client, KsefHub.Predictions.Mock
 config :ksef_hub, :unstructured_client, KsefHub.Unstructured.Mock
+config :ksef_hub, :unstructured_req_options, plug: {Req.Test, KsefHub.Unstructured.Client}
+config :ksef_hub, :prediction_service_req_options, plug: {Req.Test, KsefHub.Predictions.PredictionService}
 
 # Print only warnings and errors during test
 config :logger, level: :warning
