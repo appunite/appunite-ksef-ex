@@ -9,7 +9,7 @@ defmodule KsefHub.Invitations.InvitationNotifierTest do
                InvitationNotifier.deliver_invitation(
                  "invitee@example.com",
                  "https://ksef-hub.com/invitations/accept/abc123",
-                 %{company_name: "Acme Corp", role: "accountant"}
+                 %{company_name: "Acme Corp", role: :accountant}
                )
 
       assert email.to == [{"", "invitee@example.com"}]
@@ -26,7 +26,7 @@ defmodule KsefHub.Invitations.InvitationNotifierTest do
                InvitationNotifier.deliver_invitation(
                  "reviewer@example.com",
                  "https://ksef-hub.com/invitations/accept/xyz",
-                 %{company_name: "Test Co", role: "reviewer"}
+                 %{company_name: "Test Co", role: :reviewer}
                )
 
       assert email.text_body =~ "reviewer"

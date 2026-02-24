@@ -24,7 +24,7 @@ defmodule KsefHub.Invitations.InvitationNotifier do
     - `accept_url` — the full URL with the invitation token
     - `context` — a map with `:company_name` and `:role`
   """
-  @spec deliver_invitation(String.t(), String.t(), %{company_name: String.t(), role: String.t()}) ::
+  @spec deliver_invitation(String.t(), String.t(), %{company_name: String.t(), role: atom()}) ::
           {:ok, Swoosh.Email.t()} | {:error, term()}
   def deliver_invitation(email, accept_url, %{company_name: company_name, role: role}) do
     deliver(email, "You've been invited to join #{company_name} on KSeF Hub", """

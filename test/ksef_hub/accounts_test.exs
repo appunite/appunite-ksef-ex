@@ -14,7 +14,7 @@ defmodule KsefHub.AccountsTest do
   defp create_owner_with_company do
     user = create_user()
     company = insert(:company)
-    insert(:membership, user: user, company: company, role: "owner")
+    insert(:membership, user: user, company: company, role: :owner)
     {user, company}
   end
 
@@ -360,7 +360,7 @@ defmodule KsefHub.AccountsTest do
     test "create_api_token/3 rejects non-owner" do
       user = create_user()
       company = insert(:company)
-      insert(:membership, user: user, company: company, role: "accountant")
+      insert(:membership, user: user, company: company, role: :accountant)
 
       assert {:error, :unauthorized} =
                Accounts.create_api_token(user.id, company.id, %{name: "Nope"})
@@ -386,7 +386,7 @@ defmodule KsefHub.AccountsTest do
     test "list_api_tokens/2 returns tokens scoped to user + company" do
       {user, company1} = create_owner_with_company()
       company2 = insert(:company)
-      insert(:membership, user: user, company: company2, role: "owner")
+      insert(:membership, user: user, company: company2, role: :owner)
 
       create_company_api_token(user, company1, %{name: "Company1 Token"})
       create_company_api_token(user, company2, %{name: "Company2 Token"})
@@ -400,7 +400,7 @@ defmodule KsefHub.AccountsTest do
     test "list_api_tokens/2 does not return other users' tokens for the same company" do
       {user1, company} = create_owner_with_company()
       user2 = create_user()
-      insert(:membership, user: user2, company: company, role: "owner")
+      insert(:membership, user: user2, company: company, role: :owner)
 
       create_company_api_token(user1, company, %{name: "User1 Token"})
       create_company_api_token(user2, company, %{name: "User2 Token"})
@@ -421,7 +421,7 @@ defmodule KsefHub.AccountsTest do
     test "revoke_api_token/3 rejects token from different company" do
       {user, company1} = create_owner_with_company()
       company2 = insert(:company)
-      insert(:membership, user: user, company: company2, role: "owner")
+      insert(:membership, user: user, company: company2, role: :owner)
 
       %{api_token: api_token} = create_company_api_token(user, company1)
 
@@ -432,7 +432,7 @@ defmodule KsefHub.AccountsTest do
     test "revoke_api_token/3 rejects another user's token" do
       {user1, company} = create_owner_with_company()
       user2 = create_user()
-      insert(:membership, user: user2, company: company, role: "owner")
+      insert(:membership, user: user2, company: company, role: :owner)
 
       %{api_token: api_token} = create_company_api_token(user1, company)
 
@@ -443,7 +443,7 @@ defmodule KsefHub.AccountsTest do
     test "revoke_api_token/3 rejects non-owner" do
       user = create_user()
       company = insert(:company)
-      insert(:membership, user: user, company: company, role: "accountant")
+      insert(:membership, user: user, company: company, role: :accountant)
 
       # Insert a token directly (bypassing owner check) to test revoke guard
       token = insert(:api_token, created_by: user, company: company)

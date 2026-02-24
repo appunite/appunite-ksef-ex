@@ -29,7 +29,7 @@ defmodule KsefHubWeb.LiveAuthTest do
     test "assigns current_user for valid session with membership", %{conn: conn} do
       user = insert(:user)
       company = insert(:company)
-      insert(:membership, user: user, company: company, role: "owner")
+      insert(:membership, user: user, company: company, role: :owner)
 
       {:ok, view, _html} =
         conn
@@ -43,7 +43,7 @@ defmodule KsefHubWeb.LiveAuthTest do
       user = insert(:user)
       company_a = insert(:company, name: "My Company")
       _company_b = insert(:company, name: "Other Company")
-      insert(:membership, user: user, company: company_a, role: "owner")
+      insert(:membership, user: user, company: company_a, role: :owner)
 
       {:ok, view, _html} =
         conn
@@ -67,7 +67,7 @@ defmodule KsefHubWeb.LiveAuthTest do
       user = insert(:user)
       company = insert(:company, name: "Mine")
       other = insert(:company, name: "NotMine")
-      insert(:membership, user: user, company: company, role: "owner")
+      insert(:membership, user: user, company: company, role: :owner)
 
       # Attempt to set current_company_id to a company user doesn't belong to
       {:ok, view, _html} =
@@ -82,7 +82,7 @@ defmodule KsefHubWeb.LiveAuthTest do
     test "assigns current_role from membership and hides owner-only nav", %{conn: conn} do
       user = insert(:user)
       company = insert(:company)
-      insert(:membership, user: user, company: company, role: "accountant")
+      insert(:membership, user: user, company: company, role: :accountant)
 
       {:ok, view, _html} =
         conn

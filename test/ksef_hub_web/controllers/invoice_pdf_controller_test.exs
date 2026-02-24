@@ -18,7 +18,7 @@ defmodule KsefHubWeb.InvoicePdfControllerTest do
       })
 
     company = insert(:company)
-    insert(:membership, user: user, company: company, role: "owner")
+    insert(:membership, user: user, company: company, role: :owner)
 
     conn = log_in_user(conn, user, %{current_company_id: company.id})
     %{conn: conn, user: user, company: company}

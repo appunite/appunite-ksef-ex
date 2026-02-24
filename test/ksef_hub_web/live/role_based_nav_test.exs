@@ -8,7 +8,7 @@ defmodule KsefHubWeb.RoleBasedNavTest do
     test "owner sees Certificates and API Tokens nav items", %{conn: conn} do
       user = insert(:user)
       company = insert(:company)
-      insert(:membership, user: user, company: company, role: "owner")
+      insert(:membership, user: user, company: company, role: :owner)
 
       {:ok, view, _html} =
         conn
@@ -24,7 +24,7 @@ defmodule KsefHubWeb.RoleBasedNavTest do
     test "accountant does not see Certificates or API Tokens nav items", %{conn: conn} do
       user = insert(:user)
       company = insert(:company)
-      insert(:membership, user: user, company: company, role: "accountant")
+      insert(:membership, user: user, company: company, role: :accountant)
 
       {:ok, view, _html} =
         conn
@@ -40,7 +40,7 @@ defmodule KsefHubWeb.RoleBasedNavTest do
     test "reviewer does not see Certificates or API Tokens nav items", %{conn: conn} do
       user = insert(:user)
       company = insert(:company)
-      insert(:membership, user: user, company: company, role: "reviewer")
+      insert(:membership, user: user, company: company, role: :reviewer)
 
       {:ok, view, _html} =
         conn

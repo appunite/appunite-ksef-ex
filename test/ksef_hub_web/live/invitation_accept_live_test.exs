@@ -10,7 +10,7 @@ defmodule KsefHubWeb.InvitationAcceptLiveTest do
   setup %{conn: conn} do
     company = insert(:company, name: "Acme Corp")
     owner = insert(:user)
-    insert(:membership, user: owner, company: company, role: "owner")
+    insert(:membership, user: owner, company: company, role: :owner)
     %{conn: conn, company: company, owner: owner}
   end
 
@@ -26,7 +26,7 @@ defmodule KsefHubWeb.InvitationAcceptLiveTest do
       {:ok, %{token: token}} =
         Invitations.create_invitation(owner.id, company.id, %{
           email: "accepter@example.com",
-          role: "accountant"
+          role: :accountant
         })
 
       conn = log_in_user(conn, user)
@@ -44,7 +44,7 @@ defmodule KsefHubWeb.InvitationAcceptLiveTest do
       {:ok, %{invitation: invitation, token: expired_token}} =
         Invitations.create_invitation(owner.id, company.id, %{
           email: "expired-accept@example.com",
-          role: "accountant"
+          role: :accountant
         })
 
       invitation
@@ -82,11 +82,11 @@ defmodule KsefHubWeb.InvitationAcceptLiveTest do
       {:ok, %{token: token}} =
         Invitations.create_invitation(owner.id, company.id, %{
           email: "already@example.com",
-          role: "reviewer"
+          role: :reviewer
         })
 
       # Now add membership, simulating the user joined through another path
-      insert(:membership, user: already_member, company: company, role: "accountant")
+      insert(:membership, user: already_member, company: company, role: :accountant)
 
       already_conn = log_in_user(conn, already_member)
 
@@ -102,7 +102,7 @@ defmodule KsefHubWeb.InvitationAcceptLiveTest do
       {:ok, %{token: token}} =
         Invitations.create_invitation(owner.id, company.id, %{
           email: "newbie@example.com",
-          role: "accountant"
+          role: :accountant
         })
 
       assert {:error, {:redirect, %{to: redirect_to, flash: flash}}} =

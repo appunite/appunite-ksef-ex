@@ -24,7 +24,7 @@ defmodule KsefHub.Sync.InvoiceFetcherTest do
       from = DateTime.add(DateTime.utc_now(), -3600)
 
       assert {:ok, 0, nil, 0} =
-               InvoiceFetcher.fetch_all("token", "income", company.nip, company.id, from)
+               InvoiceFetcher.fetch_all("token", :income, company.nip, company.id, from)
     end
 
     test "fetches and upserts invoices", %{company: company} do
@@ -55,7 +55,7 @@ defmodule KsefHub.Sync.InvoiceFetcherTest do
       from = DateTime.add(DateTime.utc_now(), -3600)
 
       assert {:ok, 1, _max_ts, 0} =
-               InvoiceFetcher.fetch_all("token", "income", company.nip, company.id, from)
+               InvoiceFetcher.fetch_all("token", :income, company.nip, company.id, from)
 
       invoice = KsefHub.Invoices.get_invoice_by_ksef_number(company.id, "FETCH-001")
       assert invoice != nil
@@ -99,7 +99,7 @@ defmodule KsefHub.Sync.InvoiceFetcherTest do
       from = DateTime.add(DateTime.utc_now(), -3600)
 
       assert {:ok, 1, _, 0} =
-               InvoiceFetcher.fetch_all("token", "income", company.nip, company.id, from)
+               InvoiceFetcher.fetch_all("token", :income, company.nip, company.id, from)
     end
 
     test "does not count re-synced (updated) invoices", %{company: company} do
@@ -111,7 +111,7 @@ defmodule KsefHub.Sync.InvoiceFetcherTest do
         ksef_number: "RESYNC-001",
         company: company,
         seller_nip: "1234567890",
-        type: "income",
+        type: :income,
         inserted_at: NaiveDateTime.add(NaiveDateTime.utc_now(), -60)
       )
 
@@ -139,7 +139,7 @@ defmodule KsefHub.Sync.InvoiceFetcherTest do
       from = DateTime.add(DateTime.utc_now(), -3600)
 
       assert {:ok, 0, _max_ts, 0} =
-               InvoiceFetcher.fetch_all("token", "income", company.nip, company.id, from)
+               InvoiceFetcher.fetch_all("token", :income, company.nip, company.id, from)
     end
 
     test "handles rate limiting with retry", %{company: company} do
@@ -157,7 +157,7 @@ defmodule KsefHub.Sync.InvoiceFetcherTest do
       from = DateTime.add(DateTime.utc_now(), -3600)
 
       assert {:ok, 0, nil, 0} =
-               InvoiceFetcher.fetch_all("token", "income", company.nip, company.id, from)
+               InvoiceFetcher.fetch_all("token", :income, company.nip, company.id, from)
     end
   end
 end

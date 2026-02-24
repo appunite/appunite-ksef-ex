@@ -7,7 +7,7 @@ defmodule KsefHubWeb.CompanySwitchControllerTest do
     test "user with membership can switch company", %{conn: conn} do
       user = insert(:user)
       company = insert(:company)
-      insert(:membership, user: user, company: company, role: "owner")
+      insert(:membership, user: user, company: company, role: :owner)
 
       conn =
         conn
@@ -48,7 +48,7 @@ defmodule KsefHubWeb.CompanySwitchControllerTest do
     test "respects return_to parameter", %{conn: conn} do
       user = insert(:user)
       company = insert(:company)
-      insert(:membership, user: user, company: company, role: "accountant")
+      insert(:membership, user: user, company: company, role: :accountant)
 
       conn =
         conn
@@ -61,7 +61,7 @@ defmodule KsefHubWeb.CompanySwitchControllerTest do
     test "rejects external URL in return_to (open redirect protection)", %{conn: conn} do
       user = insert(:user)
       company = insert(:company)
-      insert(:membership, user: user, company: company, role: "owner")
+      insert(:membership, user: user, company: company, role: :owner)
 
       conn =
         conn
@@ -74,7 +74,7 @@ defmodule KsefHubWeb.CompanySwitchControllerTest do
     test "rejects protocol-relative URL in return_to", %{conn: conn} do
       user = insert(:user)
       company = insert(:company)
-      insert(:membership, user: user, company: company, role: "owner")
+      insert(:membership, user: user, company: company, role: :owner)
 
       conn =
         conn

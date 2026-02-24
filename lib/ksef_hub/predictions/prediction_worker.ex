@@ -22,7 +22,7 @@ defmodule KsefHub.Predictions.PredictionWorker do
   """
   @spec maybe_enqueue(Invoices.Invoice.t()) ::
           {:ok, Oban.Job.t()} | {:error, Ecto.Changeset.t()} | :skip
-  def maybe_enqueue(%{type: "expense", id: id, company_id: company_id}) do
+  def maybe_enqueue(%{type: :expense, id: id, company_id: company_id}) do
     %{invoice_id: id, company_id: company_id}
     |> new()
     |> Oban.insert()
@@ -37,10 +37,10 @@ defmodule KsefHub.Predictions.PredictionWorker do
       nil ->
         {:cancel, "invoice not found"}
 
-      %{prediction_status: "manual"} ->
+      %{prediction_status: :manual} ->
         {:cancel, "already manually classified"}
 
-      %{type: "expense"} = invoice ->
+      %{type: :expense} = invoice ->
         run_prediction(invoice)
 
       _non_expense ->

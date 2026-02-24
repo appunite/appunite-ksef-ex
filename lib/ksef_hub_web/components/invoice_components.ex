@@ -5,31 +5,35 @@ defmodule KsefHubWeb.InvoiceComponents do
 
   use Phoenix.Component
 
-  attr :type, :string, required: true
+  @doc "Renders a coloured badge for the invoice type (:income / :expense)."
+  @spec type_badge(map()) :: Phoenix.LiveView.Rendered.t()
+  attr :type, :atom, required: true
 
   def type_badge(assigns) do
     ~H"""
     <span class={[
       "inline-flex items-center px-2 py-0.5 rounded-md text-xs font-medium border",
-      @type == "income" && "bg-success/10 text-success border-success/20",
-      @type == "expense" && "bg-warning/10 text-warning border-warning/20",
-      @type not in ["income", "expense"] && "bg-base-200 text-base-content/60 border-base-300"
+      @type == :income && "bg-success/10 text-success border-success/20",
+      @type == :expense && "bg-warning/10 text-warning border-warning/20",
+      @type not in [:income, :expense] && "bg-base-200 text-base-content/60 border-base-300"
     ]}>
       {@type}
     </span>
     """
   end
 
-  attr :status, :string, required: true
+  @doc "Renders a coloured badge for the invoice status (:pending / :approved / :rejected)."
+  @spec status_badge(map()) :: Phoenix.LiveView.Rendered.t()
+  attr :status, :atom, required: true
 
   def status_badge(assigns) do
     ~H"""
     <span class={[
       "inline-flex items-center px-2 py-0.5 rounded-md text-xs font-medium border",
-      @status == "pending" && "bg-warning/10 text-warning border-warning/20",
-      @status == "approved" && "bg-success/10 text-success border-success/20",
-      @status == "rejected" && "bg-error/10 text-error border-error/20",
-      @status not in ["pending", "approved", "rejected"] &&
+      @status == :pending && "bg-warning/10 text-warning border-warning/20",
+      @status == :approved && "bg-success/10 text-success border-success/20",
+      @status == :rejected && "bg-error/10 text-error border-error/20",
+      @status not in [:pending, :approved, :rejected] &&
         "bg-base-200 text-base-content/60 border-base-300"
     ]}>
       {@status}

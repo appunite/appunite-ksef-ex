@@ -15,7 +15,7 @@ defmodule KsefHub.Predictions.PredictionWorkerTest do
 
   describe "maybe_enqueue/1" do
     test "enqueues job for expense invoices", %{company: company} do
-      invoice = insert(:manual_invoice, company: company, type: "expense")
+      invoice = insert(:manual_invoice, company: company, type: :expense)
 
       # Oban inline mode will execute the job immediately, so we need mock expectations
       expect_successful_predictions()
@@ -24,7 +24,7 @@ defmodule KsefHub.Predictions.PredictionWorkerTest do
     end
 
     test "skips income invoices", %{company: company} do
-      invoice = insert(:invoice, company: company, type: "income")
+      invoice = insert(:invoice, company: company, type: :income)
 
       assert :skip = PredictionWorker.maybe_enqueue(invoice)
     end
@@ -32,7 +32,7 @@ defmodule KsefHub.Predictions.PredictionWorkerTest do
 
   describe "perform/1" do
     test "runs prediction for expense invoices", %{company: company} do
-      invoice = insert(:manual_invoice, company: company, type: "expense")
+      invoice = insert(:manual_invoice, company: company, type: :expense)
 
       expect_successful_predictions()
 
@@ -52,7 +52,7 @@ defmodule KsefHub.Predictions.PredictionWorkerTest do
     end
 
     test "cancels for income invoices", %{company: company} do
-      invoice = insert(:invoice, company: company, type: "income")
+      invoice = insert(:invoice, company: company, type: :income)
       job = build_job(invoice)
 
       assert {:cancel, "not an expense invoice"} = PredictionWorker.perform(job)
@@ -62,8 +62,8 @@ defmodule KsefHub.Predictions.PredictionWorkerTest do
       invoice =
         insert(:manual_invoice,
           company: company,
-          type: "expense",
-          prediction_status: "manual"
+          type: :expense,
+          prediction_status: :manual
         )
 
       job = build_job(invoice)
@@ -72,7 +72,7 @@ defmodule KsefHub.Predictions.PredictionWorkerTest do
     end
 
     test "cancels when prediction service is not configured", %{company: company} do
-      invoice = insert(:manual_invoice, company: company, type: "expense")
+      invoice = insert(:manual_invoice, company: company, type: :expense)
 
       KsefHub.Predictions.Mock
       |> expect(:predict_category, fn _input ->
@@ -84,7 +84,7 @@ defmodule KsefHub.Predictions.PredictionWorkerTest do
     end
 
     test "returns error for transient failures to allow retry", %{company: company} do
-      invoice = insert(:manual_invoice, company: company, type: "expense")
+      invoice = insert(:manual_invoice, company: company, type: :expense)
 
       KsefHub.Predictions.Mock
       |> expect(:predict_category, fn _input ->

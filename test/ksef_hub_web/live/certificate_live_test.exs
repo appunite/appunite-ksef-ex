@@ -22,7 +22,7 @@ defmodule KsefHubWeb.CertificateLiveTest do
       })
 
     company = insert(:company)
-    insert(:membership, user: user, company: company, role: "owner")
+    insert(:membership, user: user, company: company, role: :owner)
 
     # Stub auth mocks so AuthWorker (inline via Oban) succeeds after certificate upload
     stub(KsefHub.KsefClient.Mock, :get_challenge, fn ->

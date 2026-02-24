@@ -7,6 +7,7 @@ defmodule KsefHub.Invoices do
 
   require Logger
 
+  alias KsefHub.Companies.Membership
   alias KsefHub.Invoices.{Category, Invoice, InvoiceTag, Tag}
   alias KsefHub.Predictions.PredictionWorker
   alias KsefHub.Repo
@@ -23,13 +24,13 @@ defmodule KsefHub.Invoices do
   via `:page` (1-based, default 1) and `:per_page` (default 25, max 100).
 
   ## Filters
-    * `:type` - "income" or "expense"
-    * `:status` - "pending", "approved", or "rejected"
+    * `:type` - `:income` or `:expense`
+    * `:status` - `:pending`, `:approved`, or `:rejected`
     * `:date_from` - earliest issue_date (inclusive)
     * `:date_to` - latest issue_date (inclusive)
     * `:seller_nip` - filter by seller NIP
     * `:buyer_nip` - filter by buyer NIP
-    * `:source` - "ksef", "manual", or "pdf_upload"
+    * `:source` - `:ksef`, `:manual`, or `:pdf_upload`
     * `:query` - search across invoice_number, seller_name, buyer_name
     * `:page` - page number (1-based, default 1)
     * `:per_page` - results per page (default 25, max 100)
@@ -228,7 +229,7 @@ defmodule KsefHub.Invoices do
   def recalculate_extraction_status(%Invoice{} = invoice, attrs) do
     atom_attrs = atomize_known_keys(attrs)
     merged = Map.merge(Map.from_struct(invoice), atom_attrs)
-    new_status = if all_critical_fields_present?(merged), do: "complete", else: "partial"
+    new_status = if all_critical_fields_present?(merged), do: :complete, else: :partial
     Map.put(attrs, :extraction_status, new_status)
   end
 
@@ -248,15 +249,15 @@ defmodule KsefHub.Invoices do
   @spec approve_invoice(Invoice.t()) ::
           {:ok, Invoice.t()}
           | {:error, Ecto.Changeset.t()}
-          | {:error, {:invalid_type, String.t()}}
+          | {:error, {:invalid_type, Invoice.invoice_type()}}
           | {:error, :incomplete_extraction}
-  def approve_invoice(%Invoice{type: "expense", extraction_status: status})
-      when status in ["partial", "failed"] do
+  def approve_invoice(%Invoice{type: :expense, extraction_status: status})
+      when status in [:partial, :failed] do
     {:error, :incomplete_extraction}
   end
 
-  def approve_invoice(%Invoice{type: "expense"} = invoice) do
-    update_invoice(invoice, %{status: "approved"})
+  def approve_invoice(%Invoice{type: :expense} = invoice) do
+    update_invoice(invoice, %{status: :approved})
   end
 
   def approve_invoice(%Invoice{type: type}), do: {:error, {:invalid_type, type}}
@@ -267,9 +268,9 @@ defmodule KsefHub.Invoices do
   @spec reject_invoice(Invoice.t()) ::
           {:ok, Invoice.t()}
           | {:error, Ecto.Changeset.t()}
-          | {:error, {:invalid_type, String.t()}}
-  def reject_invoice(%Invoice{type: "expense"} = invoice) do
-    update_invoice(invoice, %{status: "rejected"})
+          | {:error, {:invalid_type, Invoice.invoice_type()}}
+  def reject_invoice(%Invoice{type: :expense} = invoice) do
+    update_invoice(invoice, %{status: :rejected})
   end
 
   def reject_invoice(%Invoice{type: type}), do: {:error, {:invalid_type, type}}
@@ -277,7 +278,7 @@ defmodule KsefHub.Invoices do
   @doc """
   Creates a manual invoice, optionally detecting duplicates by ksef_number.
 
-  Forces `source: "manual"` and strips KSeF-only fields. If a `ksef_number` is
+  Forces `source: :manual` and strips KSeF-only fields. If a `ksef_number` is
   provided and an existing non-duplicate invoice with the same (company_id, ksef_number)
   exists, the new invoice is marked as a suspected duplicate.
   """
@@ -288,7 +289,7 @@ defmodule KsefHub.Invoices do
       attrs
       |> Map.drop([:ksef_acquisition_date, :permanent_storage_date])
       |> Map.drop(["ksef_acquisition_date", "permanent_storage_date"])
-      |> Map.merge(%{source: "manual", company_id: company_id})
+      |> Map.merge(%{source: :manual, company_id: company_id})
 
     case create_or_retry_duplicate(company_id, attrs) do
       {:ok, invoice} ->
@@ -322,7 +323,7 @@ defmodule KsefHub.Invoices do
     attrs
     |> Map.merge(%{
       duplicate_of_id: find_original_id(company_id, attrs),
-      duplicate_status: "suspected"
+      duplicate_status: :suspected
     })
     |> create_invoice()
   end
@@ -332,13 +333,13 @@ defmodule KsefHub.Invoices do
 
   Calls the extraction sidecar to parse the PDF, maps extracted fields to invoice
   attrs, determines extraction status based on which critical fields are present,
-  and creates the invoice. Missing fields result in `extraction_status: "partial"`
+  and creates the invoice. Missing fields result in `extraction_status: :partial`
   rather than validation errors.
 
   ## Parameters
     * `company_id` - the company UUID
     * `pdf_binary` - raw PDF file content
-    * `opts` - must include `:type` ("income" or "expense"), optionally `:filename`
+    * `opts` - must include `:type` (`:income` or `:expense`), optionally `:filename`
   """
   @spec create_pdf_upload_invoice(Ecto.UUID.t(), binary(), map()) ::
           {:ok, Invoice.t()} | {:error, term()}
@@ -378,23 +379,23 @@ defmodule KsefHub.Invoices do
           {:ok, Invoice.t()} | {:error, term()}
   defp do_create_pdf_upload_failed(company_id, pdf_binary, type, filename) do
     %{
-      source: "pdf_upload",
+      source: :pdf_upload,
       type: type,
       company_id: company_id,
       pdf_content: pdf_binary,
       original_filename: filename,
-      extraction_status: "failed"
+      extraction_status: :failed
     }
     |> create_invoice()
   end
 
-  @spec maybe_enqueue_prediction(String.t(), Invoice.t()) :: :ok | :skip | :enqueue_failed
-  defp maybe_enqueue_prediction("complete", invoice), do: enqueue_prediction(invoice)
+  @spec maybe_enqueue_prediction(atom(), Invoice.t()) :: :ok | :skip | :enqueue_failed
+  defp maybe_enqueue_prediction(:complete, invoice), do: enqueue_prediction(invoice)
   defp maybe_enqueue_prediction(_status, _invoice), do: :ok
 
-  @spec determine_extraction_status(map()) :: String.t()
+  @spec determine_extraction_status(map()) :: atom()
   defp determine_extraction_status(extracted) do
-    if all_critical_fields_present?(extracted), do: "complete", else: "partial"
+    if all_critical_fields_present?(extracted), do: :complete, else: :partial
   end
 
   @spec all_critical_fields_present?(map()) :: boolean()
@@ -411,7 +412,7 @@ defmodule KsefHub.Invoices do
           binary(),
           String.t(),
           String.t() | nil,
-          String.t()
+          atom()
         ) ::
           map()
   defp build_pdf_upload_attrs(
@@ -423,7 +424,7 @@ defmodule KsefHub.Invoices do
          extraction_status
        ) do
     %{
-      source: "pdf_upload",
+      source: :pdf_upload,
       type: type,
       company_id: company_id,
       pdf_content: pdf_binary,
@@ -489,17 +490,17 @@ defmodule KsefHub.Invoices do
   @doc """
   Confirms a suspected duplicate invoice.
 
-  Only valid when `duplicate_of_id` is set and `duplicate_status` is `"suspected"`.
+  Only valid when `duplicate_of_id` is set and `duplicate_status` is `:suspected`.
   Returns `{:error, :not_a_duplicate}` when no duplicate_of_id is set,
-  or `{:error, :invalid_status}` when duplicate_status is not `"suspected"`.
+  or `{:error, :invalid_status}` when duplicate_status is not `:suspected`.
   """
   @spec confirm_duplicate(Invoice.t()) ::
           {:ok, Invoice.t()} | {:error, Ecto.Changeset.t() | :not_a_duplicate | :invalid_status}
   def confirm_duplicate(%Invoice{duplicate_of_id: nil}), do: {:error, :not_a_duplicate}
 
-  def confirm_duplicate(%Invoice{duplicate_status: "suspected"} = invoice) do
+  def confirm_duplicate(%Invoice{duplicate_status: :suspected} = invoice) do
     invoice
-    |> Invoice.duplicate_changeset(%{duplicate_status: "confirmed"})
+    |> Invoice.duplicate_changeset(%{duplicate_status: :confirmed})
     |> Repo.update()
   end
 
@@ -508,7 +509,7 @@ defmodule KsefHub.Invoices do
   @doc """
   Dismisses a duplicate invoice.
 
-  Valid when `duplicate_of_id` is set and `duplicate_status` is `"suspected"` or `"confirmed"`.
+  Valid when `duplicate_of_id` is set and `duplicate_status` is `:suspected` or `:confirmed`.
   Returns `{:error, :not_a_duplicate}` when no duplicate_of_id is set,
   or `{:error, :invalid_status}` when duplicate_status is not dismissable.
   """
@@ -517,9 +518,9 @@ defmodule KsefHub.Invoices do
   def dismiss_duplicate(%Invoice{duplicate_of_id: nil}), do: {:error, :not_a_duplicate}
 
   def dismiss_duplicate(%Invoice{duplicate_status: status} = invoice)
-      when status in ~w(suspected confirmed) do
+      when status in [:suspected, :confirmed] do
     invoice
-    |> Invoice.duplicate_changeset(%{duplicate_status: "dismissed"})
+    |> Invoice.duplicate_changeset(%{duplicate_status: :dismissed})
     |> Repo.update()
   end
 
@@ -529,7 +530,7 @@ defmodule KsefHub.Invoices do
   Returns invoice counts grouped by type and status for a company.
   """
   @spec count_by_type_and_status(Ecto.UUID.t()) :: %{
-          {String.t(), String.t()} => non_neg_integer()
+          {Invoice.invoice_type(), Invoice.invoice_status()} => non_neg_integer()
         }
   def count_by_type_and_status(company_id) do
     Invoice
@@ -696,13 +697,13 @@ defmodule KsefHub.Invoices do
   end
 
   @doc """
-  Marks an invoice's prediction status as `"manual"`, indicating the user
+  Marks an invoice's prediction status as `:manual`, indicating the user
   overrode or manually set the category/tags.
   """
   @spec mark_prediction_manual(Invoice.t()) :: {:ok, Invoice.t()} | {:error, Ecto.Changeset.t()}
   def mark_prediction_manual(%Invoice{} = invoice) do
     invoice
-    |> Invoice.prediction_changeset(%{prediction_status: "manual"})
+    |> Invoice.prediction_changeset(%{prediction_status: :manual})
     |> Repo.update()
   end
 
@@ -802,7 +803,7 @@ defmodule KsefHub.Invoices do
         attrs
 
       original_id ->
-        Map.merge(attrs, %{duplicate_of_id: original_id, duplicate_status: "suspected"})
+        Map.merge(attrs, %{duplicate_of_id: original_id, duplicate_status: :suspected})
     end
   end
 
@@ -832,12 +833,12 @@ defmodule KsefHub.Invoices do
     end)
   end
 
-  @spec scope_by_role(map(), String.t() | nil) :: map()
-  defp scope_by_role(filters, "reviewer"), do: Map.put(filters, :type, "expense")
+  @spec scope_by_role(map(), Membership.role() | nil) :: map()
+  defp scope_by_role(filters, :reviewer), do: Map.put(filters, :type, :expense)
   defp scope_by_role(filters, _role), do: filters
 
-  @spec maybe_scope_type_by_role(Ecto.Queryable.t(), String.t() | nil) :: Ecto.Query.t()
-  defp maybe_scope_type_by_role(query, "reviewer"), do: where(query, [i], i.type == "expense")
+  @spec maybe_scope_type_by_role(Ecto.Queryable.t(), Membership.role() | nil) :: Ecto.Query.t()
+  defp maybe_scope_type_by_role(query, :reviewer), do: where(query, [i], i.type == :expense)
   defp maybe_scope_type_by_role(query, _role), do: query
 
   @spec do_list_invoices(Ecto.UUID.t(), map(), pos_integer(), pos_integer()) :: [Invoice.t()]
@@ -855,10 +856,10 @@ defmodule KsefHub.Invoices do
   @spec apply_filters(Ecto.Queryable.t(), map()) :: Ecto.Query.t()
   defp apply_filters(query, filters) do
     Enum.reduce(filters, query, fn
-      {:type, type}, q when type in ~w(income expense) ->
+      {:type, type}, q when type in [:income, :expense] ->
         where(q, [i], i.type == ^type)
 
-      {:status, status}, q when status in ~w(pending approved rejected) ->
+      {:status, status}, q when status in [:pending, :approved, :rejected] ->
         where(q, [i], i.status == ^status)
 
       {:date_from, %Date{} = date}, q ->
@@ -890,7 +891,7 @@ defmodule KsefHub.Invoices do
             fragment("? ILIKE ? ESCAPE '\\'", i.buyer_name, ^pattern)
         )
 
-      {:source, source}, q when source in ~w(ksef manual pdf_upload) ->
+      {:source, source}, q when source in [:ksef, :manual, :pdf_upload] ->
         where(q, [i], i.source == ^source)
 
       {:category_id, category_id}, q when is_binary(category_id) and category_id != "" ->

@@ -26,7 +26,7 @@ defmodule KsefHubWeb.ApiTestHelpers do
   def create_owner_with_token(attrs \\ %{}) do
     user = insert(:user, google_uid: "uid-#{System.unique_integer([:positive])}")
     company = insert(:company)
-    insert(:membership, user: user, company: company, role: "owner")
+    insert(:membership, user: user, company: company, role: :owner)
 
     {:ok, result} =
       Accounts.create_api_token(
@@ -55,7 +55,7 @@ defmodule KsefHubWeb.ApiTestHelpers do
   def create_reviewer_with_token(attrs \\ %{}) do
     user = insert(:user, google_uid: "uid-#{System.unique_integer([:positive])}")
     company = insert(:company)
-    membership = insert(:membership, user: user, company: company, role: "owner")
+    membership = insert(:membership, user: user, company: company, role: :owner)
 
     with {:ok, result} <-
            Accounts.create_api_token(
@@ -64,7 +64,7 @@ defmodule KsefHubWeb.ApiTestHelpers do
              Map.merge(%{name: "Reviewer Token"}, attrs)
            ),
          {:ok, _membership} <-
-           membership |> Ecto.Changeset.change(role: "reviewer") |> KsefHub.Repo.update() do
+           membership |> Ecto.Changeset.change(role: :reviewer) |> KsefHub.Repo.update() do
       {:ok, %{user: user, company: company, token: result.token, api_token: result.api_token}}
     end
   end

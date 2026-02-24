@@ -271,7 +271,7 @@ defmodule KsefHub.CredentialsTest do
       company: company,
       user: user
     } do
-      insert(:membership, user: user, company: company, role: "owner")
+      insert(:membership, user: user, company: company, role: :owner)
       cert = insert(:user_certificate, user: user, is_active: true)
 
       result = Credentials.get_certificate_for_company(company.id)
@@ -286,7 +286,7 @@ defmodule KsefHub.CredentialsTest do
       company: company,
       user: user
     } do
-      insert(:membership, user: user, company: company, role: "owner")
+      insert(:membership, user: user, company: company, role: :owner)
       insert(:user_certificate, user: user, is_active: false)
 
       assert is_nil(Credentials.get_certificate_for_company(company.id))
@@ -294,7 +294,7 @@ defmodule KsefHub.CredentialsTest do
 
     test "does not return non-owner's certificate", %{company: company} do
       accountant = insert(:user)
-      insert(:membership, user: accountant, company: company, role: "accountant")
+      insert(:membership, user: accountant, company: company, role: :accountant)
       insert(:user_certificate, user: accountant, is_active: true)
 
       assert is_nil(Credentials.get_certificate_for_company(company.id))
@@ -303,7 +303,7 @@ defmodule KsefHub.CredentialsTest do
     test "does not return certificate from another company's owner" do
       other_company = insert(:company)
       other_user = insert(:user)
-      insert(:membership, user: other_user, company: other_company, role: "owner")
+      insert(:membership, user: other_user, company: other_company, role: :owner)
       insert(:user_certificate, user: other_user, is_active: true)
 
       unrelated_company = insert(:company)

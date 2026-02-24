@@ -50,7 +50,7 @@ defmodule KsefHub.Factory do
   @spec membership_factory() :: Membership.t()
   def membership_factory do
     %Membership{
-      role: "owner",
+      role: :owner,
       user: build(:user),
       company: build(:company)
     }
@@ -103,9 +103,9 @@ defmodule KsefHub.Factory do
 
     %Invitation{
       email: sequence(:invitation_email, &"invitee#{&1}@example.com"),
-      role: "accountant",
+      role: :accountant,
       token_hash: :crypto.hash(:sha256, token) |> Base.encode16(case: :lower),
-      status: "pending",
+      status: :pending,
       expires_at: DateTime.add(DateTime.utc_now(), 7 * 24 * 3600) |> DateTime.truncate(:second),
       company: build(:company),
       invited_by: build(:user)
@@ -116,8 +116,8 @@ defmodule KsefHub.Factory do
   @spec invoice_factory() :: Invoice.t()
   def invoice_factory do
     %Invoice{
-      type: "income",
-      source: "ksef",
+      type: :income,
+      source: :ksef,
       seller_nip: "1234567890",
       seller_name: "Seller Sp. z o.o.",
       buyer_nip: "0987654321",
@@ -129,7 +129,7 @@ defmodule KsefHub.Factory do
       vat_amount: Decimal.new("230.00"),
       gross_amount: Decimal.new("1230.00"),
       currency: "PLN",
-      status: "pending",
+      status: :pending,
       company: build(:company)
     }
   end
@@ -138,8 +138,8 @@ defmodule KsefHub.Factory do
   @spec manual_invoice_factory() :: Invoice.t()
   def manual_invoice_factory do
     %Invoice{
-      type: "expense",
-      source: "manual",
+      type: :expense,
+      source: :manual,
       seller_nip: "1234567890",
       seller_name: "Manual Seller Sp. z o.o.",
       buyer_nip: "0987654321",
@@ -150,7 +150,7 @@ defmodule KsefHub.Factory do
       vat_amount: Decimal.new("460.00"),
       gross_amount: Decimal.new("2460.00"),
       currency: "PLN",
-      status: "pending",
+      status: :pending,
       company: build(:company)
     }
   end
@@ -159,8 +159,8 @@ defmodule KsefHub.Factory do
   @spec pdf_upload_invoice_factory() :: Invoice.t()
   def pdf_upload_invoice_factory do
     %Invoice{
-      type: "expense",
-      source: "pdf_upload",
+      type: :expense,
+      source: :pdf_upload,
       seller_nip: "1234567890",
       seller_name: "Extracted Seller Sp. z o.o.",
       buyer_nip: "0987654321",
@@ -171,9 +171,9 @@ defmodule KsefHub.Factory do
       vat_amount: Decimal.new("230.00"),
       gross_amount: Decimal.new("1230.00"),
       currency: "PLN",
-      status: "pending",
+      status: :pending,
       pdf_content: "%PDF-1.4 fake content",
-      extraction_status: "complete",
+      extraction_status: :complete,
       original_filename: "invoice.pdf",
       company: build(:company)
     }
@@ -227,7 +227,7 @@ defmodule KsefHub.Factory do
   @spec checkpoint_factory() :: Checkpoint.t()
   def checkpoint_factory do
     %Checkpoint{
-      checkpoint_type: "income",
+      checkpoint_type: :income,
       last_seen_timestamp: DateTime.utc_now(),
       company: build(:company)
     }

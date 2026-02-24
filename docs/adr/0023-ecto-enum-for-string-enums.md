@@ -4,7 +4,7 @@ Date: 2026-02-24
 
 ## Status
 
-Proposed
+Accepted (implemented 2026-02-24)
 
 ## Context
 

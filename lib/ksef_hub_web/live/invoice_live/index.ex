@@ -5,6 +5,7 @@ defmodule KsefHubWeb.InvoiceLive.Index do
   use KsefHubWeb, :live_view
 
   alias KsefHub.Invoices
+  alias KsefHub.Invoices.Invoice
 
   import KsefHubWeb.InvoiceComponents
 
@@ -31,12 +32,12 @@ defmodule KsefHubWeb.InvoiceLive.Index do
     {:noreply, assign(socket, filter_assigns(filters, result, role))}
   end
 
-  @spec filter_assigns(map(), map(), String.t() | nil) :: keyword()
+  @spec filter_assigns(map(), map(), atom() | nil) :: keyword()
   defp filter_assigns(filters, result, role) do
     form =
       %{
-        "type" => filters[:type] || "",
-        "status" => filters[:status] || "",
+        "type" => to_string_or_empty(filters[:type]),
+        "status" => to_string_or_empty(filters[:status]),
         "date_from" => (filters[:date_from] && Date.to_iso8601(filters[:date_from])) || "",
         "date_to" => (filters[:date_to] && Date.to_iso8601(filters[:date_to])) || "",
         "query" => filters[:query] || ""
@@ -51,7 +52,7 @@ defmodule KsefHubWeb.InvoiceLive.Index do
       per_page: result.per_page,
       total_count: result.total_count,
       total_pages: result.total_pages,
-      is_reviewer: role == "reviewer"
+      is_reviewer: role == :reviewer
     ]
   end
 
@@ -68,21 +69,28 @@ defmodule KsefHubWeb.InvoiceLive.Index do
     {:noreply, push_patch(socket, to: ~p"/invoices?#{query_params}")}
   end
 
+  @spec parse_filters(map()) :: map()
   defp parse_filters(params) do
     %{}
-    |> maybe_put_filter(:type, params["type"], ~w(income expense))
-    |> maybe_put_filter(:status, params["status"], ~w(pending approved rejected))
+    |> maybe_put_enum(:type, params["type"], Invoice, :type)
+    |> maybe_put_enum(:status, params["status"], Invoice, :status)
     |> maybe_put_date(:date_from, params["date_from"])
     |> maybe_put_date(:date_to, params["date_to"])
     |> maybe_put_search(:query, params["query"])
     |> maybe_put_page(:page, params["page"])
   end
 
-  defp maybe_put_filter(map, _key, nil, _valid), do: map
-  defp maybe_put_filter(map, _key, "", _valid), do: map
+  @spec maybe_put_enum(map(), atom(), String.t() | nil, module(), atom()) :: map()
+  defp maybe_put_enum(map, _key, nil, _schema, _field), do: map
+  defp maybe_put_enum(map, _key, "", _schema, _field), do: map
 
-  defp maybe_put_filter(map, key, value, valid) do
-    if value in valid, do: Map.put(map, key, value), else: map
+  defp maybe_put_enum(map, key, value, schema, field) do
+    type = schema.__schema__(:type, field)
+
+    case Ecto.Type.cast(type, value) do
+      {:ok, atom} -> Map.put(map, key, atom)
+      :error -> map
+    end
   end
 
   defp maybe_put_date(map, _key, nil), do: map
@@ -114,11 +122,16 @@ defmodule KsefHubWeb.InvoiceLive.Index do
   defp maybe_put(map, _key, ""), do: map
   defp maybe_put(map, key, value), do: Map.put(map, key, value)
 
+  @spec to_string_or_empty(atom() | String.t() | nil) :: String.t()
+  defp to_string_or_empty(nil), do: ""
+  defp to_string_or_empty(value) when is_atom(value), do: Atom.to_string(value)
+  defp to_string_or_empty(value) when is_binary(value), do: value
+
   @spec pagination_params(map(), pos_integer()) :: map()
   defp pagination_params(filters, target_page) do
     %{}
-    |> maybe_put("type", filters[:type])
-    |> maybe_put("status", filters[:status])
+    |> maybe_put("type", to_string_or_empty(filters[:type]))
+    |> maybe_put("status", to_string_or_empty(filters[:status]))
     |> maybe_put("date_from", filters[:date_from] && Date.to_iso8601(filters[:date_from]))
     |> maybe_put("date_to", filters[:date_to] && Date.to_iso8601(filters[:date_to]))
     |> maybe_put("query", filters[:query])

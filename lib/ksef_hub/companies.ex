@@ -111,7 +111,7 @@ defmodule KsefHub.Companies do
     |> Multi.insert(:company, Company.changeset(%Company{}, attrs))
     |> Multi.insert(:membership, fn %{company: company} ->
       %Membership{user_id: user.id, company_id: company.id}
-      |> Membership.changeset(%{role: "owner"})
+      |> Membership.changeset(%{role: :owner})
     end)
     |> Repo.transaction()
   end
@@ -138,7 +138,7 @@ defmodule KsefHub.Companies do
   end
 
   @doc "Updates the role of a membership."
-  @spec update_membership_role(Membership.t(), String.t()) ::
+  @spec update_membership_role(Membership.t(), Membership.role()) ::
           {:ok, Membership.t()} | {:error, Ecto.Changeset.t()}
   def update_membership_role(%Membership{} = membership, role) do
     membership
@@ -177,7 +177,8 @@ defmodule KsefHub.Companies do
   @doc """
   Checks whether a user has a specific role (or one of a list of roles) for a company.
   """
-  @spec has_role?(Ecto.UUID.t(), Ecto.UUID.t(), String.t() | [String.t()]) :: boolean()
+  @spec has_role?(Ecto.UUID.t(), Ecto.UUID.t(), Membership.role() | [Membership.role()]) ::
+          boolean()
   def has_role?(user_id, company_id, role_or_roles) do
     roles = List.wrap(role_or_roles)
 
@@ -191,7 +192,7 @@ defmodule KsefHub.Companies do
   Authorizes a user for a company with the given required roles.
   Returns `{:ok, membership}` or `{:error, :unauthorized}`.
   """
-  @spec authorize(Ecto.UUID.t(), Ecto.UUID.t(), [String.t()]) ::
+  @spec authorize(Ecto.UUID.t(), Ecto.UUID.t(), [Membership.role()]) ::
           {:ok, Membership.t()} | {:error, :unauthorized}
   def authorize(user_id, company_id, required_roles) do
     Membership

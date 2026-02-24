@@ -35,7 +35,7 @@ defmodule KsefHubWeb.DashboardLive do
       nil ->
         assign(socket,
           page_title: "Dashboard",
-          is_reviewer: socket.assigns[:current_role] == "reviewer",
+          is_reviewer: socket.assigns[:current_role] == :reviewer,
           total_income: 0,
           total_expense: 0,
           total_invoices: 0,
@@ -52,13 +52,13 @@ defmodule KsefHubWeb.DashboardLive do
         counts = Invoices.count_by_type_and_status(company.id)
         credential = Credentials.get_active_credential(company.id)
         user_cert = Credentials.get_certificate_for_company(company.id)
-        is_reviewer = socket.assigns[:current_role] == "reviewer"
+        is_reviewer = socket.assigns[:current_role] == :reviewer
 
-        total_income = if is_reviewer, do: 0, else: count_type(counts, "income")
-        total_expense = count_type(counts, "expense")
-        pending_expense = Map.get(counts, {"expense", "pending"}, 0)
-        approved_expense = Map.get(counts, {"expense", "approved"}, 0)
-        rejected_expense = Map.get(counts, {"expense", "rejected"}, 0)
+        total_income = if is_reviewer, do: 0, else: count_type(counts, :income)
+        total_expense = count_type(counts, :expense)
+        pending_expense = Map.get(counts, {:expense, :pending}, 0)
+        approved_expense = Map.get(counts, {:expense, :approved}, 0)
+        rejected_expense = Map.get(counts, {:expense, :rejected}, 0)
 
         assign(socket,
           page_title: "Dashboard",
@@ -77,7 +77,7 @@ defmodule KsefHubWeb.DashboardLive do
     end
   end
 
-  @spec count_type(map(), String.t()) :: non_neg_integer()
+  @spec count_type(map(), atom()) :: non_neg_integer()
   defp count_type(counts, type) do
     counts
     |> Enum.filter(fn {{t, _s}, _c} -> t == type end)

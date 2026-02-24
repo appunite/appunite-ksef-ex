@@ -26,7 +26,7 @@ defmodule KsefHub.Predictions do
   """
   @spec predict_and_apply(Invoice.t()) ::
           {:ok, Invoice.t()} | {:error, term()} | {:skip, atom()}
-  def predict_and_apply(%Invoice{type: "expense"} = invoice) do
+  def predict_and_apply(%Invoice{type: :expense} = invoice) do
     input = build_input(invoice)
 
     with {:ok, cat_result} <- prediction_client().predict_category(input),
@@ -80,7 +80,7 @@ defmodule KsefHub.Predictions do
 
   @spec build_prediction_attrs(map(), map(), boolean(), boolean()) :: map()
   defp build_prediction_attrs(cat_result, tag_result, apply_category?, apply_tag?) do
-    status = if apply_category? or apply_tag?, do: "predicted", else: "needs_review"
+    status = if apply_category? or apply_tag?, do: :predicted, else: :needs_review
 
     %{
       prediction_status: status,

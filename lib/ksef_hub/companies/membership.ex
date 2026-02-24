@@ -12,14 +12,13 @@ defmodule KsefHub.Companies.Membership do
   import Ecto.Changeset
 
   @type t :: %__MODULE__{}
-
-  @roles ~w(owner accountant reviewer)
+  @type role :: :owner | :accountant | :reviewer
 
   @primary_key {:id, :binary_id, autogenerate: true}
   @foreign_key_type :binary_id
 
   schema "memberships" do
-    field :role, :string
+    field :role, Ecto.Enum, values: [:owner, :accountant, :reviewer]
 
     belongs_to :user, KsefHub.Accounts.User
     belongs_to :company, KsefHub.Companies.Company
@@ -28,8 +27,8 @@ defmodule KsefHub.Companies.Membership do
   end
 
   @doc "Returns the list of valid membership roles."
-  @spec roles() :: [String.t()]
-  def roles, do: @roles
+  @spec roles() :: [role()]
+  def roles, do: Ecto.Enum.values(__MODULE__, :role)
 
   @doc """
   Builds a changeset for membership creation/update.
@@ -43,7 +42,6 @@ defmodule KsefHub.Companies.Membership do
     membership
     |> cast(attrs, [:role])
     |> validate_required([:user_id, :company_id, :role])
-    |> validate_inclusion(:role, @roles)
     |> foreign_key_constraint(:user_id)
     |> foreign_key_constraint(:company_id)
     |> unique_constraint([:user_id, :company_id],

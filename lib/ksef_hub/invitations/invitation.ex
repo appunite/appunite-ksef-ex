@@ -18,18 +18,17 @@ defmodule KsefHub.Invitations.Invitation do
   import Ecto.Changeset
 
   @type t :: %__MODULE__{}
-
-  @invitable_roles ~w(accountant reviewer)
-  @statuses ~w(pending accepted cancelled)
+  @type invitation_role :: :accountant | :reviewer
+  @type invitation_status :: :pending | :accepted | :cancelled
 
   @primary_key {:id, :binary_id, autogenerate: true}
   @foreign_key_type :binary_id
 
   schema "invitations" do
     field :email, :string
-    field :role, :string
+    field :role, Ecto.Enum, values: [:accountant, :reviewer]
     field :token_hash, :string
-    field :status, :string, default: "pending"
+    field :status, Ecto.Enum, values: [:pending, :accepted, :cancelled], default: :pending
     field :expires_at, :utc_datetime
 
     belongs_to :company, KsefHub.Companies.Company
@@ -39,12 +38,12 @@ defmodule KsefHub.Invitations.Invitation do
   end
 
   @doc "Returns the list of roles that can be invited."
-  @spec invitable_roles() :: [String.t()]
-  def invitable_roles, do: @invitable_roles
+  @spec invitable_roles() :: [atom()]
+  def invitable_roles, do: Ecto.Enum.values(__MODULE__, :role)
 
   @doc "Returns the list of valid invitation statuses."
-  @spec statuses() :: [String.t()]
-  def statuses, do: @statuses
+  @spec statuses() :: [atom()]
+  def statuses, do: Ecto.Enum.values(__MODULE__, :status)
 
   @doc """
   Builds a changeset for invitation creation.
@@ -66,7 +65,6 @@ defmodule KsefHub.Invitations.Invitation do
       :invited_by_id,
       :token_hash
     ])
-    |> validate_inclusion(:role, @invitable_roles)
     |> validate_email()
     |> normalize_email()
     |> foreign_key_constraint(:company_id)

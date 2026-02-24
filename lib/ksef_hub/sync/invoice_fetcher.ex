@@ -8,6 +8,7 @@ defmodule KsefHub.Sync.InvoiceFetcher do
 
   alias KsefHub.Invoices
   alias KsefHub.Invoices.Parser
+  alias KsefHub.Sync.Checkpoint
 
   @overlap_minutes 10
   @max_pages 100
@@ -19,7 +20,13 @@ defmodule KsefHub.Sync.InvoiceFetcher do
   Fetches all invoices for a given type since the checkpoint, downloads XML,
   parses, and upserts. Returns `{:ok, count, max_timestamp, failed_count}`.
   """
-  @spec fetch_all(String.t(), String.t(), String.t(), Ecto.UUID.t(), DateTime.t()) ::
+  @spec fetch_all(
+          String.t(),
+          Checkpoint.checkpoint_type(),
+          String.t(),
+          Ecto.UUID.t(),
+          DateTime.t()
+        ) ::
           {:ok, non_neg_integer(), DateTime.t() | nil, non_neg_integer()} | {:error, term()}
   def fetch_all(access_token, type, nip, company_id, checkpoint_timestamp) do
     from = DateTime.add(checkpoint_timestamp, -@overlap_minutes * 60)
