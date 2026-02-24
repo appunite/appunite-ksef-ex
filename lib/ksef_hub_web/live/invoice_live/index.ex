@@ -32,7 +32,7 @@ defmodule KsefHubWeb.InvoiceLive.Index do
     {:noreply, assign(socket, filter_assigns(filters, result, role))}
   end
 
-  @spec filter_assigns(map(), map(), String.t() | nil) :: keyword()
+  @spec filter_assigns(map(), map(), atom() | nil) :: keyword()
   defp filter_assigns(filters, result, role) do
     form =
       %{
@@ -69,6 +69,7 @@ defmodule KsefHubWeb.InvoiceLive.Index do
     {:noreply, push_patch(socket, to: ~p"/invoices?#{query_params}")}
   end
 
+  @spec parse_filters(map()) :: map()
   defp parse_filters(params) do
     %{}
     |> maybe_put_enum(:type, params["type"], Invoice, :type)
@@ -79,6 +80,7 @@ defmodule KsefHubWeb.InvoiceLive.Index do
     |> maybe_put_page(:page, params["page"])
   end
 
+  @spec maybe_put_enum(map(), atom(), String.t() | nil, module(), atom()) :: map()
   defp maybe_put_enum(map, _key, nil, _schema, _field), do: map
   defp maybe_put_enum(map, _key, "", _schema, _field), do: map
 

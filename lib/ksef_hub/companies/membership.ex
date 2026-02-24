@@ -27,7 +27,7 @@ defmodule KsefHub.Companies.Membership do
   end
 
   @doc "Returns the list of valid membership roles."
-  @spec roles() :: [atom()]
+  @spec roles() :: [role()]
   def roles, do: Ecto.Enum.values(__MODULE__, :role)
 
   @doc """

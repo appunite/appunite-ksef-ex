@@ -5,6 +5,8 @@ defmodule KsefHubWeb.InvoiceComponents do
 
   use Phoenix.Component
 
+  @doc "Renders a coloured badge for the invoice type (:income / :expense)."
+  @spec type_badge(map()) :: Phoenix.LiveView.Rendered.t()
   attr :type, :atom, required: true
 
   def type_badge(assigns) do
@@ -20,6 +22,8 @@ defmodule KsefHubWeb.InvoiceComponents do
     """
   end
 
+  @doc "Renders a coloured badge for the invoice status (:pending / :approved / :rejected)."
+  @spec status_badge(map()) :: Phoenix.LiveView.Rendered.t()
   attr :status, :atom, required: true
 
   def status_badge(assigns) do

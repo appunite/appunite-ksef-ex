@@ -249,7 +249,7 @@ defmodule KsefHub.Invoices do
   @spec approve_invoice(Invoice.t()) ::
           {:ok, Invoice.t()}
           | {:error, Ecto.Changeset.t()}
-          | {:error, {:invalid_type, String.t()}}
+          | {:error, {:invalid_type, Invoice.invoice_type()}}
           | {:error, :incomplete_extraction}
   def approve_invoice(%Invoice{type: :expense, extraction_status: status})
       when status in [:partial, :failed] do
@@ -268,7 +268,7 @@ defmodule KsefHub.Invoices do
   @spec reject_invoice(Invoice.t()) ::
           {:ok, Invoice.t()}
           | {:error, Ecto.Changeset.t()}
-          | {:error, {:invalid_type, String.t()}}
+          | {:error, {:invalid_type, Invoice.invoice_type()}}
   def reject_invoice(%Invoice{type: :expense} = invoice) do
     update_invoice(invoice, %{status: :rejected})
   end

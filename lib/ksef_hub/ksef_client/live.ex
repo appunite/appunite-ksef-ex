@@ -257,14 +257,10 @@ defmodule KsefHub.KsefClient.Live do
     query = %{}
 
     query =
-      if filters[:type] do
-        Map.put(
-          query,
-          "subjectType",
-          if(filters[:type] == :income, do: "Subject1", else: "Subject2")
-        )
-      else
-        query
+      case filters[:type] do
+        :income -> Map.put(query, "subjectType", "Subject1")
+        :expense -> Map.put(query, "subjectType", "Subject2")
+        nil -> query
       end
 
     date_range = build_date_range(filters[:date_from], filters[:date_to])
