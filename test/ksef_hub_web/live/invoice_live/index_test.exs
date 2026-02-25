@@ -112,6 +112,64 @@ defmodule KsefHubWeb.InvoiceLive.IndexTest do
     end
   end
 
+  describe "category and tag filters" do
+    test "filters by category", %{conn: conn, company: company} do
+      category = insert(:category, company: company, name: "ops:hosting")
+      insert(:invoice, company: company, invoice_number: "FV/CAT/001", category: category)
+      insert(:invoice, company: company, invoice_number: "FV/CAT/002")
+
+      {:ok, view, _html} = live(conn, ~p"/invoices?category_id=#{category.id}")
+      html = render(view)
+      assert html =~ "FV/CAT/001"
+      refute html =~ "FV/CAT/002"
+    end
+
+    test "filters by tag", %{conn: conn, company: company} do
+      tag = insert(:tag, company: company, name: "quarterly")
+      tagged = insert(:invoice, company: company, invoice_number: "FV/TAG/001")
+      insert(:invoice_tag, invoice: tagged, tag: tag)
+      insert(:invoice, company: company, invoice_number: "FV/TAG/002")
+
+      {:ok, view, _html} = live(conn, ~p"/invoices?tag_id=#{tag.id}")
+      html = render(view)
+      assert html =~ "FV/TAG/001"
+      refute html =~ "FV/TAG/002"
+    end
+
+    test "category filter change updates URL", %{conn: conn, company: company} do
+      category = insert(:category, company: company, name: "ops:filter-test")
+
+      {:ok, view, _html} = live(conn, ~p"/invoices")
+
+      view
+      |> element("form[phx-change=filter]")
+      |> render_change(%{"filters" => %{"category_id" => category.id}})
+
+      assert_patched(view, "/invoices?category_id=#{category.id}")
+    end
+
+    test "tag filter change updates URL", %{conn: conn, company: company} do
+      tag = insert(:tag, company: company, name: "filter-tag")
+
+      {:ok, view, _html} = live(conn, ~p"/invoices")
+
+      view
+      |> element("form[phx-change=filter]")
+      |> render_change(%{"filters" => %{"tag_id" => tag.id}})
+
+      assert_patched(view, "/invoices?tag_id=#{tag.id}")
+    end
+
+    test "renders category and tag filter dropdowns", %{conn: conn, company: company} do
+      insert(:category, company: company, name: "ops:dropdown-test")
+      insert(:tag, company: company, name: "dropdown-tag")
+
+      {:ok, _view, html} = live(conn, ~p"/invoices")
+      assert html =~ "ops:dropdown-test"
+      assert html =~ "dropdown-tag"
+    end
+  end
+
   describe "pagination" do
     test "renders pagination controls when more than one page", %{conn: conn, company: company} do
       for i <- 1..30 do

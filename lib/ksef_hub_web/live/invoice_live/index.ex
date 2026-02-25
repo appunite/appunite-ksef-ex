@@ -11,7 +11,14 @@ defmodule KsefHubWeb.InvoiceLive.Index do
 
   @impl true
   def mount(_params, _session, socket) do
-    {:ok, assign(socket, page_title: "Invoices")}
+    company_id = socket.assigns[:current_company] && socket.assigns.current_company.id
+
+    {:ok,
+     assign(socket,
+       page_title: "Invoices",
+       categories: if(company_id, do: Invoices.list_categories(company_id), else: []),
+       all_tags: if(company_id, do: Invoices.list_tags(company_id), else: [])
+     )}
   end
 
   @impl true
@@ -40,7 +47,9 @@ defmodule KsefHubWeb.InvoiceLive.Index do
         "status" => to_string_or_empty(filters[:status]),
         "date_from" => (filters[:date_from] && Date.to_iso8601(filters[:date_from])) || "",
         "date_to" => (filters[:date_to] && Date.to_iso8601(filters[:date_to])) || "",
-        "query" => filters[:query] || ""
+        "query" => filters[:query] || "",
+        "category_id" => filters[:category_id] || "",
+        "tag_id" => filters[:tag_ids] |> List.wrap() |> List.first() || ""
       }
       |> to_form(as: :filters)
 
@@ -65,6 +74,8 @@ defmodule KsefHubWeb.InvoiceLive.Index do
       |> maybe_put("date_from", params["date_from"])
       |> maybe_put("date_to", params["date_to"])
       |> maybe_put("query", params["query"])
+      |> maybe_put("category_id", params["category_id"])
+      |> maybe_put("tag_id", params["tag_id"])
 
     {:noreply, push_patch(socket, to: ~p"/invoices?#{query_params}")}
   end
@@ -77,6 +88,8 @@ defmodule KsefHubWeb.InvoiceLive.Index do
     |> maybe_put_date(:date_from, params["date_from"])
     |> maybe_put_date(:date_to, params["date_to"])
     |> maybe_put_search(:query, params["query"])
+    |> maybe_put_uuid(:category_id, params["category_id"])
+    |> maybe_put_tag_ids(params["tag_id"])
     |> maybe_put_page(:page, params["page"])
   end
 
@@ -118,6 +131,28 @@ defmodule KsefHubWeb.InvoiceLive.Index do
     end
   end
 
+  @spec maybe_put_uuid(map(), atom(), String.t() | nil) :: map()
+  defp maybe_put_uuid(map, _key, nil), do: map
+  defp maybe_put_uuid(map, _key, ""), do: map
+
+  defp maybe_put_uuid(map, key, value) do
+    case Ecto.UUID.cast(value) do
+      {:ok, uuid} -> Map.put(map, key, uuid)
+      :error -> map
+    end
+  end
+
+  @spec maybe_put_tag_ids(map(), String.t() | nil) :: map()
+  defp maybe_put_tag_ids(map, nil), do: map
+  defp maybe_put_tag_ids(map, ""), do: map
+
+  defp maybe_put_tag_ids(map, tag_id) do
+    case Ecto.UUID.cast(tag_id) do
+      {:ok, uuid} -> Map.put(map, :tag_ids, [uuid])
+      :error -> map
+    end
+  end
+
   defp maybe_put(map, _key, nil), do: map
   defp maybe_put(map, _key, ""), do: map
   defp maybe_put(map, key, value), do: Map.put(map, key, value)
@@ -135,6 +170,8 @@ defmodule KsefHubWeb.InvoiceLive.Index do
     |> maybe_put("date_from", filters[:date_from] && Date.to_iso8601(filters[:date_from]))
     |> maybe_put("date_to", filters[:date_to] && Date.to_iso8601(filters[:date_to]))
     |> maybe_put("query", filters[:query])
+    |> maybe_put("category_id", filters[:category_id])
+    |> maybe_put("tag_id", filters[:tag_ids] |> List.wrap() |> List.first())
     |> maybe_put("page", if(target_page > 1, do: Integer.to_string(target_page)))
   end
 
@@ -198,6 +235,34 @@ defmodule KsefHubWeb.InvoiceLive.Index do
           <option value="pending" selected={@form[:status].value == "pending"}>Pending</option>
           <option value="approved" selected={@form[:status].value == "approved"}>Approved</option>
           <option value="rejected" selected={@form[:status].value == "rejected"}>Rejected</option>
+        </select>
+      </div>
+
+      <div class="form-control w-40">
+        <label class="label"><span class="label-text text-xs">Category</span></label>
+        <select name={@form[:category_id].name} class="select select-sm select-bordered">
+          <option value="">All</option>
+          <option
+            :for={cat <- @categories}
+            value={cat.id}
+            selected={@form[:category_id].value == cat.id}
+          >
+            {if(cat.emoji, do: "#{cat.emoji} ", else: "")}{cat.name}
+          </option>
+        </select>
+      </div>
+
+      <div class="form-control w-36">
+        <label class="label"><span class="label-text text-xs">Tag</span></label>
+        <select name={@form[:tag_id].name} class="select select-sm select-bordered">
+          <option value="">All</option>
+          <option
+            :for={tag <- @all_tags}
+            value={tag.id}
+            selected={@form[:tag_id].value == tag.id}
+          >
+            {tag.name}
+          </option>
         </select>
       </div>
 
