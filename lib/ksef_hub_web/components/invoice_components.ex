@@ -99,14 +99,18 @@ defmodule KsefHubWeb.InvoiceComponents do
 
   def extraction_badge(%{status: status} = assigns) when status in [nil, :complete], do: ~H""
 
-  def extraction_badge(assigns) do
+  def extraction_badge(%{status: :partial} = assigns) do
     ~H"""
-    <span class={[
-      "inline-flex items-center px-2 py-0.5 rounded-md text-xs font-medium border",
-      @status == :partial && "bg-warning/10 text-warning border-warning/20",
-      @status == :failed && "bg-error/10 text-error border-error/20"
-    ]}>
-      {if @status == :partial, do: "Incomplete", else: "Failed"}
+    <span class="inline-flex items-center px-2 py-0.5 rounded-md text-xs font-medium border bg-warning/10 text-warning border-warning/20">
+      Incomplete
+    </span>
+    """
+  end
+
+  def extraction_badge(%{status: :failed} = assigns) do
+    ~H"""
+    <span class="inline-flex items-center px-2 py-0.5 rounded-md text-xs font-medium border bg-error/10 text-error border-error/20">
+      Failed
     </span>
     """
   end

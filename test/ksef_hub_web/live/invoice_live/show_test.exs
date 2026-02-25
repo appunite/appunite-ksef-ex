@@ -257,9 +257,9 @@ defmodule KsefHubWeb.InvoiceLive.ShowTest do
 
       stub(KsefHub.Pdf.Mock, :generate_html, fn _xml, _meta -> {:error, :no_xml} end)
 
-      {:ok, _view, html} = live(conn, ~p"/invoices/#{invoice.id}")
-      assert html =~ "Incomplete"
-      assert html =~ "missing data"
+      {:ok, view, _html} = live(conn, ~p"/invoices/#{invoice.id}")
+      assert has_element?(view, "[class*=rounded-md]", "Incomplete")
+      assert has_element?(view, ~s([data-testid="extraction-warning"]))
     end
 
     test "does not show extraction badge for complete invoice", %{conn: conn, company: company} do
@@ -267,9 +267,9 @@ defmodule KsefHubWeb.InvoiceLive.ShowTest do
 
       stub(KsefHub.Pdf.Mock, :generate_html, fn _xml, _meta -> {:error, :no_xml} end)
 
-      {:ok, _view, html} = live(conn, ~p"/invoices/#{invoice.id}")
-      refute html =~ "Incomplete"
-      refute html =~ "missing data"
+      {:ok, view, _html} = live(conn, ~p"/invoices/#{invoice.id}")
+      refute has_element?(view, "[class*=rounded-md]", "Incomplete")
+      refute has_element?(view, ~s([data-testid="extraction-warning"]))
     end
 
     test "approve shows specific error for partial extraction invoice", %{
@@ -289,7 +289,7 @@ defmodule KsefHubWeb.InvoiceLive.ShowTest do
       {:ok, view, _html} = live(conn, ~p"/invoices/#{invoice.id}")
 
       html = view |> element("button", "Approve") |> render_click()
-      assert html =~ "Cannot approve: missing required fields"
+      assert html =~ "extraction is incomplete"
     end
   end
 
@@ -345,20 +345,19 @@ defmodule KsefHubWeb.InvoiceLive.ShowTest do
 
       {:ok, view, _html} = live(conn, ~p"/invoices/#{invoice.id}")
 
-      html =
-        view
-        |> form("form[phx-submit=save_edit]", %{
-          "invoice" => %{
-            "net_amount" => "1000.00",
-            "gross_amount" => "1230.00"
-          }
-        })
-        |> render_submit()
+      view
+      |> form("form[phx-submit=save_edit]", %{
+        "invoice" => %{
+          "net_amount" => "1000.00",
+          "gross_amount" => "1230.00"
+        }
+      })
+      |> render_submit()
 
-      assert html =~ "Invoice updated"
+      assert has_element?(view, "#flash-info", "Invoice updated")
       refute has_element?(view, "form[phx-submit=save_edit]")
       # extraction status should now be complete, no warning banner
-      refute html =~ "missing data"
+      refute has_element?(view, ~s([data-testid="extraction-warning"]))
     end
 
     test "shows validation errors for invalid NIP", %{conn: conn, company: company} do

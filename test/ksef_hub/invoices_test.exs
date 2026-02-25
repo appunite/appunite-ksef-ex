@@ -744,6 +744,45 @@ defmodule KsefHub.InvoicesTest do
 
       assert Invoices.determine_extraction_status_from_attrs(attrs) == :partial
     end
+
+    test "returns :partial when seller_nip is missing" do
+      attrs = %{
+        seller_nip: nil,
+        seller_name: "Seller",
+        invoice_number: "FV/001",
+        issue_date: ~D[2026-01-01],
+        net_amount: Decimal.new("100"),
+        gross_amount: Decimal.new("123")
+      }
+
+      assert Invoices.determine_extraction_status_from_attrs(attrs) == :partial
+    end
+
+    test "returns :partial when invoice_number is missing" do
+      attrs = %{
+        seller_nip: "1234567890",
+        seller_name: "Seller",
+        invoice_number: nil,
+        issue_date: ~D[2026-01-01],
+        net_amount: Decimal.new("100"),
+        gross_amount: Decimal.new("123")
+      }
+
+      assert Invoices.determine_extraction_status_from_attrs(attrs) == :partial
+    end
+
+    test "treats whitespace-only strings as missing" do
+      attrs = %{
+        seller_nip: "   ",
+        seller_name: "Seller",
+        invoice_number: "FV/001",
+        issue_date: ~D[2026-01-01],
+        net_amount: Decimal.new("100"),
+        gross_amount: Decimal.new("123")
+      }
+
+      assert Invoices.determine_extraction_status_from_attrs(attrs) == :partial
+    end
   end
 
   describe "upsert_invoice/1 sets extraction_status" do

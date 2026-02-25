@@ -245,7 +245,9 @@ defmodule KsefHub.Invoices do
     new_status = determine_extraction_status_from_attrs(merged)
 
     changeset =
-      Invoice.edit_changeset(invoice, Map.put(attrs, "extraction_status", new_status))
+      invoice
+      |> Invoice.edit_changeset(attrs)
+      |> Ecto.Changeset.put_change(:extraction_status, new_status)
 
     with {:ok, updated} <- Repo.update(changeset) do
       if old_status in [:partial, :failed] and updated.extraction_status == :complete,
@@ -448,9 +450,14 @@ defmodule KsefHub.Invoices do
   defp all_critical_fields_present?(map) do
     Enum.all?(@critical_extraction_fields, fn field ->
       value = Map.get(map, field) || Map.get(map, Atom.to_string(field))
-      value != nil && value != ""
+      present_value?(value)
     end)
   end
+
+  @spec present_value?(term()) :: boolean()
+  defp present_value?(nil), do: false
+  defp present_value?(s) when is_binary(s), do: String.trim(s) != ""
+  defp present_value?(_), do: true
 
   @spec build_pdf_upload_attrs(
           map(),

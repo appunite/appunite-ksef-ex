@@ -143,7 +143,7 @@ defmodule KsefHub.Invoices.Invoice do
   @spec edit_changeset(t(), map()) :: Ecto.Changeset.t()
   def edit_changeset(invoice, attrs) do
     invoice
-    |> cast(attrs, @edit_fields ++ [:extraction_status])
+    |> cast(attrs, @edit_fields)
     |> validate_format(:seller_nip, ~r/^\d{10}$/, message: "must be a 10-digit NIP")
     |> validate_format(:buyer_nip, ~r/^\d{10}$/, message: "must be a 10-digit NIP")
     |> validate_number(:net_amount, greater_than_or_equal_to: 0)

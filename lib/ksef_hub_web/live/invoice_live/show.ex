@@ -87,7 +87,7 @@ defmodule KsefHubWeb.InvoiceLive.Show do
          put_flash(
            socket,
            :error,
-           "Cannot approve: missing required fields (net/gross amount). Please fill in the missing data first."
+           "Cannot approve: extraction is incomplete. Please review and complete all missing fields before approving."
          )}
 
       {:error, _changeset} ->
@@ -368,6 +368,7 @@ defmodule KsefHubWeb.InvoiceLive.Show do
       :if={@invoice.extraction_status in [:partial, :failed]}
       class="alert alert-warning mt-4"
       role="alert"
+      data-testid="extraction-warning"
     >
       <.icon name="hero-exclamation-triangle" class="size-5" />
       <span>
@@ -383,141 +384,7 @@ defmodule KsefHubWeb.InvoiceLive.Show do
             <h2 class="text-base font-semibold mb-2">Details</h2>
 
             <%= if @editing do %>
-              <.form
-                for={@edit_form}
-                phx-change="validate_edit"
-                phx-submit="save_edit"
-                class="space-y-3"
-              >
-                <div class="form-control">
-                  <label class="label"><span class="label-text text-xs">Invoice Number</span></label>
-                  <input
-                    type="text"
-                    name={@edit_form[:invoice_number].name}
-                    value={@edit_form[:invoice_number].value}
-                    class="input input-sm input-bordered"
-                  />
-                  <.field_error errors={@edit_form[:invoice_number].errors} />
-                </div>
-
-                <div class="form-control">
-                  <label class="label"><span class="label-text text-xs">Issue Date</span></label>
-                  <input
-                    type="date"
-                    name={@edit_form[:issue_date].name}
-                    value={@edit_form[:issue_date].value}
-                    class="input input-sm input-bordered"
-                  />
-                  <.field_error errors={@edit_form[:issue_date].errors} />
-                </div>
-
-                <div class="divider text-xs my-1">Seller</div>
-
-                <div class="form-control">
-                  <label class="label"><span class="label-text text-xs">Seller Name</span></label>
-                  <input
-                    type="text"
-                    name={@edit_form[:seller_name].name}
-                    value={@edit_form[:seller_name].value}
-                    class="input input-sm input-bordered"
-                  />
-                  <.field_error errors={@edit_form[:seller_name].errors} />
-                </div>
-
-                <div class="form-control">
-                  <label class="label"><span class="label-text text-xs">Seller NIP</span></label>
-                  <input
-                    type="text"
-                    name={@edit_form[:seller_nip].name}
-                    value={@edit_form[:seller_nip].value}
-                    class="input input-sm input-bordered"
-                    maxlength="10"
-                  />
-                  <.field_error errors={@edit_form[:seller_nip].errors} />
-                </div>
-
-                <div class="divider text-xs my-1">Buyer</div>
-
-                <div class="form-control">
-                  <label class="label"><span class="label-text text-xs">Buyer Name</span></label>
-                  <input
-                    type="text"
-                    name={@edit_form[:buyer_name].name}
-                    value={@edit_form[:buyer_name].value}
-                    class="input input-sm input-bordered"
-                  />
-                  <.field_error errors={@edit_form[:buyer_name].errors} />
-                </div>
-
-                <div class="form-control">
-                  <label class="label"><span class="label-text text-xs">Buyer NIP</span></label>
-                  <input
-                    type="text"
-                    name={@edit_form[:buyer_nip].name}
-                    value={@edit_form[:buyer_nip].value}
-                    class="input input-sm input-bordered"
-                    maxlength="10"
-                  />
-                  <.field_error errors={@edit_form[:buyer_nip].errors} />
-                </div>
-
-                <div class="divider text-xs my-1">Amounts</div>
-
-                <div class="form-control">
-                  <label class="label"><span class="label-text text-xs">Netto</span></label>
-                  <input
-                    type="text"
-                    inputmode="decimal"
-                    name={@edit_form[:net_amount].name}
-                    value={@edit_form[:net_amount].value}
-                    class="input input-sm input-bordered font-mono"
-                  />
-                  <.field_error errors={@edit_form[:net_amount].errors} />
-                </div>
-
-                <div class="form-control">
-                  <label class="label"><span class="label-text text-xs">VAT</span></label>
-                  <input
-                    type="text"
-                    inputmode="decimal"
-                    name={@edit_form[:vat_amount].name}
-                    value={@edit_form[:vat_amount].value}
-                    class="input input-sm input-bordered font-mono"
-                  />
-                  <.field_error errors={@edit_form[:vat_amount].errors} />
-                </div>
-
-                <div class="form-control">
-                  <label class="label"><span class="label-text text-xs">Brutto</span></label>
-                  <input
-                    type="text"
-                    inputmode="decimal"
-                    name={@edit_form[:gross_amount].name}
-                    value={@edit_form[:gross_amount].value}
-                    class="input input-sm input-bordered font-mono"
-                  />
-                  <.field_error errors={@edit_form[:gross_amount].errors} />
-                </div>
-
-                <div class="form-control">
-                  <label class="label"><span class="label-text text-xs">Currency</span></label>
-                  <input
-                    type="text"
-                    name={@edit_form[:currency].name}
-                    value={@edit_form[:currency].value}
-                    class="input input-sm input-bordered"
-                    maxlength="3"
-                  />
-                  <.field_error errors={@edit_form[:currency].errors} />
-                </div>
-
-                <div class="flex gap-2 pt-2">
-                  <button type="submit" class="btn btn-sm btn-primary">Save</button>
-                  <button type="button" phx-click="cancel_edit" class="btn btn-sm btn-ghost">
-                    Cancel
-                  </button>
-                </div>
-              </.form>
+              <.invoice_edit_form edit_form={@edit_form} />
             <% else %>
               <table class="text-sm w-full">
                 <tbody>
@@ -678,6 +545,148 @@ defmodule KsefHubWeb.InvoiceLive.Show do
         <.icon name="hero-arrow-left" class="size-4" /> Back to invoices
       </.link>
     </div>
+    """
+  end
+
+  attr :edit_form, :map, required: true
+
+  defp invoice_edit_form(assigns) do
+    ~H"""
+    <.form
+      for={@edit_form}
+      phx-change="validate_edit"
+      phx-submit="save_edit"
+      class="space-y-3"
+    >
+      <div class="form-control">
+        <label class="label"><span class="label-text text-xs">Invoice Number</span></label>
+        <input
+          type="text"
+          name={@edit_form[:invoice_number].name}
+          value={@edit_form[:invoice_number].value}
+          class="input input-sm input-bordered"
+        />
+        <.field_error errors={@edit_form[:invoice_number].errors} />
+      </div>
+
+      <div class="form-control">
+        <label class="label"><span class="label-text text-xs">Issue Date</span></label>
+        <input
+          type="date"
+          name={@edit_form[:issue_date].name}
+          value={@edit_form[:issue_date].value}
+          class="input input-sm input-bordered"
+        />
+        <.field_error errors={@edit_form[:issue_date].errors} />
+      </div>
+
+      <div class="divider text-xs my-1">Seller</div>
+
+      <div class="form-control">
+        <label class="label"><span class="label-text text-xs">Seller Name</span></label>
+        <input
+          type="text"
+          name={@edit_form[:seller_name].name}
+          value={@edit_form[:seller_name].value}
+          class="input input-sm input-bordered"
+        />
+        <.field_error errors={@edit_form[:seller_name].errors} />
+      </div>
+
+      <div class="form-control">
+        <label class="label"><span class="label-text text-xs">Seller NIP</span></label>
+        <input
+          type="text"
+          name={@edit_form[:seller_nip].name}
+          value={@edit_form[:seller_nip].value}
+          class="input input-sm input-bordered"
+          maxlength="10"
+        />
+        <.field_error errors={@edit_form[:seller_nip].errors} />
+      </div>
+
+      <div class="divider text-xs my-1">Buyer</div>
+
+      <div class="form-control">
+        <label class="label"><span class="label-text text-xs">Buyer Name</span></label>
+        <input
+          type="text"
+          name={@edit_form[:buyer_name].name}
+          value={@edit_form[:buyer_name].value}
+          class="input input-sm input-bordered"
+        />
+        <.field_error errors={@edit_form[:buyer_name].errors} />
+      </div>
+
+      <div class="form-control">
+        <label class="label"><span class="label-text text-xs">Buyer NIP</span></label>
+        <input
+          type="text"
+          name={@edit_form[:buyer_nip].name}
+          value={@edit_form[:buyer_nip].value}
+          class="input input-sm input-bordered"
+          maxlength="10"
+        />
+        <.field_error errors={@edit_form[:buyer_nip].errors} />
+      </div>
+
+      <div class="divider text-xs my-1">Amounts</div>
+
+      <div class="form-control">
+        <label class="label"><span class="label-text text-xs">Netto</span></label>
+        <input
+          type="text"
+          inputmode="decimal"
+          name={@edit_form[:net_amount].name}
+          value={@edit_form[:net_amount].value}
+          class="input input-sm input-bordered font-mono"
+        />
+        <.field_error errors={@edit_form[:net_amount].errors} />
+      </div>
+
+      <div class="form-control">
+        <label class="label"><span class="label-text text-xs">VAT</span></label>
+        <input
+          type="text"
+          inputmode="decimal"
+          name={@edit_form[:vat_amount].name}
+          value={@edit_form[:vat_amount].value}
+          class="input input-sm input-bordered font-mono"
+        />
+        <.field_error errors={@edit_form[:vat_amount].errors} />
+      </div>
+
+      <div class="form-control">
+        <label class="label"><span class="label-text text-xs">Brutto</span></label>
+        <input
+          type="text"
+          inputmode="decimal"
+          name={@edit_form[:gross_amount].name}
+          value={@edit_form[:gross_amount].value}
+          class="input input-sm input-bordered font-mono"
+        />
+        <.field_error errors={@edit_form[:gross_amount].errors} />
+      </div>
+
+      <div class="form-control">
+        <label class="label"><span class="label-text text-xs">Currency</span></label>
+        <input
+          type="text"
+          name={@edit_form[:currency].name}
+          value={@edit_form[:currency].value}
+          class="input input-sm input-bordered"
+          maxlength="3"
+        />
+        <.field_error errors={@edit_form[:currency].errors} />
+      </div>
+
+      <div class="flex gap-2 pt-2">
+        <button type="submit" class="btn btn-sm btn-primary">Save</button>
+        <button type="button" phx-click="cancel_edit" class="btn btn-sm btn-ghost">
+          Cancel
+        </button>
+      </div>
+    </.form>
     """
   end
 
