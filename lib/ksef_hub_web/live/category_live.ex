@@ -173,17 +173,13 @@ defmodule KsefHubWeb.CategoryLive do
               class="input input-sm input-bordered w-16 text-center"
             />
           </div>
-          <div class="form-control">
-            <label class="label"><span class="label-text text-xs">Name (group:target)</span></label>
-            <input
-              type="text"
-              name={@form[:name].name}
-              value={@form[:name].value}
-              placeholder="finance:invoices"
-              class="input input-sm input-bordered"
-              required
-            />
-          </div>
+          <.input
+            field={@form[:name]}
+            label="Name (group:target)"
+            placeholder="finance:invoices"
+            class="input input-sm input-bordered"
+            required
+          />
           <div class="form-control">
             <label class="label"><span class="label-text text-xs">Description</span></label>
             <input

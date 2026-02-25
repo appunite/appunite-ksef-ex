@@ -28,7 +28,7 @@ defmodule KsefHub.Invoices.Category do
     |> cast(attrs, [:name, :emoji, :description, :sort_order])
     |> validate_required([:name, :company_id])
     |> validate_format(:name, ~r/^[^:]+:.+$/, message: "must be in group:target format")
-    |> unique_constraint([:company_id, :name])
+    |> unique_constraint([:company_id, :name], error_key: :name)
     |> foreign_key_constraint(:company_id)
   end
 end
