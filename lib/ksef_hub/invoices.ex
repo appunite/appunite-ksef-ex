@@ -410,6 +410,52 @@ defmodule KsefHub.Invoices do
     end
   end
 
+  @doc """
+  Creates an expense invoice from an email attachment with pre-extracted fields.
+
+  Accepts extraction results from the unstructured service or `:extraction_failed`
+  when extraction could not be performed. Always sets `source: :email` and `type: :expense`.
+
+  ## Parameters
+    * `company_id` - the company UUID
+    * `pdf_binary` - raw PDF file content
+    * `extracted_or_failure` - extraction results map or `:extraction_failed`
+    * `opts` - keyword list with optional `:filename`
+  """
+  @spec create_email_invoice(Ecto.UUID.t(), binary(), map() | :extraction_failed, keyword()) ::
+          {:ok, Invoice.t()} | {:error, term()}
+  def create_email_invoice(company_id, pdf_binary, :extraction_failed, opts) do
+    filename = opts[:filename]
+
+    %{
+      source: :email,
+      type: :expense,
+      company_id: company_id,
+      pdf_content: pdf_binary,
+      original_filename: filename,
+      extraction_status: :failed
+    }
+    |> create_invoice()
+  end
+
+  def create_email_invoice(company_id, pdf_binary, extracted, opts) when is_map(extracted) do
+    filename = opts[:filename]
+    extraction_status = determine_extraction_status(extracted)
+
+    invoice_attrs =
+      build_pdf_upload_attrs(extracted, company_id, pdf_binary, :expense, filename, extraction_status)
+      |> Map.put(:source, :email)
+
+    case create_or_retry_duplicate(company_id, invoice_attrs) do
+      {:ok, invoice} ->
+        maybe_enqueue_prediction(extraction_status, invoice)
+        {:ok, invoice}
+
+      error ->
+        error
+    end
+  end
+
   @spec do_create_pdf_upload(Ecto.UUID.t(), binary(), String.t(), String.t() | nil, map()) ::
           {:ok, Invoice.t()} | {:error, term()}
   defp do_create_pdf_upload(company_id, pdf_binary, type, filename, extracted) do
@@ -982,7 +1028,7 @@ defmodule KsefHub.Invoices do
             fragment("? ILIKE ? ESCAPE '\\'", i.buyer_name, ^pattern)
         )
 
-      {:source, source}, q when source in [:ksef, :manual, :pdf_upload] ->
+      {:source, source}, q when source in [:ksef, :manual, :pdf_upload, :email] ->
         where(q, [i], i.source == ^source)
 
       {:category_id, category_id}, q when is_binary(category_id) and category_id != "" ->
