@@ -43,6 +43,43 @@ defmodule KsefHubWeb.InvoiceLive.IndexTest do
     end
   end
 
+  describe "category and tag columns" do
+    test "shows category name in table", %{conn: conn, company: company} do
+      category = insert(:category, company: company, name: "finance:invoices", emoji: "💰")
+      insert(:invoice, company: company, category: category)
+
+      {:ok, _view, html} = live(conn, ~p"/invoices")
+      assert html =~ "finance:invoices"
+      assert html =~ "💰"
+    end
+
+    test "shows tag names in table", %{conn: conn, company: company} do
+      tag = insert(:tag, company: company, name: "monthly")
+      invoice = insert(:invoice, company: company)
+      insert(:invoice_tag, invoice: invoice, tag: tag)
+
+      {:ok, _view, html} = live(conn, ~p"/invoices")
+      assert html =~ "monthly"
+    end
+
+    test "shows Review badge when prediction_status is needs_review", %{
+      conn: conn,
+      company: company
+    } do
+      insert(:invoice, company: company, prediction_status: :needs_review)
+
+      {:ok, _view, html} = live(conn, ~p"/invoices")
+      assert html =~ "Review"
+    end
+
+    test "does not show Review badge for predicted status", %{conn: conn, company: company} do
+      insert(:invoice, company: company, prediction_status: :predicted)
+
+      {:ok, _view, html} = live(conn, ~p"/invoices")
+      refute html =~ "Review"
+    end
+  end
+
   describe "filters" do
     setup %{conn: conn, company: company} do
       income = insert(:invoice, type: :income, invoice_number: "FV/INC/001", company: company)

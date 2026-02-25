@@ -256,6 +256,15 @@ defmodule KsefHubWeb.InvoiceLive.Index do
         <:col :let={inv} label="Status" class="w-28">
           <.status_badge status={inv.status} />
         </:col>
+        <:col :let={inv} label="Category">
+          <.category_badge category={inv.category} />
+        </:col>
+        <:col :let={inv} label="Tags">
+          <.tag_list tags={inv.tags} />
+        </:col>
+        <:col :let={inv} label="" class="w-16">
+          <.prediction_indicator prediction_status={inv.prediction_status} />
+        </:col>
       </.table>
     </div>
 
