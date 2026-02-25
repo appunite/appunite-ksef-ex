@@ -1,0 +1,191 @@
+defmodule KsefHubWeb.WebhookController do
+  @moduledoc """
+  Handles Mailgun inbound email webhooks for invoice processing.
+
+  Verifies HMAC-SHA256 signature, validates sender domain, parses
+  company token from recipient address, validates attachments,
+  and enqueues async processing via Oban.
+  """
+
+  use KsefHubWeb, :controller
+
+  require Logger
+
+  alias KsefHub.Companies
+  alias KsefHub.InboundEmail
+  alias KsefHub.InboundEmail.{InboundEmailWorker, ReplyNotifier, SignatureVerifier}
+
+  @doc "Processes a Mailgun inbound email webhook."
+  @spec inbound(Plug.Conn.t(), map()) :: Plug.Conn.t()
+  def inbound(conn, params) do
+    with :ok <- verify_signature(params),
+         {:ok, sender} <- validate_sender_domain(params),
+         {:ok, token} <- parse_company_token(params),
+         {:ok, company} <- lookup_company(token),
+         {:ok, attachment} <- validate_attachments(params, sender) do
+      process_inbound(conn, company, sender, params, attachment)
+    else
+      {:error, :invalid_signature} ->
+        conn
+        |> put_status(406)
+        |> json(%{error: "Invalid signature"})
+
+      {:error, :disallowed_domain} ->
+        json(conn, %{status: "discarded"})
+
+      {:error, :unknown_company} ->
+        json(conn, %{status: "rejected", reason: "Unknown company token"})
+
+      {:error, {:attachment_error, reason, sender}} ->
+        send_attachment_error_reply(sender, reason, params)
+        json(conn, %{status: "rejected", reason: attachment_error_message(reason)})
+    end
+  end
+
+  @spec verify_signature(map()) :: :ok | {:error, :invalid_signature}
+  defp verify_signature(params) do
+    signing_key = Application.get_env(:ksef_hub, :mailgun_signing_key, "")
+    timestamp = params["timestamp"]
+    token = params["token"]
+    signature = params["signature"]
+
+    SignatureVerifier.verify(timestamp, token, signature, signing_key)
+  end
+
+  @spec validate_sender_domain(map()) :: {:ok, String.t()} | {:error, :disallowed_domain}
+  defp validate_sender_domain(params) do
+    sender = params["sender"] || ""
+    allowed_domain = Application.get_env(:ksef_hub, :inbound_allowed_sender_domain)
+
+    if allowed_domain do
+      domain = sender |> String.split("@") |> List.last() |> String.downcase()
+
+      if domain == String.downcase(allowed_domain) do
+        {:ok, sender}
+      else
+        Logger.info("Discarding inbound email from disallowed domain: #{domain}")
+        {:error, :disallowed_domain}
+      end
+    else
+      {:ok, sender}
+    end
+  end
+
+  @spec parse_company_token(map()) :: {:ok, String.t()} | {:error, :unknown_company}
+  defp parse_company_token(params) do
+    recipient = params["recipient"] || ""
+
+    case Regex.run(~r/^inv-([a-z0-9]+)@/, recipient) do
+      [_, token] -> {:ok, token}
+      _ -> {:error, :unknown_company}
+    end
+  end
+
+  @spec lookup_company(String.t()) ::
+          {:ok, Companies.Company.t()} | {:error, :unknown_company}
+  defp lookup_company(token) do
+    case Companies.get_company_by_inbound_email_token(token) do
+      nil -> {:error, :unknown_company}
+      company -> {:ok, company}
+    end
+  end
+
+  @spec validate_attachments(map(), String.t()) ::
+          {:ok, Plug.Upload.t()} | {:error, {:attachment_error, atom(), String.t()}}
+  defp validate_attachments(params, sender) do
+    attachments = collect_attachments(params)
+
+    case attachments do
+      [] ->
+        {:error, {:attachment_error, :no_attachment, sender}}
+
+      [single] ->
+        if pdf_attachment?(single) do
+          {:ok, single}
+        else
+          {:error, {:attachment_error, {:non_pdf, single.filename}, sender}}
+        end
+
+      _multiple ->
+        {:error, {:attachment_error, :multiple_attachments, sender}}
+    end
+  end
+
+  @spec collect_attachments(map()) :: [Plug.Upload.t()]
+  defp collect_attachments(params) do
+    params
+    |> Enum.filter(fn {key, value} ->
+      String.starts_with?(key, "attachment-") and match?(%Plug.Upload{}, value)
+    end)
+    |> Enum.map(fn {_key, upload} -> upload end)
+  end
+
+  @spec pdf_attachment?(Plug.Upload.t()) :: boolean()
+  defp pdf_attachment?(%Plug.Upload{content_type: ct, filename: filename}) do
+    ct == "application/pdf" or String.ends_with?(filename || "", ".pdf")
+  end
+
+  @spec process_inbound(
+          Plug.Conn.t(),
+          Companies.Company.t(),
+          String.t(),
+          map(),
+          Plug.Upload.t()
+        ) :: Plug.Conn.t()
+  defp process_inbound(conn, company, sender, params, attachment) do
+    pdf_binary = File.read!(attachment.path)
+
+    case InboundEmail.create_inbound_email(company.id, %{
+           sender: sender,
+           recipient: params["recipient"] || "",
+           subject: params["subject"],
+           status: :received,
+           mailgun_message_id: params["Message-Id"],
+           pdf_content: pdf_binary,
+           original_filename: attachment.filename
+         }) do
+      {:ok, record} ->
+        enqueue_processing(record, company)
+        json(conn, %{status: "ok"})
+
+      {:error, _changeset} ->
+        # Likely duplicate message ID — already processed
+        json(conn, %{status: "ok"})
+    end
+  end
+
+  @spec enqueue_processing(InboundEmail.InboundEmail.t(), Companies.Company.t()) ::
+          {:ok, Oban.Job.t()} | {:error, term()}
+  defp enqueue_processing(record, company) do
+    %{inbound_email_id: record.id, company_id: company.id}
+    |> InboundEmailWorker.new()
+    |> Oban.insert()
+  end
+
+  @spec send_attachment_error_reply(String.t(), atom() | tuple(), map()) :: :ok
+  defp send_attachment_error_reply(sender, reason, _params) do
+    cc = Application.get_env(:ksef_hub, :inbound_cc_email)
+    opts = if cc, do: [cc: cc], else: []
+
+    {rejection_reason, extra_opts} = normalize_attachment_error(reason)
+
+    email = ReplyNotifier.rejection(sender, rejection_reason, opts ++ extra_opts)
+
+    case ReplyNotifier.deliver(email) do
+      {:ok, _} -> :ok
+      {:error, reason} -> Logger.warning("Failed to send rejection reply: #{inspect(reason)}")
+    end
+  end
+
+  @spec normalize_attachment_error(atom() | tuple()) :: {atom(), keyword()}
+  defp normalize_attachment_error(:no_attachment), do: {:no_attachment, []}
+  defp normalize_attachment_error(:multiple_attachments), do: {:multiple_attachments, []}
+
+  defp normalize_attachment_error({:non_pdf, filename}),
+    do: {:non_pdf, [filename: filename]}
+
+  @spec attachment_error_message(atom() | tuple()) :: String.t()
+  defp attachment_error_message(:no_attachment), do: "No PDF attachment found"
+  defp attachment_error_message(:multiple_attachments), do: "Multiple attachments detected"
+  defp attachment_error_message({:non_pdf, _}), do: "Attachment is not a PDF"
+end
