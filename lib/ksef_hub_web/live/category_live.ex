@@ -163,8 +163,8 @@ defmodule KsefHubWeb.CategoryLive do
           class="flex flex-wrap gap-3 mt-3 items-end"
           id="category-form"
         >
-          <div class="form-control">
-            <label class="label"><span class="label-text text-xs">Emoji</span></label>
+          <div>
+            <label class="block text-xs text-base-content/60 mb-1">Emoji</label>
             <input
               type="text"
               name={@form[:emoji].name}
@@ -173,32 +173,32 @@ defmodule KsefHubWeb.CategoryLive do
               class="input input-sm input-bordered w-16 text-center"
             />
           </div>
-          <div class="form-control flex-1 min-w-40">
-            <label class="label"><span class="label-text text-xs">Name (group:target)</span></label>
+          <div class="flex-1 min-w-40">
+            <label class="block text-xs text-base-content/60 mb-1">Name (group:target)</label>
             <input
               type="text"
               name={@form[:name].name}
               value={@form[:name].value}
               placeholder="finance:invoices"
-              class="input input-sm input-bordered"
+              class="input input-sm input-bordered w-full"
               required
             />
             <.error :for={msg <- Enum.map(@form[:name].errors, &translate_error/1)}>
               {msg}
             </.error>
           </div>
-          <div class="form-control flex-1 min-w-40">
-            <label class="label"><span class="label-text text-xs">Description</span></label>
+          <div class="flex-1 min-w-40">
+            <label class="block text-xs text-base-content/60 mb-1">Description</label>
             <input
               type="text"
               name={@form[:description].name}
               value={@form[:description].value}
               placeholder="Optional description"
-              class="input input-sm input-bordered"
+              class="input input-sm input-bordered w-full"
             />
           </div>
-          <div class="form-control">
-            <label class="label"><span class="label-text text-xs">Order</span></label>
+          <div>
+            <label class="block text-xs text-base-content/60 mb-1">Order</label>
             <input
               type="number"
               name={@form[:sort_order].name}
