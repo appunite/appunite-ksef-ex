@@ -41,6 +41,8 @@ defmodule KsefHubWeb.InvoiceLive.Index do
 
   @spec filter_assigns(map(), map(), atom() | nil) :: keyword()
   defp filter_assigns(filters, result, role) do
+    first_tag_id = filters[:tag_ids] |> List.wrap() |> List.first()
+
     form =
       %{
         "type" => to_string_or_empty(filters[:type]),
@@ -49,7 +51,7 @@ defmodule KsefHubWeb.InvoiceLive.Index do
         "date_to" => (filters[:date_to] && Date.to_iso8601(filters[:date_to])) || "",
         "query" => filters[:query] || "",
         "category_id" => filters[:category_id] || "",
-        "tag_id" => filters[:tag_ids] |> List.wrap() |> List.first() || ""
+        "tag_id" => first_tag_id || ""
       }
       |> to_form(as: :filters)
 

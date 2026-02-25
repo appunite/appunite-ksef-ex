@@ -128,7 +128,7 @@ defmodule KsefHubWeb.InvoiceLive.Show do
   @impl true
   def handle_event("toggle_tag", %{"tag-id" => tag_id}, socket) do
     invoice = socket.assigns.invoice
-    currently_assigned = Enum.any?(invoice.tags, &(&1.id == tag_id))
+    currently_assigned = tag_assigned?(invoice, tag_id)
 
     result =
       if currently_assigned,
@@ -184,7 +184,7 @@ defmodule KsefHubWeb.InvoiceLive.Show do
   @spec changeset_message(Ecto.Changeset.t()) :: String.t()
   defp changeset_message(changeset) do
     changeset
-    |> Ecto.Changeset.traverse_errors(fn {msg, _} -> msg end)
+    |> Ecto.Changeset.traverse_errors(&translate_error/1)
     |> Enum.map_join(", ", fn {k, v} -> "#{k} #{Enum.join(v, ", ")}" end)
   end
 
@@ -374,6 +374,7 @@ defmodule KsefHubWeb.InvoiceLive.Show do
                   name="name"
                   value={@new_tag_name}
                   phx-keyup="new_tag_input"
+                  phx-debounce="300"
                   placeholder="New tag..."
                   class="input input-xs input-bordered flex-1"
                   data-testid="new-tag-input"

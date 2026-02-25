@@ -9,6 +9,8 @@ defmodule KsefHubWeb.CategoryLive do
   alias KsefHub.Invoices
   alias KsefHub.Invoices.Category
 
+  @doc "Initializes assigns and streams categories for the current company."
+  @spec mount(map(), map(), Phoenix.LiveView.Socket.t()) :: {:ok, Phoenix.LiveView.Socket.t()}
   @impl true
   def mount(_params, _session, socket) do
     company_id = socket.assigns.current_company.id
@@ -26,6 +28,9 @@ defmodule KsefHubWeb.CategoryLive do
 
   # --- Events ---
 
+  @doc "Handles validate, save, edit, cancel_edit, and delete events for categories."
+  @spec handle_event(String.t(), map(), Phoenix.LiveView.Socket.t()) ::
+          {:noreply, Phoenix.LiveView.Socket.t()}
   @impl true
   def handle_event("validate", %{"category" => params}, socket) do
     {:noreply, assign(socket, form: to_form(params, as: :category))}
@@ -142,6 +147,8 @@ defmodule KsefHubWeb.CategoryLive do
 
   # --- Render ---
 
+  @doc "Renders the category management page with form and table."
+  @spec render(map()) :: Phoenix.LiveView.Rendered.t()
   @impl true
   def render(assigns) do
     ~H"""
