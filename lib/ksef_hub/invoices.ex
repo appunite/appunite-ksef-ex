@@ -284,11 +284,16 @@ defmodule KsefHub.Invoices do
   @spec atomize_known_keys(map()) :: map()
   defp atomize_known_keys(attrs) do
     Map.new(attrs, fn
-      {k, v} when is_binary(k) -> {String.to_existing_atom(k), v}
+      {k, v} when is_binary(k) -> {safe_to_existing_atom(k), v}
       {k, v} -> {k, v}
     end)
+  end
+
+  @spec safe_to_existing_atom(String.t()) :: atom() | String.t()
+  defp safe_to_existing_atom(str) do
+    String.to_existing_atom(str)
   rescue
-    ArgumentError -> attrs
+    ArgumentError -> str
   end
 
   @doc """
