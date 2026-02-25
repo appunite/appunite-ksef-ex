@@ -425,51 +425,40 @@ defmodule KsefHub.Invoices do
   @spec create_email_invoice(Ecto.UUID.t(), binary(), map() | :extraction_failed, keyword()) ::
           {:ok, Invoice.t()} | {:error, term()}
   def create_email_invoice(company_id, pdf_binary, :extraction_failed, opts) do
-    filename = opts[:filename]
-
-    %{
-      source: :email,
-      type: :expense,
-      company_id: company_id,
-      pdf_content: pdf_binary,
-      original_filename: filename,
-      extraction_status: :failed
-    }
-    |> create_invoice()
+    do_create_pdf_failed(company_id, pdf_binary, :expense, opts[:filename], :email)
   end
 
   def create_email_invoice(company_id, pdf_binary, extracted, opts) when is_map(extracted) do
-    filename = opts[:filename]
-    extraction_status = determine_extraction_status(extracted)
-
-    invoice_attrs =
-      build_pdf_upload_attrs(
-        extracted,
-        company_id,
-        pdf_binary,
-        :expense,
-        filename,
-        extraction_status
-      )
-      |> Map.put(:source, :email)
-
-    case create_or_retry_duplicate(company_id, invoice_attrs) do
-      {:ok, invoice} ->
-        maybe_enqueue_prediction(extraction_status, invoice)
-        {:ok, invoice}
-
-      error ->
-        error
-    end
+    do_create_pdf_extracted(company_id, pdf_binary, :expense, opts[:filename], extracted, :email)
   end
 
-  @spec do_create_pdf_upload(Ecto.UUID.t(), binary(), String.t(), String.t() | nil, map()) ::
+  @spec do_create_pdf_upload(Ecto.UUID.t(), binary(), atom(), String.t() | nil, map()) ::
           {:ok, Invoice.t()} | {:error, term()}
   defp do_create_pdf_upload(company_id, pdf_binary, type, filename, extracted) do
+    do_create_pdf_extracted(company_id, pdf_binary, type, filename, extracted, :pdf_upload)
+  end
+
+  @spec do_create_pdf_upload_failed(Ecto.UUID.t(), binary(), atom(), String.t() | nil) ::
+          {:ok, Invoice.t()} | {:error, term()}
+  defp do_create_pdf_upload_failed(company_id, pdf_binary, type, filename) do
+    do_create_pdf_failed(company_id, pdf_binary, type, filename, :pdf_upload)
+  end
+
+  # Shared: create invoice from extracted fields with duplicate detection + prediction
+  @spec do_create_pdf_extracted(
+          Ecto.UUID.t(),
+          binary(),
+          atom(),
+          String.t() | nil,
+          map(),
+          Invoice.invoice_source()
+        ) :: {:ok, Invoice.t()} | {:error, term()}
+  defp do_create_pdf_extracted(company_id, pdf_binary, type, filename, extracted, source) do
     extraction_status = determine_extraction_status(extracted)
 
     invoice_attrs =
       build_pdf_upload_attrs(extracted, company_id, pdf_binary, type, filename, extraction_status)
+      |> Map.put(:source, source)
 
     case create_or_retry_duplicate(company_id, invoice_attrs) do
       {:ok, invoice} ->
@@ -481,11 +470,17 @@ defmodule KsefHub.Invoices do
     end
   end
 
-  @spec do_create_pdf_upload_failed(Ecto.UUID.t(), binary(), String.t(), String.t() | nil) ::
-          {:ok, Invoice.t()} | {:error, term()}
-  defp do_create_pdf_upload_failed(company_id, pdf_binary, type, filename) do
+  # Shared: create invoice when extraction failed
+  @spec do_create_pdf_failed(
+          Ecto.UUID.t(),
+          binary(),
+          atom(),
+          String.t() | nil,
+          Invoice.invoice_source()
+        ) :: {:ok, Invoice.t()} | {:error, term()}
+  defp do_create_pdf_failed(company_id, pdf_binary, type, filename, source) do
     %{
-      source: :pdf_upload,
+      source: source,
       type: type,
       company_id: company_id,
       pdf_content: pdf_binary,
