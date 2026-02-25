@@ -125,6 +125,67 @@ defmodule KsefHubWeb.WebhookControllerTest do
       assert json_response(conn, 200)["status"] == "rejected"
       assert json_response(conn, 200)["reason"] =~ "PDF"
     end
+
+    test "returns 200 ok for duplicate mailgun message (idempotent)", %{
+      conn: conn,
+      company: company
+    } do
+      KsefHub.Unstructured.Mock
+      |> expect(:extract, fn _pdf, _opts ->
+        {:ok,
+         %{
+           "seller_nip" => "9999999999",
+           "seller_name" => "Seller",
+           "buyer_nip" => "1234567890",
+           "buyer_name" => "Buyer",
+           "invoice_number" => "FV/2026/001",
+           "issue_date" => "2026-02-25",
+           "net_amount" => "1000.00",
+           "gross_amount" => "1230.00"
+         }}
+      end)
+
+      params =
+        build_valid_params(company)
+        |> Map.put("Message-Id", "<duplicate-msg-id@mailgun.org>")
+
+      # First request succeeds
+      conn1 = post(conn, "/webhooks/mailgun/inbound", params)
+      assert json_response(conn1, 200)["status"] == "ok"
+
+      # Second request with same Message-Id also returns 200 (idempotent)
+      conn2 = post(build_conn(), "/webhooks/mailgun/inbound", params)
+      assert json_response(conn2, 200)["status"] == "ok"
+    end
+
+    test "accepts any sender domain when allowed_sender_domain is not configured", %{
+      conn: conn,
+      company: company
+    } do
+      Application.delete_env(:ksef_hub, :inbound_allowed_sender_domain)
+
+      KsefHub.Unstructured.Mock
+      |> expect(:extract, fn _pdf, _opts ->
+        {:ok,
+         %{
+           "seller_nip" => "9999999999",
+           "seller_name" => "Seller",
+           "buyer_nip" => "1234567890",
+           "buyer_name" => "Buyer",
+           "invoice_number" => "FV/2026/001",
+           "issue_date" => "2026-02-25",
+           "net_amount" => "1000.00",
+           "gross_amount" => "1230.00"
+         }}
+      end)
+
+      params =
+        build_valid_params(company)
+        |> Map.put("sender", "user@any-domain.com")
+
+      conn = post(conn, "/webhooks/mailgun/inbound", params)
+      assert json_response(conn, 200)["status"] == "ok"
+    end
   end
 
   # --- Helpers ---

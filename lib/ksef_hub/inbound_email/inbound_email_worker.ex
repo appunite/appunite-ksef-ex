@@ -56,7 +56,7 @@ defmodule KsefHub.InboundEmail.InboundEmailWorker do
       {_, {:error, reason}} ->
         reject_and_notify(record, company, reason)
 
-      {_, {:undetermined, :needs_review}} ->
+      {_, _} ->
         create_and_notify(record, company, extracted, :needs_review)
     end
   end
