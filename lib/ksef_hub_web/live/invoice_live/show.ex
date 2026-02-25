@@ -151,36 +151,41 @@ defmodule KsefHubWeb.InvoiceLive.Show do
 
   @impl true
   def handle_event("create_and_add_tag", %{"name" => name}, socket) do
-    name = String.trim(name)
-
-    if name == "" do
-      {:noreply, socket}
-    else
-      company_id = socket.assigns.current_company.id
-      invoice = socket.assigns.invoice
-
-      with {:ok, tag} <- Invoices.create_tag(company_id, %{name: name}),
-           {:ok, _} <- Invoices.add_invoice_tag(invoice.id, tag.id, company_id) do
-        {:noreply,
-         socket
-         |> assign(
-           invoice: reload_details(invoice, socket),
-           all_tags: Invoices.list_tags(company_id),
-           new_tag_name: ""
-         )}
-      else
-        {:error, %Ecto.Changeset{} = cs} ->
-          message =
-            cs
-            |> Ecto.Changeset.traverse_errors(fn {msg, _} -> msg end)
-            |> Enum.map_join(", ", fn {k, v} -> "#{k} #{Enum.join(v, ", ")}" end)
-
-          {:noreply, put_flash(socket, :error, "Failed to create tag: #{message}")}
-
-        {:error, _} ->
-          {:noreply, put_flash(socket, :error, "Failed to create tag.")}
-      end
+    case String.trim(name) do
+      "" -> {:noreply, socket}
+      trimmed -> do_create_and_add_tag(socket, trimmed)
     end
+  end
+
+  @spec do_create_and_add_tag(Phoenix.LiveView.Socket.t(), String.t()) ::
+          {:noreply, Phoenix.LiveView.Socket.t()}
+  defp do_create_and_add_tag(socket, name) do
+    company_id = socket.assigns.current_company.id
+    invoice = socket.assigns.invoice
+
+    with {:ok, tag} <- Invoices.create_tag(company_id, %{name: name}),
+         {:ok, _} <- Invoices.add_invoice_tag(invoice.id, tag.id, company_id) do
+      {:noreply,
+       socket
+       |> assign(
+         invoice: reload_details(invoice, socket),
+         all_tags: Invoices.list_tags(company_id),
+         new_tag_name: ""
+       )}
+    else
+      {:error, %Ecto.Changeset{} = cs} ->
+        {:noreply, put_flash(socket, :error, "Failed to create tag: #{changeset_message(cs)}")}
+
+      {:error, _} ->
+        {:noreply, put_flash(socket, :error, "Failed to create tag.")}
+    end
+  end
+
+  @spec changeset_message(Ecto.Changeset.t()) :: String.t()
+  defp changeset_message(changeset) do
+    changeset
+    |> Ecto.Changeset.traverse_errors(fn {msg, _} -> msg end)
+    |> Enum.map_join(", ", fn {k, v} -> "#{k} #{Enum.join(v, ", ")}" end)
   end
 
   # --- Private ---

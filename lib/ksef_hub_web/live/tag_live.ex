@@ -84,7 +84,10 @@ defmodule KsefHubWeb.TagLive do
   defp create_tag(socket, params) do
     company_id = socket.assigns.current_company.id
 
-    case Invoices.create_tag(company_id, %{name: params["name"], description: params["description"]}) do
+    case Invoices.create_tag(company_id, %{
+           name: params["name"],
+           description: params["description"]
+         }) do
       {:ok, tag} ->
         {:noreply,
          socket

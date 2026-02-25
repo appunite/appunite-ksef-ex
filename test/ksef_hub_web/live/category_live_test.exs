@@ -44,7 +44,12 @@ defmodule KsefHubWeb.CategoryLiveTest do
       view
       |> element("form#category-form")
       |> render_submit(%{
-        category: %{name: "ops:hosting", emoji: "🖥", description: "Hosting costs", sort_order: "1"}
+        category: %{
+          name: "ops:hosting",
+          emoji: "🖥",
+          description: "Hosting costs",
+          sort_order: "1"
+        }
       })
 
       html = render(view)
