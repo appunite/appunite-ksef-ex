@@ -1,7 +1,7 @@
 defmodule KsefHubWeb.InvoiceLive.Show do
   @moduledoc """
   LiveView for invoice detail page with HTML preview, metadata,
-  category/tag editing, and approve/reject actions.
+  category/tag editing, edit form, and approve/reject actions.
   """
   use KsefHubWeb, :live_view
 
@@ -48,6 +48,8 @@ defmodule KsefHubWeb.InvoiceLive.Show do
          |> redirect(to: ~p"/invoices")}
 
       invoice ->
+        auto_edit = invoice.extraction_status in [:partial, :failed]
+
         {:ok,
          socket
          |> assign(
@@ -58,14 +60,16 @@ defmodule KsefHubWeb.InvoiceLive.Show do
            all_tags: Invoices.list_tags(company.id),
            category_form: category_form(invoice),
            new_tag_form: new_tag_form(),
-           tag_form_key: 0
+           tag_form_key: 0,
+           editing: auto_edit,
+           edit_form: build_edit_form(invoice)
          )}
     end
   end
 
   # --- Events: Approve/Reject ---
 
-  @doc "Handles approve and reject actions for expense invoices."
+  @doc "Handles approve, reject, category/tag, and edit actions."
   @impl true
   def handle_event("approve", _params, socket) do
     case Invoices.approve_invoice(socket.assigns.invoice) do
@@ -77,6 +81,14 @@ defmodule KsefHubWeb.InvoiceLive.Show do
 
       {:error, {:invalid_type, _}} ->
         {:noreply, put_flash(socket, :error, "Only expense invoices can be approved.")}
+
+      {:error, :incomplete_extraction} ->
+        {:noreply,
+         put_flash(
+           socket,
+           :error,
+           "Cannot approve: missing required fields (net/gross amount). Please fill in the missing data first."
+         )}
 
       {:error, _changeset} ->
         {:noreply, put_flash(socket, :error, "Failed to approve invoice.")}
@@ -165,6 +177,61 @@ defmodule KsefHubWeb.InvoiceLive.Show do
     end
   end
 
+  # --- Events: Edit ---
+
+  @impl true
+  def handle_event("toggle_edit", _params, socket) do
+    editing = !socket.assigns.editing
+
+    socket =
+      if editing do
+        assign(socket, editing: true, edit_form: build_edit_form(socket.assigns.invoice))
+      else
+        assign(socket, editing: false)
+      end
+
+    {:noreply, socket}
+  end
+
+  @impl true
+  def handle_event("validate_edit", %{"invoice" => params}, socket) do
+    changeset =
+      socket.assigns.invoice
+      |> Invoice.edit_changeset(params)
+      |> Map.put(:action, :validate)
+
+    {:noreply, assign(socket, edit_form: to_form(changeset, as: :invoice))}
+  end
+
+  @impl true
+  def handle_event("save_edit", %{"invoice" => params}, socket) do
+    case Invoices.update_invoice_fields(socket.assigns.invoice, params) do
+      {:ok, updated} ->
+        {:noreply,
+         socket
+         |> put_flash(:info, "Invoice updated.")
+         |> assign(
+           invoice: updated,
+           editing: false,
+           edit_form: build_edit_form(updated)
+         )}
+
+      {:error, changeset} ->
+        {:noreply, assign(socket, edit_form: to_form(changeset, as: :invoice))}
+    end
+  end
+
+  @impl true
+  def handle_event("cancel_edit", _params, socket) do
+    {:noreply,
+     assign(socket,
+       editing: false,
+       edit_form: build_edit_form(socket.assigns.invoice)
+     )}
+  end
+
+  # --- Private ---
+
   @spec do_create_and_add_tag(Phoenix.LiveView.Socket.t(), String.t()) ::
           {:noreply, Phoenix.LiveView.Socket.t()}
   defp do_create_and_add_tag(socket, name) do
@@ -197,8 +264,6 @@ defmodule KsefHubWeb.InvoiceLive.Show do
     |> Enum.map_join(", ", fn {k, v} -> "#{k} #{Enum.join(v, ", ")}" end)
   end
 
-  # --- Private ---
-
   @spec category_form(Invoice.t()) :: Phoenix.HTML.Form.t()
   defp category_form(invoice) do
     to_form(%{"category_id" => invoice.category_id || ""})
@@ -224,6 +289,13 @@ defmodule KsefHubWeb.InvoiceLive.Show do
     Invoices.get_invoice_with_details!(company_id, invoice.id, role: role)
   end
 
+  @spec build_edit_form(Invoice.t()) :: Phoenix.HTML.Form.t()
+  defp build_edit_form(invoice) do
+    invoice
+    |> Invoice.edit_changeset(%{})
+    |> to_form(as: :invoice)
+  end
+
   @spec generate_preview(Invoice.t()) :: String.t() | nil
   defp generate_preview(invoice) do
     if invoice.xml_content do
@@ -245,7 +317,7 @@ defmodule KsefHubWeb.InvoiceLive.Show do
 
   # --- Render ---
 
-  @doc "Renders invoice detail page with metadata, preview, and action buttons."
+  @doc "Renders invoice detail page with metadata, edit form, preview, and action buttons."
   @impl true
   def render(assigns) do
     ~H"""
@@ -272,6 +344,13 @@ defmodule KsefHubWeb.InvoiceLive.Show do
               <li><a href={~p"/invoices/#{@invoice.id}/xml"}>XML</a></li>
             </ul>
           </div>
+          <button
+            :if={!@editing}
+            phx-click="toggle_edit"
+            class="btn btn-sm btn-outline"
+          >
+            <.icon name="hero-pencil-square" class="size-4" /> Edit
+          </button>
           <button
             :if={@invoice.type == :expense && @invoice.status == :pending}
             phx-click="approve"
@@ -307,71 +386,210 @@ defmodule KsefHubWeb.InvoiceLive.Show do
         <div class="card bg-base-100 border border-base-300">
           <div class="p-4">
             <h2 class="text-base font-semibold mb-2">Details</h2>
-            <table class="text-sm w-full">
-              <tbody>
-                <tr class="border-b border-base-300/50">
-                  <td class="py-1.5 pr-3 text-base-content/60 whitespace-nowrap">Number</td>
-                  <td class="py-1.5 text-right">{@invoice.invoice_number}</td>
-                </tr>
-                <tr class="border-b border-base-300/50">
-                  <td class="py-1.5 pr-3 text-base-content/60">Date</td>
-                  <td class="py-1.5 text-right">{format_date(@invoice.issue_date)}</td>
-                </tr>
-                <tr class="border-b border-base-300/50">
-                  <td class="py-1.5 pr-3 text-base-content/60">Seller</td>
-                  <td class="py-1.5 text-right">
-                    <div>{@invoice.seller_name}</div>
-                    <div class="text-xs text-base-content/50">{@invoice.seller_nip}</div>
-                  </td>
-                </tr>
-                <tr class="border-b border-base-300/50">
-                  <td class="py-1.5 pr-3 text-base-content/60">Buyer</td>
-                  <td class="py-1.5 text-right">
-                    <div>{@invoice.buyer_name}</div>
-                    <div class="text-xs text-base-content/50">{@invoice.buyer_nip}</div>
-                  </td>
-                </tr>
-                <tr class={[
-                  "border-b border-base-300/50",
-                  is_nil(@invoice.net_amount) && "bg-warning/5"
-                ]}>
-                  <td class="py-1.5 pr-3 text-base-content/60">Netto</td>
-                  <td class="py-1.5 text-right font-mono">
-                    {format_amount(@invoice.net_amount)} {@invoice.currency}
-                  </td>
-                </tr>
-                <tr class={[
-                  "border-b border-base-300/50",
-                  is_nil(@invoice.vat_amount) && "bg-warning/5"
-                ]}>
-                  <td class="py-1.5 pr-3 text-base-content/60">VAT</td>
-                  <td class="py-1.5 text-right font-mono">
-                    {format_amount(@invoice.vat_amount)} {@invoice.currency}
-                  </td>
-                </tr>
-                <tr class={[
-                  "border-b border-base-300/50",
-                  is_nil(@invoice.gross_amount) && "bg-warning/5"
-                ]}>
-                  <td class="py-1.5 pr-3 text-base-content/60">Brutto</td>
-                  <td class="py-1.5 text-right font-mono font-bold">
-                    {format_amount(@invoice.gross_amount)} {@invoice.currency}
-                  </td>
-                </tr>
-                <tr :if={@invoice.ksef_number} class="border-b border-base-300/50">
-                  <td class="py-1.5 pr-3 text-base-content/60">KSeF</td>
-                  <td class="py-1.5 text-right font-mono text-xs break-all">
-                    {@invoice.ksef_number}
-                  </td>
-                </tr>
-                <tr :if={@invoice.ksef_acquisition_date}>
-                  <td class="py-1.5 pr-3 text-base-content/60 whitespace-nowrap">Acquired</td>
-                  <td class="py-1.5 text-right text-xs">
-                    {format_datetime(@invoice.ksef_acquisition_date)}
-                  </td>
-                </tr>
-              </tbody>
-            </table>
+
+            <%= if @editing do %>
+              <.form
+                for={@edit_form}
+                phx-change="validate_edit"
+                phx-submit="save_edit"
+                class="space-y-3"
+              >
+                <div class="form-control">
+                  <label class="label"><span class="label-text text-xs">Invoice Number</span></label>
+                  <input
+                    type="text"
+                    name={@edit_form[:invoice_number].name}
+                    value={@edit_form[:invoice_number].value}
+                    class="input input-sm input-bordered"
+                  />
+                  <.field_error errors={@edit_form[:invoice_number].errors} />
+                </div>
+
+                <div class="form-control">
+                  <label class="label"><span class="label-text text-xs">Issue Date</span></label>
+                  <input
+                    type="date"
+                    name={@edit_form[:issue_date].name}
+                    value={@edit_form[:issue_date].value}
+                    class="input input-sm input-bordered"
+                  />
+                  <.field_error errors={@edit_form[:issue_date].errors} />
+                </div>
+
+                <div class="divider text-xs my-1">Seller</div>
+
+                <div class="form-control">
+                  <label class="label"><span class="label-text text-xs">Seller Name</span></label>
+                  <input
+                    type="text"
+                    name={@edit_form[:seller_name].name}
+                    value={@edit_form[:seller_name].value}
+                    class="input input-sm input-bordered"
+                  />
+                  <.field_error errors={@edit_form[:seller_name].errors} />
+                </div>
+
+                <div class="form-control">
+                  <label class="label"><span class="label-text text-xs">Seller NIP</span></label>
+                  <input
+                    type="text"
+                    name={@edit_form[:seller_nip].name}
+                    value={@edit_form[:seller_nip].value}
+                    class="input input-sm input-bordered"
+                    maxlength="10"
+                  />
+                  <.field_error errors={@edit_form[:seller_nip].errors} />
+                </div>
+
+                <div class="divider text-xs my-1">Buyer</div>
+
+                <div class="form-control">
+                  <label class="label"><span class="label-text text-xs">Buyer Name</span></label>
+                  <input
+                    type="text"
+                    name={@edit_form[:buyer_name].name}
+                    value={@edit_form[:buyer_name].value}
+                    class="input input-sm input-bordered"
+                  />
+                  <.field_error errors={@edit_form[:buyer_name].errors} />
+                </div>
+
+                <div class="form-control">
+                  <label class="label"><span class="label-text text-xs">Buyer NIP</span></label>
+                  <input
+                    type="text"
+                    name={@edit_form[:buyer_nip].name}
+                    value={@edit_form[:buyer_nip].value}
+                    class="input input-sm input-bordered"
+                    maxlength="10"
+                  />
+                  <.field_error errors={@edit_form[:buyer_nip].errors} />
+                </div>
+
+                <div class="divider text-xs my-1">Amounts</div>
+
+                <div class="form-control">
+                  <label class="label"><span class="label-text text-xs">Netto</span></label>
+                  <input
+                    type="text"
+                    inputmode="decimal"
+                    name={@edit_form[:net_amount].name}
+                    value={@edit_form[:net_amount].value}
+                    class="input input-sm input-bordered font-mono"
+                  />
+                  <.field_error errors={@edit_form[:net_amount].errors} />
+                </div>
+
+                <div class="form-control">
+                  <label class="label"><span class="label-text text-xs">VAT</span></label>
+                  <input
+                    type="text"
+                    inputmode="decimal"
+                    name={@edit_form[:vat_amount].name}
+                    value={@edit_form[:vat_amount].value}
+                    class="input input-sm input-bordered font-mono"
+                  />
+                  <.field_error errors={@edit_form[:vat_amount].errors} />
+                </div>
+
+                <div class="form-control">
+                  <label class="label"><span class="label-text text-xs">Brutto</span></label>
+                  <input
+                    type="text"
+                    inputmode="decimal"
+                    name={@edit_form[:gross_amount].name}
+                    value={@edit_form[:gross_amount].value}
+                    class="input input-sm input-bordered font-mono"
+                  />
+                  <.field_error errors={@edit_form[:gross_amount].errors} />
+                </div>
+
+                <div class="form-control">
+                  <label class="label"><span class="label-text text-xs">Currency</span></label>
+                  <input
+                    type="text"
+                    name={@edit_form[:currency].name}
+                    value={@edit_form[:currency].value}
+                    class="input input-sm input-bordered"
+                    maxlength="3"
+                  />
+                  <.field_error errors={@edit_form[:currency].errors} />
+                </div>
+
+                <div class="flex gap-2 pt-2">
+                  <button type="submit" class="btn btn-sm btn-primary">Save</button>
+                  <button type="button" phx-click="cancel_edit" class="btn btn-sm btn-ghost">
+                    Cancel
+                  </button>
+                </div>
+              </.form>
+            <% else %>
+              <table class="text-sm w-full">
+                <tbody>
+                  <tr class="border-b border-base-300/50">
+                    <td class="py-1.5 pr-3 text-base-content/60 whitespace-nowrap">Number</td>
+                    <td class="py-1.5 text-right">{@invoice.invoice_number}</td>
+                  </tr>
+                  <tr class="border-b border-base-300/50">
+                    <td class="py-1.5 pr-3 text-base-content/60">Date</td>
+                    <td class="py-1.5 text-right">{format_date(@invoice.issue_date)}</td>
+                  </tr>
+                  <tr class="border-b border-base-300/50">
+                    <td class="py-1.5 pr-3 text-base-content/60">Seller</td>
+                    <td class="py-1.5 text-right">
+                      <div>{@invoice.seller_name}</div>
+                      <div class="text-xs text-base-content/50">{@invoice.seller_nip}</div>
+                    </td>
+                  </tr>
+                  <tr class="border-b border-base-300/50">
+                    <td class="py-1.5 pr-3 text-base-content/60">Buyer</td>
+                    <td class="py-1.5 text-right">
+                      <div>{@invoice.buyer_name}</div>
+                      <div class="text-xs text-base-content/50">{@invoice.buyer_nip}</div>
+                    </td>
+                  </tr>
+                  <tr class={[
+                    "border-b border-base-300/50",
+                    is_nil(@invoice.net_amount) && "bg-warning/5"
+                  ]}>
+                    <td class="py-1.5 pr-3 text-base-content/60">Netto</td>
+                    <td class="py-1.5 text-right font-mono">
+                      {format_amount(@invoice.net_amount)} {@invoice.currency}
+                    </td>
+                  </tr>
+                  <tr class={[
+                    "border-b border-base-300/50",
+                    is_nil(@invoice.vat_amount) && "bg-warning/5"
+                  ]}>
+                    <td class="py-1.5 pr-3 text-base-content/60">VAT</td>
+                    <td class="py-1.5 text-right font-mono">
+                      {format_amount(@invoice.vat_amount)} {@invoice.currency}
+                    </td>
+                  </tr>
+                  <tr class={[
+                    "border-b border-base-300/50",
+                    is_nil(@invoice.gross_amount) && "bg-warning/5"
+                  ]}>
+                    <td class="py-1.5 pr-3 text-base-content/60">Brutto</td>
+                    <td class="py-1.5 text-right font-mono font-bold">
+                      {format_amount(@invoice.gross_amount)} {@invoice.currency}
+                    </td>
+                  </tr>
+                  <tr :if={@invoice.ksef_number} class="border-b border-base-300/50">
+                    <td class="py-1.5 pr-3 text-base-content/60">KSeF</td>
+                    <td class="py-1.5 text-right font-mono text-xs break-all">
+                      {@invoice.ksef_number}
+                    </td>
+                  </tr>
+                  <tr :if={@invoice.ksef_acquisition_date}>
+                    <td class="py-1.5 pr-3 text-base-content/60 whitespace-nowrap">Acquired</td>
+                    <td class="py-1.5 text-right text-xs">
+                      {format_datetime(@invoice.ksef_acquisition_date)}
+                    </td>
+                  </tr>
+                </tbody>
+              </table>
+            <% end %>
           </div>
         </div>
         <!-- Category & Tags Card -->
@@ -465,6 +683,15 @@ defmodule KsefHubWeb.InvoiceLive.Show do
         <.icon name="hero-arrow-left" class="size-4" /> Back to invoices
       </.link>
     </div>
+    """
+  end
+
+  attr :errors, :list, default: []
+
+  @spec field_error(map()) :: Phoenix.LiveView.Rendered.t()
+  defp field_error(assigns) do
+    ~H"""
+    <p :for={{msg, _opts} <- @errors} class="text-xs text-error mt-0.5">{msg}</p>
     """
   end
 end

@@ -126,6 +126,31 @@ defmodule KsefHub.Invoices.Invoice do
     |> foreign_key_constraint(:category_id)
   end
 
+  @edit_fields [
+    :invoice_number,
+    :issue_date,
+    :seller_nip,
+    :seller_name,
+    :buyer_nip,
+    :buyer_name,
+    :net_amount,
+    :vat_amount,
+    :gross_amount,
+    :currency
+  ]
+
+  @doc "Builds a changeset for manual field edits on the show page."
+  @spec edit_changeset(t(), map()) :: Ecto.Changeset.t()
+  def edit_changeset(invoice, attrs) do
+    invoice
+    |> cast(attrs, @edit_fields ++ [:extraction_status])
+    |> validate_format(:seller_nip, ~r/^\d{10}$/, message: "must be a 10-digit NIP")
+    |> validate_format(:buyer_nip, ~r/^\d{10}$/, message: "must be a 10-digit NIP")
+    |> validate_number(:net_amount, greater_than_or_equal_to: 0)
+    |> validate_number(:vat_amount, greater_than_or_equal_to: 0)
+    |> validate_number(:gross_amount, greater_than_or_equal_to: 0)
+  end
+
   @prediction_fields [
     :prediction_status,
     :prediction_category_name,
