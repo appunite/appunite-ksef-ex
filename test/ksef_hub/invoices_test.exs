@@ -290,6 +290,46 @@ defmodule KsefHub.InvoicesTest do
       assert result.total_count == 0
       assert result.total_pages == 1
     end
+
+    test "preloads category and tags on entries", %{company: company} do
+      category = insert(:category, company: company)
+      tag = insert(:tag, company: company)
+      invoice = insert(:invoice, company: company, category: category)
+      insert(:invoice_tag, invoice: invoice, tag: tag)
+
+      result = Invoices.list_invoices_paginated(company.id)
+
+      entry = hd(result.entries)
+      assert entry.category.id == category.id
+      assert [loaded_tag] = entry.tags
+      assert loaded_tag.id == tag.id
+    end
+  end
+
+  describe "get_invoice_with_details/3" do
+    test "returns invoice with preloaded category and tags", %{company: company} do
+      category = insert(:category, company: company)
+      tag = insert(:tag, company: company)
+      invoice = insert(:invoice, company: company, category: category)
+      insert(:invoice_tag, invoice: invoice, tag: tag)
+
+      result = Invoices.get_invoice_with_details(company.id, invoice.id)
+
+      assert result.id == invoice.id
+      assert result.category.id == category.id
+      assert [loaded_tag] = result.tags
+      assert loaded_tag.id == tag.id
+    end
+
+    test "returns nil when invoice not found", %{company: company} do
+      assert is_nil(Invoices.get_invoice_with_details(company.id, Ecto.UUID.generate()))
+    end
+
+    test "respects role scoping", %{company: company} do
+      income = insert(:invoice, type: :income, company: company)
+
+      assert is_nil(Invoices.get_invoice_with_details(company.id, income.id, role: :reviewer))
+    end
   end
 
   describe "get_invoice!/2" do

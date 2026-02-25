@@ -81,7 +81,11 @@ defmodule KsefHub.Invoices do
     filters = scope_by_role(filters, opts[:role])
     {page, per_page} = extract_pagination(filters)
 
-    entries = do_list_invoices(company_id, filters, page, per_page)
+    entries =
+      company_id
+      |> do_list_invoices(filters, page, per_page)
+      |> Repo.preload([:category, :tags])
+
     total_count = count_invoices(company_id, filters, opts)
     total_pages = max(ceil(total_count / per_page), 1)
 
@@ -111,6 +115,16 @@ defmodule KsefHub.Invoices do
     |> maybe_scope_type_by_role(opts[:role])
     |> preload([:category, :tags])
     |> Repo.one!()
+  end
+
+  @doc "Fetches an invoice by UUID with category and tags preloaded, returning nil if not found."
+  @spec get_invoice_with_details(Ecto.UUID.t(), Ecto.UUID.t(), keyword()) :: Invoice.t() | nil
+  def get_invoice_with_details(company_id, id, opts \\ []) do
+    Invoice
+    |> where([i], i.company_id == ^company_id and i.id == ^id)
+    |> maybe_scope_type_by_role(opts[:role])
+    |> preload([:category, :tags])
+    |> Repo.one()
   end
 
   @doc "Fetches an invoice by UUID scoped to a company, returning nil if not found."
