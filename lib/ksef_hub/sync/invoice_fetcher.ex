@@ -162,6 +162,9 @@ defmodule KsefHub.Sync.InvoiceFetcher do
           permanent_storage_date: parse_header_date(header["permanentStorageDate"])
         })
         |> Map.drop([:line_items])
+        |> then(fn a ->
+          Map.put(a, :extraction_status, Invoices.determine_extraction_status_from_attrs(a))
+        end)
 
       Invoices.upsert_invoice(attrs)
     end

@@ -202,6 +202,7 @@ defmodule KsefHub.Invoices do
     :currency,
     :ksef_acquisition_date,
     :permanent_storage_date,
+    :extraction_status,
     :updated_at
   ]
 
@@ -245,6 +246,17 @@ defmodule KsefHub.Invoices do
     merged = Map.merge(Map.from_struct(invoice), atom_attrs)
     new_status = if all_critical_fields_present?(merged), do: :complete, else: :partial
     Map.put(attrs, :extraction_status, new_status)
+  end
+
+  @doc """
+  Determines extraction status from a plain attrs map (no struct required).
+
+  Used during KSeF sync to set extraction_status before upsert.
+  Returns `:complete` if all critical fields are present, `:partial` otherwise.
+  """
+  @spec determine_extraction_status_from_attrs(map()) :: :complete | :partial
+  def determine_extraction_status_from_attrs(attrs) do
+    if all_critical_fields_present?(attrs), do: :complete, else: :partial
   end
 
   @spec atomize_known_keys(map()) :: map()

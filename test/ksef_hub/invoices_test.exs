@@ -705,6 +705,80 @@ defmodule KsefHub.InvoicesTest do
     end
   end
 
+  describe "determine_extraction_status_from_attrs/1" do
+    test "returns :complete when all critical fields are present" do
+      attrs = %{
+        seller_nip: "1234567890",
+        seller_name: "Seller",
+        invoice_number: "FV/001",
+        issue_date: ~D[2026-01-01],
+        net_amount: Decimal.new("100"),
+        gross_amount: Decimal.new("123")
+      }
+
+      assert Invoices.determine_extraction_status_from_attrs(attrs) == :complete
+    end
+
+    test "returns :partial when net_amount is missing" do
+      attrs = %{
+        seller_nip: "1234567890",
+        seller_name: "Seller",
+        invoice_number: "FV/001",
+        issue_date: ~D[2026-01-01],
+        net_amount: nil,
+        gross_amount: Decimal.new("123")
+      }
+
+      assert Invoices.determine_extraction_status_from_attrs(attrs) == :partial
+    end
+
+    test "returns :partial when gross_amount is missing" do
+      attrs = %{
+        seller_nip: "1234567890",
+        seller_name: "Seller",
+        invoice_number: "FV/001",
+        issue_date: ~D[2026-01-01],
+        net_amount: Decimal.new("100"),
+        gross_amount: nil
+      }
+
+      assert Invoices.determine_extraction_status_from_attrs(attrs) == :partial
+    end
+  end
+
+  describe "upsert_invoice/1 sets extraction_status" do
+    test "upsert with extraction_status persists the value", %{company: company} do
+      attrs =
+        params_for(:invoice,
+          ksef_number: "es-upsert-1",
+          company_id: company.id,
+          extraction_status: :complete
+        )
+
+      assert {:ok, %Invoice{extraction_status: :complete}, :inserted} =
+               Invoices.upsert_invoice(attrs)
+    end
+
+    test "upsert updates extraction_status on re-sync", %{company: company} do
+      insert(:invoice,
+        ksef_number: "es-upsert-2",
+        company: company,
+        extraction_status: :partial,
+        inserted_at: NaiveDateTime.add(NaiveDateTime.utc_now(), -60)
+      )
+
+      attrs =
+        params_for(:invoice,
+          ksef_number: "es-upsert-2",
+          company_id: company.id,
+          extraction_status: :complete
+        )
+
+      assert {:ok, %Invoice{extraction_status: :complete}, :updated} =
+               Invoices.upsert_invoice(attrs)
+    end
+  end
+
   describe "list_invoices source filter with pdf_upload" do
     test "filters invoices by source=pdf_upload", %{company: company} do
       insert(:invoice, company: company, source: :ksef)
