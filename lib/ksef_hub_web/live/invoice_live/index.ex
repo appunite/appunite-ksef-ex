@@ -41,8 +41,6 @@ defmodule KsefHubWeb.InvoiceLive.Index do
 
   @spec filter_assigns(map(), map(), atom() | nil) :: keyword()
   defp filter_assigns(filters, result, role) do
-    first_tag_id = filters[:tag_ids] |> List.wrap() |> List.first()
-
     form =
       %{
         "type" => to_string_or_empty(filters[:type]),
@@ -51,7 +49,7 @@ defmodule KsefHubWeb.InvoiceLive.Index do
         "date_to" => (filters[:date_to] && Date.to_iso8601(filters[:date_to])) || "",
         "query" => filters[:query] || "",
         "category_id" => filters[:category_id] || "",
-        "tag_id" => first_tag_id || ""
+        "tag_id" => first_tag_id(filters) || ""
       }
       |> to_form(as: :filters)
 
@@ -108,6 +106,7 @@ defmodule KsefHubWeb.InvoiceLive.Index do
     end
   end
 
+  @spec maybe_put_date(map(), atom(), String.t() | nil) :: map()
   defp maybe_put_date(map, _key, nil), do: map
   defp maybe_put_date(map, _key, ""), do: map
 
@@ -118,6 +117,7 @@ defmodule KsefHubWeb.InvoiceLive.Index do
     end
   end
 
+  @spec maybe_put_search(map(), atom(), String.t() | nil) :: map()
   defp maybe_put_search(map, _key, nil), do: map
   defp maybe_put_search(map, _key, ""), do: map
   defp maybe_put_search(map, key, value), do: Map.put(map, key, value)
@@ -155,9 +155,13 @@ defmodule KsefHubWeb.InvoiceLive.Index do
     end
   end
 
+  @spec maybe_put(map(), String.t(), String.t() | nil) :: map()
   defp maybe_put(map, _key, nil), do: map
   defp maybe_put(map, _key, ""), do: map
   defp maybe_put(map, key, value), do: Map.put(map, key, value)
+
+  @spec first_tag_id(map()) :: Ecto.UUID.t() | nil
+  defp first_tag_id(filters), do: filters[:tag_ids] |> List.wrap() |> List.first()
 
   @spec to_string_or_empty(atom() | String.t() | nil) :: String.t()
   defp to_string_or_empty(nil), do: ""
@@ -173,7 +177,7 @@ defmodule KsefHubWeb.InvoiceLive.Index do
     |> maybe_put("date_to", filters[:date_to] && Date.to_iso8601(filters[:date_to]))
     |> maybe_put("query", filters[:query])
     |> maybe_put("category_id", filters[:category_id])
-    |> maybe_put("tag_id", filters[:tag_ids] |> List.wrap() |> List.first())
+    |> maybe_put("tag_id", first_tag_id(filters))
     |> maybe_put("page", if(target_page > 1, do: Integer.to_string(target_page)))
   end
 

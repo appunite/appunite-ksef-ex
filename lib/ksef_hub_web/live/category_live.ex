@@ -21,7 +21,7 @@ defmodule KsefHubWeb.CategoryLive do
        page_title: "Categories",
        company_id: company_id,
        editing: nil,
-       form: new_changeset_form()
+       form: new_changeset_form(company_id)
      )
      |> stream(:categories, Invoices.list_categories(company_id))}
   end
@@ -33,9 +33,10 @@ defmodule KsefHubWeb.CategoryLive do
           {:noreply, Phoenix.LiveView.Socket.t()}
   @impl true
   def handle_event("validate", %{"category" => params}, socket) do
-    changeset =
-      changeset_for(socket.assigns.editing, params)
-      |> Map.put(:action, :validate)
+    changeset = %{
+      changeset_for(socket.assigns.editing, params, socket.assigns.company_id)
+      | action: :validate
+    }
 
     {:noreply, assign(socket, form: to_form(changeset, as: :category))}
   end
@@ -62,7 +63,7 @@ defmodule KsefHubWeb.CategoryLive do
 
   @impl true
   def handle_event("cancel_edit", _params, socket) do
-    {:noreply, assign(socket, editing: nil, form: new_changeset_form())}
+    {:noreply, assign(socket, editing: nil, form: new_changeset_form(socket.assigns.company_id))}
   end
 
   @impl true
@@ -88,7 +89,7 @@ defmodule KsefHubWeb.CategoryLive do
         {:noreply,
          socket
          |> stream_insert(:categories, category)
-         |> assign(form: new_changeset_form())
+         |> assign(form: new_changeset_form(socket.assigns.company_id))
          |> put_flash(:info, "Category created.")}
 
       {:error, %Ecto.Changeset{} = changeset} ->
@@ -104,7 +105,7 @@ defmodule KsefHubWeb.CategoryLive do
         {:noreply,
          socket
          |> stream_insert(:categories, updated)
-         |> assign(editing: nil, form: new_changeset_form())
+         |> assign(editing: nil, form: new_changeset_form(socket.assigns.company_id))
          |> put_flash(:info, "Category updated.")}
 
       {:error, %Ecto.Changeset{} = changeset} ->
@@ -112,18 +113,20 @@ defmodule KsefHubWeb.CategoryLive do
     end
   end
 
-  @spec changeset_for(Category.t() | nil, map()) :: Ecto.Changeset.t()
-  defp changeset_for(nil, params), do: new_changeset(params)
-  defp changeset_for(category, params), do: Category.changeset(category, atomize_params(params))
+  @spec changeset_for(Category.t() | nil, map(), Ecto.UUID.t()) :: Ecto.Changeset.t()
+  defp changeset_for(nil, params, company_id), do: new_changeset(params, company_id)
 
-  @spec new_changeset(map()) :: Ecto.Changeset.t()
-  defp new_changeset(params \\ %{}) do
-    %Category{company_id: "placeholder"}
+  defp changeset_for(category, params, _company_id),
+    do: Category.changeset(category, atomize_params(params))
+
+  @spec new_changeset(map(), Ecto.UUID.t()) :: Ecto.Changeset.t()
+  defp new_changeset(params, company_id) do
+    %Category{company_id: company_id}
     |> Category.changeset(atomize_params(params))
   end
 
-  @spec new_changeset_form() :: Phoenix.HTML.Form.t()
-  defp new_changeset_form, do: to_form(new_changeset(), as: :category)
+  @spec new_changeset_form(Ecto.UUID.t()) :: Phoenix.HTML.Form.t()
+  defp new_changeset_form(company_id), do: to_form(new_changeset(%{}, company_id), as: :category)
 
   @spec atomize_params(map()) :: map()
   defp atomize_params(params) do

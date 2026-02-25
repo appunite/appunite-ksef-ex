@@ -22,7 +22,7 @@ defmodule KsefHubWeb.TagLive do
        page_title: "Tags",
        company_id: company_id,
        editing: nil,
-       form: new_changeset_form()
+       form: new_changeset_form(company_id)
      )
      |> stream(:tags, Invoices.list_tags(company_id))}
   end
@@ -34,9 +34,10 @@ defmodule KsefHubWeb.TagLive do
           {:noreply, Phoenix.LiveView.Socket.t()}
   @impl true
   def handle_event("validate", %{"tag" => params}, socket) do
-    changeset =
-      changeset_for(socket.assigns.editing, params)
-      |> Map.put(:action, :validate)
+    changeset = %{
+      changeset_for(socket.assigns.editing, params, socket.assigns.company_id)
+      | action: :validate
+    }
 
     {:noreply, assign(socket, form: to_form(changeset, as: :tag))}
   end
@@ -63,7 +64,7 @@ defmodule KsefHubWeb.TagLive do
 
   @impl true
   def handle_event("cancel_edit", _params, socket) do
-    {:noreply, assign(socket, editing: nil, form: new_changeset_form())}
+    {:noreply, assign(socket, editing: nil, form: new_changeset_form(socket.assigns.company_id))}
   end
 
   @impl true
@@ -91,7 +92,7 @@ defmodule KsefHubWeb.TagLive do
         {:noreply,
          socket
          |> stream_insert(:tags, with_usage_count(tag, 0))
-         |> assign(form: new_changeset_form())
+         |> assign(form: new_changeset_form(socket.assigns.company_id))
          |> put_flash(:info, "Tag created.")}
 
       {:error, %Ecto.Changeset{} = changeset} ->
@@ -109,7 +110,7 @@ defmodule KsefHubWeb.TagLive do
         {:noreply,
          socket
          |> stream_insert(:tags, with_usage_count(updated, tag.usage_count))
-         |> assign(editing: nil, form: new_changeset_form())
+         |> assign(editing: nil, form: new_changeset_form(socket.assigns.company_id))
          |> put_flash(:info, "Tag updated.")}
 
       {:error, %Ecto.Changeset{} = changeset} ->
@@ -117,20 +118,20 @@ defmodule KsefHubWeb.TagLive do
     end
   end
 
-  @spec changeset_for(Tag.t() | nil, map()) :: Ecto.Changeset.t()
-  defp changeset_for(nil, params), do: new_changeset(params)
+  @spec changeset_for(Tag.t() | nil, map(), Ecto.UUID.t()) :: Ecto.Changeset.t()
+  defp changeset_for(nil, params, company_id), do: new_changeset(params, company_id)
 
-  defp changeset_for(tag, params),
+  defp changeset_for(tag, params, _company_id),
     do: Tag.changeset(tag, %{name: params["name"], description: params["description"]})
 
-  @spec new_changeset(map()) :: Ecto.Changeset.t()
-  defp new_changeset(params \\ %{}) do
-    %Tag{company_id: "placeholder"}
+  @spec new_changeset(map(), Ecto.UUID.t()) :: Ecto.Changeset.t()
+  defp new_changeset(params, company_id) do
+    %Tag{company_id: company_id}
     |> Tag.changeset(%{name: params["name"] || "", description: params["description"] || ""})
   end
 
-  @spec new_changeset_form() :: Phoenix.HTML.Form.t()
-  defp new_changeset_form, do: to_form(new_changeset(), as: :tag)
+  @spec new_changeset_form(Ecto.UUID.t()) :: Phoenix.HTML.Form.t()
+  defp new_changeset_form(company_id), do: to_form(new_changeset(%{}, company_id), as: :tag)
 
   @spec with_usage_count(Tag.t(), non_neg_integer() | nil) :: Tag.t()
   defp with_usage_count(tag, count), do: %{tag | usage_count: count || 0}

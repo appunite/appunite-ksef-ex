@@ -15,7 +15,7 @@ defmodule KsefHubWeb.InvoiceLive.Show do
   @doc "Loads invoice by ID scoped to current company, generates HTML preview."
   @impl true
   def mount(%{"id" => id}, _session, socket) do
-    company = socket.assigns.current_company
+    company = socket.assigns[:current_company]
 
     cond do
       !socket.assigns[:current_user] ->
@@ -56,7 +56,7 @@ defmodule KsefHubWeb.InvoiceLive.Show do
            html_preview: generate_preview(invoice),
            categories: Invoices.list_categories(company.id),
            all_tags: Invoices.list_tags(company.id),
-           new_tag_name: ""
+           tag_form_key: 0
          )}
     end
   end
@@ -139,11 +139,6 @@ defmodule KsefHubWeb.InvoiceLive.Show do
   end
 
   @impl true
-  def handle_event("new_tag_input", %{"value" => value}, socket) do
-    {:noreply, assign(socket, :new_tag_name, value)}
-  end
-
-  @impl true
   def handle_event("create_and_add_tag", %{"name" => name}, socket) do
     case String.trim(name) do
       "" -> {:noreply, socket}
@@ -164,7 +159,7 @@ defmodule KsefHubWeb.InvoiceLive.Show do
        |> assign(
          invoice: reload_details(invoice, socket),
          all_tags: Invoices.list_tags(company_id),
-         new_tag_name: ""
+         tag_form_key: socket.assigns.tag_form_key + 1
        )}
     else
       {:error, %Ecto.Changeset{} = cs} ->
@@ -361,13 +356,14 @@ defmodule KsefHubWeb.InvoiceLive.Show do
                 </label>
               </div>
               <!-- New Tag Inline -->
-              <form phx-submit="create_and_add_tag" class="flex gap-2 mt-2">
+              <form
+                phx-submit="create_and_add_tag"
+                id={"new-tag-form-#{@tag_form_key}"}
+                class="flex gap-2 mt-2"
+              >
                 <input
                   type="text"
                   name="name"
-                  value={@new_tag_name}
-                  phx-keyup="new_tag_input"
-                  phx-debounce="300"
                   placeholder="New tag..."
                   class="input input-xs input-bordered flex-1"
                   data-testid="new-tag-input"
