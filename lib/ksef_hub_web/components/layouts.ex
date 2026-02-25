@@ -118,6 +118,16 @@ defmodule KsefHubWeb.Layouts do
                   Invoices
                 </.nav_link>
               </li>
+              <li>
+                <.nav_link path={~p"/categories"} current={@current_path} icon="hero-squares-2x2">
+                  Categories
+                </.nav_link>
+              </li>
+              <li>
+                <.nav_link path={~p"/tags"} current={@current_path} icon="hero-tag">
+                  Tags
+                </.nav_link>
+              </li>
               <li :if={@current_role == :owner}>
                 <.nav_link path={~p"/certificates"} current={@current_path} icon="hero-shield-check">
                   Certificates
