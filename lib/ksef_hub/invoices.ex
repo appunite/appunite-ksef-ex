@@ -241,37 +241,18 @@ defmodule KsefHub.Invoices do
           {:ok, Invoice.t()} | {:error, Ecto.Changeset.t()}
   def update_invoice_fields(%Invoice{} = invoice, attrs) do
     old_status = invoice.extraction_status
-    new_status = compute_extraction_status_for_edit(invoice, attrs)
-    attrs = Map.put(attrs, :extraction_status, new_status)
+    merged = invoice |> Map.from_struct() |> Map.merge(atomize_known_keys(attrs))
+    new_status = determine_extraction_status_from_attrs(merged)
 
-    changeset = Invoice.edit_changeset(invoice, normalize_keys(attrs))
+    changeset =
+      Invoice.edit_changeset(invoice, Map.put(attrs, "extraction_status", new_status))
 
-    case Repo.update(changeset) do
-      {:ok, updated} ->
-        if old_status in [:partial, :failed] && updated.extraction_status == :complete do
-          enqueue_prediction(updated)
-        end
+    with {:ok, updated} <- Repo.update(changeset) do
+      if old_status in [:partial, :failed] and updated.extraction_status == :complete,
+        do: enqueue_prediction(updated)
 
-        {:ok, updated}
-
-      {:error, changeset} ->
-        {:error, changeset}
+      {:ok, updated}
     end
-  end
-
-  @spec compute_extraction_status_for_edit(Invoice.t(), map()) :: :complete | :partial
-  defp compute_extraction_status_for_edit(%Invoice{} = invoice, attrs) do
-    atom_attrs = atomize_known_keys(attrs)
-    merged = Map.merge(Map.from_struct(invoice), atom_attrs)
-    if all_critical_fields_present?(merged), do: :complete, else: :partial
-  end
-
-  @spec normalize_keys(map()) :: map()
-  defp normalize_keys(attrs) do
-    Map.new(attrs, fn
-      {k, v} when is_atom(k) -> {Atom.to_string(k), v}
-      {k, v} -> {k, v}
-    end)
   end
 
   @doc """
@@ -283,10 +264,8 @@ defmodule KsefHub.Invoices do
   """
   @spec recalculate_extraction_status(Invoice.t(), map()) :: map()
   def recalculate_extraction_status(%Invoice{} = invoice, attrs) do
-    atom_attrs = atomize_known_keys(attrs)
-    merged = Map.merge(Map.from_struct(invoice), atom_attrs)
-    new_status = if all_critical_fields_present?(merged), do: :complete, else: :partial
-    Map.put(attrs, :extraction_status, new_status)
+    merged = invoice |> Map.from_struct() |> Map.merge(atomize_known_keys(attrs))
+    Map.put(attrs, :extraction_status, determine_extraction_status_from_attrs(merged))
   end
 
   @doc """

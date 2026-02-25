@@ -181,16 +181,11 @@ defmodule KsefHubWeb.InvoiceLive.Show do
 
   @impl true
   def handle_event("toggle_edit", _params, socket) do
-    editing = !socket.assigns.editing
-
-    socket =
-      if editing do
-        assign(socket, editing: true, edit_form: build_edit_form(socket.assigns.invoice))
-      else
-        assign(socket, editing: false)
-      end
-
-    {:noreply, socket}
+    {:noreply,
+     assign(socket,
+       editing: true,
+       edit_form: build_edit_form(socket.assigns.invoice)
+     )}
   end
 
   @impl true

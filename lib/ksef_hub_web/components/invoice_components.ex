@@ -88,13 +88,16 @@ defmodule KsefHubWeb.InvoiceComponents do
     """
   end
 
-  @doc "Renders a coloured badge for extraction status (:complete / :partial / :failed)."
+  @doc """
+  Renders a coloured badge for extraction status.
+
+  Renders nothing for nil or :complete (clean state). Shows an orange
+  "Incomplete" badge for :partial and a red "Failed" badge for :failed.
+  """
   @spec extraction_badge(map()) :: Phoenix.LiveView.Rendered.t()
   attr :status, :atom, required: true
 
-  def extraction_badge(%{status: status} = assigns) when status in [nil, :complete] do
-    ~H""
-  end
+  def extraction_badge(%{status: status} = assigns) when status in [nil, :complete], do: ~H""
 
   def extraction_badge(assigns) do
     ~H"""
