@@ -557,6 +557,7 @@ defmodule KsefHubWeb.InvoiceLive.Show do
     ~H"""
     <.form
       for={@edit_form}
+      id="edit-invoice-form"
       phx-change="validate_edit"
       phx-submit="save_edit"
       class="space-y-3"

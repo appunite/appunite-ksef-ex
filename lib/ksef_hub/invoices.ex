@@ -446,10 +446,9 @@ defmodule KsefHub.Invoices do
   defp maybe_enqueue_prediction(:complete, invoice), do: enqueue_prediction(invoice)
   defp maybe_enqueue_prediction(_status, _invoice), do: :ok
 
-  @spec determine_extraction_status(map()) :: atom()
-  defp determine_extraction_status(extracted) do
-    if all_critical_fields_present?(extracted), do: :complete, else: :partial
-  end
+  @spec determine_extraction_status(map()) :: :complete | :partial
+  defp determine_extraction_status(extracted),
+    do: determine_extraction_status_from_attrs(extracted)
 
   @spec all_critical_fields_present?(map()) :: boolean()
   defp all_critical_fields_present?(map) do
