@@ -235,7 +235,7 @@ defmodule KsefHub.Invoices do
 
   @doc """
   Updates invoice fields from a manual edit, recalculates extraction_status,
-  and enqueues prediction if status changed from partial to complete.
+  and enqueues prediction if status changed from :partial or :failed to :complete.
   """
   @spec update_invoice_fields(Invoice.t(), map()) ::
           {:ok, Invoice.t()} | {:error, Ecto.Changeset.t()}

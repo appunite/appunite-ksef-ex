@@ -550,6 +550,7 @@ defmodule KsefHubWeb.InvoiceLive.Show do
 
   attr :edit_form, :map, required: true
 
+  @spec invoice_edit_form(map()) :: Phoenix.LiveView.Rendered.t()
   defp invoice_edit_form(assigns) do
     ~H"""
     <.form

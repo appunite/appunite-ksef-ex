@@ -79,7 +79,7 @@ defmodule KsefHub.Invoices.ParserTest do
     end
 
     test "parses invoice with only 8% VAT rate (no P_13_1)" do
-      xml = File.read!("test/support/fixtures/sample_8pct_vat.xml")
+      xml = File.read!(Path.join(@fixtures_path, "sample_8pct_vat.xml"))
 
       assert {:ok, invoice} = Parser.parse(xml)
       assert Decimal.equal?(invoice.net_amount, Decimal.new("800.00"))
