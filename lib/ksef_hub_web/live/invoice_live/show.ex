@@ -104,10 +104,11 @@ defmodule KsefHubWeb.InvoiceLive.Show do
   def handle_event("set_category", %{"category_id" => raw_id}, socket) do
     category_id = if raw_id == "", do: nil, else: raw_id
 
-    with {:ok, updated} <- Invoices.set_invoice_category(socket.assigns.invoice, category_id),
-         {:ok, updated} <- Invoices.mark_prediction_manual(updated) do
-      {:noreply, assign(socket, :invoice, reload_details(updated, socket))}
-    else
+    case Invoices.set_invoice_category(socket.assigns.invoice, category_id) do
+      {:ok, updated} ->
+        Invoices.mark_prediction_manual(updated)
+        {:noreply, assign(socket, :invoice, reload_details(updated, socket))}
+
       {:error, :category_not_in_company} ->
         {:noreply, put_flash(socket, :error, "Category not found.")}
 
@@ -324,10 +325,9 @@ defmodule KsefHubWeb.InvoiceLive.Show do
           <div class="p-4">
             <h2 class="text-base font-semibold mb-3">Classification</h2>
             <!-- Category Select -->
-            <div class="mb-4">
+            <form phx-change="set_category" data-testid="category-form" class="mb-4">
               <label class="label"><span class="label-text text-xs">Category</span></label>
               <select
-                phx-change="set_category"
                 name="category_id"
                 class="select select-sm select-bordered w-full"
                 data-testid="category-select"
@@ -341,7 +341,7 @@ defmodule KsefHubWeb.InvoiceLive.Show do
                   {if(cat.emoji, do: "#{cat.emoji} ", else: "")}{cat.name}
                 </option>
               </select>
-            </div>
+            </form>
             <!-- Tags -->
             <div>
               <label class="label"><span class="label-text text-xs">Tags</span></label>

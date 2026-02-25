@@ -174,8 +174,8 @@ defmodule KsefHubWeb.InvoiceLive.ShowTest do
       {:ok, view, _html} = live(conn, ~p"/invoices/#{invoice.id}")
 
       view
-      |> element("[data-testid=category-select]")
-      |> render_change(%{"category_id" => category.id})
+      |> form("[data-testid=category-form]", %{"category_id" => category.id})
+      |> render_change()
 
       html = render(view)
       assert html =~ "ops:hosting"
@@ -192,8 +192,8 @@ defmodule KsefHubWeb.InvoiceLive.ShowTest do
       {:ok, view, _html} = live(conn, ~p"/invoices/#{invoice.id}")
 
       view
-      |> element("[data-testid=category-select]")
-      |> render_change(%{"category_id" => ""})
+      |> form("[data-testid=category-form]", %{"category_id" => ""})
+      |> render_change()
 
       updated = Invoices.get_invoice_with_details!(company.id, invoice.id)
       assert is_nil(updated.category_id)
