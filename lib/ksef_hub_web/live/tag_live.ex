@@ -52,13 +52,13 @@ defmodule KsefHubWeb.TagLive do
 
   @impl true
   def handle_event("edit", %{"id" => id}, socket) do
-    case Invoices.get_tag_with_usage_count(socket.assigns.company_id, id) do
-      {:ok, tag} ->
-        changeset = Tag.changeset(tag, %{})
-        {:noreply, assign(socket, editing: tag, form: to_form(changeset, as: :tag))}
-
-      {:error, :not_found} ->
-        {:noreply, put_flash(socket, :error, "Tag not found.")}
+    with {:ok, uuid} <- Ecto.UUID.cast(id),
+         {:ok, tag} <- Invoices.get_tag_with_usage_count(socket.assigns.company_id, uuid) do
+      changeset = Tag.changeset(tag, %{})
+      {:noreply, assign(socket, editing: tag, form: to_form(changeset, as: :tag))}
+    else
+      :error -> {:noreply, put_flash(socket, :error, "Invalid tag ID.")}
+      {:error, :not_found} -> {:noreply, put_flash(socket, :error, "Tag not found.")}
     end
   end
 
@@ -69,13 +69,17 @@ defmodule KsefHubWeb.TagLive do
 
   @impl true
   def handle_event("delete", %{"id" => id}, socket) do
-    with {:ok, tag} <- Invoices.get_tag(socket.assigns.company_id, id),
+    with {:ok, uuid} <- Ecto.UUID.cast(id),
+         {:ok, tag} <- Invoices.get_tag(socket.assigns.company_id, uuid),
          {:ok, _} <- Invoices.delete_tag(tag) do
       {:noreply,
        socket
        |> stream_delete(:tags, tag)
        |> put_flash(:info, "Tag deleted.")}
     else
+      :error ->
+        {:noreply, put_flash(socket, :error, "Invalid tag ID.")}
+
       {:error, :not_found} ->
         {:noreply,
          socket

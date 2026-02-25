@@ -56,6 +56,8 @@ defmodule KsefHubWeb.InvoiceLive.Show do
            html_preview: generate_preview(invoice),
            categories: Invoices.list_categories(company.id),
            all_tags: Invoices.list_tags(company.id),
+           category_form: category_form(invoice),
+           new_tag_form: new_tag_form(),
            tag_form_key: 0
          )}
     end
@@ -106,14 +108,16 @@ defmodule KsefHubWeb.InvoiceLive.Show do
 
     with :ok <- validate_category_id(category_id),
          {:ok, updated} <- Invoices.set_invoice_category(socket.assigns.invoice, category_id) do
+      reloaded = reload_details(updated, socket)
+
       case Invoices.mark_prediction_manual(updated) do
         {:ok, _} ->
-          {:noreply, assign(socket, :invoice, reload_details(updated, socket))}
+          {:noreply, assign(socket, invoice: reloaded, category_form: category_form(reloaded))}
 
         {:error, _} ->
           {:noreply,
            socket
-           |> assign(:invoice, reload_details(updated, socket))
+           |> assign(invoice: reloaded, category_form: category_form(reloaded))
            |> put_flash(:warning, "Category saved but prediction status update failed.")}
       end
     else
@@ -167,16 +171,17 @@ defmodule KsefHubWeb.InvoiceLive.Show do
     company_id = socket.assigns.current_company.id
     invoice = socket.assigns.invoice
 
-    with {:ok, tag} <- Invoices.create_tag(company_id, %{name: name}),
-         {:ok, _} <- Invoices.add_invoice_tag(invoice.id, tag.id, company_id) do
-      {:noreply,
-       socket
-       |> assign(
-         invoice: reload_details(invoice, socket),
-         all_tags: Invoices.list_tags(company_id),
-         tag_form_key: socket.assigns.tag_form_key + 1
-       )}
-    else
+    case Invoices.create_and_add_tag(invoice.id, company_id, %{name: name}) do
+      {:ok, _tag} ->
+        {:noreply,
+         socket
+         |> assign(
+           invoice: reload_details(invoice, socket),
+           all_tags: Invoices.list_tags(company_id),
+           new_tag_form: new_tag_form(),
+           tag_form_key: socket.assigns.tag_form_key + 1
+         )}
+
       {:error, %Ecto.Changeset{} = cs} ->
         {:noreply, put_flash(socket, :error, "Failed to create tag: #{changeset_message(cs)}")}
 
@@ -193,6 +198,14 @@ defmodule KsefHubWeb.InvoiceLive.Show do
   end
 
   # --- Private ---
+
+  @spec category_form(Invoice.t()) :: Phoenix.HTML.Form.t()
+  defp category_form(invoice) do
+    to_form(%{"category_id" => invoice.category_id || ""})
+  end
+
+  @spec new_tag_form() :: Phoenix.HTML.Form.t()
+  defp new_tag_form, do: to_form(%{"name" => ""})
 
   @spec validate_category_id(String.t() | nil) :: :ok | {:error, :invalid_id}
   defp validate_category_id(nil), do: :ok
@@ -345,10 +358,15 @@ defmodule KsefHubWeb.InvoiceLive.Show do
           <div class="p-4">
             <h2 class="text-base font-semibold mb-3">Classification</h2>
             <!-- Category Select -->
-            <form phx-change="set_category" data-testid="category-form" class="mb-4">
+            <.form
+              for={@category_form}
+              phx-change="set_category"
+              data-testid="category-form"
+              class="mb-4"
+            >
               <label class="label"><span class="label-text text-xs">Category</span></label>
               <select
-                name="category_id"
+                name={@category_form[:category_id].name}
                 class="select select-sm select-bordered w-full"
                 data-testid="category-select"
               >
@@ -361,7 +379,7 @@ defmodule KsefHubWeb.InvoiceLive.Show do
                   {if(cat.emoji, do: "#{cat.emoji} ", else: "")}{cat.name}
                 </option>
               </select>
-            </form>
+            </.form>
             <!-- Tags -->
             <div>
               <label class="label"><span class="label-text text-xs">Tags</span></label>
@@ -381,20 +399,22 @@ defmodule KsefHubWeb.InvoiceLive.Show do
                 </label>
               </div>
               <!-- New Tag Inline -->
-              <form
+              <.form
+                for={@new_tag_form}
                 phx-submit="create_and_add_tag"
                 id={"new-tag-form-#{@tag_form_key}"}
                 class="flex gap-2 mt-2"
               >
                 <input
                   type="text"
-                  name="name"
+                  name={@new_tag_form[:name].name}
+                  value={@new_tag_form[:name].value}
                   placeholder="New tag..."
                   class="input input-xs input-bordered flex-1"
                   data-testid="new-tag-input"
                 />
                 <button type="submit" class="btn btn-xs btn-primary">Add</button>
-              </form>
+              </.form>
             </div>
           </div>
         </div>

@@ -51,13 +51,13 @@ defmodule KsefHubWeb.CategoryLive do
 
   @impl true
   def handle_event("edit", %{"id" => id}, socket) do
-    case Invoices.get_category(socket.assigns.company_id, id) do
-      {:ok, category} ->
-        changeset = Category.changeset(category, %{})
-        {:noreply, assign(socket, editing: category, form: to_form(changeset, as: :category))}
-
-      {:error, :not_found} ->
-        {:noreply, put_flash(socket, :error, "Category not found.")}
+    with {:ok, uuid} <- Ecto.UUID.cast(id),
+         {:ok, category} <- Invoices.get_category(socket.assigns.company_id, uuid) do
+      changeset = Category.changeset(category, %{})
+      {:noreply, assign(socket, editing: category, form: to_form(changeset, as: :category))}
+    else
+      :error -> {:noreply, put_flash(socket, :error, "Invalid category ID.")}
+      {:error, :not_found} -> {:noreply, put_flash(socket, :error, "Category not found.")}
     end
   end
 
@@ -68,13 +68,17 @@ defmodule KsefHubWeb.CategoryLive do
 
   @impl true
   def handle_event("delete", %{"id" => id}, socket) do
-    with {:ok, category} <- Invoices.get_category(socket.assigns.company_id, id),
+    with {:ok, uuid} <- Ecto.UUID.cast(id),
+         {:ok, category} <- Invoices.get_category(socket.assigns.company_id, uuid),
          {:ok, _} <- Invoices.delete_category(category) do
       {:noreply,
        socket
        |> stream_delete(:categories, category)
        |> put_flash(:info, "Category deleted.")}
     else
+      :error ->
+        {:noreply, put_flash(socket, :error, "Invalid category ID.")}
+
       {:error, :not_found} ->
         {:noreply,
          socket
@@ -139,8 +143,8 @@ defmodule KsefHubWeb.CategoryLive do
   defp atomize_params(params) do
     sort_order =
       case Integer.parse(params["sort_order"] || "0") do
-        {n, _} -> n
-        :error -> 0
+        {n, ""} -> n
+        _ -> 0
       end
 
     %{

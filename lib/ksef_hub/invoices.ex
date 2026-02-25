@@ -777,6 +777,24 @@ defmodule KsefHub.Invoices do
     end
   end
 
+  @doc """
+  Creates a tag and adds it to an invoice in a single transaction.
+
+  Both the tag creation and the invoice association succeed or both roll back.
+  """
+  @spec create_and_add_tag(Ecto.UUID.t(), Ecto.UUID.t(), map()) ::
+          {:ok, Tag.t()} | {:error, Ecto.Changeset.t() | term()}
+  def create_and_add_tag(invoice_id, company_id, attrs) do
+    Repo.transaction(fn ->
+      with {:ok, tag} <- create_tag(company_id, attrs),
+           {:ok, _it} <- add_invoice_tag(invoice_id, tag.id, company_id) do
+        tag
+      else
+        {:error, reason} -> Repo.rollback(reason)
+      end
+    end)
+  end
+
   @doc "Removes a tag from an invoice."
   @spec remove_invoice_tag(Ecto.UUID.t(), Ecto.UUID.t()) ::
           {:ok, InvoiceTag.t()} | {:error, :not_found}
