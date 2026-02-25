@@ -255,6 +255,7 @@ defmodule KsefHubWeb.InvoiceLive.Show do
         <.type_badge type={@invoice.type} />
         <.status_badge status={@invoice.status} />
         <.prediction_indicator prediction_status={@invoice.prediction_status} />
+        <.extraction_badge status={@invoice.extraction_status} />
       </:subtitle>
       <:actions>
         <div class="flex gap-2">
@@ -289,6 +290,17 @@ defmodule KsefHubWeb.InvoiceLive.Show do
       </:actions>
     </.header>
 
+    <div
+      :if={@invoice.extraction_status in [:partial, :failed]}
+      class="alert alert-warning mt-4"
+      role="alert"
+    >
+      <.icon name="hero-exclamation-triangle" class="size-5" />
+      <span>
+        This invoice has missing data. Please review and fill in the missing fields below.
+      </span>
+    </div>
+
     <div class="grid grid-cols-1 lg:grid-cols-[minmax(0,1fr)_minmax(0,2fr)] gap-6 mt-6">
       <!-- Invoice Metadata -->
       <div class="space-y-4">
@@ -319,19 +331,28 @@ defmodule KsefHubWeb.InvoiceLive.Show do
                     <div class="text-xs text-base-content/50">{@invoice.buyer_nip}</div>
                   </td>
                 </tr>
-                <tr class="border-b border-base-300/50">
+                <tr class={[
+                  "border-b border-base-300/50",
+                  is_nil(@invoice.net_amount) && "bg-warning/5"
+                ]}>
                   <td class="py-1.5 pr-3 text-base-content/60">Netto</td>
                   <td class="py-1.5 text-right font-mono">
                     {format_amount(@invoice.net_amount)} {@invoice.currency}
                   </td>
                 </tr>
-                <tr class="border-b border-base-300/50">
+                <tr class={[
+                  "border-b border-base-300/50",
+                  is_nil(@invoice.vat_amount) && "bg-warning/5"
+                ]}>
                   <td class="py-1.5 pr-3 text-base-content/60">VAT</td>
                   <td class="py-1.5 text-right font-mono">
                     {format_amount(@invoice.vat_amount)} {@invoice.currency}
                   </td>
                 </tr>
-                <tr class="border-b border-base-300/50">
+                <tr class={[
+                  "border-b border-base-300/50",
+                  is_nil(@invoice.gross_amount) && "bg-warning/5"
+                ]}>
                   <td class="py-1.5 pr-3 text-base-content/60">Brutto</td>
                   <td class="py-1.5 text-right font-mono font-bold">
                     {format_amount(@invoice.gross_amount)} {@invoice.currency}
