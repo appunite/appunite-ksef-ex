@@ -29,12 +29,12 @@ defmodule KsefHubWeb.InvoiceLive.IndexTest do
     end
 
     test "shows invoices in table", %{conn: conn, company: company} do
-      insert(:invoice, type: :income, invoice_number: "FV/2025/001", company: company)
-      insert(:invoice, type: :expense, invoice_number: "FV/2025/002", company: company)
+      insert(:invoice, type: :income, seller_name: "Alpha Sp. z o.o.", company: company)
+      insert(:invoice, type: :expense, seller_name: "Beta Sp. z o.o.", company: company)
 
       {:ok, _view, html} = live(conn, ~p"/invoices")
-      assert html =~ "FV/2025/001"
-      assert html =~ "FV/2025/002"
+      assert html =~ "Alpha Sp. z o.o."
+      assert html =~ "Beta Sp. z o.o."
     end
 
     test "shows empty state when no invoices", %{conn: conn} do
@@ -82,23 +82,27 @@ defmodule KsefHubWeb.InvoiceLive.IndexTest do
 
   describe "filters" do
     setup %{conn: conn, company: company} do
-      income = insert(:invoice, type: :income, invoice_number: "FV/INC/001", company: company)
-      expense = insert(:invoice, type: :expense, invoice_number: "FV/EXP/001", company: company)
+      income =
+        insert(:invoice, type: :income, seller_name: "Income Seller", company: company)
+
+      expense =
+        insert(:invoice, type: :expense, seller_name: "Expense Seller", company: company)
+
       %{conn: conn, income: income, expense: expense}
     end
 
     test "filters by type", %{conn: conn} do
       {:ok, view, _html} = live(conn, ~p"/invoices?type=income")
       html = render(view)
-      assert html =~ "FV/INC/001"
-      refute html =~ "FV/EXP/001"
+      assert html =~ "Income Seller"
+      refute html =~ "Expense Seller"
     end
 
     test "filters by status", %{conn: conn} do
       {:ok, view, _html} = live(conn, ~p"/invoices?status=pending")
       html = render(view)
-      assert html =~ "FV/INC/001"
-      assert html =~ "FV/EXP/001"
+      assert html =~ "Income Seller"
+      assert html =~ "Expense Seller"
     end
 
     test "filter change updates URL via push_patch", %{conn: conn} do
@@ -115,25 +119,31 @@ defmodule KsefHubWeb.InvoiceLive.IndexTest do
   describe "category and tag filters" do
     test "filters by category", %{conn: conn, company: company} do
       category = insert(:category, company: company, name: "ops:hosting")
-      insert(:invoice, company: company, invoice_number: "FV/CAT/001", category: category)
-      insert(:invoice, company: company, invoice_number: "FV/CAT/002")
+
+      insert(:invoice,
+        company: company,
+        seller_name: "Categorized Seller",
+        category: category
+      )
+
+      insert(:invoice, company: company, seller_name: "Uncategorized Seller")
 
       {:ok, view, _html} = live(conn, ~p"/invoices?category_id=#{category.id}")
       html = render(view)
-      assert html =~ "FV/CAT/001"
-      refute html =~ "FV/CAT/002"
+      assert html =~ "Categorized Seller"
+      refute html =~ "Uncategorized Seller"
     end
 
     test "filters by tag", %{conn: conn, company: company} do
       tag = insert(:tag, company: company, name: "quarterly")
-      tagged = insert(:invoice, company: company, invoice_number: "FV/TAG/001")
+      tagged = insert(:invoice, company: company, seller_name: "Tagged Seller")
       insert(:invoice_tag, invoice: tagged, tag: tag)
-      insert(:invoice, company: company, invoice_number: "FV/TAG/002")
+      insert(:invoice, company: company, seller_name: "Untagged Seller")
 
       {:ok, view, _html} = live(conn, ~p"/invoices?tag_id=#{tag.id}")
       html = render(view)
-      assert html =~ "FV/TAG/001"
-      refute html =~ "FV/TAG/002"
+      assert html =~ "Tagged Seller"
+      refute html =~ "Untagged Seller"
     end
 
     test "category filter change updates URL", %{conn: conn, company: company} do
@@ -243,24 +253,42 @@ defmodule KsefHubWeb.InvoiceLive.IndexTest do
     end
 
     test "reviewer sees only expense invoices", %{conn: conn, company: company} do
-      insert(:invoice, type: :income, invoice_number: "FV/INC/999", company: company)
-      insert(:invoice, type: :expense, invoice_number: "FV/EXP/999", company: company)
+      insert(:invoice,
+        type: :income,
+        seller_name: "Hidden Income Seller",
+        company: company
+      )
+
+      insert(:invoice,
+        type: :expense,
+        seller_name: "Visible Expense Seller",
+        company: company
+      )
 
       {:ok, _view, html} = live(conn, ~p"/invoices")
-      refute html =~ "FV/INC/999"
-      assert html =~ "FV/EXP/999"
+      refute html =~ "Hidden Income Seller"
+      assert html =~ "Visible Expense Seller"
     end
 
     test "reviewer cannot see income invoices via type=income URL param", %{
       conn: conn,
       company: company
     } do
-      insert(:invoice, type: :income, invoice_number: "FV/INC/888", company: company)
-      insert(:invoice, type: :expense, invoice_number: "FV/EXP/888", company: company)
+      insert(:invoice,
+        type: :income,
+        seller_name: "Secret Income Seller",
+        company: company
+      )
+
+      insert(:invoice,
+        type: :expense,
+        seller_name: "Allowed Expense Seller",
+        company: company
+      )
 
       {:ok, _view, html} = live(conn, ~p"/invoices?type=income")
-      refute html =~ "FV/INC/888"
-      assert html =~ "FV/EXP/888"
+      refute html =~ "Secret Income Seller"
+      assert html =~ "Allowed Expense Seller"
     end
 
     test "reviewer sees locked type filter", %{conn: conn, company: company} do
