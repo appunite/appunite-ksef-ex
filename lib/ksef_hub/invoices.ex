@@ -241,9 +241,10 @@ defmodule KsefHub.Invoices do
           {:ok, Invoice.t()} | {:error, Ecto.Changeset.t()}
   def update_invoice_fields(%Invoice{} = invoice, attrs) do
     old_status = invoice.extraction_status
-    attrs_with_status = recalculate_extraction_status(invoice, attrs)
+    new_status = compute_extraction_status_for_edit(invoice, attrs)
+    attrs = Map.put(attrs, :extraction_status, new_status)
 
-    changeset = Invoice.edit_changeset(invoice, attrs_with_status)
+    changeset = Invoice.edit_changeset(invoice, normalize_keys(attrs))
 
     case Repo.update(changeset) do
       {:ok, updated} ->
@@ -256,6 +257,21 @@ defmodule KsefHub.Invoices do
       {:error, changeset} ->
         {:error, changeset}
     end
+  end
+
+  @spec compute_extraction_status_for_edit(Invoice.t(), map()) :: :complete | :partial
+  defp compute_extraction_status_for_edit(%Invoice{} = invoice, attrs) do
+    atom_attrs = atomize_known_keys(attrs)
+    merged = Map.merge(Map.from_struct(invoice), atom_attrs)
+    if all_critical_fields_present?(merged), do: :complete, else: :partial
+  end
+
+  @spec normalize_keys(map()) :: map()
+  defp normalize_keys(attrs) do
+    Map.new(attrs, fn
+      {k, v} when is_atom(k) -> {Atom.to_string(k), v}
+      {k, v} -> {k, v}
+    end)
   end
 
   @doc """

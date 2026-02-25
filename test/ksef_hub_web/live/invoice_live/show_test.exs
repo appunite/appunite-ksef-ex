@@ -250,6 +250,136 @@ defmodule KsefHubWeb.InvoiceLive.ShowTest do
     end
   end
 
+  describe "extraction status display" do
+    test "shows extraction badge for partial invoice", %{conn: conn, company: company} do
+      invoice =
+        insert(:invoice, company: company, extraction_status: :partial, net_amount: nil)
+
+      stub(KsefHub.Pdf.Mock, :generate_html, fn _xml, _meta -> {:error, :no_xml} end)
+
+      {:ok, _view, html} = live(conn, ~p"/invoices/#{invoice.id}")
+      assert html =~ "Incomplete"
+      assert html =~ "missing data"
+    end
+
+    test "does not show extraction badge for complete invoice", %{conn: conn, company: company} do
+      invoice = insert(:invoice, company: company, extraction_status: :complete)
+
+      stub(KsefHub.Pdf.Mock, :generate_html, fn _xml, _meta -> {:error, :no_xml} end)
+
+      {:ok, _view, html} = live(conn, ~p"/invoices/#{invoice.id}")
+      refute html =~ "Incomplete"
+      refute html =~ "missing data"
+    end
+
+    test "approve shows specific error for partial extraction invoice", %{
+      conn: conn,
+      company: company
+    } do
+      invoice =
+        insert(:invoice,
+          company: company,
+          type: :expense,
+          extraction_status: :partial,
+          net_amount: nil
+        )
+
+      stub(KsefHub.Pdf.Mock, :generate_html, fn _xml, _meta -> {:error, :no_xml} end)
+
+      {:ok, view, _html} = live(conn, ~p"/invoices/#{invoice.id}")
+
+      html = view |> element("button", "Approve") |> render_click()
+      assert html =~ "Cannot approve: missing required fields"
+    end
+  end
+
+  describe "edit form" do
+    test "shows edit form when Edit button is clicked", %{conn: conn, company: company} do
+      invoice = insert(:invoice, company: company)
+
+      stub(KsefHub.Pdf.Mock, :generate_html, fn _xml, _meta -> {:error, :no_xml} end)
+
+      {:ok, view, _html} = live(conn, ~p"/invoices/#{invoice.id}")
+      refute has_element?(view, "form[phx-submit=save_edit]")
+
+      view |> element("button", "Edit") |> render_click()
+      assert has_element?(view, "form[phx-submit=save_edit]")
+    end
+
+    test "edit form opens automatically for partial extraction", %{
+      conn: conn,
+      company: company
+    } do
+      invoice =
+        insert(:invoice, company: company, extraction_status: :partial, net_amount: nil)
+
+      stub(KsefHub.Pdf.Mock, :generate_html, fn _xml, _meta -> {:error, :no_xml} end)
+
+      {:ok, view, _html} = live(conn, ~p"/invoices/#{invoice.id}")
+      assert has_element?(view, "form[phx-submit=save_edit]")
+    end
+
+    test "cancel edit returns to read-only view", %{conn: conn, company: company} do
+      invoice =
+        insert(:invoice, company: company, extraction_status: :partial, net_amount: nil)
+
+      stub(KsefHub.Pdf.Mock, :generate_html, fn _xml, _meta -> {:error, :no_xml} end)
+
+      {:ok, view, _html} = live(conn, ~p"/invoices/#{invoice.id}")
+      assert has_element?(view, "form[phx-submit=save_edit]")
+
+      view |> element("button", "Cancel") |> render_click()
+      refute has_element?(view, "form[phx-submit=save_edit]")
+    end
+
+    test "saving edit updates invoice and exits edit mode", %{conn: conn, company: company} do
+      invoice =
+        insert(:invoice,
+          company: company,
+          extraction_status: :partial,
+          net_amount: nil,
+          gross_amount: nil
+        )
+
+      stub(KsefHub.Pdf.Mock, :generate_html, fn _xml, _meta -> {:error, :no_xml} end)
+
+      {:ok, view, _html} = live(conn, ~p"/invoices/#{invoice.id}")
+
+      html =
+        view
+        |> form("form[phx-submit=save_edit]", %{
+          "invoice" => %{
+            "net_amount" => "1000.00",
+            "gross_amount" => "1230.00"
+          }
+        })
+        |> render_submit()
+
+      assert html =~ "Invoice updated"
+      refute has_element?(view, "form[phx-submit=save_edit]")
+      # extraction status should now be complete, no warning banner
+      refute html =~ "missing data"
+    end
+
+    test "shows validation errors for invalid NIP", %{conn: conn, company: company} do
+      invoice = insert(:invoice, company: company)
+
+      stub(KsefHub.Pdf.Mock, :generate_html, fn _xml, _meta -> {:error, :no_xml} end)
+
+      {:ok, view, _html} = live(conn, ~p"/invoices/#{invoice.id}")
+      view |> element("button", "Edit") |> render_click()
+
+      html =
+        view
+        |> form("form[phx-submit=save_edit]", %{
+          "invoice" => %{"seller_nip" => "abc"}
+        })
+        |> render_submit()
+
+      assert html =~ "must be a 10-digit NIP"
+    end
+  end
+
   describe "reviewer role" do
     setup %{conn: _conn} do
       {:ok, reviewer} =

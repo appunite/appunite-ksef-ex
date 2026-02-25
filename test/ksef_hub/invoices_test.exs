@@ -779,6 +779,57 @@ defmodule KsefHub.InvoicesTest do
     end
   end
 
+  describe "update_invoice_fields/2" do
+    test "updates invoice fields and recalculates extraction_status to complete", %{
+      company: company
+    } do
+      invoice =
+        insert(:invoice,
+          company: company,
+          extraction_status: :partial,
+          net_amount: nil,
+          gross_amount: nil
+        )
+
+      attrs = %{
+        "net_amount" => "1000.00",
+        "gross_amount" => "1230.00"
+      }
+
+      assert {:ok, updated} = Invoices.update_invoice_fields(invoice, attrs)
+      assert updated.extraction_status == :complete
+      assert Decimal.equal?(updated.net_amount, Decimal.new("1000.00"))
+      assert Decimal.equal?(updated.gross_amount, Decimal.new("1230.00"))
+    end
+
+    test "keeps extraction_status partial when critical fields still missing", %{
+      company: company
+    } do
+      invoice =
+        insert(:invoice,
+          company: company,
+          extraction_status: :partial,
+          seller_nip: nil,
+          net_amount: nil,
+          gross_amount: nil
+        )
+
+      attrs = %{"net_amount" => "1000.00"}
+
+      assert {:ok, updated} = Invoices.update_invoice_fields(invoice, attrs)
+      assert updated.extraction_status == :partial
+    end
+
+    test "returns error changeset for invalid NIP", %{company: company} do
+      invoice = insert(:invoice, company: company)
+
+      attrs = %{"seller_nip" => "abc"}
+
+      assert {:error, changeset} = Invoices.update_invoice_fields(invoice, attrs)
+      assert errors_on(changeset).seller_nip
+    end
+  end
+
   describe "list_invoices source filter with pdf_upload" do
     test "filters invoices by source=pdf_upload", %{company: company} do
       insert(:invoice, company: company, source: :ksef)
