@@ -98,23 +98,6 @@ defmodule KsefHub.InboundEmailTest do
     end
   end
 
-  describe "already_processed?/1" do
-    test "returns true for existing message ID", %{company: company} do
-      InboundEmail.create_inbound_email(company.id, %{
-        sender: "a@example.com",
-        recipient: "inv@inbound.ksef-hub.com",
-        status: :received,
-        mailgun_message_id: "<msg-exist>"
-      })
-
-      assert InboundEmail.already_processed?("<msg-exist>")
-    end
-
-    test "returns false for unknown message ID" do
-      refute InboundEmail.already_processed?("<msg-unknown>")
-    end
-  end
-
   describe "get_inbound_email/1" do
     test "returns record by ID", %{company: company} do
       {:ok, record} =

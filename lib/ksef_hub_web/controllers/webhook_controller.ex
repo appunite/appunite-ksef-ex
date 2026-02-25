@@ -133,8 +133,25 @@ defmodule KsefHubWeb.WebhookController do
           Plug.Upload.t()
         ) :: Plug.Conn.t()
   defp process_inbound(conn, company, sender, params, attachment) do
-    pdf_binary = File.read!(attachment.path)
+    case File.read(attachment.path) do
+      {:ok, pdf_binary} ->
+        create_and_enqueue(conn, company, sender, params, pdf_binary, attachment.filename)
 
+      {:error, reason} ->
+        Logger.error("Failed to read attachment #{attachment.path}: #{inspect(reason)}")
+        json(conn, %{status: "error", reason: "Failed to read attachment"})
+    end
+  end
+
+  @spec create_and_enqueue(
+          Plug.Conn.t(),
+          Companies.Company.t(),
+          String.t(),
+          map(),
+          binary(),
+          String.t() | nil
+        ) :: Plug.Conn.t()
+  defp create_and_enqueue(conn, company, sender, params, pdf_binary, filename) do
     case InboundEmail.create_inbound_email(company.id, %{
            sender: sender,
            recipient: params["recipient"] || "",
@@ -142,7 +159,7 @@ defmodule KsefHubWeb.WebhookController do
            status: :received,
            mailgun_message_id: params["Message-Id"],
            pdf_content: pdf_binary,
-           original_filename: attachment.filename
+           original_filename: filename
          }) do
       {:ok, record} ->
         enqueue_processing(record, company)

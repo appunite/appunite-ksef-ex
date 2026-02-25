@@ -16,11 +16,11 @@ defmodule KsefHub.InboundEmail.ReplyNotifier do
               )
 
   @doc "Builds a success reply email for a processed invoice."
-  @spec success(String.t(), map(), keyword()) :: Swoosh.Email.t()
+  @spec success(String.t(), KsefHub.Invoices.Invoice.t(), keyword()) :: Swoosh.Email.t()
   def success(sender, invoice, opts \\ []) do
-    invoice_number = Map.get(invoice, :invoice_number) || Map.get(invoice, "invoice_number")
-    seller_name = Map.get(invoice, :seller_name) || Map.get(invoice, "seller_name") || ""
-    invoice_id = Map.get(invoice, :id)
+    invoice_number = invoice.invoice_number
+    seller_name = invoice.seller_name || ""
+    invoice_id = invoice.id
 
     subject =
       if invoice_number,
@@ -43,7 +43,7 @@ defmodule KsefHub.InboundEmail.ReplyNotifier do
   end
 
   @doc "Builds a needs-review reply email."
-  @spec needs_review(String.t(), map(), keyword()) :: Swoosh.Email.t()
+  @spec needs_review(String.t(), KsefHub.Invoices.Invoice.t(), keyword()) :: Swoosh.Email.t()
   def needs_review(sender, invoice, opts \\ []) do
     invoice_id = Map.get(invoice, :id)
 
@@ -164,7 +164,11 @@ defmodule KsefHub.InboundEmail.ReplyNotifier do
   defp invoice_url(nil), do: ""
 
   defp invoice_url(id) do
-    base_url = Application.get_env(:ksef_hub, KsefHubWeb.Endpoint)[:url][:host] || "ksef-hub.com"
-    "https://#{base_url}/invoices/#{id}"
+    host =
+      :ksef_hub
+      |> Application.get_env(KsefHubWeb.Endpoint, [])
+      |> get_in([:url, :host])
+
+    "https://#{host || "ksef-hub.com"}/invoices/#{id}"
   end
 end

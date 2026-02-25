@@ -1,5 +1,6 @@
 defmodule KsefHubWeb.WebhookControllerTest do
-  use KsefHubWeb.ConnCase, async: true
+  # async: false — test mutates global Application env (mailgun_signing_key, allowed_sender_domain)
+  use KsefHubWeb.ConnCase, async: false
 
   import KsefHub.Factory
   import Mox

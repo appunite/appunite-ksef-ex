@@ -4,8 +4,6 @@ defmodule KsefHub.InboundEmail do
   idempotency, and PDF staging during async processing.
   """
 
-  import Ecto.Query
-
   alias KsefHub.InboundEmail.InboundEmail, as: InboundEmailRecord
   alias KsefHub.Repo
 
@@ -34,13 +32,5 @@ defmodule KsefHub.InboundEmail do
     record
     |> InboundEmailRecord.status_changeset(attrs)
     |> Repo.update()
-  end
-
-  @doc "Checks if a Mailgun message has already been processed (idempotency)."
-  @spec already_processed?(String.t()) :: boolean()
-  def already_processed?(mailgun_message_id) when is_binary(mailgun_message_id) do
-    InboundEmailRecord
-    |> where([ie], ie.mailgun_message_id == ^mailgun_message_id)
-    |> Repo.exists?()
   end
 end
