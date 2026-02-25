@@ -151,9 +151,7 @@ defmodule KsefHub.InboundEmail.InboundEmailWorker do
         :ok
 
       {:error, reason} ->
-        Logger.warning(
-          "Failed to send reply for inbound email #{record.id}: #{inspect(reason)}"
-        )
+        Logger.warning("Failed to send reply for inbound email #{record.id}: #{inspect(reason)}")
 
         :ok
     end

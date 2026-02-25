@@ -11,9 +11,9 @@ defmodule KsefHub.Factory do
   alias KsefHub.Accounts.{ApiToken, User}
   alias KsefHub.Companies.{Company, Membership}
   alias KsefHub.Credentials.{Credential, UserCertificate}
+  alias KsefHub.InboundEmail.InboundEmail, as: InboundEmailRecord
   alias KsefHub.Invitations.Invitation
   alias KsefHub.Invoices.{Category, Invoice, InvoiceTag, Tag}
-  alias KsefHub.InboundEmail.InboundEmail, as: InboundEmailRecord
   alias KsefHub.Sync.Checkpoint
 
   @doc "Builds a `User` with sequenced email and google_uid."

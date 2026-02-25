@@ -443,7 +443,14 @@ defmodule KsefHub.Invoices do
     extraction_status = determine_extraction_status(extracted)
 
     invoice_attrs =
-      build_pdf_upload_attrs(extracted, company_id, pdf_binary, :expense, filename, extraction_status)
+      build_pdf_upload_attrs(
+        extracted,
+        company_id,
+        pdf_binary,
+        :expense,
+        filename,
+        extraction_status
+      )
       |> Map.put(:source, :email)
 
     case create_or_retry_duplicate(company_id, invoice_attrs) do

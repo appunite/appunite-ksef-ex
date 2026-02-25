@@ -7,8 +7,8 @@ defmodule KsefHub.Repo.Migrations.AddInboundEmailTokenToCompanies do
     end
 
     create unique_index(:companies, [:inbound_email_token],
-      where: "inbound_email_token IS NOT NULL",
-      name: :companies_inbound_email_token_unique
-    )
+             where: "inbound_email_token IS NOT NULL",
+             name: :companies_inbound_email_token_unique
+           )
   end
 end

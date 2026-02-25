@@ -20,6 +20,9 @@ defmodule KsefHub.Repo.Migrations.CreateInboundEmails do
 
     create index(:inbound_emails, [:company_id])
     create index(:inbound_emails, [:invoice_id])
-    create unique_index(:inbound_emails, [:mailgun_message_id], where: "mailgun_message_id IS NOT NULL")
+
+    create unique_index(:inbound_emails, [:mailgun_message_id],
+             where: "mailgun_message_id IS NOT NULL"
+           )
   end
 end

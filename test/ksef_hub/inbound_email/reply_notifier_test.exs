@@ -43,7 +43,9 @@ defmodule KsefHub.InboundEmail.ReplyNotifierTest do
     end
 
     test "builds email for nip_mismatch rejection" do
-      email = ReplyNotifier.rejection(@sender, :nip_mismatch, company_name: "Acme", nip: "1234567890")
+      email =
+        ReplyNotifier.rejection(@sender, :nip_mismatch, company_name: "Acme", nip: "1234567890")
+
       assert email.text_body =~ "doesn't match"
       assert email.text_body =~ "Acme"
       assert email.text_body =~ "1234567890"
