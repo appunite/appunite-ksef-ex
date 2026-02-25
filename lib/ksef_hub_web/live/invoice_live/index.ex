@@ -328,7 +328,10 @@ defmodule KsefHubWeb.InvoiceLive.Index do
           <span class="text-xs text-base-content/60">{inv.currency}</span>
         </:col>
         <:col :let={inv} label="Status" class="w-28">
-          <.status_badge status={inv.status} />
+          <div class="flex flex-wrap gap-1">
+            <.status_badge status={inv.status} />
+            <.extraction_badge status={inv.extraction_status} />
+          </div>
         </:col>
         <:col :let={inv} label="Category">
           <.category_badge category={inv.category} />

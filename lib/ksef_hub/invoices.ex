@@ -202,6 +202,7 @@ defmodule KsefHub.Invoices do
     :currency,
     :ksef_acquisition_date,
     :permanent_storage_date,
+    :extraction_status,
     :updated_at
   ]
 
@@ -233,6 +234,30 @@ defmodule KsefHub.Invoices do
   end
 
   @doc """
+  Updates invoice fields from a manual edit, recalculates extraction_status,
+  and enqueues prediction if status changed from :partial or :failed to :complete.
+  """
+  @spec update_invoice_fields(Invoice.t(), map()) ::
+          {:ok, Invoice.t()} | {:error, Ecto.Changeset.t()}
+  def update_invoice_fields(%Invoice{} = invoice, attrs) do
+    old_status = invoice.extraction_status
+    merged = invoice |> Map.from_struct() |> Map.merge(atomize_known_keys(attrs))
+    new_status = determine_extraction_status_from_attrs(merged)
+
+    changeset =
+      invoice
+      |> Invoice.edit_changeset(attrs)
+      |> Ecto.Changeset.put_change(:extraction_status, new_status)
+
+    with {:ok, updated} <- Repo.update(changeset) do
+      if old_status in [:partial, :failed] and updated.extraction_status == :complete,
+        do: enqueue_prediction(updated)
+
+      {:ok, updated}
+    end
+  end
+
+  @doc """
   Recalculates extraction status based on the presence of critical fields.
 
   Merges the given `attrs` over the invoice's current values, then checks
@@ -241,20 +266,34 @@ defmodule KsefHub.Invoices do
   """
   @spec recalculate_extraction_status(Invoice.t(), map()) :: map()
   def recalculate_extraction_status(%Invoice{} = invoice, attrs) do
-    atom_attrs = atomize_known_keys(attrs)
-    merged = Map.merge(Map.from_struct(invoice), atom_attrs)
-    new_status = if all_critical_fields_present?(merged), do: :complete, else: :partial
-    Map.put(attrs, :extraction_status, new_status)
+    merged = invoice |> Map.from_struct() |> Map.merge(atomize_known_keys(attrs))
+    Map.put(attrs, :extraction_status, determine_extraction_status_from_attrs(merged))
+  end
+
+  @doc """
+  Determines extraction status from a plain attrs map (no struct required).
+
+  Used during KSeF sync to set extraction_status before upsert.
+  Returns `:complete` if all critical fields are present, `:partial` otherwise.
+  """
+  @spec determine_extraction_status_from_attrs(map()) :: :complete | :partial
+  def determine_extraction_status_from_attrs(attrs) do
+    if all_critical_fields_present?(attrs), do: :complete, else: :partial
   end
 
   @spec atomize_known_keys(map()) :: map()
   defp atomize_known_keys(attrs) do
     Map.new(attrs, fn
-      {k, v} when is_binary(k) -> {String.to_existing_atom(k), v}
+      {k, v} when is_binary(k) -> {safe_to_existing_atom(k), v}
       {k, v} -> {k, v}
     end)
+  end
+
+  @spec safe_to_existing_atom(String.t()) :: atom() | String.t()
+  defp safe_to_existing_atom(str) do
+    String.to_existing_atom(str)
   rescue
-    ArgumentError -> attrs
+    ArgumentError -> str
   end
 
   @doc """
@@ -407,18 +446,22 @@ defmodule KsefHub.Invoices do
   defp maybe_enqueue_prediction(:complete, invoice), do: enqueue_prediction(invoice)
   defp maybe_enqueue_prediction(_status, _invoice), do: :ok
 
-  @spec determine_extraction_status(map()) :: atom()
-  defp determine_extraction_status(extracted) do
-    if all_critical_fields_present?(extracted), do: :complete, else: :partial
-  end
+  @spec determine_extraction_status(map()) :: :complete | :partial
+  defp determine_extraction_status(extracted),
+    do: determine_extraction_status_from_attrs(extracted)
 
   @spec all_critical_fields_present?(map()) :: boolean()
   defp all_critical_fields_present?(map) do
     Enum.all?(@critical_extraction_fields, fn field ->
       value = Map.get(map, field) || Map.get(map, Atom.to_string(field))
-      value != nil && value != ""
+      present_value?(value)
     end)
   end
+
+  @spec present_value?(term()) :: boolean()
+  defp present_value?(nil), do: false
+  defp present_value?(s) when is_binary(s), do: String.trim(s) != ""
+  defp present_value?(_), do: true
 
   @spec build_pdf_upload_attrs(
           map(),

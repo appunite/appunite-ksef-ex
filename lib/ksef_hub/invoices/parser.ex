@@ -23,8 +23,12 @@ defmodule KsefHub.Invoices.Parser do
        seller_name: extract_name(doc, "Podmiot1"),
        buyer_nip: xpath(doc, ~x"//*[local-name()='Podmiot2']//*[local-name()='NIP']/text()"s),
        buyer_name: extract_name(doc, "Podmiot2"),
-       net_amount: xpath(doc, ~x"//*[local-name()='P_13_1']/text()"s) |> parse_decimal(),
-       vat_amount: xpath(doc, ~x"//*[local-name()='P_14_1']/text()"s) |> parse_decimal(),
+       net_amount:
+         sum_decimal_fields(
+           doc,
+           ~w[P_13_1 P_13_2 P_13_3 P_13_4 P_13_5 P_13_6 P_13_7 P_13_8 P_13_9 P_13_10 P_13_11]
+         ),
+       vat_amount: sum_decimal_fields(doc, ~w[P_14_1 P_14_2 P_14_3 P_14_4 P_14_5]),
        gross_amount: xpath(doc, ~x"//*[local-name()='P_15']/text()"s) |> parse_decimal(),
        currency: xpath(doc, ~x"//*[local-name()='KodWaluty']/text()"s) |> default_currency(),
        line_items: parse_line_items(doc)
@@ -85,6 +89,19 @@ defmodule KsefHub.Invoices.Parser do
         vat_rate: xpath(item, ~x"./*[local-name()='P_12']/text()"s) |> parse_decimal()
       }
     end)
+  end
+
+  @spec sum_decimal_fields(term(), [String.t()]) :: Decimal.t() | nil
+  defp sum_decimal_fields(doc, field_names) do
+    field_names
+    |> Enum.map(fn name ->
+      xpath(doc, ~x"//*[local-name()='#{name}']/text()"s) |> parse_decimal()
+    end)
+    |> Enum.reject(&is_nil/1)
+    |> case do
+      [] -> nil
+      values -> Enum.reduce(values, Decimal.new(0), &Decimal.add/2)
+    end
   end
 
   @spec parse_date(String.t()) :: Date.t() | nil

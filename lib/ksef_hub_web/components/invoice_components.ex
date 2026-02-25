@@ -88,6 +88,33 @@ defmodule KsefHubWeb.InvoiceComponents do
     """
   end
 
+  @doc """
+  Renders a coloured badge for extraction status.
+
+  Renders nothing for nil or :complete (clean state). Shows an orange
+  "Incomplete" badge for :partial and a red "Failed" badge for :failed.
+  """
+  @spec extraction_badge(map()) :: Phoenix.LiveView.Rendered.t()
+  attr :status, :atom, required: true
+
+  def extraction_badge(%{status: status} = assigns) when status in [nil, :complete], do: ~H""
+
+  def extraction_badge(%{status: :partial} = assigns) do
+    ~H"""
+    <span class="inline-flex items-center px-2 py-0.5 rounded-md text-xs font-medium border bg-warning/10 text-warning border-warning/20">
+      Incomplete
+    </span>
+    """
+  end
+
+  def extraction_badge(%{status: :failed} = assigns) do
+    ~H"""
+    <span class="inline-flex items-center px-2 py-0.5 rounded-md text-xs font-medium border bg-error/10 text-error border-error/20">
+      Failed
+    </span>
+    """
+  end
+
   @doc "Formats a date as YYYY-MM-DD, or returns \"-\" for nil."
   @spec format_date(Date.t() | nil) :: String.t()
   def format_date(nil), do: "-"

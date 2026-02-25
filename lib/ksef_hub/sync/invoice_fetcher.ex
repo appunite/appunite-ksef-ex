@@ -163,6 +163,9 @@ defmodule KsefHub.Sync.InvoiceFetcher do
         })
         |> Map.drop([:line_items])
 
+      attrs =
+        Map.put(attrs, :extraction_status, Invoices.determine_extraction_status_from_attrs(attrs))
+
       Invoices.upsert_invoice(attrs)
     end
   end
