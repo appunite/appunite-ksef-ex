@@ -7,6 +7,7 @@ defmodule KsefHubWeb.InvoiceLive.ShowTest do
   import KsefHub.Factory
 
   alias KsefHub.Accounts
+  alias KsefHub.Invoices
 
   setup :set_mox_from_context
   setup :verify_on_exit!
@@ -24,6 +25,11 @@ defmodule KsefHubWeb.InvoiceLive.ShowTest do
 
     conn = conn |> log_in_user(user, %{current_company_id: company.id})
     %{conn: conn, user: user, company: company}
+  end
+
+  defp stub_pdf(_context) do
+    stub(KsefHub.Pdf.Mock, :generate_html, fn _xml, _meta -> {:error, :no_xml} end)
+    :ok
   end
 
   describe "mount" do
@@ -63,10 +69,10 @@ defmodule KsefHubWeb.InvoiceLive.ShowTest do
   end
 
   describe "approve/reject" do
+    setup :stub_pdf
+
     test "approve button shown for pending expense invoices", %{conn: conn, company: company} do
       invoice = insert(:invoice, type: :expense, company: company)
-
-      stub(KsefHub.Pdf.Mock, :generate_html, fn _xml, _meta -> {:error, :no_xml} end)
 
       {:ok, view, _html} = live(conn, ~p"/invoices/#{invoice.id}")
       assert has_element?(view, "button", "Approve")
@@ -76,16 +82,12 @@ defmodule KsefHubWeb.InvoiceLive.ShowTest do
     test "approve button not shown for income invoices", %{conn: conn, company: company} do
       invoice = insert(:invoice, type: :income, company: company)
 
-      stub(KsefHub.Pdf.Mock, :generate_html, fn _xml, _meta -> {:error, :no_xml} end)
-
       {:ok, view, _html} = live(conn, ~p"/invoices/#{invoice.id}")
       refute has_element?(view, "button", "Approve")
     end
 
     test "clicking approve updates status", %{conn: conn, company: company} do
       invoice = insert(:invoice, type: :expense, company: company)
-
-      stub(KsefHub.Pdf.Mock, :generate_html, fn _xml, _meta -> {:error, :no_xml} end)
 
       {:ok, view, _html} = live(conn, ~p"/invoices/#{invoice.id}")
 
@@ -99,8 +101,6 @@ defmodule KsefHubWeb.InvoiceLive.ShowTest do
     test "clicking reject updates status", %{conn: conn, company: company} do
       invoice = insert(:invoice, type: :expense, company: company)
 
-      stub(KsefHub.Pdf.Mock, :generate_html, fn _xml, _meta -> {:error, :no_xml} end)
-
       {:ok, view, _html} = live(conn, ~p"/invoices/#{invoice.id}")
 
       view |> element("button", "Reject") |> render_click()
@@ -112,8 +112,6 @@ defmodule KsefHubWeb.InvoiceLive.ShowTest do
 
     test "approve on income invoice is rejected", %{conn: conn, company: company} do
       invoice = insert(:invoice, type: :income, company: company)
-
-      stub(KsefHub.Pdf.Mock, :generate_html, fn _xml, _meta -> {:error, :no_xml} end)
 
       {:ok, view, _html} = live(conn, ~p"/invoices/#{invoice.id}")
 
@@ -128,13 +126,127 @@ defmodule KsefHubWeb.InvoiceLive.ShowTest do
     test "already-approved invoice does not show action buttons", %{conn: conn, company: company} do
       invoice = insert(:invoice, type: :expense, status: :approved, company: company)
 
-      stub(KsefHub.Pdf.Mock, :generate_html, fn _xml, _meta -> {:error, :no_xml} end)
-
       {:ok, view, _html} = live(conn, ~p"/invoices/#{invoice.id}")
 
       assert has_element?(view, "[class*=rounded-md]", "approved")
       refute has_element?(view, "button", "Approve")
       refute has_element?(view, "button", "Reject")
+    end
+  end
+
+  describe "category and tags display" do
+    setup :stub_pdf
+
+    test "displays category name and emoji", %{conn: conn, company: company} do
+      category = insert(:category, company: company, name: "finance:invoices", emoji: "💰")
+      invoice = insert(:invoice, company: company, category: category)
+
+      {:ok, view, _html} = live(conn, ~p"/invoices/#{invoice.id}")
+      assert has_element?(view, "[data-testid=category-select]")
+      html = render(view)
+      assert html =~ "finance:invoices"
+      assert html =~ "💰"
+    end
+
+    test "displays assigned tags", %{conn: conn, company: company} do
+      tag = insert(:tag, company: company, name: "quarterly-report")
+      invoice = insert(:invoice, company: company)
+      insert(:invoice_tag, invoice: invoice, tag: tag)
+
+      {:ok, _view, html} = live(conn, ~p"/invoices/#{invoice.id}")
+      assert html =~ "quarterly-report"
+    end
+
+    test "shows needs_review prediction indicator", %{conn: conn, company: company} do
+      invoice = insert(:invoice, company: company, prediction_status: :needs_review)
+
+      {:ok, _view, html} = live(conn, ~p"/invoices/#{invoice.id}")
+      assert html =~ "Review"
+    end
+  end
+
+  describe "category editing" do
+    setup :stub_pdf
+
+    test "selecting a category updates the invoice", %{conn: conn, company: company} do
+      category = insert(:category, company: company, name: "ops:hosting", emoji: "🖥")
+      invoice = insert(:invoice, company: company)
+
+      {:ok, view, _html} = live(conn, ~p"/invoices/#{invoice.id}")
+
+      view
+      |> form("[data-testid=category-form]", %{"category_id" => category.id})
+      |> render_change()
+
+      html = render(view)
+      assert html =~ "ops:hosting"
+
+      updated = Invoices.get_invoice_with_details!(company.id, invoice.id)
+      assert updated.category_id == category.id
+      assert updated.prediction_status == :manual
+    end
+
+    test "clearing category sets it to nil", %{conn: conn, company: company} do
+      category = insert(:category, company: company, name: "ops:clear-test")
+      invoice = insert(:invoice, company: company, category: category)
+
+      {:ok, view, _html} = live(conn, ~p"/invoices/#{invoice.id}")
+
+      view
+      |> form("[data-testid=category-form]", %{"category_id" => ""})
+      |> render_change()
+
+      updated = Invoices.get_invoice_with_details!(company.id, invoice.id)
+      assert is_nil(updated.category_id)
+    end
+  end
+
+  describe "tag editing" do
+    setup :stub_pdf
+
+    test "toggling a tag on adds it to the invoice", %{conn: conn, company: company} do
+      tag = insert(:tag, company: company, name: "toggle-on")
+      invoice = insert(:invoice, company: company)
+
+      {:ok, view, _html} = live(conn, ~p"/invoices/#{invoice.id}")
+
+      view
+      |> element(~s(input[phx-value-tag-id="#{tag.id}"]))
+      |> render_click()
+
+      tags = Invoices.list_invoice_tags(invoice.id)
+      assert Enum.any?(tags, &(&1.id == tag.id))
+    end
+
+    test "toggling a tag off removes it from the invoice", %{conn: conn, company: company} do
+      tag = insert(:tag, company: company, name: "toggle-off")
+      invoice = insert(:invoice, company: company)
+      insert(:invoice_tag, invoice: invoice, tag: tag)
+
+      {:ok, view, _html} = live(conn, ~p"/invoices/#{invoice.id}")
+
+      view
+      |> element(~s(input[phx-value-tag-id="#{tag.id}"]))
+      |> render_click()
+
+      tags = Invoices.list_invoice_tags(invoice.id)
+      refute Enum.any?(tags, &(&1.id == tag.id))
+    end
+
+    test "creating a new tag inline adds it to the invoice", %{conn: conn, company: company} do
+      invoice = insert(:invoice, company: company)
+
+      {:ok, view, _html} = live(conn, ~p"/invoices/#{invoice.id}")
+
+      view
+      |> element("form[phx-submit=create_and_add_tag]")
+      |> render_submit(%{"name" => "brand-new-tag"})
+
+      html = render(view)
+      assert html =~ "brand-new-tag"
+
+      tags = Invoices.list_invoice_tags(invoice.id)
+      assert Enum.any?(tags, &(&1.name == "brand-new-tag"))
     end
   end
 

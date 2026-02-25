@@ -11,7 +11,18 @@ defmodule KsefHubWeb.InvoiceLive.Index do
 
   @impl true
   def mount(_params, _session, socket) do
-    {:ok, assign(socket, page_title: "Invoices")}
+    company_id =
+      case socket.assigns do
+        %{current_company: %{id: id}} -> id
+        _ -> nil
+      end
+
+    {:ok,
+     assign(socket,
+       page_title: "Invoices",
+       categories: if(company_id, do: Invoices.list_categories(company_id), else: []),
+       all_tags: if(company_id, do: Invoices.list_tags(company_id), else: [])
+     )}
   end
 
   @impl true
@@ -40,7 +51,9 @@ defmodule KsefHubWeb.InvoiceLive.Index do
         "status" => to_string_or_empty(filters[:status]),
         "date_from" => (filters[:date_from] && Date.to_iso8601(filters[:date_from])) || "",
         "date_to" => (filters[:date_to] && Date.to_iso8601(filters[:date_to])) || "",
-        "query" => filters[:query] || ""
+        "query" => filters[:query] || "",
+        "category_id" => filters[:category_id] || "",
+        "tag_id" => first_tag_id(filters) || ""
       }
       |> to_form(as: :filters)
 
@@ -65,6 +78,8 @@ defmodule KsefHubWeb.InvoiceLive.Index do
       |> maybe_put("date_from", params["date_from"])
       |> maybe_put("date_to", params["date_to"])
       |> maybe_put("query", params["query"])
+      |> maybe_put("category_id", params["category_id"])
+      |> maybe_put("tag_id", params["tag_id"])
 
     {:noreply, push_patch(socket, to: ~p"/invoices?#{query_params}")}
   end
@@ -77,6 +92,8 @@ defmodule KsefHubWeb.InvoiceLive.Index do
     |> maybe_put_date(:date_from, params["date_from"])
     |> maybe_put_date(:date_to, params["date_to"])
     |> maybe_put_search(:query, params["query"])
+    |> maybe_put_uuid(:category_id, params["category_id"])
+    |> maybe_put_tag_ids(params["tag_id"])
     |> maybe_put_page(:page, params["page"])
   end
 
@@ -93,6 +110,7 @@ defmodule KsefHubWeb.InvoiceLive.Index do
     end
   end
 
+  @spec maybe_put_date(map(), atom(), String.t() | nil) :: map()
   defp maybe_put_date(map, _key, nil), do: map
   defp maybe_put_date(map, _key, ""), do: map
 
@@ -103,6 +121,7 @@ defmodule KsefHubWeb.InvoiceLive.Index do
     end
   end
 
+  @spec maybe_put_search(map(), atom(), String.t() | nil) :: map()
   defp maybe_put_search(map, _key, nil), do: map
   defp maybe_put_search(map, _key, ""), do: map
   defp maybe_put_search(map, key, value), do: Map.put(map, key, value)
@@ -118,9 +137,35 @@ defmodule KsefHubWeb.InvoiceLive.Index do
     end
   end
 
+  @spec maybe_put_uuid(map(), atom(), String.t() | nil) :: map()
+  defp maybe_put_uuid(map, _key, nil), do: map
+  defp maybe_put_uuid(map, _key, ""), do: map
+
+  defp maybe_put_uuid(map, key, value) do
+    case Ecto.UUID.cast(value) do
+      {:ok, uuid} -> Map.put(map, key, uuid)
+      :error -> map
+    end
+  end
+
+  @spec maybe_put_tag_ids(map(), String.t() | nil) :: map()
+  defp maybe_put_tag_ids(map, nil), do: map
+  defp maybe_put_tag_ids(map, ""), do: map
+
+  defp maybe_put_tag_ids(map, tag_id) do
+    case Ecto.UUID.cast(tag_id) do
+      {:ok, uuid} -> Map.put(map, :tag_ids, [uuid])
+      :error -> map
+    end
+  end
+
+  @spec maybe_put(map(), String.t(), String.t() | nil) :: map()
   defp maybe_put(map, _key, nil), do: map
   defp maybe_put(map, _key, ""), do: map
   defp maybe_put(map, key, value), do: Map.put(map, key, value)
+
+  @spec first_tag_id(map()) :: Ecto.UUID.t() | nil
+  defp first_tag_id(filters), do: filters[:tag_ids] |> List.wrap() |> List.first()
 
   @spec to_string_or_empty(atom() | String.t() | nil) :: String.t()
   defp to_string_or_empty(nil), do: ""
@@ -135,6 +180,8 @@ defmodule KsefHubWeb.InvoiceLive.Index do
     |> maybe_put("date_from", filters[:date_from] && Date.to_iso8601(filters[:date_from]))
     |> maybe_put("date_to", filters[:date_to] && Date.to_iso8601(filters[:date_to]))
     |> maybe_put("query", filters[:query])
+    |> maybe_put("category_id", filters[:category_id])
+    |> maybe_put("tag_id", first_tag_id(filters))
     |> maybe_put("page", if(target_page > 1, do: Integer.to_string(target_page)))
   end
 
@@ -201,6 +248,34 @@ defmodule KsefHubWeb.InvoiceLive.Index do
         </select>
       </div>
 
+      <div class="form-control w-40">
+        <label class="label"><span class="label-text text-xs">Category</span></label>
+        <select name={@form[:category_id].name} class="select select-sm select-bordered">
+          <option value="">All</option>
+          <option
+            :for={cat <- @categories}
+            value={cat.id}
+            selected={@form[:category_id].value == cat.id}
+          >
+            {if(cat.emoji, do: "#{cat.emoji} ", else: "")}{cat.name}
+          </option>
+        </select>
+      </div>
+
+      <div class="form-control w-36">
+        <label class="label"><span class="label-text text-xs">Tag</span></label>
+        <select name={@form[:tag_id].name} class="select select-sm select-bordered">
+          <option value="">All</option>
+          <option
+            :for={tag <- @all_tags}
+            value={tag.id}
+            selected={@form[:tag_id].value == tag.id}
+          >
+            {tag.name}
+          </option>
+        </select>
+      </div>
+
       <div class="form-control w-36">
         <label class="label"><span class="label-text text-xs">From</span></label>
         <input
@@ -237,24 +312,32 @@ defmodule KsefHubWeb.InvoiceLive.Index do
     <!-- Invoice Table -->
     <div class="overflow-x-auto">
       <.table id="invoices" rows={@invoices} row_id={fn inv -> "inv-#{inv.id}" end}>
-        <:col :let={inv} label="Number" class="w-1/5">
-          <.link navigate={~p"/invoices/#{inv.id}"} class="link link-primary">
-            {inv.invoice_number}
-          </.link>
-        </:col>
         <:col :let={inv} label="Date" class="w-28">
           <span class="whitespace-nowrap">{format_date(inv.issue_date)}</span>
         </:col>
         <:col :let={inv} label="Type" class="w-24">
           <.type_badge type={inv.type} />
         </:col>
-        <:col :let={inv} label="Seller">{inv.seller_name}</:col>
+        <:col :let={inv} label="Seller">
+          <.link navigate={~p"/invoices/#{inv.id}"} class="link link-primary">
+            {inv.seller_name}
+          </.link>
+        </:col>
         <:col :let={inv} label="Gross" class="w-36 text-right">
           <span class="font-mono">{format_amount(inv.gross_amount)}</span>
           <span class="text-xs text-base-content/60">{inv.currency}</span>
         </:col>
         <:col :let={inv} label="Status" class="w-28">
           <.status_badge status={inv.status} />
+        </:col>
+        <:col :let={inv} label="Category">
+          <.category_badge category={inv.category} />
+        </:col>
+        <:col :let={inv} label="Tags">
+          <.tag_list tags={inv.tags} />
+        </:col>
+        <:col :let={inv} label="" class="w-16">
+          <.prediction_indicator prediction_status={inv.prediction_status} />
         </:col>
       </.table>
     </div>

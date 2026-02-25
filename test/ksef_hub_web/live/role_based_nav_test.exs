@@ -17,6 +17,8 @@ defmodule KsefHubWeb.RoleBasedNavTest do
 
       assert has_element?(view, "a[href='/dashboard']")
       assert has_element?(view, "a[href='/invoices']")
+      assert has_element?(view, "a[href='/categories']")
+      assert has_element?(view, "a[href='/tags']")
       assert has_element?(view, "a[href='/certificates']")
       assert has_element?(view, "a[href='/tokens']")
     end
@@ -33,6 +35,8 @@ defmodule KsefHubWeb.RoleBasedNavTest do
 
       assert has_element?(view, "a[href='/dashboard']")
       assert has_element?(view, "a[href='/invoices']")
+      assert has_element?(view, "a[href='/categories']")
+      assert has_element?(view, "a[href='/tags']")
       refute has_element?(view, "a[href='/certificates']")
       refute has_element?(view, "a[href='/tokens']")
     end
@@ -49,6 +53,8 @@ defmodule KsefHubWeb.RoleBasedNavTest do
 
       assert has_element?(view, "a[href='/dashboard']")
       assert has_element?(view, "a[href='/invoices']")
+      assert has_element?(view, "a[href='/categories']")
+      assert has_element?(view, "a[href='/tags']")
       refute has_element?(view, "a[href='/certificates']")
       refute has_element?(view, "a[href='/tokens']")
     end

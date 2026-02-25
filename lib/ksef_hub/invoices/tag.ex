@@ -26,7 +26,7 @@ defmodule KsefHub.Invoices.Tag do
     tag
     |> cast(attrs, [:name, :description])
     |> validate_required([:name, :company_id])
-    |> unique_constraint([:company_id, :name])
+    |> unique_constraint([:company_id, :name], error_key: :name)
     |> foreign_key_constraint(:company_id)
   end
 end

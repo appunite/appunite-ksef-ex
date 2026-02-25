@@ -41,6 +41,53 @@ defmodule KsefHubWeb.InvoiceComponents do
     """
   end
 
+  @doc "Renders a category badge with emoji and name, or \"-\" when nil."
+  @spec category_badge(map()) :: Phoenix.LiveView.Rendered.t()
+  attr :category, :map, default: nil
+
+  def category_badge(assigns) do
+    ~H"""
+    <span :if={@category} class="inline-flex items-center gap-1 text-xs">
+      <span :if={@category.emoji}>{@category.emoji}</span>
+      <span>{@category.name}</span>
+    </span>
+    <span :if={!@category} class="text-base-content/40">-</span>
+    """
+  end
+
+  @doc "Renders a list of tag badges, or \"-\" when empty."
+  @spec tag_list(map()) :: Phoenix.LiveView.Rendered.t()
+  attr :tags, :list, default: []
+
+  def tag_list(assigns) do
+    ~H"""
+    <div :if={@tags != []} class="flex flex-wrap gap-1">
+      <span
+        :for={tag <- @tags}
+        class="inline-flex items-center px-1.5 py-0.5 rounded text-xs bg-base-200 text-base-content/70"
+      >
+        {tag.name}
+      </span>
+    </div>
+    <span :if={@tags == []} class="text-base-content/40">-</span>
+    """
+  end
+
+  @doc "Renders a 'Review' badge when prediction_status is :needs_review."
+  @spec prediction_indicator(map()) :: Phoenix.LiveView.Rendered.t()
+  attr :prediction_status, :atom, default: nil
+
+  def prediction_indicator(assigns) do
+    ~H"""
+    <span
+      :if={@prediction_status == :needs_review}
+      class="inline-flex items-center px-2 py-0.5 rounded-md text-xs font-medium border bg-info/10 text-info border-info/20"
+    >
+      Review
+    </span>
+    """
+  end
+
   @doc "Formats a date as YYYY-MM-DD, or returns \"-\" for nil."
   @spec format_date(Date.t() | nil) :: String.t()
   def format_date(nil), do: "-"

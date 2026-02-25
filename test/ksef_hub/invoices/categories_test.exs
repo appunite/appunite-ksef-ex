@@ -108,7 +108,7 @@ defmodule KsefHub.Invoices.CategoriesTest do
       insert(:category, company: company, name: "ops:duplicate")
 
       assert {:error, changeset} = Invoices.create_category(company.id, %{name: "ops:duplicate"})
-      assert errors_on(changeset).company_id
+      assert "has already been taken" in errors_on(changeset).name
     end
 
     test "allows same name in different companies" do

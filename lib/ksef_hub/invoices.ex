@@ -81,7 +81,11 @@ defmodule KsefHub.Invoices do
     filters = scope_by_role(filters, opts[:role])
     {page, per_page} = extract_pagination(filters)
 
-    entries = do_list_invoices(company_id, filters, page, per_page)
+    entries =
+      company_id
+      |> do_list_invoices(filters, page, per_page)
+      |> Repo.preload([:category, :tags])
+
     total_count = count_invoices(company_id, filters, opts)
     total_pages = max(ceil(total_count / per_page), 1)
 
@@ -111,6 +115,16 @@ defmodule KsefHub.Invoices do
     |> maybe_scope_type_by_role(opts[:role])
     |> preload([:category, :tags])
     |> Repo.one!()
+  end
+
+  @doc "Fetches an invoice by UUID with category and tags preloaded, returning nil if not found."
+  @spec get_invoice_with_details(Ecto.UUID.t(), Ecto.UUID.t(), keyword()) :: Invoice.t() | nil
+  def get_invoice_with_details(company_id, id, opts \\ []) do
+    Invoice
+    |> where([i], i.company_id == ^company_id and i.id == ^id)
+    |> maybe_scope_type_by_role(opts[:role])
+    |> preload([:category, :tags])
+    |> Repo.one()
   end
 
   @doc "Fetches an invoice by UUID scoped to a company, returning nil if not found."
@@ -611,6 +625,22 @@ defmodule KsefHub.Invoices do
     |> Repo.all()
   end
 
+  @doc "Fetches a tag by ID scoped to a company, with usage count from invoice_tags join."
+  @spec get_tag_with_usage_count(Ecto.UUID.t(), Ecto.UUID.t()) ::
+          {:ok, Tag.t()} | {:error, :not_found}
+  def get_tag_with_usage_count(company_id, id) do
+    Tag
+    |> where([t], t.company_id == ^company_id and t.id == ^id)
+    |> join(:left, [t], it in InvoiceTag, on: it.tag_id == t.id)
+    |> group_by([t, _it], t.id)
+    |> select_merge([t, it], %{usage_count: count(it.id)})
+    |> Repo.one()
+    |> case do
+      nil -> {:error, :not_found}
+      tag -> {:ok, tag}
+    end
+  end
+
   @doc "Fetches a tag by ID scoped to a company."
   @spec get_tag(Ecto.UUID.t(), Ecto.UUID.t()) :: {:ok, Tag.t()} | {:error, :not_found}
   def get_tag(company_id, id) do
@@ -745,6 +775,24 @@ defmodule KsefHub.Invoices do
     else
       {:error, :tag_not_in_company}
     end
+  end
+
+  @doc """
+  Creates a tag and adds it to an invoice in a single transaction.
+
+  Both the tag creation and the invoice association succeed or both roll back.
+  """
+  @spec create_and_add_tag(Ecto.UUID.t(), Ecto.UUID.t(), map()) ::
+          {:ok, Tag.t()} | {:error, Ecto.Changeset.t() | term()}
+  def create_and_add_tag(invoice_id, company_id, attrs) do
+    Repo.transaction(fn ->
+      with {:ok, tag} <- create_tag(company_id, attrs),
+           {:ok, _it} <- add_invoice_tag(invoice_id, tag.id, company_id) do
+        tag
+      else
+        {:error, reason} -> Repo.rollback(reason)
+      end
+    end)
   end
 
   @doc "Removes a tag from an invoice."
