@@ -101,16 +101,9 @@ defmodule KsefHubWeb.InvoiceLive.Show do
   # --- Events: Category ---
 
   @impl true
-  def handle_event("set_category", %{"category_id" => ""}, socket) do
-    with {:ok, updated} <- Invoices.set_invoice_category(socket.assigns.invoice, nil),
-         {:ok, updated} <- Invoices.mark_prediction_manual(updated) do
-      {:noreply, assign(socket, :invoice, reload_details(updated, socket))}
-    else
-      {:error, _} -> {:noreply, put_flash(socket, :error, "Failed to update category.")}
-    end
-  end
+  def handle_event("set_category", %{"category_id" => raw_id}, socket) do
+    category_id = if raw_id == "", do: nil, else: raw_id
 
-  def handle_event("set_category", %{"category_id" => category_id}, socket) do
     with {:ok, updated} <- Invoices.set_invoice_category(socket.assigns.invoice, category_id),
          {:ok, updated} <- Invoices.mark_prediction_manual(updated) do
       {:noreply, assign(socket, :invoice, reload_details(updated, socket))}

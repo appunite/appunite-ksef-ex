@@ -14,16 +14,16 @@ defmodule KsefHubWeb.CategoryLive do
   @impl true
   def mount(_params, _session, socket) do
     company_id = socket.assigns.current_company.id
-    categories = Invoices.list_categories(company_id)
 
     {:ok,
      socket
      |> assign(
        page_title: "Categories",
+       company_id: company_id,
        editing: nil,
-       form: new_form()
+       form: new_changeset_form()
      )
-     |> stream(:categories, categories)}
+     |> stream(:categories, Invoices.list_categories(company_id))}
   end
 
   # --- Events ---
@@ -33,7 +33,11 @@ defmodule KsefHubWeb.CategoryLive do
           {:noreply, Phoenix.LiveView.Socket.t()}
   @impl true
   def handle_event("validate", %{"category" => params}, socket) do
-    {:noreply, assign(socket, form: to_form(params, as: :category))}
+    changeset =
+      changeset_for(socket.assigns.editing, params)
+      |> Map.put(:action, :validate)
+
+    {:noreply, assign(socket, form: to_form(changeset, as: :category))}
   end
 
   @impl true
@@ -46,20 +50,10 @@ defmodule KsefHubWeb.CategoryLive do
 
   @impl true
   def handle_event("edit", %{"id" => id}, socket) do
-    company_id = socket.assigns.current_company.id
-
-    case Invoices.get_category(company_id, id) do
+    case Invoices.get_category(socket.assigns.company_id, id) do
       {:ok, category} ->
-        form =
-          %{
-            "name" => category.name,
-            "emoji" => category.emoji || "",
-            "description" => category.description || "",
-            "sort_order" => to_string(category.sort_order)
-          }
-          |> to_form(as: :category)
-
-        {:noreply, assign(socket, editing: category, form: form)}
+        changeset = Category.changeset(category, %{})
+        {:noreply, assign(socket, editing: category, form: to_form(changeset, as: :category))}
 
       {:error, :not_found} ->
         {:noreply, put_flash(socket, :error, "Category not found.")}
@@ -68,14 +62,12 @@ defmodule KsefHubWeb.CategoryLive do
 
   @impl true
   def handle_event("cancel_edit", _params, socket) do
-    {:noreply, assign(socket, editing: nil, form: new_form())}
+    {:noreply, assign(socket, editing: nil, form: new_changeset_form())}
   end
 
   @impl true
   def handle_event("delete", %{"id" => id}, socket) do
-    company_id = socket.assigns.current_company.id
-
-    with {:ok, category} <- Invoices.get_category(company_id, id),
+    with {:ok, category} <- Invoices.get_category(socket.assigns.company_id, id),
          {:ok, _} <- Invoices.delete_category(category) do
       {:noreply,
        socket
@@ -91,14 +83,12 @@ defmodule KsefHubWeb.CategoryLive do
   @spec create_category(Phoenix.LiveView.Socket.t(), map()) ::
           {:noreply, Phoenix.LiveView.Socket.t()}
   defp create_category(socket, params) do
-    company_id = socket.assigns.current_company.id
-
-    case Invoices.create_category(company_id, atomize_params(params)) do
+    case Invoices.create_category(socket.assigns.company_id, atomize_params(params)) do
       {:ok, category} ->
         {:noreply,
          socket
          |> stream_insert(:categories, category)
-         |> assign(form: new_form())
+         |> assign(form: new_changeset_form())
          |> put_flash(:info, "Category created.")}
 
       {:error, %Ecto.Changeset{} = changeset} ->
@@ -114,7 +104,7 @@ defmodule KsefHubWeb.CategoryLive do
         {:noreply,
          socket
          |> stream_insert(:categories, updated)
-         |> assign(editing: nil, form: new_form())
+         |> assign(editing: nil, form: new_changeset_form())
          |> put_flash(:info, "Category updated.")}
 
       {:error, %Ecto.Changeset{} = changeset} ->
@@ -122,12 +112,18 @@ defmodule KsefHubWeb.CategoryLive do
     end
   end
 
-  @spec new_form() :: Phoenix.HTML.Form.t()
-  defp new_form do
-    to_form(%{"name" => "", "emoji" => "", "description" => "", "sort_order" => "0"},
-      as: :category
-    )
+  @spec changeset_for(Category.t() | nil, map()) :: Ecto.Changeset.t()
+  defp changeset_for(nil, params), do: new_changeset(params)
+  defp changeset_for(category, params), do: Category.changeset(category, atomize_params(params))
+
+  @spec new_changeset(map()) :: Ecto.Changeset.t()
+  defp new_changeset(params \\ %{}) do
+    %Category{company_id: "placeholder"}
+    |> Category.changeset(atomize_params(params))
   end
+
+  @spec new_changeset_form() :: Phoenix.HTML.Form.t()
+  defp new_changeset_form, do: to_form(new_changeset(), as: :category)
 
   @spec atomize_params(map()) :: map()
   defp atomize_params(params) do
@@ -138,9 +134,9 @@ defmodule KsefHubWeb.CategoryLive do
       end
 
     %{
-      name: params["name"],
-      emoji: params["emoji"],
-      description: params["description"],
+      name: params["name"] || "",
+      emoji: params["emoji"] || "",
+      description: params["description"] || "",
       sort_order: sort_order
     }
   end
