@@ -563,9 +563,12 @@ defmodule KsefHubWeb.InvoiceLive.Show do
       class="space-y-3"
     >
       <div class="form-control">
-        <label class="label"><span class="label-text text-xs">Invoice Number</span></label>
+        <label for="edit-invoice-number" class="label">
+          <span class="label-text text-xs">Invoice Number</span>
+        </label>
         <input
           type="text"
+          id="edit-invoice-number"
           name={@edit_form[:invoice_number].name}
           value={@edit_form[:invoice_number].value}
           class="input input-sm input-bordered"
@@ -574,9 +577,12 @@ defmodule KsefHubWeb.InvoiceLive.Show do
       </div>
 
       <div class="form-control">
-        <label class="label"><span class="label-text text-xs">Issue Date</span></label>
+        <label for="edit-issue-date" class="label">
+          <span class="label-text text-xs">Issue Date</span>
+        </label>
         <input
           type="date"
+          id="edit-issue-date"
           name={@edit_form[:issue_date].name}
           value={@edit_form[:issue_date].value}
           class="input input-sm input-bordered"
@@ -606,9 +612,12 @@ defmodule KsefHubWeb.InvoiceLive.Show do
     <div class="divider text-xs my-1">Seller</div>
 
     <div class="form-control">
-      <label class="label"><span class="label-text text-xs">Seller Name</span></label>
+      <label for="edit-seller-name" class="label">
+        <span class="label-text text-xs">Seller Name</span>
+      </label>
       <input
         type="text"
+        id="edit-seller-name"
         name={@edit_form[:seller_name].name}
         value={@edit_form[:seller_name].value}
         class="input input-sm input-bordered"
@@ -617,9 +626,12 @@ defmodule KsefHubWeb.InvoiceLive.Show do
     </div>
 
     <div class="form-control">
-      <label class="label"><span class="label-text text-xs">Seller NIP</span></label>
+      <label for="edit-seller-nip" class="label">
+        <span class="label-text text-xs">Seller NIP</span>
+      </label>
       <input
         type="text"
+        id="edit-seller-nip"
         name={@edit_form[:seller_nip].name}
         value={@edit_form[:seller_nip].value}
         class="input input-sm input-bordered"
@@ -638,9 +650,12 @@ defmodule KsefHubWeb.InvoiceLive.Show do
     <div class="divider text-xs my-1">Buyer</div>
 
     <div class="form-control">
-      <label class="label"><span class="label-text text-xs">Buyer Name</span></label>
+      <label for="edit-buyer-name" class="label">
+        <span class="label-text text-xs">Buyer Name</span>
+      </label>
       <input
         type="text"
+        id="edit-buyer-name"
         name={@edit_form[:buyer_name].name}
         value={@edit_form[:buyer_name].value}
         class="input input-sm input-bordered"
@@ -649,9 +664,12 @@ defmodule KsefHubWeb.InvoiceLive.Show do
     </div>
 
     <div class="form-control">
-      <label class="label"><span class="label-text text-xs">Buyer NIP</span></label>
+      <label for="edit-buyer-nip" class="label">
+        <span class="label-text text-xs">Buyer NIP</span>
+      </label>
       <input
         type="text"
+        id="edit-buyer-nip"
         name={@edit_form[:buyer_nip].name}
         value={@edit_form[:buyer_nip].value}
         class="input input-sm input-bordered"
@@ -670,10 +688,13 @@ defmodule KsefHubWeb.InvoiceLive.Show do
     <div class="divider text-xs my-1">Amounts</div>
 
     <div class="form-control">
-      <label class="label"><span class="label-text text-xs">Netto</span></label>
+      <label for="edit-net-amount" class="label">
+        <span class="label-text text-xs">Netto</span>
+      </label>
       <input
         type="text"
         inputmode="decimal"
+        id="edit-net-amount"
         name={@edit_form[:net_amount].name}
         value={@edit_form[:net_amount].value}
         class="input input-sm input-bordered font-mono"
@@ -682,10 +703,13 @@ defmodule KsefHubWeb.InvoiceLive.Show do
     </div>
 
     <div class="form-control">
-      <label class="label"><span class="label-text text-xs">VAT</span></label>
+      <label for="edit-vat-amount" class="label">
+        <span class="label-text text-xs">VAT</span>
+      </label>
       <input
         type="text"
         inputmode="decimal"
+        id="edit-vat-amount"
         name={@edit_form[:vat_amount].name}
         value={@edit_form[:vat_amount].value}
         class="input input-sm input-bordered font-mono"
@@ -694,10 +718,13 @@ defmodule KsefHubWeb.InvoiceLive.Show do
     </div>
 
     <div class="form-control">
-      <label class="label"><span class="label-text text-xs">Brutto</span></label>
+      <label for="edit-gross-amount" class="label">
+        <span class="label-text text-xs">Brutto</span>
+      </label>
       <input
         type="text"
         inputmode="decimal"
+        id="edit-gross-amount"
         name={@edit_form[:gross_amount].name}
         value={@edit_form[:gross_amount].value}
         class="input input-sm input-bordered font-mono"
@@ -706,9 +733,12 @@ defmodule KsefHubWeb.InvoiceLive.Show do
     </div>
 
     <div class="form-control">
-      <label class="label"><span class="label-text text-xs">Currency</span></label>
+      <label for="edit-currency" class="label">
+        <span class="label-text text-xs">Currency</span>
+      </label>
       <input
         type="text"
+        id="edit-currency"
         name={@edit_form[:currency].name}
         value={@edit_form[:currency].value}
         class="input input-sm input-bordered"
