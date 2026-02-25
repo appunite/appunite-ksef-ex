@@ -24,7 +24,10 @@ defmodule KsefHub.Invoices.Parser do
        buyer_nip: xpath(doc, ~x"//*[local-name()='Podmiot2']//*[local-name()='NIP']/text()"s),
        buyer_name: extract_name(doc, "Podmiot2"),
        net_amount:
-           sum_decimal_fields(doc, ~w[P_13_1 P_13_2 P_13_3 P_13_4 P_13_5 P_13_6 P_13_7 P_13_8 P_13_9 P_13_10 P_13_11]),
+         sum_decimal_fields(
+           doc,
+           ~w[P_13_1 P_13_2 P_13_3 P_13_4 P_13_5 P_13_6 P_13_7 P_13_8 P_13_9 P_13_10 P_13_11]
+         ),
        vat_amount: sum_decimal_fields(doc, ~w[P_14_1 P_14_2 P_14_3 P_14_4 P_14_5]),
        gross_amount: xpath(doc, ~x"//*[local-name()='P_15']/text()"s) |> parse_decimal(),
        currency: xpath(doc, ~x"//*[local-name()='KodWaluty']/text()"s) |> default_currency(),
