@@ -76,6 +76,8 @@ defmodule KsefHubWeb.Router do
       live "/invoices", InvoiceLive.Index
       live "/invoices/:id", InvoiceLive.Show
       live "/tokens", TokenLive
+      live "/categories", CategoryLive
+      live "/tags", TagLive
       live "/syncs", SyncLive
       live "/companies", CompanyLive.Index
       live "/companies/new", CompanyLive.Index, :new
