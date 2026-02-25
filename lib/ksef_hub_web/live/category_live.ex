@@ -160,7 +160,7 @@ defmodule KsefHubWeb.CategoryLive do
           for={@form}
           phx-submit="save"
           phx-change="validate"
-          class="grid grid-cols-1 sm:grid-cols-[auto_1fr_2fr_auto_auto] gap-3 mt-3 items-end"
+          class="flex flex-wrap gap-3 mt-3 items-end"
           id="category-form"
         >
           <div class="form-control">
@@ -173,14 +173,21 @@ defmodule KsefHubWeb.CategoryLive do
               class="input input-sm input-bordered w-16 text-center"
             />
           </div>
-          <.input
-            field={@form[:name]}
-            label="Name (group:target)"
-            placeholder="finance:invoices"
-            class="input input-sm input-bordered"
-            required
-          />
-          <div class="form-control">
+          <div class="form-control flex-1 min-w-40">
+            <label class="label"><span class="label-text text-xs">Name (group:target)</span></label>
+            <input
+              type="text"
+              name={@form[:name].name}
+              value={@form[:name].value}
+              placeholder="finance:invoices"
+              class="input input-sm input-bordered"
+              required
+            />
+            <.error :for={msg <- Enum.map(@form[:name].errors, &translate_error/1)}>
+              {msg}
+            </.error>
+          </div>
+          <div class="form-control flex-1 min-w-40">
             <label class="label"><span class="label-text text-xs">Description</span></label>
             <input
               type="text"

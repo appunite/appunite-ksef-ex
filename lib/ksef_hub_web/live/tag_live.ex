@@ -141,22 +141,33 @@ defmodule KsefHubWeb.TagLive do
           for={@form}
           phx-submit="save"
           phx-change="validate"
-          class="grid grid-cols-1 sm:grid-cols-[1fr_2fr_auto] gap-3 mt-3 items-end"
+          class="flex flex-wrap gap-3 mt-3 items-end"
           id="tag-form"
         >
-          <.input
-            field={@form[:name]}
-            label="Name"
-            placeholder="e.g. monthly"
-            class="input input-sm input-bordered"
-            required
-          />
-          <.input
-            field={@form[:description]}
-            label="Description"
-            placeholder="Optional description"
-            class="input input-sm input-bordered"
-          />
+          <div class="form-control flex-1 min-w-40">
+            <label class="label"><span class="label-text text-xs">Name</span></label>
+            <input
+              type="text"
+              name={@form[:name].name}
+              value={@form[:name].value}
+              placeholder="e.g. monthly"
+              class="input input-sm input-bordered"
+              required
+            />
+            <.error :for={msg <- Enum.map(@form[:name].errors, &translate_error/1)}>
+              {msg}
+            </.error>
+          </div>
+          <div class="form-control flex-1 min-w-40">
+            <label class="label"><span class="label-text text-xs">Description</span></label>
+            <input
+              type="text"
+              name={@form[:description].name}
+              value={@form[:description].value}
+              placeholder="Optional description"
+              class="input input-sm input-bordered"
+            />
+          </div>
           <div class="flex gap-2 items-end">
             <button type="submit" class="btn btn-primary btn-sm">
               {if @editing, do: "Update", else: "Create"}
