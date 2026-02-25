@@ -117,6 +117,45 @@ defmodule KsefHub.Companies do
   end
 
   # ---------------------------------------------------------------------------
+  # Inbound email token management
+  # ---------------------------------------------------------------------------
+
+  @doc "Generates and sets a random 8-char alphanumeric inbound email token for a company."
+  @spec enable_inbound_email(Company.t()) :: {:ok, Company.t()} | {:error, Ecto.Changeset.t()}
+  def enable_inbound_email(%Company{} = company) do
+    token = generate_inbound_token()
+
+    company
+    |> Company.inbound_email_token_changeset(token)
+    |> Repo.update()
+  end
+
+  @doc "Clears the inbound email token, disabling email intake for the company."
+  @spec disable_inbound_email(Company.t()) :: {:ok, Company.t()} | {:error, Ecto.Changeset.t()}
+  def disable_inbound_email(%Company{} = company) do
+    company
+    |> Company.inbound_email_token_changeset(nil)
+    |> Repo.update()
+  end
+
+  @doc "Looks up an active company by its inbound email token."
+  @spec get_company_by_inbound_email_token(String.t() | nil) :: Company.t() | nil
+  def get_company_by_inbound_email_token(nil), do: nil
+
+  def get_company_by_inbound_email_token(token) when is_binary(token) do
+    Company
+    |> where([c], c.inbound_email_token == ^token and c.is_active == true)
+    |> Repo.one()
+  end
+
+  @spec generate_inbound_token() :: String.t()
+  defp generate_inbound_token do
+    :crypto.strong_rand_bytes(6)
+    |> Base.encode32(case: :lower, padding: false)
+    |> binary_part(0, 8)
+  end
+
+  # ---------------------------------------------------------------------------
   # Membership queries
   # ---------------------------------------------------------------------------
 

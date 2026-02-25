@@ -393,6 +393,66 @@ defmodule KsefHub.CompaniesTest do
     end
   end
 
+  describe "enable_inbound_email/1" do
+    test "generates an 8-char alphanumeric token" do
+      company = insert(:company)
+      assert {:ok, updated} = Companies.enable_inbound_email(company)
+      assert is_binary(updated.inbound_email_token)
+      assert String.length(updated.inbound_email_token) == 8
+      assert updated.inbound_email_token =~ ~r/^[a-z0-9]+$/
+    end
+
+    test "regenerates token when called again" do
+      company = insert(:company)
+      {:ok, first} = Companies.enable_inbound_email(company)
+      {:ok, second} = Companies.enable_inbound_email(first)
+      assert second.inbound_email_token != first.inbound_email_token
+    end
+
+    test "enforces token uniqueness" do
+      company_a = insert(:company)
+      company_b = insert(:company)
+      {:ok, a} = Companies.enable_inbound_email(company_a)
+
+      # Manually set the same token to test uniqueness constraint
+      assert {:error, changeset} =
+               company_b
+               |> Company.inbound_email_token_changeset(a.inbound_email_token)
+               |> KsefHub.Repo.update()
+
+      assert "has already been taken" in errors_on(changeset).inbound_email_token
+    end
+  end
+
+  describe "disable_inbound_email/1" do
+    test "clears the token" do
+      company = insert(:company)
+      {:ok, enabled} = Companies.enable_inbound_email(company)
+      assert enabled.inbound_email_token != nil
+
+      {:ok, disabled} = Companies.disable_inbound_email(enabled)
+      assert disabled.inbound_email_token == nil
+    end
+  end
+
+  describe "get_company_by_inbound_email_token/1" do
+    test "returns the company with the given token" do
+      company = insert(:company)
+      {:ok, enabled} = Companies.enable_inbound_email(company)
+
+      found = Companies.get_company_by_inbound_email_token(enabled.inbound_email_token)
+      assert found.id == company.id
+    end
+
+    test "returns nil for unknown token" do
+      assert Companies.get_company_by_inbound_email_token("abcd1234") == nil
+    end
+
+    test "returns nil for nil token" do
+      assert Companies.get_company_by_inbound_email_token(nil) == nil
+    end
+  end
+
   describe "authorize/3" do
     test "returns {:ok, membership} when user has required role" do
       user = insert(:user)
