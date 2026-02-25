@@ -95,6 +95,22 @@ if sync_interval_env = System.get_env("SYNC_INTERVAL_MINUTES") do
     ]
 end
 
+if mailgun_signing_key = System.get_env("MAILGUN_SIGNING_KEY") do
+  config :ksef_hub, :mailgun_signing_key, mailgun_signing_key
+end
+
+if inbound_email_domain = System.get_env("INBOUND_EMAIL_DOMAIN") do
+  config :ksef_hub, :inbound_email_domain, inbound_email_domain
+end
+
+if inbound_allowed_sender_domain = System.get_env("INBOUND_ALLOWED_SENDER_DOMAIN") do
+  config :ksef_hub, :inbound_allowed_sender_domain, inbound_allowed_sender_domain
+end
+
+if inbound_cc_email = System.get_env("INBOUND_CC_EMAIL") do
+  config :ksef_hub, :inbound_cc_email, inbound_cc_email
+end
+
 if credential_encryption_key = System.get_env("CREDENTIAL_ENCRYPTION_KEY") do
   case Base.decode64(credential_encryption_key) do
     {:ok, key} when byte_size(key) == 32 ->
