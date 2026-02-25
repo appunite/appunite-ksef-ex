@@ -52,7 +52,7 @@ defmodule KsefHubWeb.TagLive do
 
   @impl true
   def handle_event("edit", %{"id" => id}, socket) do
-    case Invoices.get_tag(socket.assigns.company_id, id) do
+    case Invoices.get_tag_with_usage_count(socket.assigns.company_id, id) do
       {:ok, tag} ->
         changeset = Tag.changeset(tag, %{})
         {:noreply, assign(socket, editing: tag, form: to_form(changeset, as: :tag))}
@@ -76,7 +76,14 @@ defmodule KsefHubWeb.TagLive do
        |> stream_delete(:tags, tag)
        |> put_flash(:info, "Tag deleted.")}
     else
-      {:error, _} -> {:noreply, put_flash(socket, :error, "Failed to delete tag.")}
+      {:error, :not_found} ->
+        {:noreply,
+         socket
+         |> stream_delete(:tags, %Tag{id: id})
+         |> put_flash(:info, "Tag not found or already deleted.")}
+
+      {:error, _} ->
+        {:noreply, put_flash(socket, :error, "Failed to delete tag.")}
     end
   end
 

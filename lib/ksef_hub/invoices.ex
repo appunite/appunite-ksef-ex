@@ -625,6 +625,22 @@ defmodule KsefHub.Invoices do
     |> Repo.all()
   end
 
+  @doc "Fetches a tag by ID scoped to a company, with usage count from invoice_tags join."
+  @spec get_tag_with_usage_count(Ecto.UUID.t(), Ecto.UUID.t()) ::
+          {:ok, Tag.t()} | {:error, :not_found}
+  def get_tag_with_usage_count(company_id, id) do
+    Tag
+    |> where([t], t.company_id == ^company_id and t.id == ^id)
+    |> join(:left, [t], it in InvoiceTag, on: it.tag_id == t.id)
+    |> group_by([t, _it], t.id)
+    |> select_merge([t, it], %{usage_count: count(it.id)})
+    |> Repo.one()
+    |> case do
+      nil -> {:error, :not_found}
+      tag -> {:ok, tag}
+    end
+  end
+
   @doc "Fetches a tag by ID scoped to a company."
   @spec get_tag(Ecto.UUID.t(), Ecto.UUID.t()) :: {:ok, Tag.t()} | {:error, :not_found}
   def get_tag(company_id, id) do

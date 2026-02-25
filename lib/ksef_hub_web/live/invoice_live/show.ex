@@ -104,10 +104,21 @@ defmodule KsefHubWeb.InvoiceLive.Show do
   def handle_event("set_category", %{"category_id" => raw_id}, socket) do
     category_id = if raw_id == "", do: nil, else: raw_id
 
-    case Invoices.set_invoice_category(socket.assigns.invoice, category_id) do
-      {:ok, updated} ->
-        Invoices.mark_prediction_manual(updated)
-        {:noreply, assign(socket, :invoice, reload_details(updated, socket))}
+    with :ok <- validate_category_id(category_id),
+         {:ok, updated} <- Invoices.set_invoice_category(socket.assigns.invoice, category_id) do
+      case Invoices.mark_prediction_manual(updated) do
+        {:ok, _} ->
+          {:noreply, assign(socket, :invoice, reload_details(updated, socket))}
+
+        {:error, _} ->
+          {:noreply,
+           socket
+           |> assign(:invoice, reload_details(updated, socket))
+           |> put_flash(:warning, "Category saved but prediction status update failed.")}
+      end
+    else
+      {:error, :invalid_id} ->
+        {:noreply, put_flash(socket, :error, "Invalid category.")}
 
       {:error, :category_not_in_company} ->
         {:noreply, put_flash(socket, :error, "Category not found.")}
@@ -121,20 +132,24 @@ defmodule KsefHubWeb.InvoiceLive.Show do
 
   @impl true
   def handle_event("toggle_tag", %{"tag-id" => tag_id}, socket) do
-    invoice = socket.assigns.invoice
-    currently_assigned = tag_assigned?(invoice, tag_id)
+    if Enum.any?(socket.assigns.all_tags, &(&1.id == tag_id)) do
+      invoice = socket.assigns.invoice
+      currently_assigned = tag_assigned?(invoice, tag_id)
 
-    result =
-      if currently_assigned,
-        do: Invoices.remove_invoice_tag(invoice.id, tag_id),
-        else: Invoices.add_invoice_tag(invoice.id, tag_id, invoice.company_id)
+      result =
+        if currently_assigned,
+          do: Invoices.remove_invoice_tag(invoice.id, tag_id),
+          else: Invoices.add_invoice_tag(invoice.id, tag_id, invoice.company_id)
 
-    case result do
-      {:ok, _} ->
-        {:noreply, assign(socket, :invoice, reload_details(invoice, socket))}
+      case result do
+        {:ok, _} ->
+          {:noreply, assign(socket, :invoice, reload_details(invoice, socket))}
 
-      {:error, _} ->
-        {:noreply, put_flash(socket, :error, "Failed to update tags.")}
+        {:error, _} ->
+          {:noreply, put_flash(socket, :error, "Failed to update tags.")}
+      end
+    else
+      {:noreply, put_flash(socket, :error, "Invalid tag.")}
     end
   end
 
@@ -178,6 +193,16 @@ defmodule KsefHubWeb.InvoiceLive.Show do
   end
 
   # --- Private ---
+
+  @spec validate_category_id(String.t() | nil) :: :ok | {:error, :invalid_id}
+  defp validate_category_id(nil), do: :ok
+
+  defp validate_category_id(id) do
+    case Ecto.UUID.cast(id) do
+      {:ok, _} -> :ok
+      :error -> {:error, :invalid_id}
+    end
+  end
 
   @spec reload_details(Invoice.t(), Phoenix.LiveView.Socket.t()) :: Invoice.t()
   defp reload_details(invoice, socket) do

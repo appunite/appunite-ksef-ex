@@ -11,7 +11,11 @@ defmodule KsefHubWeb.InvoiceLive.Index do
 
   @impl true
   def mount(_params, _session, socket) do
-    company_id = socket.assigns[:current_company] && socket.assigns.current_company.id
+    company_id =
+      case socket.assigns do
+        %{current_company: %{id: id}} -> id
+        _ -> nil
+      end
 
     {:ok,
      assign(socket,

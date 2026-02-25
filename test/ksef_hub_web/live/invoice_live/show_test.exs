@@ -145,6 +145,7 @@ defmodule KsefHubWeb.InvoiceLive.ShowTest do
       assert has_element?(view, "[data-testid=category-select]")
       html = render(view)
       assert html =~ "finance:invoices"
+      assert html =~ "💰"
     end
 
     test "displays assigned tags", %{conn: conn, company: company} do

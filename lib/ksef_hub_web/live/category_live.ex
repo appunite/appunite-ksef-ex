@@ -75,7 +75,14 @@ defmodule KsefHubWeb.CategoryLive do
        |> stream_delete(:categories, category)
        |> put_flash(:info, "Category deleted.")}
     else
-      {:error, _} -> {:noreply, put_flash(socket, :error, "Failed to delete category.")}
+      {:error, :not_found} ->
+        {:noreply,
+         socket
+         |> stream_delete(:categories, %Category{id: id})
+         |> put_flash(:info, "Category not found or already deleted.")}
+
+      {:error, _} ->
+        {:noreply, put_flash(socket, :error, "Failed to delete category.")}
     end
   end
 
