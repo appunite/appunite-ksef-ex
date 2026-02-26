@@ -4,8 +4,8 @@ defmodule KsefHub.InvoiceClassifierTest do
   import KsefHub.Factory
   import Mox
 
-  alias KsefHub.Invoices
   alias KsefHub.InvoiceClassifier
+  alias KsefHub.Invoices
 
   @moduletag :set_mox_global
 

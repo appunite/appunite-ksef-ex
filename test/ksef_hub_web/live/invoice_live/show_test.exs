@@ -36,7 +36,9 @@ defmodule KsefHubWeb.InvoiceLive.ShowTest do
     test "renders invoice detail page", %{conn: conn, company: company} do
       invoice = insert(:invoice, type: :income, company: company)
 
-      stub(KsefHub.PdfRenderer.Mock, :generate_html, fn _xml, _meta -> {:ok, "<html>preview</html>"} end)
+      stub(KsefHub.PdfRenderer.Mock, :generate_html, fn _xml, _meta ->
+        {:ok, "<html>preview</html>"}
+      end)
 
       {:ok, _view, html} = live(conn, ~p"/invoices/#{invoice.id}")
       assert html =~ invoice.invoice_number
@@ -48,7 +50,9 @@ defmodule KsefHubWeb.InvoiceLive.ShowTest do
       xml = File.read!("test/support/fixtures/sample_income.xml")
       invoice = insert(:invoice, type: :income, xml_content: xml, company: company)
 
-      stub(KsefHub.PdfRenderer.Mock, :generate_html, fn _xml, _meta -> {:ok, "<html>preview</html>"} end)
+      stub(KsefHub.PdfRenderer.Mock, :generate_html, fn _xml, _meta ->
+        {:ok, "<html>preview</html>"}
+      end)
 
       {:ok, view, _html} = live(conn, ~p"/invoices/#{invoice.id}")
 
@@ -61,7 +65,9 @@ defmodule KsefHubWeb.InvoiceLive.ShowTest do
       xml = File.read!("test/support/fixtures/sample_income.xml")
       invoice = insert(:invoice, type: :income, xml_content: xml, company: company)
 
-      stub(KsefHub.PdfRenderer.Mock, :generate_html, fn _xml, _meta -> {:ok, "<html>preview</html>"} end)
+      stub(KsefHub.PdfRenderer.Mock, :generate_html, fn _xml, _meta ->
+        {:ok, "<html>preview</html>"}
+      end)
 
       {:ok, _view, html} = live(conn, ~p"/invoices/#{invoice.id}")
       assert html =~ "preview"

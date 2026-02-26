@@ -11,8 +11,8 @@ defmodule KsefHub.InvoiceClassifier.Worker do
 
   require Logger
 
-  alias KsefHub.Invoices
   alias KsefHub.InvoiceClassifier
+  alias KsefHub.Invoices
 
   @doc """
   Conditionally enqueues a classification job for an expense invoice.

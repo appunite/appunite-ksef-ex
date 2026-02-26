@@ -13,8 +13,8 @@ defmodule KsefHub.InboundEmail.InboundEmailWorker do
   alias KsefHub.Companies
   alias KsefHub.InboundEmail
   alias KsefHub.InboundEmail.{NipVerifier, ReplyNotifier}
-  alias KsefHub.Invoices
   alias KsefHub.InvoiceExtractor.ContextBuilder
+  alias KsefHub.Invoices
 
   @impl Oban.Worker
   @spec perform(Oban.Job.t()) :: :ok | {:cancel, String.t()} | {:error, term()}

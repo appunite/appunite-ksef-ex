@@ -8,10 +8,10 @@ defmodule KsefHub.Invoices do
   require Logger
 
   alias KsefHub.Companies.{Company, Membership}
-  alias KsefHub.Invoices.{Category, Invoice, InvoiceTag, Tag}
   alias KsefHub.InvoiceClassifier.Worker, as: ClassifierWorker
-  alias KsefHub.Repo
   alias KsefHub.InvoiceExtractor.ContextBuilder
+  alias KsefHub.Invoices.{Category, Invoice, InvoiceTag, Tag}
+  alias KsefHub.Repo
 
   @list_fields Invoice.__schema__(:fields) -- [:xml_content, :pdf_content]
   @max_per_page 100
