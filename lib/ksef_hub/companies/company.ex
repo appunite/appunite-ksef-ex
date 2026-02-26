@@ -14,7 +14,7 @@ defmodule KsefHub.Companies.Company do
     field :nip, :string
     field :address, :string
     field :is_active, :boolean, default: true
-    field :inbound_email_token, :string
+    field :inbound_email_token_hash, :string
     field :has_active_credential, :boolean, virtual: true
 
     timestamps()
@@ -30,13 +30,13 @@ defmodule KsefHub.Companies.Company do
     |> unique_constraint(:nip)
   end
 
-  @doc "Builds a changeset for setting or clearing the inbound email token."
-  @spec inbound_email_token_changeset(t(), String.t() | nil) :: Ecto.Changeset.t()
-  def inbound_email_token_changeset(company, token) do
+  @doc "Builds a changeset for setting or clearing the inbound email token hash."
+  @spec inbound_email_token_hash_changeset(t(), String.t() | nil) :: Ecto.Changeset.t()
+  def inbound_email_token_hash_changeset(company, token_hash) do
     company
-    |> change(%{inbound_email_token: token})
-    |> unique_constraint(:inbound_email_token,
-      name: :companies_inbound_email_token_unique
+    |> change(%{inbound_email_token_hash: token_hash})
+    |> unique_constraint(:inbound_email_token_hash,
+      name: :companies_inbound_email_token_hash_unique
     )
   end
 end

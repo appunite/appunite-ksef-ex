@@ -31,6 +31,7 @@ defmodule KsefHub.InboundEmail.InboundEmail do
   def changeset(inbound_email, attrs) do
     inbound_email
     |> cast(attrs, [
+      :company_id,
       :mailgun_message_id,
       :sender,
       :recipient,
@@ -40,7 +41,7 @@ defmodule KsefHub.InboundEmail.InboundEmail do
       :pdf_content,
       :original_filename
     ])
-    |> validate_required([:sender, :recipient, :status])
+    |> validate_required([:company_id, :sender, :recipient, :status])
     |> foreign_key_constraint(:company_id)
     |> foreign_key_constraint(:invoice_id)
     |> unique_constraint(:mailgun_message_id, name: :inbound_emails_mailgun_message_id_index)

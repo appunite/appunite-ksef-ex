@@ -111,6 +111,15 @@ if inbound_cc_email = System.get_env("INBOUND_CC_EMAIL") do
   config :ksef_hub, :inbound_cc_email, inbound_cc_email
 end
 
+if System.get_env("INBOUND_EMAIL_DOMAIN") && !System.get_env("MAILGUN_SIGNING_KEY") do
+  raise """
+  MAILGUN_SIGNING_KEY is required when INBOUND_EMAIL_DOMAIN is set.
+
+  The inbound email feature needs a Mailgun signing key to verify webhook signatures.
+  Set MAILGUN_SIGNING_KEY from your Mailgun dashboard (Settings > Webhooks > Signing Key).
+  """
+end
+
 if credential_encryption_key = System.get_env("CREDENTIAL_ENCRYPTION_KEY") do
   case Base.decode64(credential_encryption_key) do
     {:ok, key} when byte_size(key) == 32 ->

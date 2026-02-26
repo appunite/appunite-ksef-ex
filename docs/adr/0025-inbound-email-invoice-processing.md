@@ -60,6 +60,7 @@ Current implementation stores PDF binary in `inbound_emails.pdf_content` (tempor
 3. The `inbound_emails.pdf_content` column can optionally be dropped
 
 ### Environment variables (new)
+
 | Variable | Description |
 |----------|-------------|
 | `MAILGUN_SIGNING_KEY` | Webhook signing key from Mailgun dashboard |

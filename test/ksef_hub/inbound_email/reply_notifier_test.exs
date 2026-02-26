@@ -1,4 +1,6 @@
 defmodule KsefHub.InboundEmail.ReplyNotifierTest do
+  @moduledoc "Tests for ReplyNotifier: success, needs-review, and rejection email building."
+
   use ExUnit.Case, async: true
 
   alias KsefHub.InboundEmail.ReplyNotifier

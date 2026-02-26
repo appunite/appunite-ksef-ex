@@ -1,5 +1,11 @@
 defmodule KsefHubWeb.WebhookControllerTest do
-  # async: false — test mutates global Application env (mailgun_signing_key, allowed_sender_domain)
+  @moduledoc """
+  Tests for the Mailgun inbound email webhook controller.
+
+  Uses async: false because tests mutate global Application env
+  (mailgun_signing_key, inbound_allowed_sender_domain).
+  """
+
   use KsefHubWeb.ConnCase, async: false
 
   import KsefHub.Factory
@@ -16,22 +22,21 @@ defmodule KsefHubWeb.WebhookControllerTest do
     Application.put_env(:ksef_hub, :inbound_allowed_sender_domain, "appunite.com")
 
     company = insert(:company, nip: "1234567890")
-    {:ok, company} = Companies.enable_inbound_email(company)
+    {:ok, %{company: company, token: token}} = Companies.enable_inbound_email(company)
 
     on_exit(fn ->
       Application.delete_env(:ksef_hub, :mailgun_signing_key)
       Application.delete_env(:ksef_hub, :inbound_allowed_sender_domain)
     end)
 
-    %{company: company}
+    %{company: company, inbound_token: token}
   end
 
   describe "POST /webhooks/mailgun/inbound" do
     test "returns 200 and enqueues processing for valid request", %{
       conn: conn,
-      company: company
+      inbound_token: token
     } do
-      # Stub unstructured extraction (Oban runs inline in test)
       KsefHub.Unstructured.Mock
       |> expect(:extract, fn _pdf, _opts ->
         {:ok,
@@ -47,15 +52,15 @@ defmodule KsefHubWeb.WebhookControllerTest do
          }}
       end)
 
-      params = build_valid_params(company)
+      params = build_valid_params(token)
 
       conn = post(conn, "/webhooks/mailgun/inbound", params)
       assert json_response(conn, 200)["status"] == "ok"
     end
 
-    test "returns 406 for invalid signature", %{conn: conn, company: company} do
+    test "returns 406 for invalid signature", %{conn: conn, inbound_token: token} do
       params =
-        build_valid_params(company)
+        build_valid_params(token)
         |> Map.put("signature", "invalid-signature")
 
       conn = post(conn, "/webhooks/mailgun/inbound", params)
@@ -64,10 +69,10 @@ defmodule KsefHubWeb.WebhookControllerTest do
 
     test "returns 200 and rejects email from disallowed domain", %{
       conn: conn,
-      company: company
+      inbound_token: token
     } do
       params =
-        build_valid_params(company)
+        build_valid_params(token)
         |> Map.put("sender", "attacker@evil.com")
 
       conn = post(conn, "/webhooks/mailgun/inbound", params)
@@ -84,9 +89,9 @@ defmodule KsefHubWeb.WebhookControllerTest do
       assert json_response(conn, 200)["reason"] =~ "company"
     end
 
-    test "returns 200 and sends error for zero attachments", %{conn: conn, company: company} do
+    test "returns 200 and sends error for zero attachments", %{conn: conn, inbound_token: token} do
       params =
-        build_valid_params(company)
+        build_valid_params(token)
         |> Map.delete("attachment-1")
 
       conn = post(conn, "/webhooks/mailgun/inbound", params)
@@ -94,7 +99,10 @@ defmodule KsefHubWeb.WebhookControllerTest do
       assert json_response(conn, 200)["reason"] =~ "attachment"
     end
 
-    test "returns 200 and sends error for multiple attachments", %{conn: conn, company: company} do
+    test "returns 200 and sends error for multiple attachments", %{
+      conn: conn,
+      inbound_token: token
+    } do
       pdf = %Plug.Upload{
         path: create_temp_pdf(),
         content_type: "application/pdf",
@@ -102,7 +110,7 @@ defmodule KsefHubWeb.WebhookControllerTest do
       }
 
       params =
-        build_valid_params(company)
+        build_valid_params(token)
         |> Map.put("attachment-2", pdf)
 
       conn = post(conn, "/webhooks/mailgun/inbound", params)
@@ -110,7 +118,10 @@ defmodule KsefHubWeb.WebhookControllerTest do
       assert json_response(conn, 200)["reason"] =~ "Multiple"
     end
 
-    test "returns 200 and sends error for non-PDF attachment", %{conn: conn, company: company} do
+    test "returns 200 and sends error for non-PDF attachment", %{
+      conn: conn,
+      inbound_token: token
+    } do
       docx = %Plug.Upload{
         path: create_temp_file("not-a-pdf"),
         content_type: "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
@@ -118,7 +129,7 @@ defmodule KsefHubWeb.WebhookControllerTest do
       }
 
       params =
-        build_valid_params(company)
+        build_valid_params(token)
         |> Map.put("attachment-1", docx)
 
       conn = post(conn, "/webhooks/mailgun/inbound", params)
@@ -128,7 +139,7 @@ defmodule KsefHubWeb.WebhookControllerTest do
 
     test "returns 200 ok for duplicate mailgun message (idempotent)", %{
       conn: conn,
-      company: company
+      inbound_token: token
     } do
       KsefHub.Unstructured.Mock
       |> expect(:extract, fn _pdf, _opts ->
@@ -146,7 +157,7 @@ defmodule KsefHubWeb.WebhookControllerTest do
       end)
 
       params =
-        build_valid_params(company)
+        build_valid_params(token)
         |> Map.put("Message-Id", "<duplicate-msg-id@mailgun.org>")
 
       # First request succeeds
@@ -160,7 +171,7 @@ defmodule KsefHubWeb.WebhookControllerTest do
 
     test "accepts any sender domain when allowed_sender_domain is not configured", %{
       conn: conn,
-      company: company
+      inbound_token: token
     } do
       Application.delete_env(:ksef_hub, :inbound_allowed_sender_domain)
 
@@ -180,7 +191,7 @@ defmodule KsefHubWeb.WebhookControllerTest do
       end)
 
       params =
-        build_valid_params(company)
+        build_valid_params(token)
         |> Map.put("sender", "user@any-domain.com")
 
       conn = post(conn, "/webhooks/mailgun/inbound", params)
@@ -190,11 +201,12 @@ defmodule KsefHubWeb.WebhookControllerTest do
 
   # --- Helpers ---
 
-  defp build_valid_params(company) do
-    token = company.inbound_email_token
-    build_valid_params_with_token(token)
+  @spec build_valid_params(String.t()) :: map()
+  defp build_valid_params(inbound_token) do
+    build_valid_params_with_token(inbound_token)
   end
 
+  @spec build_valid_params_with_token(String.t()) :: map()
   defp build_valid_params_with_token(token) do
     timestamp = "#{System.system_time(:second)}"
     mg_token = "random-mailgun-token"
@@ -216,15 +228,18 @@ defmodule KsefHubWeb.WebhookControllerTest do
     }
   end
 
+  @spec compute_signature(String.t(), String.t()) :: String.t()
   defp compute_signature(timestamp, token) do
     :crypto.mac(:hmac, :sha256, @signing_key, "#{timestamp}#{token}")
     |> Base.encode16(case: :lower)
   end
 
+  @spec create_temp_pdf() :: String.t()
   defp create_temp_pdf do
     create_temp_file("%PDF-1.4 test content")
   end
 
+  @spec create_temp_file(String.t()) :: String.t()
   defp create_temp_file(content) do
     path = Path.join(System.tmp_dir!(), "test_#{:erlang.unique_integer([:positive])}")
     File.write!(path, content)

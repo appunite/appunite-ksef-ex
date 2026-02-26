@@ -16,17 +16,27 @@ defmodule KsefHub.InboundEmail.InboundEmailWorker do
   alias KsefHub.Invoices
 
   @impl Oban.Worker
-  @spec perform(Oban.Job.t()) :: :ok | {:cancel, String.t()}
+  @spec perform(Oban.Job.t()) :: :ok | {:cancel, String.t()} | {:error, term()}
   def perform(%Oban.Job{
         args: %{"inbound_email_id" => inbound_email_id, "company_id" => company_id}
       }) do
     with {:record, %{} = record} <- {:record, InboundEmail.get_inbound_email(inbound_email_id)},
-         {:company, %{} = company} <- {:company, Companies.get_company(company_id)} do
-      InboundEmail.update_status(record, %{status: :processing})
+         {:company, %{} = company} <- {:company, Companies.get_company(company_id)},
+         {:ok, record} <- InboundEmail.update_status(record, %{status: :processing}) do
       process_email(record, company)
     else
-      {:record, nil} -> {:cancel, "inbound email not found"}
-      {:company, nil} -> {:cancel, "company not found"}
+      {:record, nil} ->
+        {:cancel, "inbound email not found"}
+
+      {:company, nil} ->
+        {:cancel, "company not found"}
+
+      {:error, reason} ->
+        Logger.error(
+          "Failed to set processing status for #{inbound_email_id}: #{inspect(reason)}"
+        )
+
+        {:error, reason}
     end
   end
 
@@ -56,7 +66,14 @@ defmodule KsefHub.InboundEmail.InboundEmailWorker do
       {_, {:error, reason}} ->
         reject_and_notify(record, company, reason)
 
-      {_, _} ->
+      {:partial, {:ok, :expense}} ->
+        create_and_notify(record, company, extracted, :needs_review)
+
+      {_, {:undetermined, :needs_review}} ->
+        create_and_notify(record, company, extracted, :needs_review)
+
+      {status, nip_result} ->
+        Logger.warning("Unexpected extraction/NIP combination: #{inspect({status, nip_result})}")
         create_and_notify(record, company, extracted, :needs_review)
     end
   end

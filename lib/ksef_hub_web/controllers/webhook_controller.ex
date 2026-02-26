@@ -33,6 +33,9 @@ defmodule KsefHubWeb.WebhookController do
       {:error, :disallowed_domain} ->
         json(conn, %{status: "discarded"})
 
+      {:error, :invalid_sender} ->
+        json(conn, %{status: "discarded"})
+
       {:error, :unknown_company} ->
         json(conn, %{status: "rejected", reason: "Unknown company token"})
 
@@ -44,30 +47,50 @@ defmodule KsefHubWeb.WebhookController do
 
   @spec verify_signature(map()) :: :ok | {:error, :invalid_signature}
   defp verify_signature(params) do
-    signing_key = Application.get_env(:ksef_hub, :mailgun_signing_key, "")
-    timestamp = params["timestamp"]
-    token = params["token"]
-    signature = params["signature"]
+    case Application.get_env(:ksef_hub, :mailgun_signing_key) do
+      nil ->
+        Logger.error("Mailgun signing key not configured — rejecting webhook")
+        {:error, :invalid_signature}
 
-    SignatureVerifier.verify(timestamp, token, signature, signing_key)
+      signing_key ->
+        SignatureVerifier.verify(
+          params["timestamp"],
+          params["token"],
+          params["signature"],
+          signing_key
+        )
+    end
   end
 
-  @spec validate_sender_domain(map()) :: {:ok, String.t()} | {:error, :disallowed_domain}
+  @spec validate_sender_domain(map()) ::
+          {:ok, String.t()} | {:error, :disallowed_domain | :invalid_sender}
   defp validate_sender_domain(params) do
     sender = params["sender"] || ""
-    allowed_domain = Application.get_env(:ksef_hub, :inbound_allowed_sender_domain)
 
-    if allowed_domain do
-      domain = sender |> String.split("@") |> List.last() |> String.downcase()
+    case String.split(sender, "@") do
+      [local, domain] when local != "" and domain != "" ->
+        check_allowed_domain(sender, String.downcase(domain))
 
-      if domain == String.downcase(allowed_domain) do
+      _ ->
+        Logger.info("Invalid sender address: #{inspect(sender)}")
+        {:error, :invalid_sender}
+    end
+  end
+
+  @spec check_allowed_domain(String.t(), String.t()) ::
+          {:ok, String.t()} | {:error, :disallowed_domain}
+  defp check_allowed_domain(sender, domain) do
+    case Application.get_env(:ksef_hub, :inbound_allowed_sender_domain) do
+      nil ->
         {:ok, sender}
-      else
-        Logger.info("Discarding inbound email from disallowed domain: #{domain}")
-        {:error, :disallowed_domain}
-      end
-    else
-      {:ok, sender}
+
+      allowed ->
+        if domain == String.downcase(allowed) do
+          {:ok, sender}
+        else
+          Logger.info("Discarding inbound email from disallowed domain: #{domain}")
+          {:error, :disallowed_domain}
+        end
     end
   end
 
@@ -120,9 +143,14 @@ defmodule KsefHubWeb.WebhookController do
     |> Enum.map(fn {_key, upload} -> upload end)
   end
 
+  # Best-effort pre-check; definitive PDF validation happens during extraction.
   @spec pdf_attachment?(Plug.Upload.t()) :: boolean()
   defp pdf_attachment?(%Plug.Upload{content_type: ct, filename: filename}) do
-    ct == "application/pdf" or String.ends_with?(filename || "", ".pdf")
+    if ct in [nil, ""] do
+      String.downcase(filename || "") |> String.ends_with?(".pdf")
+    else
+      ct == "application/pdf"
+    end
   end
 
   @spec process_inbound(
@@ -189,8 +217,11 @@ defmodule KsefHubWeb.WebhookController do
     email = ReplyNotifier.rejection(sender, rejection_reason, opts ++ extra_opts)
 
     case ReplyNotifier.deliver(email) do
-      {:ok, _} -> :ok
-      {:error, reason} -> Logger.warning("Failed to send rejection reply: #{inspect(reason)}")
+      {:ok, _} ->
+        :ok
+
+      {:error, delivery_err} ->
+        Logger.warning("Failed to send rejection reply: #{inspect(delivery_err)}")
     end
   end
 

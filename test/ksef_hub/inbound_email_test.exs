@@ -1,4 +1,6 @@
 defmodule KsefHub.InboundEmailTest do
+  @moduledoc "Tests for the InboundEmail context: CRUD operations, status updates, and uniqueness."
+
   use KsefHub.DataCase, async: true
 
   import KsefHub.Factory

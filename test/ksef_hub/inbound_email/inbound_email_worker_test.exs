@@ -1,4 +1,6 @@
 defmodule KsefHub.InboundEmail.InboundEmailWorkerTest do
+  @moduledoc "Tests for InboundEmailWorker: extraction, NIP verification, and error handling."
+
   use KsefHub.DataCase, async: true
 
   import KsefHub.Factory
@@ -14,6 +16,7 @@ defmodule KsefHub.InboundEmail.InboundEmailWorkerTest do
     %{company: company}
   end
 
+  @spec create_inbound_email(map(), keyword()) :: InboundEmail.InboundEmail.t()
   defp create_inbound_email(company, opts \\ []) do
     pdf_content = Keyword.get(opts, :pdf_content, "%PDF-1.4 test content")
     filename = Keyword.get(opts, :filename, "invoice.pdf")
@@ -184,6 +187,8 @@ defmodule KsefHub.InboundEmail.InboundEmailWorkerTest do
     end
   end
 
+  @spec perform_job(Ecto.UUID.t(), Ecto.UUID.t()) ::
+          :ok | {:cancel, String.t()} | {:error, term()}
   defp perform_job(inbound_email_id, company_id) do
     job = %Oban.Job{
       args: %{

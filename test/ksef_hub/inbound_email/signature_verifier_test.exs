@@ -5,7 +5,7 @@ defmodule KsefHub.InboundEmail.SignatureVerifierTest do
 
   @signing_key "test-signing-key-123"
 
-  describe "verify/3" do
+  describe "verify/4" do
     test "returns :ok for valid HMAC signature" do
       timestamp = "1234567890"
       token = "random-token-value"

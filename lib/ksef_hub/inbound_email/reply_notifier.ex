@@ -45,7 +45,7 @@ defmodule KsefHub.InboundEmail.ReplyNotifier do
   @doc "Builds a needs-review reply email."
   @spec needs_review(String.t(), KsefHub.Invoices.Invoice.t(), keyword()) :: Swoosh.Email.t()
   def needs_review(sender, invoice, opts \\ []) do
-    invoice_id = Map.get(invoice, :id)
+    invoice_id = invoice.id
 
     body = """
 
@@ -160,7 +160,7 @@ defmodule KsefHub.InboundEmail.ReplyNotifier do
     end
   end
 
-  @spec invoice_url(String.t() | nil) :: String.t()
+  @spec invoice_url(Ecto.UUID.t() | nil) :: String.t()
   defp invoice_url(nil), do: ""
 
   defp invoice_url(id) do
