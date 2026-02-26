@@ -511,8 +511,20 @@ defmodule KsefHub.Invoices do
   defp get_extracted_nip(data, key) do
     case get_extracted_string(data, key) do
       nil -> nil
-      value -> if Regex.match?(~r/^\d{10}$/, value), do: value, else: nil
+      value -> normalize_nip(value)
     end
+  end
+
+  @spec normalize_nip(String.t()) :: String.t()
+  defp normalize_nip(value) do
+    trimmed = String.trim(value)
+
+    stripped =
+      trimmed
+      |> String.replace(~r/^PL/i, "")
+      |> String.replace(~r/[\s\-]/, "")
+
+    if Regex.match?(~r/^\d{10}$/, stripped), do: stripped, else: trimmed
   end
 
   @spec get_extracted_date(map(), String.t()) :: Date.t() | nil
@@ -535,7 +547,8 @@ defmodule KsefHub.Invoices do
   defp get_extracted_decimal(data, key) do
     case data[key] do
       nil -> nil
-      value when is_number(value) -> Decimal.from_float(value / 1)
+      value when is_integer(value) -> Decimal.new(value)
+      value when is_float(value) -> Decimal.from_float(value)
       value when is_binary(value) -> parse_decimal(value)
       _ -> nil
     end

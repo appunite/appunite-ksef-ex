@@ -1,5 +1,5 @@
 defmodule KsefHub.PredictionsTest do
-  use KsefHub.DataCase, async: true
+  use KsefHub.DataCase, async: false
 
   import KsefHub.Factory
   import Mox
@@ -7,7 +7,10 @@ defmodule KsefHub.PredictionsTest do
   alias KsefHub.Invoices
   alias KsefHub.Predictions
 
+  @moduletag :set_mox_global
+
   setup :verify_on_exit!
+  setup :set_mox_from_context
 
   setup do
     company = insert(:company)

@@ -1,12 +1,15 @@
 defmodule KsefHub.Predictions.PredictionWorkerTest do
-  use KsefHub.DataCase, async: true
+  use KsefHub.DataCase, async: false
 
   import KsefHub.Factory
   import Mox
 
   alias KsefHub.Predictions.PredictionWorker
 
+  @moduletag :set_mox_global
+
   setup :verify_on_exit!
+  setup :set_mox_from_context
 
   setup do
     company = insert(:company)

@@ -30,11 +30,30 @@ defmodule KsefHub.Predictions do
     input = build_input(invoice)
     client = prediction_client()
 
-    cat_task = Task.async(fn -> client.predict_category(input) end)
-    tag_task = Task.async(fn -> client.predict_tag(input) end)
+    cat_task =
+      Task.Supervisor.async_nolink(KsefHub.TaskSupervisor, fn ->
+        client.predict_category(input)
+      end)
 
-    cat_result = Task.await(cat_task, :timer.seconds(20))
-    tag_result = Task.await(tag_task, :timer.seconds(20))
+    tag_task =
+      Task.Supervisor.async_nolink(KsefHub.TaskSupervisor, fn ->
+        client.predict_tag(input)
+      end)
+
+    [cat_result, tag_result] =
+      [cat_task, tag_task]
+      |> Task.yield_many(:timer.seconds(20))
+      |> Enum.map(fn
+        {_task, {:ok, result}} ->
+          result
+
+        {task, nil} ->
+          Task.shutdown(task, :brutal_kill)
+          {:error, :timeout}
+
+        {_task, {:exit, reason}} ->
+          {:error, {:task_failed, reason}}
+      end)
 
     with {:ok, cat} <- cat_result,
          {:ok, tag} <- tag_result do
