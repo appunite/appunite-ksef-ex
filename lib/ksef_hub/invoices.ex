@@ -563,6 +563,8 @@ defmodule KsefHub.Invoices do
     end
   end
 
+  # Strips PL prefix, dashes, spaces and validates 10-digit Polish NIP.
+  # Returns the original value unchanged for foreign tax IDs (e.g. "DE123456789").
   @spec normalize_nip(String.t()) :: String.t()
   defp normalize_nip(value) do
     trimmed = String.trim(value)
