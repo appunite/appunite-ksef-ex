@@ -43,7 +43,7 @@ services:
   prediction-service:
     image: ghcr.io/appunite/au-payroll-model-categories:latest
     ports:
-      - "8080:8080"
+      - "3003:8080"
     healthcheck:
       test: ["CMD", "wget", "-qO-", "http://localhost:8080/health"]
       interval: 10s

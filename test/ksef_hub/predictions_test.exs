@@ -1,5 +1,5 @@
 defmodule KsefHub.PredictionsTest do
-  use KsefHub.DataCase, async: true
+  use KsefHub.DataCase, async: false
 
   import KsefHub.Factory
   import Mox
@@ -7,6 +7,9 @@ defmodule KsefHub.PredictionsTest do
   alias KsefHub.Invoices
   alias KsefHub.Predictions
 
+  @moduletag :set_mox_global
+
+  setup :set_mox_from_context
   setup :verify_on_exit!
 
   setup do
@@ -128,6 +131,15 @@ defmodule KsefHub.PredictionsTest do
       KsefHub.Predictions.Mock
       |> expect(:predict_category, fn _input ->
         {:error, {:prediction_service_error, 500}}
+      end)
+      |> expect(:predict_tag, fn _input ->
+        {:ok,
+         %{
+           "predicted_label" => "x",
+           "confidence" => 0.0,
+           "model_version" => "v1.0",
+           "probabilities" => %{}
+         }}
       end)
 
       assert {:error, {:prediction_service_error, 500}} =
