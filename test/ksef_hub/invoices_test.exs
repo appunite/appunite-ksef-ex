@@ -569,7 +569,7 @@ defmodule KsefHub.InvoicesTest do
 
   describe "create_pdf_upload_invoice/3" do
     test "creates invoice with complete extraction", %{company: company} do
-      Mox.expect(KsefHub.Unstructured.Mock, :extract, fn _pdf, _opts ->
+      Mox.expect(KsefHub.InvoiceExtractor.Mock, :extract, fn _pdf, _opts ->
         {:ok,
          %{
            "seller_nip" => "1234567890",
@@ -603,7 +603,7 @@ defmodule KsefHub.InvoicesTest do
     end
 
     test "creates invoice with partial extraction when fields missing", %{company: company} do
-      Mox.expect(KsefHub.Unstructured.Mock, :extract, fn _pdf, _opts ->
+      Mox.expect(KsefHub.InvoiceExtractor.Mock, :extract, fn _pdf, _opts ->
         {:ok,
          %{
            "seller_name" => "Partial Seller",
@@ -625,8 +625,8 @@ defmodule KsefHub.InvoicesTest do
     end
 
     test "creates invoice with failed extraction when service errors", %{company: company} do
-      Mox.expect(KsefHub.Unstructured.Mock, :extract, fn _pdf, _opts ->
-        {:error, {:unstructured_service_error, 500}}
+      Mox.expect(KsefHub.InvoiceExtractor.Mock, :extract, fn _pdf, _opts ->
+        {:error, {:extractor_error, 500}}
       end)
 
       assert {:ok, %Invoice{} = invoice} =
@@ -643,7 +643,7 @@ defmodule KsefHub.InvoicesTest do
     test "detects duplicates via extracted ksef_number", %{company: company} do
       existing = insert(:invoice, ksef_number: "pdf-dup-123", company: company)
 
-      Mox.expect(KsefHub.Unstructured.Mock, :extract, fn _pdf, _opts ->
+      Mox.expect(KsefHub.InvoiceExtractor.Mock, :extract, fn _pdf, _opts ->
         {:ok,
          %{
            "ksef_number" => "pdf-dup-123",
@@ -664,7 +664,7 @@ defmodule KsefHub.InvoicesTest do
     end
 
     test "passes context with company info to extraction service", %{company: company} do
-      Mox.expect(KsefHub.Unstructured.Mock, :extract, fn _pdf, opts ->
+      Mox.expect(KsefHub.InvoiceExtractor.Mock, :extract, fn _pdf, opts ->
         context = Keyword.get(opts, :context)
         assert is_binary(context)
         assert context =~ company.name

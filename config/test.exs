@@ -32,18 +32,21 @@ config :ksef_hub, Oban, testing: :inline
 # Use mock implementations in tests
 config :ksef_hub, :ksef_client, KsefHub.KsefClient.Mock
 config :ksef_hub, :xades_signer, KsefHub.XadesSigner.Mock
-config :ksef_hub, :pdf_generator, KsefHub.Pdf.Mock
+config :ksef_hub, :pdf_renderer, KsefHub.PdfRenderer.Mock
 config :ksef_hub, :pkcs12_converter, KsefHub.Credentials.Pkcs12Converter.Mock
 config :ksef_hub, :certificate_info, KsefHub.Credentials.CertificateInfo.Mock
-config :ksef_hub, :prediction_client, KsefHub.Predictions.Mock
-config :ksef_hub, :unstructured_client, KsefHub.Unstructured.Mock
+config :ksef_hub, :invoice_classifier, KsefHub.InvoiceClassifier.Mock
+config :ksef_hub, :invoice_extractor, KsefHub.InvoiceExtractor.Mock
 
 config :ksef_hub,
-  unstructured_req_options: [plug: {Req.Test, KsefHub.Unstructured.Client}, retry: false]
+  invoice_extractor_req_options: [
+    plug: {Req.Test, KsefHub.InvoiceExtractor.Client},
+    retry: false
+  ]
 
 config :ksef_hub,
-  prediction_service_req_options: [
-    plug: {Req.Test, KsefHub.Predictions.PredictionService},
+  invoice_classifier_req_options: [
+    plug: {Req.Test, KsefHub.InvoiceClassifier.Client},
     retry: false
   ]
 

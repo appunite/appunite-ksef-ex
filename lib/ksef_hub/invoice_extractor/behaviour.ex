@@ -1,6 +1,6 @@
-defmodule KsefHub.Unstructured.Behaviour do
+defmodule KsefHub.InvoiceExtractor.Behaviour do
   @moduledoc """
-  Behaviour for the au-ksef-unstructured PDF extraction sidecar.
+  Behaviour for the invoice extraction sidecar (au-ksef-unstructured).
 
   Defines callbacks for extracting structured invoice data from PDF files
   and checking the health of the extraction service.
@@ -18,9 +18,9 @@ defmodule KsefHub.Unstructured.Behaviour do
 
   ## Returns
     * `{:ok, map()}` - extracted fields as string-keyed map
-    * `{:error, :unstructured_service_not_configured}` - service URL missing
-    * `{:error, :unstructured_token_not_configured}` - auth token missing
-    * `{:error, {:unstructured_service_error, status}}` - non-200 response
+    * `{:error, :extractor_not_configured}` - service URL missing
+    * `{:error, :extractor_token_not_configured}` - auth token missing
+    * `{:error, {:extractor_error, status}}` - non-200 response
     * `{:error, {:request_failed, reason}}` - network/transport error
   """
   @callback extract(pdf_binary :: binary(), opts :: keyword()) ::
@@ -31,8 +31,8 @@ defmodule KsefHub.Unstructured.Behaviour do
 
   ## Returns
     * `{:ok, map()}` - health status map (e.g., `%{"status" => "ok"}`)
-    * `{:error, :unstructured_service_not_configured}` - service URL missing
-    * `{:error, {:unstructured_service_error, status}}` - non-200 response
+    * `{:error, :extractor_not_configured}` - service URL missing
+    * `{:error, {:extractor_error, status}}` - non-200 response
     * `{:error, {:request_failed, reason}}` - network/transport error
   """
   @callback health() :: {:ok, map()} | {:error, term()}

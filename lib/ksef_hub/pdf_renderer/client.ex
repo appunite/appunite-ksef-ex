@@ -1,10 +1,10 @@
-defmodule KsefHub.Pdf.KsefPdfService do
+defmodule KsefHub.PdfRenderer.Client do
   @moduledoc """
   HTTP client for the ksef-pdf microservice (ghcr.io/appunite/ksef-pdf).
   Generates PDF and HTML from FA(3) XML via the sidecar service.
   """
 
-  @behaviour KsefHub.Pdf.Behaviour
+  @behaviour KsefHub.PdfRenderer.Behaviour
 
   require Logger
 
@@ -39,11 +39,11 @@ defmodule KsefHub.Pdf.KsefPdfService do
     end
   end
 
-  @spec fetch_url() :: {:ok, String.t()} | {:error, :ksef_pdf_not_configured}
+  @spec fetch_url() :: {:ok, String.t()} | {:error, :pdf_renderer_not_configured}
   defp fetch_url do
-    case Application.get_env(:ksef_hub, :ksef_pdf_url) do
-      nil -> {:error, :ksef_pdf_not_configured}
-      url -> {:ok, url}
+    case Application.get_env(:ksef_hub, :pdf_renderer_url) do
+      url when is_binary(url) and url != "" -> {:ok, url}
+      _ -> {:error, :pdf_renderer_not_configured}
     end
   end
 
@@ -59,7 +59,7 @@ defmodule KsefHub.Pdf.KsefPdfService do
 
       {:ok, %{status: status, body: body}} ->
         Logger.error("ksef-pdf returned #{status} (body: #{safe_size(body)} bytes)")
-        {:error, {:ksef_pdf_error, status}}
+        {:error, {:pdf_renderer_error, status}}
 
       {:error, reason} ->
         Logger.error("ksef-pdf request failed: #{inspect(reason)}")

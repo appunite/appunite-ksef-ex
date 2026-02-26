@@ -1,6 +1,6 @@
-defmodule KsefHub.Predictions.StubService do
+defmodule KsefHub.InvoiceClassifier.StubClient do
   @moduledoc false
-  @behaviour KsefHub.Predictions.Behaviour
+  @behaviour KsefHub.InvoiceClassifier.Behaviour
 
   @impl true
   def predict_category(_input) do

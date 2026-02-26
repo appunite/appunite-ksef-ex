@@ -296,7 +296,7 @@ defmodule KsefHubWeb.InvoiceLive.Show do
   @spec generate_preview(Invoice.t()) :: String.t() | nil
   defp generate_preview(invoice) do
     if invoice.xml_content do
-      pdf_mod = Application.get_env(:ksef_hub, :pdf_generator, KsefHub.Pdf)
+      pdf_mod = Application.get_env(:ksef_hub, :pdf_renderer, KsefHub.PdfRenderer)
 
       metadata = %{ksef_number: invoice.ksef_number}
 

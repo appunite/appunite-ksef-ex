@@ -1,7 +1,7 @@
-defmodule KsefHub.Predictions do
+defmodule KsefHub.InvoiceClassifier do
   @moduledoc """
-  Predictions context. Orchestrates ML-based category and tag prediction for
-  expense invoices using the au-payroll-model-categories sidecar.
+  Invoice classification context. Orchestrates ML-based category and tag
+  prediction for expense invoices using the au-payroll-model-categories sidecar.
 
   Auto-applies predictions at >= 80% confidence when a matching category/tag
   exists in the company. Below threshold, predictions are stored for human review.
@@ -28,7 +28,7 @@ defmodule KsefHub.Predictions do
           {:ok, Invoice.t()} | {:error, term()} | {:skip, atom()}
   def predict_and_apply(%Invoice{type: :expense} = invoice) do
     input = build_input(invoice)
-    client = prediction_client()
+    client = invoice_classifier()
 
     cat_task =
       Task.Supervisor.async_nolink(KsefHub.TaskSupervisor, fn ->
@@ -176,8 +176,8 @@ defmodule KsefHub.Predictions do
   defp to_float(nil), do: 0.0
   defp to_float(%Decimal{} = d), do: Decimal.to_float(d)
 
-  @spec prediction_client() :: module()
-  defp prediction_client do
-    Application.get_env(:ksef_hub, :prediction_client, KsefHub.Predictions.PredictionService)
+  @spec invoice_classifier() :: module()
+  defp invoice_classifier do
+    Application.get_env(:ksef_hub, :invoice_classifier, KsefHub.InvoiceClassifier.Client)
   end
 end

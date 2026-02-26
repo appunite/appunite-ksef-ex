@@ -13,8 +13,9 @@ See `docs/prd.md` for full product requirements.
 | Database | PostgreSQL (Supabase) via Ecto |
 | Auth (UI) | Google Sign-In (company membership RBAC) |
 | Auth (API) | Bearer API tokens (hashed, revocable) |
-| PDF pipeline | ksef-pdf microservice (ghcr.io/appunite/ksef-pdf) |
-| ML predictions | au-payroll-model-categories sidecar (ghcr.io/appunite/au-payroll-model-categories) |
+| PDF renderer | pdf-renderer sidecar (ghcr.io/appunite/ksef-pdf) |
+| Invoice extractor | invoice-extractor sidecar (ghcr.io/appunite/au-ksef-unstructured) |
+| Invoice classifier | invoice-classifier sidecar (ghcr.io/appunite/au-payroll-model-categories) |
 | XADES signing | xmlsec1 (CLI, called via System.cmd) |
 | Background jobs | Oban (async workers, 60-min sync cron) |
 | API docs | open_api_spex (OpenAPI 3.0 + SwaggerUI) |
@@ -29,9 +30,10 @@ lib/
 │   ├── invoices/                 # Invoice context (income + expense)
 │   ├── credentials/              # Certificate storage & encryption
 │   ├── ksef_client/              # KSeF API client (auth, query, download)
-│   ├── predictions/              # ML prediction sidecar client + Oban worker
+│   ├── invoice_classifier/       # ML classification sidecar client + Oban worker
+│   ├── invoice_extractor/        # PDF extraction via invoice-extractor sidecar
+│   ├── pdf_renderer/             # PDF/HTML generation via pdf-renderer sidecar
 │   ├── sync_worker.ex            # GenServer — 60-min sync cron
-│   └── pdf/                      # PDF generation pipeline
 │
 └── ksef_hub_web/                 # Web layer
     ├── controllers/api/          # REST JSON controllers
@@ -134,8 +136,9 @@ Phoenix contexts are the primary boundaries. Each context owns its schema, queri
 | `KsefHub.Invoices` | CRUD, filtering, approval/rejection of invoices |
 | `KsefHub.Credentials` | Certificate upload, encryption, expiry tracking |
 | `KsefHub.KsefClient` | All KSeF API communication (auth, query, download) |
-| `KsefHub.Pdf` | PDF and HTML generation via ksef-pdf microservice |
-| `KsefHub.Predictions` | ML-based category/tag prediction via sidecar |
+| `KsefHub.PdfRenderer` | PDF and HTML generation via pdf-renderer sidecar |
+| `KsefHub.InvoiceExtractor` | PDF → structured JSON extraction via invoice-extractor sidecar |
+| `KsefHub.InvoiceClassifier` | ML-based category/tag classification via invoice-classifier sidecar |
 | `KsefHub.Accounts` | API token generation, validation, usage tracking |
 
 ### Dependency Injection with Behaviours
@@ -174,7 +177,11 @@ defp ksef_client, do: Application.get_env(:ksef_hub, :ksef_client, KsefHub.KsefC
 
 **Invoice Sync (every 60 min):** Load certificate -> authenticate -> query invoice headers (incremental, since last sync) -> download each XML (rate-limited) -> parse FA(3) -> upsert to DB -> update last_sync_at -> terminate session.
 
-**PDF Generation:** FA(3) XML -> ksef-pdf microservice -> PDF.
+**PDF Generation:** FA(3) XML -> pdf-renderer sidecar -> PDF.
+
+**PDF Extraction:** Uploaded PDF (non-KSeF invoice) -> invoice-extractor sidecar -> structured JSON.
+
+**Invoice Classification (Oban, on expense creation):** New expense invoice -> ClassifierWorker -> invoice-classifier sidecar -> auto-assign category/tags.
 
 ## Code Style
 
@@ -291,7 +298,7 @@ Keep explicit attrs only when testing validation logic (e.g., missing required f
 
 ### Mocking with Mox
 
-- Define behaviours for all external dependencies (KSeF API, ksef-pdf, xmlsec1)
+- Define behaviours for all external dependencies (KSeF API, pdf-renderer, invoice-extractor, invoice-classifier, xmlsec1)
 - Use `Mox.defmock/2` in `test_helper.exs`
 - Use `expect/3` for specific call expectations in tests
 - Use `stub/3` for default returns in setup blocks
@@ -460,9 +467,11 @@ end
 | `CREDENTIAL_ENCRYPTION_KEY` | Base64-encoded 32-byte AES-256 key for certificate encryption at rest. Falls back to `SHA256(SECRET_KEY_BASE)` if not set |
 | `GOOGLE_CLIENT_ID` | Google OAuth client ID |
 | `GOOGLE_CLIENT_SECRET` | Google OAuth client secret |
-| `KSEF_PDF_URL` | KSeF PDF microservice URL (e.g., `http://localhost:3001`) |
+| `PDF_RENDERER_URL` | PDF renderer sidecar URL (e.g., `http://localhost:3001`) |
+| `INVOICE_EXTRACTOR_URL` | Invoice extractor sidecar URL (e.g., `http://localhost:3002`) |
+| `INVOICE_EXTRACTOR_API_TOKEN` | Bearer token for invoice-extractor authentication |
 | `KSEF_API_URL` | KSeF v2 API URL (`https://api-test.ksef.mf.gov.pl` for test, `https://api.ksef.mf.gov.pl` for production) |
-| `PREDICTION_SERVICE_URL` | ML prediction sidecar URL (e.g., `http://localhost:8080`) |
+| `INVOICE_CLASSIFIER_URL` | Invoice classifier sidecar URL (e.g., `http://localhost:3003`) |
 | `SYNC_INTERVAL_MINUTES` | KSeF sync cron interval in minutes (default: `60`) |
 
 ## Useful References

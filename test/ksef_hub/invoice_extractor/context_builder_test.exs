@@ -1,12 +1,12 @@
-defmodule KsefHub.Unstructured.ContextBuilderTest do
+defmodule KsefHub.InvoiceExtractor.ContextBuilderTest do
   @moduledoc "Tests for ContextBuilder: company context string generation for extraction."
 
   use ExUnit.Case, async: true
 
   alias KsefHub.Companies.Company
-  alias KsefHub.Unstructured.ContextBuilder
+  alias KsefHub.InvoiceExtractor.ContextBuilder
 
-  doctest KsefHub.Unstructured.ContextBuilder
+  doctest KsefHub.InvoiceExtractor.ContextBuilder
 
   describe "build/1" do
     test "builds context with full company (name, nip, address)" do

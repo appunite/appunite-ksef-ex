@@ -1,6 +1,6 @@
-defmodule KsefHub.Predictions.PredictionWorker do
+defmodule KsefHub.InvoiceClassifier.Worker do
   @moduledoc """
-  Oban worker that runs ML predictions for newly created expense invoices.
+  Oban worker that runs ML classification for newly created expense invoices.
 
   Enqueued after invoice creation (sync or manual). Skips income invoices,
   already-manual predictions, and missing invoices. Cancels permanently on
@@ -11,11 +11,11 @@ defmodule KsefHub.Predictions.PredictionWorker do
 
   require Logger
 
+  alias KsefHub.InvoiceClassifier
   alias KsefHub.Invoices
-  alias KsefHub.Predictions
 
   @doc """
-  Conditionally enqueues a prediction job for an expense invoice.
+  Conditionally enqueues a classification job for an expense invoice.
 
   Returns `{:ok, %Oban.Job{}}` for expense invoices, `{:error, changeset}`
   on Oban insert failure, or `:skip` for non-expense invoices.
@@ -30,6 +30,14 @@ defmodule KsefHub.Predictions.PredictionWorker do
 
   def maybe_enqueue(_invoice), do: :skip
 
+  @doc """
+  Oban entry point: classifies an expense invoice via the ML sidecar.
+
+  Looks up the invoice by `"invoice_id"` and `"company_id"` from job args.
+  Returns `:ok` on success, `{:cancel, reason}` for non-retryable cases
+  (missing invoice, non-expense, already manual, service not configured),
+  or `{:error, term()}` for transient failures.
+  """
   @impl Oban.Worker
   @spec perform(Oban.Job.t()) :: :ok | {:cancel, String.t()} | {:error, term()}
   def perform(%Oban.Job{args: %{"invoice_id" => invoice_id, "company_id" => company_id}}) do
@@ -41,28 +49,28 @@ defmodule KsefHub.Predictions.PredictionWorker do
         {:cancel, "already manually classified"}
 
       %{type: :expense} = invoice ->
-        run_prediction(invoice)
+        run_classification(invoice)
 
       _non_expense ->
         {:cancel, "not an expense invoice"}
     end
   end
 
-  @spec run_prediction(Invoices.Invoice.t()) :: :ok | {:cancel, String.t()} | {:error, term()}
-  defp run_prediction(invoice) do
-    case Predictions.predict_and_apply(invoice) do
+  @spec run_classification(Invoices.Invoice.t()) :: :ok | {:cancel, String.t()} | {:error, term()}
+  defp run_classification(invoice) do
+    case InvoiceClassifier.predict_and_apply(invoice) do
       {:ok, _invoice} ->
         :ok
 
       {:skip, reason} ->
         {:cancel, "skipped: #{reason}"}
 
-      {:error, :prediction_service_not_configured} ->
-        {:cancel, "prediction service not configured"}
+      {:error, :classifier_not_configured} ->
+        {:cancel, "classification service not configured"}
 
       {:error, reason} ->
         Logger.error(
-          "Prediction failed for invoice #{invoice.id}: #{inspect(reason, limit: 200)}"
+          "Classification failed for invoice #{invoice.id}: #{inspect(reason, limit: 200)}"
         )
 
         {:error, reason}

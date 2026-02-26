@@ -30,42 +30,42 @@ if ksef_api_url = System.get_env("KSEF_API_URL") do
   config :ksef_hub, :ksef_api_url, ksef_api_url
 end
 
-if ksef_pdf_url = System.get_env("KSEF_PDF_URL") do
-  config :ksef_hub, :ksef_pdf_url, ksef_pdf_url
+if pdf_renderer_url = System.get_env("PDF_RENDERER_URL") do
+  config :ksef_hub, :pdf_renderer_url, pdf_renderer_url
 end
 
-if unstructured_url = System.get_env("UNSTRUCTURED_URL") do
+if invoice_extractor_url = System.get_env("INVOICE_EXTRACTOR_URL") do
   if config_env() == :prod do
-    uri = URI.parse(unstructured_url)
+    uri = URI.parse(invoice_extractor_url)
 
     if uri.scheme != "https" do
       raise """
-      UNSTRUCTURED_URL must use HTTPS in production.
-      Got: #{unstructured_url}
+      INVOICE_EXTRACTOR_URL must use HTTPS in production.
+      Got: #{invoice_extractor_url}
       """
     end
   end
 
-  config :ksef_hub, :unstructured_url, unstructured_url
+  config :ksef_hub, :invoice_extractor_url, invoice_extractor_url
 end
 
-if unstructured_api_token = System.get_env("UNSTRUCTURED_API_TOKEN") do
-  config :ksef_hub, :unstructured_api_token, unstructured_api_token
+if invoice_extractor_api_token = System.get_env("INVOICE_EXTRACTOR_API_TOKEN") do
+  config :ksef_hub, :invoice_extractor_api_token, invoice_extractor_api_token
 end
 
-if prediction_service_url = System.get_env("PREDICTION_SERVICE_URL") do
+if invoice_classifier_url = System.get_env("INVOICE_CLASSIFIER_URL") do
   if config_env() == :prod do
-    uri = URI.parse(prediction_service_url)
+    uri = URI.parse(invoice_classifier_url)
 
     if uri.scheme != "https" do
       raise """
-      PREDICTION_SERVICE_URL must use HTTPS in production.
-      Got: #{prediction_service_url}
+      INVOICE_CLASSIFIER_URL must use HTTPS in production.
+      Got: #{invoice_classifier_url}
       """
     end
   end
 
-  config :ksef_hub, :prediction_service_url, prediction_service_url
+  config :ksef_hub, :invoice_classifier_url, invoice_classifier_url
 end
 
 if sync_interval_env = System.get_env("SYNC_INTERVAL_MINUTES") do

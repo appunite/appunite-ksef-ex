@@ -1,10 +1,10 @@
-defmodule KsefHub.Predictions.PredictionWorkerTest do
+defmodule KsefHub.InvoiceClassifier.WorkerTest do
   use KsefHub.DataCase, async: false
 
   import KsefHub.Factory
   import Mox
 
-  alias KsefHub.Predictions.PredictionWorker
+  alias KsefHub.InvoiceClassifier.Worker
 
   @moduletag :set_mox_global
 
@@ -23,24 +23,24 @@ defmodule KsefHub.Predictions.PredictionWorkerTest do
       # Oban inline mode will execute the job immediately, so we need mock expectations
       expect_successful_predictions()
 
-      assert {:ok, %Oban.Job{}} = PredictionWorker.maybe_enqueue(invoice)
+      assert {:ok, %Oban.Job{}} = Worker.maybe_enqueue(invoice)
     end
 
     test "skips income invoices", %{company: company} do
       invoice = insert(:invoice, company: company, type: :income)
 
-      assert :skip = PredictionWorker.maybe_enqueue(invoice)
+      assert :skip = Worker.maybe_enqueue(invoice)
     end
   end
 
   describe "perform/1" do
-    test "runs prediction for expense invoices", %{company: company} do
+    test "runs classification for expense invoices", %{company: company} do
       invoice = insert(:manual_invoice, company: company, type: :expense)
 
       expect_successful_predictions()
 
       job = build_job(invoice)
-      assert :ok = PredictionWorker.perform(job)
+      assert :ok = Worker.perform(job)
     end
 
     test "cancels when invoice not found", %{company: company} do
@@ -51,14 +51,14 @@ defmodule KsefHub.Predictions.PredictionWorkerTest do
         }
       }
 
-      assert {:cancel, "invoice not found"} = PredictionWorker.perform(job)
+      assert {:cancel, "invoice not found"} = Worker.perform(job)
     end
 
     test "cancels for income invoices", %{company: company} do
       invoice = insert(:invoice, company: company, type: :income)
       job = build_job(invoice)
 
-      assert {:cancel, "not an expense invoice"} = PredictionWorker.perform(job)
+      assert {:cancel, "not an expense invoice"} = Worker.perform(job)
     end
 
     test "cancels for already manually classified invoices", %{company: company} do
@@ -71,15 +71,15 @@ defmodule KsefHub.Predictions.PredictionWorkerTest do
 
       job = build_job(invoice)
 
-      assert {:cancel, "already manually classified"} = PredictionWorker.perform(job)
+      assert {:cancel, "already manually classified"} = Worker.perform(job)
     end
 
-    test "cancels when prediction service is not configured", %{company: company} do
+    test "cancels when classification service is not configured", %{company: company} do
       invoice = insert(:manual_invoice, company: company, type: :expense)
 
-      KsefHub.Predictions.Mock
+      KsefHub.InvoiceClassifier.Mock
       |> expect(:predict_category, fn _input ->
-        {:error, :prediction_service_not_configured}
+        {:error, :classifier_not_configured}
       end)
       |> expect(:predict_tag, fn _input ->
         {:ok,
@@ -92,13 +92,13 @@ defmodule KsefHub.Predictions.PredictionWorkerTest do
       end)
 
       job = build_job(invoice)
-      assert {:cancel, "prediction service not configured"} = PredictionWorker.perform(job)
+      assert {:cancel, "classification service not configured"} = Worker.perform(job)
     end
 
     test "returns error for transient failures to allow retry", %{company: company} do
       invoice = insert(:manual_invoice, company: company, type: :expense)
 
-      KsefHub.Predictions.Mock
+      KsefHub.InvoiceClassifier.Mock
       |> expect(:predict_category, fn _input ->
         {:error, {:request_failed, :timeout}}
       end)
@@ -107,7 +107,7 @@ defmodule KsefHub.Predictions.PredictionWorkerTest do
       end)
 
       job = build_job(invoice)
-      assert {:error, {:request_failed, :timeout}} = PredictionWorker.perform(job)
+      assert {:error, {:request_failed, :timeout}} = Worker.perform(job)
     end
   end
 
@@ -123,7 +123,7 @@ defmodule KsefHub.Predictions.PredictionWorkerTest do
 
   @spec expect_successful_predictions() :: :ok
   defp expect_successful_predictions do
-    KsefHub.Predictions.Mock
+    KsefHub.InvoiceClassifier.Mock
     |> expect(:predict_category, fn _input ->
       {:ok,
        %{

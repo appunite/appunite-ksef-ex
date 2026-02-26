@@ -517,7 +517,7 @@ defmodule KsefHubWeb.Api.InvoiceController do
 
   @spec do_html(Plug.Conn.t(), String.t(), Invoice.t()) :: Plug.Conn.t()
   defp do_html(conn, id, invoice) do
-    pdf_mod = Application.get_env(:ksef_hub, :pdf_generator, KsefHub.Pdf)
+    pdf_mod = Application.get_env(:ksef_hub, :pdf_renderer, KsefHub.PdfRenderer)
 
     metadata = %{ksef_number: invoice.ksef_number}
 
@@ -620,7 +620,7 @@ defmodule KsefHubWeb.Api.InvoiceController do
 
   @spec do_pdf(Plug.Conn.t(), Invoice.t()) :: Plug.Conn.t()
   defp do_pdf(conn, invoice) do
-    pdf_mod = Application.get_env(:ksef_hub, :pdf_generator, KsefHub.Pdf)
+    pdf_mod = Application.get_env(:ksef_hub, :pdf_renderer, KsefHub.PdfRenderer)
 
     metadata = %{ksef_number: invoice.ksef_number}
 

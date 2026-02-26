@@ -6,9 +6,9 @@ KSeF Hub delegates specialized processing to sidecar microservices running along
 
 | Service | Purpose | Port | Repository | ADR |
 |---------|---------|------|------------|-----|
-| **ksef-pdf** | FA(3) XML → PDF/HTML rendering (matches official gov.pl portal) | 3001 | [appunite/ksef-pdf-generator](https://github.com/appunite/ksef-pdf-generator) | [0015](adr/0015-ksef-pdf-microservice.md) |
-| **au-ksef-unstructured** | PDF → structured JSON extraction (unstructured + Anthropic Claude) | 3002 | [emilwojtaszek/au-ksef-unstructured](https://github.com/emilwojtaszek/au-ksef-unstructured) | [0017](adr/0017-unstructured-pdf-extraction-sidecar.md) |
-| **au-payroll-model-categories** | Invoice category/tag classification (FastAPI + LightGBM) | 3003 | [appunite/au-payroll-model-categories](https://github.com/appunite/au-payroll-model-categories) | [0019](adr/0019-ml-prediction-sidecar.md) |
+| **pdf-renderer** | FA(3) XML → PDF/HTML rendering (matches official gov.pl portal) | 3001 | [appunite/ksef-pdf-generator](https://github.com/appunite/ksef-pdf-generator) | [0015](adr/0015-ksef-pdf-microservice.md) |
+| **invoice-extractor** | PDF → structured JSON extraction (unstructured + Anthropic Claude) | 3002 | [emilwojtaszek/au-ksef-unstructured](https://github.com/emilwojtaszek/au-ksef-unstructured) | [0017](adr/0017-unstructured-pdf-extraction-sidecar.md) |
+| **invoice-classifier** | Invoice category/tag classification (FastAPI + LightGBM) | 3003 | [appunite/au-payroll-model-categories](https://github.com/appunite/au-payroll-model-categories) | [0019](adr/0019-ml-prediction-sidecar.md) |
 
 ## Architecture
 
@@ -16,13 +16,13 @@ KSeF Hub delegates specialized processing to sidecar microservices running along
 ┌─────────────────────────────────┐
 │        KSeF Hub (Elixir)        │
 │                                 │
-│  KsefHub.Pdf ──────────────────────► ksef-pdf (:3001)
+│  KsefHub.PdfRenderer ──────────────► pdf-renderer (:3001)
 │                                 │     XML → PDF/HTML
 │                                 │
-│  KsefHub.Unstructured ────────────► au-ksef-unstructured (:3002)
+│  KsefHub.InvoiceExtractor ─────────► invoice-extractor (:3002)
 │                                 │     PDF → structured JSON
 │                                 │
-│  KsefHub.Predictions ────────────► au-payroll-model-categories (:3003)
+│  KsefHub.InvoiceClassifier ────────► invoice-classifier (:3003)
 │                                 │     Invoice category/tag classification
 └─────────────────────────────────┘
 ```
@@ -31,19 +31,19 @@ KSeF Hub delegates specialized processing to sidecar microservices running along
 
 Each sidecar follows the same integration pattern in the Elixir app:
 
-1. **Behaviour** — defines the contract (e.g., `KsefHub.Pdf.Behaviour`, `KsefHub.Unstructured.Behaviour`)
+1. **Behaviour** — defines the contract (e.g., `KsefHub.PdfRenderer.Behaviour`, `KsefHub.InvoiceExtractor.Behaviour`)
 2. **Client module** — production implementation that makes HTTP calls to the sidecar
 3. **Mox mock** — test implementation configured in `config/test.exs`
-4. **URL env var** — configures the sidecar address (e.g., `KSEF_PDF_URL`, `UNSTRUCTURED_URL`)
+4. **URL env var** — configures the sidecar address (e.g., `PDF_RENDERER_URL`, `INVOICE_EXTRACTOR_URL`)
 
 ## Environment Variables
 
 | Variable | Service | Description |
 |----------|---------|-------------|
-| `KSEF_PDF_URL` | ksef-pdf | Sidecar URL (e.g., `http://localhost:3001`) |
-| `UNSTRUCTURED_URL` | au-ksef-unstructured | Sidecar URL (e.g., `http://localhost:3002`) |
-| `UNSTRUCTURED_API_TOKEN` | au-ksef-unstructured | Bearer token for authentication |
-| `PREDICTION_SERVICE_URL` | au-payroll-model-categories | Sidecar URL (e.g., `http://localhost:3003`) |
+| `PDF_RENDERER_URL` | pdf-renderer | Sidecar URL (e.g., `http://localhost:3001`) |
+| `INVOICE_EXTRACTOR_URL` | invoice-extractor | Sidecar URL (e.g., `http://localhost:3002`) |
+| `INVOICE_EXTRACTOR_API_TOKEN` | invoice-extractor | Bearer token for authentication |
+| `INVOICE_CLASSIFIER_URL` | invoice-classifier | Sidecar URL (e.g., `http://localhost:3003`) |
 
 ## Running Locally
 

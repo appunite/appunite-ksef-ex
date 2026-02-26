@@ -1,11 +1,11 @@
-defmodule KsefHub.PredictionsTest do
+defmodule KsefHub.InvoiceClassifierTest do
   use KsefHub.DataCase, async: false
 
   import KsefHub.Factory
   import Mox
 
+  alias KsefHub.InvoiceClassifier
   alias KsefHub.Invoices
-  alias KsefHub.Predictions
 
   @moduletag :set_mox_global
 
@@ -45,7 +45,7 @@ defmodule KsefHub.PredictionsTest do
         }
       )
 
-      assert {:ok, updated} = Predictions.predict_and_apply(invoice)
+      assert {:ok, updated} = InvoiceClassifier.predict_and_apply(invoice)
 
       assert updated.prediction_status == :predicted
       assert updated.prediction_category_name == "finance:invoices"
@@ -81,7 +81,7 @@ defmodule KsefHub.PredictionsTest do
         }
       )
 
-      assert {:ok, updated} = Predictions.predict_and_apply(invoice)
+      assert {:ok, updated} = InvoiceClassifier.predict_and_apply(invoice)
 
       assert updated.prediction_status == :needs_review
       assert updated.prediction_category_name == "finance:invoices"
@@ -94,7 +94,7 @@ defmodule KsefHub.PredictionsTest do
     test "skips non-expense invoices", %{company: company} do
       invoice = insert(:invoice, company: company, type: :income)
 
-      assert {:skip, :not_expense} = Predictions.predict_and_apply(invoice)
+      assert {:skip, :not_expense} = InvoiceClassifier.predict_and_apply(invoice)
     end
 
     test "sets needs_review when high confidence but no matching company category", %{
@@ -118,19 +118,19 @@ defmodule KsefHub.PredictionsTest do
         }
       )
 
-      assert {:ok, updated} = Predictions.predict_and_apply(invoice)
+      assert {:ok, updated} = InvoiceClassifier.predict_and_apply(invoice)
 
       # High confidence but no match -> needs_review
       assert updated.prediction_status == :needs_review
       assert updated.category_id == nil
     end
 
-    test "handles prediction service errors gracefully", %{company: company} do
+    test "handles classification service errors gracefully", %{company: company} do
       invoice = insert(:manual_invoice, company: company, type: :expense)
 
-      KsefHub.Predictions.Mock
+      KsefHub.InvoiceClassifier.Mock
       |> expect(:predict_category, fn _input ->
-        {:error, {:prediction_service_error, 500}}
+        {:error, {:classifier_error, 500}}
       end)
       |> expect(:predict_tag, fn _input ->
         {:ok,
@@ -142,8 +142,8 @@ defmodule KsefHub.PredictionsTest do
          }}
       end)
 
-      assert {:error, {:prediction_service_error, 500}} =
-               Predictions.predict_and_apply(invoice)
+      assert {:error, {:classifier_error, 500}} =
+               InvoiceClassifier.predict_and_apply(invoice)
     end
 
     test "sets predicted when only tag matches above threshold", %{company: company} do
@@ -166,7 +166,7 @@ defmodule KsefHub.PredictionsTest do
         }
       )
 
-      assert {:ok, updated} = Predictions.predict_and_apply(invoice)
+      assert {:ok, updated} = InvoiceClassifier.predict_and_apply(invoice)
 
       assert updated.prediction_status == :predicted
       updated = Invoices.get_invoice_with_details!(company.id, updated.id)
@@ -194,7 +194,7 @@ defmodule KsefHub.PredictionsTest do
         }
       )
 
-      assert {:ok, updated} = Predictions.predict_and_apply(invoice)
+      assert {:ok, updated} = InvoiceClassifier.predict_and_apply(invoice)
 
       assert updated.prediction_status == :predicted
       updated = Invoices.get_invoice_with_details!(company.id, updated.id)
@@ -204,7 +204,7 @@ defmodule KsefHub.PredictionsTest do
     test "returns error when category succeeds but tag prediction fails", %{company: company} do
       invoice = insert(:manual_invoice, company: company, type: :expense)
 
-      KsefHub.Predictions.Mock
+      KsefHub.InvoiceClassifier.Mock
       |> expect(:predict_category, fn _input ->
         {:ok,
          %{
@@ -218,7 +218,7 @@ defmodule KsefHub.PredictionsTest do
         {:error, {:request_failed, :timeout}}
       end)
 
-      assert {:error, {:request_failed, :timeout}} = Predictions.predict_and_apply(invoice)
+      assert {:error, {:request_failed, :timeout}} = InvoiceClassifier.predict_and_apply(invoice)
 
       # Invoice should be unchanged since tag call failed before apply
       reloaded = Invoices.get_invoice!(company.id, invoice.id)
@@ -245,7 +245,7 @@ defmodule KsefHub.PredictionsTest do
         }
       )
 
-      assert {:ok, updated} = Predictions.predict_and_apply(invoice)
+      assert {:ok, updated} = InvoiceClassifier.predict_and_apply(invoice)
 
       # 0.80 is >= threshold -> predicted; 0.79 is < threshold -> not applied
       assert updated.prediction_status == :predicted
@@ -274,7 +274,7 @@ defmodule KsefHub.PredictionsTest do
         }
       )
 
-      assert {:ok, updated} = Predictions.predict_and_apply(invoice)
+      assert {:ok, updated} = InvoiceClassifier.predict_and_apply(invoice)
 
       assert updated.prediction_category_probabilities == cat_probs
       assert updated.prediction_tag_probabilities == tag_probs
@@ -321,7 +321,7 @@ defmodule KsefHub.PredictionsTest do
     cat_result = Keyword.fetch!(opts, :category)
     tag_result = Keyword.fetch!(opts, :tag)
 
-    KsefHub.Predictions.Mock
+    KsefHub.InvoiceClassifier.Mock
     |> expect(:predict_category, fn _input -> {:ok, cat_result} end)
     |> expect(:predict_tag, fn _input -> {:ok, tag_result} end)
   end
