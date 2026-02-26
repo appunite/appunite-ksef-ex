@@ -192,13 +192,18 @@ defmodule KsefHubWeb.WebhookController do
       {:ok, record} ->
         case enqueue_processing(record, company) do
           {:ok, _job} ->
-            :ok
+            json(conn, %{status: "ok"})
 
           {:error, reason} ->
             Logger.error("Failed to enqueue processing for #{record.id}: #{inspect(reason)}")
-        end
 
-        json(conn, %{status: "ok"})
+            InboundEmail.update_status(record, %{
+              status: :failed,
+              error_message: "enqueue failed: #{inspect(reason)}"
+            })
+
+            json(conn, %{status: "error", reason: "Failed to enqueue processing"})
+        end
 
       {:error, %Ecto.Changeset{} = changeset} ->
         if duplicate_message_id?(changeset) do

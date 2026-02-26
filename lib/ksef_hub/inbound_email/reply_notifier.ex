@@ -7,6 +7,8 @@ defmodule KsefHub.InboundEmail.ReplyNotifier do
 
   import Swoosh.Email
 
+  require Logger
+
   alias KsefHub.Mailer
 
   @doc "Builds a success reply email for a processed invoice."
@@ -167,6 +169,13 @@ defmodule KsefHub.InboundEmail.ReplyNotifier do
       :ksef_hub
       |> Application.get_env(KsefHubWeb.Endpoint, [])
       |> get_in([:url, :host])
+
+    if is_nil(host) do
+      Logger.warning(
+        "KsefHubWeb.Endpoint [:url, :host] not configured; " <>
+          "invoice URL will use fallback host for invoice #{id}"
+      )
+    end
 
     "https://#{host || "ksef-hub.com"}/invoices/#{id}"
   end
