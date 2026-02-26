@@ -82,7 +82,13 @@ defmodule KsefHub.Predictions.PredictionWorkerTest do
         {:error, :prediction_service_not_configured}
       end)
       |> expect(:predict_tag, fn _input ->
-        {:ok, %{"predicted_label" => "x", "confidence" => 0.0, "model_version" => "v1.0", "probabilities" => %{}}}
+        {:ok,
+         %{
+           "predicted_label" => "x",
+           "confidence" => 0.0,
+           "model_version" => "v1.0",
+           "probabilities" => %{}
+         }}
       end)
 
       job = build_job(invoice)

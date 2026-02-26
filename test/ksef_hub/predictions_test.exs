@@ -133,7 +133,13 @@ defmodule KsefHub.PredictionsTest do
         {:error, {:prediction_service_error, 500}}
       end)
       |> expect(:predict_tag, fn _input ->
-        {:ok, %{"predicted_label" => "x", "confidence" => 0.0, "model_version" => "v1.0", "probabilities" => %{}}}
+        {:ok,
+         %{
+           "predicted_label" => "x",
+           "confidence" => 0.0,
+           "model_version" => "v1.0",
+           "probabilities" => %{}
+         }}
       end)
 
       assert {:error, {:prediction_service_error, 500}} =
