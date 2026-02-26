@@ -1,20 +1,20 @@
-defmodule KsefHub.Unstructured.ClientTest do
+defmodule KsefHub.InvoiceExtractor.ClientTest do
   use ExUnit.Case, async: false
 
-  alias KsefHub.Unstructured.Client
+  alias KsefHub.InvoiceExtractor.Client
 
   @moduletag capture_log: true
 
   describe "extract/2" do
     test "returns error when URL not configured" do
-      assert {:error, :unstructured_service_not_configured} = Client.extract("pdf data", [])
+      assert {:error, :extractor_not_configured} = Client.extract("pdf data", [])
     end
 
     test "returns error when token not configured" do
-      Application.put_env(:ksef_hub, :unstructured_url, "http://localhost:9000")
-      on_exit(fn -> Application.delete_env(:ksef_hub, :unstructured_url) end)
+      Application.put_env(:ksef_hub, :invoice_extractor_url, "http://localhost:9000")
+      on_exit(fn -> Application.delete_env(:ksef_hub, :invoice_extractor_url) end)
 
-      assert {:error, :unstructured_token_not_configured} = Client.extract("pdf data", [])
+      assert {:error, :extractor_token_not_configured} = Client.extract("pdf data", [])
     end
 
     test "returns error for non-binary input" do
@@ -22,7 +22,7 @@ defmodule KsefHub.Unstructured.ClientTest do
     end
 
     test "returns extracted data on 200 success" do
-      setup_unstructured_config()
+      setup_extractor_config()
 
       Req.Test.stub(Client, fn conn ->
         assert conn.method == "POST"
@@ -37,7 +37,7 @@ defmodule KsefHub.Unstructured.ClientTest do
     end
 
     test "returns error on non-200 status" do
-      setup_unstructured_config()
+      setup_extractor_config()
 
       Req.Test.stub(Client, fn conn ->
         conn
@@ -45,12 +45,12 @@ defmodule KsefHub.Unstructured.ClientTest do
         |> Plug.Conn.send_resp(500, Jason.encode!(%{"error" => "internal"}))
       end)
 
-      assert {:error, {:unstructured_service_error, 500}} =
+      assert {:error, {:extractor_error, 500}} =
                Client.extract("pdf data", filename: "test.pdf")
     end
 
     test "returns error on network failure" do
-      setup_unstructured_config()
+      setup_extractor_config()
 
       Req.Test.stub(Client, fn conn ->
         Req.Test.transport_error(conn, :econnrefused)
@@ -61,7 +61,7 @@ defmodule KsefHub.Unstructured.ClientTest do
     end
 
     test "sends context as form field when provided in opts" do
-      setup_unstructured_config()
+      setup_extractor_config()
 
       Req.Test.stub(Client, fn conn ->
         {:ok, body, conn} = Plug.Conn.read_body(conn)
@@ -81,7 +81,7 @@ defmodule KsefHub.Unstructured.ClientTest do
     end
 
     test "does not send context field when not provided" do
-      setup_unstructured_config()
+      setup_extractor_config()
 
       Req.Test.stub(Client, fn conn ->
         {:ok, body, conn} = Plug.Conn.read_body(conn)
@@ -98,11 +98,11 @@ defmodule KsefHub.Unstructured.ClientTest do
 
   describe "health/0" do
     test "returns error when URL not configured" do
-      assert {:error, :unstructured_service_not_configured} = Client.health()
+      assert {:error, :extractor_not_configured} = Client.health()
     end
 
     test "returns health data on 200 success" do
-      setup_unstructured_config()
+      setup_extractor_config()
 
       Req.Test.stub(Client, fn conn ->
         assert conn.method == "GET"
@@ -115,7 +115,7 @@ defmodule KsefHub.Unstructured.ClientTest do
     end
 
     test "returns error for non-map body" do
-      setup_unstructured_config()
+      setup_extractor_config()
 
       Req.Test.stub(Client, fn conn ->
         conn
@@ -127,7 +127,7 @@ defmodule KsefHub.Unstructured.ClientTest do
     end
 
     test "returns error on non-200 status" do
-      setup_unstructured_config()
+      setup_extractor_config()
 
       Req.Test.stub(Client, fn conn ->
         conn
@@ -135,11 +135,11 @@ defmodule KsefHub.Unstructured.ClientTest do
         |> Plug.Conn.send_resp(503, Jason.encode!(%{"error" => "unavailable"}))
       end)
 
-      assert {:error, {:unstructured_service_error, 503}} = Client.health()
+      assert {:error, {:extractor_error, 503}} = Client.health()
     end
 
     test "returns error on network failure" do
-      setup_unstructured_config()
+      setup_extractor_config()
 
       Req.Test.stub(Client, fn conn ->
         Req.Test.transport_error(conn, :econnrefused)
@@ -150,14 +150,14 @@ defmodule KsefHub.Unstructured.ClientTest do
     end
   end
 
-  @spec setup_unstructured_config() :: :ok
-  defp setup_unstructured_config do
-    Application.put_env(:ksef_hub, :unstructured_url, "http://localhost:9000")
-    Application.put_env(:ksef_hub, :unstructured_api_token, "test-token")
+  @spec setup_extractor_config() :: :ok
+  defp setup_extractor_config do
+    Application.put_env(:ksef_hub, :invoice_extractor_url, "http://localhost:9000")
+    Application.put_env(:ksef_hub, :invoice_extractor_api_token, "test-token")
 
     on_exit(fn ->
-      Application.delete_env(:ksef_hub, :unstructured_url)
-      Application.delete_env(:ksef_hub, :unstructured_api_token)
+      Application.delete_env(:ksef_hub, :invoice_extractor_url)
+      Application.delete_env(:ksef_hub, :invoice_extractor_api_token)
     end)
   end
 end

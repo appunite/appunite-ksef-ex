@@ -34,23 +34,23 @@ if pdf_renderer_url = System.get_env("PDF_RENDERER_URL") do
   config :ksef_hub, :pdf_renderer_url, pdf_renderer_url
 end
 
-if unstructured_url = System.get_env("UNSTRUCTURED_URL") do
+if invoice_extractor_url = System.get_env("INVOICE_EXTRACTOR_URL") do
   if config_env() == :prod do
-    uri = URI.parse(unstructured_url)
+    uri = URI.parse(invoice_extractor_url)
 
     if uri.scheme != "https" do
       raise """
-      UNSTRUCTURED_URL must use HTTPS in production.
-      Got: #{unstructured_url}
+      INVOICE_EXTRACTOR_URL must use HTTPS in production.
+      Got: #{invoice_extractor_url}
       """
     end
   end
 
-  config :ksef_hub, :unstructured_url, unstructured_url
+  config :ksef_hub, :invoice_extractor_url, invoice_extractor_url
 end
 
-if unstructured_api_token = System.get_env("UNSTRUCTURED_API_TOKEN") do
-  config :ksef_hub, :unstructured_api_token, unstructured_api_token
+if invoice_extractor_api_token = System.get_env("INVOICE_EXTRACTOR_API_TOKEN") do
+  config :ksef_hub, :invoice_extractor_api_token, invoice_extractor_api_token
 end
 
 if prediction_service_url = System.get_env("PREDICTION_SERVICE_URL") do

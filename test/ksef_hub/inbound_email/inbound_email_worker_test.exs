@@ -37,7 +37,7 @@ defmodule KsefHub.InboundEmail.InboundEmailWorkerTest do
     test "creates invoice on successful extraction with matching buyer NIP", %{company: company} do
       record = create_inbound_email(company)
 
-      KsefHub.Unstructured.Mock
+      KsefHub.InvoiceExtractor.Mock
       |> expect(:extract, fn _pdf, _opts ->
         {:ok,
          %{
@@ -62,7 +62,7 @@ defmodule KsefHub.InboundEmail.InboundEmailWorkerTest do
     test "creates invoice with needs_review when extraction is partial", %{company: company} do
       record = create_inbound_email(company)
 
-      KsefHub.Unstructured.Mock
+      KsefHub.InvoiceExtractor.Mock
       |> expect(:extract, fn _pdf, _opts ->
         {:ok, %{"seller_name" => "Partial Seller"}}
       end)
@@ -79,9 +79,9 @@ defmodule KsefHub.InboundEmail.InboundEmailWorkerTest do
     } do
       record = create_inbound_email(company)
 
-      KsefHub.Unstructured.Mock
+      KsefHub.InvoiceExtractor.Mock
       |> expect(:extract, fn _pdf, _opts ->
-        {:error, {:unstructured_service_error, 500}}
+        {:error, {:extractor_error, 500}}
       end)
 
       assert :ok = perform_job(record.id, company.id)
@@ -94,7 +94,7 @@ defmodule KsefHub.InboundEmail.InboundEmailWorkerTest do
     test "rejects when seller NIP matches company (income invoice)", %{company: company} do
       record = create_inbound_email(company)
 
-      KsefHub.Unstructured.Mock
+      KsefHub.InvoiceExtractor.Mock
       |> expect(:extract, fn _pdf, _opts ->
         {:ok,
          %{
@@ -119,7 +119,7 @@ defmodule KsefHub.InboundEmail.InboundEmailWorkerTest do
     test "rejects when neither NIP matches company", %{company: company} do
       record = create_inbound_email(company)
 
-      KsefHub.Unstructured.Mock
+      KsefHub.InvoiceExtractor.Mock
       |> expect(:extract, fn _pdf, _opts ->
         {:ok,
          %{
@@ -156,7 +156,7 @@ defmodule KsefHub.InboundEmail.InboundEmailWorkerTest do
     test "passes context with company info to extraction service", %{company: company} do
       record = create_inbound_email(company)
 
-      KsefHub.Unstructured.Mock
+      KsefHub.InvoiceExtractor.Mock
       |> expect(:extract, fn _pdf, opts ->
         context = Keyword.get(opts, :context)
         assert is_binary(context)
@@ -193,7 +193,7 @@ defmodule KsefHub.InboundEmail.InboundEmailWorkerTest do
           original_filename: "invoice.pdf"
         })
 
-      KsefHub.Unstructured.Mock
+      KsefHub.InvoiceExtractor.Mock
       |> expect(:extract, fn _pdf, _opts ->
         {:ok,
          %{

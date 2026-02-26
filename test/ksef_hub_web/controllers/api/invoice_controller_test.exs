@@ -478,7 +478,7 @@ defmodule KsefHubWeb.Api.InvoiceControllerTest do
     test "returns 201 with extracted data", %{conn: conn} do
       %{token: token} = create_owner_with_token()
 
-      Mox.expect(KsefHub.Unstructured.Mock, :extract, fn _pdf, _opts ->
+      Mox.expect(KsefHub.InvoiceExtractor.Mock, :extract, fn _pdf, _opts ->
         {:ok,
          %{
            "seller_nip" => "1234567890",
@@ -516,7 +516,7 @@ defmodule KsefHubWeb.Api.InvoiceControllerTest do
     test "returns 201 with partial extraction", %{conn: conn} do
       %{token: token} = create_owner_with_token()
 
-      Mox.expect(KsefHub.Unstructured.Mock, :extract, fn _pdf, _opts ->
+      Mox.expect(KsefHub.InvoiceExtractor.Mock, :extract, fn _pdf, _opts ->
         {:ok, %{"seller_name" => "Partial Seller"}}
       end)
 
@@ -592,8 +592,8 @@ defmodule KsefHubWeb.Api.InvoiceControllerTest do
     } do
       %{token: token} = create_owner_with_token()
 
-      Mox.expect(KsefHub.Unstructured.Mock, :extract, fn _pdf, _opts ->
-        {:error, {:unstructured_service_error, 500}}
+      Mox.expect(KsefHub.InvoiceExtractor.Mock, :extract, fn _pdf, _opts ->
+        {:error, {:extractor_error, 500}}
       end)
 
       upload = %Plug.Upload{
@@ -616,7 +616,7 @@ defmodule KsefHubWeb.Api.InvoiceControllerTest do
     test "does not include pdf_content in response", %{conn: conn} do
       %{token: token} = create_owner_with_token()
 
-      Mox.expect(KsefHub.Unstructured.Mock, :extract, fn _pdf, _opts ->
+      Mox.expect(KsefHub.InvoiceExtractor.Mock, :extract, fn _pdf, _opts ->
         {:ok, %{"seller_name" => "Test"}}
       end)
 

@@ -1,12 +1,12 @@
-defmodule KsefHub.Unstructured.Client do
+defmodule KsefHub.InvoiceExtractor.Client do
   @moduledoc """
   HTTP client for the au-ksef-unstructured PDF extraction sidecar.
 
   Sends PDF files via multipart upload to the extraction service and returns
-  structured invoice data. Follows the same pattern as `KsefHub.Predictions.PredictionService`.
+  structured invoice data.
   """
 
-  @behaviour KsefHub.Unstructured.Behaviour
+  @behaviour KsefHub.InvoiceExtractor.Behaviour
 
   require Logger
 
@@ -39,7 +39,7 @@ defmodule KsefHub.Unstructured.Client do
           {:error, {:invalid_payload, body}}
 
         {:ok, %{status: status}} ->
-          {:error, {:unstructured_service_error, status}}
+          {:error, {:extractor_error, status}}
 
         {:error, reason} ->
           {:error, {:request_failed, reason}}
@@ -64,16 +64,16 @@ defmodule KsefHub.Unstructured.Client do
         {:ok, body}
 
       {:ok, %{status: status}} ->
-        Logger.error("Unstructured service returned #{status} for /extract")
+        Logger.error("Invoice extractor returned #{status} for /extract")
 
-        {:error, {:unstructured_service_error, status}}
+        {:error, {:extractor_error, status}}
 
       {:error, %{__struct__: struct_name} = reason} ->
-        Logger.error("Unstructured service request failed for /extract: #{inspect(struct_name)}")
+        Logger.error("Invoice extractor request failed for /extract: #{inspect(struct_name)}")
         {:error, {:request_failed, reason}}
 
       {:error, reason} ->
-        Logger.error("Unstructured service request failed for /extract")
+        Logger.error("Invoice extractor request failed for /extract")
         {:error, {:request_failed, reason}}
     end
   end
@@ -93,22 +93,22 @@ defmodule KsefHub.Unstructured.Client do
   @spec build_req(String.t()) :: Req.Request.t()
   defp build_req(base_url) do
     [base_url: base_url, receive_timeout: @receive_timeout]
-    |> Keyword.merge(Application.get_env(:ksef_hub, :unstructured_req_options, []))
+    |> Keyword.merge(Application.get_env(:ksef_hub, :invoice_extractor_req_options, []))
     |> Req.new()
   end
 
-  @spec fetch_url() :: {:ok, String.t()} | {:error, :unstructured_service_not_configured}
+  @spec fetch_url() :: {:ok, String.t()} | {:error, :extractor_not_configured}
   defp fetch_url do
-    case Application.get_env(:ksef_hub, :unstructured_url) do
-      nil -> {:error, :unstructured_service_not_configured}
+    case Application.get_env(:ksef_hub, :invoice_extractor_url) do
+      nil -> {:error, :extractor_not_configured}
       url -> {:ok, url}
     end
   end
 
-  @spec fetch_token() :: {:ok, String.t()} | {:error, :unstructured_token_not_configured}
+  @spec fetch_token() :: {:ok, String.t()} | {:error, :extractor_token_not_configured}
   defp fetch_token do
-    case Application.get_env(:ksef_hub, :unstructured_api_token) do
-      nil -> {:error, :unstructured_token_not_configured}
+    case Application.get_env(:ksef_hub, :invoice_extractor_api_token) do
+      nil -> {:error, :extractor_token_not_configured}
       token -> {:ok, token}
     end
   end

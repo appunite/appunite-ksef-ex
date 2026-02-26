@@ -37,7 +37,7 @@ defmodule KsefHubWeb.WebhookControllerTest do
       conn: conn,
       inbound_token: token
     } do
-      KsefHub.Unstructured.Mock
+      KsefHub.InvoiceExtractor.Mock
       |> expect(:extract, fn _pdf, _opts ->
         {:ok,
          %{
@@ -141,7 +141,7 @@ defmodule KsefHubWeb.WebhookControllerTest do
       conn: conn,
       inbound_token: token
     } do
-      KsefHub.Unstructured.Mock
+      KsefHub.InvoiceExtractor.Mock
       |> expect(:extract, fn _pdf, _opts ->
         {:ok,
          %{
@@ -175,7 +175,7 @@ defmodule KsefHubWeb.WebhookControllerTest do
     } do
       Application.delete_env(:ksef_hub, :inbound_allowed_sender_domain)
 
-      KsefHub.Unstructured.Mock
+      KsefHub.InvoiceExtractor.Mock
       |> expect(:extract, fn _pdf, _opts ->
         {:ok,
          %{

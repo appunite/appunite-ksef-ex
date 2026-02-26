@@ -14,7 +14,7 @@ defmodule KsefHub.InboundEmail.InboundEmailWorker do
   alias KsefHub.InboundEmail
   alias KsefHub.InboundEmail.{NipVerifier, ReplyNotifier}
   alias KsefHub.Invoices
-  alias KsefHub.Unstructured.ContextBuilder
+  alias KsefHub.InvoiceExtractor.ContextBuilder
 
   @impl Oban.Worker
   @spec perform(Oban.Job.t()) :: :ok | {:cancel, String.t()} | {:error, term()}
@@ -54,7 +54,7 @@ defmodule KsefHub.InboundEmail.InboundEmailWorker do
   defp extract_pdf(record, company) do
     context = ContextBuilder.build(company)
 
-    unstructured_client().extract(record.pdf_content,
+    invoice_extractor().extract(record.pdf_content,
       filename: record.original_filename || "invoice.pdf",
       context: context
     )
@@ -172,8 +172,8 @@ defmodule KsefHub.InboundEmail.InboundEmailWorker do
     :ok
   end
 
-  @spec unstructured_client() :: module()
-  defp unstructured_client do
-    Application.get_env(:ksef_hub, :unstructured_client, KsefHub.Unstructured.Client)
+  @spec invoice_extractor() :: module()
+  defp invoice_extractor do
+    Application.get_env(:ksef_hub, :invoice_extractor, KsefHub.InvoiceExtractor.Client)
   end
 end

@@ -11,7 +11,7 @@ defmodule KsefHub.Invoices do
   alias KsefHub.Invoices.{Category, Invoice, InvoiceTag, Tag}
   alias KsefHub.Predictions.PredictionWorker
   alias KsefHub.Repo
-  alias KsefHub.Unstructured.ContextBuilder
+  alias KsefHub.InvoiceExtractor.ContextBuilder
 
   @list_fields Invoice.__schema__(:fields) -- [:xml_content, :pdf_content]
   @max_per_page 100
@@ -407,7 +407,7 @@ defmodule KsefHub.Invoices do
 
     extract_opts = [filename: filename || "invoice.pdf", context: context]
 
-    case unstructured_client().extract(pdf_binary, extract_opts) do
+    case invoice_extractor().extract(pdf_binary, extract_opts) do
       {:ok, extracted} ->
         do_create_pdf_upload(company.id, pdf_binary, type, filename, extracted)
 
@@ -619,9 +619,9 @@ defmodule KsefHub.Invoices do
     end
   end
 
-  @spec unstructured_client() :: module()
-  defp unstructured_client do
-    Application.get_env(:ksef_hub, :unstructured_client, KsefHub.Unstructured.Client)
+  @spec invoice_extractor() :: module()
+  defp invoice_extractor do
+    Application.get_env(:ksef_hub, :invoice_extractor, KsefHub.InvoiceExtractor.Client)
   end
 
   @doc """

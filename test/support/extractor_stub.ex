@@ -1,6 +1,6 @@
-defmodule KsefHub.Unstructured.StubService do
+defmodule KsefHub.InvoiceExtractor.StubClient do
   @moduledoc false
-  @behaviour KsefHub.Unstructured.Behaviour
+  @behaviour KsefHub.InvoiceExtractor.Behaviour
 
   @impl true
   def extract(_pdf_binary, _opts) do

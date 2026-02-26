@@ -22,7 +22,7 @@ config :ksef_hub,
   pkcs12_converter: KsefHub.Credentials.Pkcs12Converter.Openssl,
   ksef_api_url: "https://api-test.ksef.mf.gov.pl",
   prediction_client: KsefHub.Predictions.PredictionService,
-  unstructured_client: KsefHub.Unstructured.Client
+  invoice_extractor: KsefHub.InvoiceExtractor.Client
 
 # Oban background jobs (sync interval overridable via SYNC_INTERVAL_MINUTES in runtime.exs)
 config :ksef_hub, Oban,
