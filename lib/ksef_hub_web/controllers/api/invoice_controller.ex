@@ -170,7 +170,7 @@ defmodule KsefHubWeb.Api.InvoiceController do
   @doc "Uploads a PDF invoice for automatic data extraction."
   @spec upload(Plug.Conn.t(), map()) :: Plug.Conn.t()
   def upload(conn, params) do
-    company_id = conn.assigns.current_company.id
+    company = conn.assigns.current_company
 
     with {:ok, upload} <- validate_file_present(params),
          {:ok, _type} <- validate_type_present(params),
@@ -180,7 +180,7 @@ defmodule KsefHubWeb.Api.InvoiceController do
       type = params["type"]
       filename = upload.filename
 
-      case Invoices.create_pdf_upload_invoice(company_id, pdf_binary, %{
+      case Invoices.create_pdf_upload_invoice(company, pdf_binary, %{
              type: type,
              filename: filename
            }) do

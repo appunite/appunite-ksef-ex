@@ -14,6 +14,7 @@ defmodule KsefHub.Unstructured.Behaviour do
 
   ## Options
     * `:filename` - original filename for the PDF (default: `"invoice.pdf"`)
+    * `:context` - domain context string injected into the LLM prompt for better extraction
 
   ## Returns
     * `{:ok, map()}` - extracted fields as string-keyed map
