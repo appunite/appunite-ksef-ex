@@ -1,4 +1,4 @@
-defmodule KsefHub.Pdf.Behaviour do
+defmodule KsefHub.PdfRenderer.Behaviour do
   @moduledoc """
   Behaviour for PDF generation pipeline.
   """

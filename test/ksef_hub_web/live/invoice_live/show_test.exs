@@ -28,7 +28,7 @@ defmodule KsefHubWeb.InvoiceLive.ShowTest do
   end
 
   defp stub_pdf(_context) do
-    stub(KsefHub.Pdf.Mock, :generate_html, fn _xml, _meta -> {:error, :no_xml} end)
+    stub(KsefHub.PdfRenderer.Mock, :generate_html, fn _xml, _meta -> {:error, :no_xml} end)
     :ok
   end
 
@@ -36,7 +36,7 @@ defmodule KsefHubWeb.InvoiceLive.ShowTest do
     test "renders invoice detail page", %{conn: conn, company: company} do
       invoice = insert(:invoice, type: :income, company: company)
 
-      stub(KsefHub.Pdf.Mock, :generate_html, fn _xml, _meta -> {:ok, "<html>preview</html>"} end)
+      stub(KsefHub.PdfRenderer.Mock, :generate_html, fn _xml, _meta -> {:ok, "<html>preview</html>"} end)
 
       {:ok, _view, html} = live(conn, ~p"/invoices/#{invoice.id}")
       assert html =~ invoice.invoice_number
@@ -48,7 +48,7 @@ defmodule KsefHubWeb.InvoiceLive.ShowTest do
       xml = File.read!("test/support/fixtures/sample_income.xml")
       invoice = insert(:invoice, type: :income, xml_content: xml, company: company)
 
-      stub(KsefHub.Pdf.Mock, :generate_html, fn _xml, _meta -> {:ok, "<html>preview</html>"} end)
+      stub(KsefHub.PdfRenderer.Mock, :generate_html, fn _xml, _meta -> {:ok, "<html>preview</html>"} end)
 
       {:ok, view, _html} = live(conn, ~p"/invoices/#{invoice.id}")
 
@@ -61,7 +61,7 @@ defmodule KsefHubWeb.InvoiceLive.ShowTest do
       xml = File.read!("test/support/fixtures/sample_income.xml")
       invoice = insert(:invoice, type: :income, xml_content: xml, company: company)
 
-      stub(KsefHub.Pdf.Mock, :generate_html, fn _xml, _meta -> {:ok, "<html>preview</html>"} end)
+      stub(KsefHub.PdfRenderer.Mock, :generate_html, fn _xml, _meta -> {:ok, "<html>preview</html>"} end)
 
       {:ok, _view, html} = live(conn, ~p"/invoices/#{invoice.id}")
       assert html =~ "preview"
@@ -255,7 +255,7 @@ defmodule KsefHubWeb.InvoiceLive.ShowTest do
       invoice =
         insert(:invoice, company: company, extraction_status: :partial, net_amount: nil)
 
-      stub(KsefHub.Pdf.Mock, :generate_html, fn _xml, _meta -> {:error, :no_xml} end)
+      stub(KsefHub.PdfRenderer.Mock, :generate_html, fn _xml, _meta -> {:error, :no_xml} end)
 
       {:ok, view, _html} = live(conn, ~p"/invoices/#{invoice.id}")
       assert has_element?(view, "[class*=rounded-md]", "Incomplete")
@@ -265,7 +265,7 @@ defmodule KsefHubWeb.InvoiceLive.ShowTest do
     test "does not show extraction badge for complete invoice", %{conn: conn, company: company} do
       invoice = insert(:invoice, company: company, extraction_status: :complete)
 
-      stub(KsefHub.Pdf.Mock, :generate_html, fn _xml, _meta -> {:error, :no_xml} end)
+      stub(KsefHub.PdfRenderer.Mock, :generate_html, fn _xml, _meta -> {:error, :no_xml} end)
 
       {:ok, view, _html} = live(conn, ~p"/invoices/#{invoice.id}")
       refute has_element?(view, "[class*=rounded-md]", "Incomplete")
@@ -284,7 +284,7 @@ defmodule KsefHubWeb.InvoiceLive.ShowTest do
           net_amount: nil
         )
 
-      stub(KsefHub.Pdf.Mock, :generate_html, fn _xml, _meta -> {:error, :no_xml} end)
+      stub(KsefHub.PdfRenderer.Mock, :generate_html, fn _xml, _meta -> {:error, :no_xml} end)
 
       {:ok, view, _html} = live(conn, ~p"/invoices/#{invoice.id}")
 
@@ -297,7 +297,7 @@ defmodule KsefHubWeb.InvoiceLive.ShowTest do
     test "shows edit form when Edit button is clicked", %{conn: conn, company: company} do
       invoice = insert(:invoice, company: company)
 
-      stub(KsefHub.Pdf.Mock, :generate_html, fn _xml, _meta -> {:error, :no_xml} end)
+      stub(KsefHub.PdfRenderer.Mock, :generate_html, fn _xml, _meta -> {:error, :no_xml} end)
 
       {:ok, view, _html} = live(conn, ~p"/invoices/#{invoice.id}")
       refute has_element?(view, "form[phx-submit=save_edit]")
@@ -313,7 +313,7 @@ defmodule KsefHubWeb.InvoiceLive.ShowTest do
       invoice =
         insert(:invoice, company: company, extraction_status: :partial, net_amount: nil)
 
-      stub(KsefHub.Pdf.Mock, :generate_html, fn _xml, _meta -> {:error, :no_xml} end)
+      stub(KsefHub.PdfRenderer.Mock, :generate_html, fn _xml, _meta -> {:error, :no_xml} end)
 
       {:ok, view, _html} = live(conn, ~p"/invoices/#{invoice.id}")
       assert has_element?(view, "form[phx-submit=save_edit]")
@@ -323,7 +323,7 @@ defmodule KsefHubWeb.InvoiceLive.ShowTest do
       invoice =
         insert(:invoice, company: company, extraction_status: :partial, net_amount: nil)
 
-      stub(KsefHub.Pdf.Mock, :generate_html, fn _xml, _meta -> {:error, :no_xml} end)
+      stub(KsefHub.PdfRenderer.Mock, :generate_html, fn _xml, _meta -> {:error, :no_xml} end)
 
       {:ok, view, _html} = live(conn, ~p"/invoices/#{invoice.id}")
       assert has_element?(view, "form[phx-submit=save_edit]")
@@ -341,7 +341,7 @@ defmodule KsefHubWeb.InvoiceLive.ShowTest do
           gross_amount: nil
         )
 
-      stub(KsefHub.Pdf.Mock, :generate_html, fn _xml, _meta -> {:error, :no_xml} end)
+      stub(KsefHub.PdfRenderer.Mock, :generate_html, fn _xml, _meta -> {:error, :no_xml} end)
 
       {:ok, view, _html} = live(conn, ~p"/invoices/#{invoice.id}")
 
@@ -363,7 +363,7 @@ defmodule KsefHubWeb.InvoiceLive.ShowTest do
     test "shows validation errors for invalid NIP", %{conn: conn, company: company} do
       invoice = insert(:invoice, company: company)
 
-      stub(KsefHub.Pdf.Mock, :generate_html, fn _xml, _meta -> {:error, :no_xml} end)
+      stub(KsefHub.PdfRenderer.Mock, :generate_html, fn _xml, _meta -> {:error, :no_xml} end)
 
       {:ok, view, _html} = live(conn, ~p"/invoices/#{invoice.id}")
       view |> element("button", "Edit") |> render_click()
@@ -392,7 +392,7 @@ defmodule KsefHubWeb.InvoiceLive.ShowTest do
       insert(:membership, user: reviewer, company: company, role: :reviewer)
 
       conn = build_conn() |> log_in_user(reviewer, %{current_company_id: company.id})
-      stub(KsefHub.Pdf.Mock, :generate_html, fn _xml, _meta -> {:error, :no_xml} end)
+      stub(KsefHub.PdfRenderer.Mock, :generate_html, fn _xml, _meta -> {:error, :no_xml} end)
       %{conn: conn, company: company}
     end
 

@@ -82,7 +82,7 @@ defmodule KsefHubWeb.InvoicePdfControllerTest do
           invoice_number: "FV/2025/002"
         )
 
-      stub(KsefHub.Pdf.Mock, :generate_pdf, fn _xml, _meta ->
+      stub(KsefHub.PdfRenderer.Mock, :generate_pdf, fn _xml, _meta ->
         {:ok, "%PDF-fake-content"}
       end)
 

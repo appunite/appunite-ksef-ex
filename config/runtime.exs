@@ -30,8 +30,8 @@ if ksef_api_url = System.get_env("KSEF_API_URL") do
   config :ksef_hub, :ksef_api_url, ksef_api_url
 end
 
-if ksef_pdf_url = System.get_env("KSEF_PDF_URL") do
-  config :ksef_hub, :ksef_pdf_url, ksef_pdf_url
+if pdf_renderer_url = System.get_env("PDF_RENDERER_URL") do
+  config :ksef_hub, :pdf_renderer_url, pdf_renderer_url
 end
 
 if unstructured_url = System.get_env("UNSTRUCTURED_URL") do

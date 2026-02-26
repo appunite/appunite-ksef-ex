@@ -77,7 +77,7 @@ defmodule KsefHubWeb.InvoicePdfController do
 
   @spec generate_and_send_pdf(Plug.Conn.t(), map()) :: Plug.Conn.t()
   defp generate_and_send_pdf(conn, invoice) do
-    pdf_mod = Application.get_env(:ksef_hub, :pdf_generator, KsefHub.Pdf)
+    pdf_mod = Application.get_env(:ksef_hub, :pdf_renderer, KsefHub.PdfRenderer)
 
     metadata = %{ksef_number: invoice.ksef_number}
 
