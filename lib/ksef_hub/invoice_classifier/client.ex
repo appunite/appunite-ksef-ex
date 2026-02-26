@@ -57,8 +57,8 @@ defmodule KsefHub.InvoiceClassifier.Client do
   @spec fetch_url() :: {:ok, String.t()} | {:error, :classifier_not_configured}
   defp fetch_url do
     case Application.get_env(:ksef_hub, :invoice_classifier_url) do
-      nil -> {:error, :classifier_not_configured}
-      url -> {:ok, url}
+      url when is_binary(url) and url != "" -> {:ok, url}
+      _ -> {:error, :classifier_not_configured}
     end
   end
 

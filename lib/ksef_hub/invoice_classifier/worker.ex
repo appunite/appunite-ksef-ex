@@ -30,6 +30,14 @@ defmodule KsefHub.InvoiceClassifier.Worker do
 
   def maybe_enqueue(_invoice), do: :skip
 
+  @doc """
+  Oban entry point: classifies an expense invoice via the ML sidecar.
+
+  Looks up the invoice by `"invoice_id"` and `"company_id"` from job args.
+  Returns `:ok` on success, `{:cancel, reason}` for non-retryable cases
+  (missing invoice, non-expense, already manual, service not configured),
+  or `{:error, term()}` for transient failures.
+  """
   @impl Oban.Worker
   @spec perform(Oban.Job.t()) :: :ok | {:cancel, String.t()} | {:error, term()}
   def perform(%Oban.Job{args: %{"invoice_id" => invoice_id, "company_id" => company_id}}) do

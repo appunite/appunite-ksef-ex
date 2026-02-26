@@ -42,8 +42,8 @@ defmodule KsefHub.PdfRenderer.Client do
   @spec fetch_url() :: {:ok, String.t()} | {:error, :pdf_renderer_not_configured}
   defp fetch_url do
     case Application.get_env(:ksef_hub, :pdf_renderer_url) do
-      nil -> {:error, :pdf_renderer_not_configured}
-      url -> {:ok, url}
+      url when is_binary(url) and url != "" -> {:ok, url}
+      _ -> {:error, :pdf_renderer_not_configured}
     end
   end
 

@@ -100,16 +100,16 @@ defmodule KsefHub.InvoiceExtractor.Client do
   @spec fetch_url() :: {:ok, String.t()} | {:error, :extractor_not_configured}
   defp fetch_url do
     case Application.get_env(:ksef_hub, :invoice_extractor_url) do
-      nil -> {:error, :extractor_not_configured}
-      url -> {:ok, url}
+      url when is_binary(url) and url != "" -> {:ok, url}
+      _ -> {:error, :extractor_not_configured}
     end
   end
 
   @spec fetch_token() :: {:ok, String.t()} | {:error, :extractor_token_not_configured}
   defp fetch_token do
     case Application.get_env(:ksef_hub, :invoice_extractor_api_token) do
-      nil -> {:error, :extractor_token_not_configured}
-      token -> {:ok, token}
+      token when is_binary(token) and token != "" -> {:ok, token}
+      _ -> {:error, :extractor_token_not_configured}
     end
   end
 

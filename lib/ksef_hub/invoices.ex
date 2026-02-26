@@ -383,7 +383,7 @@ defmodule KsefHub.Invoices do
   end
 
   @doc """
-  Creates an invoice from an uploaded PDF via the unstructured extraction service.
+  Creates an invoice from an uploaded PDF via the InvoiceExtractor sidecar.
 
   Calls the extraction sidecar to parse the PDF, maps extracted fields to invoice
   attrs, determines extraction status based on which critical fields are present,
