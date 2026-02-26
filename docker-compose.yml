@@ -15,7 +15,7 @@ services:
       timeout: 3s
       retries: 5
 
-  ksef-pdf:
+  pdf-renderer:
     image: ghcr.io/appunite/ksef-pdf:latest
     ports:
       - "3001:3001"
@@ -26,13 +26,13 @@ services:
       retries: 3
       start_period: 10s
 
-  unstructured:
+  invoice-extractor:
     image: ghcr.io/appunite/au-ksef-unstructured:v0.1.0
     ports:
       - "3002:8080"
     environment:
       - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY}
-      - API_TOKEN=${UNSTRUCTURED_API_TOKEN}
+      - API_TOKEN=${INVOICE_EXTRACTOR_API_TOKEN}
     healthcheck:
       test: ["CMD", "wget", "-qO-", "http://localhost:8080/health"]
       interval: 10s
@@ -40,7 +40,7 @@ services:
       retries: 3
       start_period: 30s
 
-  prediction-service:
+  invoice-classifier:
     image: ghcr.io/appunite/au-payroll-model-categories:latest
     ports:
       - "3003:8080"

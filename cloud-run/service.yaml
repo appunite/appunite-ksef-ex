@@ -12,7 +12,7 @@ spec:
       annotations:
         autoscaling.knative.dev/minScale: "0"
         autoscaling.knative.dev/maxScale: "3"
-        run.googleapis.com/container-dependencies: '{"ksef-hub":["ksef-pdf"]}'
+        run.googleapis.com/container-dependencies: '{"ksef-hub":["pdf-renderer"]}'
         run.googleapis.com/startup-cpu-boost: "true"
     spec:
       containerConcurrency: 80
@@ -48,7 +48,7 @@ spec:
               value: "ksef-hub.appunite.com"
             - name: KSEF_API_URL
               value: "https://ksef-test.mf.gov.pl"
-            - name: KSEF_PDF_URL
+            - name: PDF_RENDERER_URL
               value: "http://localhost:3001"
             - name: POOL_SIZE
               value: "5"
@@ -78,8 +78,8 @@ spec:
                   key: latest
                   name: credential-encryption-key
 
-        # --- KSeF PDF sidecar (PDF + HTML generation) ---
-        - name: ksef-pdf
+        # --- PDF renderer sidecar (PDF + HTML generation) ---
+        - name: pdf-renderer
           image: europe-central2-docker.pkg.dev/au-ksef-ex/ksef-hub/ksef-pdf:latest
           resources:
             limits:

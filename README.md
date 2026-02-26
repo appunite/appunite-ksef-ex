@@ -25,9 +25,9 @@ Embedding KSeF complexity (certificate auth, XADES signing, XML parsing, rate li
 
 | Service | Image | Purpose |
 |---------|-------|---------|
-| **ksef-pdf** | `ghcr.io/appunite/ksef-pdf` | FA(3) XML → PDF/HTML rendering |
-| **au-ksef-unstructured** | `ghcr.io/appunite/au-ksef-unstructured` | PDF → structured invoice data extraction |
-| **au-payroll-model-categories** | `ghcr.io/appunite/au-payroll-model-categories` | ML-based category/tag prediction |
+| **pdf-renderer** | `ghcr.io/appunite/ksef-pdf` | FA(3) XML → PDF/HTML rendering |
+| **invoice-extractor** | `ghcr.io/appunite/au-ksef-unstructured` | PDF → structured invoice data extraction |
+| **invoice-classifier** | `ghcr.io/appunite/au-payroll-model-categories` | ML-based category/tag classification |
 
 See [`docs/sidecar-services.md`](docs/sidecar-services.md) for integration details.
 
@@ -61,9 +61,9 @@ Key variables (see `.env.example` for the full list):
 | `CREDENTIAL_ENCRYPTION_KEY` | Base64-encoded 32-byte AES-256 key for certificate encryption at rest |
 | `GOOGLE_CLIENT_ID` / `GOOGLE_CLIENT_SECRET` | Google OAuth credentials |
 | `KSEF_API_URL` | KSeF API URL (`https://api-test.ksef.mf.gov.pl` for test) |
-| `KSEF_PDF_URL` | ksef-pdf sidecar URL (default: `http://localhost:3001`) |
-| `UNSTRUCTURED_URL` | PDF extraction sidecar URL (default: `http://localhost:3002`) |
-| `PREDICTION_SERVICE_URL` | ML prediction sidecar URL (default: `http://localhost:3003`) |
+| `PDF_RENDERER_URL` | PDF renderer sidecar URL (default: `http://localhost:3001`) |
+| `INVOICE_EXTRACTOR_URL` | Invoice extractor sidecar URL (default: `http://localhost:3002`) |
+| `INVOICE_CLASSIFIER_URL` | Invoice classifier sidecar URL (default: `http://localhost:3003`) |
 | `MAILGUN_SIGNING_KEY` | Mailgun webhook signing key (for inbound email) |
 
 ### Docker
@@ -153,7 +153,7 @@ DELETE /api/tokens/:id      # revoke token
 │                   KSeF Hub (Phoenix)                     │
 │                                                          │
 │  LiveView UI    REST API    Oban Workers    Webhooks     │
-│  (admin)        (/api/*)    (sync, predict) (Mailgun)    │
+│  (admin)        (/api/*)    (sync, classify)(Mailgun)    │
 └──────┬────────────┬────────────┬──────────────┬──────────┘
        │            │            │              │
        ▼            ▼            ▼              ▼
@@ -166,8 +166,8 @@ DELETE /api/tokens/:id      # revoke token
                          │
           ┌──────────────┼──────────────┐
           ▼              ▼              ▼
-      ksef-pdf     unstructured    prediction
-      (PDF/HTML)   (PDF→JSON)      (ML categories)
+    pdf-renderer   invoice-ext.   invoice-cls.
+      (PDF/HTML)   (PDF→JSON)    (ML categories)
 ```
 
 ### Key Flows
@@ -176,9 +176,9 @@ DELETE /api/tokens/:id      # revoke token
 
 **PDF Generation:** FA(3) XML → ksef-pdf sidecar → PDF/HTML.
 
-**Inbound Email:** Mailgun webhook → signature verification → NIP extraction → au-ksef-unstructured sidecar (PDF → structured data) → invoice creation.
+**Inbound Email:** Mailgun webhook → signature verification → NIP extraction → invoice-extractor sidecar (PDF → structured data) → invoice creation.
 
-**ML Prediction (Oban, on expense creation):** New expense invoice → PredictionWorker → au-payroll-model-categories sidecar → auto-assign category/tags.
+**Invoice Classification (Oban, on expense creation):** New expense invoice → ClassifierWorker → invoice-classifier sidecar → auto-assign category/tags.
 
 ## Project Structure
 
@@ -189,9 +189,9 @@ lib/
 │   ├── credentials/           # Certificate encryption, storage, PKCS12 parsing
 │   ├── ksef_client/           # KSeF API client (auth, query, download)
 │   ├── sync/                  # Oban sync workers, checkpoints, dispatching
-│   ├── predictions/           # ML prediction sidecar client + Oban worker
-│   ├── pdf/                   # PDF/HTML generation via ksef-pdf sidecar
-│   ├── unstructured/          # PDF extraction via au-ksef-unstructured sidecar
+│   ├── invoice_classifier/    # ML classification sidecar client + Oban worker
+│   ├── pdf_renderer/          # PDF/HTML generation via pdf-renderer sidecar
+│   ├── invoice_extractor/     # PDF extraction via invoice-extractor sidecar
 │   ├── inbound_email/         # Mailgun webhook processing + Oban worker
 │   ├── companies/             # Multi-company support, memberships
 │   ├── accounts/              # Users, API tokens
