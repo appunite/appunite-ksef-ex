@@ -16,8 +16,8 @@ defmodule KsefHub.Unstructured.ContextBuilder do
 
   ## Examples
 
-      iex> company = %Company{name: "AppUnite S.A.", nip: "5261040828", address: "ul. Piaskowa 3, Poznań"}
-      iex> ContextBuilder.build(company)
+      iex> company = %KsefHub.Companies.Company{name: "AppUnite S.A.", nip: "5261040828", address: "ul. Piaskowa 3, Poznań"}
+      iex> KsefHub.Unstructured.ContextBuilder.build(company)
       "There are two possible invoice types: income (the company sells) and expense (the company buys). The company is AppUnite S.A., NIP 5261040828, ul. Piaskowa 3, Poznań. This is most likely a Polish VAT invoice (Faktura VAT) or a US invoice. Most common currencies are PLN, USD, EUR, GBP."
   """
   @spec build(Company.t()) :: String.t()

@@ -1,4 +1,6 @@
 defmodule KsefHub.Unstructured.ContextBuilderTest do
+  @moduledoc "Tests for ContextBuilder: company context string generation for extraction."
+
   use ExUnit.Case, async: true
 
   alias KsefHub.Companies.Company
