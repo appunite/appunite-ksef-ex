@@ -8,6 +8,7 @@ KSeF Hub delegates specialized processing to sidecar microservices running along
 |---------|---------|------|------------|-----|
 | **ksef-pdf** | FA(3) XML → PDF/HTML rendering (matches official gov.pl portal) | 3001 | [appunite/ksef-pdf-generator](https://github.com/appunite/ksef-pdf-generator) | [0015](adr/0015-ksef-pdf-microservice.md) |
 | **au-ksef-unstructured** | PDF → structured JSON extraction (unstructured + Anthropic Claude) | 3002 | [emilwojtaszek/au-ksef-unstructured](https://github.com/emilwojtaszek/au-ksef-unstructured) | [0017](adr/0017-unstructured-pdf-extraction-sidecar.md) |
+| **au-payroll-model-categories** | Invoice category/tag classification (FastAPI + LightGBM) | 3003 | [appunite/au-payroll-model-categories](https://github.com/appunite/au-payroll-model-categories) | [0019](adr/0019-ml-prediction-sidecar.md) |
 
 ## Architecture
 
@@ -20,6 +21,9 @@ KSeF Hub delegates specialized processing to sidecar microservices running along
 │                                 │
 │  KsefHub.Unstructured ────────────► au-ksef-unstructured (:3002)
 │                                 │     PDF → structured JSON
+│                                 │
+│  KsefHub.Predictions ────────────► au-payroll-model-categories (:3003)
+│                                 │     Invoice category/tag classification
 └─────────────────────────────────┘
 ```
 
@@ -39,6 +43,7 @@ Each sidecar follows the same integration pattern in the Elixir app:
 | `KSEF_PDF_URL` | ksef-pdf | Sidecar URL (e.g., `http://localhost:3001`) |
 | `UNSTRUCTURED_URL` | au-ksef-unstructured | Sidecar URL (e.g., `http://localhost:3002`) |
 | `UNSTRUCTURED_API_TOKEN` | au-ksef-unstructured | Bearer token for authentication |
+| `PREDICTION_SERVICE_URL` | au-payroll-model-categories | Sidecar URL (e.g., `http://localhost:3003`) |
 
 ## Running Locally
 
