@@ -488,9 +488,9 @@ defmodule KsefHub.Invoices do
       original_filename: filename,
       extraction_status: extraction_status,
       ksef_number: get_extracted_string(extracted, "ksef_number"),
-      seller_nip: get_extracted_string(extracted, "seller_nip"),
+      seller_nip: get_extracted_nip(extracted, "seller_nip"),
       seller_name: get_extracted_string(extracted, "seller_name"),
-      buyer_nip: get_extracted_string(extracted, "buyer_nip"),
+      buyer_nip: get_extracted_nip(extracted, "buyer_nip"),
       buyer_name: get_extracted_string(extracted, "buyer_name"),
       invoice_number: get_extracted_string(extracted, "invoice_number"),
       issue_date: get_extracted_date(extracted, "issue_date"),
@@ -505,6 +505,14 @@ defmodule KsefHub.Invoices do
   defp get_extracted_string(data, key) do
     value = data[key]
     if is_binary(value) && value != "", do: value, else: nil
+  end
+
+  @spec get_extracted_nip(map(), String.t()) :: String.t() | nil
+  defp get_extracted_nip(data, key) do
+    case get_extracted_string(data, key) do
+      nil -> nil
+      value -> if Regex.match?(~r/^\d{10}$/, value), do: value, else: nil
+    end
   end
 
   @spec get_extracted_date(map(), String.t()) :: Date.t() | nil
@@ -525,9 +533,11 @@ defmodule KsefHub.Invoices do
 
   @spec get_extracted_decimal(map(), String.t()) :: Decimal.t() | nil
   defp get_extracted_decimal(data, key) do
-    case get_extracted_string(data, key) do
+    case data[key] do
       nil -> nil
-      value -> parse_decimal(value)
+      value when is_number(value) -> Decimal.from_float(value / 1)
+      value when is_binary(value) -> parse_decimal(value)
+      _ -> nil
     end
   end
 

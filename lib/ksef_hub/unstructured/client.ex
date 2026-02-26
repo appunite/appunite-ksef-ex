@@ -58,6 +58,9 @@ defmodule KsefHub.Unstructured.Client do
            ],
            headers: [{"authorization", "Bearer #{token}"}]
          ) do
+      {:ok, %{status: 200, body: %{"success" => true, "data" => data}}} when is_map(data) ->
+        {:ok, data}
+
       {:ok, %{status: 200, body: body}} when is_map(body) ->
         {:ok, body}
 

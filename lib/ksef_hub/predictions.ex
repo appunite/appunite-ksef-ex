@@ -28,10 +28,17 @@ defmodule KsefHub.Predictions do
           {:ok, Invoice.t()} | {:error, term()} | {:skip, atom()}
   def predict_and_apply(%Invoice{type: :expense} = invoice) do
     input = build_input(invoice)
+    client = prediction_client()
 
-    with {:ok, cat_result} <- prediction_client().predict_category(input),
-         {:ok, tag_result} <- prediction_client().predict_tag(input) do
-      apply_predictions(invoice, cat_result, tag_result)
+    cat_task = Task.async(fn -> client.predict_category(input) end)
+    tag_task = Task.async(fn -> client.predict_tag(input) end)
+
+    cat_result = Task.await(cat_task, :timer.seconds(20))
+    tag_result = Task.await(tag_task, :timer.seconds(20))
+
+    with {:ok, cat} <- cat_result,
+         {:ok, tag} <- tag_result do
+      apply_predictions(invoice, cat, tag)
     end
   end
 
