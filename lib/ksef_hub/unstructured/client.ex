@@ -19,7 +19,8 @@ defmodule KsefHub.Unstructured.Client do
     with {:ok, base_url} <- fetch_url(),
          {:ok, token} <- fetch_token() do
       filename = opts |> Keyword.get(:filename, "invoice.pdf") |> sanitize_filename()
-      do_extract(base_url, token, pdf_binary, filename)
+      context = Keyword.get(opts, :context)
+      do_extract(base_url, token, pdf_binary, filename, context)
     end
   end
 
@@ -46,16 +47,14 @@ defmodule KsefHub.Unstructured.Client do
     end
   end
 
-  @spec do_extract(String.t(), String.t(), binary(), String.t()) ::
+  @spec do_extract(String.t(), String.t(), binary(), String.t(), String.t() | nil) ::
           {:ok, map()} | {:error, term()}
-  defp do_extract(base_url, token, pdf_binary, filename) do
+  defp do_extract(base_url, token, pdf_binary, filename, context) do
     case base_url
          |> build_req()
          |> Req.post(
            url: "/extract",
-           form_multipart: [
-             file: {pdf_binary, filename: filename, content_type: "application/pdf"}
-           ],
+           form_multipart: build_form_parts(pdf_binary, filename, context),
            headers: [{"authorization", "Bearer #{token}"}]
          ) do
       {:ok, %{status: 200, body: %{"success" => true, "data" => data}}} when is_map(data) ->
@@ -77,6 +76,18 @@ defmodule KsefHub.Unstructured.Client do
         Logger.error("Unstructured service request failed for /extract")
         {:error, {:request_failed, reason}}
     end
+  end
+
+  @spec build_form_parts(binary(), String.t(), String.t() | nil) :: keyword()
+  defp build_form_parts(pdf_binary, filename, nil) do
+    [file: {pdf_binary, filename: filename, content_type: "application/pdf"}]
+  end
+
+  defp build_form_parts(pdf_binary, filename, context) do
+    [
+      file: {pdf_binary, filename: filename, content_type: "application/pdf"},
+      context: context
+    ]
   end
 
   @spec build_req(String.t()) :: Req.Request.t()

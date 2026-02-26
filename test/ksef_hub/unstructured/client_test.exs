@@ -59,6 +59,41 @@ defmodule KsefHub.Unstructured.ClientTest do
       assert {:error, {:request_failed, %Req.TransportError{reason: :econnrefused}}} =
                Client.extract("pdf data", filename: "test.pdf")
     end
+
+    test "sends context as form field when provided in opts" do
+      setup_unstructured_config()
+
+      Req.Test.stub(Client, fn conn ->
+        {:ok, body, conn} = Plug.Conn.read_body(conn)
+        assert body =~ "context"
+        assert body =~ "The company is Test Corp"
+
+        conn
+        |> Plug.Conn.put_resp_content_type("application/json")
+        |> Plug.Conn.send_resp(200, Jason.encode!(%{"seller_nip" => "1234567890"}))
+      end)
+
+      assert {:ok, _} =
+               Client.extract("pdf data",
+                 filename: "test.pdf",
+                 context: "The company is Test Corp, NIP 1234567890."
+               )
+    end
+
+    test "does not send context field when not provided" do
+      setup_unstructured_config()
+
+      Req.Test.stub(Client, fn conn ->
+        {:ok, body, conn} = Plug.Conn.read_body(conn)
+        refute body =~ "context"
+
+        conn
+        |> Plug.Conn.put_resp_content_type("application/json")
+        |> Plug.Conn.send_resp(200, Jason.encode!(%{"seller_nip" => "1234567890"}))
+      end)
+
+      assert {:ok, _} = Client.extract("pdf data", filename: "test.pdf")
+    end
   end
 
   describe "health/0" do

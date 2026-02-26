@@ -7,10 +7,11 @@ defmodule KsefHub.Invoices do
 
   require Logger
 
-  alias KsefHub.Companies.Membership
+  alias KsefHub.Companies.{Company, Membership}
   alias KsefHub.Invoices.{Category, Invoice, InvoiceTag, Tag}
   alias KsefHub.Predictions.PredictionWorker
   alias KsefHub.Repo
+  alias KsefHub.Unstructured.ContextBuilder
 
   @list_fields Invoice.__schema__(:fields) -- [:xml_content, :pdf_content]
   @max_per_page 100
@@ -389,24 +390,30 @@ defmodule KsefHub.Invoices do
   and creates the invoice. Missing fields result in `extraction_status: :partial`
   rather than validation errors.
 
+  Automatically builds a domain context string from the company to improve
+  extraction accuracy.
+
   ## Parameters
-    * `company_id` - the company UUID
+    * `company` - the company struct (used for context building)
     * `pdf_binary` - raw PDF file content
     * `opts` - must include `:type` (`:income` or `:expense`), optionally `:filename`
   """
-  @spec create_pdf_upload_invoice(Ecto.UUID.t(), binary(), map()) ::
+  @spec create_pdf_upload_invoice(Company.t(), binary(), map()) ::
           {:ok, Invoice.t()} | {:error, term()}
-  def create_pdf_upload_invoice(company_id, pdf_binary, opts) do
+  def create_pdf_upload_invoice(%Company{} = company, pdf_binary, opts) do
     type = opts[:type]
     filename = opts[:filename]
+    context = ContextBuilder.build(company)
 
-    case unstructured_client().extract(pdf_binary, filename: filename || "invoice.pdf") do
+    extract_opts = [filename: filename || "invoice.pdf", context: context]
+
+    case unstructured_client().extract(pdf_binary, extract_opts) do
       {:ok, extracted} ->
-        do_create_pdf_upload(company_id, pdf_binary, type, filename, extracted)
+        do_create_pdf_upload(company.id, pdf_binary, type, filename, extracted)
 
       {:error, _reason} ->
         Logger.warning("PDF extraction failed for file: #{filename || "invoice.pdf"}")
-        do_create_pdf_upload_failed(company_id, pdf_binary, type, filename)
+        do_create_pdf_upload_failed(company.id, pdf_binary, type, filename)
     end
   end
 

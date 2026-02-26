@@ -153,6 +153,35 @@ defmodule KsefHub.InboundEmail.InboundEmailWorkerTest do
                perform_job(record.id, Ecto.UUID.generate())
     end
 
+    test "passes context with company info to extraction service", %{company: company} do
+      record = create_inbound_email(company)
+
+      KsefHub.Unstructured.Mock
+      |> expect(:extract, fn _pdf, opts ->
+        context = Keyword.get(opts, :context)
+        assert is_binary(context)
+        assert context =~ company.name
+        assert context =~ company.nip
+
+        {:ok,
+         %{
+           "seller_nip" => "9999999999",
+           "seller_name" => "Seller Sp. z o.o.",
+           "buyer_nip" => "1234567890",
+           "buyer_name" => "Buyer S.A.",
+           "invoice_number" => "FV/2026/CTX",
+           "issue_date" => "2026-02-25",
+           "net_amount" => "1000.00",
+           "gross_amount" => "1230.00"
+         }}
+      end)
+
+      assert :ok = perform_job(record.id, company.id)
+
+      updated = InboundEmail.get_inbound_email!(record.id)
+      assert updated.status == :completed
+    end
+
     test "sets status to failed when invoice creation fails", %{company: company} do
       # Create record without pdf_content — invoice creation requires it for :email source
       {:ok, record} =

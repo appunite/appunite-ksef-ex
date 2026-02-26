@@ -586,7 +586,7 @@ defmodule KsefHub.InvoicesTest do
       end)
 
       assert {:ok, %Invoice{} = invoice} =
-               Invoices.create_pdf_upload_invoice(company.id, "pdf-data", %{
+               Invoices.create_pdf_upload_invoice(company, "pdf-data", %{
                  type: :expense,
                  filename: "test.pdf"
                })
@@ -612,7 +612,7 @@ defmodule KsefHub.InvoicesTest do
       end)
 
       assert {:ok, %Invoice{} = invoice} =
-               Invoices.create_pdf_upload_invoice(company.id, "pdf-data", %{
+               Invoices.create_pdf_upload_invoice(company, "pdf-data", %{
                  type: :expense,
                  filename: "partial.pdf"
                })
@@ -630,7 +630,7 @@ defmodule KsefHub.InvoicesTest do
       end)
 
       assert {:ok, %Invoice{} = invoice} =
-               Invoices.create_pdf_upload_invoice(company.id, "pdf-data", %{
+               Invoices.create_pdf_upload_invoice(company, "pdf-data", %{
                  type: :expense,
                  filename: "failed.pdf"
                })
@@ -657,10 +657,32 @@ defmodule KsefHub.InvoicesTest do
       end)
 
       assert {:ok, %Invoice{} = invoice} =
-               Invoices.create_pdf_upload_invoice(company.id, "pdf-data", %{type: :expense})
+               Invoices.create_pdf_upload_invoice(company, "pdf-data", %{type: :expense})
 
       assert invoice.duplicate_of_id == existing.id
       assert invoice.duplicate_status == :suspected
+    end
+
+    test "passes context with company info to extraction service", %{company: company} do
+      Mox.expect(KsefHub.Unstructured.Mock, :extract, fn _pdf, opts ->
+        context = Keyword.get(opts, :context)
+        assert is_binary(context)
+        assert context =~ company.name
+        assert context =~ company.nip
+
+        {:ok,
+         %{
+           "seller_nip" => "1234567890",
+           "seller_name" => "Seller",
+           "invoice_number" => "FV/CTX/001",
+           "issue_date" => "2026-02-20",
+           "net_amount" => "1000.00",
+           "gross_amount" => "1230.00"
+         }}
+      end)
+
+      assert {:ok, %Invoice{}} =
+               Invoices.create_pdf_upload_invoice(company, "pdf-data", %{type: :expense})
     end
   end
 
