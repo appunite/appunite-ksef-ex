@@ -8,8 +8,8 @@ defmodule KsefHub.Predictions.PredictionWorkerTest do
 
   @moduletag :set_mox_global
 
-  setup :verify_on_exit!
   setup :set_mox_from_context
+  setup :verify_on_exit!
 
   setup do
     company = insert(:company)
@@ -81,6 +81,9 @@ defmodule KsefHub.Predictions.PredictionWorkerTest do
       |> expect(:predict_category, fn _input ->
         {:error, :prediction_service_not_configured}
       end)
+      |> expect(:predict_tag, fn _input ->
+        {:ok, %{"predicted_label" => "x", "confidence" => 0.0, "model_version" => "v1.0", "probabilities" => %{}}}
+      end)
 
       job = build_job(invoice)
       assert {:cancel, "prediction service not configured"} = PredictionWorker.perform(job)
@@ -91,6 +94,9 @@ defmodule KsefHub.Predictions.PredictionWorkerTest do
 
       KsefHub.Predictions.Mock
       |> expect(:predict_category, fn _input ->
+        {:error, {:request_failed, :timeout}}
+      end)
+      |> expect(:predict_tag, fn _input ->
         {:error, {:request_failed, :timeout}}
       end)
 
