@@ -1,26 +1,43 @@
 # KSeF Hub
 
-Dedicated microservice for Poland's **National e-Invoice System (KSeF)**. Handles the complexity of KSeF integration — certificate authentication, XADES signing, FA(3) XML parsing, invoice sync, and PDF generation — exposing clean REST APIs for any consumer application.
+Dedicated microservice for Poland's **National e-Invoice System (KSeF)**. Handles the complexity of KSeF integration — certificate authentication, XADES signing, FA(3) XML parsing, invoice sync, ML-based categorization, PDF generation — exposing clean REST APIs and a LiveView admin UI.
 
 ## Why
 
-Embedding KSeF complexity (certificate auth, XML parsing, rate limits, gov.pl stylesheets) into every consumer app is wrong. **KSeF Hub** owns it all in one place and provides simple APIs.
+Embedding KSeF complexity (certificate auth, XADES signing, XML parsing, rate limits, gov.pl stylesheets) into every consumer app is wrong. **KSeF Hub** owns it all in one place and provides simple APIs.
 
 ## Tech Stack
 
-- **Elixir** + **Phoenix 1.8** (REST API + LiveView admin UI)
-- **PostgreSQL** via Supabase + Ecto
-- **xmlsec1** — XADES certificate signing
-- **ksef-pdf** — PDF + HTML generation microservice (ghcr.io/appunite/ksef-pdf)
-- **Tailwind CSS** + **DaisyUI** — admin UI styling
+| Layer | Technology |
+|-------|-----------|
+| Language | Elixir 1.18+ / OTP 28+ |
+| Framework | Phoenix 1.8 + LiveView |
+| Database | PostgreSQL via Ecto |
+| Auth (UI) | Google OAuth + email/password |
+| Auth (API) | Bearer API tokens (hashed, revocable) |
+| Background jobs | Oban (async workers, scheduled sync) |
+| XADES signing | xmlsec1 (CLI) |
+| API docs | OpenAPI 3.0 via open_api_spex + SwaggerUI |
+| UI styling | Tailwind CSS + DaisyUI |
+| Deployment | Docker, GCP Cloud Run |
+
+### Sidecar Services
+
+| Service | Image | Purpose |
+|---------|-------|---------|
+| **ksef-pdf** | `ghcr.io/appunite/ksef-pdf` | FA(3) XML → PDF/HTML rendering |
+| **au-ksef-unstructured** | `ghcr.io/appunite/au-ksef-unstructured` | PDF → structured invoice data extraction |
+| **au-payroll-model-categories** | `ghcr.io/appunite/au-payroll-model-categories` | ML-based category/tag prediction |
+
+See [`docs/sidecar-services.md`](docs/sidecar-services.md) for integration details.
 
 ## Getting Started
 
 ### Prerequisites
 
 - Erlang 28+ / Elixir 1.18+ (see `.tool-versions`)
-- PostgreSQL (or Supabase)
-- `xmlsec1` for XADES signing
+- PostgreSQL
+- `xmlsec1` for XADES signing (`apt-get install -y xmlsec1` on Debian/Ubuntu)
 
 ### Setup
 
@@ -31,123 +48,170 @@ mix phx.server     # http://localhost:4000
 
 ### Configuration
 
-Copy and configure environment variables:
-
 ```bash
 cp .env.example .env
-# Edit .env with your credentials:
-# - DATABASE_URL
-# - SECRET_KEY_BASE
-# - KSEF_API_URL
-# - GOOGLE_CLIENT_ID / GOOGLE_CLIENT_SECRET
-# - KSEF_PDF_URL
-# - CREDENTIAL_ENCRYPTION_KEY
 ```
 
-See the full list in [`CLAUDE.md`](CLAUDE.md#environment-variables).
+Key variables (see `.env.example` for the full list):
+
+| Variable | Description |
+|----------|-------------|
+| `DATABASE_URL` | PostgreSQL connection string |
+| `SECRET_KEY_BASE` | Phoenix secret key |
+| `CREDENTIAL_ENCRYPTION_KEY` | Base64-encoded 32-byte AES-256 key for certificate encryption at rest |
+| `GOOGLE_CLIENT_ID` / `GOOGLE_CLIENT_SECRET` | Google OAuth credentials |
+| `KSEF_API_URL` | KSeF API URL (`https://api-test.ksef.mf.gov.pl` for test) |
+| `KSEF_PDF_URL` | ksef-pdf sidecar URL (default: `http://localhost:3001`) |
+| `UNSTRUCTURED_URL` | PDF extraction sidecar URL (default: `http://localhost:3002`) |
+| `PREDICTION_SERVICE_URL` | ML prediction sidecar URL (default: `http://localhost:3003`) |
+| `MAILGUN_SIGNING_KEY` | Mailgun webhook signing key (for inbound email) |
 
 ### Docker
 
 ```bash
-make docker.build
-make docker.up     # starts app + ksef-pdf sidecar
+make docker.build  # build app image
+make docker.up     # starts db + all sidecar services
 ```
 
-## Available Make Targets
+## Make Targets
 
-```makefile
-make help          # list all targets
-make test          # run tests
-make fmt           # format code
-make lint          # credo --strict
-make precommit     # format + compile warnings + tests
-make server        # start dev server
-make db.setup      # create + migrate + seed
-make docker.build  # build Docker image
+```
+make help            # list all targets
+make test            # run tests
+make test.integration # run integration tests (requires KSeF credentials)
+make fmt             # format code
+make lint            # credo --strict
+make dialyzer        # type checking
+make precommit       # format + compile warnings + tests
+make server          # start dev server
+make console         # start dev server with IEx
+make db.setup        # create + migrate + seed
+make db.migrate      # run pending migrations
+make db.reset        # drop + setup
+make docker.build    # build Docker image
+make docker.up       # start all services (docker compose)
+make docker.down     # stop all services
 ```
 
-## API Overview
+## API
 
-### Expense Invoices
-
-```http
-GET    /api/expenses          # list with filters
-GET    /api/expenses/:id      # invoice details
-POST   /api/expenses/:id/approve
-POST   /api/expenses/:id/reject
-GET    /api/expenses/:id/html # HTML preview
-GET    /api/expenses/:id/pdf  # PDF download
-```
-
-### Income Invoices
-
-```http
-GET    /api/income            # list with filters
-GET    /api/income/:id        # invoice details
-```
+All API endpoints require a Bearer token. Full OpenAPI spec available at `/api/openapi` and SwaggerUI at `/dev/swaggerui` (dev only).
 
 ### Authentication
 
-All API endpoints require a Bearer token.
-
-**Getting a token:**
-
-1. Sign in to the admin UI at `http://localhost:4000` using your Google account
-2. Navigate to **Settings > API Tokens**
-3. Click **Generate Token**, give it a name, and copy the token immediately (it is shown only once)
-
-Tokens are scoped to full read access. Revoke tokens from the same settings page.
-
-**Using the token:**
+1. Sign in to the admin UI at `http://localhost:4000`
+2. Navigate to **Tokens** in the sidebar
+3. Generate a token and copy it immediately (shown only once)
 
 ```bash
-curl -H "Authorization: Bearer <token>" http://localhost:4000/api/expenses
+curl -H "Authorization: Bearer <token>" http://localhost:4000/api/invoices
+```
+
+### Invoices
+
+```http
+GET    /api/invoices                    # list with filters
+GET    /api/invoices/:id                # invoice detail
+POST   /api/invoices                    # create from FA(3) XML
+PATCH  /api/invoices/:id                # update invoice
+POST   /api/invoices/upload             # upload PDF/image for extraction
+POST   /api/invoices/:id/approve        # approve expense
+POST   /api/invoices/:id/reject         # reject expense
+POST   /api/invoices/:id/confirm-duplicate
+POST   /api/invoices/:id/dismiss-duplicate
+GET    /api/invoices/:id/html           # HTML preview
+GET    /api/invoices/:id/pdf            # PDF download
+GET    /api/invoices/:id/xml            # XML download
+PUT    /api/invoices/:id/category       # set category
+POST   /api/invoices/:id/tags           # add tags
+PUT    /api/invoices/:id/tags           # replace tags
+DELETE /api/invoices/:id/tags/:tag_id   # remove tag
+```
+
+### Categories & Tags
+
+```http
+GET    /api/categories      POST   /api/categories
+GET    /api/categories/:id  PATCH  /api/categories/:id  DELETE /api/categories/:id
+
+GET    /api/tags            POST   /api/tags
+GET    /api/tags/:id        PATCH  /api/tags/:id        DELETE /api/tags/:id
+```
+
+### API Tokens
+
+```http
+GET    /api/tokens          # list tokens
+POST   /api/tokens          # create token
+DELETE /api/tokens/:id      # revoke token
 ```
 
 ## Architecture
 
 ```text
-┌─────────────────────────────────────────────┐
-│              KSeF Hub (Phoenix)              │
-│                                             │
-│  LiveView UI    REST API    Sync Worker     │
-│  (admin)        (/api/*)    (15-min cron)   │
-└──────┬──────────────┬──────────────┬────────┘
-       │              │              │
-       ▼              ▼              ▼
-   Google OAuth   API Tokens    KSeF API
-                                (gov.pl)
-       │              │              │
-       └──────────────┴──────────────┘
-                      │
-                 PostgreSQL
-                 (Supabase)
+┌──────────────────────────────────────────────────────────┐
+│                   KSeF Hub (Phoenix)                     │
+│                                                          │
+│  LiveView UI    REST API    Oban Workers    Webhooks     │
+│  (admin)        (/api/*)    (sync, predict) (Mailgun)    │
+└──────┬────────────┬────────────┬──────────────┬──────────┘
+       │            │            │              │
+       ▼            ▼            ▼              ▼
+  Google OAuth   API Tokens   KSeF API    Inbound Email
+  Email/Pass                  (gov.pl)    (PDF extraction)
+       │            │            │              │
+       └────────────┴────────────┴──────────────┘
+                         │
+                    PostgreSQL
+                         │
+          ┌──────────────┼──────────────┐
+          ▼              ▼              ▼
+      ksef-pdf     unstructured    prediction
+      (PDF/HTML)   (PDF→JSON)      (ML categories)
 ```
 
-**PDF pipeline:** FA(3) XML → ksef-pdf microservice → PDF
+### Key Flows
+
+**Invoice Sync (Oban, every 60 min per company):** Load certificate → XADES authenticate → query invoice headers (incremental, since last checkpoint) → download each XML (rate-limited) → parse FA(3) → upsert to DB → advance checkpoint → terminate session.
+
+**PDF Generation:** FA(3) XML → ksef-pdf sidecar → PDF/HTML.
+
+**Inbound Email:** Mailgun webhook → signature verification → NIP extraction → au-ksef-unstructured sidecar (PDF → structured data) → invoice creation.
+
+**ML Prediction (Oban, on expense creation):** New expense invoice → PredictionWorker → au-payroll-model-categories sidecar → auto-assign category/tags.
 
 ## Project Structure
 
 ```text
 lib/
-├── ksef_hub/              # Business logic (contexts)
-│   ├── invoices/          # Invoice CRUD, parsing, approval
-│   ├── credentials/       # Certificate encryption & storage
-│   ├── ksef_client/       # KSeF API communication
-│   ├── pdf/               # PDF generation pipeline
-│   └── sync_worker.ex     # Background sync GenServer
+├── ksef_hub/                  # Business logic (contexts)
+│   ├── invoices/              # Invoice CRUD, parsing, approval, categories, tags
+│   ├── credentials/           # Certificate encryption, storage, PKCS12 parsing
+│   ├── ksef_client/           # KSeF API client (auth, query, download)
+│   ├── sync/                  # Oban sync workers, checkpoints, dispatching
+│   ├── predictions/           # ML prediction sidecar client + Oban worker
+│   ├── pdf/                   # PDF/HTML generation via ksef-pdf sidecar
+│   ├── unstructured/          # PDF extraction via au-ksef-unstructured sidecar
+│   ├── inbound_email/         # Mailgun webhook processing + Oban worker
+│   ├── companies/             # Multi-company support, memberships
+│   ├── accounts/              # Users, API tokens
+│   ├── invitations/           # Company invitation system
+│   └── xades_signer/          # xmlsec1 CLI wrapper for XADES signing
 │
-└── ksef_hub_web/          # Web layer
-    ├── controllers/api/   # REST JSON endpoints
-    ├── live/              # LiveView admin pages
+└── ksef_hub_web/              # Web layer
+    ├── controllers/api/       # REST JSON controllers
+    ├── live/                  # LiveView admin pages (18 modules)
+    ├── schemas/               # OpenAPI request/response schemas
+    ├── plugs/                 # Auth middleware
     └── router.ex
 ```
 
 ## Documentation
 
 - [`docs/prd.md`](docs/prd.md) — Product Requirements Document
-- [`docs/sidecar-services.md`](docs/sidecar-services.md) — Sidecar microservices (ksef-pdf, au-ksef-unstructured)
-- `docs/adr/` — Architecture Decision Records
+- [`docs/sidecar-services.md`](docs/sidecar-services.md) — Sidecar microservices architecture
+- [`docs/ksef-certificates.md`](docs/ksef-certificates.md) — Certificate handling guide
+- `docs/adr/` — Architecture Decision Records (25 ADRs)
 
 ## License
 
