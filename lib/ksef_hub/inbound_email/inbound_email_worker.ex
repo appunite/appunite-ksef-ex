@@ -89,13 +89,22 @@ defmodule KsefHub.InboundEmail.InboundEmailWorker do
            filename: record.original_filename
          ) do
       {:ok, invoice} ->
-        InboundEmail.update_status(record, %{status: :completed, invoice_id: invoice.id})
+        log_status_update(
+          InboundEmail.update_status(record, %{status: :completed, invoice_id: invoice.id}),
+          record.id
+        )
+
         send_reply(build_reply(reply_type, record.sender, invoice), record)
         :ok
 
       {:error, reason} ->
         Logger.error("Failed to create email invoice: #{inspect(reason)}")
-        InboundEmail.update_status(record, %{status: :failed, error_message: inspect(reason)})
+
+        log_status_update(
+          InboundEmail.update_status(record, %{status: :failed, error_message: inspect(reason)}),
+          record.id
+        )
+
         :ok
     end
   end
@@ -110,10 +119,13 @@ defmodule KsefHub.InboundEmail.InboundEmailWorker do
 
   @spec reject_and_notify(InboundEmail.InboundEmail.t(), Companies.Company.t(), atom()) :: :ok
   defp reject_and_notify(record, company, reason) do
-    InboundEmail.update_status(record, %{
-      status: :rejected,
-      error_message: rejection_message(reason)
-    })
+    log_status_update(
+      InboundEmail.update_status(record, %{
+        status: :rejected,
+        error_message: rejection_message(reason)
+      }),
+      record.id
+    )
 
     opts = Keyword.merge(reply_opts(), company_name: company.name, nip: company.nip)
     send_reply(ReplyNotifier.rejection(record.sender, reason, opts), record)
@@ -146,6 +158,14 @@ defmodule KsefHub.InboundEmail.InboundEmailWorker do
 
   defp rejection_message(:nip_mismatch),
     do: "Buyer NIP doesn't match company"
+
+  @spec log_status_update({:ok, term()} | {:error, term()}, String.t()) :: :ok
+  defp log_status_update({:ok, _}, _id), do: :ok
+
+  defp log_status_update({:error, reason}, id) do
+    Logger.error("Failed to update inbound email #{id} status: #{inspect(reason)}")
+    :ok
+  end
 
   @spec unstructured_client() :: module()
   defp unstructured_client do

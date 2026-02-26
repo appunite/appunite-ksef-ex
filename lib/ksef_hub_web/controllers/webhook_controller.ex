@@ -72,7 +72,7 @@ defmodule KsefHubWeb.WebhookController do
         check_allowed_domain(sender, String.downcase(domain))
 
       _ ->
-        Logger.info("Invalid sender address: #{inspect(sender)}")
+        Logger.info("Invalid sender address format received")
         {:error, :invalid_sender}
     end
   end
@@ -190,13 +190,32 @@ defmodule KsefHubWeb.WebhookController do
            original_filename: filename
          }) do
       {:ok, record} ->
-        enqueue_processing(record, company)
+        case enqueue_processing(record, company) do
+          {:ok, _job} ->
+            :ok
+
+          {:error, reason} ->
+            Logger.error("Failed to enqueue processing for #{record.id}: #{inspect(reason)}")
+        end
+
         json(conn, %{status: "ok"})
 
-      {:error, _changeset} ->
-        # Likely duplicate message ID — already processed
-        json(conn, %{status: "ok"})
+      {:error, %Ecto.Changeset{} = changeset} ->
+        if duplicate_message_id?(changeset) do
+          json(conn, %{status: "ok"})
+        else
+          Logger.error("Failed to create inbound email: #{inspect(changeset.errors)}")
+          json(conn, %{status: "error", reason: "Failed to process email"})
+        end
     end
+  end
+
+  @spec duplicate_message_id?(Ecto.Changeset.t()) :: boolean()
+  defp duplicate_message_id?(changeset) do
+    Enum.any?(changeset.errors, fn
+      {:mailgun_message_id, {_, opts}} -> opts[:constraint] == :unique
+      _ -> false
+    end)
   end
 
   @spec enqueue_processing(InboundEmail.InboundEmail.t(), Companies.Company.t()) ::

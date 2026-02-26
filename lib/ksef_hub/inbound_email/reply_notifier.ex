@@ -9,12 +9,6 @@ defmodule KsefHub.InboundEmail.ReplyNotifier do
 
   alias KsefHub.Mailer
 
-  @from_email Application.compile_env(
-                :ksef_hub,
-                :mailer_from,
-                {"KSeF Hub", "noreply@ksef-hub.com"}
-              )
-
   @doc "Builds a success reply email for a processed invoice."
   @spec success(String.t(), KsefHub.Invoices.Invoice.t(), keyword()) :: Swoosh.Email.t()
   def success(sender, invoice, opts \\ []) do
@@ -142,7 +136,7 @@ defmodule KsefHub.InboundEmail.ReplyNotifier do
     email =
       new()
       |> to({sender, sender})
-      |> from(@from_email)
+      |> from(from_email())
       |> subject(subject)
       |> text_body(body)
 
@@ -158,6 +152,11 @@ defmodule KsefHub.InboundEmail.ReplyNotifier do
     with {:ok, _metadata} <- Mailer.deliver(email) do
       {:ok, email}
     end
+  end
+
+  @spec from_email() :: {String.t(), String.t()}
+  defp from_email do
+    Application.get_env(:ksef_hub, :mailer_from, {"KSeF Hub", "noreply@ksef-hub.com"})
   end
 
   @spec invoice_url(Ecto.UUID.t() | nil) :: String.t()
