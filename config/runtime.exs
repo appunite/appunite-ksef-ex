@@ -53,19 +53,19 @@ if invoice_extractor_api_token = System.get_env("INVOICE_EXTRACTOR_API_TOKEN") d
   config :ksef_hub, :invoice_extractor_api_token, invoice_extractor_api_token
 end
 
-if prediction_service_url = System.get_env("PREDICTION_SERVICE_URL") do
+if invoice_classifier_url = System.get_env("INVOICE_CLASSIFIER_URL") do
   if config_env() == :prod do
-    uri = URI.parse(prediction_service_url)
+    uri = URI.parse(invoice_classifier_url)
 
     if uri.scheme != "https" do
       raise """
-      PREDICTION_SERVICE_URL must use HTTPS in production.
-      Got: #{prediction_service_url}
+      INVOICE_CLASSIFIER_URL must use HTTPS in production.
+      Got: #{invoice_classifier_url}
       """
     end
   end
 
-  config :ksef_hub, :prediction_service_url, prediction_service_url
+  config :ksef_hub, :invoice_classifier_url, invoice_classifier_url
 end
 
 if sync_interval_env = System.get_env("SYNC_INTERVAL_MINUTES") do

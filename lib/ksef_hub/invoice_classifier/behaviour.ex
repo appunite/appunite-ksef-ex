@@ -1,6 +1,6 @@
-defmodule KsefHub.Predictions.Behaviour do
+defmodule KsefHub.InvoiceClassifier.Behaviour do
   @moduledoc """
-  Behaviour for the ML prediction service (au-payroll-model-categories sidecar).
+  Behaviour for the ML classification service (au-payroll-model-categories sidecar).
 
   Defines callbacks for category and tag prediction on expense invoices.
   """

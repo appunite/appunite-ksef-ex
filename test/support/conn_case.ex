@@ -34,7 +34,7 @@ defmodule KsefHubWeb.ConnCase do
   setup tags do
     KsefHub.DataCase.setup_sandbox(tags)
     # Stub prediction mock so Oban inline jobs don't fail in unrelated tests
-    Mox.stub_with(KsefHub.Predictions.Mock, KsefHub.Predictions.StubService)
+    Mox.stub_with(KsefHub.InvoiceClassifier.Mock, KsefHub.InvoiceClassifier.StubClient)
     Mox.stub_with(KsefHub.InvoiceExtractor.Mock, KsefHub.InvoiceExtractor.StubClient)
     {:ok, conn: Phoenix.ConnTest.build_conn()}
   end

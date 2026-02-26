@@ -21,7 +21,7 @@ config :ksef_hub,
   xades_signer: KsefHub.XadesSigner.Native,
   pkcs12_converter: KsefHub.Credentials.Pkcs12Converter.Openssl,
   ksef_api_url: "https://api-test.ksef.mf.gov.pl",
-  prediction_client: KsefHub.Predictions.PredictionService,
+  invoice_classifier: KsefHub.InvoiceClassifier.Client,
   invoice_extractor: KsefHub.InvoiceExtractor.Client
 
 # Oban background jobs (sync interval overridable via SYNC_INTERVAL_MINUTES in runtime.exs)

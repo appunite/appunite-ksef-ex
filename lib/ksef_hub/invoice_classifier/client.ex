@@ -1,12 +1,12 @@
-defmodule KsefHub.Predictions.PredictionService do
+defmodule KsefHub.InvoiceClassifier.Client do
   @moduledoc """
-  HTTP client for the au-payroll-model-categories ML prediction sidecar.
+  HTTP client for the au-payroll-model-categories ML classification sidecar.
 
   Calls `POST /predict/category` and `POST /predict/tag` endpoints to classify
   expense invoices. Returns predicted label with confidence scores.
   """
 
-  @behaviour KsefHub.Predictions.Behaviour
+  @behaviour KsefHub.InvoiceClassifier.Behaviour
 
   require Logger
 
@@ -26,7 +26,7 @@ defmodule KsefHub.Predictions.PredictionService do
     post("/predict/tag", input)
   end
 
-  @doc "Checks the health of the prediction service."
+  @doc "Checks the health of the classification service."
   @spec health() :: {:ok, map()} | {:error, term()}
   @impl true
   def health do
@@ -39,7 +39,7 @@ defmodule KsefHub.Predictions.PredictionService do
           {:error, {:invalid_payload, body}}
 
         {:ok, %{status: status}} ->
-          {:error, {:prediction_service_error, status}}
+          {:error, {:classifier_error, status}}
 
         {:error, reason} ->
           {:error, {:request_failed, reason}}
@@ -54,10 +54,10 @@ defmodule KsefHub.Predictions.PredictionService do
     end
   end
 
-  @spec fetch_url() :: {:ok, String.t()} | {:error, :prediction_service_not_configured}
+  @spec fetch_url() :: {:ok, String.t()} | {:error, :classifier_not_configured}
   defp fetch_url do
-    case Application.get_env(:ksef_hub, :prediction_service_url) do
-      nil -> {:error, :prediction_service_not_configured}
+    case Application.get_env(:ksef_hub, :invoice_classifier_url) do
+      nil -> {:error, :classifier_not_configured}
       url -> {:ok, url}
     end
   end
@@ -70,13 +70,13 @@ defmodule KsefHub.Predictions.PredictionService do
 
       {:ok, %{status: status, body: body}} ->
         Logger.error(
-          "Prediction service returned #{status} for #{path}: #{inspect(body, limit: 200)}"
+          "Classification service returned #{status} for #{path}: #{inspect(body, limit: 200)}"
         )
 
-        {:error, {:prediction_service_error, status}}
+        {:error, {:classifier_error, status}}
 
       {:error, reason} ->
-        Logger.error("Prediction service request failed for #{path}: #{inspect(reason)}")
+        Logger.error("Classification service request failed for #{path}: #{inspect(reason)}")
         {:error, {:request_failed, reason}}
     end
   end
@@ -84,7 +84,7 @@ defmodule KsefHub.Predictions.PredictionService do
   @spec build_req(String.t()) :: Req.Request.t()
   defp build_req(base_url) do
     [base_url: base_url, receive_timeout: @receive_timeout]
-    |> Keyword.merge(Application.get_env(:ksef_hub, :prediction_service_req_options, []))
+    |> Keyword.merge(Application.get_env(:ksef_hub, :invoice_classifier_req_options, []))
     |> Req.new()
   end
 end

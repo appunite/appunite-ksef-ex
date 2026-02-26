@@ -35,7 +35,7 @@ config :ksef_hub, :xades_signer, KsefHub.XadesSigner.Mock
 config :ksef_hub, :pdf_renderer, KsefHub.PdfRenderer.Mock
 config :ksef_hub, :pkcs12_converter, KsefHub.Credentials.Pkcs12Converter.Mock
 config :ksef_hub, :certificate_info, KsefHub.Credentials.CertificateInfo.Mock
-config :ksef_hub, :prediction_client, KsefHub.Predictions.Mock
+config :ksef_hub, :invoice_classifier, KsefHub.InvoiceClassifier.Mock
 config :ksef_hub, :invoice_extractor, KsefHub.InvoiceExtractor.Mock
 
 config :ksef_hub,
@@ -45,8 +45,8 @@ config :ksef_hub,
   ]
 
 config :ksef_hub,
-  prediction_service_req_options: [
-    plug: {Req.Test, KsefHub.Predictions.PredictionService},
+  invoice_classifier_req_options: [
+    plug: {Req.Test, KsefHub.InvoiceClassifier.Client},
     retry: false
   ]
 

@@ -9,7 +9,7 @@ defmodule KsefHub.Invoices do
 
   alias KsefHub.Companies.{Company, Membership}
   alias KsefHub.Invoices.{Category, Invoice, InvoiceTag, Tag}
-  alias KsefHub.Predictions.PredictionWorker
+  alias KsefHub.InvoiceClassifier.Worker, as: ClassifierWorker
   alias KsefHub.Repo
   alias KsefHub.InvoiceExtractor.ContextBuilder
 
@@ -1105,7 +1105,7 @@ defmodule KsefHub.Invoices do
 
   @spec enqueue_prediction(Invoice.t()) :: :ok | :skip | :enqueue_failed
   defp enqueue_prediction(invoice) do
-    case PredictionWorker.maybe_enqueue(invoice) do
+    case ClassifierWorker.maybe_enqueue(invoice) do
       {:ok, _job} ->
         :ok
 
