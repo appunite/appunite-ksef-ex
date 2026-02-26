@@ -887,6 +887,79 @@ defmodule KsefHub.InvoicesTest do
     end
   end
 
+  describe "create_email_invoice/3" do
+    test "creates an expense invoice with source :email", %{company: company} do
+      pdf_binary = "%PDF-1.4 fake email content"
+
+      extracted = %{
+        "seller_nip" => "1111111111",
+        "seller_name" => "Seller Sp. z o.o.",
+        "buyer_nip" => company.nip,
+        "buyer_name" => "Buyer S.A.",
+        "invoice_number" => "FV/2026/001",
+        "issue_date" => "2026-02-25",
+        "net_amount" => "1000.00",
+        "gross_amount" => "1230.00"
+      }
+
+      assert {:ok, invoice} =
+               Invoices.create_email_invoice(company.id, pdf_binary, extracted,
+                 filename: "invoice.pdf"
+               )
+
+      assert invoice.source == :email
+      assert invoice.type == :expense
+      assert invoice.extraction_status == :complete
+      assert invoice.seller_nip == "1111111111"
+      assert invoice.original_filename == "invoice.pdf"
+      assert invoice.pdf_content == pdf_binary
+    end
+
+    test "creates invoice with partial extraction status when fields missing", %{
+      company: company
+    } do
+      pdf_binary = "%PDF-1.4 fake"
+      extracted = %{"seller_name" => "Partial Seller"}
+
+      assert {:ok, invoice} =
+               Invoices.create_email_invoice(company.id, pdf_binary, extracted, [])
+
+      assert invoice.source == :email
+      assert invoice.type == :expense
+      assert invoice.extraction_status == :partial
+    end
+
+    test "creates invoice with failed extraction status", %{company: company} do
+      pdf_binary = "%PDF-1.4 fake"
+
+      assert {:ok, invoice} =
+               Invoices.create_email_invoice(company.id, pdf_binary, :extraction_failed,
+                 filename: "bad.pdf"
+               )
+
+      assert invoice.source == :email
+      assert invoice.type == :expense
+      assert invoice.extraction_status == :failed
+      assert invoice.original_filename == "bad.pdf"
+    end
+  end
+
+  describe "list_invoices source filter with email" do
+    test "filters invoices by source=email", %{company: company} do
+      insert(:invoice, company: company, source: :ksef)
+
+      insert(:pdf_upload_invoice,
+        company: company,
+        source: :email,
+        type: :expense
+      )
+
+      results = Invoices.list_invoices(company.id, %{source: :email})
+      assert length(results) == 1
+      assert hd(results).source == :email
+    end
+  end
+
   describe "recalculate_extraction_status/2" do
     test "returns complete when all critical fields present", %{company: company} do
       invoice =

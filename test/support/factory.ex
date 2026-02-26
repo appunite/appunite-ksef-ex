@@ -11,6 +11,7 @@ defmodule KsefHub.Factory do
   alias KsefHub.Accounts.{ApiToken, User}
   alias KsefHub.Companies.{Company, Membership}
   alias KsefHub.Credentials.{Credential, UserCertificate}
+  alias KsefHub.InboundEmail.InboundEmail, as: InboundEmailRecord
   alias KsefHub.Invitations.Invitation
   alias KsefHub.Invoices.{Category, Invoice, InvoiceTag, Tag}
   alias KsefHub.Sync.Checkpoint
@@ -220,6 +221,19 @@ defmodule KsefHub.Factory do
       state: "available",
       inserted_at: DateTime.utc_now(),
       meta: %{}
+    }
+  end
+
+  @doc "Builds an `InboundEmailRecord` with default received status and associated company."
+  @spec inbound_email_factory() :: InboundEmailRecord.t()
+  def inbound_email_factory do
+    %InboundEmailRecord{
+      sender: sequence(:inbound_sender, &"sender#{&1}@example.com"),
+      recipient: "inv-test1234@inbound.ksef-hub.com",
+      subject: "Invoice",
+      status: :received,
+      mailgun_message_id: sequence(:mailgun_msg_id, &"<msg-#{&1}@mailgun.org>"),
+      company: build(:company)
     }
   end
 

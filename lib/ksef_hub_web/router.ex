@@ -23,9 +23,20 @@ defmodule KsefHubWeb.Router do
     plug KsefHubWeb.Plugs.ApiAuth
   end
 
+  pipeline :webhook do
+    plug :accepts, ["json", "html"]
+  end
+
   # Health check (no pipeline — used by Cloud Run probes)
   scope "/healthz" do
     get "/", KsefHubWeb.HealthController, :index
+  end
+
+  # Webhook routes (no CSRF, no session, no auth — signature-verified)
+  scope "/webhooks", KsefHubWeb do
+    pipe_through :webhook
+
+    post "/mailgun/inbound", WebhookController, :inbound
   end
 
   # Public browser routes

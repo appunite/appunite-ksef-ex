@@ -117,6 +117,62 @@ defmodule KsefHub.Companies do
   end
 
   # ---------------------------------------------------------------------------
+  # Inbound email token management
+  # ---------------------------------------------------------------------------
+
+  @doc """
+  Generates and sets a random 8-char alphanumeric inbound email token for a company.
+
+  Returns the plaintext token exactly once — only the SHA-256 hash is persisted.
+  """
+  @spec enable_inbound_email(Company.t()) ::
+          {:ok, %{company: Company.t(), token: String.t()}} | {:error, Ecto.Changeset.t()}
+  def enable_inbound_email(%Company{} = company) do
+    plaintext = generate_inbound_token()
+    token_hash = hash_inbound_token(plaintext)
+
+    case company
+         |> Company.inbound_email_token_hash_changeset(token_hash)
+         |> Repo.update() do
+      {:ok, updated} -> {:ok, %{company: updated, token: plaintext}}
+      {:error, changeset} -> {:error, changeset}
+    end
+  end
+
+  @doc "Clears the inbound email token hash, disabling email intake for the company."
+  @spec disable_inbound_email(Company.t()) :: {:ok, Company.t()} | {:error, Ecto.Changeset.t()}
+  def disable_inbound_email(%Company{} = company) do
+    company
+    |> Company.inbound_email_token_hash_changeset(nil)
+    |> Repo.update()
+  end
+
+  @doc "Looks up an active company by its inbound email token (hashed for comparison)."
+  @spec get_company_by_inbound_email_token(String.t() | nil) :: Company.t() | nil
+  def get_company_by_inbound_email_token(nil), do: nil
+
+  def get_company_by_inbound_email_token(token) when is_binary(token) do
+    token_hash = hash_inbound_token(token)
+
+    Company
+    |> where([c], c.inbound_email_token_hash == ^token_hash and c.is_active == true)
+    |> Repo.one()
+  end
+
+  @spec generate_inbound_token() :: String.t()
+  defp generate_inbound_token do
+    :crypto.strong_rand_bytes(6)
+    |> Base.encode32(case: :lower, padding: false)
+    |> binary_part(0, 8)
+  end
+
+  @spec hash_inbound_token(String.t()) :: String.t()
+  defp hash_inbound_token(token) do
+    :crypto.hash(:sha256, token)
+    |> Base.encode16(case: :lower)
+  end
+
+  # ---------------------------------------------------------------------------
   # Membership queries
   # ---------------------------------------------------------------------------
 

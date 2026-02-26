@@ -7,7 +7,7 @@ defmodule KsefHub.Invoices.Invoice do
   @type t :: %__MODULE__{}
   @type invoice_type :: :income | :expense
   @type invoice_status :: :pending | :approved | :rejected
-  @type invoice_source :: :ksef | :manual | :pdf_upload
+  @type invoice_source :: :ksef | :manual | :pdf_upload | :email
   @type extraction_status :: :complete | :partial | :failed
   @type duplicate_status :: :suspected | :confirmed | :dismissed
   @type prediction_status :: :pending | :predicted | :needs_review | :manual
@@ -30,7 +30,7 @@ defmodule KsefHub.Invoices.Invoice do
     field :gross_amount, :decimal
     field :currency, :string, default: "PLN"
     field :status, Ecto.Enum, values: [:pending, :approved, :rejected], default: :pending
-    field :source, Ecto.Enum, values: [:ksef, :manual, :pdf_upload], default: :ksef
+    field :source, Ecto.Enum, values: [:ksef, :manual, :pdf_upload, :email], default: :ksef
     field :duplicate_status, Ecto.Enum, values: [:suspected, :confirmed, :dismissed]
     field :ksef_acquisition_date, :utc_datetime_usec
     field :permanent_storage_date, :utc_datetime_usec
@@ -196,7 +196,7 @@ defmodule KsefHub.Invoices.Invoice do
           :gross_amount
         ])
 
-      :pdf_upload ->
+      source when source in [:pdf_upload, :email] ->
         changeset
         |> validate_required([:pdf_content, :extraction_status])
         |> validate_pdf_content_size()
