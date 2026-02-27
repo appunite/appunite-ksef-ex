@@ -19,10 +19,11 @@ defmodule KsefHubWeb.WebhookController do
   @spec inbound(Plug.Conn.t(), map()) :: Plug.Conn.t()
   def inbound(conn, params) do
     with :ok <- verify_signature(params),
-         {:ok, sender} <- validate_sender_domain(params),
+         {:ok, sender} <- parse_sender(params),
          {:ok, token} <- parse_company_token(params),
          {:ok, company} <- lookup_company(token),
-         {:ok, attachment} <- validate_attachments(params, sender) do
+         :ok <- validate_sender_domain(sender, company),
+         {:ok, attachment} <- validate_attachments(params, sender, company) do
       process_inbound(conn, company, sender, params, attachment)
     else
       {:error, :invalid_signature} ->
@@ -39,8 +40,8 @@ defmodule KsefHubWeb.WebhookController do
       {:error, :unknown_company} ->
         json(conn, %{status: "rejected", reason: "Unknown company token"})
 
-      {:error, {:attachment_error, reason, sender}} ->
-        send_attachment_error_reply(sender, reason, params)
+      {:error, {:attachment_error, reason, sender, company}} ->
+        send_attachment_error_reply(sender, reason, company)
         json(conn, %{status: "rejected", reason: attachment_error_message(reason)})
     end
   end
@@ -62,14 +63,13 @@ defmodule KsefHubWeb.WebhookController do
     end
   end
 
-  @spec validate_sender_domain(map()) ::
-          {:ok, String.t()} | {:error, :disallowed_domain | :invalid_sender}
-  defp validate_sender_domain(params) do
+  @spec parse_sender(map()) :: {:ok, String.t()} | {:error, :invalid_sender}
+  defp parse_sender(params) do
     sender = params["sender"] || ""
 
     case String.split(sender, "@") do
       [local, domain] when local != "" and domain != "" ->
-        check_allowed_domain(sender, String.downcase(domain))
+        {:ok, sender}
 
       _ ->
         Logger.info("Invalid sender address format received")
@@ -77,16 +77,21 @@ defmodule KsefHubWeb.WebhookController do
     end
   end
 
-  @spec check_allowed_domain(String.t(), String.t()) ::
-          {:ok, String.t()} | {:error, :disallowed_domain}
-  defp check_allowed_domain(sender, domain) do
-    case Application.get_env(:ksef_hub, :inbound_allowed_sender_domain) do
+  @spec validate_sender_domain(String.t(), Companies.Company.t()) ::
+          :ok | {:error, :disallowed_domain}
+  defp validate_sender_domain(sender, company) do
+    case company.inbound_allowed_sender_domain do
       nil ->
-        {:ok, sender}
+        :ok
+
+      "" ->
+        :ok
 
       allowed ->
-        if domain == String.downcase(allowed) do
-          {:ok, sender}
+        [_, domain] = String.split(sender, "@")
+
+        if String.downcase(domain) == String.downcase(allowed) do
+          :ok
         else
           Logger.info("Discarding inbound email from disallowed domain: #{domain}")
           {:error, :disallowed_domain}
@@ -113,24 +118,25 @@ defmodule KsefHubWeb.WebhookController do
     end
   end
 
-  @spec validate_attachments(map(), String.t()) ::
-          {:ok, Plug.Upload.t()} | {:error, {:attachment_error, atom(), String.t()}}
-  defp validate_attachments(params, sender) do
+  @spec validate_attachments(map(), String.t(), Companies.Company.t()) ::
+          {:ok, Plug.Upload.t()}
+          | {:error, {:attachment_error, atom(), String.t(), Companies.Company.t()}}
+  defp validate_attachments(params, sender, company) do
     attachments = collect_attachments(params)
 
     case attachments do
       [] ->
-        {:error, {:attachment_error, :no_attachment, sender}}
+        {:error, {:attachment_error, :no_attachment, sender, company}}
 
       [single] ->
         if pdf_attachment?(single) do
           {:ok, single}
         else
-          {:error, {:attachment_error, {:non_pdf, single.filename}, sender}}
+          {:error, {:attachment_error, {:non_pdf, single.filename}, sender, company}}
         end
 
       _multiple ->
-        {:error, {:attachment_error, :multiple_attachments, sender}}
+        {:error, {:attachment_error, :multiple_attachments, sender, company}}
     end
   end
 
@@ -231,10 +237,10 @@ defmodule KsefHubWeb.WebhookController do
     |> Oban.insert()
   end
 
-  @spec send_attachment_error_reply(String.t(), atom() | tuple(), map()) :: :ok
-  defp send_attachment_error_reply(sender, reason, _params) do
-    cc = Application.get_env(:ksef_hub, :inbound_cc_email)
-    opts = if cc, do: [cc: cc], else: []
+  @spec send_attachment_error_reply(String.t(), atom() | tuple(), Companies.Company.t()) :: :ok
+  defp send_attachment_error_reply(sender, reason, company) do
+    cc = company.inbound_cc_email
+    opts = if cc && cc != "", do: [cc: cc], else: []
 
     {rejection_reason, extra_opts} = normalize_attachment_error(reason)
 
