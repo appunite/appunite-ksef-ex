@@ -15,6 +15,8 @@ defmodule KsefHub.Companies.Company do
     field :address, :string
     field :is_active, :boolean, default: true
     field :inbound_email_token_hash, :string
+    field :inbound_allowed_sender_domain, :string
+    field :inbound_cc_email, :string
     field :has_active_credential, :boolean, virtual: true
 
     timestamps()
@@ -28,6 +30,19 @@ defmodule KsefHub.Companies.Company do
     |> validate_required([:name, :nip])
     |> validate_format(:nip, ~r/^\d{10}$/, message: "must be a 10-digit NIP")
     |> unique_constraint(:nip)
+  end
+
+  @doc "Builds a changeset for updating inbound email settings (allowed sender domain, CC email)."
+  @spec inbound_email_settings_changeset(t(), map()) :: Ecto.Changeset.t()
+  def inbound_email_settings_changeset(company, attrs) do
+    company
+    |> cast(attrs, [:inbound_allowed_sender_domain, :inbound_cc_email])
+    |> validate_format(:inbound_allowed_sender_domain, ~r/^[a-z0-9]([a-z0-9-]*[a-z0-9])?(\.[a-z0-9]([a-z0-9-]*[a-z0-9])?)*$/i,
+      message: "must be a valid domain (e.g. appunite.com)"
+    )
+    |> validate_format(:inbound_cc_email, ~r/^[^\s@]+@[^\s@]+\.[^\s@]+$/,
+      message: "must be a valid email address"
+    )
   end
 
   @doc "Builds a changeset for setting or clearing the inbound email token hash."

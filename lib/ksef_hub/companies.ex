@@ -116,6 +116,15 @@ defmodule KsefHub.Companies do
     |> Repo.transaction()
   end
 
+  @doc "Updates inbound email settings (allowed sender domain, CC email) for a company."
+  @spec update_inbound_email_settings(Company.t(), map()) ::
+          {:ok, Company.t()} | {:error, Ecto.Changeset.t()}
+  def update_inbound_email_settings(%Company{} = company, attrs) do
+    company
+    |> Company.inbound_email_settings_changeset(attrs)
+    |> Repo.update()
+  end
+
   # ---------------------------------------------------------------------------
   # Inbound email token management
   # ---------------------------------------------------------------------------
