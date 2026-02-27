@@ -79,23 +79,18 @@ defmodule KsefHubWeb.WebhookController do
 
   @spec validate_sender_domain(String.t(), Companies.Company.t()) ::
           :ok | {:error, :disallowed_domain}
-  defp validate_sender_domain(sender, company) do
-    case company.inbound_allowed_sender_domain do
-      nil ->
-        :ok
+  defp validate_sender_domain(_sender, %{inbound_allowed_sender_domain: nil}), do: :ok
+  defp validate_sender_domain(_sender, %{inbound_allowed_sender_domain: ""}), do: :ok
 
-      "" ->
-        :ok
+  defp validate_sender_domain(sender, %{inbound_allowed_sender_domain: allowed}) do
+    # sender is guaranteed to contain exactly one "@" by parse_sender/1
+    domain = sender |> String.split("@") |> List.last()
 
-      allowed ->
-        [_, domain] = String.split(sender, "@")
-
-        if String.downcase(domain) == String.downcase(allowed) do
-          :ok
-        else
-          Logger.info("Discarding inbound email from disallowed domain: #{domain}")
-          {:error, :disallowed_domain}
-        end
+    if String.downcase(domain) == String.downcase(allowed) do
+      :ok
+    else
+      Logger.info("Discarding inbound email from disallowed domain: #{domain}")
+      {:error, :disallowed_domain}
     end
   end
 
@@ -239,9 +234,7 @@ defmodule KsefHubWeb.WebhookController do
 
   @spec send_attachment_error_reply(String.t(), atom() | tuple(), Companies.Company.t()) :: :ok
   defp send_attachment_error_reply(sender, reason, company) do
-    cc = company.inbound_cc_email
-    opts = if cc && cc != "", do: [cc: cc], else: []
-
+    opts = cc_opts(company)
     {rejection_reason, extra_opts} = normalize_attachment_error(reason)
 
     email = ReplyNotifier.rejection(sender, rejection_reason, opts ++ extra_opts)
@@ -254,6 +247,11 @@ defmodule KsefHubWeb.WebhookController do
         Logger.warning("Failed to send rejection reply: #{inspect(delivery_err)}")
     end
   end
+
+  @spec cc_opts(Companies.Company.t()) :: keyword()
+  defp cc_opts(%{inbound_cc_email: nil}), do: []
+  defp cc_opts(%{inbound_cc_email: ""}), do: []
+  defp cc_opts(%{inbound_cc_email: cc}), do: [cc: cc]
 
   @spec normalize_attachment_error(atom() | tuple()) :: {atom(), keyword()}
   defp normalize_attachment_error(:no_attachment), do: {:no_attachment, []}

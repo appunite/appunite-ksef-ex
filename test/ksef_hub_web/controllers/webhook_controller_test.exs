@@ -171,6 +171,35 @@ defmodule KsefHubWeb.WebhookControllerTest do
       assert json_response(conn2, 200)["status"] == "ok"
     end
 
+    test "accepts any sender domain when company allowed domain is empty string", %{
+      conn: conn
+    } do
+      company = insert(:company, nip: "6666666666", inbound_allowed_sender_domain: "")
+      {:ok, %{token: token}} = Companies.enable_inbound_email(company)
+
+      KsefHub.InvoiceExtractor.Mock
+      |> expect(:extract, fn _pdf, _opts ->
+        {:ok,
+         %{
+           "seller_nip" => "9999999999",
+           "seller_name" => "Seller",
+           "buyer_nip" => "6666666666",
+           "buyer_name" => "Buyer",
+           "invoice_number" => "FV/2026/002",
+           "issue_date" => "2026-02-25",
+           "net_amount" => "1000.00",
+           "gross_amount" => "1230.00"
+         }}
+      end)
+
+      params =
+        build_valid_params(token)
+        |> Map.put("sender", "user@random-domain.com")
+
+      conn = post(conn, "/webhooks/mailgun/inbound", params)
+      assert json_response(conn, 200)["status"] == "ok"
+    end
+
     test "accepts any sender domain when company has no allowed domain configured", %{
       conn: conn
     } do

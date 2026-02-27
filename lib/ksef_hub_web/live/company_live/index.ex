@@ -72,21 +72,11 @@ defmodule KsefHubWeb.CompanyLive.Index do
 
   @impl true
   def handle_event("enable_inbound_email", _params, socket) do
-    company = socket.assigns.company
-
-    case Companies.enable_inbound_email(company) do
+    case Companies.enable_inbound_email(socket.assigns.company) do
       {:ok, %{company: updated, token: token}} ->
-        domain = inbound_email_domain()
-        address = if domain, do: "inv-#{token}@#{domain}", else: token
-
         {:noreply,
          socket
-         |> assign(:company, updated)
-         |> assign(:inbound_email_address, address)
-         |> assign(
-           :inbound_settings_form,
-           to_form(Company.inbound_email_settings_changeset(updated, %{}))
-         )
+         |> assign_inbound_state(updated, build_inbound_address(token))
          |> put_flash(:info, "Inbound email enabled.")}
 
       {:error, _changeset} ->
@@ -96,18 +86,11 @@ defmodule KsefHubWeb.CompanyLive.Index do
 
   @impl true
   def handle_event("disable_inbound_email", _params, socket) do
-    company = socket.assigns.company
-
-    case Companies.disable_inbound_email(company) do
+    case Companies.disable_inbound_email(socket.assigns.company) do
       {:ok, updated} ->
         {:noreply,
          socket
-         |> assign(:company, updated)
-         |> assign(:inbound_email_address, nil)
-         |> assign(
-           :inbound_settings_form,
-           to_form(Company.inbound_email_settings_changeset(updated, %{}))
-         )
+         |> assign_inbound_state(updated)
          |> put_flash(:info, "Inbound email disabled.")}
 
       {:error, _changeset} ->
@@ -117,24 +100,15 @@ defmodule KsefHubWeb.CompanyLive.Index do
 
   @impl true
   def handle_event("regenerate_inbound_email", _params, socket) do
-    company = socket.assigns.company
+    # enable_inbound_email/1 overwrites the existing hash, no need to disable first
+    case Companies.enable_inbound_email(socket.assigns.company) do
+      {:ok, %{company: updated, token: token}} ->
+        {:noreply,
+         socket
+         |> assign_inbound_state(updated, build_inbound_address(token))
+         |> put_flash(:info, "Inbound email address regenerated.")}
 
-    with {:ok, disabled} <- Companies.disable_inbound_email(company),
-         {:ok, %{company: updated, token: token}} <- Companies.enable_inbound_email(disabled) do
-      domain = inbound_email_domain()
-      address = if domain, do: "inv-#{token}@#{domain}", else: token
-
-      {:noreply,
-       socket
-       |> assign(:company, updated)
-       |> assign(:inbound_email_address, address)
-       |> assign(
-         :inbound_settings_form,
-         to_form(Company.inbound_email_settings_changeset(updated, %{}))
-       )
-       |> put_flash(:info, "Inbound email address regenerated.")}
-    else
-      {:error, _} ->
+      {:error, _changeset} ->
         {:noreply, put_flash(socket, :error, "Failed to regenerate inbound email.")}
     end
   end
@@ -156,17 +130,11 @@ defmodule KsefHubWeb.CompanyLive.Index do
 
   @impl true
   def handle_event("save_inbound_settings", %{"company" => params}, socket) do
-    company = socket.assigns.company
-
-    case Companies.update_inbound_email_settings(company, params) do
+    case Companies.update_inbound_email_settings(socket.assigns.company, params) do
       {:ok, updated} ->
         {:noreply,
          socket
-         |> assign(:company, updated)
-         |> assign(
-           :inbound_settings_form,
-           to_form(Company.inbound_email_settings_changeset(updated, %{}))
-         )
+         |> assign_inbound_state(updated)
          |> put_flash(:info, "Inbound email settings saved.")}
 
       {:error, changeset} ->
@@ -215,9 +183,24 @@ defmodule KsefHubWeb.CompanyLive.Index do
     )
   end
 
-  @spec inbound_email_domain() :: String.t() | nil
-  defp inbound_email_domain do
-    Application.get_env(:ksef_hub, :inbound_email_domain)
+  @spec assign_inbound_state(Phoenix.LiveView.Socket.t(), Company.t(), String.t() | nil) ::
+          Phoenix.LiveView.Socket.t()
+  defp assign_inbound_state(socket, company, address \\ nil) do
+    socket
+    |> assign(:company, company)
+    |> assign(:inbound_email_address, address)
+    |> assign(
+      :inbound_settings_form,
+      to_form(Company.inbound_email_settings_changeset(company, %{}))
+    )
+  end
+
+  @spec build_inbound_address(String.t()) :: String.t()
+  defp build_inbound_address(token) do
+    case Application.get_env(:ksef_hub, :inbound_email_domain) do
+      nil -> token
+      domain -> "inv-#{token}@#{domain}"
+    end
   end
 
   @doc "Renders the company list page with create/edit form."
