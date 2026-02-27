@@ -132,27 +132,25 @@ defmodule KsefHub.Companies do
   @doc """
   Generates and sets a random 8-char alphanumeric inbound email token for a company.
 
-  Returns the plaintext token exactly once — only the SHA-256 hash is persisted.
+  Both the plaintext token and its SHA-256 hash are persisted — the plaintext is
+  stored so the full email address can always be displayed in the UI.
   """
   @spec enable_inbound_email(Company.t()) ::
-          {:ok, %{company: Company.t(), token: String.t()}} | {:error, Ecto.Changeset.t()}
+          {:ok, Company.t()} | {:error, Ecto.Changeset.t()}
   def enable_inbound_email(%Company{} = company) do
     plaintext = generate_inbound_token()
     token_hash = hash_inbound_token(plaintext)
 
-    case company
-         |> Company.inbound_email_token_hash_changeset(token_hash)
-         |> Repo.update() do
-      {:ok, updated} -> {:ok, %{company: updated, token: plaintext}}
-      {:error, changeset} -> {:error, changeset}
-    end
+    company
+    |> Company.inbound_email_token_changeset(%{token: plaintext, hash: token_hash})
+    |> Repo.update()
   end
 
-  @doc "Clears the inbound email token hash, disabling email intake for the company."
+  @doc "Clears the inbound email token and hash, disabling email intake for the company."
   @spec disable_inbound_email(Company.t()) :: {:ok, Company.t()} | {:error, Ecto.Changeset.t()}
   def disable_inbound_email(%Company{} = company) do
     company
-    |> Company.inbound_email_token_hash_changeset(nil)
+    |> Company.inbound_email_token_changeset(%{token: nil, hash: nil})
     |> Repo.update()
   end
 

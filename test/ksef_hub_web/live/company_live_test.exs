@@ -82,7 +82,7 @@ defmodule KsefHubWeb.CompanyLiveTest do
       refute has_element?(view, "button", "Disable")
     end
 
-    test "enable_inbound_email shows one-time address", %{
+    test "enable_inbound_email shows address and action buttons", %{
       conn: conn,
       user: user,
       company: company
@@ -94,7 +94,6 @@ defmodule KsefHubWeb.CompanyLiveTest do
 
       html = view |> element("button", "Enable Inbound Email") |> render_click()
 
-      assert html =~ "Copy this email address now"
       assert html =~ "inv-"
       assert html =~ "@inbound.test.com"
       assert has_element?(view, "button", "Regenerate Address")
@@ -102,17 +101,19 @@ defmodule KsefHubWeb.CompanyLiveTest do
       refute has_element?(view, "button", "Enable Inbound Email")
     end
 
-    test "dismiss_inbound_token hides the address", %{
+    test "address is always visible when token exists", %{
       conn: conn,
       user: user,
       company: company
     } do
-      {:ok, view, _html} = live_edit(conn, user, company)
+      Application.put_env(:ksef_hub, :inbound_email_domain, "inbound.test.com")
+      on_exit(fn -> Application.delete_env(:ksef_hub, :inbound_email_domain) end)
 
-      view |> element("button", "Enable Inbound Email") |> render_click()
-      html = view |> element("button", "Dismiss") |> render_click()
+      {:ok, _} = Companies.enable_inbound_email(company)
+      {:ok, _view, html} = live_edit(conn, user, company)
 
-      refute html =~ "Copy this email address now"
+      assert html =~ "inv-"
+      assert html =~ "@inbound.test.com"
     end
 
     test "disable_inbound_email clears the token", %{
@@ -134,7 +135,7 @@ defmodule KsefHubWeb.CompanyLiveTest do
       refute html =~ "Regenerate Address"
     end
 
-    test "regenerate_inbound_email shows new address", %{
+    test "regenerate_inbound_email updates the address", %{
       conn: conn,
       user: user,
       company: company
@@ -142,7 +143,7 @@ defmodule KsefHubWeb.CompanyLiveTest do
       Application.put_env(:ksef_hub, :inbound_email_domain, "inbound.test.com")
       on_exit(fn -> Application.delete_env(:ksef_hub, :inbound_email_domain) end)
 
-      {:ok, _} = Companies.enable_inbound_email(company)
+      {:ok, enabled} = Companies.enable_inbound_email(company)
       {:ok, view, _html} = live_edit(conn, user, company)
 
       html =
@@ -150,9 +151,12 @@ defmodule KsefHubWeb.CompanyLiveTest do
         |> element(~s(button[phx-click="regenerate_inbound_email"]))
         |> render_click()
 
-      assert html =~ "Copy this email address now"
       assert html =~ "inv-"
       assert html =~ "@inbound.test.com"
+
+      # Verify the token actually changed
+      refreshed = Companies.get_company!(company.id)
+      assert refreshed.inbound_email_token != enabled.inbound_email_token
     end
 
     test "save_inbound_settings persists allowed domain and cc email", %{

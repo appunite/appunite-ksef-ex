@@ -28,7 +28,6 @@ defmodule KsefHubWeb.CompanyLive.Index do
     |> assign(:page_title, "New Company")
     |> assign(:company, %Company{})
     |> assign(:form, to_form(Companies.Company.changeset(%Company{}, %{})))
-    |> assign(:inbound_email_address, nil)
     |> assign(:inbound_settings_form, nil)
   end
 
@@ -39,7 +38,6 @@ defmodule KsefHubWeb.CompanyLive.Index do
     |> assign(:page_title, "Edit #{company.name}")
     |> assign(:company, company)
     |> assign(:form, to_form(Companies.Company.changeset(company, %{})))
-    |> assign(:inbound_email_address, nil)
     |> assign(
       :inbound_settings_form,
       to_form(Company.inbound_email_settings_changeset(company, %{}))
@@ -50,7 +48,6 @@ defmodule KsefHubWeb.CompanyLive.Index do
     socket
     |> assign(:company, nil)
     |> assign(:form, nil)
-    |> assign(:inbound_email_address, nil)
     |> assign(:inbound_settings_form, nil)
   end
 
@@ -73,10 +70,10 @@ defmodule KsefHubWeb.CompanyLive.Index do
   @impl true
   def handle_event("enable_inbound_email", _params, socket) do
     case Companies.enable_inbound_email(socket.assigns.company) do
-      {:ok, %{company: updated, token: token}} ->
+      {:ok, updated} ->
         {:noreply,
          socket
-         |> assign_inbound_state(updated, build_inbound_address(token))
+         |> assign_inbound_state(updated)
          |> put_flash(:info, "Inbound email enabled.")}
 
       {:error, _changeset} ->
@@ -100,22 +97,17 @@ defmodule KsefHubWeb.CompanyLive.Index do
 
   @impl true
   def handle_event("regenerate_inbound_email", _params, socket) do
-    # enable_inbound_email/1 overwrites the existing hash, no need to disable first
+    # enable_inbound_email/1 overwrites the existing token, no need to disable first
     case Companies.enable_inbound_email(socket.assigns.company) do
-      {:ok, %{company: updated, token: token}} ->
+      {:ok, updated} ->
         {:noreply,
          socket
-         |> assign_inbound_state(updated, build_inbound_address(token))
+         |> assign_inbound_state(updated)
          |> put_flash(:info, "Inbound email address regenerated.")}
 
       {:error, _changeset} ->
         {:noreply, put_flash(socket, :error, "Failed to regenerate inbound email.")}
     end
-  end
-
-  @impl true
-  def handle_event("dismiss_inbound_token", _params, socket) do
-    {:noreply, assign(socket, :inbound_email_address, nil)}
   end
 
   @impl true
@@ -183,20 +175,21 @@ defmodule KsefHubWeb.CompanyLive.Index do
     )
   end
 
-  @spec assign_inbound_state(Phoenix.LiveView.Socket.t(), Company.t(), String.t() | nil) ::
+  @spec assign_inbound_state(Phoenix.LiveView.Socket.t(), Company.t()) ::
           Phoenix.LiveView.Socket.t()
-  defp assign_inbound_state(socket, company, address \\ nil) do
+  defp assign_inbound_state(socket, company) do
     socket
     |> assign(:company, company)
-    |> assign(:inbound_email_address, address)
     |> assign(
       :inbound_settings_form,
       to_form(Company.inbound_email_settings_changeset(company, %{}))
     )
   end
 
-  @spec build_inbound_address(String.t()) :: String.t()
-  defp build_inbound_address(token) do
+  @spec inbound_email_address(Company.t()) :: String.t() | nil
+  defp inbound_email_address(%{inbound_email_token: nil}), do: nil
+
+  defp inbound_email_address(%{inbound_email_token: token}) do
     case Application.get_env(:ksef_hub, :inbound_email_domain) do
       nil -> token
       domain -> "inv-#{token}@#{domain}"
@@ -262,26 +255,12 @@ defmodule KsefHubWeb.CompanyLive.Index do
           </span>
         </div>
         
-    <!-- One-time token display -->
-        <div
-          :if={@inbound_email_address}
-          class="alert bg-warning/10 border border-warning/20 text-warning-content"
-        >
-          <div class="flex flex-col gap-2 w-full">
-            <p class="text-sm font-medium">
-              Copy this email address now — it won't be shown again.
-            </p>
-            <code class="select-all bg-base-200 px-3 py-2 rounded text-sm font-mono break-all">
-              {@inbound_email_address}
-            </code>
-            <button
-              type="button"
-              phx-click="dismiss_inbound_token"
-              class="btn btn-ghost btn-xs self-end"
-            >
-              Dismiss
-            </button>
-          </div>
+    <!-- Inbound email address display -->
+        <div :if={@company.inbound_email_token} class="bg-base-200 px-4 py-3 rounded-lg">
+          <p class="text-xs text-base-content/60 mb-1">Email address</p>
+          <code class="select-all text-sm font-mono break-all">
+            {inbound_email_address(@company)}
+          </code>
         </div>
         
     <!-- Enable / Disable / Regenerate buttons -->

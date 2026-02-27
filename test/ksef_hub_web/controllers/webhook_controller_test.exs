@@ -25,13 +25,13 @@ defmodule KsefHubWeb.WebhookControllerTest do
         inbound_allowed_sender_domain: "appunite.com"
       )
 
-    {:ok, %{company: company, token: token}} = Companies.enable_inbound_email(company)
+    {:ok, company} = Companies.enable_inbound_email(company)
 
     on_exit(fn ->
       Application.delete_env(:ksef_hub, :mailgun_signing_key)
     end)
 
-    %{company: company, inbound_token: token}
+    %{company: company, inbound_token: company.inbound_email_token}
   end
 
   describe "POST /webhooks/mailgun/inbound" do
@@ -175,7 +175,8 @@ defmodule KsefHubWeb.WebhookControllerTest do
       conn: conn
     } do
       company = insert(:company, nip: "6666666666", inbound_allowed_sender_domain: "")
-      {:ok, %{token: token}} = Companies.enable_inbound_email(company)
+      {:ok, company} = Companies.enable_inbound_email(company)
+      token = company.inbound_email_token
 
       KsefHub.InvoiceExtractor.Mock
       |> expect(:extract, fn _pdf, _opts ->
@@ -204,7 +205,8 @@ defmodule KsefHubWeb.WebhookControllerTest do
       conn: conn
     } do
       company = insert(:company, nip: "5555555555", inbound_allowed_sender_domain: nil)
-      {:ok, %{token: token}} = Companies.enable_inbound_email(company)
+      {:ok, company} = Companies.enable_inbound_email(company)
+      token = company.inbound_email_token
 
       KsefHub.InvoiceExtractor.Mock
       |> expect(:extract, fn _pdf, _opts ->
