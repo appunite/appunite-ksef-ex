@@ -99,7 +99,7 @@ defmodule KsefHub.InboundEmail.InboundEmailWorker do
           record.id
         )
 
-        send_reply(build_reply(reply_type, record.sender, invoice), record)
+        send_reply(build_reply(reply_type, record.sender, invoice, reply_opts(company)), record)
         :ok
 
       {:error, reason} ->
@@ -114,13 +114,13 @@ defmodule KsefHub.InboundEmail.InboundEmailWorker do
     end
   end
 
-  @spec build_reply(:success | :needs_review, String.t(), Invoices.Invoice.t()) ::
+  @spec build_reply(:success | :needs_review, String.t(), Invoices.Invoice.t(), keyword()) ::
           Swoosh.Email.t()
-  defp build_reply(:success, sender, invoice),
-    do: ReplyNotifier.success(sender, invoice, reply_opts())
+  defp build_reply(:success, sender, invoice, opts),
+    do: ReplyNotifier.success(sender, invoice, opts)
 
-  defp build_reply(:needs_review, sender, invoice),
-    do: ReplyNotifier.needs_review(sender, invoice, reply_opts())
+  defp build_reply(:needs_review, sender, invoice, opts),
+    do: ReplyNotifier.needs_review(sender, invoice, opts)
 
   @spec reject_and_notify(InboundEmail.InboundEmail.t(), Companies.Company.t(), atom()) :: :ok
   defp reject_and_notify(record, company, reason) do
@@ -132,7 +132,7 @@ defmodule KsefHub.InboundEmail.InboundEmailWorker do
       record.id
     )
 
-    opts = Keyword.merge(reply_opts(), company_name: company.name, nip: company.nip)
+    opts = Keyword.merge(reply_opts(company), company_name: company.name, nip: company.nip)
     send_reply(ReplyNotifier.rejection(record.sender, reason, opts), record)
     :ok
   end
@@ -149,10 +149,11 @@ defmodule KsefHub.InboundEmail.InboundEmailWorker do
     end
   end
 
-  @spec reply_opts() :: keyword()
-  defp reply_opts do
-    case Application.get_env(:ksef_hub, :inbound_cc_email) do
+  @spec reply_opts(Companies.Company.t()) :: keyword()
+  defp reply_opts(company) do
+    case company.inbound_cc_email do
       nil -> []
+      "" -> []
       cc -> [cc: cc]
     end
   end
