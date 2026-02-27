@@ -103,14 +103,6 @@ if inbound_email_domain = System.get_env("INBOUND_EMAIL_DOMAIN") do
   config :ksef_hub, :inbound_email_domain, inbound_email_domain
 end
 
-if inbound_allowed_sender_domain = System.get_env("INBOUND_ALLOWED_SENDER_DOMAIN") do
-  config :ksef_hub, :inbound_allowed_sender_domain, inbound_allowed_sender_domain
-end
-
-if inbound_cc_email = System.get_env("INBOUND_CC_EMAIL") do
-  config :ksef_hub, :inbound_cc_email, inbound_cc_email
-end
-
 if System.get_env("INBOUND_EMAIL_DOMAIN") && !System.get_env("MAILGUN_SIGNING_KEY") do
   raise """
   MAILGUN_SIGNING_KEY is required when INBOUND_EMAIL_DOMAIN is set.
