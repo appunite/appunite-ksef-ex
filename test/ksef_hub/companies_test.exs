@@ -460,6 +460,60 @@ defmodule KsefHub.CompaniesTest do
     end
   end
 
+  describe "update_inbound_email_settings/2" do
+    test "updates allowed sender domain and cc email" do
+      company = insert(:company)
+
+      assert {:ok, updated} =
+               Companies.update_inbound_email_settings(company, %{
+                 inbound_allowed_sender_domain: "appunite.com",
+                 inbound_cc_email: "invoices@appunite.com"
+               })
+
+      assert updated.inbound_allowed_sender_domain == "appunite.com"
+      assert updated.inbound_cc_email == "invoices@appunite.com"
+    end
+
+    test "allows clearing settings with nil" do
+      company =
+        insert(:company,
+          inbound_allowed_sender_domain: "appunite.com",
+          inbound_cc_email: "invoices@appunite.com"
+        )
+
+      assert {:ok, updated} =
+               Companies.update_inbound_email_settings(company, %{
+                 inbound_allowed_sender_domain: nil,
+                 inbound_cc_email: nil
+               })
+
+      assert updated.inbound_allowed_sender_domain == nil
+      assert updated.inbound_cc_email == nil
+    end
+
+    test "rejects invalid domain format" do
+      company = insert(:company)
+
+      assert {:error, changeset} =
+               Companies.update_inbound_email_settings(company, %{
+                 inbound_allowed_sender_domain: "not a domain!"
+               })
+
+      assert "must be a valid domain (e.g. appunite.com)" in errors_on(changeset).inbound_allowed_sender_domain
+    end
+
+    test "rejects invalid email format" do
+      company = insert(:company)
+
+      assert {:error, changeset} =
+               Companies.update_inbound_email_settings(company, %{
+                 inbound_cc_email: "not-an-email"
+               })
+
+      assert "must be a valid email address" in errors_on(changeset).inbound_cc_email
+    end
+  end
+
   describe "authorize/3" do
     test "returns {:ok, membership} when user has required role" do
       user = insert(:user)

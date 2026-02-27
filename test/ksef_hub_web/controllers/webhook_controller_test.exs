@@ -2,8 +2,7 @@ defmodule KsefHubWeb.WebhookControllerTest do
   @moduledoc """
   Tests for the Mailgun inbound email webhook controller.
 
-  Uses async: false because tests mutate global Application env
-  (mailgun_signing_key, inbound_allowed_sender_domain).
+  Uses async: false because tests mutate global Application env (mailgun_signing_key).
   """
 
   use KsefHubWeb.ConnCase, async: false
@@ -19,14 +18,17 @@ defmodule KsefHubWeb.WebhookControllerTest do
 
   setup do
     Application.put_env(:ksef_hub, :mailgun_signing_key, @signing_key)
-    Application.put_env(:ksef_hub, :inbound_allowed_sender_domain, "appunite.com")
 
-    company = insert(:company, nip: "1234567890")
+    company =
+      insert(:company,
+        nip: "1234567890",
+        inbound_allowed_sender_domain: "appunite.com"
+      )
+
     {:ok, %{company: company, token: token}} = Companies.enable_inbound_email(company)
 
     on_exit(fn ->
       Application.delete_env(:ksef_hub, :mailgun_signing_key)
-      Application.delete_env(:ksef_hub, :inbound_allowed_sender_domain)
     end)
 
     %{company: company, inbound_token: token}
@@ -169,11 +171,11 @@ defmodule KsefHubWeb.WebhookControllerTest do
       assert json_response(conn2, 200)["status"] == "ok"
     end
 
-    test "accepts any sender domain when allowed_sender_domain is not configured", %{
-      conn: conn,
-      inbound_token: token
+    test "accepts any sender domain when company has no allowed domain configured", %{
+      conn: conn
     } do
-      Application.delete_env(:ksef_hub, :inbound_allowed_sender_domain)
+      company = insert(:company, nip: "5555555555", inbound_allowed_sender_domain: nil)
+      {:ok, %{token: token}} = Companies.enable_inbound_email(company)
 
       KsefHub.InvoiceExtractor.Mock
       |> expect(:extract, fn _pdf, _opts ->
@@ -181,7 +183,7 @@ defmodule KsefHubWeb.WebhookControllerTest do
          %{
            "seller_nip" => "9999999999",
            "seller_name" => "Seller",
-           "buyer_nip" => "1234567890",
+           "buyer_nip" => "5555555555",
            "buyer_name" => "Buyer",
            "invoice_number" => "FV/2026/001",
            "issue_date" => "2026-02-25",

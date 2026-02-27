@@ -37,7 +37,9 @@ defmodule KsefHub.Companies.Company do
   def inbound_email_settings_changeset(company, attrs) do
     company
     |> cast(attrs, [:inbound_allowed_sender_domain, :inbound_cc_email])
-    |> validate_format(:inbound_allowed_sender_domain, ~r/^[a-z0-9]([a-z0-9-]*[a-z0-9])?(\.[a-z0-9]([a-z0-9-]*[a-z0-9])?)*$/i,
+    |> validate_format(
+      :inbound_allowed_sender_domain,
+      ~r/^[a-z0-9]([a-z0-9-]*[a-z0-9])?(\.[a-z0-9]([a-z0-9-]*[a-z0-9])?)*$/i,
       message: "must be a valid domain (e.g. appunite.com)"
     )
     |> validate_format(:inbound_cc_email, ~r/^[^\s@]+@[^\s@]+\.[^\s@]+$/,

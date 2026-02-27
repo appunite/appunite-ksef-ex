@@ -278,8 +278,8 @@ defmodule KsefHubWeb.CompanyLive.Index do
             Disabled
           </span>
         </div>
-
-        <!-- One-time token display -->
+        
+    <!-- One-time token display -->
         <div
           :if={@inbound_email_address}
           class="alert bg-warning/10 border border-warning/20 text-warning-content"
@@ -300,8 +300,8 @@ defmodule KsefHubWeb.CompanyLive.Index do
             </button>
           </div>
         </div>
-
-        <!-- Enable / Disable / Regenerate buttons -->
+        
+    <!-- Enable / Disable / Regenerate buttons -->
         <div class="flex gap-2">
           <button
             :if={!@company.inbound_email_token_hash}
@@ -330,8 +330,8 @@ defmodule KsefHubWeb.CompanyLive.Index do
             Disable
           </button>
         </div>
-
-        <!-- Inbound email settings form -->
+        
+    <!-- Inbound email settings form -->
         <div :if={@inbound_settings_form} class="border-t border-base-300 pt-4">
           <h3 class="text-sm font-medium mb-3">Settings</h3>
           <form
