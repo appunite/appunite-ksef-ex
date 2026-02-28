@@ -26,18 +26,23 @@ defmodule KsefHub.KsefClient.Auth do
   Returns `{:ok, tokens}` or `{:error, reason}`.
   """
   def authenticate(nip, certificate_data, certificate_password) do
-    with {:ok, %{challenge: challenge}} <- ksef_client().get_challenge(),
+    Logger.info("KSeF XADES auth: starting for NIP #{nip}")
+
+    with {:ok, %{challenge: challenge}} <- step(:get_challenge, fn -> ksef_client().get_challenge() end),
          {:ok, signed_xml} <-
-           xades_signer().sign_challenge(challenge, nip, certificate_data, certificate_password),
+           step(:sign_challenge, fn ->
+             xades_signer().sign_challenge(challenge, nip, certificate_data, certificate_password)
+           end),
          {:ok, %{reference_number: ref, auth_token: auth_token}} <-
-           ksef_client().authenticate_xades(signed_xml),
-         :ok <- poll_until_ready(ref, auth_token),
-         {:ok, tokens} <- ksef_client().redeem_tokens(auth_token) do
-      Logger.info("KSeF XADES authentication successful for NIP #{nip}")
+           step(:authenticate_xades, fn -> ksef_client().authenticate_xades(signed_xml) end),
+         :ok <- step(:poll_auth_status, fn -> poll_until_ready(ref, auth_token) end),
+         {:ok, tokens} <-
+           step(:redeem_tokens, fn -> ksef_client().redeem_tokens(auth_token) end) do
+      Logger.info("KSeF XADES auth: completed successfully for NIP #{nip}")
       {:ok, tokens}
     else
       {:error, reason} = error ->
-        Logger.error("KSeF XADES authentication failed: #{inspect(reason)}")
+        Logger.error("KSeF XADES auth: failed for NIP #{nip}: #{inspect(reason)}")
         error
     end
   end
@@ -61,5 +66,17 @@ defmodule KsefHub.KsefClient.Auth do
       {:error, _} = error ->
         error
     end
+  end
+
+  @spec step(atom(), (-> any())) :: any()
+  defp step(name, fun) do
+    Logger.info("KSeF auth step: #{name}")
+    {time_us, result} = :timer.tc(fun)
+    time_ms = div(time_us, 1000)
+
+    status = if match?({:ok, _}, result) or result == :ok, do: "ok", else: "error"
+    Logger.info("KSeF auth step: #{name} completed in #{time_ms}ms — #{status}")
+
+    result
   end
 end
