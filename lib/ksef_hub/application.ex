@@ -3,9 +3,14 @@ defmodule KsefHub.Application do
 
   use Application
 
+  require Logger
+
   @impl true
   @spec start(Application.start_type(), term()) :: {:ok, pid()} | {:error, term()}
   def start(_type, _args) do
+    ksef_url = Application.get_env(:ksef_hub, :ksef_api_url, "https://api-test.ksef.mf.gov.pl")
+    Logger.info("KSeF API URL configured: #{ksef_url}")
+
     children = [
       KsefHubWeb.Telemetry,
       KsefHub.Repo,

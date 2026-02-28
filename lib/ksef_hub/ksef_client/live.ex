@@ -6,6 +6,8 @@ defmodule KsefHub.KsefClient.Live do
 
   @behaviour KsefHub.KsefClient.Behaviour
 
+  require Logger
+
   @receive_timeout :timer.seconds(30)
   @retry_count 2
   @retry_delay :timer.seconds(1)
@@ -14,8 +16,10 @@ defmodule KsefHub.KsefClient.Live do
   @query_delay_ms 500
   @download_delay_ms 125
 
-  defp base_url,
-    do: Application.get_env(:ksef_hub, :ksef_api_url, "https://api-test.ksef.mf.gov.pl")
+  defp base_url do
+    Application.get_env(:ksef_hub, :ksef_api_url, "https://api-test.ksef.mf.gov.pl")
+    |> String.trim_trailing("/")
+  end
 
   defp api_url(path), do: "#{base_url()}/v2#{path}"
 
@@ -52,12 +56,18 @@ defmodule KsefHub.KsefClient.Live do
          }}
 
       {:ok, %{status: status, body: body}} when is_binary(body) ->
+        Logger.warning(
+          "KSeF: POST #{url} returned #{status} with HTML body: #{String.slice(body, 0, 500)}"
+        )
+
         {:error, {:unexpected_html_response, status}}
 
       {:ok, %{status: status, body: body}} ->
+        Logger.warning("KSeF: POST #{url} returned #{status}: #{inspect(body)}")
         {:error, {:ksef_error, status, body}}
 
       {:error, reason} ->
+        Logger.error("KSeF: POST #{url} request failed: #{inspect(reason)}")
         {:error, {:request_failed, reason}}
     end
   end
@@ -82,12 +92,18 @@ defmodule KsefHub.KsefClient.Live do
          }}
 
       {:ok, %{status: status, body: body}} when is_binary(body) ->
+        Logger.warning(
+          "KSeF: POST #{url} returned #{status} with HTML body: #{String.slice(body, 0, 500)}"
+        )
+
         {:error, {:unexpected_html_response, status}}
 
       {:ok, %{status: status, body: body}} ->
+        Logger.warning("KSeF: POST #{url} returned #{status}: #{inspect(body)}")
         {:error, {:ksef_error, status, body}}
 
       {:error, reason} ->
+        Logger.error("KSeF: POST #{url} request failed: #{inspect(reason)}")
         {:error, {:request_failed, reason}}
     end
   end
@@ -106,15 +122,25 @@ defmodule KsefHub.KsefClient.Live do
         {:ok, :pending}
 
       {:ok, %{status: 200, body: %{"status" => %{"code" => code}} = body}} when code >= 400 ->
+        Logger.warning(
+          "KSeF: GET #{url} returned application error code #{code}: #{inspect(body)}"
+        )
+
         {:error, {:ksef_error, code, body}}
 
       {:ok, %{status: status, body: body}} when is_binary(body) ->
+        Logger.warning(
+          "KSeF: GET #{url} returned #{status} with HTML body: #{String.slice(body, 0, 500)}"
+        )
+
         {:error, {:unexpected_html_response, status}}
 
       {:ok, %{status: status, body: body}} ->
+        Logger.warning("KSeF: GET #{url} returned #{status}: #{inspect(body)}")
         {:error, {:ksef_error, status, body}}
 
       {:error, reason} ->
+        Logger.error("KSeF: GET #{url} request failed: #{inspect(reason)}")
         {:error, {:request_failed, reason}}
     end
   end
@@ -138,12 +164,18 @@ defmodule KsefHub.KsefClient.Live do
          }}
 
       {:ok, %{status: status, body: body}} when is_binary(body) ->
+        Logger.warning(
+          "KSeF: POST #{url} returned #{status} with HTML body: #{String.slice(body, 0, 500)}"
+        )
+
         {:error, {:unexpected_html_response, status}}
 
       {:ok, %{status: status, body: body}} ->
+        Logger.warning("KSeF: POST #{url} returned #{status}: #{inspect(body)}")
         {:error, {:ksef_error, status, body}}
 
       {:error, reason} ->
+        Logger.error("KSeF: POST #{url} request failed: #{inspect(reason)}")
         {:error, {:request_failed, reason}}
     end
   end
@@ -164,12 +196,18 @@ defmodule KsefHub.KsefClient.Live do
          }}
 
       {:ok, %{status: status, body: body}} when is_binary(body) ->
+        Logger.warning(
+          "KSeF: POST #{url} returned #{status} with HTML body: #{String.slice(body, 0, 500)}"
+        )
+
         {:error, {:unexpected_html_response, status}}
 
       {:ok, %{status: status, body: body}} ->
+        Logger.warning("KSeF: POST #{url} returned #{status}: #{inspect(body)}")
         {:error, {:ksef_error, status, body}}
 
       {:error, reason} ->
+        Logger.error("KSeF: POST #{url} request failed: #{inspect(reason)}")
         {:error, {:request_failed, reason}}
     end
   end
@@ -202,15 +240,22 @@ defmodule KsefHub.KsefClient.Live do
 
       {:ok, %{status: 429} = resp} ->
         retry_after = get_retry_after(resp)
+        Logger.warning("KSeF: POST #{url} rate limited (429), retry after #{retry_after}s")
         {:error, {:rate_limited, retry_after}}
 
       {:ok, %{status: status, body: body}} when is_binary(body) ->
+        Logger.warning(
+          "KSeF: POST #{url} returned #{status} with HTML body: #{String.slice(body, 0, 500)}"
+        )
+
         {:error, {:unexpected_html_response, status}}
 
       {:ok, %{status: status, body: body}} ->
+        Logger.warning("KSeF: POST #{url} returned #{status}: #{inspect(body)}")
         {:error, {:ksef_error, status, body}}
 
       {:error, reason} ->
+        Logger.error("KSeF: POST #{url} request failed: #{inspect(reason)}")
         {:error, {:request_failed, reason}}
     end
   end
@@ -228,12 +273,15 @@ defmodule KsefHub.KsefClient.Live do
 
       {:ok, %{status: 429} = resp} ->
         retry_after = get_retry_after(resp)
+        Logger.warning("KSeF: GET #{url} rate limited (429), retry after #{retry_after}s")
         {:error, {:rate_limited, retry_after}}
 
       {:ok, %{status: status, body: body}} ->
+        Logger.warning("KSeF: GET #{url} returned #{status}: #{inspect(body)}")
         {:error, {:ksef_error, status, body}}
 
       {:error, reason} ->
+        Logger.error("KSeF: GET #{url} request failed: #{inspect(reason)}")
         {:error, {:request_failed, reason}}
     end
   end
@@ -244,9 +292,16 @@ defmodule KsefHub.KsefClient.Live do
     headers = bearer_headers(token)
 
     case Req.delete(url, [headers: headers] ++ req_options_no_retry()) do
-      {:ok, %{status: status}} when status in [200, 204] -> :ok
-      {:ok, %{status: status, body: body}} -> {:error, {:ksef_error, status, body}}
-      {:error, reason} -> {:error, {:request_failed, reason}}
+      {:ok, %{status: status}} when status in [200, 204] ->
+        :ok
+
+      {:ok, %{status: status, body: body}} ->
+        Logger.warning("KSeF: DELETE #{url} returned #{status}: #{inspect(body)}")
+        {:error, {:ksef_error, status, body}}
+
+      {:error, reason} ->
+        Logger.error("KSeF: DELETE #{url} request failed: #{inspect(reason)}")
+        {:error, {:request_failed, reason}}
     end
   end
 
