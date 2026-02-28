@@ -28,6 +28,7 @@ defmodule KsefHubWeb.CompanyLive.Index do
     |> assign(:page_title, "New Company")
     |> assign(:company, %Company{})
     |> assign(:form, to_form(Companies.Company.changeset(%Company{}, %{})))
+    |> assign(:inbound_settings_form, nil)
   end
 
   defp apply_action(socket, :edit, %{"id" => id}) do
@@ -37,12 +38,17 @@ defmodule KsefHubWeb.CompanyLive.Index do
     |> assign(:page_title, "Edit #{company.name}")
     |> assign(:company, company)
     |> assign(:form, to_form(Companies.Company.changeset(company, %{})))
+    |> assign(
+      :inbound_settings_form,
+      to_form(Company.inbound_email_settings_changeset(company, %{}))
+    )
   end
 
   defp apply_action(socket, _action, _params) do
     socket
     |> assign(:company, nil)
     |> assign(:form, nil)
+    |> assign(:inbound_settings_form, nil)
   end
 
   @doc "Handles form validation and save events."
@@ -59,6 +65,98 @@ defmodule KsefHubWeb.CompanyLive.Index do
   @impl true
   def handle_event("save", %{"company" => params}, socket) do
     save_company(socket, socket.assigns.live_action, params)
+  end
+
+  @impl true
+  def handle_event(
+        "enable_inbound_email",
+        _params,
+        %{assigns: %{company: %Company{} = company}} = socket
+      ) do
+    case Companies.enable_inbound_email(company) do
+      {:ok, updated} ->
+        {:noreply,
+         socket
+         |> assign_inbound_state(updated)
+         |> put_flash(:info, "Inbound email enabled.")}
+
+      {:error, _changeset} ->
+        {:noreply, put_flash(socket, :error, "Failed to enable inbound email.")}
+    end
+  end
+
+  @impl true
+  def handle_event(
+        "disable_inbound_email",
+        _params,
+        %{assigns: %{company: %Company{} = company}} = socket
+      ) do
+    case Companies.disable_inbound_email(company) do
+      {:ok, updated} ->
+        {:noreply,
+         socket
+         |> assign_inbound_state(updated)
+         |> put_flash(:info, "Inbound email disabled.")}
+
+      {:error, _changeset} ->
+        {:noreply, put_flash(socket, :error, "Failed to disable inbound email.")}
+    end
+  end
+
+  @impl true
+  def handle_event(
+        "regenerate_inbound_email",
+        _params,
+        %{assigns: %{company: %Company{} = company}} = socket
+      ) do
+    # enable_inbound_email/1 overwrites the existing token, no need to disable first
+    case Companies.enable_inbound_email(company) do
+      {:ok, updated} ->
+        {:noreply,
+         socket
+         |> assign_inbound_state(updated)
+         |> put_flash(:info, "Inbound email address regenerated.")}
+
+      {:error, _changeset} ->
+        {:noreply, put_flash(socket, :error, "Failed to regenerate inbound email.")}
+    end
+  end
+
+  @impl true
+  def handle_event(
+        "validate_inbound_settings",
+        %{"company" => params},
+        %{assigns: %{company: %Company{} = company}} = socket
+      ) do
+    changeset =
+      company
+      |> Company.inbound_email_settings_changeset(params)
+      |> Map.put(:action, :validate)
+
+    {:noreply, assign(socket, inbound_settings_form: to_form(changeset))}
+  end
+
+  @impl true
+  def handle_event(
+        "save_inbound_settings",
+        %{"company" => params},
+        %{assigns: %{company: %Company{} = company}} = socket
+      ) do
+    case Companies.update_inbound_email_settings(company, params) do
+      {:ok, updated} ->
+        {:noreply,
+         socket
+         |> assign_inbound_state(updated)
+         |> put_flash(:info, "Inbound email settings saved.")}
+
+      {:error, changeset} ->
+        {:noreply, assign(socket, inbound_settings_form: to_form(changeset))}
+    end
+  end
+
+  def handle_event(event, _params, socket)
+      when event in ~w(enable_inbound_email disable_inbound_email regenerate_inbound_email validate_inbound_settings save_inbound_settings) do
+    {:noreply, socket}
   end
 
   @spec save_company(Phoenix.LiveView.Socket.t(), atom(), map()) ::
@@ -102,6 +200,27 @@ defmodule KsefHubWeb.CompanyLive.Index do
     )
   end
 
+  @spec assign_inbound_state(Phoenix.LiveView.Socket.t(), Company.t()) ::
+          Phoenix.LiveView.Socket.t()
+  defp assign_inbound_state(socket, company) do
+    socket
+    |> assign(:company, company)
+    |> assign(
+      :inbound_settings_form,
+      to_form(Company.inbound_email_settings_changeset(company, %{}))
+    )
+  end
+
+  @spec inbound_email_address(Company.t()) :: String.t() | nil
+  defp inbound_email_address(%{inbound_email_token: nil}), do: nil
+
+  defp inbound_email_address(%{inbound_email_token: token}) do
+    case Application.get_env(:ksef_hub, :inbound_email_domain) do
+      nil -> token
+      domain -> "inv-#{token}@#{domain}"
+    end
+  end
+
   @doc "Renders the company list page with create/edit form."
   @impl true
   def render(assigns) do
@@ -139,6 +258,100 @@ defmodule KsefHubWeb.CompanyLive.Index do
             <.link navigate={~p"/companies"} class="btn btn-ghost btn-sm">Cancel</.link>
           </div>
         </form>
+      </div>
+    </div>
+
+    <!-- Inbound Email Section (edit mode only) -->
+    <div :if={@live_action == :edit && @company} class="card bg-base-100 border border-base-300 mt-6">
+      <div class="p-5 space-y-4">
+        <div class="flex items-center justify-between">
+          <h2 class="text-base font-semibold">Inbound Email</h2>
+          <span
+            :if={@company.inbound_email_token_hash}
+            class="inline-flex items-center px-2 py-0.5 rounded-md text-xs font-medium border bg-success/10 text-success border-success/20"
+          >
+            Enabled
+          </span>
+          <span
+            :if={!@company.inbound_email_token_hash}
+            class="inline-flex items-center px-2 py-0.5 rounded-md text-xs font-medium border bg-base-200 text-base-content/60 border-base-300"
+          >
+            Disabled
+          </span>
+        </div>
+        
+    <!-- Inbound email address display -->
+        <div
+          :if={@company.inbound_email_token}
+          id="inbound-email-display"
+          class="bg-base-200 px-4 py-3 rounded-lg"
+        >
+          <p class="text-xs text-base-content/60 mb-1">Email address</p>
+          <code data-testid="inbound-email-address" class="select-all text-sm font-mono break-all">
+            {inbound_email_address(@company)}
+          </code>
+        </div>
+        
+    <!-- Enable / Disable / Regenerate buttons -->
+        <div class="flex gap-2">
+          <button
+            :if={!@company.inbound_email_token_hash}
+            type="button"
+            phx-click="enable_inbound_email"
+            class="btn btn-primary btn-sm"
+          >
+            Enable Inbound Email
+          </button>
+          <button
+            :if={@company.inbound_email_token_hash}
+            type="button"
+            phx-click="regenerate_inbound_email"
+            data-confirm="This will invalidate the current inbound email address. Continue?"
+            class="btn btn-warning btn-sm"
+          >
+            Regenerate Address
+          </button>
+          <button
+            :if={@company.inbound_email_token_hash}
+            type="button"
+            phx-click="disable_inbound_email"
+            data-confirm="This will disable inbound email processing for this company. Continue?"
+            class="btn btn-error btn-outline btn-sm"
+          >
+            Disable
+          </button>
+        </div>
+        
+    <!-- Inbound email settings form -->
+        <div :if={@inbound_settings_form} class="border-t border-base-300 pt-4">
+          <h3 class="text-sm font-medium mb-3">Settings</h3>
+          <.form
+            for={@inbound_settings_form}
+            phx-submit="save_inbound_settings"
+            phx-change="validate_inbound_settings"
+            class="space-y-4"
+          >
+            <.input
+              field={@inbound_settings_form[:inbound_allowed_sender_domain]}
+              label="Allowed sender domain"
+              placeholder="appunite.com"
+              phx-debounce="blur"
+            />
+            <p class="text-xs text-base-content/60 -mt-2">
+              Only accept inbound emails from this domain. Leave empty to allow any sender.
+            </p>
+            <.input
+              field={@inbound_settings_form[:inbound_cc_email]}
+              label="CC email"
+              placeholder="invoices@appunite.com"
+              phx-debounce="blur"
+            />
+            <p class="text-xs text-base-content/60 -mt-2">
+              CC this address on all reply notifications. Leave empty for no CC.
+            </p>
+            <button type="submit" class="btn btn-primary btn-sm">Save Settings</button>
+          </.form>
+        </div>
       </div>
     </div>
 

@@ -394,37 +394,38 @@ defmodule KsefHub.CompaniesTest do
   end
 
   describe "enable_inbound_email/1" do
-    test "generates an 8-char alphanumeric token and persists only the hash" do
+    test "generates an 8-char alphanumeric token and stores plaintext + hash" do
       company = insert(:company)
 
-      assert {:ok, %{company: updated, token: plaintext}} =
-               Companies.enable_inbound_email(company)
+      assert {:ok, updated} = Companies.enable_inbound_email(company)
 
-      assert is_binary(plaintext)
-      assert String.length(plaintext) == 8
-      assert plaintext =~ ~r/^[a-z0-9]+$/
+      assert is_binary(updated.inbound_email_token)
+      assert String.length(updated.inbound_email_token) == 8
+      assert updated.inbound_email_token =~ ~r/^[a-z0-9]+$/
 
-      # Only the hash is stored, not the plaintext
       assert is_binary(updated.inbound_email_token_hash)
       assert String.length(updated.inbound_email_token_hash) == 64
     end
 
     test "regenerates token when called again" do
       company = insert(:company)
-      {:ok, %{company: first, token: token1}} = Companies.enable_inbound_email(company)
-      {:ok, %{token: token2}} = Companies.enable_inbound_email(first)
-      assert token2 != token1
+      {:ok, first} = Companies.enable_inbound_email(company)
+      {:ok, second} = Companies.enable_inbound_email(first)
+      assert second.inbound_email_token != first.inbound_email_token
     end
 
     test "enforces token hash uniqueness" do
       company_a = insert(:company)
       company_b = insert(:company)
-      {:ok, %{company: a}} = Companies.enable_inbound_email(company_a)
+      {:ok, a} = Companies.enable_inbound_email(company_a)
 
       # Manually set the same hash to test uniqueness constraint
       assert {:error, changeset} =
                company_b
-               |> Company.inbound_email_token_hash_changeset(a.inbound_email_token_hash)
+               |> Company.inbound_email_token_changeset(%{
+                 token: a.inbound_email_token,
+                 hash: a.inbound_email_token_hash
+               })
                |> KsefHub.Repo.update()
 
       assert "has already been taken" in errors_on(changeset).inbound_email_token_hash
@@ -432,12 +433,14 @@ defmodule KsefHub.CompaniesTest do
   end
 
   describe "disable_inbound_email/1" do
-    test "clears the token hash" do
+    test "clears the token and hash" do
       company = insert(:company)
-      {:ok, %{company: enabled}} = Companies.enable_inbound_email(company)
+      {:ok, enabled} = Companies.enable_inbound_email(company)
+      assert enabled.inbound_email_token != nil
       assert enabled.inbound_email_token_hash != nil
 
       {:ok, disabled} = Companies.disable_inbound_email(enabled)
+      assert disabled.inbound_email_token == nil
       assert disabled.inbound_email_token_hash == nil
     end
   end
@@ -445,9 +448,9 @@ defmodule KsefHub.CompaniesTest do
   describe "get_company_by_inbound_email_token/1" do
     test "returns the company matching the plaintext token" do
       company = insert(:company)
-      {:ok, %{token: plaintext}} = Companies.enable_inbound_email(company)
+      {:ok, enabled} = Companies.enable_inbound_email(company)
 
-      found = Companies.get_company_by_inbound_email_token(plaintext)
+      found = Companies.get_company_by_inbound_email_token(enabled.inbound_email_token)
       assert found.id == company.id
     end
 
@@ -457,6 +460,60 @@ defmodule KsefHub.CompaniesTest do
 
     test "returns nil for nil token" do
       assert Companies.get_company_by_inbound_email_token(nil) == nil
+    end
+  end
+
+  describe "update_inbound_email_settings/2" do
+    test "updates allowed sender domain and cc email" do
+      company = insert(:company)
+
+      assert {:ok, updated} =
+               Companies.update_inbound_email_settings(company, %{
+                 inbound_allowed_sender_domain: "appunite.com",
+                 inbound_cc_email: "invoices@appunite.com"
+               })
+
+      assert updated.inbound_allowed_sender_domain == "appunite.com"
+      assert updated.inbound_cc_email == "invoices@appunite.com"
+    end
+
+    test "allows clearing settings with nil" do
+      company =
+        insert(:company,
+          inbound_allowed_sender_domain: "appunite.com",
+          inbound_cc_email: "invoices@appunite.com"
+        )
+
+      assert {:ok, updated} =
+               Companies.update_inbound_email_settings(company, %{
+                 inbound_allowed_sender_domain: nil,
+                 inbound_cc_email: nil
+               })
+
+      assert updated.inbound_allowed_sender_domain == nil
+      assert updated.inbound_cc_email == nil
+    end
+
+    test "rejects invalid domain format" do
+      company = insert(:company)
+
+      assert {:error, changeset} =
+               Companies.update_inbound_email_settings(company, %{
+                 inbound_allowed_sender_domain: "not a domain!"
+               })
+
+      assert "must be a valid domain (e.g. appunite.com)" in errors_on(changeset).inbound_allowed_sender_domain
+    end
+
+    test "rejects invalid email format" do
+      company = insert(:company)
+
+      assert {:error, changeset} =
+               Companies.update_inbound_email_settings(company, %{
+                 inbound_cc_email: "not-an-email"
+               })
+
+      assert "must be a valid email address" in errors_on(changeset).inbound_cc_email
     end
   end
 

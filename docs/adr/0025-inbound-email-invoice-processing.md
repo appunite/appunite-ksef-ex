@@ -34,7 +34,7 @@ Use **Mailgun inbound routes** (webhook-based, no SMTP server) to receive emails
    - neither matches → reject (wrong company)
    - NIPs not extracted → accept but flag "needs review"
 
-6. **Reply emails** sent to both the original sender and a CC address (`INBOUND_CC_EMAIL` env var).
+6. **Reply emails** sent to both the original sender and a per-company CC address (`company.inbound_cc_email`).
 
 7. **PDF storage**: Binary stored in `inbound_emails.pdf_content` during processing, then copied to `invoice.pdf_content` (matching existing pdf_upload flow).
 
@@ -65,5 +65,10 @@ Current implementation stores PDF binary in `inbound_emails.pdf_content` (tempor
 |----------|-------------|
 | `MAILGUN_SIGNING_KEY` | Webhook signing key from Mailgun dashboard |
 | `INBOUND_EMAIL_DOMAIN` | Domain for inbound email addresses |
-| `INBOUND_ALLOWED_SENDER_DOMAIN` | Only accept emails from this domain |
-| `INBOUND_CC_EMAIL` | CC address for all reply notifications |
+
+### Per-company settings (in `companies` table)
+
+| Column | Description |
+|--------|-------------|
+| `inbound_allowed_sender_domain` | Only accept emails from this domain (nil = allow any) |
+| `inbound_cc_email` | CC address for all reply notifications (nil = no CC) |
