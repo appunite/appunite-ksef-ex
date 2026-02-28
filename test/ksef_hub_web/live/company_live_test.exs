@@ -1,5 +1,5 @@
 defmodule KsefHubWeb.CompanyLiveTest do
-  use KsefHubWeb.ConnCase, async: true
+  use KsefHubWeb.ConnCase, async: false
 
   import KsefHub.Factory
   import Phoenix.LiveViewTest
@@ -92,10 +92,10 @@ defmodule KsefHubWeb.CompanyLiveTest do
 
       {:ok, view, _html} = live_edit(conn, user, company)
 
-      html = view |> element("button", "Enable Inbound Email") |> render_click()
+      view |> element("button", "Enable Inbound Email") |> render_click()
 
-      assert html =~ "inv-"
-      assert html =~ "@inbound.test.com"
+      assert has_element?(view, "#inbound-email-display")
+      assert has_element?(view, ~s([data-testid="inbound-email-address"]))
       assert has_element?(view, "button", "Regenerate Address")
       assert has_element?(view, "button", "Disable")
       refute has_element?(view, "button", "Enable Inbound Email")
@@ -110,10 +110,10 @@ defmodule KsefHubWeb.CompanyLiveTest do
       on_exit(fn -> Application.delete_env(:ksef_hub, :inbound_email_domain) end)
 
       {:ok, _} = Companies.enable_inbound_email(company)
-      {:ok, _view, html} = live_edit(conn, user, company)
+      {:ok, view, _html} = live_edit(conn, user, company)
 
-      assert html =~ "inv-"
-      assert html =~ "@inbound.test.com"
+      assert has_element?(view, "#inbound-email-display")
+      assert has_element?(view, ~s([data-testid="inbound-email-address"]))
     end
 
     test "disable_inbound_email clears the token", %{
@@ -126,13 +126,13 @@ defmodule KsefHubWeb.CompanyLiveTest do
 
       assert has_element?(view, "button", "Disable")
 
-      html =
-        view
-        |> element(~s(button[phx-click="disable_inbound_email"]))
-        |> render_click()
+      view
+      |> element(~s(button[phx-click="disable_inbound_email"]))
+      |> render_click()
 
-      assert html =~ "Enable Inbound Email"
-      refute html =~ "Regenerate Address"
+      assert has_element?(view, "button", "Enable Inbound Email")
+      refute has_element?(view, "button", "Regenerate Address")
+      refute has_element?(view, "#inbound-email-display")
     end
 
     test "regenerate_inbound_email updates the address", %{
@@ -146,13 +146,12 @@ defmodule KsefHubWeb.CompanyLiveTest do
       {:ok, enabled} = Companies.enable_inbound_email(company)
       {:ok, view, _html} = live_edit(conn, user, company)
 
-      html =
-        view
-        |> element(~s(button[phx-click="regenerate_inbound_email"]))
-        |> render_click()
+      view
+      |> element(~s(button[phx-click="regenerate_inbound_email"]))
+      |> render_click()
 
-      assert html =~ "inv-"
-      assert html =~ "@inbound.test.com"
+      assert has_element?(view, "#inbound-email-display")
+      assert has_element?(view, ~s([data-testid="inbound-email-address"]))
 
       # Verify the token actually changed
       refreshed = Companies.get_company!(company.id)

@@ -115,7 +115,7 @@ defmodule KsefHubWeb.WebhookController do
 
   @spec validate_attachments(map(), String.t(), Companies.Company.t()) ::
           {:ok, Plug.Upload.t()}
-          | {:error, {:attachment_error, atom(), String.t(), Companies.Company.t()}}
+          | {:error, {:attachment_error, term(), String.t(), Companies.Company.t()}}
   defp validate_attachments(params, sender, company) do
     attachments = collect_attachments(params)
 

@@ -68,8 +68,12 @@ defmodule KsefHubWeb.CompanyLive.Index do
   end
 
   @impl true
-  def handle_event("enable_inbound_email", _params, socket) do
-    case Companies.enable_inbound_email(socket.assigns.company) do
+  def handle_event(
+        "enable_inbound_email",
+        _params,
+        %{assigns: %{company: %Company{} = company}} = socket
+      ) do
+    case Companies.enable_inbound_email(company) do
       {:ok, updated} ->
         {:noreply,
          socket
@@ -82,8 +86,12 @@ defmodule KsefHubWeb.CompanyLive.Index do
   end
 
   @impl true
-  def handle_event("disable_inbound_email", _params, socket) do
-    case Companies.disable_inbound_email(socket.assigns.company) do
+  def handle_event(
+        "disable_inbound_email",
+        _params,
+        %{assigns: %{company: %Company{} = company}} = socket
+      ) do
+    case Companies.disable_inbound_email(company) do
       {:ok, updated} ->
         {:noreply,
          socket
@@ -96,9 +104,13 @@ defmodule KsefHubWeb.CompanyLive.Index do
   end
 
   @impl true
-  def handle_event("regenerate_inbound_email", _params, socket) do
+  def handle_event(
+        "regenerate_inbound_email",
+        _params,
+        %{assigns: %{company: %Company{} = company}} = socket
+      ) do
     # enable_inbound_email/1 overwrites the existing token, no need to disable first
-    case Companies.enable_inbound_email(socket.assigns.company) do
+    case Companies.enable_inbound_email(company) do
       {:ok, updated} ->
         {:noreply,
          socket
@@ -111,9 +123,13 @@ defmodule KsefHubWeb.CompanyLive.Index do
   end
 
   @impl true
-  def handle_event("validate_inbound_settings", %{"company" => params}, socket) do
+  def handle_event(
+        "validate_inbound_settings",
+        %{"company" => params},
+        %{assigns: %{company: %Company{} = company}} = socket
+      ) do
     changeset =
-      socket.assigns.company
+      company
       |> Company.inbound_email_settings_changeset(params)
       |> Map.put(:action, :validate)
 
@@ -121,8 +137,12 @@ defmodule KsefHubWeb.CompanyLive.Index do
   end
 
   @impl true
-  def handle_event("save_inbound_settings", %{"company" => params}, socket) do
-    case Companies.update_inbound_email_settings(socket.assigns.company, params) do
+  def handle_event(
+        "save_inbound_settings",
+        %{"company" => params},
+        %{assigns: %{company: %Company{} = company}} = socket
+      ) do
+    case Companies.update_inbound_email_settings(company, params) do
       {:ok, updated} ->
         {:noreply,
          socket
@@ -132,6 +152,11 @@ defmodule KsefHubWeb.CompanyLive.Index do
       {:error, changeset} ->
         {:noreply, assign(socket, inbound_settings_form: to_form(changeset))}
     end
+  end
+
+  def handle_event(event, _params, socket)
+      when event in ~w(enable_inbound_email disable_inbound_email regenerate_inbound_email validate_inbound_settings save_inbound_settings) do
+    {:noreply, socket}
   end
 
   @spec save_company(Phoenix.LiveView.Socket.t(), atom(), map()) ::
@@ -256,9 +281,13 @@ defmodule KsefHubWeb.CompanyLive.Index do
         </div>
         
     <!-- Inbound email address display -->
-        <div :if={@company.inbound_email_token} class="bg-base-200 px-4 py-3 rounded-lg">
+        <div
+          :if={@company.inbound_email_token}
+          id="inbound-email-display"
+          class="bg-base-200 px-4 py-3 rounded-lg"
+        >
           <p class="text-xs text-base-content/60 mb-1">Email address</p>
-          <code class="select-all text-sm font-mono break-all">
+          <code data-testid="inbound-email-address" class="select-all text-sm font-mono break-all">
             {inbound_email_address(@company)}
           </code>
         </div>
@@ -296,7 +325,8 @@ defmodule KsefHubWeb.CompanyLive.Index do
     <!-- Inbound email settings form -->
         <div :if={@inbound_settings_form} class="border-t border-base-300 pt-4">
           <h3 class="text-sm font-medium mb-3">Settings</h3>
-          <form
+          <.form
+            for={@inbound_settings_form}
             phx-submit="save_inbound_settings"
             phx-change="validate_inbound_settings"
             class="space-y-4"
@@ -320,7 +350,7 @@ defmodule KsefHubWeb.CompanyLive.Index do
               CC this address on all reply notifications. Leave empty for no CC.
             </p>
             <button type="submit" class="btn btn-primary btn-sm">Save Settings</button>
-          </form>
+          </.form>
         </div>
       </div>
     </div>
