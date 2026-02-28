@@ -56,7 +56,10 @@ defmodule KsefHub.KsefClient.Live do
          }}
 
       {:ok, %{status: status, body: body}} when is_binary(body) ->
-        Logger.warning("KSeF: POST #{url} returned #{status} with HTML body: #{String.slice(body, 0, 500)}")
+        Logger.warning(
+          "KSeF: POST #{url} returned #{status} with HTML body: #{String.slice(body, 0, 500)}"
+        )
+
         {:error, {:unexpected_html_response, status}}
 
       {:ok, %{status: status, body: body}} ->
@@ -89,7 +92,10 @@ defmodule KsefHub.KsefClient.Live do
          }}
 
       {:ok, %{status: status, body: body}} when is_binary(body) ->
-        Logger.warning("KSeF: POST #{url} returned #{status} with HTML body: #{String.slice(body, 0, 500)}")
+        Logger.warning(
+          "KSeF: POST #{url} returned #{status} with HTML body: #{String.slice(body, 0, 500)}"
+        )
+
         {:error, {:unexpected_html_response, status}}
 
       {:ok, %{status: status, body: body}} ->
@@ -116,11 +122,17 @@ defmodule KsefHub.KsefClient.Live do
         {:ok, :pending}
 
       {:ok, %{status: 200, body: %{"status" => %{"code" => code}} = body}} when code >= 400 ->
-        Logger.warning("KSeF: GET #{url} returned application error code #{code}: #{inspect(body)}")
+        Logger.warning(
+          "KSeF: GET #{url} returned application error code #{code}: #{inspect(body)}"
+        )
+
         {:error, {:ksef_error, code, body}}
 
       {:ok, %{status: status, body: body}} when is_binary(body) ->
-        Logger.warning("KSeF: GET #{url} returned #{status} with HTML body: #{String.slice(body, 0, 500)}")
+        Logger.warning(
+          "KSeF: GET #{url} returned #{status} with HTML body: #{String.slice(body, 0, 500)}"
+        )
+
         {:error, {:unexpected_html_response, status}}
 
       {:ok, %{status: status, body: body}} ->
@@ -152,7 +164,10 @@ defmodule KsefHub.KsefClient.Live do
          }}
 
       {:ok, %{status: status, body: body}} when is_binary(body) ->
-        Logger.warning("KSeF: POST #{url} returned #{status} with HTML body: #{String.slice(body, 0, 500)}")
+        Logger.warning(
+          "KSeF: POST #{url} returned #{status} with HTML body: #{String.slice(body, 0, 500)}"
+        )
+
         {:error, {:unexpected_html_response, status}}
 
       {:ok, %{status: status, body: body}} ->
@@ -181,7 +196,10 @@ defmodule KsefHub.KsefClient.Live do
          }}
 
       {:ok, %{status: status, body: body}} when is_binary(body) ->
-        Logger.warning("KSeF: POST #{url} returned #{status} with HTML body: #{String.slice(body, 0, 500)}")
+        Logger.warning(
+          "KSeF: POST #{url} returned #{status} with HTML body: #{String.slice(body, 0, 500)}"
+        )
+
         {:error, {:unexpected_html_response, status}}
 
       {:ok, %{status: status, body: body}} ->
@@ -226,7 +244,10 @@ defmodule KsefHub.KsefClient.Live do
         {:error, {:rate_limited, retry_after}}
 
       {:ok, %{status: status, body: body}} when is_binary(body) ->
-        Logger.warning("KSeF: POST #{url} returned #{status} with HTML body: #{String.slice(body, 0, 500)}")
+        Logger.warning(
+          "KSeF: POST #{url} returned #{status} with HTML body: #{String.slice(body, 0, 500)}"
+        )
+
         {:error, {:unexpected_html_response, status}}
 
       {:ok, %{status: status, body: body}} ->

@@ -28,7 +28,8 @@ defmodule KsefHub.KsefClient.Auth do
   def authenticate(nip, certificate_data, certificate_password) do
     Logger.info("KSeF XADES auth: starting for NIP #{nip}")
 
-    with {:ok, %{challenge: challenge}} <- step(:get_challenge, fn -> ksef_client().get_challenge() end),
+    with {:ok, %{challenge: challenge}} <-
+           step(:get_challenge, fn -> ksef_client().get_challenge() end),
          {:ok, signed_xml} <-
            step(:sign_challenge, fn ->
              xades_signer().sign_challenge(challenge, nip, certificate_data, certificate_password)
