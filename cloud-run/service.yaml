@@ -47,7 +47,7 @@ spec:
             - name: PHX_HOST
               value: "ksef-hub.appunite.com"
             - name: KSEF_API_URL
-              value: "https://api-test.ksef.mf.gov.pl"
+              value: "https://api.ksef.mf.gov.pl"
             - name: PDF_RENDERER_URL
               value: "http://localhost:3001"
             - name: POOL_SIZE
