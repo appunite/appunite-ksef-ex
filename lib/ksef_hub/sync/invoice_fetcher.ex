@@ -12,6 +12,8 @@ defmodule KsefHub.Sync.InvoiceFetcher do
 
   @overlap_minutes 10
   @max_pages 100
+  # KSeF production limits dateRange to 3 months; stay safely under
+  @max_range_days 89
 
   @spec ksef_client() :: module()
   defp ksef_client, do: Application.get_env(:ksef_hub, :ksef_client, KsefHub.KsefClient.Live)
@@ -30,6 +32,8 @@ defmodule KsefHub.Sync.InvoiceFetcher do
           {:ok, non_neg_integer(), DateTime.t() | nil, non_neg_integer()} | {:error, term()}
   def fetch_all(access_token, type, nip, company_id, checkpoint_timestamp) do
     from = DateTime.add(checkpoint_timestamp, -@overlap_minutes * 60)
+    earliest_allowed = DateTime.add(DateTime.utc_now(), -@max_range_days * 86_400)
+    from = pick_max_timestamp(from, earliest_allowed) || from
 
     ctx = %{token: access_token, type: type, nip: nip, company_id: company_id}
     do_fetch(ctx, from, 0, 0, 0, nil)
@@ -50,7 +54,8 @@ defmodule KsefHub.Sync.InvoiceFetcher do
   end
 
   defp do_fetch(ctx, from, page_offset, count, failed, max_ts) do
-    filters = %{type: ctx.type, date_from: from}
+    date_to = DateTime.utc_now()
+    filters = %{type: ctx.type, date_from: from, date_to: date_to}
     opts = [page_offset: page_offset, page_size: 100]
 
     case ksef_client().query_invoice_metadata(ctx.token, filters, opts) do

@@ -7,7 +7,7 @@ defmodule KsefHub.Sync.Checkpoints do
   alias KsefHub.Repo
   alias KsefHub.Sync.Checkpoint
 
-  @default_lookback_days 90
+  @default_lookback_days 89
 
   @doc """
   Gets or initializes a checkpoint for the given type and company.
