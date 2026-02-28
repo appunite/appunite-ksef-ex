@@ -55,15 +55,18 @@ defmodule KsefHub.Sync.SyncWorker do
         {:cancel, :no_certificate}
 
       {:error, {:reauth_failed, reason}} ->
+        nip = lookup_company_nip(company_id)
+
         Logger.error(
-          "Sync failed for company #{company_id}: re-authentication failed: #{inspect(reason)}"
+          "Sync failed for company #{company_id} (NIP #{nip}): re-authentication failed: #{inspect(reason)}"
         )
 
         store_meta(job, %{"error" => "reauth_failed: #{inspect(reason)}"})
         {:error, {:reauth_failed, reason}}
 
       {:error, reason} ->
-        Logger.error("Sync failed for company #{company_id}: #{inspect(reason)}")
+        nip = lookup_company_nip(company_id)
+        Logger.error("Sync failed for company #{company_id} (NIP #{nip}): #{inspect(reason)}")
         store_meta(job, %{"error" => inspect(reason)})
         {:error, reason}
     end
@@ -285,6 +288,14 @@ defmodule KsefHub.Sync.SyncWorker do
 
   @spec ksef_client() :: module()
   defp ksef_client, do: Application.get_env(:ksef_hub, :ksef_client, KsefHub.KsefClient.Live)
+
+  @spec lookup_company_nip(Ecto.UUID.t()) :: String.t()
+  defp lookup_company_nip(company_id) do
+    case KsefHub.Companies.get_company(company_id) do
+      %{nip: nip} -> nip
+      _ -> "unknown"
+    end
+  end
 
   @spec store_meta(Oban.Job.t(), map()) :: :ok | {non_neg_integer(), nil}
   defp store_meta(%Oban.Job{id: id}, attrs) when is_integer(id) do
