@@ -11,6 +11,7 @@ defmodule KsefHub.Factory do
   alias KsefHub.Accounts.{ApiToken, User}
   alias KsefHub.Companies.{Company, Membership}
   alias KsefHub.Credentials.{Credential, UserCertificate}
+  alias KsefHub.Files.File, as: FileRecord
   alias KsefHub.InboundEmail.InboundEmail, as: InboundEmailRecord
   alias KsefHub.Invitations.Invitation
   alias KsefHub.Invoices.{Category, Invoice, InvoiceTag, Tag}
@@ -234,6 +235,17 @@ defmodule KsefHub.Factory do
       status: :received,
       mailgun_message_id: sequence(:mailgun_msg_id, &"<msg-#{&1}@mailgun.org>"),
       company: build(:company)
+    }
+  end
+
+  @doc "Builds a `File` with sample text content."
+  @spec file_factory() :: FileRecord.t()
+  def file_factory do
+    %FileRecord{
+      content: "sample file content",
+      content_type: "application/octet-stream",
+      filename: "test-file.bin",
+      byte_size: byte_size("sample file content")
     }
   end
 
