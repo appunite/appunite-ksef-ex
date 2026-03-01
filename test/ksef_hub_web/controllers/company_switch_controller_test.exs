@@ -14,7 +14,7 @@ defmodule KsefHubWeb.CompanySwitchControllerTest do
         |> log_in_user(user)
         |> post(~p"/switch-company/#{company.id}")
 
-      assert redirected_to(conn) == "/dashboard"
+      assert redirected_to(conn) == "/invoices"
       assert get_session(conn, :current_company_id) == company.id
     end
 
@@ -27,7 +27,7 @@ defmodule KsefHubWeb.CompanySwitchControllerTest do
         |> log_in_user(user)
         |> post(~p"/switch-company/#{company.id}")
 
-      assert redirected_to(conn) == "/dashboard"
+      assert redirected_to(conn) == "/invoices"
       assert Phoenix.Flash.get(conn.assigns.flash, :error) == "Company not found."
       assert is_nil(get_session(conn, :current_company_id))
     end
@@ -40,7 +40,7 @@ defmodule KsefHubWeb.CompanySwitchControllerTest do
         |> log_in_user(user)
         |> post(~p"/switch-company/#{Ecto.UUID.generate()}")
 
-      assert redirected_to(conn) == "/dashboard"
+      assert redirected_to(conn) == "/invoices"
       assert Phoenix.Flash.get(conn.assigns.flash, :error) == "Company not found."
       assert is_nil(get_session(conn, :current_company_id))
     end
@@ -68,7 +68,7 @@ defmodule KsefHubWeb.CompanySwitchControllerTest do
         |> log_in_user(user)
         |> post(~p"/switch-company/#{company.id}", %{return_to: "https://evil.com"})
 
-      assert redirected_to(conn) == "/dashboard"
+      assert redirected_to(conn) == "/invoices"
     end
 
     test "rejects protocol-relative URL in return_to", %{conn: conn} do
@@ -81,7 +81,7 @@ defmodule KsefHubWeb.CompanySwitchControllerTest do
         |> log_in_user(user)
         |> post(~p"/switch-company/#{company.id}", %{return_to: "//evil.com"})
 
-      assert redirected_to(conn) == "/dashboard"
+      assert redirected_to(conn) == "/invoices"
     end
   end
 end

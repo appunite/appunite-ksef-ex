@@ -24,7 +24,7 @@ defmodule KsefHubWeb.CompanySwitchController do
           _ ->
             conn
             |> put_flash(:error, "Company not found.")
-            |> redirect(to: ~p"/dashboard")
+            |> redirect(to: ~p"/invoices")
         end
 
       _ ->
@@ -35,7 +35,7 @@ defmodule KsefHubWeb.CompanySwitchController do
   end
 
   @spec safe_return_to(String.t() | nil) :: String.t()
-  defp safe_return_to(nil), do: ~p"/dashboard"
+  defp safe_return_to(nil), do: ~p"/invoices"
 
   defp safe_return_to(path) do
     uri = URI.parse(path)
@@ -44,7 +44,7 @@ defmodule KsefHubWeb.CompanySwitchController do
          !String.starts_with?(path, "//") do
       path
     else
-      ~p"/dashboard"
+      ~p"/invoices"
     end
   end
 end

@@ -31,7 +31,7 @@ defmodule KsefHubWeb.InvitationAutoAcceptTest do
 
       render_submit(form)
       conn = follow_trigger_action(form, conn)
-      assert redirected_to(conn) =~ "/dashboard"
+      assert redirected_to(conn) =~ "/invoices"
 
       # Verify membership was auto-created
       user = KsefHub.Accounts.get_user_by_email("newuser@example.com")

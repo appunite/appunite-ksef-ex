@@ -70,7 +70,7 @@ defmodule KsefHubWeb.TokenLiveTest do
         build_conn()
         |> log_in_user(non_owner, %{current_company_id: company.id})
 
-      assert {:error, {:redirect, %{to: "/dashboard", flash: %{"error" => message}}}} =
+      assert {:error, {:redirect, %{to: "/invoices", flash: %{"error" => message}}}} =
                live(conn, ~p"/tokens")
 
       assert message =~ "Only company owners"

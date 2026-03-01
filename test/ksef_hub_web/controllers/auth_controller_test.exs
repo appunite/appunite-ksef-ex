@@ -24,7 +24,7 @@ defmodule KsefHubWeb.AuthControllerTest do
         |> assign(:ueberauth_auth, auth)
         |> get("/auth/google/callback")
 
-      assert redirected_to(conn) == "/dashboard"
+      assert redirected_to(conn) == "/invoices"
       assert Phoenix.Flash.get(conn.assigns.flash, :info) =~ "Welcome"
       assert get_session(conn, :user_token)
     end
@@ -47,7 +47,7 @@ defmodule KsefHubWeb.AuthControllerTest do
         |> assign(:ueberauth_auth, auth)
         |> get("/auth/google/callback")
 
-      assert redirected_to(conn) == "/dashboard"
+      assert redirected_to(conn) == "/invoices"
       assert get_session(conn, :user_token)
     end
 
@@ -154,7 +154,7 @@ defmodule KsefHubWeb.AuthControllerTest do
         |> assign(:ueberauth_auth, auth)
         |> get("/auth/google/callback")
 
-      assert redirected_to(conn) == "/dashboard"
+      assert redirected_to(conn) == "/invoices"
 
       # Verify the Google UID was linked to the existing user
       linked = Accounts.get_user_by_google_uid("google-link-uid")

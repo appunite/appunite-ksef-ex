@@ -34,7 +34,7 @@ defmodule KsefHubWeb.InvitationAcceptLiveTest do
     end
 
     test "accepts invitation and redirects to dashboard", %{conn: conn, token: token} do
-      assert {:error, {:redirect, %{to: "/dashboard", flash: flash}}} =
+      assert {:error, {:redirect, %{to: "/invoices", flash: flash}}} =
                live(conn, ~p"/invitations/accept/#{token}")
 
       assert flash["info"] =~ "Invitation accepted"
@@ -90,7 +90,7 @@ defmodule KsefHubWeb.InvitationAcceptLiveTest do
 
       already_conn = log_in_user(conn, already_member)
 
-      assert {:error, {:redirect, %{to: "/dashboard", flash: flash}}} =
+      assert {:error, {:redirect, %{to: "/invoices", flash: flash}}} =
                live(already_conn, ~p"/invitations/accept/#{token}")
 
       assert flash["info"] =~ "already a member"
