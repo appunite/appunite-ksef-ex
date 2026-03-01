@@ -18,6 +18,22 @@ defmodule KsefHub.Exports.ExportWorker do
   @impl Oban.Worker
   @spec perform(Oban.Job.t()) :: :ok | {:cancel, String.t()} | {:error, term()}
   def perform(%Oban.Job{args: %{"export_batch_id" => batch_id}}) do
+    case Ecto.UUID.cast(batch_id) do
+      :error ->
+        {:cancel, "invalid export_batch_id: #{inspect(batch_id)}"}
+
+      {:ok, _} ->
+        do_perform(batch_id)
+    end
+  end
+
+  def perform(%Oban.Job{args: args}) do
+    Logger.error("ExportWorker received malformed args: #{inspect(args, limit: 200)}")
+    {:cancel, "malformed job args: missing export_batch_id"}
+  end
+
+  @spec do_perform(String.t()) :: :ok | {:cancel, String.t()} | {:error, term()}
+  defp do_perform(batch_id) do
     case Repo.get(ExportBatch, batch_id) do
       nil ->
         {:cancel, "export batch not found"}
@@ -38,10 +54,5 @@ defmodule KsefHub.Exports.ExportWorker do
             {:error, reason}
         end
     end
-  end
-
-  def perform(%Oban.Job{args: args}) do
-    Logger.error("ExportWorker received malformed args: #{inspect(args, limit: 200)}")
-    {:cancel, "malformed job args: missing export_batch_id"}
   end
 end

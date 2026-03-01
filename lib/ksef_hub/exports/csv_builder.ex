@@ -81,11 +81,13 @@ defmodule KsefHub.Exports.CsvBuilder do
   end
 
   @spec sanitize_formula(String.t()) :: String.t()
-  defp sanitize_formula(<<c, _::binary>> = value) when c in [?=, ?+, ?-, ?@] do
-    "'" <> value
+  defp sanitize_formula(value) do
+    if Regex.match?(~r/^\s*[=+\-@]/, value) do
+      "'" <> value
+    else
+      value
+    end
   end
-
-  defp sanitize_formula(value), do: value
 
   @spec needs_quoting?(String.t()) :: boolean()
   defp needs_quoting?(value) do

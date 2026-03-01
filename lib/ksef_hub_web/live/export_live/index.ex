@@ -69,28 +69,40 @@ defmodule KsefHubWeb.ExportLive.Index do
   end
 
   def handle_event("preview", _params, socket) do
-    company = socket.assigns.current_company
+    case socket.assigns.current_company do
+      nil ->
+        {:noreply, socket}
 
-    with {:ok, date_from} <- Date.from_iso8601(socket.assigns.date_from),
-         {:ok, date_to} <- Date.from_iso8601(socket.assigns.date_to) do
-      filters = %{
-        date_from: date_from,
-        date_to: date_to,
-        invoice_type: normalize_type(socket.assigns.invoice_type),
-        only_new: socket.assigns.only_new,
-        user_id: socket.assigns.current_user.id
-      }
+      company ->
+        with {:ok, date_from} <- Date.from_iso8601(socket.assigns.date_from),
+             {:ok, date_to} <- Date.from_iso8601(socket.assigns.date_to) do
+          filters = %{
+            date_from: date_from,
+            date_to: date_to,
+            invoice_type: normalize_type(socket.assigns.invoice_type),
+            only_new: socket.assigns.only_new,
+            user_id: socket.assigns.current_user.id
+          }
 
-      count = Exports.count_exportable_invoices(company.id, filters)
-      {:noreply, assign(socket, preview_count: count)}
-    else
-      _ ->
-        {:noreply, put_flash(socket, :error, "Invalid date format.")}
+          count = Exports.count_exportable_invoices(company.id, filters)
+          {:noreply, assign(socket, preview_count: count)}
+        else
+          _ ->
+            {:noreply, put_flash(socket, :error, "Invalid date format.")}
+        end
     end
   end
 
   def handle_event("export", _params, socket) do
-    company = socket.assigns.current_company
+    case socket.assigns.current_company do
+      nil -> {:noreply, socket}
+      company -> do_export(socket, company)
+    end
+  end
+
+  @spec do_export(Phoenix.LiveView.Socket.t(), map()) ::
+          {:noreply, Phoenix.LiveView.Socket.t()}
+  defp do_export(socket, company) do
     user = socket.assigns.current_user
 
     params = %{
@@ -113,7 +125,9 @@ defmodule KsefHubWeb.ExportLive.Index do
         message =
           changeset
           |> Ecto.Changeset.traverse_errors(fn {msg, _opts} -> msg end)
-          |> Enum.map_join(", ", fn {field, msgs} -> "#{field}: #{Enum.join(msgs, ", ")}" end)
+          |> Enum.map_join(", ", fn {field, msgs} ->
+            "#{field}: #{Enum.join(msgs, ", ")}"
+          end)
 
         {:noreply, put_flash(socket, :error, "Export failed: #{message}")}
     end
@@ -124,13 +138,14 @@ defmodule KsefHubWeb.ExportLive.Index do
           {:noreply, Phoenix.LiveView.Socket.t()}
   def handle_info({:export_status, batch_id, _status}, socket) do
     company = socket.assigns.current_company
+    user = socket.assigns.current_user
 
     case Repo.get(ExportBatch, batch_id) do
       nil ->
         {:noreply, socket}
 
       batch ->
-        if batch.company_id == company.id do
+        if batch.company_id == company.id and batch.user_id == user.id do
           {:noreply, stream_insert(socket, :batches, batch)}
         else
           {:noreply, socket}

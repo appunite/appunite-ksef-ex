@@ -60,6 +60,9 @@ defmodule KsefHub.Exports do
       broadcast_status(batch.company_id, batch.id, :completed)
       :ok
     else
+      {:error, :already_processing} ->
+        {:error, :already_processing}
+
       {:error, reason} ->
         fail_batch(batch, inspect(reason, limit: 500))
         broadcast_status(batch.company_id, batch.id, :failed)
