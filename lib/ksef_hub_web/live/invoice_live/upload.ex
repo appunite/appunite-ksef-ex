@@ -183,7 +183,20 @@ defmodule KsefHubWeb.InvoiceLive.Upload do
     </.header>
 
     <div class="max-w-xl mt-6">
-      <.form for={%{}} phx-change="validate" phx-submit="upload" id="upload-form" class="space-y-6">
+      <div :if={@uploading} class="border-2 border-dashed border-base-300 rounded-lg p-12 text-center">
+        <span class="loading loading-spinner loading-lg text-primary"></span>
+        <p class="mt-3 font-medium">Processing your invoice...</p>
+        <p class="text-sm text-base-content/60 mt-1">Extracting data from PDF</p>
+      </div>
+
+      <.form
+        :if={!@uploading}
+        for={%{}}
+        phx-change="validate"
+        phx-submit="upload"
+        id="upload-form"
+        class="space-y-6"
+      >
         <div class="form-control">
           <label class="label"><span class="label-text">PDF File</span></label>
           <div
@@ -211,10 +224,9 @@ defmodule KsefHubWeb.InvoiceLive.Upload do
         <button
           type="submit"
           class="btn btn-primary"
-          disabled={@uploading || @uploads.invoice_pdf.entries == []}
+          disabled={@uploads.invoice_pdf.entries == []}
         >
-          <span :if={@uploading} class="loading loading-spinner loading-sm"></span>
-          {if @uploading, do: "Processing...", else: "Upload & Extract"}
+          Upload & Extract
         </button>
       </.form>
     </div>
