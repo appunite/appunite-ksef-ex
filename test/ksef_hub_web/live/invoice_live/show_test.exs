@@ -391,6 +391,54 @@ defmodule KsefHubWeb.InvoiceLive.ShowTest do
     end
   end
 
+  describe "pdf_upload invoice" do
+    setup :stub_pdf
+
+    test "shows PDF preview iframe", %{conn: conn, company: company} do
+      invoice = insert(:pdf_upload_invoice, company: company)
+
+      {:ok, _view, html} = live(conn, ~p"/invoices/#{invoice.id}")
+
+      assert html =~ ~s(src="/invoices/#{invoice.id}/pdf")
+      assert html =~ "Invoice PDF preview"
+    end
+
+    test "shows download dropdown with PDF but not XML", %{conn: conn, company: company} do
+      invoice = insert(:pdf_upload_invoice, company: company)
+
+      {:ok, view, _html} = live(conn, ~p"/invoices/#{invoice.id}")
+
+      assert has_element?(view, "div.dropdown")
+      assert has_element?(view, ~s(a[href="/invoices/#{invoice.id}/pdf"]))
+      refute has_element?(view, ~s(a[href="/invoices/#{invoice.id}/xml"]))
+    end
+  end
+
+  describe "duplicate warning" do
+    setup :stub_pdf
+
+    test "shown when duplicate_of_id is set with link to original", %{
+      conn: conn,
+      company: company
+    } do
+      original = insert(:invoice, company: company)
+      duplicate = insert(:pdf_upload_invoice, company: company, duplicate_of_id: original.id)
+
+      {:ok, view, _html} = live(conn, ~p"/invoices/#{duplicate.id}")
+
+      assert has_element?(view, ~s([data-testid="duplicate-warning"]))
+      assert has_element?(view, ~s(a[href="/invoices/#{original.id}"]), "View original")
+    end
+
+    test "not shown when duplicate_of_id is nil", %{conn: conn, company: company} do
+      invoice = insert(:pdf_upload_invoice, company: company)
+
+      {:ok, view, _html} = live(conn, ~p"/invoices/#{invoice.id}")
+
+      refute has_element?(view, ~s([data-testid="duplicate-warning"]))
+    end
+  end
+
   describe "reviewer role" do
     setup %{conn: _conn} do
       {:ok, reviewer} =

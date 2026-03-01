@@ -74,8 +74,19 @@ defmodule KsefHubWeb.InvoicePdfControllerTest do
     end
   end
 
+  describe "xml/2 for pdf_upload invoices" do
+    test "redirects with error when invoice has no xml_file", %{conn: conn, company: company} do
+      invoice = insert(:pdf_upload_invoice, company: company)
+
+      conn = get(conn, ~p"/invoices/#{invoice.id}/xml")
+
+      assert redirected_to(conn) == "/invoices/#{invoice.id}"
+      assert Phoenix.Flash.get(conn.assigns.flash, :error) =~ "No XML content"
+    end
+  end
+
   describe "show/2 (PDF)" do
-    test "generates and sends PDF", %{conn: conn, company: company} do
+    test "generates PDF from XML for KSeF invoices", %{conn: conn, company: company} do
       xml_file =
         insert(:file, content: "<Faktura>test</Faktura>", content_type: "application/xml")
 
@@ -96,6 +107,26 @@ defmodule KsefHubWeb.InvoicePdfControllerTest do
       assert get_resp_header(conn, "content-type") |> hd() =~ "application/pdf"
       assert get_resp_header(conn, "content-disposition") |> hd() =~ "FV_2025_002.pdf"
       assert conn.resp_body == "%PDF-fake-content"
+    end
+
+    test "serves stored PDF for pdf_upload invoices", %{conn: conn, company: company} do
+      invoice = insert(:pdf_upload_invoice, company: company, invoice_number: "FV/PDF/001")
+
+      conn = get(conn, ~p"/invoices/#{invoice.id}/pdf")
+
+      assert conn.status == 200
+      assert get_resp_header(conn, "content-type") |> hd() =~ "application/pdf"
+      assert get_resp_header(conn, "content-disposition") |> hd() =~ "FV_PDF_001.pdf"
+      assert conn.resp_body == "%PDF-1.4 fake content"
+    end
+
+    test "redirects when invoice has neither PDF nor XML", %{conn: conn, company: company} do
+      invoice = insert(:manual_invoice, company: company)
+
+      conn = get(conn, ~p"/invoices/#{invoice.id}/pdf")
+
+      assert redirected_to(conn) == "/invoices/#{invoice.id}"
+      assert Phoenix.Flash.get(conn.assigns.flash, :error) =~ "No PDF or XML"
     end
   end
 end

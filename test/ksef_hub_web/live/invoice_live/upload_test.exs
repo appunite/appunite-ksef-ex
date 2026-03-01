@@ -7,6 +7,7 @@ defmodule KsefHubWeb.InvoiceLive.UploadTest do
   import KsefHub.Factory
 
   alias KsefHub.Accounts
+  alias KsefHub.Invoices
 
   setup :set_mox_from_context
   setup :verify_on_exit!
@@ -32,29 +33,48 @@ defmodule KsefHubWeb.InvoiceLive.UploadTest do
 
       assert html =~ "Upload PDF Invoice"
       assert html =~ "Upload &amp; Extract"
-      assert html =~ "Expense"
-      assert html =~ "Income"
+      assert html =~ "expense"
     end
 
-    test "defaults to expense type", %{conn: conn} do
+    test "does not show income/expense type selector", %{conn: conn} do
       {:ok, view, _html} = live(conn, ~p"/invoices/upload")
 
-      assert has_element?(view, ~s(input[type="radio"][value="expense"][checked]))
+      refute has_element?(view, ~s(input[type="radio"]))
     end
-  end
 
-  describe "type selection" do
-    test "can switch to income type", %{conn: conn} do
-      {:ok, view, _html} = live(conn, ~p"/invoices/upload")
+    test "redirects reviewer to invoices", %{conn: _conn} do
+      {:ok, reviewer} =
+        Accounts.get_or_create_google_user(%{
+          uid: "g-upload-reviewer",
+          email: "reviewer-upload@example.com",
+          name: "Reviewer"
+        })
 
-      view |> element(~s(input[value="income"])) |> render_click()
+      company = insert(:company)
+      insert(:membership, user: reviewer, company: company, role: :reviewer)
 
-      assert has_element?(view, ~s(input[type="radio"][value="income"][checked]))
+      conn = build_conn() |> log_in_user(reviewer, %{current_company_id: company.id})
+
+      assert {:error, {:redirect, %{to: "/invoices"}}} = live(conn, ~p"/invoices/upload")
+    end
+
+    test "redirects when user has no companies" do
+      {:ok, no_company_user} =
+        Accounts.get_or_create_google_user(%{
+          uid: "g-upload-nocompany",
+          email: "nocompany@example.com",
+          name: "No Company"
+        })
+
+      conn = build_conn() |> log_in_user(no_company_user)
+
+      # LiveAuth redirects to /companies/new when user has no companies
+      assert {:error, {:redirect, %{to: "/companies/new"}}} = live(conn, ~p"/invoices/upload")
     end
   end
 
   describe "file upload" do
-    test "successful upload redirects to invoice show page", %{conn: conn} do
+    test "successful upload redirects to invoice show page", %{conn: conn, company: company} do
       stub(KsefHub.InvoiceExtractor.Mock, :extract, fn _binary, _opts ->
         {:ok,
          %{
@@ -87,12 +107,21 @@ defmodule KsefHubWeb.InvoiceLive.UploadTest do
 
       render_submit(view, "upload", %{})
 
-      # The async task runs and redirects
       {path, _flash} = assert_redirect(view)
       assert path =~ ~r|/invoices/[a-f0-9-]+|
+
+      # Verify the created invoice is an expense
+      [invoice_id] = Regex.run(~r|/invoices/([a-f0-9-]+)|, path, capture: :all_but_first)
+      invoice = Invoices.get_invoice!(company.id, invoice_id)
+      assert invoice.type == :expense
+      assert invoice.source == :pdf_upload
+      assert invoice.extraction_status == :complete
     end
 
-    test "failed extraction still creates invoice and redirects", %{conn: conn} do
+    test "failed extraction creates invoice with failed status and redirects", %{
+      conn: conn,
+      company: company
+    } do
       stub(KsefHub.InvoiceExtractor.Mock, :extract, fn _binary, _opts ->
         {:error, :extractor_not_configured}
       end)
@@ -113,9 +142,14 @@ defmodule KsefHubWeb.InvoiceLive.UploadTest do
 
       render_submit(view, "upload", %{})
 
-      # Even failed extraction creates an invoice with :failed status
       {path, _flash} = assert_redirect(view)
       assert path =~ ~r|/invoices/[a-f0-9-]+|
+
+      # Verify the invoice was created with :failed extraction status
+      [invoice_id] = Regex.run(~r|/invoices/([a-f0-9-]+)|, path, capture: :all_but_first)
+      invoice = Invoices.get_invoice!(company.id, invoice_id)
+      assert invoice.extraction_status == :failed
+      assert invoice.source == :pdf_upload
     end
 
     test "upload without file shows error", %{conn: conn} do
@@ -126,52 +160,28 @@ defmodule KsefHubWeb.InvoiceLive.UploadTest do
     end
   end
 
-  describe "show page integration" do
-    test "pdf_upload invoice shows PDF preview iframe", %{conn: conn, company: company} do
-      invoice = insert(:pdf_upload_invoice, company: company)
+  describe "index button visibility" do
+    test "shows Upload PDF button for owner", %{conn: conn} do
+      {:ok, view, _html} = live(conn, ~p"/invoices")
 
-      stub(KsefHub.PdfRenderer.Mock, :generate_html, fn _xml, _meta -> {:error, :no_xml} end)
-
-      {:ok, _view, html} = live(conn, ~p"/invoices/#{invoice.id}")
-
-      assert html =~ ~s(src="/invoices/#{invoice.id}/pdf")
-      assert html =~ "Invoice PDF preview"
+      assert has_element?(view, ~s(a[href="/invoices/upload"]), "Upload PDF")
     end
 
-    test "pdf_upload invoice shows download dropdown", %{conn: conn, company: company} do
-      invoice = insert(:pdf_upload_invoice, company: company)
+    test "hides Upload PDF button for reviewer" do
+      {:ok, reviewer} =
+        Accounts.get_or_create_google_user(%{
+          uid: "g-upload-idx-rev",
+          email: "reviewer-idx@example.com",
+          name: "Reviewer"
+        })
 
-      stub(KsefHub.PdfRenderer.Mock, :generate_html, fn _xml, _meta -> {:error, :no_xml} end)
+      company = insert(:company)
+      insert(:membership, user: reviewer, company: company, role: :reviewer)
 
-      {:ok, view, _html} = live(conn, ~p"/invoices/#{invoice.id}")
+      conn = build_conn() |> log_in_user(reviewer, %{current_company_id: company.id})
+      {:ok, view, _html} = live(conn, ~p"/invoices")
 
-      assert has_element?(view, "div.dropdown")
-      assert has_element?(view, ~s(a[href="/invoices/#{invoice.id}/pdf"]))
-      # No XML link for pdf_upload invoices
-      refute has_element?(view, ~s(a[href="/invoices/#{invoice.id}/xml"]))
-    end
-
-    test "duplicate warning shown when duplicate_of_id is set", %{conn: conn, company: company} do
-      original = insert(:invoice, company: company)
-
-      duplicate =
-        insert(:pdf_upload_invoice, company: company, duplicate_of_id: original.id)
-
-      stub(KsefHub.PdfRenderer.Mock, :generate_html, fn _xml, _meta -> {:error, :no_xml} end)
-
-      {:ok, view, _html} = live(conn, ~p"/invoices/#{duplicate.id}")
-
-      assert has_element?(view, ~s([data-testid="duplicate-warning"]))
-    end
-
-    test "no duplicate warning when duplicate_of_id is nil", %{conn: conn, company: company} do
-      invoice = insert(:pdf_upload_invoice, company: company)
-
-      stub(KsefHub.PdfRenderer.Mock, :generate_html, fn _xml, _meta -> {:error, :no_xml} end)
-
-      {:ok, view, _html} = live(conn, ~p"/invoices/#{invoice.id}")
-
-      refute has_element?(view, ~s([data-testid="duplicate-warning"]))
+      refute has_element?(view, ~s(a[href="/invoices/upload"]))
     end
   end
 end
