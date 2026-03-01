@@ -27,6 +27,35 @@ defmodule KsefHub.InvoicesTest do
       assert invoice.company_id == company.id
     end
 
+    test "creates xml_file for ksef source invoice", %{company: company} do
+      xml = File.read!("test/support/fixtures/sample_income.xml")
+
+      attrs =
+        params_for(:invoice, company_id: company.id, xml_content: xml)
+
+      assert {:ok, invoice} = Invoices.create_invoice(attrs)
+      assert invoice.xml_file_id
+      xml_file = KsefHub.Files.get_file!(invoice.xml_file_id)
+      assert xml_file.content == xml
+      assert xml_file.content_type == "application/xml"
+    end
+
+    test "creates pdf_file for pdf_upload source invoice", %{company: company} do
+      pdf_binary = "%PDF-1.4 test content"
+
+      attrs =
+        params_for(:pdf_upload_invoice,
+          company_id: company.id,
+          pdf_content: pdf_binary
+        )
+
+      assert {:ok, invoice} = Invoices.create_invoice(attrs)
+      assert invoice.pdf_file_id
+      pdf_file = KsefHub.Files.get_file!(invoice.pdf_file_id)
+      assert pdf_file.content == pdf_binary
+      assert pdf_file.content_type == "application/pdf"
+    end
+
     test "returns error with invalid type", %{company: company} do
       attrs = params_for(:invoice, type: :invalid, company_id: company.id)
       assert {:error, changeset} = Invoices.create_invoice(attrs)
@@ -83,6 +112,14 @@ defmodule KsefHub.InvoicesTest do
     test "inserts new invoice and returns :inserted tag", %{company: company} do
       attrs = params_for(:invoice, ksef_number: "upsert-1", company_id: company.id)
       assert {:ok, %Invoice{}, :inserted} = Invoices.upsert_invoice(attrs)
+    end
+
+    test "creates xml_file on insert", %{company: company} do
+      attrs = params_for(:invoice, ksef_number: "upsert-file-1", company_id: company.id)
+      assert {:ok, %Invoice{} = invoice, :inserted} = Invoices.upsert_invoice(attrs)
+      assert invoice.xml_file_id
+      xml_file = KsefHub.Files.get_file!(invoice.xml_file_id)
+      assert xml_file.content_type == "application/xml"
     end
 
     test "updates existing invoice and returns :updated tag", %{company: company} do
@@ -600,6 +637,9 @@ defmodule KsefHub.InvoicesTest do
       assert invoice.net_amount == Decimal.new("1000.00")
       assert invoice.pdf_content == "pdf-data"
       assert invoice.original_filename == "test.pdf"
+      assert invoice.pdf_file_id
+      pdf_file = KsefHub.Files.get_file!(invoice.pdf_file_id)
+      assert pdf_file.content == "pdf-data"
     end
 
     test "creates invoice with partial extraction when fields missing", %{company: company} do
@@ -935,6 +975,9 @@ defmodule KsefHub.InvoicesTest do
       assert invoice.seller_nip == "1111111111"
       assert invoice.original_filename == "invoice.pdf"
       assert invoice.pdf_content == pdf_binary
+      assert invoice.pdf_file_id
+      pdf_file = KsefHub.Files.get_file!(invoice.pdf_file_id)
+      assert pdf_file.content == pdf_binary
     end
 
     test "creates invoice with partial extraction status when fields missing", %{
