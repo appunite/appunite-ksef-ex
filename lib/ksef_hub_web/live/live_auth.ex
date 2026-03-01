@@ -51,7 +51,7 @@ defmodule KsefHubWeb.LiveAuth do
       {:halt,
        socket
        |> put_flash(:error, "Only the owner can manage the team.")
-       |> redirect(to: "/dashboard")}
+       |> redirect(to: "/invoices")}
     end
   end
 
@@ -59,7 +59,7 @@ defmodule KsefHubWeb.LiveAuth do
     user_token = session["user_token"]
 
     if is_binary(user_token) && Accounts.get_user_by_session_token(user_token) do
-      {:halt, redirect(socket, to: "/dashboard")}
+      {:halt, redirect(socket, to: "/invoices")}
     else
       {:cont, assign(socket, :current_user, nil)}
     end

@@ -90,7 +90,7 @@ defmodule KsefHubWeb.DashboardLive do
     ~H"""
     <.header>
       Dashboard
-      <:subtitle>KSeF Hub overview</:subtitle>
+      <:subtitle>Invoi overview</:subtitle>
     </.header>
 
     <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mt-4">

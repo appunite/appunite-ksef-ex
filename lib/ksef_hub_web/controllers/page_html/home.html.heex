@@ -3,16 +3,19 @@
     <div class="p-8 items-center text-center flex flex-col">
       <div class="flex items-center gap-2 mb-2">
         <span class="hero-document-text size-8 text-primary"></span>
-        <h1 class="text-3xl font-bold">KSeF Hub</h1>
+        <div class="flex flex-col items-start leading-tight">
+          <h1 class="text-3xl font-bold">Invoi</h1>
+          <span class="text-xs text-base-content/50">by Appunite</span>
+        </div>
       </div>
       <p class="text-base-content/70 mb-6">
-        Poland's National e-Invoice System management portal.
-        Sign in to manage invoices, certificates, and API tokens.
+        Invoice management portal.
+        Sign in to manage invoices, expenses, and categories.
       </p>
 
       <%= if @conn.assigns[:current_user] do %>
-        <a href={~p"/dashboard"} class="btn btn-primary w-full">
-          Go to Dashboard
+        <a href={~p"/invoices"} class="btn btn-primary w-full">
+          Go to Invoices
         </a>
       <% else %>
         <a href={~p"/users/log-in"} class="btn btn-primary w-full mb-3">

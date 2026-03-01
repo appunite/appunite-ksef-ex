@@ -40,7 +40,7 @@ defmodule KsefHubWeb.TeamLiveTest do
       insert(:membership, user: non_owner, company: company, role: :accountant)
       non_owner_conn = log_in_user(conn, non_owner, %{current_company_id: company.id})
 
-      assert {:error, {:redirect, %{to: "/dashboard", flash: flash}}} =
+      assert {:error, {:redirect, %{to: "/invoices", flash: flash}}} =
                live(non_owner_conn, ~p"/team")
 
       assert flash["error"] =~ "owner"

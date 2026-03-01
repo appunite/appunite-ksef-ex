@@ -9,21 +9,21 @@ defmodule KsefHubWeb.LiveAuthTest do
       {:error, {:redirect, %{to: "/"}}} =
         conn
         |> init_test_session(%{})
-        |> live("/dashboard")
+        |> live("/invoices")
     end
 
     test "redirects to / when session user_token is invalid", %{conn: conn} do
       {:error, {:redirect, %{to: "/"}}} =
         conn
         |> init_test_session(%{user_token: "invalid-token"})
-        |> live("/dashboard")
+        |> live("/invoices")
     end
 
     test "redirects to / when session user_token is expired", %{conn: conn} do
       {:error, {:redirect, %{to: "/"}}} =
         conn
         |> init_test_session(%{user_token: :crypto.strong_rand_bytes(32)})
-        |> live("/dashboard")
+        |> live("/invoices")
     end
 
     test "assigns current_user for valid session with membership", %{conn: conn} do
@@ -34,7 +34,7 @@ defmodule KsefHubWeb.LiveAuthTest do
       {:ok, view, _html} =
         conn
         |> log_in_user(user, %{current_company_id: company.id})
-        |> live("/dashboard")
+        |> live("/invoices")
 
       assert has_element?(view, "a[href='/dashboard']")
     end
@@ -48,7 +48,7 @@ defmodule KsefHubWeb.LiveAuthTest do
       {:ok, view, _html} =
         conn
         |> log_in_user(user, %{current_company_id: company_a.id})
-        |> live("/dashboard")
+        |> live("/invoices")
 
       assert has_element?(view, "[data-testid='current-company-name']", "My Company")
       refute has_element?(view, "button", "Other Company")
@@ -60,7 +60,7 @@ defmodule KsefHubWeb.LiveAuthTest do
       {:error, {:redirect, %{to: "/companies/new"}}} =
         conn
         |> log_in_user(user)
-        |> live("/dashboard")
+        |> live("/invoices")
     end
 
     test "current_company comes from user's companies only", %{conn: conn} do
@@ -73,7 +73,7 @@ defmodule KsefHubWeb.LiveAuthTest do
       {:ok, view, _html} =
         conn
         |> log_in_user(user, %{current_company_id: other.id})
-        |> live("/dashboard")
+        |> live("/invoices")
 
       # Should fall back to the user's first company
       assert has_element?(view, "[data-testid='current-company-name']", "Mine")
@@ -87,7 +87,7 @@ defmodule KsefHubWeb.LiveAuthTest do
       {:ok, view, _html} =
         conn
         |> log_in_user(user, %{current_company_id: company.id})
-        |> live("/dashboard")
+        |> live("/invoices")
 
       # Accountant should see Dashboard but not owner-only nav items
       assert has_element?(view, "a[href='/dashboard']")

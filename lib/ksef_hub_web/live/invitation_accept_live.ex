@@ -38,7 +38,7 @@ defmodule KsefHubWeb.InvitationAcceptLive do
         {:ok,
          socket
          |> put_flash(:info, "Invitation accepted! You've joined the company.")
-         |> redirect(to: "/dashboard")}
+         |> redirect(to: "/invoices")}
 
       {:error, :not_found} ->
         {:ok,
@@ -56,13 +56,13 @@ defmodule KsefHubWeb.InvitationAcceptLive do
         {:ok,
          socket
          |> put_flash(:info, "You're already a member of this company.")
-         |> redirect(to: "/dashboard")}
+         |> redirect(to: "/invoices")}
 
       {:error, %Ecto.Changeset{}} ->
         {:ok,
          socket
          |> put_flash(:error, "Something went wrong while accepting the invitation.")
-         |> redirect(to: "/dashboard")}
+         |> redirect(to: "/invoices")}
     end
   end
 
@@ -79,7 +79,7 @@ defmodule KsefHubWeb.InvitationAcceptLive do
           <p class="text-sm text-base-content/60 mt-2">
             This invitation has expired. Please ask the company owner to send a new one.
           </p>
-          <.link navigate="/dashboard" class="btn btn-primary mt-4">Go to Dashboard</.link>
+          <.link navigate="/invoices" class="btn btn-primary mt-4">Continue</.link>
         </div>
       </div>
 
@@ -90,7 +90,7 @@ defmodule KsefHubWeb.InvitationAcceptLive do
           <p class="text-sm text-base-content/60 mt-2">
             This invitation link is invalid or has already been used.
           </p>
-          <.link navigate="/dashboard" class="btn btn-primary mt-4">Go to Dashboard</.link>
+          <.link navigate="/invoices" class="btn btn-primary mt-4">Continue</.link>
         </div>
       </div>
     </div>

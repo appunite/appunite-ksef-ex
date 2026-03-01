@@ -54,11 +54,11 @@ defmodule KsefHubWeb.UserAuth do
   @doc """
   Returns the path to redirect to after login.
 
-  Always returns `/dashboard`. Company resolution (and potential redirect
+  Always returns `/invoices`. Company resolution (and potential redirect
   to `/companies/new`) is handled by the LiveAuth on_mount hook.
   """
   @spec signed_in_path(KsefHub.Accounts.User.t()) :: String.t()
   def signed_in_path(_user) do
-    ~p"/dashboard"
+    ~p"/invoices"
   end
 end

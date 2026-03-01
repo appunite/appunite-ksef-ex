@@ -73,14 +73,32 @@ defmodule KsefHubWeb.InvoiceComponents do
     """
   end
 
-  @doc "Renders a 'needs review' badge when prediction_status is :needs_review."
-  @spec prediction_indicator(map()) :: Phoenix.LiveView.Rendered.t()
-  attr :prediction_status, :atom, default: nil
+  @doc """
+  Renders a 'needs review' badge when the invoice has unresolved issues.
 
-  def prediction_indicator(assigns) do
+  Shows when the invoice is still pending AND any of:
+  - extraction is incomplete (`:partial` or `:failed`)
+  - ML prediction confidence is low (`:needs_review`)
+  - suspected duplicate (`:suspected`)
+  """
+  @spec needs_review_badge(map()) :: Phoenix.LiveView.Rendered.t()
+  attr :prediction_status, :atom, default: nil
+  attr :duplicate_status, :atom, default: nil
+  attr :extraction_status, :atom, default: nil
+  attr :status, :atom, default: nil
+
+  def needs_review_badge(assigns) do
+    show? =
+      assigns.status == :pending &&
+        (assigns.extraction_status in [:partial, :failed] ||
+           assigns.prediction_status == :needs_review ||
+           assigns.duplicate_status == :suspected)
+
+    assigns = assign(assigns, :show, show?)
+
     ~H"""
     <span
-      :if={@prediction_status == :needs_review}
+      :if={@show}
       class="inline-flex items-center px-2 py-0.5 rounded-md text-xs font-medium border bg-info/10 text-info border-info/20"
     >
       needs review

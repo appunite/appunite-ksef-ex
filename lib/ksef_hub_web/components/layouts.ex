@@ -23,103 +23,92 @@ defmodule KsefHubWeb.Layouts do
 
   attr :companies, :list, default: []
 
-  @doc "Renders the main application layout with sidebar navigation."
+  @doc "Renders the main application layout with top navbar navigation."
   @spec app(map()) :: Phoenix.LiveView.Rendered.t()
   def app(assigns) do
     ~H"""
-    <div class="drawer lg:drawer-open">
-      <input id="sidebar-toggle" type="checkbox" class="drawer-toggle" />
-
-      <div class="drawer-content flex flex-col min-h-screen">
-        <!-- Mobile navbar -->
-        <div class="navbar bg-base-100 border-b border-base-300 lg:hidden">
-          <div class="flex-none">
-            <label for="sidebar-toggle" aria-label="Toggle sidebar" class="btn btn-square btn-ghost">
-              <.icon name="hero-bars-3" class="size-5" />
-            </label>
-          </div>
-          <div class="flex-1">
-            <span class="text-lg font-bold">KSeF Hub</span>
-          </div>
+    <div class="min-h-screen flex flex-col">
+      <div class="navbar bg-base-100 border-b border-base-300 px-4">
+        <!-- navbar-start: logo -->
+        <div class="navbar-start">
+          <a href={~p"/invoices"} class="btn btn-ghost gap-2 h-auto py-1">
+            <.icon name="hero-document-text" class="size-5 text-primary" />
+            <span class="flex flex-col items-start leading-tight">
+              <span class="text-lg font-bold">Invoi</span>
+              <span class="text-[10px] text-base-content/50 font-normal">by Appunite</span>
+            </span>
+          </a>
         </div>
         
-    <!-- Main content -->
-        <main class="flex-1 p-4 sm:p-6 lg:p-8">
-          <div class="mx-auto max-w-6xl">
-            {@inner_content}
-          </div>
-        </main>
-      </div>
-      
-    <!-- Sidebar -->
-      <div class="drawer-side z-40">
-        <label for="sidebar-toggle" aria-label="close sidebar" class="drawer-overlay"></label>
-        <aside class="bg-base-200 min-h-full w-64 flex flex-col">
-          <!-- Logo -->
-          <div class="p-4 border-b border-base-300">
-            <a href={~p"/dashboard"} class="flex items-center gap-2">
-              <.icon name="hero-document-text" class="size-6 text-primary" />
-              <span class="text-xl font-bold">KSeF Hub</span>
-            </a>
-          </div>
-          
-    <!-- Company Selector -->
-          <div :if={@current_company} class="p-4 border-b border-base-300">
-            <div class="dropdown w-full">
-              <div
-                tabindex="0"
-                role="button"
-                class="btn btn-ghost btn-sm w-full justify-start gap-2"
-                data-testid="company-selector"
-              >
-                <.icon name="hero-building-office-2" class="size-4" />
-                <span class="flex-1 text-left truncate" data-testid="current-company-name">
-                  {@current_company.name}
-                </span>
-                <.icon name="hero-chevron-down" class="size-3" />
-              </div>
-              <ul
-                tabindex="0"
-                class="dropdown-content z-50 menu p-2 border border-base-300 bg-base-100 rounded-box w-56"
-              >
-                <li :for={company <- @companies}>
-                  <form method="post" action={~p"/switch-company/#{company.id}"}>
-                    <input
-                      type="hidden"
-                      name="_csrf_token"
-                      value={Plug.CSRFProtection.get_csrf_token()}
-                    />
-                    <input type="hidden" name="return_to" value={@current_path || "/dashboard"} />
-                    <button
-                      type="submit"
-                      class={[
-                        "w-full text-left min-w-0",
-                        company.id == @current_company.id && "active"
-                      ]}
-                    >
-                      <span class="block truncate">{company.name}</span>
-                      <span class="block text-xs text-base-content/50">{company.nip}</span>
-                    </button>
-                  </form>
-                </li>
-              </ul>
+    <!-- navbar-end: company selector + avatar menu -->
+        <div class="navbar-end gap-1">
+          <div :if={@current_company} class="dropdown dropdown-end">
+            <div
+              tabindex="0"
+              role="button"
+              class="btn btn-ghost btn-sm gap-1"
+              data-testid="company-selector"
+            >
+              <.icon name="hero-building-office-2" class="size-4" />
+              <span class="hidden sm:inline truncate max-w-32" data-testid="current-company-name">
+                {@current_company.name}
+              </span>
+              <.icon name="hero-chevron-down" class="size-3" />
             </div>
-          </div>
-          <!-- Navigation -->
-          <nav class="flex-1 p-4">
-            <ul class="menu gap-1">
-              <li>
-                <.nav_link path={~p"/dashboard"} current={@current_path} icon="hero-home">
-                  Dashboard
-                </.nav_link>
+            <ul
+              tabindex="0"
+              class="dropdown-content z-50 menu p-2 border border-base-300 bg-base-100 rounded-box w-56"
+            >
+              <li :for={company <- @companies}>
+                <form method="post" action={~p"/switch-company/#{company.id}"}>
+                  <input
+                    type="hidden"
+                    name="_csrf_token"
+                    value={Plug.CSRFProtection.get_csrf_token()}
+                  />
+                  <input type="hidden" name="return_to" value={@current_path || "/invoices"} />
+                  <button
+                    type="submit"
+                    class={[
+                      "w-full text-left min-w-0",
+                      company.id == @current_company.id && "active"
+                    ]}
+                  >
+                    <span class="block truncate">{company.name}</span>
+                    <span class="block text-xs text-base-content/50">{company.nip}</span>
+                  </button>
+                </form>
               </li>
+            </ul>
+          </div>
+
+          <div :if={@current_user} class="dropdown dropdown-end">
+            <div tabindex="0" role="button" class="btn btn-ghost btn-circle avatar placeholder">
+              <div class="bg-neutral text-neutral-content rounded-full w-8">
+                <span class="text-xs">{initial(@current_user.email)}</span>
+              </div>
+            </div>
+            <ul
+              tabindex="0"
+              class="dropdown-content z-50 menu p-2 border border-base-300 bg-base-100 rounded-box w-64"
+            >
+              <li class="menu-title text-xs truncate">{@current_user.email}</li>
               <li>
                 <.nav_link path={~p"/invoices"} current={@current_path} icon="hero-document-text">
                   Invoices
                 </.nav_link>
               </li>
               <li>
-                <.nav_link path={~p"/categories"} current={@current_path} icon="hero-squares-2x2">
+                <.nav_link path={~p"/dashboard"} current={@current_path} icon="hero-home">
+                  Dashboard
+                </.nav_link>
+              </li>
+              <li>
+                <.nav_link
+                  path={~p"/categories"}
+                  current={@current_path}
+                  icon="hero-squares-2x2"
+                >
                   Categories
                 </.nav_link>
               </li>
@@ -128,8 +117,27 @@ defmodule KsefHubWeb.Layouts do
                   Tags
                 </.nav_link>
               </li>
+              <li>
+                <.nav_link path={~p"/syncs"} current={@current_path} icon="hero-arrow-path">
+                  Syncs
+                </.nav_link>
+              </li>
+              <li>
+                <.nav_link
+                  path={~p"/companies"}
+                  current={@current_path}
+                  icon="hero-building-office-2"
+                >
+                  Companies
+                </.nav_link>
+              </li>
+              <li :if={@current_role == :owner} class="menu-title text-xs pt-2">Admin</li>
               <li :if={@current_role == :owner}>
-                <.nav_link path={~p"/certificates"} current={@current_path} icon="hero-shield-check">
+                <.nav_link
+                  path={~p"/certificates"}
+                  current={@current_path}
+                  icon="hero-shield-check"
+                >
                   Certificates
                 </.nav_link>
               </li>
@@ -143,47 +151,26 @@ defmodule KsefHubWeb.Layouts do
                   Team
                 </.nav_link>
               </li>
-              <li>
-                <.nav_link path={~p"/syncs"} current={@current_path} icon="hero-arrow-path">
-                  Syncs
-                </.nav_link>
+              <div class="divider my-1"></div>
+              <li class="flex flex-row items-center justify-center px-2 py-1">
+                <.theme_toggle />
               </li>
+              <div class="divider my-1"></div>
               <li>
-                <.nav_link path={~p"/companies"} current={@current_path} icon="hero-building-office-2">
-                  Companies
-                </.nav_link>
+                <.link href={~p"/users/log-out"} method="delete">
+                  <.icon name="hero-arrow-right-on-rectangle" class="size-4" /> Log out
+                </.link>
               </li>
             </ul>
-          </nav>
-          
-    <!-- Footer: theme toggle + user -->
-          <div class="p-4 border-t border-base-300 space-y-3">
-            <div class="flex justify-center">
-              <.theme_toggle />
-            </div>
-            <div :if={@current_user} class="flex items-center gap-2 text-sm">
-              <div class="avatar placeholder">
-                <div class="bg-neutral text-neutral-content rounded-full w-8">
-                  <span class="text-xs">
-                    {initial(@current_user.email)}
-                  </span>
-                </div>
-              </div>
-              <div class="flex-1 truncate">
-                <p class="font-medium truncate">{@current_user.email}</p>
-              </div>
-              <.link
-                href={~p"/users/log-out"}
-                method="delete"
-                aria-label="Log out"
-                class="btn btn-ghost btn-xs"
-              >
-                <.icon name="hero-arrow-right-on-rectangle" class="size-4" />
-              </.link>
-            </div>
           </div>
-        </aside>
+        </div>
       </div>
+
+      <main class="flex-1 p-4 sm:p-6 lg:p-8">
+        <div class="mx-auto max-w-7xl">
+          {@inner_content}
+        </div>
+      </main>
     </div>
 
     <.flash_group flash={@flash} />

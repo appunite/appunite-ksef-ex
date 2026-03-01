@@ -18,7 +18,7 @@ defmodule KsefHubWeb.UserRegistrationLiveTest do
       conn = log_in_user(conn, user)
 
       assert {:error, redirect} = live(conn, ~p"/users/register")
-      assert {:redirect, %{to: "/dashboard"}} = redirect
+      assert {:redirect, %{to: "/invoices"}} = redirect
     end
   end
 
@@ -34,7 +34,7 @@ defmodule KsefHubWeb.UserRegistrationLiveTest do
       render_submit(form)
 
       conn = follow_trigger_action(form, conn)
-      assert redirected_to(conn) == ~p"/dashboard"
+      assert redirected_to(conn) == ~p"/invoices"
     end
 
     test "renders errors for invalid data on submit", %{conn: conn} do
