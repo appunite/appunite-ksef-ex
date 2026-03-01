@@ -72,19 +72,21 @@ defmodule KsefHub.Files.DataMigration do
     file_id = Ecto.UUID.generate()
     now = DateTime.utc_now() |> DateTime.truncate(:microsecond)
 
-    Repo.insert_all("files", [
-      %{
-        id: Ecto.UUID.dump!(file_id),
-        content: row.content,
-        content_type: content_type,
-        filename: Map.get(row, :filename),
-        byte_size: byte_size(row.content),
-        inserted_at: now
-      }
-    ])
+    {1, _} =
+      Repo.insert_all("files", [
+        %{
+          id: Ecto.UUID.dump!(file_id),
+          content: row.content,
+          content_type: content_type,
+          filename: Map.get(row, :filename),
+          byte_size: byte_size(row.content),
+          inserted_at: now
+        }
+      ])
 
-    from(r in table_name, where: r.id == ^row.id)
-    |> Repo.update_all(set: [{fk_field, Ecto.UUID.dump!(file_id)}])
+    {1, _} =
+      from(r in table_name, where: r.id == ^row.id)
+      |> Repo.update_all(set: [{fk_field, Ecto.UUID.dump!(file_id)}])
 
     :ok
   end

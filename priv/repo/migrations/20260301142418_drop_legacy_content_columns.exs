@@ -1,4 +1,11 @@
 defmodule KsefHub.Repo.Migrations.DropLegacyContentColumns do
+  @moduledoc """
+  Drops inline content columns from invoices and inbound_emails.
+
+  Depends on 20260301141405_populate_files_from_existing_content having
+  migrated all data into the files table first. The down/0 recreates
+  empty columns only — it does NOT restore data.
+  """
   use Ecto.Migration
 
   def up do

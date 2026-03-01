@@ -355,7 +355,7 @@ defmodule KsefHub.Invoices do
   end
 
   @spec create_or_retry_duplicate(Ecto.UUID.t(), map()) ::
-          {:ok, Invoice.t()} | {:error, Ecto.Changeset.t()}
+          {:ok, Invoice.t()} | {:error, Ecto.Changeset.t() | term()}
   defp create_or_retry_duplicate(company_id, attrs) do
     attrs = detect_duplicate(company_id, attrs)
 
@@ -367,6 +367,9 @@ defmodule KsefHub.Invoices do
         if unique_ksef_number_conflict?(changeset),
           do: retry_as_duplicate(company_id, attrs),
           else: {:error, changeset}
+
+      {:error, reason} ->
+        {:error, reason}
     end
   end
 
@@ -622,8 +625,10 @@ defmodule KsefHub.Invoices do
   @spec do_insert_invoice(Ecto.UUID.t(), map()) ::
           {:ok, Invoice.t()} | {:error, Ecto.Changeset.t()}
   defp do_insert_invoice(company_id, attrs) do
+    {file_ids, attrs} = pop_file_ids(attrs)
+
     %Invoice{}
-    |> Ecto.Changeset.change(%{company_id: company_id})
+    |> Ecto.Changeset.change(Map.put(file_ids, :company_id, company_id))
     |> Invoice.changeset(attrs)
     |> Repo.insert()
   end
@@ -631,8 +636,10 @@ defmodule KsefHub.Invoices do
   @spec do_upsert_invoice(Ecto.UUID.t(), map()) ::
           {:ok, Invoice.t()} | {:error, Ecto.Changeset.t()}
   defp do_upsert_invoice(company_id, attrs) do
+    {file_ids, attrs} = pop_file_ids(attrs)
+
     %Invoice{}
-    |> Ecto.Changeset.change(%{company_id: company_id})
+    |> Ecto.Changeset.change(Map.put(file_ids, :company_id, company_id))
     |> Invoice.changeset(attrs)
     |> Repo.insert(
       on_conflict: {:replace, @upsert_replace_fields},
@@ -641,6 +648,19 @@ defmodule KsefHub.Invoices do
          ~s|("company_id","ksef_number") WHERE ksef_number IS NOT NULL AND duplicate_of_id IS NULL|},
       returning: true
     )
+  end
+
+  @spec pop_file_ids(map()) :: {map(), map()}
+  defp pop_file_ids(attrs) do
+    {xml_file_id, attrs} = Map.pop(attrs, :xml_file_id)
+    {pdf_file_id, attrs} = Map.pop(attrs, :pdf_file_id)
+
+    file_ids =
+      %{}
+      |> then(fn m -> if xml_file_id, do: Map.put(m, :xml_file_id, xml_file_id), else: m end)
+      |> then(fn m -> if pdf_file_id, do: Map.put(m, :pdf_file_id, pdf_file_id), else: m end)
+
+    {file_ids, attrs}
   end
 
   @spec maybe_create_xml_file(map(), String.t() | nil) :: {:ok, map()} | {:error, term()}

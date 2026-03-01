@@ -68,6 +68,6 @@ Then migrate existing data and drop the inline content columns (`invoices.xml_co
 4. Update application code to read/write via file associations
 5. Drop old content columns
 
-### Recommendation
+### Implementation note
 
-Implement as a standalone refactor after the inbound email feature is stable in production. The current inline storage works — this is a cleanliness improvement, not urgent.
+Implemented in the `feat/generic-files-table` branch as a standalone refactor after the inbound email feature was stable.

@@ -95,9 +95,7 @@ defmodule KsefHub.Invoices.Invoice do
       :ksef_acquisition_date,
       :permanent_storage_date,
       :extraction_status,
-      :original_filename,
-      :xml_file_id,
-      :pdf_file_id
+      :original_filename
     ])
     |> validate_required([:type, :company_id])
     |> validate_format(:seller_nip, ~r/^\d{10}$/, message: "must be a 10-digit NIP")

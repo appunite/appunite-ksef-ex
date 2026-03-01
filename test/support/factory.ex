@@ -253,8 +253,7 @@ defmodule KsefHub.Factory do
     %FileRecord{
       content: "sample file content",
       content_type: "application/octet-stream",
-      filename: "test-file.bin",
-      byte_size: byte_size("sample file content")
+      filename: "test-file.bin"
     }
   end
 
