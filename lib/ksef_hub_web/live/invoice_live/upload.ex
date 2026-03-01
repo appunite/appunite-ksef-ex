@@ -33,22 +33,17 @@ defmodule KsefHubWeb.InvoiceLive.Upload do
     {:noreply, socket}
   end
 
+  def handle_event("upload", _params, %{assigns: %{current_company: nil}} = socket) do
+    {:noreply, put_flash(socket, :error, "No company selected.")}
+  end
+
   def handle_event("upload", _params, socket) do
-    company = socket.assigns[:current_company]
+    case consume_pdf(socket) do
+      {:ok, {binary, filename}} ->
+        start_upload_task(socket, binary, filename)
 
-    if is_nil(company) do
-      {:noreply, put_flash(socket, :error, "No company selected.")}
-    else
-      case consume_pdf(socket) do
-        {:ok, {binary, filename}} ->
-          type = String.to_existing_atom(socket.assigns.type)
-          task = Task.async(fn -> do_upload(company, binary, type, filename) end)
-
-          {:noreply, assign(socket, uploading: true, upload_ref: task.ref)}
-
-        {:error, :no_file} ->
-          {:noreply, put_flash(socket, :error, "Please select a PDF file.")}
-      end
+      {:error, :no_file} ->
+        {:noreply, put_flash(socket, :error, "Please select a PDF file.")}
     end
   end
 
@@ -83,6 +78,16 @@ defmodule KsefHubWeb.InvoiceLive.Upload do
   def handle_info(_msg, socket), do: {:noreply, socket}
 
   # --- Private ---
+
+  @spec start_upload_task(Phoenix.LiveView.Socket.t(), binary(), String.t()) ::
+          {:noreply, Phoenix.LiveView.Socket.t()}
+  defp start_upload_task(socket, binary, filename) do
+    company = socket.assigns.current_company
+    type = String.to_existing_atom(socket.assigns.type)
+    task = Task.async(fn -> do_upload(company, binary, type, filename) end)
+
+    {:noreply, assign(socket, uploading: true, upload_ref: task.ref)}
+  end
 
   @spec consume_pdf(Phoenix.LiveView.Socket.t()) ::
           {:ok, {binary(), String.t()}} | {:error, :no_file}
