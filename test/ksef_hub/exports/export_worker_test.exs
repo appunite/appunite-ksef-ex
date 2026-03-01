@@ -18,7 +18,12 @@ defmodule KsefHub.Exports.ExportWorkerTest do
 
   describe "perform/1" do
     test "generates export for valid batch", %{user: user, company: company} do
-      insert(:invoice, company: company, issue_date: ~D[2026-01-15], type: :expense)
+      insert(:invoice,
+        company: company,
+        issue_date: ~D[2026-01-15],
+        type: :expense,
+        status: :approved
+      )
 
       batch =
         insert(:export_batch,
@@ -48,6 +53,13 @@ defmodule KsefHub.Exports.ExportWorkerTest do
       batch = insert(:export_batch, user: user, company: company, status: :completed)
 
       assert {:cancel, "export batch already completed"} =
+               ExportWorker.perform(%Oban.Job{args: %{"export_batch_id" => batch.id}})
+    end
+
+    test "cancels for already failed batch", %{user: user, company: company} do
+      batch = insert(:export_batch, user: user, company: company, status: :failed)
+
+      assert {:cancel, "export batch already failed"} =
                ExportWorker.perform(%Oban.Job{args: %{"export_batch_id" => batch.id}})
     end
   end

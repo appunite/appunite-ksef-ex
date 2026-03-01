@@ -8,7 +8,6 @@ defmodule KsefHub.Exports.CsvBuilder do
     "Issue Date",
     "Type",
     "Source",
-    "Status",
     "Seller NIP",
     "Seller Name",
     "Buyer NIP",
@@ -19,7 +18,10 @@ defmodule KsefHub.Exports.CsvBuilder do
     "Currency",
     "Category",
     "Tags",
-    "KSeF Number"
+    "KSeF Number",
+    "Added At",
+    "Original Filename",
+    "Duplicate Status"
   ]
 
   @doc "Builds a CSV binary (UTF-8 with BOM) from a list of invoices."
@@ -41,7 +43,6 @@ defmodule KsefHub.Exports.CsvBuilder do
       format_date(invoice.issue_date),
       s(invoice.type),
       s(invoice.source),
-      s(invoice.status),
       s(invoice.seller_nip),
       s(invoice.seller_name),
       s(invoice.buyer_nip),
@@ -52,7 +53,10 @@ defmodule KsefHub.Exports.CsvBuilder do
       s(invoice.currency),
       format_category(invoice),
       format_tags(invoice),
-      s(invoice.ksef_number)
+      s(invoice.ksef_number),
+      format_datetime(invoice.inserted_at),
+      s(invoice.original_filename),
+      s(invoice.duplicate_status)
     ]
   end
 
@@ -86,6 +90,10 @@ defmodule KsefHub.Exports.CsvBuilder do
   @spec format_decimal(Decimal.t() | nil) :: String.t()
   defp format_decimal(nil), do: ""
   defp format_decimal(%Decimal{} = d), do: Decimal.to_string(d)
+
+  @spec format_datetime(NaiveDateTime.t() | DateTime.t() | nil) :: String.t()
+  defp format_datetime(nil), do: ""
+  defp format_datetime(dt), do: Calendar.strftime(dt, "%Y-%m-%d %H:%M")
 
   @spec format_category(Invoice.t()) :: String.t()
   defp format_category(%{category: %{name: name}}) when is_binary(name), do: name

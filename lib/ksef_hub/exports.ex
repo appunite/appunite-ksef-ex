@@ -56,8 +56,7 @@ defmodule KsefHub.Exports do
          csv_binary <- CsvBuilder.build(invoices),
          {:ok, zip_binary} <- ZipBuilder.build(pdf_files, csv_binary, errors: errors),
          {:ok, file} <- store_zip_file(batch, zip_binary),
-         {:ok, _batch} <- complete_batch(batch, file.id, length(invoices)),
-         :ok <- record_downloads(batch, invoices) do
+         {:ok, _batch} <- finalize_batch(batch, file.id, invoices) do
       broadcast_status(batch.company_id, batch.id, :completed)
       :ok
     else
@@ -71,11 +70,8 @@ defmodule KsefHub.Exports do
   @doc "Returns a list of invoices matching the export batch filters."
   @spec list_exportable_invoices(ExportBatch.t()) :: [Invoice.t()]
   def list_exportable_invoices(%ExportBatch{} = batch) do
-    Invoice
-    |> where([i], i.company_id == ^batch.company_id)
-    |> where([i], i.issue_date >= ^batch.date_from and i.issue_date <= ^batch.date_to)
-    |> maybe_filter_type(batch.invoice_type)
-    |> maybe_filter_only_new(batch.only_new, batch.user_id)
+    batch
+    |> exportable_invoices_query()
     |> order_by([i], asc: i.issue_date, asc: i.invoice_number)
     |> preload([:category, :tags, :xml_file, :pdf_file])
     |> Repo.all()
@@ -84,11 +80,9 @@ defmodule KsefHub.Exports do
   @doc "Counts invoices matching the given export filters without loading them."
   @spec count_exportable_invoices(Ecto.UUID.t(), map()) :: non_neg_integer()
   def count_exportable_invoices(company_id, filters) do
-    Invoice
-    |> where([i], i.company_id == ^company_id)
-    |> apply_date_filters(filters)
-    |> maybe_filter_type(filters[:invoice_type])
-    |> maybe_filter_only_new(filters[:only_new], filters[:user_id])
+    filters
+    |> to_filter_struct(company_id)
+    |> exportable_invoices_query()
     |> Repo.aggregate(:count)
   end
 
@@ -102,11 +96,11 @@ defmodule KsefHub.Exports do
     |> Repo.all()
   end
 
-  @doc "Fetches a batch with its zip file preloaded, scoped to a company."
-  @spec get_batch_with_file!(Ecto.UUID.t(), Ecto.UUID.t()) :: ExportBatch.t()
-  def get_batch_with_file!(company_id, batch_id) do
+  @doc "Fetches a batch with its zip file preloaded, scoped to a company and user."
+  @spec get_batch_with_file!(Ecto.UUID.t(), Ecto.UUID.t(), Ecto.UUID.t()) :: ExportBatch.t()
+  def get_batch_with_file!(company_id, user_id, batch_id) do
     ExportBatch
-    |> where([b], b.company_id == ^company_id and b.id == ^batch_id)
+    |> where([b], b.company_id == ^company_id and b.user_id == ^user_id and b.id == ^batch_id)
     |> preload([:zip_file])
     |> Repo.one!()
   end
@@ -127,16 +121,26 @@ defmodule KsefHub.Exports do
     |> Repo.update()
   end
 
-  @spec complete_batch(ExportBatch.t(), Ecto.UUID.t(), non_neg_integer()) ::
-          {:ok, ExportBatch.t()} | {:error, Ecto.Changeset.t()}
-  defp complete_batch(batch, zip_file_id, invoice_count) do
-    batch
-    |> ExportBatch.status_changeset(%{
-      status: :completed,
-      zip_file_id: zip_file_id,
-      invoice_count: invoice_count
-    })
-    |> Repo.update()
+  @spec finalize_batch(ExportBatch.t(), Ecto.UUID.t(), [Invoice.t()]) ::
+          {:ok, ExportBatch.t()} | {:error, term()}
+  defp finalize_batch(batch, zip_file_id, invoices) do
+    Repo.transaction(fn ->
+      changeset =
+        ExportBatch.status_changeset(batch, %{
+          status: :completed,
+          zip_file_id: zip_file_id,
+          invoice_count: length(invoices)
+        })
+
+      case Repo.update(changeset) do
+        {:ok, updated_batch} ->
+          do_record_downloads(batch, invoices)
+          updated_batch
+
+        {:error, changeset} ->
+          Repo.rollback(changeset)
+      end
+    end)
   end
 
   @spec fail_batch(ExportBatch.t(), String.t()) ::
@@ -165,7 +169,7 @@ defmodule KsefHub.Exports do
     |> then(fn {files, errors} -> {Enum.reverse(files), Enum.reverse(errors)} end)
   end
 
-  @doc "Resolves PDF content for an invoice. Uses existing PDF, generates from XML, or returns error."
+  @doc false
   @spec resolve_pdf(Invoice.t()) :: {:ok, binary()} | {:error, term()}
   def resolve_pdf(%Invoice{pdf_file: %{content: content}}) when is_binary(content) do
     {:ok, content}
@@ -201,8 +205,8 @@ defmodule KsefHub.Exports do
     })
   end
 
-  @spec record_downloads(ExportBatch.t(), [Invoice.t()]) :: :ok
-  defp record_downloads(batch, invoices) do
+  @spec do_record_downloads(ExportBatch.t(), [Invoice.t()]) :: :ok
+  defp do_record_downloads(batch, invoices) do
     now = DateTime.utc_now()
 
     entries =
@@ -216,8 +220,44 @@ defmodule KsefHub.Exports do
         }
       end)
 
-    Repo.insert_all(InvoiceDownload, entries, on_conflict: :nothing)
+    {inserted, _} = Repo.insert_all(InvoiceDownload, entries, on_conflict: :nothing)
+
+    if inserted != length(invoices) do
+      Logger.warning(
+        "Export batch #{batch.id}: recorded #{inserted}/#{length(invoices)} downloads (#{length(invoices) - inserted} duplicates skipped)"
+      )
+    end
+
     :ok
+  end
+
+  @spec exportable_invoices_query(map()) :: Ecto.Query.t()
+  defp exportable_invoices_query(%{
+         company_id: company_id,
+         date_from: date_from,
+         date_to: date_to,
+         invoice_type: invoice_type,
+         only_new: only_new,
+         user_id: user_id
+       }) do
+    Invoice
+    |> where([i], i.company_id == ^company_id)
+    |> where([i], i.status == :approved)
+    |> where([i], i.issue_date >= ^date_from and i.issue_date <= ^date_to)
+    |> maybe_filter_type(invoice_type)
+    |> maybe_filter_only_new(only_new, user_id)
+  end
+
+  @spec to_filter_struct(map(), Ecto.UUID.t()) :: map()
+  defp to_filter_struct(filters, company_id) do
+    %{
+      company_id: company_id,
+      date_from: filters[:date_from],
+      date_to: filters[:date_to],
+      invoice_type: filters[:invoice_type],
+      only_new: filters[:only_new],
+      user_id: filters[:user_id]
+    }
   end
 
   @spec maybe_filter_type(Ecto.Queryable.t(), String.t() | nil) :: Ecto.Query.t()
@@ -247,21 +287,6 @@ defmodule KsefHub.Exports do
   end
 
   defp maybe_filter_only_new(query, _, _), do: query
-
-  @spec apply_date_filters(Ecto.Queryable.t(), map()) :: Ecto.Query.t()
-  defp apply_date_filters(query, filters) do
-    query
-    |> maybe_date_from(filters[:date_from])
-    |> maybe_date_to(filters[:date_to])
-  end
-
-  @spec maybe_date_from(Ecto.Queryable.t(), Date.t() | nil) :: Ecto.Query.t()
-  defp maybe_date_from(query, nil), do: query
-  defp maybe_date_from(query, %Date{} = d), do: where(query, [i], i.issue_date >= ^d)
-
-  @spec maybe_date_to(Ecto.Queryable.t(), Date.t() | nil) :: Ecto.Query.t()
-  defp maybe_date_to(query, nil), do: query
-  defp maybe_date_to(query, %Date{} = d), do: where(query, [i], i.issue_date <= ^d)
 
   @spec pdf_renderer() :: module()
   defp pdf_renderer do

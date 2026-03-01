@@ -70,10 +70,27 @@ defmodule KsefHub.ExportsTest do
   end
 
   describe "count_exportable_invoices/2" do
-    test "counts invoices in date range", %{user: user, company: company} do
-      insert(:invoice, company: company, issue_date: ~D[2026-01-15], type: :expense)
-      insert(:invoice, company: company, issue_date: ~D[2026-01-20], type: :income)
-      insert(:invoice, company: company, issue_date: ~D[2026-02-05], type: :expense)
+    test "counts approved invoices in date range", %{user: user, company: company} do
+      insert(:invoice,
+        company: company,
+        issue_date: ~D[2026-01-15],
+        type: :expense,
+        status: :approved
+      )
+
+      insert(:invoice,
+        company: company,
+        issue_date: ~D[2026-01-20],
+        type: :income,
+        status: :approved
+      )
+
+      insert(:invoice,
+        company: company,
+        issue_date: ~D[2026-02-05],
+        type: :expense,
+        status: :approved
+      )
 
       count =
         Exports.count_exportable_invoices(company.id, %{
@@ -88,8 +105,19 @@ defmodule KsefHub.ExportsTest do
     end
 
     test "filters by invoice type", %{user: user, company: company} do
-      insert(:invoice, company: company, issue_date: ~D[2026-01-15], type: :expense)
-      insert(:invoice, company: company, issue_date: ~D[2026-01-20], type: :income)
+      insert(:invoice,
+        company: company,
+        issue_date: ~D[2026-01-15],
+        type: :expense,
+        status: :approved
+      )
+
+      insert(:invoice,
+        company: company,
+        issue_date: ~D[2026-01-20],
+        type: :income,
+        status: :approved
+      )
 
       count =
         Exports.count_exportable_invoices(company.id, %{
@@ -104,8 +132,20 @@ defmodule KsefHub.ExportsTest do
     end
 
     test "only_new excludes previously downloaded invoices", %{user: user, company: company} do
-      inv1 = insert(:invoice, company: company, issue_date: ~D[2026-01-15], type: :expense)
-      insert(:invoice, company: company, issue_date: ~D[2026-01-20], type: :expense)
+      inv1 =
+        insert(:invoice,
+          company: company,
+          issue_date: ~D[2026-01-15],
+          type: :expense,
+          status: :approved
+        )
+
+      insert(:invoice,
+        company: company,
+        issue_date: ~D[2026-01-20],
+        type: :expense,
+        status: :approved
+      )
 
       batch = insert(:export_batch, user: user, company: company)
       insert(:invoice_download, invoice: inv1, export_batch: batch, user: user)
@@ -122,9 +162,50 @@ defmodule KsefHub.ExportsTest do
       assert count == 1
     end
 
+    test "excludes pending and rejected invoices", %{user: user, company: company} do
+      insert(:invoice,
+        company: company,
+        issue_date: ~D[2026-01-15],
+        type: :expense,
+        status: :approved
+      )
+
+      insert(:invoice,
+        company: company,
+        issue_date: ~D[2026-01-16],
+        type: :expense,
+        status: :pending
+      )
+
+      insert(:invoice,
+        company: company,
+        issue_date: ~D[2026-01-17],
+        type: :expense,
+        status: :rejected
+      )
+
+      count =
+        Exports.count_exportable_invoices(company.id, %{
+          date_from: ~D[2026-01-01],
+          date_to: ~D[2026-01-31],
+          invoice_type: nil,
+          only_new: false,
+          user_id: user.id
+        })
+
+      assert count == 1
+    end
+
     test "only_new is per-user", %{user: user, company: company} do
       other_user = insert(:user)
-      inv = insert(:invoice, company: company, issue_date: ~D[2026-01-15], type: :expense)
+
+      inv =
+        insert(:invoice,
+          company: company,
+          issue_date: ~D[2026-01-15],
+          type: :expense,
+          status: :approved
+        )
 
       batch = insert(:export_batch, user: other_user, company: company)
       insert(:invoice_download, invoice: inv, export_batch: batch, user: other_user)
@@ -166,28 +247,39 @@ defmodule KsefHub.ExportsTest do
     end
   end
 
-  describe "get_batch_with_file!/2" do
-    test "returns batch with preloaded zip_file", %{company: company} do
+  describe "get_batch_with_file!/3" do
+    test "returns batch with preloaded zip_file", %{user: user, company: company} do
       file = insert(:file, content: "zip-data", content_type: "application/zip")
-      batch = insert(:export_batch, company: company, zip_file: file, status: :completed)
 
-      result = Exports.get_batch_with_file!(company.id, batch.id)
+      batch =
+        insert(:export_batch, user: user, company: company, zip_file: file, status: :completed)
+
+      result = Exports.get_batch_with_file!(company.id, user.id, batch.id)
       assert result.id == batch.id
       assert result.zip_file.content == "zip-data"
     end
 
-    test "raises for non-existent batch", %{company: company} do
+    test "raises for non-existent batch", %{user: user, company: company} do
       assert_raise Ecto.NoResultsError, fn ->
-        Exports.get_batch_with_file!(company.id, Ecto.UUID.generate())
+        Exports.get_batch_with_file!(company.id, user.id, Ecto.UUID.generate())
       end
     end
 
-    test "raises for batch in different company", %{company: company} do
+    test "raises for batch in different company", %{user: user, company: company} do
       other_company = insert(:company)
-      batch = insert(:export_batch, company: other_company)
+      batch = insert(:export_batch, user: user, company: other_company)
 
       assert_raise Ecto.NoResultsError, fn ->
-        Exports.get_batch_with_file!(company.id, batch.id)
+        Exports.get_batch_with_file!(company.id, user.id, batch.id)
+      end
+    end
+
+    test "raises for batch owned by different user", %{user: user, company: company} do
+      other_user = insert(:user)
+      batch = insert(:export_batch, user: other_user, company: company)
+
+      assert_raise Ecto.NoResultsError, fn ->
+        Exports.get_batch_with_file!(company.id, user.id, batch.id)
       end
     end
   end
@@ -223,8 +315,19 @@ defmodule KsefHub.ExportsTest do
         {:ok, "fake-pdf-binary"}
       end)
 
-      insert(:invoice, company: company, issue_date: ~D[2026-01-15], type: :expense)
-      insert(:manual_invoice, company: company, issue_date: ~D[2026-01-20], type: :expense)
+      insert(:invoice,
+        company: company,
+        issue_date: ~D[2026-01-15],
+        type: :expense,
+        status: :approved
+      )
+
+      insert(:manual_invoice,
+        company: company,
+        issue_date: ~D[2026-01-20],
+        type: :expense,
+        status: :approved
+      )
 
       batch =
         insert(:export_batch,

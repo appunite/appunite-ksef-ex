@@ -2,6 +2,7 @@ defmodule KsefHub.Exports.CsvBuilderTest do
   use ExUnit.Case, async: true
 
   alias KsefHub.Exports.CsvBuilder
+  alias KsefHub.Invoices.{Category, Invoice, Tag}
 
   describe "build/1" do
     test "returns CSV with BOM and headers for empty list" do
@@ -13,7 +14,7 @@ defmodule KsefHub.Exports.CsvBuilderTest do
       [header_line | _] = String.split(content, "\r\n", trim: true)
 
       assert header_line =~
-               "Invoice Number,Issue Date,Type,Source,Status,Seller NIP,Seller Name,Buyer NIP,Buyer Name,Net Amount,VAT Amount,Gross Amount,Currency,Category,Tags,KSeF Number"
+               "Invoice Number,Issue Date,Type,Source,Seller NIP,Seller Name,Buyer NIP,Buyer Name,Net Amount,VAT Amount,Gross Amount,Currency,Category,Tags,KSeF Number,Added At,Original Filename,Duplicate Status"
     end
 
     test "includes invoice data in correct columns" do
@@ -30,7 +31,6 @@ defmodule KsefHub.Exports.CsvBuilderTest do
       assert data =~ "2026-01-15"
       assert data =~ "expense"
       assert data =~ "ksef"
-      assert data =~ "pending"
       assert data =~ "1234567890"
       assert data =~ "Seller Corp"
       assert data =~ "0987654321"
@@ -39,6 +39,8 @@ defmodule KsefHub.Exports.CsvBuilderTest do
       assert data =~ "230.00"
       assert data =~ "1230.00"
       assert data =~ "PLN"
+      assert data =~ "2026-01-10 09:00"
+      assert data =~ "invoice.pdf"
     end
 
     test "escapes fields containing commas" do
@@ -58,7 +60,7 @@ defmodule KsefHub.Exports.CsvBuilderTest do
     end
 
     test "formats category name" do
-      invoice = build_invoice(%{category: %{name: "operations:rent"}})
+      invoice = build_invoice(%{category: %Category{name: "operations:rent"}})
       csv = CsvBuilder.build([invoice])
 
       content = String.replace_prefix(csv, <<0xEF, 0xBB, 0xBF>>, "")
@@ -66,7 +68,7 @@ defmodule KsefHub.Exports.CsvBuilderTest do
     end
 
     test "formats tags as semicolon-separated" do
-      invoice = build_invoice(%{tags: [%{name: "recurring"}, %{name: "office"}]})
+      invoice = build_invoice(%{tags: [%Tag{name: "recurring"}, %Tag{name: "office"}]})
       csv = CsvBuilder.build([invoice])
 
       content = String.replace_prefix(csv, <<0xEF, 0xBB, 0xBF>>, "")
@@ -91,14 +93,14 @@ defmodule KsefHub.Exports.CsvBuilderTest do
     end
   end
 
-  @spec build_invoice(map()) :: map()
+  @spec build_invoice(map()) :: Invoice.t()
   defp build_invoice(overrides \\ %{}) do
     defaults = %{
       invoice_number: "FV/2026/001",
       issue_date: ~D[2026-01-15],
       type: :expense,
       source: :ksef,
-      status: :pending,
+      status: :approved,
       seller_nip: "1234567890",
       seller_name: "Seller Corp",
       buyer_nip: "0987654321",
@@ -109,9 +111,12 @@ defmodule KsefHub.Exports.CsvBuilderTest do
       currency: "PLN",
       category: nil,
       tags: [],
-      ksef_number: nil
+      ksef_number: nil,
+      inserted_at: ~N[2026-01-10 09:00:00],
+      original_filename: "invoice.pdf",
+      duplicate_status: nil
     }
 
-    struct!(KsefHub.Invoices.Invoice, Map.merge(defaults, overrides))
+    struct!(Invoice, Map.merge(defaults, overrides))
   end
 end

@@ -21,8 +21,8 @@ defmodule KsefHub.Exports.ExportWorker do
       nil ->
         {:cancel, "export batch not found"}
 
-      %ExportBatch{status: :completed} ->
-        {:cancel, "export batch already completed"}
+      %ExportBatch{status: status} when status in [:completed, :failed] ->
+        {:cancel, "export batch already #{status}"}
 
       %ExportBatch{} = batch ->
         case Exports.generate_export(batch) do
