@@ -391,7 +391,12 @@ defmodule KsefHubWeb.InvoiceLive.Show do
       data-testid="duplicate-warning"
     >
       <.icon name="hero-document-duplicate" class="size-5" />
-      <span>This invoice may be a duplicate of an existing invoice.</span>
+      <span>
+        This invoice may be a duplicate.
+        <.link navigate={~p"/invoices/#{@invoice.duplicate_of_id}"} class="link link-primary">
+          View original
+        </.link>
+      </span>
     </div>
 
     <div class="grid grid-cols-1 lg:grid-cols-[minmax(0,1fr)_minmax(0,2fr)] gap-6 mt-6">

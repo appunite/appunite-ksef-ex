@@ -214,7 +214,7 @@ defmodule KsefHubWeb.InvoiceLive.Index do
       Invoices
       <:subtitle>Browse and manage KSeF invoices</:subtitle>
       <:actions>
-        <.link navigate={~p"/invoices/upload"} class="btn btn-sm btn-primary">
+        <.link :if={!@is_reviewer} navigate={~p"/invoices/upload"} class="btn btn-sm btn-primary">
           <.icon name="hero-arrow-up-tray" class="size-4" /> Upload PDF
         </.link>
       </:actions>

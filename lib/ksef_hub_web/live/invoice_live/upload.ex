@@ -1,40 +1,59 @@
 defmodule KsefHubWeb.InvoiceLive.Upload do
   @moduledoc """
-  LiveView for uploading PDF invoices for extraction and storage.
+  LiveView for uploading PDF expense invoices for extraction and storage.
 
   Accepts a single PDF file, sends it through the invoice extractor sidecar,
   creates the invoice record, and redirects to the show page for review.
   """
   use KsefHubWeb, :live_view
 
+  require Logger
+
+  alias KsefHub.Companies.Company
   alias KsefHub.Invoices
 
+  import KsefHubWeb.UploadHelpers, only: [format_bytes: 1, upload_error_to_string: 1]
+
   @impl true
-  @spec mount(map(), map(), Phoenix.LiveView.Socket.t()) :: {:ok, Phoenix.LiveView.Socket.t()}
+  @spec mount(map(), map(), Phoenix.LiveView.Socket.t()) ::
+          {:ok, Phoenix.LiveView.Socket.t()}
   def mount(_params, _session, socket) do
-    {:ok,
-     socket
-     |> assign(page_title: "Upload PDF Invoice", type: "expense", uploading: false)
-     |> allow_upload(:invoice_pdf,
-       accept: ~w(.pdf),
-       max_entries: 1,
-       max_file_size: 10_000_000
-     )}
+    cond do
+      !socket.assigns[:current_user] ->
+        {:ok,
+         socket
+         |> put_flash(:error, "You must be logged in.")
+         |> redirect(to: ~p"/")}
+
+      !socket.assigns[:current_company] ->
+        {:ok,
+         socket
+         |> put_flash(:error, "No company selected.")
+         |> redirect(to: ~p"/companies")}
+
+      socket.assigns[:current_role] == :reviewer ->
+        {:ok,
+         socket
+         |> put_flash(:error, "You do not have permission to upload invoices.")
+         |> redirect(to: ~p"/invoices")}
+
+      true ->
+        {:ok,
+         socket
+         |> assign(page_title: "Upload PDF Invoice", uploading: false)
+         |> allow_upload(:invoice_pdf,
+           accept: ~w(.pdf),
+           max_entries: 1,
+           max_file_size: 10_000_000
+         )}
+    end
   end
 
   @impl true
   @spec handle_event(String.t(), map(), Phoenix.LiveView.Socket.t()) ::
           {:noreply, Phoenix.LiveView.Socket.t()}
-  def handle_event("set_type", %{"type" => type}, socket) when type in ~w(income expense) do
-    {:noreply, assign(socket, :type, type)}
-  end
-
   def handle_event("validate", _params, socket) do
     {:noreply, socket}
-  end
-
-  def handle_event("upload", _params, %{assigns: %{current_company: nil}} = socket) do
-    {:noreply, put_flash(socket, :error, "No company selected.")}
   end
 
   def handle_event("upload", _params, socket) do
@@ -68,14 +87,20 @@ defmodule KsefHubWeb.InvoiceLive.Upload do
      |> put_flash(:error, "Failed to process the PDF. Please try again.")}
   end
 
-  def handle_info({:DOWN, ref, :process, _pid, _reason}, %{assigns: %{upload_ref: ref}} = socket) do
+  def handle_info(
+        {:DOWN, ref, :process, _pid, _reason},
+        %{assigns: %{upload_ref: ref}} = socket
+      ) do
     {:noreply,
      socket
      |> assign(uploading: false, upload_ref: nil)
      |> put_flash(:error, "Upload processing crashed. Please try again.")}
   end
 
-  def handle_info(_msg, socket), do: {:noreply, socket}
+  def handle_info(msg, socket) do
+    Logger.debug("InvoiceLive.Upload received unexpected message: #{inspect(msg)}")
+    {:noreply, socket}
+  end
 
   # --- Private ---
 
@@ -83,8 +108,11 @@ defmodule KsefHubWeb.InvoiceLive.Upload do
           {:noreply, Phoenix.LiveView.Socket.t()}
   defp start_upload_task(socket, binary, filename) do
     company = socket.assigns.current_company
-    type = String.to_existing_atom(socket.assigns.type)
-    task = Task.async(fn -> do_upload(company, binary, type, filename) end)
+
+    task =
+      Task.Supervisor.async_nolink(KsefHub.TaskSupervisor, fn ->
+        do_upload(company, binary, filename)
+      end)
 
     {:noreply, assign(socket, uploading: true, upload_ref: task.ref)}
   end
@@ -107,10 +135,10 @@ defmodule KsefHubWeb.InvoiceLive.Upload do
     end
   end
 
-  @spec do_upload(map(), binary(), atom(), String.t()) ::
+  @spec do_upload(Company.t(), binary(), String.t()) ::
           {:ok, Invoices.Invoice.t()} | {:error, term()}
-  defp do_upload(company, binary, type, filename) do
-    Invoices.create_pdf_upload_invoice(company, binary, type: type, filename: filename)
+  defp do_upload(company, binary, filename) do
+    Invoices.create_pdf_upload_invoice(company, binary, type: :expense, filename: filename)
   end
 
   # --- Render ---
@@ -121,41 +149,11 @@ defmodule KsefHubWeb.InvoiceLive.Upload do
     ~H"""
     <.header>
       Upload PDF Invoice
-      <:subtitle>Upload a PDF invoice for automatic data extraction</:subtitle>
+      <:subtitle>Upload a PDF expense invoice for automatic data extraction</:subtitle>
     </.header>
 
     <div class="max-w-xl mt-6">
       <.form for={%{}} phx-change="validate" phx-submit="upload" id="upload-form" class="space-y-6">
-        <div class="form-control">
-          <label class="label"><span class="label-text">Invoice Type</span></label>
-          <div class="flex gap-4">
-            <label class="flex items-center gap-2 cursor-pointer">
-              <input
-                type="radio"
-                name="type"
-                value="expense"
-                checked={@type == "expense"}
-                phx-click="set_type"
-                phx-value-type="expense"
-                class="radio radio-sm"
-              />
-              <span class="label-text">Expense</span>
-            </label>
-            <label class="flex items-center gap-2 cursor-pointer">
-              <input
-                type="radio"
-                name="type"
-                value="income"
-                checked={@type == "income"}
-                phx-click="set_type"
-                phx-value-type="income"
-                class="radio radio-sm"
-              />
-              <span class="label-text">Income</span>
-            </label>
-          </div>
-        </div>
-
         <div class="form-control">
           <label class="label"><span class="label-text">PDF File</span></label>
           <div
@@ -174,7 +172,7 @@ defmodule KsefHubWeb.InvoiceLive.Upload do
               :for={err <- upload_errors(@uploads.invoice_pdf)}
               class="mt-1 text-error text-sm"
             >
-              {error_to_string(err)}
+              {upload_error_to_string(err)}
             </p>
           </div>
           <p class="text-xs text-base-content/50 mt-1">Max file size: 10 MB</p>
@@ -198,14 +196,4 @@ defmodule KsefHubWeb.InvoiceLive.Upload do
     </div>
     """
   end
-
-  @spec format_bytes(non_neg_integer()) :: String.t()
-  defp format_bytes(bytes) when bytes < 1024, do: "#{bytes} B"
-  defp format_bytes(bytes), do: "#{Float.round(bytes / 1024, 1)} KB"
-
-  @spec error_to_string(atom()) :: String.t()
-  defp error_to_string(:too_large), do: "File is too large (max 10 MB)."
-  defp error_to_string(:not_accepted), do: "Only PDF files are accepted."
-  defp error_to_string(:too_many_files), do: "Only one file allowed."
-  defp error_to_string(err), do: "Upload error: #{inspect(err)}"
 end
