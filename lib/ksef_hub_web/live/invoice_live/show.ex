@@ -118,29 +118,41 @@ defmodule KsefHubWeb.InvoiceLive.Show do
 
   @impl true
   def handle_event("dismiss_duplicate", _params, socket) do
-    case Invoices.dismiss_duplicate(socket.assigns.invoice) do
-      {:ok, updated} ->
-        {:noreply,
-         socket
-         |> put_flash(:info, "Duplicate dismissed.")
-         |> assign(:invoice, reload_details(updated, socket))}
+    invoice = socket.assigns.invoice
 
-      {:error, _reason} ->
-        {:noreply, put_flash(socket, :error, "Failed to dismiss duplicate.")}
+    if invoice.duplicate_of_id && invoice.duplicate_status == :suspected do
+      case Invoices.dismiss_duplicate(invoice) do
+        {:ok, updated} ->
+          {:noreply,
+           socket
+           |> put_flash(:info, "Duplicate dismissed.")
+           |> assign(:invoice, reload_details(updated, socket))}
+
+        {:error, _reason} ->
+          {:noreply, put_flash(socket, :error, "Failed to dismiss duplicate.")}
+      end
+    else
+      {:noreply, put_flash(socket, :error, "Stale or invalid duplicate state.")}
     end
   end
 
   @impl true
   def handle_event("confirm_duplicate", _params, socket) do
-    case Invoices.confirm_duplicate(socket.assigns.invoice) do
-      {:ok, updated} ->
-        {:noreply,
-         socket
-         |> put_flash(:info, "Duplicate confirmed.")
-         |> assign(:invoice, reload_details(updated, socket))}
+    invoice = socket.assigns.invoice
 
-      {:error, _reason} ->
-        {:noreply, put_flash(socket, :error, "Failed to confirm duplicate.")}
+    if invoice.duplicate_of_id && invoice.duplicate_status == :suspected do
+      case Invoices.confirm_duplicate(invoice) do
+        {:ok, updated} ->
+          {:noreply,
+           socket
+           |> put_flash(:info, "Duplicate confirmed.")
+           |> assign(:invoice, reload_details(updated, socket))}
+
+        {:error, _reason} ->
+          {:noreply, put_flash(socket, :error, "Failed to confirm duplicate.")}
+      end
+    else
+      {:noreply, put_flash(socket, :error, "Stale or invalid duplicate state.")}
     end
   end
 

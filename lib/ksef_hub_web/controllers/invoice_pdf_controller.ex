@@ -98,9 +98,16 @@ defmodule KsefHubWeb.InvoicePdfController do
     metadata = %{ksef_number: invoice.ksef_number}
 
     case pdf_mod.generate_pdf(invoice.xml_file.content, metadata) do
-      {:ok, pdf_binary} ->
+      {:ok, pdf_binary} when is_binary(pdf_binary) and pdf_binary != "" ->
         send_fn = if inline?, do: &send_inline/4, else: &send_attachment/4
         send_fn.(conn, "application/pdf", "#{invoice.invoice_number}.pdf", pdf_binary)
+
+      {:ok, _empty} ->
+        Logger.error("PDF generation returned empty content for invoice #{invoice.id}")
+
+        conn
+        |> put_flash(:error, "PDF generation failed.")
+        |> redirect(to: ~p"/invoices/#{invoice.id}")
 
       {:error, reason} ->
         Logger.error("PDF generation failed for invoice #{invoice.id}: #{sanitize_error(reason)}")
