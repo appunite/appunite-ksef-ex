@@ -339,7 +339,7 @@ defmodule KsefHubWeb.InvoiceLive.Show do
               tabindex="0"
               class="dropdown-content z-50 menu p-2 border border-base-300 bg-base-100 rounded-box w-44"
             >
-              <li :if={@invoice.xml_file || @invoice.pdf_file}>
+              <li>
                 <a href={~p"/invoices/#{@invoice.id}/pdf"}>PDF</a>
               </li>
               <li :if={@invoice.xml_file}>
