@@ -142,11 +142,13 @@ defmodule KsefHubWeb.Api.InvoiceControllerTest do
     test "returns XML content with correct headers", %{conn: conn} do
       %{company: company, token: token} = create_owner_with_token()
       xml = "<Faktura>test</Faktura>"
+      xml_file = insert(:file, content: xml, content_type: "application/xml")
 
       invoice =
         insert(:invoice,
           company: company,
           xml_content: xml,
+          xml_file: xml_file,
           invoice_number: "FV/2025/001"
         )
 
@@ -738,11 +740,13 @@ defmodule KsefHubWeb.Api.InvoiceControllerTest do
   describe "pdf download for pdf_upload invoices" do
     test "returns original uploaded PDF", %{conn: conn} do
       %{company: company, token: token} = create_owner_with_token()
+      pdf_file = insert(:file, content: "fake-pdf-bytes", content_type: "application/pdf")
 
       invoice =
         insert(:pdf_upload_invoice,
           company: company,
           pdf_content: "fake-pdf-bytes",
+          pdf_file: pdf_file,
           original_filename: "my_invoice.pdf"
         )
 

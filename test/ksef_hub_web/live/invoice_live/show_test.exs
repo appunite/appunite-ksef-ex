@@ -48,7 +48,10 @@ defmodule KsefHubWeb.InvoiceLive.ShowTest do
 
     test "renders download dropdown with PDF and XML links", %{conn: conn, company: company} do
       xml = File.read!("test/support/fixtures/sample_income.xml")
-      invoice = insert(:invoice, type: :income, xml_content: xml, company: company)
+      xml_file = insert(:file, content: xml, content_type: "application/xml")
+
+      invoice =
+        insert(:invoice, type: :income, xml_content: xml, xml_file: xml_file, company: company)
 
       stub(KsefHub.PdfRenderer.Mock, :generate_html, fn _xml, _meta ->
         {:ok, "<html>preview</html>"}
@@ -63,7 +66,10 @@ defmodule KsefHubWeb.InvoiceLive.ShowTest do
 
     test "shows preview when xml_content is available", %{conn: conn, company: company} do
       xml = File.read!("test/support/fixtures/sample_income.xml")
-      invoice = insert(:invoice, type: :income, xml_content: xml, company: company)
+      xml_file = insert(:file, content: xml, content_type: "application/xml")
+
+      invoice =
+        insert(:invoice, type: :income, xml_content: xml, xml_file: xml_file, company: company)
 
       stub(KsefHub.PdfRenderer.Mock, :generate_html, fn _xml, _meta ->
         {:ok, "<html>preview</html>"}

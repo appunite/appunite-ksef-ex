@@ -20,7 +20,7 @@ defmodule KsefHubWeb.InvoicePdfController do
         conn,
         "application/xml",
         "#{invoice.invoice_number}.xml",
-        invoice.xml_content
+        invoice.xml_file.content
       )
     end)
   end
@@ -47,7 +47,7 @@ defmodule KsefHubWeb.InvoicePdfController do
          role <- resolve_role(user_id, company_id),
          {:invoice, %{} = invoice} <-
            {:invoice, Invoices.get_invoice(company_id, id, role: role)},
-         {:xml, %{xml_content: xml} = invoice} when not is_nil(xml) <-
+         {:xml, %{xml_file: %{}} = invoice} <-
            {:xml, invoice} do
       fun.(conn, invoice)
     else
@@ -61,7 +61,7 @@ defmodule KsefHubWeb.InvoicePdfController do
         |> put_flash(:error, "Invoice not found.")
         |> redirect(to: ~p"/invoices")
 
-      {:xml, %{xml_content: nil} = invoice} ->
+      {:xml, %{xml_file: nil} = invoice} ->
         conn
         |> put_flash(:error, "No XML content available for this invoice.")
         |> redirect(to: ~p"/invoices/#{invoice.id}")
@@ -81,7 +81,7 @@ defmodule KsefHubWeb.InvoicePdfController do
 
     metadata = %{ksef_number: invoice.ksef_number}
 
-    case pdf_mod.generate_pdf(invoice.xml_content, metadata) do
+    case pdf_mod.generate_pdf(invoice.xml_file.content, metadata) do
       {:ok, pdf_binary} ->
         send_attachment(conn, "application/pdf", "#{invoice.invoice_number}.pdf", pdf_binary)
 

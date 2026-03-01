@@ -295,12 +295,12 @@ defmodule KsefHubWeb.InvoiceLive.Show do
 
   @spec generate_preview(Invoice.t()) :: String.t() | nil
   defp generate_preview(invoice) do
-    if invoice.xml_content do
+    if invoice.xml_file do
       pdf_mod = Application.get_env(:ksef_hub, :pdf_renderer, KsefHub.PdfRenderer)
 
       metadata = %{ksef_number: invoice.ksef_number}
 
-      case pdf_mod.generate_html(invoice.xml_content, metadata) do
+      case pdf_mod.generate_html(invoice.xml_file.content, metadata) do
         {:ok, html} -> html
         {:error, _} -> nil
       end
@@ -328,7 +328,7 @@ defmodule KsefHubWeb.InvoiceLive.Show do
       </:subtitle>
       <:actions>
         <div class="flex gap-2">
-          <div :if={@invoice.xml_content} class="dropdown dropdown-end">
+          <div :if={@invoice.xml_file} class="dropdown dropdown-end">
             <div tabindex="0" role="button" class="btn btn-sm btn-outline">
               <.icon name="hero-arrow-down-tray" class="size-4" /> Download
               <.icon name="hero-chevron-down" class="size-3" />

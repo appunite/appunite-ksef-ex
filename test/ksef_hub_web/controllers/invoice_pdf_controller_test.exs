@@ -27,11 +27,13 @@ defmodule KsefHubWeb.InvoicePdfControllerTest do
   describe "xml/2" do
     test "downloads XML with correct content-type and filename", %{conn: conn, company: company} do
       xml = "<Faktura>test</Faktura>"
+      xml_file = insert(:file, content: xml, content_type: "application/xml")
 
       invoice =
         insert(:invoice,
           company: company,
           xml_content: xml,
+          xml_file: xml_file,
           invoice_number: "FV/2025/001"
         )
 
@@ -75,10 +77,14 @@ defmodule KsefHubWeb.InvoicePdfControllerTest do
 
   describe "show/2 (PDF)" do
     test "generates and sends PDF", %{conn: conn, company: company} do
+      xml_file =
+        insert(:file, content: "<Faktura>test</Faktura>", content_type: "application/xml")
+
       invoice =
         insert(:invoice,
           company: company,
           xml_content: "<Faktura>test</Faktura>",
+          xml_file: xml_file,
           invoice_number: "FV/2025/002"
         )
 
