@@ -170,7 +170,7 @@ defmodule KsefHub.InvoicesTest do
 
       {:ok, updated, :updated} = Invoices.upsert_invoice(attrs)
       assert updated.xml_file_id != original_file_id
-      # Old file still exists (will be cleaned by OrphanCleanupWorker)
+      # Old file still exists (harmless orphan)
       assert KsefHub.Files.get_file(original_file_id)
     end
 
