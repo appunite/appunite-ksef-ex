@@ -31,8 +31,12 @@ defmodule KsefHubWeb.Layouts do
       <div class="navbar bg-base-100 border-b border-base-300 px-4">
         <!-- navbar-start: logo -->
         <div class="navbar-start">
-          <a href={~p"/invoices"} class="btn btn-ghost gap-2 text-lg font-bold">
-            <.icon name="hero-document-text" class="size-5 text-primary" /> KSeF Hub
+          <a href={~p"/invoices"} class="btn btn-ghost gap-2 h-auto py-1">
+            <.icon name="hero-document-text" class="size-5 text-primary" />
+            <span class="flex flex-col items-start leading-tight">
+              <span class="text-lg font-bold">Invoi</span>
+              <span class="text-[10px] text-base-content/50 font-normal">by Appunite</span>
+            </span>
           </a>
         </div>
         
