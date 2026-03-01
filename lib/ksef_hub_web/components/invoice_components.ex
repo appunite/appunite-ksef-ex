@@ -73,7 +73,7 @@ defmodule KsefHubWeb.InvoiceComponents do
     """
   end
 
-  @doc "Renders a 'Review' badge when prediction_status is :needs_review."
+  @doc "Renders a 'needs review' badge when prediction_status is :needs_review."
   @spec prediction_indicator(map()) :: Phoenix.LiveView.Rendered.t()
   attr :prediction_status, :atom, default: nil
 
@@ -83,7 +83,7 @@ defmodule KsefHubWeb.InvoiceComponents do
       :if={@prediction_status == :needs_review}
       class="inline-flex items-center px-2 py-0.5 rounded-md text-xs font-medium border bg-info/10 text-info border-info/20"
     >
-      Review
+      needs review
     </span>
     """
   end

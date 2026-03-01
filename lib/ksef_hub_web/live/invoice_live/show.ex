@@ -114,6 +114,36 @@ defmodule KsefHubWeb.InvoiceLive.Show do
     end
   end
 
+  # --- Events: Duplicate ---
+
+  @impl true
+  def handle_event("dismiss_duplicate", _params, socket) do
+    case Invoices.dismiss_duplicate(socket.assigns.invoice) do
+      {:ok, updated} ->
+        {:noreply,
+         socket
+         |> put_flash(:info, "Duplicate dismissed.")
+         |> assign(:invoice, reload_details(updated, socket))}
+
+      {:error, _reason} ->
+        {:noreply, put_flash(socket, :error, "Failed to dismiss duplicate.")}
+    end
+  end
+
+  @impl true
+  def handle_event("confirm_duplicate", _params, socket) do
+    case Invoices.confirm_duplicate(socket.assigns.invoice) do
+      {:ok, updated} ->
+        {:noreply,
+         socket
+         |> put_flash(:info, "Duplicate confirmed.")
+         |> assign(:invoice, reload_details(updated, socket))}
+
+      {:error, _reason} ->
+        {:noreply, put_flash(socket, :error, "Failed to confirm duplicate.")}
+    end
+  end
+
   # --- Events: Category ---
 
   @impl true
@@ -385,7 +415,7 @@ defmodule KsefHubWeb.InvoiceLive.Show do
     </div>
 
     <div
-      :if={@invoice.duplicate_of_id}
+      :if={@invoice.duplicate_of_id && @invoice.duplicate_status == :suspected}
       class="alert alert-warning mt-4"
       role="alert"
       data-testid="duplicate-warning"
@@ -396,6 +426,28 @@ defmodule KsefHubWeb.InvoiceLive.Show do
         <.link navigate={~p"/invoices/#{@invoice.duplicate_of_id}"} class="link link-primary">
           View original
         </.link>
+      </span>
+      <div class="flex-none flex gap-2">
+        <button phx-click="dismiss_duplicate" class="btn btn-sm btn-ghost">
+          Not a duplicate
+        </button>
+        <button phx-click="confirm_duplicate" class="btn btn-sm btn-warning">
+          Confirm duplicate
+        </button>
+      </div>
+    </div>
+    <div
+      :if={@invoice.duplicate_of_id && @invoice.duplicate_status == :confirmed}
+      class="alert alert-error mt-4"
+      role="alert"
+      data-testid="duplicate-confirmed"
+    >
+      <.icon name="hero-document-duplicate" class="size-5" />
+      <span>
+        This invoice is a confirmed duplicate of
+        <.link navigate={~p"/invoices/#{@invoice.duplicate_of_id}"} class="link link-primary">
+          the original
+        </.link>.
       </span>
     </div>
 

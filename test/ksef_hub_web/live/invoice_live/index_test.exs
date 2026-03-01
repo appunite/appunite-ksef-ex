@@ -62,21 +62,21 @@ defmodule KsefHubWeb.InvoiceLive.IndexTest do
       assert html =~ "monthly"
     end
 
-    test "shows Review badge when prediction_status is needs_review", %{
+    test "shows needs review badge when prediction_status is needs_review", %{
       conn: conn,
       company: company
     } do
       insert(:invoice, company: company, prediction_status: :needs_review)
 
       {:ok, _view, html} = live(conn, ~p"/invoices")
-      assert html =~ "Review"
+      assert html =~ "needs review"
     end
 
-    test "does not show Review badge for predicted status", %{conn: conn, company: company} do
+    test "does not show needs review badge for predicted status", %{conn: conn, company: company} do
       insert(:invoice, company: company, prediction_status: :predicted)
 
       {:ok, _view, html} = live(conn, ~p"/invoices")
-      refute html =~ "Review"
+      refute html =~ "needs review"
     end
   end
 

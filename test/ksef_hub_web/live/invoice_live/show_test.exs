@@ -173,7 +173,7 @@ defmodule KsefHubWeb.InvoiceLive.ShowTest do
       invoice = insert(:invoice, company: company, prediction_status: :needs_review)
 
       {:ok, _view, html} = live(conn, ~p"/invoices/#{invoice.id}")
-      assert html =~ "Review"
+      assert html =~ "needs review"
     end
   end
 
@@ -422,12 +422,55 @@ defmodule KsefHubWeb.InvoiceLive.ShowTest do
       company: company
     } do
       original = insert(:invoice, company: company)
-      duplicate = insert(:pdf_upload_invoice, company: company, duplicate_of_id: original.id)
+
+      duplicate =
+        insert(:pdf_upload_invoice,
+          company: company,
+          duplicate_of_id: original.id,
+          duplicate_status: :suspected
+        )
 
       {:ok, view, _html} = live(conn, ~p"/invoices/#{duplicate.id}")
 
       assert has_element?(view, ~s([data-testid="duplicate-warning"]))
       assert has_element?(view, ~s(a[href="/invoices/#{original.id}"]), "View original")
+      assert has_element?(view, "button", "Not a duplicate")
+      assert has_element?(view, "button", "Confirm duplicate")
+    end
+
+    test "dismiss_duplicate removes the warning", %{conn: conn, company: company} do
+      original = insert(:invoice, company: company)
+
+      duplicate =
+        insert(:pdf_upload_invoice,
+          company: company,
+          duplicate_of_id: original.id,
+          duplicate_status: :suspected
+        )
+
+      {:ok, view, _html} = live(conn, ~p"/invoices/#{duplicate.id}")
+
+      view |> element("button", "Not a duplicate") |> render_click()
+
+      refute has_element?(view, ~s([data-testid="duplicate-warning"]))
+    end
+
+    test "confirm_duplicate shows confirmed state", %{conn: conn, company: company} do
+      original = insert(:invoice, company: company)
+
+      duplicate =
+        insert(:pdf_upload_invoice,
+          company: company,
+          duplicate_of_id: original.id,
+          duplicate_status: :suspected
+        )
+
+      {:ok, view, _html} = live(conn, ~p"/invoices/#{duplicate.id}")
+
+      view |> element("button", "Confirm duplicate") |> render_click()
+
+      refute has_element?(view, ~s([data-testid="duplicate-warning"]))
+      assert has_element?(view, ~s([data-testid="duplicate-confirmed"]))
     end
 
     test "not shown when duplicate_of_id is nil", %{conn: conn, company: company} do
