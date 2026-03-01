@@ -15,31 +15,11 @@ defmodule KsefHub.InboundEmail do
     {pdf_content, attrs} = Map.pop(attrs, :pdf_content)
 
     Repo.transaction(fn ->
-      attrs =
-        case pdf_content do
-          nil ->
-            attrs
-
-          content ->
-            case Files.create_file(%{
-                   content: content,
-                   content_type: "application/pdf",
-                   filename: attrs[:original_filename]
-                 }) do
-              {:ok, file} ->
-                Map.put(attrs, :pdf_file_id, file.id)
-
-              {:error, reason} ->
-                Repo.rollback(reason)
-            end
-        end
-
-      case %InboundEmailRecord{}
-           |> Ecto.Changeset.change(%{company_id: company_id})
-           |> InboundEmailRecord.changeset(attrs)
-           |> Repo.insert() do
-        {:ok, record} -> record
-        {:error, changeset} -> Repo.rollback(changeset)
+      with {:ok, attrs} <- maybe_create_pdf_file(attrs, pdf_content),
+           {:ok, record} <- do_insert_inbound_email(company_id, attrs) do
+        record
+      else
+        {:error, reason} -> Repo.rollback(reason)
       end
     end)
   end
@@ -67,6 +47,29 @@ defmodule KsefHub.InboundEmail do
     record
     |> InboundEmailRecord.status_changeset(attrs)
     |> Repo.update()
+  end
+
+  @spec do_insert_inbound_email(Ecto.UUID.t(), map()) ::
+          {:ok, InboundEmailRecord.t()} | {:error, Ecto.Changeset.t()}
+  defp do_insert_inbound_email(company_id, attrs) do
+    %InboundEmailRecord{}
+    |> Ecto.Changeset.change(%{company_id: company_id})
+    |> InboundEmailRecord.changeset(attrs)
+    |> Repo.insert()
+  end
+
+  @spec maybe_create_pdf_file(map(), binary() | nil) :: {:ok, map()} | {:error, term()}
+  defp maybe_create_pdf_file(attrs, nil), do: {:ok, attrs}
+
+  defp maybe_create_pdf_file(attrs, content) do
+    case Files.create_file(%{
+           content: content,
+           content_type: "application/pdf",
+           filename: attrs[:original_filename]
+         }) do
+      {:ok, file} -> {:ok, Map.put(attrs, :pdf_file_id, file.id)}
+      {:error, reason} -> {:error, reason}
+    end
   end
 
   @spec maybe_preload_pdf_file(InboundEmailRecord.t() | nil) :: InboundEmailRecord.t() | nil

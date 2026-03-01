@@ -157,14 +157,9 @@ defmodule KsefHub.Invoices do
 
     Repo.transaction(fn ->
       with {:ok, attrs} <- maybe_create_xml_file(attrs, xml_content),
-           {:ok, attrs} <- maybe_create_pdf_file(attrs, pdf_content) do
-        case %Invoice{}
-             |> Ecto.Changeset.change(%{company_id: company_id})
-             |> Invoice.changeset(attrs)
-             |> Repo.insert() do
-          {:ok, invoice} -> invoice
-          {:error, changeset} -> Repo.rollback(changeset)
-        end
+           {:ok, attrs} <- maybe_create_pdf_file(attrs, pdf_content),
+           {:ok, invoice} <- do_insert_invoice(company_id, attrs) do
+        invoice
       else
         {:error, reason} -> Repo.rollback(reason)
       end
@@ -218,26 +213,12 @@ defmodule KsefHub.Invoices do
     {xml_content, attrs} = Map.pop(attrs, :xml_content)
 
     Repo.transaction(fn ->
-      case maybe_create_xml_file(%{}, xml_content) do
-        {:ok, file_attrs} ->
-          attrs = Map.merge(attrs, file_attrs)
-
-          case %Invoice{}
-               |> Ecto.Changeset.change(%{company_id: company_id})
-               |> Invoice.changeset(attrs)
-               |> Repo.insert(
-                 on_conflict: {:replace, @upsert_replace_fields},
-                 conflict_target:
-                   {:unsafe_fragment,
-                    ~s|("company_id","ksef_number") WHERE ksef_number IS NOT NULL AND duplicate_of_id IS NULL|},
-                 returning: true
-               ) do
-            {:ok, invoice} -> invoice
-            {:error, changeset} -> Repo.rollback(changeset)
-          end
-
-        {:error, reason} ->
-          Repo.rollback(reason)
+      with {:ok, file_attrs} <- maybe_create_xml_file(%{}, xml_content),
+           attrs = Map.merge(attrs, file_attrs),
+           {:ok, invoice} <- do_upsert_invoice(company_id, attrs) do
+        invoice
+      else
+        {:error, reason} -> Repo.rollback(reason)
       end
     end)
   end
@@ -636,6 +617,30 @@ defmodule KsefHub.Invoices do
       {decimal, ""} -> decimal
       _ -> nil
     end
+  end
+
+  @spec do_insert_invoice(Ecto.UUID.t(), map()) ::
+          {:ok, Invoice.t()} | {:error, Ecto.Changeset.t()}
+  defp do_insert_invoice(company_id, attrs) do
+    %Invoice{}
+    |> Ecto.Changeset.change(%{company_id: company_id})
+    |> Invoice.changeset(attrs)
+    |> Repo.insert()
+  end
+
+  @spec do_upsert_invoice(Ecto.UUID.t(), map()) ::
+          {:ok, Invoice.t()} | {:error, Ecto.Changeset.t()}
+  defp do_upsert_invoice(company_id, attrs) do
+    %Invoice{}
+    |> Ecto.Changeset.change(%{company_id: company_id})
+    |> Invoice.changeset(attrs)
+    |> Repo.insert(
+      on_conflict: {:replace, @upsert_replace_fields},
+      conflict_target:
+        {:unsafe_fragment,
+         ~s|("company_id","ksef_number") WHERE ksef_number IS NOT NULL AND duplicate_of_id IS NULL|},
+      returning: true
+    )
   end
 
   @spec maybe_create_xml_file(map(), String.t() | nil) :: {:ok, map()} | {:error, term()}

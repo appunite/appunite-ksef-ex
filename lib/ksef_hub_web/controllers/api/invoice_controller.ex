@@ -504,7 +504,9 @@ defmodule KsefHubWeb.Api.InvoiceController do
   @spec html(Plug.Conn.t(), map()) :: Plug.Conn.t()
   def html(conn, %{"id" => id}) do
     company_id = conn.assigns.current_company.id
-    invoice = Invoices.get_invoice_with_details!(company_id, id, role: conn.assigns[:current_role])
+
+    invoice =
+      Invoices.get_invoice_with_details!(company_id, id, role: conn.assigns[:current_role])
 
     if is_nil(invoice.xml_file) do
       conn
@@ -558,7 +560,9 @@ defmodule KsefHubWeb.Api.InvoiceController do
   @spec xml(Plug.Conn.t(), map()) :: Plug.Conn.t()
   def xml(conn, %{"id" => id}) do
     company_id = conn.assigns.current_company.id
-    invoice = Invoices.get_invoice_with_details!(company_id, id, role: conn.assigns[:current_role])
+
+    invoice =
+      Invoices.get_invoice_with_details!(company_id, id, role: conn.assigns[:current_role])
 
     if is_nil(invoice.xml_file) do
       conn
@@ -597,7 +601,10 @@ defmodule KsefHubWeb.Api.InvoiceController do
   @spec pdf(Plug.Conn.t(), map()) :: Plug.Conn.t()
   def pdf(conn, %{"id" => id}) do
     company_id = conn.assigns.current_company.id
-    invoice = Invoices.get_invoice_with_details!(company_id, id, role: conn.assigns[:current_role])
+
+    invoice =
+      Invoices.get_invoice_with_details!(company_id, id, role: conn.assigns[:current_role])
+
     serve_pdf(conn, invoice)
   end
 

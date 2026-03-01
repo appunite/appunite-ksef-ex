@@ -59,28 +59,33 @@ defmodule KsefHub.Files.DataMigration do
       :ok
     else
       Repo.transaction(fn ->
-        Enum.each(batch, fn row ->
-          file_id = Ecto.UUID.generate()
-          now = DateTime.utc_now() |> DateTime.truncate(:microsecond)
-
-          Repo.insert_all("files", [
-            %{
-              id: Ecto.UUID.dump!(file_id),
-              content: row.content,
-              content_type: content_type,
-              filename: Map.get(row, :filename),
-              byte_size: byte_size(row.content),
-              inserted_at: now
-            }
-          ])
-
-          from(r in table_name, where: r.id == ^row.id)
-          |> Repo.update_all(set: [{fk_field, Ecto.UUID.dump!(file_id)}])
-        end)
+        Enum.each(batch, &migrate_row(&1, content_type, table_name, fk_field))
       end)
 
       # Fetch next batch (the WHERE clause filters already-migrated rows)
       migrate_batch(query, content_type, table_name, fk_field)
     end
+  end
+
+  @spec migrate_row(map(), String.t(), String.t(), atom()) :: :ok
+  defp migrate_row(row, content_type, table_name, fk_field) do
+    file_id = Ecto.UUID.generate()
+    now = DateTime.utc_now() |> DateTime.truncate(:microsecond)
+
+    Repo.insert_all("files", [
+      %{
+        id: Ecto.UUID.dump!(file_id),
+        content: row.content,
+        content_type: content_type,
+        filename: Map.get(row, :filename),
+        byte_size: byte_size(row.content),
+        inserted_at: now
+      }
+    ])
+
+    from(r in table_name, where: r.id == ^row.id)
+    |> Repo.update_all(set: [{fk_field, Ecto.UUID.dump!(file_id)}])
+
+    :ok
   end
 end
