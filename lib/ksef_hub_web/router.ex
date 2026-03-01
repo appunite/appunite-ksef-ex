@@ -91,6 +91,7 @@ defmodule KsefHubWeb.Router do
       live "/categories", CategoryLive
       live "/tags", TagLive
       live "/syncs", SyncLive
+      live "/exports", ExportLive.Index
       live "/companies", CompanyLive.Index
       live "/companies/new", CompanyLive.Index, :new
       live "/companies/:id/edit", CompanyLive.Index, :edit
@@ -105,6 +106,7 @@ defmodule KsefHubWeb.Router do
     get "/switch-company/:id", CompanySwitchController, :update
     get "/invoices/:id/pdf", InvoicePdfController, :show
     get "/invoices/:id/xml", InvoicePdfController, :xml
+    get "/exports/:id/download", ExportController, :download
   end
 
   # OpenAPI spec (public, no auth required)

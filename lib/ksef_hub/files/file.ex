@@ -33,6 +33,15 @@ defmodule KsefHub.Files.File do
     )
   end
 
+  @doc "Builds a changeset for creating a file without the 10MB size limit (for export ZIPs)."
+  @spec export_changeset(t(), map()) :: Ecto.Changeset.t()
+  def export_changeset(file, attrs) do
+    file
+    |> cast(attrs, [:content, :content_type, :filename])
+    |> validate_required([:content, :content_type])
+    |> compute_byte_size()
+  end
+
   @spec compute_byte_size(Ecto.Changeset.t()) :: Ecto.Changeset.t()
   defp compute_byte_size(changeset) do
     case get_change(changeset, :content) do

@@ -117,6 +117,15 @@ defmodule KsefHubWeb.Layouts do
                   Tags
                 </.nav_link>
               </li>
+              <li :if={@current_role in [:owner, :accountant]}>
+                <.nav_link
+                  path={~p"/exports"}
+                  current={@current_path}
+                  icon="hero-arrow-down-tray"
+                >
+                  Exports
+                </.nav_link>
+              </li>
               <li>
                 <.nav_link path={~p"/syncs"} current={@current_path} icon="hero-arrow-path">
                   Syncs

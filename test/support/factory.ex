@@ -11,6 +11,7 @@ defmodule KsefHub.Factory do
   alias KsefHub.Accounts.{ApiToken, User}
   alias KsefHub.Companies.{Company, Membership}
   alias KsefHub.Credentials.{Credential, UserCertificate}
+  alias KsefHub.Exports.{ExportBatch, InvoiceDownload}
   alias KsefHub.Files.File, as: FileRecord
   alias KsefHub.InboundEmail.InboundEmail, as: InboundEmailRecord
   alias KsefHub.Invitations.Invitation
@@ -264,6 +265,31 @@ defmodule KsefHub.Factory do
       content: "sample file content",
       content_type: "application/octet-stream",
       filename: "test-file.bin"
+    }
+  end
+
+  @doc "Builds an `ExportBatch` with default pending status and date range."
+  @spec export_batch_factory() :: ExportBatch.t()
+  def export_batch_factory do
+    %ExportBatch{
+      status: :pending,
+      date_from: ~D[2026-01-01],
+      date_to: ~D[2026-01-31],
+      invoice_type: "expense",
+      only_new: false,
+      user: build(:user),
+      company: build(:company)
+    }
+  end
+
+  @doc "Builds an `InvoiceDownload` record linking an invoice to an export batch."
+  @spec invoice_download_factory() :: InvoiceDownload.t()
+  def invoice_download_factory do
+    %InvoiceDownload{
+      downloaded_at: DateTime.utc_now(),
+      invoice: build(:invoice),
+      export_batch: build(:export_batch),
+      user: build(:user)
     }
   end
 
