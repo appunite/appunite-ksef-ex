@@ -75,7 +75,7 @@ defmodule KsefHubWeb.InvoicePdfController do
 
   @spec send_pdf(Plug.Conn.t(), map(), boolean()) :: Plug.Conn.t()
   defp send_pdf(conn, %{pdf_file: %{content: content}} = invoice, inline?)
-       when is_binary(content) do
+       when is_binary(content) and content != "" do
     send_fn = if inline?, do: &send_inline/4, else: &send_attachment/4
     send_fn.(conn, "application/pdf", "#{invoice.invoice_number}.pdf", content)
   end

@@ -444,8 +444,10 @@ defmodule KsefHubWeb.InvoiceLive.Show do
     >
       <.icon name="hero-document-duplicate" class="size-5" />
       <span>
-        This invoice is a confirmed duplicate of
-        <.link navigate={~p"/invoices/#{@invoice.duplicate_of_id}"} class="link link-primary">
+        This invoice is a confirmed duplicate of <.link
+          navigate={~p"/invoices/#{@invoice.duplicate_of_id}"}
+          class="link link-primary"
+        >
           the original
         </.link>.
       </span>
