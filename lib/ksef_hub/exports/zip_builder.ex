@@ -36,6 +36,11 @@ defmodule KsefHub.Exports.ZipBuilder do
 
   @spec to_zip_entry({String.t(), binary()}) :: {charlist(), binary()}
   defp to_zip_entry({filename, content}) do
-    {String.to_charlist(filename), content}
+    sanitized =
+      filename
+      |> String.replace(~r"\.\./", "")
+      |> String.replace(~r"^/+", "")
+
+    {String.to_charlist(sanitized), content}
   end
 end

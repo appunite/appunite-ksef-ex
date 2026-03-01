@@ -21,8 +21,8 @@ defmodule KsefHub.Exports.InvoiceDownload do
   @spec changeset(t(), map()) :: Ecto.Changeset.t()
   def changeset(download, attrs) do
     download
-    |> cast(attrs, [:downloaded_at, :invoice_id, :export_batch_id, :user_id])
-    |> validate_required([:downloaded_at, :invoice_id, :export_batch_id, :user_id])
+    |> cast(attrs, [:downloaded_at])
+    |> validate_required([:downloaded_at])
     |> foreign_key_constraint(:invoice_id)
     |> foreign_key_constraint(:export_batch_id)
     |> foreign_key_constraint(:user_id)

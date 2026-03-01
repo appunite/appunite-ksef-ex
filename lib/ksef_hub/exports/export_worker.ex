@@ -14,6 +14,7 @@ defmodule KsefHub.Exports.ExportWorker do
   alias KsefHub.Exports.ExportBatch
   alias KsefHub.Repo
 
+  @doc "Generates the export ZIP for the given batch. Called by Oban."
   @impl Oban.Worker
   @spec perform(Oban.Job.t()) :: :ok | {:cancel, String.t()} | {:error, term()}
   def perform(%Oban.Job{args: %{"export_batch_id" => batch_id}}) do
@@ -37,5 +38,10 @@ defmodule KsefHub.Exports.ExportWorker do
             {:error, reason}
         end
     end
+  end
+
+  def perform(%Oban.Job{args: args}) do
+    Logger.error("ExportWorker received malformed args: #{inspect(args, limit: 200)}")
+    {:cancel, "malformed job args: missing export_batch_id"}
   end
 end

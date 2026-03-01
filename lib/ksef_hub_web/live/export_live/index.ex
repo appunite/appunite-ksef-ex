@@ -11,7 +11,20 @@ defmodule KsefHubWeb.ExportLive.Index do
   alias KsefHub.Repo
 
   @impl true
+  @spec mount(map(), map(), Phoenix.LiveView.Socket.t()) :: {:ok, Phoenix.LiveView.Socket.t()}
   def mount(_params, _session, socket) do
+    if socket.assigns[:current_role] in [:owner, :accountant] do
+      do_mount(socket)
+    else
+      {:ok,
+       socket
+       |> put_flash(:error, "You don't have permission to access exports.")
+       |> redirect(to: ~p"/invoices")}
+    end
+  end
+
+  @spec do_mount(Phoenix.LiveView.Socket.t()) :: {:ok, Phoenix.LiveView.Socket.t()}
+  defp do_mount(socket) do
     company = socket.assigns.current_company
 
     if connected?(socket) && company do
@@ -41,6 +54,8 @@ defmodule KsefHubWeb.ExportLive.Index do
   end
 
   @impl true
+  @spec handle_event(String.t(), map(), Phoenix.LiveView.Socket.t()) ::
+          {:noreply, Phoenix.LiveView.Socket.t()}
   def handle_event("update_form", params, socket) do
     {:noreply,
      socket
@@ -53,7 +68,6 @@ defmodule KsefHubWeb.ExportLive.Index do
      |> assign(preview_count: nil)}
   end
 
-  @impl true
   def handle_event("preview", _params, socket) do
     company = socket.assigns.current_company
 
@@ -75,7 +89,6 @@ defmodule KsefHubWeb.ExportLive.Index do
     end
   end
 
-  @impl true
   def handle_event("export", _params, socket) do
     company = socket.assigns.current_company
     user = socket.assigns.current_user
@@ -107,6 +120,8 @@ defmodule KsefHubWeb.ExportLive.Index do
   end
 
   @impl true
+  @spec handle_info(term(), Phoenix.LiveView.Socket.t()) ::
+          {:noreply, Phoenix.LiveView.Socket.t()}
   def handle_info({:export_status, batch_id, _status}, socket) do
     company = socket.assigns.current_company
 
@@ -124,6 +139,7 @@ defmodule KsefHubWeb.ExportLive.Index do
   end
 
   @impl true
+  @spec render(map()) :: Phoenix.LiveView.Rendered.t()
   def render(assigns) do
     ~H"""
     <.header>

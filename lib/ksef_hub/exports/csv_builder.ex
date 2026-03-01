@@ -71,12 +71,21 @@ defmodule KsefHub.Exports.CsvBuilder do
 
   @spec escape_field(String.t()) :: String.t()
   defp escape_field(value) do
+    value = sanitize_formula(value)
+
     if needs_quoting?(value) do
       ~s("#{String.replace(value, ~s("), ~s(""))}")
     else
       value
     end
   end
+
+  @spec sanitize_formula(String.t()) :: String.t()
+  defp sanitize_formula(<<c, _::binary>> = value) when c in [?=, ?+, ?-, ?@] do
+    "'" <> value
+  end
+
+  defp sanitize_formula(value), do: value
 
   @spec needs_quoting?(String.t()) :: boolean()
   defp needs_quoting?(value) do

@@ -8,10 +8,12 @@ defmodule KsefHubWeb.ExportLive.IndexTest do
   alias KsefHub.Repo
 
   setup %{conn: conn} do
+    unique = System.unique_integer([:positive])
+
     {:ok, user} =
       Accounts.get_or_create_google_user(%{
-        uid: "g-export-1",
-        email: "export@example.com",
+        uid: "g-export-#{unique}",
+        email: "export-#{unique}@example.com",
         name: "Export User"
       })
 

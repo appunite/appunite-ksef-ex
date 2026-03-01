@@ -71,7 +71,7 @@ defmodule KsefHub.Exports.ExportBatch do
       Date.compare(date_to, date_from) == :lt ->
         add_error(changeset, :date_to, "must be on or after start date")
 
-      Date.diff(date_to, date_from) > @max_date_range_days ->
+      Date.diff(date_to, date_from) >= @max_date_range_days ->
         add_error(changeset, :date_to, "date range cannot exceed #{@max_date_range_days} days")
 
       true ->

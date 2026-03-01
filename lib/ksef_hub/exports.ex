@@ -114,11 +114,18 @@ defmodule KsefHub.Exports do
     |> Oban.insert()
   end
 
-  @spec mark_processing(ExportBatch.t()) :: {:ok, ExportBatch.t()} | {:error, Ecto.Changeset.t()}
+  @spec mark_processing(ExportBatch.t()) :: {:ok, ExportBatch.t()} | {:error, term()}
   defp mark_processing(batch) do
-    batch
-    |> ExportBatch.status_changeset(%{status: :processing})
-    |> Repo.update()
+    {count, _} =
+      ExportBatch
+      |> where([b], b.id == ^batch.id and b.status == :pending)
+      |> Repo.update_all(set: [status: :processing, updated_at: DateTime.utc_now()])
+
+    if count == 1 do
+      {:ok, %{batch | status: :processing}}
+    else
+      {:error, :already_processing}
+    end
   end
 
   @spec finalize_batch(ExportBatch.t(), Ecto.UUID.t(), [Invoice.t()]) ::
@@ -169,7 +176,7 @@ defmodule KsefHub.Exports do
     |> then(fn {files, errors} -> {Enum.reverse(files), Enum.reverse(errors)} end)
   end
 
-  @doc false
+  @doc "Resolves PDF binary from an invoice's pdf_file or by rendering from xml_file."
   @spec resolve_pdf(Invoice.t()) :: {:ok, binary()} | {:error, term()}
   def resolve_pdf(%Invoice{pdf_file: %{content: content}}) when is_binary(content) do
     {:ok, content}

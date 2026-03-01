@@ -349,8 +349,7 @@ defmodule KsefHub.ExportsTest do
       assert length(downloads) == 2
     end
 
-    test "marks batch as failed on error", %{user: user, company: company} do
-      # No invoices, which would cause empty export — still should complete
+    test "completes successfully with zero invoices", %{user: user, company: company} do
       batch =
         insert(:export_batch,
           user: user,
