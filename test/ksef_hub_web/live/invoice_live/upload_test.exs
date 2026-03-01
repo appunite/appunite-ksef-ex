@@ -29,11 +29,11 @@ defmodule KsefHubWeb.InvoiceLive.UploadTest do
 
   describe "mount" do
     test "renders upload form", %{conn: conn} do
-      {:ok, _view, html} = live(conn, ~p"/invoices/upload")
+      {:ok, view, _html} = live(conn, ~p"/invoices/upload")
 
-      assert html =~ "Upload PDF Invoice"
-      assert html =~ "Upload &amp; Extract"
-      assert html =~ "expense"
+      assert has_element?(view, "#upload-form")
+      assert has_element?(view, "button[type='submit']", "Upload & Extract")
+      assert has_element?(view, ~s(input[type="file"]))
     end
 
     test "does not show income/expense type selector", %{conn: conn} do

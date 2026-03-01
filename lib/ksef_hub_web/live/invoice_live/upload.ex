@@ -14,6 +14,7 @@ defmodule KsefHubWeb.InvoiceLive.Upload do
 
   import KsefHubWeb.UploadHelpers, only: [format_bytes: 1, upload_error_to_string: 1]
 
+  @doc "Mounts the upload page with access checks and file upload configuration."
   @impl true
   @spec mount(map(), map(), Phoenix.LiveView.Socket.t()) ::
           {:ok, Phoenix.LiveView.Socket.t()}
@@ -40,7 +41,7 @@ defmodule KsefHubWeb.InvoiceLive.Upload do
       true ->
         {:ok,
          socket
-         |> assign(page_title: "Upload PDF Invoice", uploading: false)
+         |> assign(page_title: "Upload PDF Invoice", uploading: false, upload_refs: MapSet.new())
          |> allow_upload(:invoice_pdf,
            accept: ~w(.pdf),
            max_entries: 1,
@@ -49,6 +50,7 @@ defmodule KsefHubWeb.InvoiceLive.Upload do
     end
   end
 
+  @doc "Handles `validate` (no-op for live uploads) and `upload` (consumes file and starts extraction)."
   @impl true
   @spec handle_event(String.t(), map(), Phoenix.LiveView.Socket.t()) ::
           {:noreply, Phoenix.LiveView.Socket.t()}
@@ -63,38 +65,55 @@ defmodule KsefHubWeb.InvoiceLive.Upload do
 
       {:error, :no_file} ->
         {:noreply, put_flash(socket, :error, "Please select a PDF file.")}
+
+      {:error, {:read_failed, _reason}} ->
+        {:noreply,
+         put_flash(socket, :error, "Failed to read the uploaded file. Please try again.")}
     end
   end
 
+  @doc "Handles async task results and process DOWN messages for upload processing."
   @impl true
   @spec handle_info(term(), Phoenix.LiveView.Socket.t()) ::
           {:noreply, Phoenix.LiveView.Socket.t()}
-  def handle_info({ref, {:ok, invoice}}, %{assigns: %{upload_ref: ref}} = socket) do
-    Process.demonitor(ref, [:flush])
+  def handle_info({ref, {:ok, invoice}}, socket) when is_reference(ref) do
+    if MapSet.member?(socket.assigns.upload_refs, ref) do
+      Process.demonitor(ref, [:flush])
 
-    {:noreply,
-     socket
-     |> put_flash(:info, "Invoice uploaded successfully.")
-     |> redirect(to: ~p"/invoices/#{invoice.id}")}
+      {:noreply,
+       socket
+       |> update(:upload_refs, &MapSet.delete(&1, ref))
+       |> put_flash(:info, "Invoice uploaded successfully.")
+       |> redirect(to: ~p"/invoices/#{invoice.id}")}
+    else
+      {:noreply, socket}
+    end
   end
 
-  def handle_info({ref, {:error, _reason}}, %{assigns: %{upload_ref: ref}} = socket) do
-    Process.demonitor(ref, [:flush])
+  def handle_info({ref, {:error, _reason}}, socket) when is_reference(ref) do
+    if MapSet.member?(socket.assigns.upload_refs, ref) do
+      Process.demonitor(ref, [:flush])
 
-    {:noreply,
-     socket
-     |> assign(uploading: false, upload_ref: nil)
-     |> put_flash(:error, "Failed to process the PDF. Please try again.")}
+      {:noreply,
+       socket
+       |> update(:upload_refs, &MapSet.delete(&1, ref))
+       |> assign(uploading: false)
+       |> put_flash(:error, "Failed to process the PDF. Please try again.")}
+    else
+      {:noreply, socket}
+    end
   end
 
-  def handle_info(
-        {:DOWN, ref, :process, _pid, _reason},
-        %{assigns: %{upload_ref: ref}} = socket
-      ) do
-    {:noreply,
-     socket
-     |> assign(uploading: false, upload_ref: nil)
-     |> put_flash(:error, "Upload processing crashed. Please try again.")}
+  def handle_info({:DOWN, ref, :process, _pid, _reason}, socket) when is_reference(ref) do
+    if MapSet.member?(socket.assigns.upload_refs, ref) do
+      {:noreply,
+       socket
+       |> update(:upload_refs, &MapSet.delete(&1, ref))
+       |> assign(uploading: false)
+       |> put_flash(:error, "Upload processing crashed. Please try again.")}
+    else
+      {:noreply, socket}
+    end
   end
 
   def handle_info(msg, socket) do
@@ -114,23 +133,26 @@ defmodule KsefHubWeb.InvoiceLive.Upload do
         do_upload(company, binary, filename)
       end)
 
-    {:noreply, assign(socket, uploading: true, upload_ref: task.ref)}
+    {:noreply,
+     socket
+     |> update(:upload_refs, &MapSet.put(&1, task.ref))
+     |> assign(uploading: true)}
   end
 
   @spec consume_pdf(Phoenix.LiveView.Socket.t()) ::
-          {:ok, {binary(), String.t()}} | {:error, :no_file}
+          {:ok, {binary(), String.t()}} | {:error, :no_file | {:read_failed, atom()}}
   defp consume_pdf(socket) do
     results =
       consume_uploaded_entries(socket, :invoice_pdf, fn %{path: path}, entry ->
         case File.read(path) do
           {:ok, data} -> {:ok, {data, entry.client_name}}
-          {:error, reason} -> {:ok, {:error, reason}}
+          {:error, reason} -> {:ok, {:read_error, reason}}
         end
       end)
 
     case results do
       [{data, filename}] when is_binary(data) -> {:ok, {data, filename}}
-      [{:error, _reason}] -> {:error, :no_file}
+      [{:read_error, reason}] -> {:error, {:read_failed, reason}}
       [] -> {:error, :no_file}
     end
   end
@@ -143,6 +165,7 @@ defmodule KsefHubWeb.InvoiceLive.Upload do
 
   # --- Render ---
 
+  @doc "Renders the PDF upload form with drag-and-drop zone and submit button."
   @impl true
   @spec render(map()) :: Phoenix.LiveView.Rendered.t()
   def render(assigns) do

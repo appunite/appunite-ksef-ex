@@ -545,6 +545,9 @@ defmodule KsefHubWeb.CertificateLive do
     end
   end
 
-  defdelegate format_bytes(bytes), to: KsefHubWeb.UploadHelpers
-  defdelegate error_to_string(err), to: KsefHubWeb.UploadHelpers, as: :upload_error_to_string
+  @spec format_bytes(non_neg_integer()) :: String.t()
+  defp format_bytes(bytes), do: KsefHubWeb.UploadHelpers.format_bytes(bytes)
+
+  @spec error_to_string(atom()) :: String.t()
+  defp error_to_string(err), do: KsefHubWeb.UploadHelpers.upload_error_to_string(err)
 end

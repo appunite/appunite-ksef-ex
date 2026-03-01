@@ -399,7 +399,7 @@ defmodule KsefHubWeb.InvoiceLive.ShowTest do
 
       {:ok, _view, html} = live(conn, ~p"/invoices/#{invoice.id}")
 
-      assert html =~ ~s(src="/invoices/#{invoice.id}/pdf")
+      assert html =~ ~s(src="/invoices/#{invoice.id}/pdf?inline=1")
       assert html =~ "Invoice PDF preview"
     end
 

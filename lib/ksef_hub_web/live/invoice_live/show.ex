@@ -561,7 +561,7 @@ defmodule KsefHubWeb.InvoiceLive.Show do
             class="border border-base-300 rounded-lg overflow-hidden"
           >
             <iframe
-              src={~p"/invoices/#{@invoice.id}/pdf"}
+              src={~p"/invoices/#{@invoice.id}/pdf?inline=1"}
               class="w-full h-[600px] bg-white"
               title="Invoice PDF preview"
             >
