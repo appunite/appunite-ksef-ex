@@ -52,8 +52,15 @@ defmodule KsefHub.InboundEmail do
   @spec do_insert_inbound_email(Ecto.UUID.t(), map()) ::
           {:ok, InboundEmailRecord.t()} | {:error, Ecto.Changeset.t()}
   defp do_insert_inbound_email(company_id, attrs) do
+    {pdf_file_id, attrs} = Map.pop(attrs, :pdf_file_id)
+
+    internal =
+      if pdf_file_id,
+        do: %{company_id: company_id, pdf_file_id: pdf_file_id},
+        else: %{company_id: company_id}
+
     %InboundEmailRecord{}
-    |> Ecto.Changeset.change(%{company_id: company_id})
+    |> Ecto.Changeset.change(internal)
     |> InboundEmailRecord.changeset(attrs)
     |> Repo.insert()
   end

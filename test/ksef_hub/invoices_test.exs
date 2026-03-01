@@ -31,16 +31,14 @@ defmodule KsefHub.InvoicesTest do
     end
 
     test "creates xml_file for ksef source invoice", %{company: company} do
-      xml = File.read!("test/support/fixtures/sample_income.xml")
-
       attrs =
         params_for(:invoice, company_id: company.id)
-        |> Map.put(:xml_content, xml)
+        |> Map.put(:xml_content, @sample_xml)
 
       assert {:ok, invoice} = Invoices.create_invoice(attrs)
       assert invoice.xml_file_id
       xml_file = KsefHub.Files.get_file!(invoice.xml_file_id)
-      assert xml_file.content == xml
+      assert xml_file.content == @sample_xml
       assert xml_file.content_type == "application/xml"
     end
 

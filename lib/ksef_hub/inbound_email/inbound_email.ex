@@ -38,8 +38,7 @@ defmodule KsefHub.InboundEmail.InboundEmail do
       :subject,
       :status,
       :error_message,
-      :original_filename,
-      :pdf_file_id
+      :original_filename
     ])
     |> validate_required([:company_id, :sender, :recipient, :status])
     |> foreign_key_constraint(:company_id)

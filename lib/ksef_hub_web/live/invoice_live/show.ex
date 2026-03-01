@@ -328,7 +328,7 @@ defmodule KsefHubWeb.InvoiceLive.Show do
       </:subtitle>
       <:actions>
         <div class="flex gap-2">
-          <div :if={@invoice.xml_file} class="dropdown dropdown-end">
+          <div :if={@invoice.xml_file || @invoice.pdf_file} class="dropdown dropdown-end">
             <div tabindex="0" role="button" class="btn btn-sm btn-outline">
               <.icon name="hero-arrow-down-tray" class="size-4" /> Download
               <.icon name="hero-chevron-down" class="size-3" />
@@ -337,8 +337,12 @@ defmodule KsefHubWeb.InvoiceLive.Show do
               tabindex="0"
               class="dropdown-content z-50 menu p-2 border border-base-300 bg-base-100 rounded-box w-44"
             >
-              <li><a href={~p"/invoices/#{@invoice.id}/pdf"}>PDF</a></li>
-              <li><a href={~p"/invoices/#{@invoice.id}/xml"}>XML</a></li>
+              <li :if={@invoice.xml_file || @invoice.pdf_file}>
+                <a href={~p"/invoices/#{@invoice.id}/pdf"}>PDF</a>
+              </li>
+              <li :if={@invoice.xml_file}>
+                <a href={~p"/invoices/#{@invoice.id}/xml"}>XML</a>
+              </li>
             </ul>
           </div>
           <button
