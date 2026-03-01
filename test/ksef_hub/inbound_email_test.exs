@@ -31,7 +31,10 @@ defmodule KsefHub.InboundEmailTest do
       assert record.company_id == company.id
       assert record.sender == "user@example.com"
       assert record.status == :received
-      assert record.pdf_content == "%PDF-1.4 content"
+      assert record.pdf_file_id
+      pdf_file = KsefHub.Files.get_file!(record.pdf_file_id)
+      assert pdf_file.content == "%PDF-1.4 content"
+      assert pdf_file.content_type == "application/pdf"
     end
 
     test "requires sender and recipient", %{company: company} do

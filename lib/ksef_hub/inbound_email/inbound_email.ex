@@ -17,11 +17,11 @@ defmodule KsefHub.InboundEmail.InboundEmail do
     field :subject, :string
     field :status, Ecto.Enum, values: [:received, :processing, :completed, :failed, :rejected]
     field :error_message, :string
-    field :pdf_content, :binary
     field :original_filename, :string
 
     belongs_to :company, KsefHub.Companies.Company
     belongs_to :invoice, KsefHub.Invoices.Invoice
+    belongs_to :pdf_file, KsefHub.Files.File
 
     timestamps()
   end
@@ -31,19 +31,18 @@ defmodule KsefHub.InboundEmail.InboundEmail do
   def changeset(inbound_email, attrs) do
     inbound_email
     |> cast(attrs, [
-      :company_id,
       :mailgun_message_id,
       :sender,
       :recipient,
       :subject,
       :status,
       :error_message,
-      :pdf_content,
       :original_filename
     ])
-    |> validate_required([:company_id, :sender, :recipient, :status])
+    |> validate_required([:sender, :recipient, :status])
     |> foreign_key_constraint(:company_id)
     |> foreign_key_constraint(:invoice_id)
+    |> foreign_key_constraint(:pdf_file_id)
     |> unique_constraint(:mailgun_message_id, name: :inbound_emails_mailgun_message_id_index)
   end
 

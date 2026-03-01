@@ -504,9 +504,11 @@ defmodule KsefHubWeb.Api.InvoiceController do
   @spec html(Plug.Conn.t(), map()) :: Plug.Conn.t()
   def html(conn, %{"id" => id}) do
     company_id = conn.assigns.current_company.id
-    invoice = Invoices.get_invoice!(company_id, id, role: conn.assigns[:current_role])
 
-    if is_nil(invoice.xml_content) do
+    invoice =
+      Invoices.get_invoice_with_details!(company_id, id, role: conn.assigns[:current_role])
+
+    if is_nil(invoice.xml_file) do
       conn
       |> put_status(:unprocessable_entity)
       |> json(%{error: "Invoice has no XML content"})
@@ -521,7 +523,7 @@ defmodule KsefHubWeb.Api.InvoiceController do
 
     metadata = %{ksef_number: invoice.ksef_number}
 
-    case pdf_mod.generate_html(invoice.xml_content, metadata) do
+    case pdf_mod.generate_html(invoice.xml_file.content, metadata) do
       {:ok, html_content} ->
         conn
         |> put_resp_content_type("text/html")
@@ -558,9 +560,11 @@ defmodule KsefHubWeb.Api.InvoiceController do
   @spec xml(Plug.Conn.t(), map()) :: Plug.Conn.t()
   def xml(conn, %{"id" => id}) do
     company_id = conn.assigns.current_company.id
-    invoice = Invoices.get_invoice!(company_id, id, role: conn.assigns[:current_role])
 
-    if is_nil(invoice.xml_content) do
+    invoice =
+      Invoices.get_invoice_with_details!(company_id, id, role: conn.assigns[:current_role])
+
+    if is_nil(invoice.xml_file) do
       conn
       |> put_status(:unprocessable_entity)
       |> json(%{error: "Invoice has no XML content"})
@@ -569,7 +573,7 @@ defmodule KsefHubWeb.Api.InvoiceController do
         conn,
         "application/xml",
         "#{invoice.invoice_number}.xml",
-        invoice.xml_content
+        invoice.xml_file.content
       )
     end
   end
@@ -597,18 +601,21 @@ defmodule KsefHubWeb.Api.InvoiceController do
   @spec pdf(Plug.Conn.t(), map()) :: Plug.Conn.t()
   def pdf(conn, %{"id" => id}) do
     company_id = conn.assigns.current_company.id
-    invoice = Invoices.get_invoice!(company_id, id, role: conn.assigns[:current_role])
+
+    invoice =
+      Invoices.get_invoice_with_details!(company_id, id, role: conn.assigns[:current_role])
+
     serve_pdf(conn, invoice)
   end
 
   @spec serve_pdf(Plug.Conn.t(), Invoice.t()) :: Plug.Conn.t()
-  defp serve_pdf(conn, %Invoice{source: :pdf_upload, pdf_content: content} = invoice)
-       when not is_nil(content) do
+  defp serve_pdf(conn, %Invoice{source: source, pdf_file: %{content: content}} = invoice)
+       when source in [:pdf_upload, :email] do
     filename = invoice.original_filename || "#{invoice.invoice_number || "invoice"}.pdf"
     send_attachment(conn, "application/pdf", filename, content)
   end
 
-  defp serve_pdf(conn, %Invoice{xml_content: xml} = invoice) when not is_nil(xml) do
+  defp serve_pdf(conn, %Invoice{xml_file: %{content: xml}} = invoice) when not is_nil(xml) do
     do_pdf(conn, invoice)
   end
 
@@ -624,7 +631,7 @@ defmodule KsefHubWeb.Api.InvoiceController do
 
     metadata = %{ksef_number: invoice.ksef_number}
 
-    case pdf_mod.generate_pdf(invoice.xml_content, metadata) do
+    case pdf_mod.generate_pdf(invoice.xml_file.content, metadata) do
       {:ok, pdf_binary} ->
         send_attachment(conn, "application/pdf", "#{invoice.invoice_number}.pdf", pdf_binary)
 

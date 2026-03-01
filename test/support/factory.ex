@@ -11,6 +11,7 @@ defmodule KsefHub.Factory do
   alias KsefHub.Accounts.{ApiToken, User}
   alias KsefHub.Companies.{Company, Membership}
   alias KsefHub.Credentials.{Credential, UserCertificate}
+  alias KsefHub.Files.File, as: FileRecord
   alias KsefHub.InboundEmail.InboundEmail, as: InboundEmailRecord
   alias KsefHub.Invitations.Invitation
   alias KsefHub.Invoices.{Category, Invoice, InvoiceTag, Tag}
@@ -123,7 +124,11 @@ defmodule KsefHub.Factory do
       seller_name: "Seller Sp. z o.o.",
       buyer_nip: "0987654321",
       buyer_name: "Buyer S.A.",
-      xml_content: File.read!("test/support/fixtures/sample_income.xml"),
+      xml_file:
+        build(:file,
+          content: File.read!("test/support/fixtures/sample_income.xml"),
+          content_type: "application/xml"
+        ),
       invoice_number: sequence(:invoice_number, &"FV/2025/#{&1}"),
       issue_date: Date.utc_today(),
       net_amount: Decimal.new("1000.00"),
@@ -135,7 +140,7 @@ defmodule KsefHub.Factory do
     }
   end
 
-  @doc "Builds a manual `Invoice` without xml_content, suitable for manual entry."
+  @doc "Builds a manual `Invoice` without xml_file, suitable for manual entry."
   @spec manual_invoice_factory() :: Invoice.t()
   def manual_invoice_factory do
     %Invoice{
@@ -156,7 +161,7 @@ defmodule KsefHub.Factory do
     }
   end
 
-  @doc "Builds a pdf_upload `Invoice` with pdf_content and extraction_status."
+  @doc "Builds a pdf_upload `Invoice` with pdf_file and extraction_status."
   @spec pdf_upload_invoice_factory() :: Invoice.t()
   def pdf_upload_invoice_factory do
     %Invoice{
@@ -173,7 +178,12 @@ defmodule KsefHub.Factory do
       gross_amount: Decimal.new("1230.00"),
       currency: "PLN",
       status: :pending,
-      pdf_content: "%PDF-1.4 fake content",
+      pdf_file:
+        build(:file,
+          content: "%PDF-1.4 fake content",
+          content_type: "application/pdf",
+          filename: "invoice.pdf"
+        ),
       extraction_status: :complete,
       original_filename: "invoice.pdf",
       company: build(:company)
@@ -234,6 +244,16 @@ defmodule KsefHub.Factory do
       status: :received,
       mailgun_message_id: sequence(:mailgun_msg_id, &"<msg-#{&1}@mailgun.org>"),
       company: build(:company)
+    }
+  end
+
+  @doc "Builds a `File` with sample text content."
+  @spec file_factory() :: FileRecord.t()
+  def file_factory do
+    %FileRecord{
+      content: "sample file content",
+      content_type: "application/octet-stream",
+      filename: "test-file.bin"
     }
   end
 

@@ -8,12 +8,12 @@ defmodule KsefHub.Invoices do
   require Logger
 
   alias KsefHub.Companies.{Company, Membership}
+  alias KsefHub.Files
   alias KsefHub.InvoiceClassifier.Worker, as: ClassifierWorker
   alias KsefHub.InvoiceExtractor.ContextBuilder
   alias KsefHub.Invoices.{Category, Invoice, InvoiceTag, Tag}
   alias KsefHub.Repo
 
-  @list_fields Invoice.__schema__(:fields) -- [:xml_content, :pdf_content]
   @max_per_page 100
   @default_per_page 25
   @critical_extraction_fields ~w(seller_nip seller_name invoice_number issue_date net_amount gross_amount)a
@@ -114,7 +114,7 @@ defmodule KsefHub.Invoices do
     Invoice
     |> where([i], i.company_id == ^company_id and i.id == ^id)
     |> maybe_scope_type_by_role(opts[:role])
-    |> preload([:category, :tags])
+    |> preload([:xml_file, :pdf_file, :category, :tags])
     |> Repo.one!()
   end
 
@@ -124,7 +124,7 @@ defmodule KsefHub.Invoices do
     Invoice
     |> where([i], i.company_id == ^company_id and i.id == ^id)
     |> maybe_scope_type_by_role(opts[:role])
-    |> preload([:category, :tags])
+    |> preload([:xml_file, :pdf_file, :category, :tags])
     |> Repo.one()
   end
 
@@ -149,21 +149,21 @@ defmodule KsefHub.Invoices do
   @doc """
   Creates an invoice.
   """
-  @spec create_invoice(map()) :: {:ok, Invoice.t()} | {:error, Ecto.Changeset.t()}
+  @spec create_invoice(map()) :: {:ok, Invoice.t()} | {:error, Ecto.Changeset.t() | term()}
   def create_invoice(attrs) do
     company_id = attrs[:company_id] || attrs["company_id"]
     {pdf_content, attrs} = Map.pop(attrs, :pdf_content)
+    {xml_content, attrs} = Map.pop(attrs, :xml_content)
 
-    base =
-      %Invoice{}
-      |> Ecto.Changeset.change(%{company_id: company_id})
-
-    base =
-      if pdf_content, do: Ecto.Changeset.put_change(base, :pdf_content, pdf_content), else: base
-
-    base
-    |> Invoice.changeset(attrs)
-    |> Repo.insert()
+    Repo.transaction(fn ->
+      with {:ok, attrs} <- maybe_create_xml_file(attrs, xml_content),
+           {:ok, attrs} <- maybe_create_pdf_file(attrs, pdf_content),
+           {:ok, invoice} <- do_insert_invoice(company_id, attrs) do
+        invoice
+      else
+        {:error, reason} -> Repo.rollback(reason)
+      end
+    end)
   end
 
   @doc """
@@ -190,7 +190,7 @@ defmodule KsefHub.Invoices do
 
   @upsert_replace_fields [
     :source,
-    :xml_content,
+    :xml_file_id,
     :seller_nip,
     :seller_name,
     :buyer_nip,
@@ -207,21 +207,20 @@ defmodule KsefHub.Invoices do
     :updated_at
   ]
 
-  @spec do_upsert(Ecto.UUID.t(), map()) :: {:ok, Invoice.t()} | {:error, Ecto.Changeset.t()}
+  @spec do_upsert(Ecto.UUID.t(), map()) ::
+          {:ok, Invoice.t()} | {:error, Ecto.Changeset.t() | term()}
   defp do_upsert(company_id, attrs) do
-    %Invoice{}
-    |> Ecto.Changeset.change(%{company_id: company_id})
-    |> Invoice.changeset(attrs)
-    |> Repo.insert(
-      on_conflict: {:replace, @upsert_replace_fields},
-      # Ecto's conflict_target doesn't support partial index WHERE clauses natively,
-      # so we use {:unsafe_fragment, ...}. The fragment is a static string (no interpolation),
-      # so there is no SQL injection risk. It must match the partial unique index definition.
-      conflict_target:
-        {:unsafe_fragment,
-         ~s|("company_id","ksef_number") WHERE ksef_number IS NOT NULL AND duplicate_of_id IS NULL|},
-      returning: true
-    )
+    {xml_content, attrs} = Map.pop(attrs, :xml_content)
+
+    Repo.transaction(fn ->
+      with {:ok, file_attrs} <- maybe_create_xml_file(%{}, xml_content),
+           attrs = Map.merge(attrs, file_attrs),
+           {:ok, invoice} <- do_upsert_invoice(company_id, attrs) do
+        invoice
+      else
+        {:error, reason} -> Repo.rollback(reason)
+      end
+    end)
   end
 
   @doc """
@@ -356,7 +355,7 @@ defmodule KsefHub.Invoices do
   end
 
   @spec create_or_retry_duplicate(Ecto.UUID.t(), map()) ::
-          {:ok, Invoice.t()} | {:error, Ecto.Changeset.t()}
+          {:ok, Invoice.t()} | {:error, Ecto.Changeset.t() | term()}
   defp create_or_retry_duplicate(company_id, attrs) do
     attrs = detect_duplicate(company_id, attrs)
 
@@ -368,6 +367,9 @@ defmodule KsefHub.Invoices do
         if unique_ksef_number_conflict?(changeset),
           do: retry_as_duplicate(company_id, attrs),
           else: {:error, changeset}
+
+      {:error, reason} ->
+        {:error, reason}
     end
   end
 
@@ -486,7 +488,7 @@ defmodule KsefHub.Invoices do
           Invoice.invoice_source()
         ) :: {:ok, Invoice.t()} | {:error, term()}
   defp do_create_pdf_failed(company_id, pdf_binary, type, filename, source) do
-    %{
+    attrs = %{
       source: source,
       type: type,
       company_id: company_id,
@@ -494,7 +496,8 @@ defmodule KsefHub.Invoices do
       original_filename: filename,
       extraction_status: :failed
     }
-    |> create_invoice()
+
+    create_invoice(attrs)
   end
 
   @spec maybe_enqueue_prediction(atom(), Invoice.t()) :: :ok | :skip | :enqueue_failed
@@ -616,6 +619,73 @@ defmodule KsefHub.Invoices do
     case value |> String.trim() |> Decimal.parse() do
       {decimal, ""} -> decimal
       _ -> nil
+    end
+  end
+
+  @spec do_insert_invoice(Ecto.UUID.t(), map()) ::
+          {:ok, Invoice.t()} | {:error, Ecto.Changeset.t()}
+  defp do_insert_invoice(company_id, attrs) do
+    {file_ids, attrs} = pop_file_ids(attrs)
+
+    %Invoice{}
+    |> Ecto.Changeset.change(Map.put(file_ids, :company_id, company_id))
+    |> Invoice.changeset(attrs)
+    |> Repo.insert()
+  end
+
+  @spec do_upsert_invoice(Ecto.UUID.t(), map()) ::
+          {:ok, Invoice.t()} | {:error, Ecto.Changeset.t()}
+  defp do_upsert_invoice(company_id, attrs) do
+    {file_ids, attrs} = pop_file_ids(attrs)
+
+    %Invoice{}
+    |> Ecto.Changeset.change(Map.put(file_ids, :company_id, company_id))
+    |> Invoice.changeset(attrs)
+    |> Repo.insert(
+      on_conflict: {:replace, @upsert_replace_fields},
+      conflict_target:
+        {:unsafe_fragment,
+         ~s|("company_id","ksef_number") WHERE ksef_number IS NOT NULL AND duplicate_of_id IS NULL|},
+      returning: true
+    )
+  end
+
+  @spec pop_file_ids(map()) :: {map(), map()}
+  defp pop_file_ids(attrs) do
+    {xml_file_id, attrs} = Map.pop(attrs, :xml_file_id)
+    {pdf_file_id, attrs} = Map.pop(attrs, :pdf_file_id)
+
+    file_ids =
+      %{}
+      |> then(fn m -> if xml_file_id, do: Map.put(m, :xml_file_id, xml_file_id), else: m end)
+      |> then(fn m -> if pdf_file_id, do: Map.put(m, :pdf_file_id, pdf_file_id), else: m end)
+
+    {file_ids, attrs}
+  end
+
+  @spec maybe_create_xml_file(map(), String.t() | nil) :: {:ok, map()} | {:error, term()}
+  defp maybe_create_xml_file(attrs, nil), do: {:ok, attrs}
+
+  defp maybe_create_xml_file(attrs, xml_content) do
+    case Files.create_file(%{content: xml_content, content_type: "application/xml"}) do
+      {:ok, file} -> {:ok, Map.put(attrs, :xml_file_id, file.id)}
+      {:error, reason} -> {:error, reason}
+    end
+  end
+
+  @spec maybe_create_pdf_file(map(), binary() | nil) :: {:ok, map()} | {:error, term()}
+  defp maybe_create_pdf_file(attrs, nil), do: {:ok, attrs}
+
+  defp maybe_create_pdf_file(attrs, pdf_content) do
+    filename = attrs[:original_filename]
+
+    case Files.create_file(%{
+           content: pdf_content,
+           content_type: "application/pdf",
+           filename: filename
+         }) do
+      {:ok, file} -> {:ok, Map.put(attrs, :pdf_file_id, file.id)}
+      {:error, reason} -> {:error, reason}
     end
   end
 
@@ -1018,7 +1088,6 @@ defmodule KsefHub.Invoices do
     |> where([i], i.company_id == ^company_id)
     |> apply_filters(filters)
     |> order_by([i], desc: i.issue_date, desc: i.inserted_at)
-    |> select([i], struct(i, ^@list_fields))
     |> limit(^per_page)
     |> offset(^((page - 1) * per_page))
     |> Repo.all()

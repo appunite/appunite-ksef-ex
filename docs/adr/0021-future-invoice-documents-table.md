@@ -4,7 +4,7 @@ Date: 2026-02-24
 
 ## Status
 
-Proposed
+Superseded by [ADR 0026](0026-generic-files-table.md)
 
 ## Context
 

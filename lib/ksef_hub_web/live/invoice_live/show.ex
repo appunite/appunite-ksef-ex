@@ -79,7 +79,7 @@ defmodule KsefHubWeb.InvoiceLive.Show do
         {:noreply,
          socket
          |> put_flash(:info, "Invoice approved.")
-         |> assign(:invoice, updated)}
+         |> assign(:invoice, reload_details(updated, socket))}
 
       {:error, {:invalid_type, _}} ->
         {:noreply, put_flash(socket, :error, "Only expense invoices can be approved.")}
@@ -104,7 +104,7 @@ defmodule KsefHubWeb.InvoiceLive.Show do
         {:noreply,
          socket
          |> put_flash(:info, "Invoice rejected.")
-         |> assign(:invoice, updated)}
+         |> assign(:invoice, reload_details(updated, socket))}
 
       {:error, {:invalid_type, _}} ->
         {:noreply, put_flash(socket, :error, "Only expense invoices can be rejected.")}
@@ -204,13 +204,15 @@ defmodule KsefHubWeb.InvoiceLive.Show do
   def handle_event("save_edit", %{"invoice" => params}, socket) do
     case Invoices.update_invoice_fields(socket.assigns.invoice, params) do
       {:ok, updated} ->
+        reloaded = reload_details(updated, socket)
+
         {:noreply,
          socket
          |> put_flash(:info, "Invoice updated.")
          |> assign(
-           invoice: updated,
+           invoice: reloaded,
            editing: false,
-           edit_form: build_edit_form(updated)
+           edit_form: build_edit_form(reloaded)
          )}
 
       {:error, changeset} ->
@@ -295,12 +297,12 @@ defmodule KsefHubWeb.InvoiceLive.Show do
 
   @spec generate_preview(Invoice.t()) :: String.t() | nil
   defp generate_preview(invoice) do
-    if invoice.xml_content do
+    if invoice.xml_file do
       pdf_mod = Application.get_env(:ksef_hub, :pdf_renderer, KsefHub.PdfRenderer)
 
       metadata = %{ksef_number: invoice.ksef_number}
 
-      case pdf_mod.generate_html(invoice.xml_content, metadata) do
+      case pdf_mod.generate_html(invoice.xml_file.content, metadata) do
         {:ok, html} -> html
         {:error, _} -> nil
       end
@@ -328,7 +330,7 @@ defmodule KsefHubWeb.InvoiceLive.Show do
       </:subtitle>
       <:actions>
         <div class="flex gap-2">
-          <div :if={@invoice.xml_content} class="dropdown dropdown-end">
+          <div :if={@invoice.xml_file || @invoice.pdf_file} class="dropdown dropdown-end">
             <div tabindex="0" role="button" class="btn btn-sm btn-outline">
               <.icon name="hero-arrow-down-tray" class="size-4" /> Download
               <.icon name="hero-chevron-down" class="size-3" />
@@ -337,8 +339,12 @@ defmodule KsefHubWeb.InvoiceLive.Show do
               tabindex="0"
               class="dropdown-content z-50 menu p-2 border border-base-300 bg-base-100 rounded-box w-44"
             >
-              <li><a href={~p"/invoices/#{@invoice.id}/pdf"}>PDF</a></li>
-              <li><a href={~p"/invoices/#{@invoice.id}/xml"}>XML</a></li>
+              <li>
+                <a href={~p"/invoices/#{@invoice.id}/pdf"}>PDF</a>
+              </li>
+              <li :if={@invoice.xml_file}>
+                <a href={~p"/invoices/#{@invoice.id}/xml"}>XML</a>
+              </li>
             </ul>
           </div>
           <button

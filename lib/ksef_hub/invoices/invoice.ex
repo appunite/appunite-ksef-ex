@@ -18,7 +18,6 @@ defmodule KsefHub.Invoices.Invoice do
   schema "invoices" do
     field :ksef_number, :string
     field :type, Ecto.Enum, values: [:income, :expense]
-    field :xml_content, :string
     field :seller_nip, :string
     field :seller_name, :string
     field :buyer_nip, :string
@@ -45,7 +44,6 @@ defmodule KsefHub.Invoices.Invoice do
     field :prediction_tag_probabilities, :map
     field :prediction_predicted_at, :utc_datetime_usec
 
-    field :pdf_content, :binary
     field :extraction_status, Ecto.Enum, values: [:complete, :partial, :failed]
     field :original_filename, :string
 
@@ -53,6 +51,8 @@ defmodule KsefHub.Invoices.Invoice do
     belongs_to :duplicate_of, __MODULE__
     has_many :duplicates, __MODULE__, foreign_key: :duplicate_of_id
     belongs_to :category, KsefHub.Invoices.Category
+    belongs_to :xml_file, KsefHub.Files.File
+    belongs_to :pdf_file, KsefHub.Files.File
     has_many :invoice_tags, KsefHub.Invoices.InvoiceTag
     many_to_many :tags, KsefHub.Invoices.Tag, join_through: KsefHub.Invoices.InvoiceTag
 
@@ -78,7 +78,6 @@ defmodule KsefHub.Invoices.Invoice do
     |> cast(attrs, [
       :ksef_number,
       :type,
-      :xml_content,
       :seller_nip,
       :seller_name,
       :buyer_nip,
@@ -105,6 +104,8 @@ defmodule KsefHub.Invoices.Invoice do
     |> validate_source_requirements()
     |> foreign_key_constraint(:company_id)
     |> foreign_key_constraint(:duplicate_of_id)
+    |> foreign_key_constraint(:xml_file_id)
+    |> foreign_key_constraint(:pdf_file_id)
     |> unique_constraint([:company_id, :ksef_number],
       name: :invoices_company_id_ksef_number_unique_non_duplicate
     )
@@ -177,7 +178,7 @@ defmodule KsefHub.Invoices.Invoice do
     case source do
       :ksef ->
         validate_required(changeset, [
-          :xml_content,
+          :xml_file_id,
           :seller_nip,
           :seller_name,
           :invoice_number,
@@ -197,22 +198,7 @@ defmodule KsefHub.Invoices.Invoice do
         ])
 
       source when source in [:pdf_upload, :email] ->
-        changeset
-        |> validate_required([:pdf_content, :extraction_status])
-        |> validate_pdf_content_size()
-
-      _ ->
-        changeset
-    end
-  end
-
-  @max_pdf_bytes 10_000_000
-
-  @spec validate_pdf_content_size(Ecto.Changeset.t()) :: Ecto.Changeset.t()
-  defp validate_pdf_content_size(changeset) do
-    case get_field(changeset, :pdf_content) do
-      content when is_binary(content) and byte_size(content) > @max_pdf_bytes ->
-        add_error(changeset, :pdf_content, "must be at most 10MB")
+        validate_required(changeset, [:pdf_file_id, :extraction_status])
 
       _ ->
         changeset

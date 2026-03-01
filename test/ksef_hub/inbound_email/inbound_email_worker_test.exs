@@ -182,37 +182,20 @@ defmodule KsefHub.InboundEmail.InboundEmailWorkerTest do
       assert updated.status == :completed
     end
 
-    test "sets status to failed when invoice creation fails", %{company: company} do
-      # Create record without pdf_content — invoice creation requires it for :email source
+    test "sets status to failed when no pdf_file is present", %{company: company} do
       {:ok, record} =
         InboundEmail.create_inbound_email(company.id, %{
           sender: "user@appunite.com",
           recipient: "inv-test@inbound.ksef-hub.com",
           status: :received,
-          pdf_content: nil,
           original_filename: "invoice.pdf"
         })
-
-      KsefHub.InvoiceExtractor.Mock
-      |> expect(:extract, fn _pdf, _opts ->
-        {:ok,
-         %{
-           "seller_nip" => "9999999999",
-           "seller_name" => "Seller Sp. z o.o.",
-           "buyer_nip" => "1234567890",
-           "buyer_name" => "Buyer S.A.",
-           "invoice_number" => "FV/2026/001",
-           "issue_date" => "2026-02-25",
-           "net_amount" => "1000.00",
-           "gross_amount" => "1230.00"
-         }}
-      end)
 
       assert :ok = perform_job(record.id, company.id)
 
       updated = InboundEmail.get_inbound_email!(record.id)
       assert updated.status == :failed
-      assert updated.error_message != nil
+      assert updated.error_message =~ "no PDF file"
     end
   end
 
