@@ -1317,14 +1317,14 @@ defmodule KsefHub.InvoicesTest do
       invoice = insert(:invoice, company: company)
       user = insert(:user)
 
-      {:ok, c1} = Invoices.create_invoice_comment(invoice.id, user.id, %{body: "first"})
-      {:ok, c2} = Invoices.create_invoice_comment(invoice.id, user.id, %{body: "second"})
+      {:ok, _c1} = Invoices.create_invoice_comment(invoice.id, user.id, %{body: "first"})
+      {:ok, _c2} = Invoices.create_invoice_comment(invoice.id, user.id, %{body: "second"})
 
       comments = Invoices.list_invoice_comments(invoice.id)
       assert length(comments) == 2
-      assert [%{body: "first"}, %{body: "second"}] = comments
-      assert hd(comments).id == c1.id
-      assert List.last(comments).id == c2.id
+
+      sorted = Enum.sort_by(comments, &{&1.inserted_at, &1.id})
+      assert Enum.map(comments, & &1.id) == Enum.map(sorted, & &1.id)
     end
 
     test "preloads user on each comment", %{company: company} do

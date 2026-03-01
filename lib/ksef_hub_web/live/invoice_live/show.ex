@@ -330,11 +330,11 @@ defmodule KsefHubWeb.InvoiceLive.Show do
       "" ->
         {:noreply, socket}
 
-      _trimmed ->
+      trimmed ->
         user_id = socket.assigns.current_user.id
         invoice_id = socket.assigns.invoice.id
 
-        case Invoices.create_invoice_comment(invoice_id, user_id, %{body: body}) do
+        case Invoices.create_invoice_comment(invoice_id, user_id, %{body: trimmed}) do
           {:ok, _comment} ->
             {:noreply,
              socket
