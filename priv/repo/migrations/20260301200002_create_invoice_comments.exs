@@ -14,6 +14,6 @@ defmodule KsefHub.Repo.Migrations.CreateInvoiceComments do
       timestamps()
     end
 
-    create index(:invoice_comments, [:invoice_id])
+    create index(:invoice_comments, [:invoice_id, :inserted_at])
   end
 end

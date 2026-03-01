@@ -1392,13 +1392,13 @@ defmodule KsefHub.InvoicesTest do
     end
   end
 
-  describe "update_invoice_comment/2" do
-    test "updates the body", %{company: company} do
+  describe "update_invoice_comment/3" do
+    test "updates the body when user owns the comment", %{company: company} do
       invoice = insert(:invoice, company: company)
       user = insert(:user)
       {:ok, comment} = Invoices.create_invoice_comment(invoice.id, user.id, %{body: "old"})
 
-      assert {:ok, updated} = Invoices.update_invoice_comment(comment, %{body: "new"})
+      assert {:ok, updated} = Invoices.update_invoice_comment(comment, user, %{body: "new"})
       assert updated.body == "new"
       assert updated.user.id == user.id
     end
@@ -1408,19 +1408,45 @@ defmodule KsefHub.InvoicesTest do
       user = insert(:user)
       {:ok, comment} = Invoices.create_invoice_comment(invoice.id, user.id, %{body: "old"})
 
-      assert {:error, changeset} = Invoices.update_invoice_comment(comment, %{body: ""})
+      assert {:error, changeset} = Invoices.update_invoice_comment(comment, user, %{body: ""})
       assert errors_on(changeset).body
+    end
+
+    test "returns unauthorized when user does not own the comment", %{company: company} do
+      invoice = insert(:invoice, company: company)
+      author = insert(:user)
+      other_user = insert(:user)
+      {:ok, comment} = Invoices.create_invoice_comment(invoice.id, author.id, %{body: "old"})
+
+      assert {:error, :unauthorized} =
+               Invoices.update_invoice_comment(comment, other_user, %{body: "hacked"})
+
+      # Verify body unchanged
+      [unchanged] = Invoices.list_invoice_comments(invoice.id)
+      assert unchanged.body == "old"
     end
   end
 
-  describe "delete_invoice_comment/1" do
-    test "deletes a comment", %{company: company} do
+  describe "delete_invoice_comment/2" do
+    test "deletes a comment when user owns it", %{company: company} do
       invoice = insert(:invoice, company: company)
       user = insert(:user)
       {:ok, comment} = Invoices.create_invoice_comment(invoice.id, user.id, %{body: "bye"})
 
-      assert {:ok, _} = Invoices.delete_invoice_comment(comment)
+      assert {:ok, _} = Invoices.delete_invoice_comment(comment, user)
       assert [] == Invoices.list_invoice_comments(invoice.id)
+    end
+
+    test "returns unauthorized when user does not own the comment", %{company: company} do
+      invoice = insert(:invoice, company: company)
+      author = insert(:user)
+      other_user = insert(:user)
+      {:ok, comment} = Invoices.create_invoice_comment(invoice.id, author.id, %{body: "mine"})
+
+      assert {:error, :unauthorized} = Invoices.delete_invoice_comment(comment, other_user)
+
+      # Verify comment still exists
+      assert [_] = Invoices.list_invoice_comments(invoice.id)
     end
   end
 end

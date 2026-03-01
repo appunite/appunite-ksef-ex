@@ -7,6 +7,7 @@ defmodule KsefHub.Invoices do
 
   require Logger
 
+  alias KsefHub.Accounts.User
   alias KsefHub.Companies.{Company, Membership}
   alias KsefHub.Files
   alias KsefHub.InvoiceClassifier.Worker, as: ClassifierWorker
@@ -1053,7 +1054,7 @@ defmodule KsefHub.Invoices do
   def list_invoice_comments(invoice_id) do
     InvoiceComment
     |> where([c], c.invoice_id == ^invoice_id)
-    |> order_by([c], asc: c.inserted_at)
+    |> order_by([c], asc: c.inserted_at, asc: c.id)
     |> preload(:user)
     |> Repo.all()
   end
@@ -1072,24 +1073,32 @@ defmodule KsefHub.Invoices do
     end
   end
 
-  @doc "Updates an existing comment's body."
-  @spec update_invoice_comment(InvoiceComment.t(), map()) ::
-          {:ok, InvoiceComment.t()} | {:error, Ecto.Changeset.t()}
-  def update_invoice_comment(%InvoiceComment{} = comment, attrs) do
-    comment
-    |> InvoiceComment.changeset(attrs)
-    |> Repo.update()
-    |> case do
-      {:ok, comment} -> {:ok, Repo.preload(comment, :user)}
-      error -> error
+  @doc "Updates an existing comment's body. Returns {:error, :unauthorized} if the user doesn't own the comment."
+  @spec update_invoice_comment(InvoiceComment.t(), User.t(), map()) ::
+          {:ok, InvoiceComment.t()} | {:error, :unauthorized} | {:error, Ecto.Changeset.t()}
+  def update_invoice_comment(%InvoiceComment{} = comment, %User{} = user, attrs) do
+    if comment.user_id != user.id do
+      {:error, :unauthorized}
+    else
+      comment
+      |> InvoiceComment.changeset(attrs)
+      |> Repo.update()
+      |> case do
+        {:ok, comment} -> {:ok, Repo.preload(comment, :user)}
+        error -> error
+      end
     end
   end
 
-  @doc "Deletes a comment."
-  @spec delete_invoice_comment(InvoiceComment.t()) ::
-          {:ok, InvoiceComment.t()} | {:error, Ecto.Changeset.t()}
-  def delete_invoice_comment(%InvoiceComment{} = comment) do
-    Repo.delete(comment)
+  @doc "Deletes a comment. Returns {:error, :unauthorized} if the user doesn't own the comment."
+  @spec delete_invoice_comment(InvoiceComment.t(), User.t()) ::
+          {:ok, InvoiceComment.t()} | {:error, :unauthorized} | {:error, Ecto.Changeset.t()}
+  def delete_invoice_comment(%InvoiceComment{} = comment, %User{} = user) do
+    if comment.user_id != user.id do
+      {:error, :unauthorized}
+    else
+      Repo.delete(comment)
+    end
   end
 
   # --- Private ---

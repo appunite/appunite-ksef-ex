@@ -309,7 +309,11 @@ defmodule KsefHubWeb.InvoiceLive.Show do
 
       {:error, changeset} ->
         {:noreply,
-         assign(socket, note_form: to_form(%{"note" => changeset.changes[:note] || ""}))}
+         socket
+         |> put_flash(:error, "Failed to save note.")
+         |> assign(
+           note_form: to_form(%{"note" => Ecto.Changeset.get_field(changeset, :note) || ""})
+         )}
     end
   end
 
@@ -363,11 +367,14 @@ defmodule KsefHubWeb.InvoiceLive.Show do
 
   @impl true
   def handle_event("save_comment_edit", %{"body" => body}, socket) do
+    trimmed = String.trim(body)
     comment_id = socket.assigns.editing_comment_id
     comment = Enum.find(socket.assigns.comments, &(&1.id == comment_id))
 
-    if comment && comment.user_id == socket.assigns.current_user.id do
-      case Invoices.update_invoice_comment(comment, %{body: body}) do
+    if trimmed == "" or is_nil(comment) or comment.user_id != socket.assigns.current_user.id do
+      {:noreply, socket}
+    else
+      case Invoices.update_invoice_comment(comment, socket.assigns.current_user, %{body: trimmed}) do
         {:ok, _updated} ->
           {:noreply,
            socket
@@ -380,8 +387,6 @@ defmodule KsefHubWeb.InvoiceLive.Show do
         {:error, _changeset} ->
           {:noreply, put_flash(socket, :error, "Failed to update comment.")}
       end
-    else
-      {:noreply, socket}
     end
   end
 
@@ -394,8 +399,8 @@ defmodule KsefHubWeb.InvoiceLive.Show do
   def handle_event("delete_comment", %{"id" => comment_id}, socket) do
     comment = Enum.find(socket.assigns.comments, &(&1.id == comment_id))
 
-    if comment && comment.user_id == socket.assigns.current_user.id do
-      case Invoices.delete_invoice_comment(comment) do
+    if comment do
+      case Invoices.delete_invoice_comment(comment, socket.assigns.current_user) do
         {:ok, _} ->
           {:noreply,
            assign(socket,
