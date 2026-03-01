@@ -806,67 +806,79 @@ defmodule KsefHubWeb.InvoiceLive.Show do
     ~H"""
     <div class="divider text-xs my-1">Amounts</div>
 
-    <div class="form-control">
-      <label for="edit-net-amount" class="label">
-        <span class="label-text text-xs">Netto</span>
-      </label>
-      <input
-        type="text"
-        inputmode="decimal"
-        id="edit-net-amount"
-        name={@edit_form[:net_amount].name}
-        value={@edit_form[:net_amount].value}
-        class="input input-sm input-bordered font-mono"
-      />
-      <.field_error errors={@edit_form[:net_amount].errors} />
+    <div class="grid grid-cols-3 gap-3">
+      <div class="form-control">
+        <label for="edit-net-amount" class="label">
+          <span class="label-text text-xs">Netto</span>
+        </label>
+        <input
+          type="text"
+          inputmode="decimal"
+          id="edit-net-amount"
+          name={@edit_form[:net_amount].name}
+          value={@edit_form[:net_amount].value}
+          class="input input-sm input-bordered w-full font-mono"
+        />
+        <.field_error errors={@edit_form[:net_amount].errors} />
+      </div>
+
+      <div class="form-control">
+        <label for="edit-vat-amount" class="label">
+          <span class="label-text text-xs">VAT</span>
+        </label>
+        <input
+          type="text"
+          inputmode="decimal"
+          id="edit-vat-amount"
+          name={@edit_form[:vat_amount].name}
+          value={@edit_form[:vat_amount].value}
+          class="input input-sm input-bordered w-full font-mono"
+        />
+        <.field_error errors={@edit_form[:vat_amount].errors} />
+      </div>
+
+      <div class="form-control">
+        <label for="edit-gross-amount" class="label">
+          <span class="label-text text-xs">Brutto</span>
+        </label>
+        <input
+          type="text"
+          inputmode="decimal"
+          id="edit-gross-amount"
+          name={@edit_form[:gross_amount].name}
+          value={@edit_form[:gross_amount].value}
+          class="input input-sm input-bordered w-full font-mono"
+        />
+        <.field_error errors={@edit_form[:gross_amount].errors} />
+      </div>
     </div>
 
-    <div class="form-control">
-      <label for="edit-vat-amount" class="label">
-        <span class="label-text text-xs">VAT</span>
-      </label>
-      <input
-        type="text"
-        inputmode="decimal"
-        id="edit-vat-amount"
-        name={@edit_form[:vat_amount].name}
-        value={@edit_form[:vat_amount].value}
-        class="input input-sm input-bordered font-mono"
-      />
-      <.field_error errors={@edit_form[:vat_amount].errors} />
-    </div>
-
-    <div class="form-control">
-      <label for="edit-gross-amount" class="label">
-        <span class="label-text text-xs">Brutto</span>
-      </label>
-      <input
-        type="text"
-        inputmode="decimal"
-        id="edit-gross-amount"
-        name={@edit_form[:gross_amount].name}
-        value={@edit_form[:gross_amount].value}
-        class="input input-sm input-bordered font-mono"
-      />
-      <.field_error errors={@edit_form[:gross_amount].errors} />
-    </div>
-
-    <div class="form-control">
+    <div class="form-control w-32">
       <label for="edit-currency" class="label">
         <span class="label-text text-xs">Currency</span>
       </label>
-      <input
-        type="text"
+      <select
         id="edit-currency"
         name={@edit_form[:currency].name}
-        value={@edit_form[:currency].value}
-        class="input input-sm input-bordered"
-        maxlength="3"
-      />
+        class="select select-sm select-bordered w-full"
+      >
+        <option
+          :for={code <- currencies()}
+          value={code}
+          selected={@edit_form[:currency].value == code}
+        >
+          {code}
+        </option>
+      </select>
       <.field_error errors={@edit_form[:currency].errors} />
     </div>
     """
   end
+
+  @common_currencies ~w(PLN EUR USD GBP CHF CZK SEK NOK DKK HUF RON BGN HRK TRY UAH RUB JPY CNY CAD AUD NZD BRL MXN INR KRW SGD HKD THB ZAR ILS AED SAR)
+
+  @spec currencies() :: [String.t()]
+  defp currencies, do: @common_currencies
 
   attr :errors, :list, default: []
 
