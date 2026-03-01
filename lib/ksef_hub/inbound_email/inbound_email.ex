@@ -22,6 +22,7 @@ defmodule KsefHub.InboundEmail.InboundEmail do
 
     belongs_to :company, KsefHub.Companies.Company
     belongs_to :invoice, KsefHub.Invoices.Invoice
+    belongs_to :pdf_file, KsefHub.Files.File
 
     timestamps()
   end
@@ -39,11 +40,13 @@ defmodule KsefHub.InboundEmail.InboundEmail do
       :status,
       :error_message,
       :pdf_content,
-      :original_filename
+      :original_filename,
+      :pdf_file_id
     ])
     |> validate_required([:company_id, :sender, :recipient, :status])
     |> foreign_key_constraint(:company_id)
     |> foreign_key_constraint(:invoice_id)
+    |> foreign_key_constraint(:pdf_file_id)
     |> unique_constraint(:mailgun_message_id, name: :inbound_emails_mailgun_message_id_index)
   end
 

@@ -3,6 +3,7 @@ defmodule KsefHub.FilesTest do
 
   alias KsefHub.Files
   alias KsefHub.Files.File
+  alias KsefHub.Repo
 
   import KsefHub.Factory
 
@@ -65,6 +66,35 @@ defmodule KsefHub.FilesTest do
 
     test "returns nil on missing ID" do
       assert is_nil(Files.get_file(Ecto.UUID.generate()))
+    end
+  end
+
+  describe "invoice file associations" do
+    test "invoice with xml_file and pdf_file loads via preload" do
+      xml_file = insert(:file, content: "<xml/>", content_type: "application/xml")
+      pdf_file = insert(:file, content: "%PDF", content_type: "application/pdf")
+
+      invoice =
+        insert(:invoice, xml_file: xml_file, pdf_file: pdf_file)
+        |> Repo.preload([:xml_file, :pdf_file])
+
+      assert invoice.xml_file.id == xml_file.id
+      assert invoice.xml_file.content == "<xml/>"
+      assert invoice.pdf_file.id == pdf_file.id
+      assert invoice.pdf_file.content == "%PDF"
+    end
+  end
+
+  describe "inbound_email file associations" do
+    test "inbound email with pdf_file loads via preload" do
+      pdf_file = insert(:file, content: "%PDF", content_type: "application/pdf")
+
+      email =
+        insert(:inbound_email, pdf_file: pdf_file)
+        |> Repo.preload(:pdf_file)
+
+      assert email.pdf_file.id == pdf_file.id
+      assert email.pdf_file.content == "%PDF"
     end
   end
 end
