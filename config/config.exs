@@ -30,7 +30,8 @@ config :ksef_hub, Oban,
   plugins: [
     {Oban.Plugins.Cron,
      crontab: [
-       {"0 * * * *", KsefHub.Sync.SyncDispatcher}
+       {"0 * * * *", KsefHub.Sync.SyncDispatcher},
+       {"30 3 * * *", KsefHub.Files.OrphanCleanupWorker}
      ]},
     {Oban.Plugins.Lifeline, rescue_after: :timer.minutes(15)}
   ],

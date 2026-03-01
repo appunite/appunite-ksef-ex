@@ -89,7 +89,8 @@ if sync_interval_env = System.get_env("SYNC_INTERVAL_MINUTES") do
     plugins: [
       {Oban.Plugins.Cron,
        crontab: [
-         {sync_cron, KsefHub.Sync.SyncDispatcher}
+         {sync_cron, KsefHub.Sync.SyncDispatcher},
+         {"30 3 * * *", KsefHub.Files.OrphanCleanupWorker}
        ]},
       {Oban.Plugins.Lifeline, rescue_after: :timer.minutes(15)}
     ]
