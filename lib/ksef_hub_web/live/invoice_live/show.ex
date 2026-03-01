@@ -79,7 +79,7 @@ defmodule KsefHubWeb.InvoiceLive.Show do
         {:noreply,
          socket
          |> put_flash(:info, "Invoice approved.")
-         |> assign(:invoice, updated)}
+         |> assign(:invoice, reload_details(updated, socket))}
 
       {:error, {:invalid_type, _}} ->
         {:noreply, put_flash(socket, :error, "Only expense invoices can be approved.")}
@@ -104,7 +104,7 @@ defmodule KsefHubWeb.InvoiceLive.Show do
         {:noreply,
          socket
          |> put_flash(:info, "Invoice rejected.")
-         |> assign(:invoice, updated)}
+         |> assign(:invoice, reload_details(updated, socket))}
 
       {:error, {:invalid_type, _}} ->
         {:noreply, put_flash(socket, :error, "Only expense invoices can be rejected.")}
@@ -204,13 +204,15 @@ defmodule KsefHubWeb.InvoiceLive.Show do
   def handle_event("save_edit", %{"invoice" => params}, socket) do
     case Invoices.update_invoice_fields(socket.assigns.invoice, params) do
       {:ok, updated} ->
+        reloaded = reload_details(updated, socket)
+
         {:noreply,
          socket
          |> put_flash(:info, "Invoice updated.")
          |> assign(
-           invoice: updated,
+           invoice: reloaded,
            editing: false,
-           edit_form: build_edit_form(updated)
+           edit_form: build_edit_form(reloaded)
          )}
 
       {:error, changeset} ->

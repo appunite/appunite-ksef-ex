@@ -58,9 +58,10 @@ defmodule KsefHub.Files.DataMigration do
     if batch == [] do
       :ok
     else
-      Repo.transaction(fn ->
-        Enum.each(batch, &migrate_row(&1, content_type, table_name, fk_field))
-      end)
+      {:ok, _} =
+        Repo.transaction(fn ->
+          Enum.each(batch, &migrate_row(&1, content_type, table_name, fk_field))
+        end)
 
       # Fetch next batch (the WHERE clause filters already-migrated rows)
       migrate_batch(query, content_type, table_name, fk_field)
