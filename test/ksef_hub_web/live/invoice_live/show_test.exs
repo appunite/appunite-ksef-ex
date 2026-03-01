@@ -173,7 +173,7 @@ defmodule KsefHubWeb.InvoiceLive.ShowTest do
       invoice = insert(:invoice, company: company, prediction_status: :needs_review)
 
       {:ok, _view, html} = live(conn, ~p"/invoices/#{invoice.id}")
-      assert html =~ "Review"
+      assert html =~ "needs review"
     end
   end
 
@@ -388,6 +388,97 @@ defmodule KsefHubWeb.InvoiceLive.ShowTest do
         |> render_submit()
 
       assert html =~ "must be a 10-digit NIP"
+    end
+  end
+
+  describe "pdf_upload invoice" do
+    setup :stub_pdf
+
+    test "shows PDF preview iframe", %{conn: conn, company: company} do
+      invoice = insert(:pdf_upload_invoice, company: company)
+
+      {:ok, _view, html} = live(conn, ~p"/invoices/#{invoice.id}")
+
+      assert html =~ ~s(src="/invoices/#{invoice.id}/pdf?inline=1")
+      assert html =~ "Invoice PDF preview"
+    end
+
+    test "shows download dropdown with PDF but not XML", %{conn: conn, company: company} do
+      invoice = insert(:pdf_upload_invoice, company: company)
+
+      {:ok, view, _html} = live(conn, ~p"/invoices/#{invoice.id}")
+
+      assert has_element?(view, "div.dropdown")
+      assert has_element?(view, ~s(a[href="/invoices/#{invoice.id}/pdf"]))
+      refute has_element?(view, ~s(a[href="/invoices/#{invoice.id}/xml"]))
+    end
+  end
+
+  describe "duplicate warning" do
+    setup :stub_pdf
+
+    test "shown when duplicate_of_id is set with link to original", %{
+      conn: conn,
+      company: company
+    } do
+      original = insert(:invoice, company: company)
+
+      duplicate =
+        insert(:pdf_upload_invoice,
+          company: company,
+          duplicate_of_id: original.id,
+          duplicate_status: :suspected
+        )
+
+      {:ok, view, _html} = live(conn, ~p"/invoices/#{duplicate.id}")
+
+      assert has_element?(view, ~s([data-testid="duplicate-warning"]))
+      assert has_element?(view, ~s(a[href="/invoices/#{original.id}"]), "View original")
+      assert has_element?(view, "button", "Not a duplicate")
+      assert has_element?(view, "button", "Confirm duplicate")
+    end
+
+    test "dismiss_duplicate removes the warning", %{conn: conn, company: company} do
+      original = insert(:invoice, company: company)
+
+      duplicate =
+        insert(:pdf_upload_invoice,
+          company: company,
+          duplicate_of_id: original.id,
+          duplicate_status: :suspected
+        )
+
+      {:ok, view, _html} = live(conn, ~p"/invoices/#{duplicate.id}")
+
+      view |> element("button", "Not a duplicate") |> render_click()
+
+      refute has_element?(view, ~s([data-testid="duplicate-warning"]))
+    end
+
+    test "confirm_duplicate shows confirmed state", %{conn: conn, company: company} do
+      original = insert(:invoice, company: company)
+
+      duplicate =
+        insert(:pdf_upload_invoice,
+          company: company,
+          duplicate_of_id: original.id,
+          duplicate_status: :suspected
+        )
+
+      {:ok, view, _html} = live(conn, ~p"/invoices/#{duplicate.id}")
+
+      view |> element("button", "Confirm duplicate") |> render_click()
+
+      refute has_element?(view, ~s([data-testid="duplicate-warning"]))
+      assert has_element?(view, ~s([data-testid="duplicate-confirmed"]))
+    end
+
+    test "not shown when duplicate_of_id is nil", %{conn: conn, company: company} do
+      invoice = insert(:pdf_upload_invoice, company: company)
+
+      {:ok, view, _html} = live(conn, ~p"/invoices/#{invoice.id}")
+
+      refute has_element?(view, ~s([data-testid="duplicate-warning"]))
     end
   end
 

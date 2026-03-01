@@ -114,6 +114,60 @@ defmodule KsefHubWeb.InvoiceLive.Show do
     end
   end
 
+  # --- Events: Duplicate ---
+
+  @impl true
+  def handle_event("dismiss_duplicate", _params, socket) do
+    invoice = socket.assigns.invoice
+
+    if invoice.duplicate_of_id && invoice.duplicate_status == :suspected do
+      case Invoices.dismiss_duplicate(invoice) do
+        {:ok, updated} ->
+          {:noreply,
+           socket
+           |> put_flash(:info, "Duplicate dismissed.")
+           |> assign(:invoice, reload_details(updated, socket))}
+
+        {:error, :not_a_duplicate} ->
+          {:noreply, put_flash(socket, :error, "This invoice is not marked as a duplicate.")}
+
+        {:error, :invalid_status} ->
+          {:noreply, put_flash(socket, :error, "Cannot dismiss duplicate in its current status.")}
+
+        {:error, _reason} ->
+          {:noreply, put_flash(socket, :error, "Failed to dismiss duplicate.")}
+      end
+    else
+      {:noreply, put_flash(socket, :error, "Stale or invalid duplicate state.")}
+    end
+  end
+
+  @impl true
+  def handle_event("confirm_duplicate", _params, socket) do
+    invoice = socket.assigns.invoice
+
+    if invoice.duplicate_of_id && invoice.duplicate_status == :suspected do
+      case Invoices.confirm_duplicate(invoice) do
+        {:ok, updated} ->
+          {:noreply,
+           socket
+           |> put_flash(:info, "Duplicate confirmed.")
+           |> assign(:invoice, reload_details(updated, socket))}
+
+        {:error, :not_a_duplicate} ->
+          {:noreply, put_flash(socket, :error, "This invoice is not marked as a duplicate.")}
+
+        {:error, :invalid_status} ->
+          {:noreply, put_flash(socket, :error, "Cannot confirm duplicate in its current status.")}
+
+        {:error, _reason} ->
+          {:noreply, put_flash(socket, :error, "Failed to confirm duplicate.")}
+      end
+    else
+      {:noreply, put_flash(socket, :error, "Stale or invalid duplicate state.")}
+    end
+  end
+
   # --- Events: Category ---
 
   @impl true
@@ -384,6 +438,45 @@ defmodule KsefHubWeb.InvoiceLive.Show do
       </span>
     </div>
 
+    <div
+      :if={@invoice.duplicate_of_id && @invoice.duplicate_status == :suspected}
+      class="alert alert-warning mt-4"
+      role="alert"
+      data-testid="duplicate-warning"
+    >
+      <.icon name="hero-document-duplicate" class="size-5" />
+      <span>
+        This invoice may be a duplicate.
+        <.link navigate={~p"/invoices/#{@invoice.duplicate_of_id}"} class="link link-primary">
+          View original
+        </.link>
+      </span>
+      <div class="flex-none flex gap-2">
+        <button phx-click="dismiss_duplicate" class="btn btn-sm btn-ghost">
+          Not a duplicate
+        </button>
+        <button phx-click="confirm_duplicate" class="btn btn-sm btn-warning">
+          Confirm duplicate
+        </button>
+      </div>
+    </div>
+    <div
+      :if={@invoice.duplicate_of_id && @invoice.duplicate_status == :confirmed}
+      class="alert alert-error mt-4"
+      role="alert"
+      data-testid="duplicate-confirmed"
+    >
+      <.icon name="hero-document-duplicate" class="size-5" />
+      <span>
+        This invoice is a confirmed duplicate of <.link
+          navigate={~p"/invoices/#{@invoice.duplicate_of_id}"}
+          class="link link-primary"
+        >
+          the original
+        </.link>.
+      </span>
+    </div>
+
     <div class="grid grid-cols-1 lg:grid-cols-[minmax(0,1fr)_minmax(0,2fr)] gap-6 mt-6">
       <!-- Invoice Metadata -->
       <div class="space-y-4">
@@ -528,7 +621,7 @@ defmodule KsefHubWeb.InvoiceLive.Show do
           </div>
         </div>
       </div>
-      <!-- HTML Preview -->
+      <!-- Preview -->
       <div class="card bg-base-100 border border-base-300">
         <div class="p-4">
           <h2 class="text-base font-semibold mb-2">Preview</h2>
@@ -541,7 +634,21 @@ defmodule KsefHubWeb.InvoiceLive.Show do
             >
             </iframe>
           </div>
-          <p :if={!@html_preview} class="text-base-content/60 text-sm">
+          <div
+            :if={!@html_preview && @invoice.pdf_file}
+            class="border border-base-300 rounded-lg overflow-hidden"
+          >
+            <iframe
+              src={~p"/invoices/#{@invoice.id}/pdf?inline=1"}
+              class="w-full h-[600px] bg-white"
+              title="Invoice PDF preview"
+            >
+            </iframe>
+          </div>
+          <p
+            :if={!@html_preview && !@invoice.pdf_file}
+            class="text-base-content/60 text-sm"
+          >
             No preview available. XML content may be missing.
           </p>
         </div>

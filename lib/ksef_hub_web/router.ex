@@ -85,6 +85,7 @@ defmodule KsefHubWeb.Router do
       live "/dashboard", DashboardLive
       live "/certificates", CertificateLive
       live "/invoices", InvoiceLive.Index
+      live "/invoices/upload", InvoiceLive.Upload
       live "/invoices/:id", InvoiceLive.Show
       live "/tokens", TokenLive
       live "/categories", CategoryLive

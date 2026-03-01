@@ -546,12 +546,8 @@ defmodule KsefHubWeb.CertificateLive do
   end
 
   @spec format_bytes(non_neg_integer()) :: String.t()
-  defp format_bytes(bytes) when bytes < 1024, do: "#{bytes} B"
-  defp format_bytes(bytes), do: "#{Float.round(bytes / 1024, 1)} KB"
+  defp format_bytes(bytes), do: KsefHubWeb.UploadHelpers.format_bytes(bytes)
 
   @spec error_to_string(atom()) :: String.t()
-  defp error_to_string(:too_large), do: "File is too large (max 1 MB)."
-  defp error_to_string(:not_accepted), do: "Invalid file type."
-  defp error_to_string(:too_many_files), do: "Only one file allowed."
-  defp error_to_string(err), do: "Upload error: #{inspect(err)}"
+  defp error_to_string(err), do: KsefHubWeb.UploadHelpers.upload_error_to_string(err)
 end

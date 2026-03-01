@@ -213,6 +213,11 @@ defmodule KsefHubWeb.InvoiceLive.Index do
     <.header>
       Invoices
       <:subtitle>Browse and manage KSeF invoices</:subtitle>
+      <:actions>
+        <.link :if={!@is_reviewer} navigate={~p"/invoices/upload"} class="btn btn-sm btn-primary">
+          <.icon name="hero-arrow-up-tray" class="size-4" /> Upload PDF
+        </.link>
+      </:actions>
     </.header>
 
     <!-- Filters -->
@@ -329,7 +334,14 @@ defmodule KsefHubWeb.InvoiceLive.Index do
         </:col>
         <:col :let={inv} label="Status" class="w-28">
           <div class="flex flex-wrap gap-1">
-            <.status_badge status={inv.status} />
+            <.prediction_indicator
+              :if={inv.prediction_status == :needs_review || inv.duplicate_status == :suspected}
+              prediction_status={:needs_review}
+            />
+            <.status_badge
+              :if={inv.prediction_status != :needs_review && inv.duplicate_status != :suspected}
+              status={inv.status}
+            />
             <.extraction_badge status={inv.extraction_status} />
           </div>
         </:col>
@@ -338,9 +350,6 @@ defmodule KsefHubWeb.InvoiceLive.Index do
         </:col>
         <:col :let={inv} label="Tags">
           <.tag_list tags={inv.tags} />
-        </:col>
-        <:col :let={inv} label="" class="w-16">
-          <.prediction_indicator prediction_status={inv.prediction_status} />
         </:col>
       </.table>
     </div>

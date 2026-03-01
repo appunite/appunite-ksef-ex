@@ -7,7 +7,7 @@ defmodule KsefHubWeb.InvoicePdfController do
   require Logger
 
   import KsefHubWeb.ErrorHelpers, only: [sanitize_error: 1]
-  import KsefHubWeb.FilenameHelpers, only: [send_attachment: 4]
+  import KsefHubWeb.FilenameHelpers, only: [send_attachment: 4, send_inline: 4]
   import KsefHubWeb.AuthHelpers, only: [resolve_role: 2]
 
   alias KsefHub.Invoices
@@ -16,22 +16,27 @@ defmodule KsefHubWeb.InvoicePdfController do
   @spec xml(Plug.Conn.t(), map()) :: Plug.Conn.t()
   def xml(%{assigns: %{current_user: %{id: _}}} = conn, %{"id" => id}) do
     with_invoice(conn, id, fn conn, invoice ->
-      send_attachment(
-        conn,
-        "application/xml",
-        "#{invoice.invoice_number}.xml",
-        invoice.xml_file.content
-      )
+      case invoice do
+        %{xml_file: %{content: content}} when is_binary(content) and content != "" ->
+          send_attachment(conn, "application/xml", "#{invoice.invoice_number}.xml", content)
+
+        _ ->
+          conn
+          |> put_flash(:error, "No XML content available for this invoice.")
+          |> redirect(to: ~p"/invoices/#{invoice.id}")
+      end
     end)
   end
 
   def xml(conn, _params), do: redirect_unauthenticated(conn)
 
-  @doc "Downloads a PDF rendering of the invoice's FA(3) XML."
+  @doc "Downloads a PDF for the invoice — serves the stored PDF for pdf_upload invoices, or generates one from XML. Pass `?inline=1` to use Content-Disposition: inline (for iframe previews)."
   @spec show(Plug.Conn.t(), map()) :: Plug.Conn.t()
-  def show(%{assigns: %{current_user: %{id: _}}} = conn, %{"id" => id}) do
+  def show(%{assigns: %{current_user: %{id: _}}} = conn, %{"id" => id} = params) do
+    inline? = params["inline"] == "1"
+
     with_invoice(conn, id, fn conn, invoice ->
-      generate_and_send_pdf(conn, invoice)
+      send_pdf(conn, invoice, inline?)
     end)
   end
 
@@ -46,9 +51,7 @@ defmodule KsefHubWeb.InvoicePdfController do
            {:company, get_session(conn, :current_company_id)},
          role <- resolve_role(user_id, company_id),
          {:invoice, %{} = invoice} <-
-           {:invoice, Invoices.get_invoice_with_details(company_id, id, role: role)},
-         {:xml, %{xml_file: %{}} = invoice} <-
-           {:xml, invoice} do
+           {:invoice, Invoices.get_invoice_with_details(company_id, id, role: role)} do
       fun.(conn, invoice)
     else
       {:company, nil} ->
@@ -60,11 +63,6 @@ defmodule KsefHubWeb.InvoicePdfController do
         conn
         |> put_flash(:error, "Invoice not found.")
         |> redirect(to: ~p"/invoices")
-
-      {:xml, %{xml_file: nil} = invoice} ->
-        conn
-        |> put_flash(:error, "No XML content available for this invoice.")
-        |> redirect(to: ~p"/invoices/#{invoice.id}")
     end
   end
 
@@ -75,15 +73,41 @@ defmodule KsefHubWeb.InvoicePdfController do
     |> redirect(to: ~p"/invoices")
   end
 
-  @spec generate_and_send_pdf(Plug.Conn.t(), map()) :: Plug.Conn.t()
-  defp generate_and_send_pdf(conn, invoice) do
+  @spec send_pdf(Plug.Conn.t(), map(), boolean()) :: Plug.Conn.t()
+  defp send_pdf(conn, %{pdf_file: %{content: content}} = invoice, inline?)
+       when is_binary(content) and content != "" do
+    send_fn = if inline?, do: &send_inline/4, else: &send_attachment/4
+    send_fn.(conn, "application/pdf", "#{invoice.invoice_number}.pdf", content)
+  end
+
+  defp send_pdf(conn, %{xml_file: %{content: content}} = invoice, inline?)
+       when is_binary(content) and content != "" do
+    generate_and_send_pdf(conn, invoice, inline?)
+  end
+
+  defp send_pdf(conn, invoice, _inline?) do
+    conn
+    |> put_flash(:error, "No PDF or XML content available for this invoice.")
+    |> redirect(to: ~p"/invoices/#{invoice.id}")
+  end
+
+  @spec generate_and_send_pdf(Plug.Conn.t(), map(), boolean()) :: Plug.Conn.t()
+  defp generate_and_send_pdf(conn, invoice, inline?) do
     pdf_mod = Application.get_env(:ksef_hub, :pdf_renderer, KsefHub.PdfRenderer)
 
     metadata = %{ksef_number: invoice.ksef_number}
 
     case pdf_mod.generate_pdf(invoice.xml_file.content, metadata) do
-      {:ok, pdf_binary} ->
-        send_attachment(conn, "application/pdf", "#{invoice.invoice_number}.pdf", pdf_binary)
+      {:ok, pdf_binary} when is_binary(pdf_binary) and pdf_binary != "" ->
+        send_fn = if inline?, do: &send_inline/4, else: &send_attachment/4
+        send_fn.(conn, "application/pdf", "#{invoice.invoice_number}.pdf", pdf_binary)
+
+      {:ok, _empty} ->
+        Logger.error("PDF generation returned empty content for invoice #{invoice.id}")
+
+        conn
+        |> put_flash(:error, "PDF generation failed.")
+        |> redirect(to: ~p"/invoices/#{invoice.id}")
 
       {:error, reason} ->
         Logger.error("PDF generation failed for invoice #{invoice.id}: #{sanitize_error(reason)}")
