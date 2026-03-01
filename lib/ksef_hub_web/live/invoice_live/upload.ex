@@ -170,6 +170,13 @@ defmodule KsefHubWeb.InvoiceLive.Upload do
   @spec render(map()) :: Phoenix.LiveView.Rendered.t()
   def render(assigns) do
     ~H"""
+    <div class="breadcrumbs text-sm mb-2">
+      <ul>
+        <li><.link navigate={~p"/invoices"}>Invoices</.link></li>
+        <li>Upload</li>
+      </ul>
+    </div>
+
     <.header>
       Upload PDF Invoice
       <:subtitle>Upload a PDF expense invoice for automatic data extraction</:subtitle>
@@ -210,12 +217,6 @@ defmodule KsefHubWeb.InvoiceLive.Upload do
           {if @uploading, do: "Processing...", else: "Upload & Extract"}
         </button>
       </.form>
-
-      <div class="mt-6">
-        <.link navigate={~p"/invoices"} class="btn btn-ghost btn-sm">
-          <.icon name="hero-arrow-left" class="size-4" /> Back to invoices
-        </.link>
-      </div>
     </div>
     """
   end

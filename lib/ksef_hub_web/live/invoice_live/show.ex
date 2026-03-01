@@ -374,6 +374,13 @@ defmodule KsefHubWeb.InvoiceLive.Show do
   @impl true
   def render(assigns) do
     ~H"""
+    <div class="breadcrumbs text-sm mb-2">
+      <ul>
+        <li><.link navigate={~p"/invoices"}>Invoices</.link></li>
+        <li>{@invoice.invoice_number}</li>
+      </ul>
+    </div>
+
     <.header>
       Invoice {@invoice.invoice_number}
       <:subtitle>
@@ -658,12 +665,6 @@ defmodule KsefHubWeb.InvoiceLive.Show do
           </p>
         </div>
       </div>
-    </div>
-
-    <div class="mt-6">
-      <.link navigate={~p"/invoices"} class="btn btn-ghost btn-sm">
-        <.icon name="hero-arrow-left" class="size-4" /> Back to invoices
-      </.link>
     </div>
     """
   end
