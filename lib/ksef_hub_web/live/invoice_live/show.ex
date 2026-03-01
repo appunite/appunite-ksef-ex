@@ -379,7 +379,12 @@ defmodule KsefHubWeb.InvoiceLive.Show do
       <:subtitle>
         <.type_badge type={@invoice.type} />
         <.status_badge status={@invoice.status} />
-        <.prediction_indicator prediction_status={@invoice.prediction_status} />
+        <.needs_review_badge
+          prediction_status={@invoice.prediction_status}
+          duplicate_status={@invoice.duplicate_status}
+          extraction_status={@invoice.extraction_status}
+          status={@invoice.status}
+        />
         <.extraction_badge status={@invoice.extraction_status} />
       </:subtitle>
       <:actions>

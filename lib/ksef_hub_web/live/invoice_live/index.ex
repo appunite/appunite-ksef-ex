@@ -334,12 +334,11 @@ defmodule KsefHubWeb.InvoiceLive.Index do
         </:col>
         <:col :let={inv} label="Status" class="w-28">
           <div class="flex flex-wrap gap-1">
-            <.prediction_indicator
-              :if={inv.prediction_status == :needs_review || inv.duplicate_status == :suspected}
-              prediction_status={:needs_review}
-            />
-            <.status_badge
-              :if={inv.prediction_status != :needs_review && inv.duplicate_status != :suspected}
+            <.status_badge status={inv.status} />
+            <.needs_review_badge
+              prediction_status={inv.prediction_status}
+              duplicate_status={inv.duplicate_status}
+              extraction_status={inv.extraction_status}
               status={inv.status}
             />
             <.extraction_badge status={inv.extraction_status} />

@@ -177,7 +177,7 @@ defmodule KsefHubWeb.CategoryLive do
           for={@form}
           phx-submit="save"
           phx-change="validate"
-          class="flex flex-wrap gap-3 mt-3 items-end"
+          class="flex flex-wrap gap-3 mt-3 items-start"
           id="category-form"
         >
           <div>
@@ -223,7 +223,7 @@ defmodule KsefHubWeb.CategoryLive do
               class="input input-sm input-bordered w-20"
             />
           </div>
-          <div class="flex gap-2 items-end">
+          <div class="flex gap-2 items-end mt-4">
             <button type="submit" class="btn btn-primary btn-sm">
               {if @editing, do: "Update", else: "Create"}
             </button>
