@@ -14,7 +14,7 @@ defmodule KsefHub.Factory do
   alias KsefHub.Files.File, as: FileRecord
   alias KsefHub.InboundEmail.InboundEmail, as: InboundEmailRecord
   alias KsefHub.Invitations.Invitation
-  alias KsefHub.Invoices.{Category, Invoice, InvoiceTag, Tag}
+  alias KsefHub.Invoices.{Category, Invoice, InvoiceComment, InvoiceTag, Tag}
   alias KsefHub.Sync.Checkpoint
 
   @doc "Builds a `User` with sequenced email and google_uid."
@@ -218,6 +218,16 @@ defmodule KsefHub.Factory do
     %InvoiceTag{
       invoice: build(:invoice),
       tag: build(:tag)
+    }
+  end
+
+  @doc "Builds an `InvoiceComment` with a default body, associated to an invoice and user."
+  @spec invoice_comment_factory() :: InvoiceComment.t()
+  def invoice_comment_factory do
+    %InvoiceComment{
+      body: "Test comment",
+      invoice: build(:invoice),
+      user: build(:user)
     }
   end
 

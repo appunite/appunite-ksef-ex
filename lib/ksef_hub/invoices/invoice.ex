@@ -46,6 +46,7 @@ defmodule KsefHub.Invoices.Invoice do
 
     field :extraction_status, Ecto.Enum, values: [:complete, :partial, :failed]
     field :original_filename, :string
+    field :note, :string
 
     belongs_to :company, KsefHub.Companies.Company
     belongs_to :duplicate_of, __MODULE__
@@ -55,6 +56,7 @@ defmodule KsefHub.Invoices.Invoice do
     belongs_to :pdf_file, KsefHub.Files.File
     has_many :invoice_tags, KsefHub.Invoices.InvoiceTag
     many_to_many :tags, KsefHub.Invoices.Tag, join_through: KsefHub.Invoices.InvoiceTag
+    has_many :comments, KsefHub.Invoices.InvoiceComment
 
     timestamps()
   end
@@ -169,6 +171,14 @@ defmodule KsefHub.Invoices.Invoice do
   def prediction_changeset(invoice, attrs) do
     invoice
     |> cast(attrs, @prediction_fields)
+  end
+
+  @doc "Builds a changeset for updating the note field only."
+  @spec note_changeset(t(), map()) :: Ecto.Changeset.t()
+  def note_changeset(invoice, attrs) do
+    invoice
+    |> cast(attrs, [:note])
+    |> validate_length(:note, max: 5000)
   end
 
   @spec validate_source_requirements(Ecto.Changeset.t()) :: Ecto.Changeset.t()

@@ -1283,4 +1283,144 @@ defmodule KsefHub.InvoicesTest do
       assert counts[{:expense, :pending}] == 1
     end
   end
+
+  # --- Invoice Notes ---
+
+  describe "update_invoice_note/2" do
+    test "updates the note on an invoice", %{company: company} do
+      invoice = insert(:invoice, company: company)
+
+      assert {:ok, updated} = Invoices.update_invoice_note(invoice, %{note: "Ask Jan about this"})
+      assert updated.note == "Ask Jan about this"
+    end
+
+    test "clears the note when set to nil", %{company: company} do
+      invoice = insert(:invoice, company: company, note: "old note")
+
+      assert {:ok, updated} = Invoices.update_invoice_note(invoice, %{note: nil})
+      assert is_nil(updated.note)
+    end
+
+    test "rejects note exceeding 5000 characters", %{company: company} do
+      invoice = insert(:invoice, company: company)
+      long_note = String.duplicate("a", 5001)
+
+      assert {:error, changeset} = Invoices.update_invoice_note(invoice, %{note: long_note})
+      assert errors_on(changeset).note
+    end
+  end
+
+  # --- Invoice Comments ---
+
+  describe "list_invoice_comments/1" do
+    test "returns comments ordered by inserted_at ascending", %{company: company} do
+      invoice = insert(:invoice, company: company)
+      user = insert(:user)
+
+      {:ok, c1} = Invoices.create_invoice_comment(invoice.id, user.id, %{body: "first"})
+      {:ok, c2} = Invoices.create_invoice_comment(invoice.id, user.id, %{body: "second"})
+
+      comments = Invoices.list_invoice_comments(invoice.id)
+      assert length(comments) == 2
+      assert [%{body: "first"}, %{body: "second"}] = comments
+      assert hd(comments).id == c1.id
+      assert List.last(comments).id == c2.id
+    end
+
+    test "preloads user on each comment", %{company: company} do
+      invoice = insert(:invoice, company: company)
+      user = insert(:user)
+      Invoices.create_invoice_comment(invoice.id, user.id, %{body: "hello"})
+
+      [comment] = Invoices.list_invoice_comments(invoice.id)
+      assert comment.user.id == user.id
+      assert comment.user.email == user.email
+    end
+
+    test "returns empty list when no comments exist", %{company: company} do
+      invoice = insert(:invoice, company: company)
+      assert [] == Invoices.list_invoice_comments(invoice.id)
+    end
+
+    test "only returns comments for the given invoice", %{company: company} do
+      invoice1 = insert(:invoice, company: company)
+      invoice2 = insert(:invoice, company: company)
+      user = insert(:user)
+
+      Invoices.create_invoice_comment(invoice1.id, user.id, %{body: "for invoice 1"})
+      Invoices.create_invoice_comment(invoice2.id, user.id, %{body: "for invoice 2"})
+
+      comments = Invoices.list_invoice_comments(invoice1.id)
+      assert length(comments) == 1
+      assert hd(comments).body == "for invoice 1"
+    end
+  end
+
+  describe "create_invoice_comment/3" do
+    test "creates a comment with valid attrs", %{company: company} do
+      invoice = insert(:invoice, company: company)
+      user = insert(:user)
+
+      assert {:ok, comment} =
+               Invoices.create_invoice_comment(invoice.id, user.id, %{body: "Looks good"})
+
+      assert comment.body == "Looks good"
+      assert comment.invoice_id == invoice.id
+      assert comment.user_id == user.id
+      assert comment.user.id == user.id
+    end
+
+    test "rejects empty body", %{company: company} do
+      invoice = insert(:invoice, company: company)
+      user = insert(:user)
+
+      assert {:error, changeset} =
+               Invoices.create_invoice_comment(invoice.id, user.id, %{body: ""})
+
+      assert errors_on(changeset).body
+    end
+
+    test "rejects body exceeding 10000 characters", %{company: company} do
+      invoice = insert(:invoice, company: company)
+      user = insert(:user)
+      long_body = String.duplicate("a", 10_001)
+
+      assert {:error, changeset} =
+               Invoices.create_invoice_comment(invoice.id, user.id, %{body: long_body})
+
+      assert errors_on(changeset).body
+    end
+  end
+
+  describe "update_invoice_comment/2" do
+    test "updates the body", %{company: company} do
+      invoice = insert(:invoice, company: company)
+      user = insert(:user)
+      {:ok, comment} = Invoices.create_invoice_comment(invoice.id, user.id, %{body: "old"})
+
+      assert {:ok, updated} = Invoices.update_invoice_comment(comment, %{body: "new"})
+      assert updated.body == "new"
+      assert updated.user.id == user.id
+    end
+
+    test "rejects empty body", %{company: company} do
+      invoice = insert(:invoice, company: company)
+      user = insert(:user)
+      {:ok, comment} = Invoices.create_invoice_comment(invoice.id, user.id, %{body: "old"})
+
+      assert {:error, changeset} = Invoices.update_invoice_comment(comment, %{body: ""})
+      assert errors_on(changeset).body
+    end
+  end
+
+  describe "delete_invoice_comment/1" do
+    test "deletes a comment", %{company: company} do
+      invoice = insert(:invoice, company: company)
+      user = insert(:user)
+      {:ok, comment} = Invoices.create_invoice_comment(invoice.id, user.id, %{body: "bye"})
+
+      assert {:ok, _} = Invoices.delete_invoice_comment(comment)
+      assert [] == Invoices.list_invoice_comments(invoice.id)
+    end
+  end
 end
