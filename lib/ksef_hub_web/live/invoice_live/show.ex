@@ -384,6 +384,16 @@ defmodule KsefHubWeb.InvoiceLive.Show do
       </span>
     </div>
 
+    <div
+      :if={@invoice.duplicate_of_id}
+      class="alert alert-warning mt-4"
+      role="alert"
+      data-testid="duplicate-warning"
+    >
+      <.icon name="hero-document-duplicate" class="size-5" />
+      <span>This invoice may be a duplicate of an existing invoice.</span>
+    </div>
+
     <div class="grid grid-cols-1 lg:grid-cols-[minmax(0,1fr)_minmax(0,2fr)] gap-6 mt-6">
       <!-- Invoice Metadata -->
       <div class="space-y-4">
@@ -528,7 +538,7 @@ defmodule KsefHubWeb.InvoiceLive.Show do
           </div>
         </div>
       </div>
-      <!-- HTML Preview -->
+      <!-- Preview -->
       <div class="card bg-base-100 border border-base-300">
         <div class="p-4">
           <h2 class="text-base font-semibold mb-2">Preview</h2>
@@ -541,7 +551,21 @@ defmodule KsefHubWeb.InvoiceLive.Show do
             >
             </iframe>
           </div>
-          <p :if={!@html_preview} class="text-base-content/60 text-sm">
+          <div
+            :if={!@html_preview && @invoice.pdf_file}
+            class="border border-base-300 rounded-lg overflow-hidden"
+          >
+            <iframe
+              src={~p"/invoices/#{@invoice.id}/pdf"}
+              class="w-full h-[600px] bg-white"
+              title="Invoice PDF preview"
+            >
+            </iframe>
+          </div>
+          <p
+            :if={!@html_preview && !@invoice.pdf_file}
+            class="text-base-content/60 text-sm"
+          >
             No preview available. XML content may be missing.
           </p>
         </div>
