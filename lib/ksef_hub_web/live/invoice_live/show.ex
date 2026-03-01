@@ -795,6 +795,7 @@ defmodule KsefHubWeb.InvoiceLive.Show do
                 :if={!@editing_note}
                 phx-click="edit_note"
                 class="btn btn-xs btn-ghost"
+                aria-label="Edit note"
               >
                 <.icon name="hero-pencil-square" class="size-3.5" />
               </button>
@@ -921,12 +922,13 @@ defmodule KsefHubWeb.InvoiceLive.Show do
                   </span>
                   <div
                     :if={comment.user_id == @current_user_id}
-                    class="opacity-0 group-hover:opacity-100 transition-opacity ml-auto flex gap-1"
+                    class="opacity-0 group-hover:opacity-100 focus-within:opacity-100 transition-opacity ml-auto flex gap-1"
                   >
                     <button
                       phx-click="edit_comment"
                       phx-value-id={comment.id}
                       class="btn btn-xs btn-ghost"
+                      aria-label="Edit comment"
                     >
                       <.icon name="hero-pencil-square" class="size-3" />
                     </button>
@@ -935,6 +937,7 @@ defmodule KsefHubWeb.InvoiceLive.Show do
                       phx-value-id={comment.id}
                       data-confirm="Delete this comment?"
                       class="btn btn-xs btn-ghost text-error"
+                      aria-label="Delete comment"
                     >
                       <.icon name="hero-trash" class="size-3" />
                     </button>
