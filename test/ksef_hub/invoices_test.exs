@@ -6,6 +6,8 @@ defmodule KsefHub.InvoicesTest do
   alias KsefHub.Invoices
   alias KsefHub.Invoices.Invoice
 
+  @sample_xml File.read!("test/support/fixtures/sample_income.xml")
+
   setup do
     company = insert(:company)
     %{company: company}
@@ -18,6 +20,7 @@ defmodule KsefHub.InvoicesTest do
           ksef_number: "1234567890-20250101-ABC123-01",
           company_id: company.id
         )
+        |> Map.put(:xml_content, @sample_xml)
 
       assert {:ok, %Invoice{} = invoice} = Invoices.create_invoice(attrs)
       assert invoice.ksef_number == "1234567890-20250101-ABC123-01"
@@ -31,7 +34,8 @@ defmodule KsefHub.InvoicesTest do
       xml = File.read!("test/support/fixtures/sample_income.xml")
 
       attrs =
-        params_for(:invoice, company_id: company.id, xml_content: xml)
+        params_for(:invoice, company_id: company.id)
+        |> Map.put(:xml_content, xml)
 
       assert {:ok, invoice} = Invoices.create_invoice(attrs)
       assert invoice.xml_file_id
@@ -45,9 +49,9 @@ defmodule KsefHub.InvoicesTest do
 
       attrs =
         params_for(:pdf_upload_invoice,
-          company_id: company.id,
-          pdf_content: pdf_binary
+          company_id: company.id
         )
+        |> Map.put(:pdf_content, pdf_binary)
 
       assert {:ok, invoice} = Invoices.create_invoice(attrs)
       assert invoice.pdf_file_id
@@ -57,7 +61,10 @@ defmodule KsefHub.InvoicesTest do
     end
 
     test "returns error with invalid type", %{company: company} do
-      attrs = params_for(:invoice, type: :invalid, company_id: company.id)
+      attrs =
+        params_for(:invoice, type: :invalid, company_id: company.id)
+        |> Map.put(:xml_content, @sample_xml)
+
       assert {:error, changeset} = Invoices.create_invoice(attrs)
       assert "is invalid" in errors_on(changeset).type
     end
@@ -72,15 +79,20 @@ defmodule KsefHub.InvoicesTest do
 
     test "enforces unique (company_id, ksef_number)", %{company: company} do
       insert(:invoice, ksef_number: "dup-1", company: company)
-      attrs = params_for(:invoice, ksef_number: "dup-1", company_id: company.id)
+
+      attrs =
+        params_for(:invoice, ksef_number: "dup-1", company_id: company.id)
+        |> Map.put(:xml_content, @sample_xml)
+
       assert {:error, changeset} = Invoices.create_invoice(attrs)
       assert errors_on(changeset).company_id
     end
 
-    test "ksef source requires xml_content", %{company: company} do
-      attrs = params_for(:invoice, source: :ksef, xml_content: nil, company_id: company.id)
+    test "ksef source requires xml_file_id", %{company: company} do
+      attrs = params_for(:invoice, company_id: company.id)
+      # params_for doesn't include xml_content, so no file will be created, xml_file_id stays nil
       assert {:error, changeset} = Invoices.create_invoice(attrs)
-      assert errors_on(changeset).xml_content
+      assert errors_on(changeset).xml_file_id
     end
 
     test "manual source requires buyer fields and amounts", %{company: company} do
@@ -102,7 +114,10 @@ defmodule KsefHub.InvoicesTest do
     end
 
     test "rejects invalid source", %{company: company} do
-      attrs = params_for(:invoice, source: :invalid, company_id: company.id)
+      attrs =
+        params_for(:invoice, source: :invalid, company_id: company.id)
+        |> Map.put(:xml_content, @sample_xml)
+
       assert {:error, changeset} = Invoices.create_invoice(attrs)
       assert "is invalid" in errors_on(changeset).source
     end
@@ -110,12 +125,18 @@ defmodule KsefHub.InvoicesTest do
 
   describe "upsert_invoice/1" do
     test "inserts new invoice and returns :inserted tag", %{company: company} do
-      attrs = params_for(:invoice, ksef_number: "upsert-1", company_id: company.id)
+      attrs =
+        params_for(:invoice, ksef_number: "upsert-1", company_id: company.id)
+        |> Map.put(:xml_content, @sample_xml)
+
       assert {:ok, %Invoice{}, :inserted} = Invoices.upsert_invoice(attrs)
     end
 
     test "creates xml_file on insert", %{company: company} do
-      attrs = params_for(:invoice, ksef_number: "upsert-file-1", company_id: company.id)
+      attrs =
+        params_for(:invoice, ksef_number: "upsert-file-1", company_id: company.id)
+        |> Map.put(:xml_content, @sample_xml)
+
       assert {:ok, %Invoice{} = invoice, :inserted} = Invoices.upsert_invoice(attrs)
       assert invoice.xml_file_id
       xml_file = KsefHub.Files.get_file!(invoice.xml_file_id)
@@ -131,7 +152,9 @@ defmodule KsefHub.InvoicesTest do
           inserted_at: NaiveDateTime.add(NaiveDateTime.utc_now(), -60)
         )
 
-      attrs = params_for(:invoice, ksef_number: "upsert-2", company_id: company.id)
+      attrs =
+        params_for(:invoice, ksef_number: "upsert-2", company_id: company.id)
+        |> Map.put(:xml_content, @sample_xml)
 
       {:ok, updated, :updated} =
         Invoices.upsert_invoice(%{attrs | seller_name: "Updated Name"})
@@ -155,7 +178,9 @@ defmodule KsefHub.InvoicesTest do
           inserted_at: NaiveDateTime.add(NaiveDateTime.utc_now(), -60)
         )
 
-      attrs = params_for(:invoice, ksef_number: "upsert-pred", company_id: company.id)
+      attrs =
+        params_for(:invoice, ksef_number: "upsert-pred", company_id: company.id)
+        |> Map.put(:xml_content, @sample_xml)
 
       {:ok, updated, :updated} =
         Invoices.upsert_invoice(%{attrs | seller_name: "Updated Seller"})
@@ -277,13 +302,6 @@ defmodule KsefHub.InvoicesTest do
 
       result = Invoices.list_invoices(company.id, %{per_page: 200})
       assert length(result) == 100
-    end
-
-    test "excludes xml_content from list results", %{company: company} do
-      insert(:invoice, company: company, xml_content: "<xml>big content</xml>")
-
-      [invoice] = Invoices.list_invoices(company.id)
-      assert is_nil(invoice.xml_content)
     end
   end
 
@@ -500,7 +518,6 @@ defmodule KsefHub.InvoicesTest do
       assert {:ok, %Invoice{} = invoice} = Invoices.create_manual_invoice(company.id, attrs)
       assert invoice.source == :manual
       assert invoice.company_id == company.id
-      assert is_nil(invoice.xml_content)
       assert is_nil(invoice.duplicate_of_id)
     end
 
@@ -635,7 +652,6 @@ defmodule KsefHub.InvoicesTest do
       assert invoice.invoice_number == "FV/PDF/001"
       assert invoice.issue_date == ~D[2026-02-20]
       assert invoice.net_amount == Decimal.new("1000.00")
-      assert invoice.pdf_content == "pdf-data"
       assert invoice.original_filename == "test.pdf"
       assert invoice.pdf_file_id
       pdf_file = KsefHub.Files.get_file!(invoice.pdf_file_id)
@@ -855,6 +871,7 @@ defmodule KsefHub.InvoicesTest do
           company_id: company.id,
           extraction_status: :complete
         )
+        |> Map.put(:xml_content, @sample_xml)
 
       assert {:ok, %Invoice{extraction_status: :complete}, :inserted} =
                Invoices.upsert_invoice(attrs)
@@ -874,6 +891,7 @@ defmodule KsefHub.InvoicesTest do
           company_id: company.id,
           extraction_status: :complete
         )
+        |> Map.put(:xml_content, @sample_xml)
 
       assert {:ok, %Invoice{extraction_status: :complete}, :updated} =
                Invoices.upsert_invoice(attrs)
@@ -940,13 +958,6 @@ defmodule KsefHub.InvoicesTest do
       assert length(results) == 1
       assert hd(results).source == :pdf_upload
     end
-
-    test "excludes pdf_content from list results", %{company: company} do
-      insert(:pdf_upload_invoice, company: company, pdf_content: "large pdf data")
-
-      [invoice] = Invoices.list_invoices(company.id)
-      assert is_nil(invoice.pdf_content)
-    end
   end
 
   describe "create_email_invoice/3" do
@@ -974,7 +985,6 @@ defmodule KsefHub.InvoicesTest do
       assert invoice.extraction_status == :complete
       assert invoice.seller_nip == "1111111111"
       assert invoice.original_filename == "invoice.pdf"
-      assert invoice.pdf_content == pdf_binary
       assert invoice.pdf_file_id
       pdf_file = KsefHub.Files.get_file!(invoice.pdf_file_id)
       assert pdf_file.content == pdf_binary
@@ -1098,6 +1108,7 @@ defmodule KsefHub.InvoicesTest do
           company_id: company.id,
           seller_name: "KSeF Seller"
         )
+        |> Map.put(:xml_content, @sample_xml)
 
       assert {:ok, updated, :updated} = Invoices.upsert_invoice(attrs)
       assert updated.seller_name == "KSeF Seller"

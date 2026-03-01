@@ -59,17 +59,6 @@ defmodule KsefHubWeb.Api.InvoiceControllerTest do
       assert body["meta"]["page"] == 1
       assert body["meta"]["per_page"] == 25
     end
-
-    test "does not include xml_content in list response", %{conn: conn} do
-      %{company: company, token: token} = create_owner_with_token()
-      insert(:invoice, company: company, xml_content: "<xml>data</xml>")
-
-      conn = conn |> api_conn(token) |> get("/api/invoices")
-
-      body = Jason.decode!(conn.resp_body)
-      invoice = hd(body["data"])
-      refute Map.has_key?(invoice, "xml_content")
-    end
   end
 
   describe "show" do
@@ -147,7 +136,6 @@ defmodule KsefHubWeb.Api.InvoiceControllerTest do
       invoice =
         insert(:invoice,
           company: company,
-          xml_content: xml,
           xml_file: xml_file,
           invoice_number: "FV/2025/001"
         )
@@ -163,7 +151,7 @@ defmodule KsefHubWeb.Api.InvoiceControllerTest do
     test "returns 404 for invoice from different company", %{conn: conn} do
       %{token: token} = create_owner_with_token()
       other_company = insert(:company)
-      invoice = insert(:invoice, company: other_company, xml_content: "<xml/>")
+      invoice = insert(:invoice, company: other_company)
 
       assert_error_sent 404, fn ->
         conn |> api_conn(token) |> get("/api/invoices/#{invoice.id}/xml")
@@ -381,9 +369,9 @@ defmodule KsefHubWeb.Api.InvoiceControllerTest do
     end
   end
 
-  describe "content endpoints with nil xml_content" do
+  describe "content endpoints with no xml_file" do
     for endpoint <- ~w(xml html) do
-      test "#{endpoint} returns 422 for invoice without xml_content", %{conn: conn} do
+      test "#{endpoint} returns 422 for invoice without xml_file", %{conn: conn} do
         %{company: company, token: token} = create_owner_with_token()
         invoice = insert(:manual_invoice, company: company)
 
@@ -397,7 +385,7 @@ defmodule KsefHubWeb.Api.InvoiceControllerTest do
       end
     end
 
-    test "pdf returns 422 for invoice without xml_content or pdf_content", %{conn: conn} do
+    test "pdf returns 422 for invoice without xml_file or pdf_file", %{conn: conn} do
       %{company: company, token: token} = create_owner_with_token()
       invoice = insert(:manual_invoice, company: company)
 
@@ -615,29 +603,6 @@ defmodule KsefHubWeb.Api.InvoiceControllerTest do
       assert data["extraction_status"] == "failed"
     end
 
-    test "does not include pdf_content in response", %{conn: conn} do
-      %{token: token} = create_owner_with_token()
-
-      Mox.expect(KsefHub.InvoiceExtractor.Mock, :extract, fn _pdf, _opts ->
-        {:ok, %{"seller_name" => "Test"}}
-      end)
-
-      upload = %Plug.Upload{
-        path: create_temp_pdf(),
-        content_type: "application/pdf",
-        filename: "invoice.pdf"
-      }
-
-      conn =
-        conn
-        |> api_conn_multipart(token)
-        |> post("/api/invoices/upload", %{"file" => upload, "type" => "expense"})
-
-      assert conn.status == 201
-      data = Jason.decode!(conn.resp_body)["data"]
-      refute Map.has_key?(data, "pdf_content")
-    end
-
     test "returns 201 for income-type upload", %{conn: conn} do
       %{token: token} = create_owner_with_token()
 
@@ -745,7 +710,6 @@ defmodule KsefHubWeb.Api.InvoiceControllerTest do
       invoice =
         insert(:pdf_upload_invoice,
           company: company,
-          pdf_content: "fake-pdf-bytes",
           pdf_file: pdf_file,
           original_filename: "my_invoice.pdf"
         )

@@ -14,7 +14,6 @@ defmodule KsefHub.Invoices do
   alias KsefHub.Invoices.{Category, Invoice, InvoiceTag, Tag}
   alias KsefHub.Repo
 
-  @list_fields Invoice.__schema__(:fields) -- [:xml_content, :pdf_content]
   @max_per_page 100
   @default_per_page 25
   @critical_extraction_fields ~w(seller_nip seller_name invoice_number issue_date net_amount gross_amount)a
@@ -161,19 +160,10 @@ defmodule KsefHub.Invoices do
     Repo.transaction(fn ->
       with {:ok, attrs} <- maybe_create_xml_file(attrs, xml_content),
            {:ok, attrs} <- maybe_create_pdf_file(attrs, pdf_content) do
-        base =
-          %Invoice{}
-          |> Ecto.Changeset.change(%{company_id: company_id})
-
-        # Keep inline content for backward compat until column drop
-        base =
-          if pdf_content,
-            do: Ecto.Changeset.put_change(base, :pdf_content, pdf_content),
-            else: base
-
-        attrs = if xml_content, do: Map.put(attrs, :xml_content, xml_content), else: attrs
-
-        case base |> Invoice.changeset(attrs) |> Repo.insert() do
+        case %Invoice{}
+             |> Ecto.Changeset.change(%{company_id: company_id})
+             |> Invoice.changeset(attrs)
+             |> Repo.insert() do
           {:ok, invoice} -> invoice
           {:error, changeset} -> Repo.rollback(changeset)
         end
@@ -207,7 +197,6 @@ defmodule KsefHub.Invoices do
 
   @upsert_replace_fields [
     :source,
-    :xml_content,
     :xml_file_id,
     :seller_nip,
     :seller_name,
@@ -233,12 +222,7 @@ defmodule KsefHub.Invoices do
     Repo.transaction(fn ->
       case maybe_create_xml_file(%{}, xml_content) do
         {:ok, file_attrs} ->
-          attrs =
-            attrs
-            |> Map.merge(file_attrs)
-            |> then(fn a ->
-              if xml_content, do: Map.put(a, :xml_content, xml_content), else: a
-            end)
+          attrs = Map.merge(attrs, file_attrs)
 
           case %Invoice{}
                |> Ecto.Changeset.change(%{company_id: company_id})
@@ -1081,7 +1065,6 @@ defmodule KsefHub.Invoices do
     |> where([i], i.company_id == ^company_id)
     |> apply_filters(filters)
     |> order_by([i], desc: i.issue_date, desc: i.inserted_at)
-    |> select([i], struct(i, ^@list_fields))
     |> limit(^per_page)
     |> offset(^((page - 1) * per_page))
     |> Repo.all()

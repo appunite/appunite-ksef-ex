@@ -27,9 +27,7 @@ defmodule KsefHub.InboundEmail do
                    filename: attrs[:original_filename]
                  }) do
               {:ok, file} ->
-                attrs
-                |> Map.put(:pdf_file_id, file.id)
-                |> Map.put(:pdf_content, content)
+                Map.put(attrs, :pdf_file_id, file.id)
 
               {:error, reason} ->
                 Repo.rollback(reason)

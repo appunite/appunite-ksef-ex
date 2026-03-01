@@ -51,10 +51,12 @@ defmodule KsefHub.InboundEmail.InboundEmailWorker do
 
   @spec extract_pdf(InboundEmail.InboundEmail.t(), Companies.Company.t()) ::
           {:ok, map()} | {:error, term()}
+  defp extract_pdf(%{pdf_file: nil}, _company), do: {:error, :no_pdf_file}
+
   defp extract_pdf(record, company) do
     context = ContextBuilder.build(company)
 
-    invoice_extractor().extract(record.pdf_content,
+    invoice_extractor().extract(record.pdf_file.content,
       filename: record.original_filename || "invoice.pdf",
       context: context
     )
@@ -89,8 +91,19 @@ defmodule KsefHub.InboundEmail.InboundEmailWorker do
           map() | :extraction_failed,
           :success | :needs_review
         ) :: :ok
+  defp create_and_notify(%{pdf_file: nil} = record, _company, _extracted, _reply_type) do
+    Logger.error("No PDF file for inbound email #{record.id}")
+
+    log_status_update(
+      InboundEmail.update_status(record, %{status: :failed, error_message: "no PDF file"}),
+      record.id
+    )
+
+    :ok
+  end
+
   defp create_and_notify(record, company, extracted, reply_type) do
-    case Invoices.create_email_invoice(company.id, record.pdf_content, extracted,
+    case Invoices.create_email_invoice(company.id, record.pdf_file.content, extracted,
            filename: record.original_filename
          ) do
       {:ok, invoice} ->

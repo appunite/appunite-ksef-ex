@@ -32,7 +32,6 @@ defmodule KsefHubWeb.InvoicePdfControllerTest do
       invoice =
         insert(:invoice,
           company: company,
-          xml_content: xml,
           xml_file: xml_file,
           invoice_number: "FV/2025/001"
         )
@@ -83,7 +82,6 @@ defmodule KsefHubWeb.InvoicePdfControllerTest do
       invoice =
         insert(:invoice,
           company: company,
-          xml_content: "<Faktura>test</Faktura>",
           xml_file: xml_file,
           invoice_number: "FV/2025/002"
         )

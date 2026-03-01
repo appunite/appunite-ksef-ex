@@ -17,7 +17,6 @@ defmodule KsefHub.InboundEmail.InboundEmail do
     field :subject, :string
     field :status, Ecto.Enum, values: [:received, :processing, :completed, :failed, :rejected]
     field :error_message, :string
-    field :pdf_content, :binary
     field :original_filename, :string
 
     belongs_to :company, KsefHub.Companies.Company
@@ -39,7 +38,6 @@ defmodule KsefHub.InboundEmail.InboundEmail do
       :subject,
       :status,
       :error_message,
-      :pdf_content,
       :original_filename,
       :pdf_file_id
     ])
