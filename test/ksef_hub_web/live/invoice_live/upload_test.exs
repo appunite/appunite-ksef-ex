@@ -1,5 +1,7 @@
 defmodule KsefHubWeb.InvoiceLive.UploadTest do
-  use KsefHubWeb.ConnCase, async: true
+  # async: false because upload spawns Task.Supervisor.async_nolink which
+  # doesn't propagate $callers, so Mox stubs need global mode.
+  use KsefHubWeb.ConnCase, async: false
 
   import Phoenix.LiveViewTest
   import Mox
@@ -9,7 +11,7 @@ defmodule KsefHubWeb.InvoiceLive.UploadTest do
   alias KsefHub.Accounts
   alias KsefHub.Invoices
 
-  setup :set_mox_from_context
+  setup :set_mox_global
   setup :verify_on_exit!
 
   setup %{conn: conn} do

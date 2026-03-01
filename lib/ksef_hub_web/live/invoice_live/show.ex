@@ -128,6 +128,12 @@ defmodule KsefHubWeb.InvoiceLive.Show do
            |> put_flash(:info, "Duplicate dismissed.")
            |> assign(:invoice, reload_details(updated, socket))}
 
+        {:error, :not_a_duplicate} ->
+          {:noreply, put_flash(socket, :error, "This invoice is not marked as a duplicate.")}
+
+        {:error, :invalid_status} ->
+          {:noreply, put_flash(socket, :error, "Cannot dismiss duplicate in its current status.")}
+
         {:error, _reason} ->
           {:noreply, put_flash(socket, :error, "Failed to dismiss duplicate.")}
       end
@@ -147,6 +153,12 @@ defmodule KsefHubWeb.InvoiceLive.Show do
            socket
            |> put_flash(:info, "Duplicate confirmed.")
            |> assign(:invoice, reload_details(updated, socket))}
+
+        {:error, :not_a_duplicate} ->
+          {:noreply, put_flash(socket, :error, "This invoice is not marked as a duplicate.")}
+
+        {:error, :invalid_status} ->
+          {:noreply, put_flash(socket, :error, "Cannot confirm duplicate in its current status.")}
 
         {:error, _reason} ->
           {:noreply, put_flash(socket, :error, "Failed to confirm duplicate.")}
