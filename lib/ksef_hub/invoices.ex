@@ -105,7 +105,6 @@ defmodule KsefHub.Invoices do
     Invoice
     |> where([i], i.company_id == ^company_id and i.id == ^id)
     |> maybe_scope_type_by_role(opts[:role])
-    |> preload([:xml_file, :pdf_file])
     |> Repo.one!()
   end
 
@@ -135,7 +134,6 @@ defmodule KsefHub.Invoices do
     Invoice
     |> where([i], i.company_id == ^company_id and i.id == ^id)
     |> maybe_scope_type_by_role(opts[:role])
-    |> preload([:xml_file, :pdf_file])
     |> Repo.one()
   end
 
@@ -151,7 +149,7 @@ defmodule KsefHub.Invoices do
   @doc """
   Creates an invoice.
   """
-  @spec create_invoice(map()) :: {:ok, Invoice.t()} | {:error, Ecto.Changeset.t()}
+  @spec create_invoice(map()) :: {:ok, Invoice.t()} | {:error, Ecto.Changeset.t() | term()}
   def create_invoice(attrs) do
     company_id = attrs[:company_id] || attrs["company_id"]
     {pdf_content, attrs} = Map.pop(attrs, :pdf_content)

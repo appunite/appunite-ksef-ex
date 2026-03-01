@@ -60,6 +60,17 @@ defmodule KsefHub.InvoicesTest do
       assert pdf_file.content_type == "application/pdf"
     end
 
+    test "returns error when file creation fails (content over 10MB)", %{company: company} do
+      big_content = :binary.copy(<<0>>, 10_000_001)
+
+      attrs =
+        params_for(:pdf_upload_invoice, company_id: company.id)
+        |> Map.put(:pdf_content, big_content)
+
+      assert {:error, changeset} = Invoices.create_invoice(attrs)
+      assert %{byte_size: ["must be at most 10MB"]} = errors_on(changeset)
+    end
+
     test "returns error with invalid type", %{company: company} do
       attrs =
         params_for(:invoice, type: :invalid, company_id: company.id)
@@ -141,6 +152,26 @@ defmodule KsefHub.InvoicesTest do
       assert invoice.xml_file_id
       xml_file = KsefHub.Files.get_file!(invoice.xml_file_id)
       assert xml_file.content_type == "application/xml"
+    end
+
+    test "creates new xml_file on update, leaving old one as orphan", %{company: company} do
+      original =
+        insert(:invoice,
+          ksef_number: "upsert-orphan",
+          company: company,
+          inserted_at: NaiveDateTime.add(NaiveDateTime.utc_now(), -60)
+        )
+
+      original_file_id = original.xml_file_id
+
+      attrs =
+        params_for(:invoice, ksef_number: "upsert-orphan", company_id: company.id)
+        |> Map.put(:xml_content, @sample_xml)
+
+      {:ok, updated, :updated} = Invoices.upsert_invoice(attrs)
+      assert updated.xml_file_id != original_file_id
+      # Old file still exists (will be cleaned by OrphanCleanupWorker)
+      assert KsefHub.Files.get_file(original_file_id)
     end
 
     test "updates existing invoice and returns :updated tag", %{company: company} do
@@ -302,6 +333,14 @@ defmodule KsefHub.InvoicesTest do
 
       result = Invoices.list_invoices(company.id, %{per_page: 200})
       assert length(result) == 100
+    end
+
+    test "does not preload file associations in list results", %{company: company} do
+      insert(:invoice, company: company)
+
+      [invoice] = Invoices.list_invoices(company.id)
+      assert %Ecto.Association.NotLoaded{} = invoice.xml_file
+      assert %Ecto.Association.NotLoaded{} = invoice.pdf_file
     end
   end
 

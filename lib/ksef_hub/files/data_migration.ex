@@ -47,9 +47,17 @@ defmodule KsefHub.Files.DataMigration do
   @spec stream_and_migrate(Ecto.Queryable.t(), String.t(), String.t(), atom()) :: :ok
   defp stream_and_migrate(query, content_type, table_name, fk_field) do
     query
-    |> Repo.all()
-    |> Enum.chunk_every(@batch_size)
-    |> Enum.each(fn batch ->
+    |> limit(@batch_size)
+    |> migrate_batch(content_type, table_name, fk_field)
+  end
+
+  @spec migrate_batch(Ecto.Queryable.t(), String.t(), String.t(), atom()) :: :ok
+  defp migrate_batch(query, content_type, table_name, fk_field) do
+    batch = Repo.all(query)
+
+    if batch == [] do
+      :ok
+    else
       Repo.transaction(fn ->
         Enum.each(batch, fn row ->
           file_id = Ecto.UUID.generate()
@@ -70,8 +78,9 @@ defmodule KsefHub.Files.DataMigration do
           |> Repo.update_all(set: [{fk_field, Ecto.UUID.dump!(file_id)}])
         end)
       end)
-    end)
 
-    :ok
+      # Fetch next batch (the WHERE clause filters already-migrated rows)
+      migrate_batch(query, content_type, table_name, fk_field)
+    end
   end
 end

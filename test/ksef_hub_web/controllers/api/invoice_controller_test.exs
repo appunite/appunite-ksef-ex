@@ -722,6 +722,26 @@ defmodule KsefHubWeb.Api.InvoiceControllerTest do
       assert conn.resp_body == "fake-pdf-bytes"
     end
 
+    test "returns original uploaded PDF for email-source invoice", %{conn: conn} do
+      %{company: company, token: token} = create_owner_with_token()
+      pdf_file = insert(:file, content: "email-pdf-bytes", content_type: "application/pdf")
+
+      invoice =
+        insert(:pdf_upload_invoice,
+          company: company,
+          source: :email,
+          pdf_file: pdf_file,
+          original_filename: "email_invoice.pdf"
+        )
+
+      conn = conn |> api_conn(token) |> get("/api/invoices/#{invoice.id}/pdf")
+
+      assert conn.status == 200
+      assert get_resp_header(conn, "content-type") |> hd() =~ "application/pdf"
+      assert get_resp_header(conn, "content-disposition") |> hd() =~ "email_invoice.pdf"
+      assert conn.resp_body == "email-pdf-bytes"
+    end
+
     test "xml returns 422 for pdf_upload invoice", %{conn: conn} do
       %{company: company, token: token} = create_owner_with_token()
       invoice = insert(:pdf_upload_invoice, company: company)

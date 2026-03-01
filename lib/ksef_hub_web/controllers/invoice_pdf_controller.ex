@@ -46,7 +46,7 @@ defmodule KsefHubWeb.InvoicePdfController do
            {:company, get_session(conn, :current_company_id)},
          role <- resolve_role(user_id, company_id),
          {:invoice, %{} = invoice} <-
-           {:invoice, Invoices.get_invoice(company_id, id, role: role)},
+           {:invoice, Invoices.get_invoice_with_details(company_id, id, role: role)},
          {:xml, %{xml_file: %{}} = invoice} <-
            {:xml, invoice} do
       fun.(conn, invoice)

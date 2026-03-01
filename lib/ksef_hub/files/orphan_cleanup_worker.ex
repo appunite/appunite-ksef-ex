@@ -40,6 +40,8 @@ defmodule KsefHub.Files.OrphanCleanupWorker do
     :ok
   end
 
+  # NOTE: If a new table adds a FK to files, add a LEFT JOIN here to avoid
+  # deleting files that are still referenced.
   @spec orphan_query() :: Ecto.Query.t()
   defp orphan_query do
     from(f in KsefHub.Files.File,
