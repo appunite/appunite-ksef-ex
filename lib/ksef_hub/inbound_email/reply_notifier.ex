@@ -7,6 +7,8 @@ defmodule KsefHub.InboundEmail.ReplyNotifier do
 
   import Swoosh.Email
 
+  require Logger
+
   alias KsefHub.Mailer
 
   @doc "Builds a success reply email for a processed invoice."
@@ -148,9 +150,28 @@ defmodule KsefHub.InboundEmail.ReplyNotifier do
 
     case Keyword.get(opts, :in_reply_to) do
       nil -> email
-      message_id -> header(email, "In-Reply-To", message_id) |> header("References", message_id)
+      message_id -> maybe_add_threading_headers(email, message_id)
     end
   end
+
+  @spec maybe_add_threading_headers(Swoosh.Email.t(), String.t()) :: Swoosh.Email.t()
+  defp maybe_add_threading_headers(email, message_id) do
+    if valid_message_id?(message_id) do
+      email
+      |> header("In-Reply-To", message_id)
+      |> header("References", message_id)
+    else
+      Logger.warning("Skipping invalid Message-Id for threading: #{inspect(message_id)}")
+      email
+    end
+  end
+
+  @spec valid_message_id?(String.t()) :: boolean()
+  defp valid_message_id?(id) when is_binary(id) do
+    not String.contains?(id, ["\r", "\n", "\0"])
+  end
+
+  defp valid_message_id?(_), do: false
 
   @doc "Delivers a reply email via the configured mailer."
   @spec deliver(Swoosh.Email.t()) :: {:ok, Swoosh.Email.t()} | {:error, term()}

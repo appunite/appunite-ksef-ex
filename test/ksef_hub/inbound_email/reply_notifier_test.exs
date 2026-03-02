@@ -43,6 +43,15 @@ defmodule KsefHub.InboundEmail.ReplyNotifierTest do
 
       assert email.headers == %{}
     end
+
+    test "omits threading headers when in_reply_to contains control characters" do
+      invoice = %{id: "abc", invoice_number: "FV/1", seller_name: "Seller"}
+
+      for malformed <- ["<msg\r\nBcc: evil@hacker.com>", "<msg\nid>", "<msg\0id>"] do
+        email = ReplyNotifier.success(@sender, invoice, in_reply_to: malformed)
+        assert email.headers == %{}, "expected no headers for #{inspect(malformed)}"
+      end
+    end
   end
 
   describe "needs_review/3" do
