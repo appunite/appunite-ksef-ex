@@ -37,6 +37,10 @@ defmodule KsefHubWeb.CompanyLive.Index do
     socket
     |> assign(:page_title, "Edit #{company.name}")
     |> assign(:company, company)
+    |> assign(
+      :inbound_domain_configured,
+      Application.get_env(:ksef_hub, :inbound_email_domain) != nil
+    )
     |> assign(:form, to_form(Companies.Company.changeset(company, %{})))
     |> assign(
       :inbound_settings_form,
@@ -215,8 +219,10 @@ defmodule KsefHubWeb.CompanyLive.Index do
   defp inbound_email_address(%{inbound_email_token: nil}), do: nil
 
   defp inbound_email_address(%{inbound_email_token: token}) do
-    domain = Application.get_env(:ksef_hub, :inbound_email_domain, "example.com")
-    "inv-#{token}@#{domain}"
+    case Application.get_env(:ksef_hub, :inbound_email_domain) do
+      nil -> token
+      domain -> "inv-#{token}@#{domain}"
+    end
   end
 
   @doc "Renders the company list page with create/edit form."
@@ -288,6 +294,12 @@ defmodule KsefHubWeb.CompanyLive.Index do
           <code data-testid="inbound-email-address" class="select-all text-sm font-mono break-all">
             {inbound_email_address(@company)}
           </code>
+          <p
+            :if={!@inbound_domain_configured}
+            class="text-xs text-warning mt-1"
+          >
+            INBOUND_EMAIL_DOMAIN not configured — set it to display the full address.
+          </p>
         </div>
         
     <!-- Enable / Disable / Regenerate buttons -->

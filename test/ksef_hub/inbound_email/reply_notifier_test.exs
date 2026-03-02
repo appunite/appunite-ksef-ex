@@ -27,6 +27,31 @@ defmodule KsefHub.InboundEmail.ReplyNotifierTest do
       email = ReplyNotifier.success(@sender, invoice, cc: "team@appunite.com")
       assert email.cc == [{"team@appunite.com", "team@appunite.com"}]
     end
+
+    test "sets In-Reply-To and References headers when in_reply_to is provided" do
+      invoice = %{id: "abc", invoice_number: "FV/1", seller_name: "Seller"}
+      msg_id = "<original-msg-id@mailgun.org>"
+      email = ReplyNotifier.success(@sender, invoice, in_reply_to: msg_id)
+
+      assert email.headers["In-Reply-To"] == msg_id
+      assert email.headers["References"] == msg_id
+    end
+
+    test "omits threading headers when in_reply_to is not provided" do
+      invoice = %{id: "abc", invoice_number: "FV/1", seller_name: "Seller"}
+      email = ReplyNotifier.success(@sender, invoice)
+
+      assert email.headers == %{}
+    end
+
+    test "omits threading headers when in_reply_to contains control characters" do
+      invoice = %{id: "abc", invoice_number: "FV/1", seller_name: "Seller"}
+
+      for malformed <- ["<msg\r\nBcc: evil@hacker.com>", "<msg\nid>", "<msg\0id>"] do
+        email = ReplyNotifier.success(@sender, invoice, in_reply_to: malformed)
+        assert email.headers == %{}, "expected no headers for #{inspect(malformed)}"
+      end
+    end
   end
 
   describe "needs_review/3" do

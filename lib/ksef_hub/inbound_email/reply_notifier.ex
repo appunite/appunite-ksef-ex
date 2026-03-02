@@ -142,11 +142,36 @@ defmodule KsefHub.InboundEmail.ReplyNotifier do
       |> subject(subject)
       |> text_body(body)
 
-    case Keyword.get(opts, :cc) do
+    email =
+      case Keyword.get(opts, :cc) do
+        nil -> email
+        cc_addr -> cc(email, {cc_addr, cc_addr})
+      end
+
+    case Keyword.get(opts, :in_reply_to) do
       nil -> email
-      cc_addr -> cc(email, {cc_addr, cc_addr})
+      message_id -> maybe_add_threading_headers(email, message_id)
     end
   end
+
+  @spec maybe_add_threading_headers(Swoosh.Email.t(), String.t()) :: Swoosh.Email.t()
+  defp maybe_add_threading_headers(email, message_id) do
+    if valid_message_id?(message_id) do
+      email
+      |> header("In-Reply-To", message_id)
+      |> header("References", message_id)
+    else
+      Logger.warning("Skipping invalid Message-Id for threading: #{inspect(message_id)}")
+      email
+    end
+  end
+
+  @spec valid_message_id?(String.t()) :: boolean()
+  defp valid_message_id?(id) when is_binary(id) do
+    not String.contains?(id, ["\r", "\n", "\0"])
+  end
+
+  defp valid_message_id?(_), do: false
 
   @doc "Delivers a reply email via the configured mailer."
   @spec deliver(Swoosh.Email.t()) :: {:ok, Swoosh.Email.t()} | {:error, term()}
@@ -165,18 +190,6 @@ defmodule KsefHub.InboundEmail.ReplyNotifier do
   defp invoice_url(nil), do: ""
 
   defp invoice_url(id) do
-    host =
-      :ksef_hub
-      |> Application.get_env(KsefHubWeb.Endpoint, [])
-      |> get_in([:url, :host])
-
-    if is_nil(host) do
-      Logger.warning(
-        "KsefHubWeb.Endpoint [:url, :host] not configured; " <>
-          "invoice URL will use fallback host for invoice #{id}"
-      )
-    end
-
-    "https://#{host || "ksef-hub.com"}/invoices/#{id}"
+    "#{KsefHubWeb.Endpoint.url()}/invoices/#{id}"
   end
 end

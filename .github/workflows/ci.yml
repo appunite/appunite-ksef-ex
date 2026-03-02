@@ -82,10 +82,10 @@ jobs:
 
     env:
       GCP_PROJECT_ID: au-ksef-ex
-      GCP_REGION: europe-central2
+      GCP_REGION: europe-west1
       AR_REPO: ksef-hub
       SERVICE_NAME: ksef-hub
-      IMAGE_NAME: europe-central2-docker.pkg.dev/au-ksef-ex/ksef-hub/ksef-hub
+      IMAGE_NAME: europe-west1-docker.pkg.dev/au-ksef-ex/ksef-hub/ksef-hub
 
     steps:
       - uses: actions/checkout@v4
@@ -116,7 +116,7 @@ jobs:
 
       - name: Build and push ksef-pdf sidecar
         env:
-          KSEF_PDF_IMAGE: europe-central2-docker.pkg.dev/au-ksef-ex/ksef-hub/ksef-pdf
+          KSEF_PDF_IMAGE: europe-west1-docker.pkg.dev/au-ksef-ex/ksef-hub/ksef-pdf
         run: |
           git clone --depth 1 --branch feature/html-output \
             https://github.com/emilwojtaszek/ksef-pdf-generator.git /tmp/ksef-pdf
