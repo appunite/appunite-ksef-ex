@@ -142,9 +142,15 @@ defmodule KsefHub.InboundEmail.ReplyNotifier do
       |> subject(subject)
       |> text_body(body)
 
-    case Keyword.get(opts, :cc) do
+    email =
+      case Keyword.get(opts, :cc) do
+        nil -> email
+        cc_addr -> cc(email, {cc_addr, cc_addr})
+      end
+
+    case Keyword.get(opts, :in_reply_to) do
       nil -> email
-      cc_addr -> cc(email, {cc_addr, cc_addr})
+      message_id -> header(email, "In-Reply-To", message_id) |> header("References", message_id)
     end
   end
 
@@ -165,18 +171,6 @@ defmodule KsefHub.InboundEmail.ReplyNotifier do
   defp invoice_url(nil), do: ""
 
   defp invoice_url(id) do
-    host =
-      :ksef_hub
-      |> Application.get_env(KsefHubWeb.Endpoint, [])
-      |> get_in([:url, :host])
-
-    if is_nil(host) do
-      Logger.warning(
-        "KsefHubWeb.Endpoint [:url, :host] not configured; " <>
-          "invoice URL will use fallback host for invoice #{id}"
-      )
-    end
-
-    "https://#{host || "ksef-hub.com"}/invoices/#{id}"
+    "#{KsefHubWeb.Endpoint.url()}/invoices/#{id}"
   end
 end

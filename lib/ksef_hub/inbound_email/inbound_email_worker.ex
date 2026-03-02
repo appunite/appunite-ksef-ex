@@ -112,7 +112,7 @@ defmodule KsefHub.InboundEmail.InboundEmailWorker do
           record.id
         )
 
-        send_reply(build_reply(reply_type, record.sender, invoice, reply_opts(company)), record)
+        send_reply(build_reply(reply_type, record.sender, invoice, reply_opts(company, record)), record)
         :ok
 
       {:error, reason} ->
@@ -145,7 +145,7 @@ defmodule KsefHub.InboundEmail.InboundEmailWorker do
       record.id
     )
 
-    opts = Keyword.merge(reply_opts(company), company_name: company.name, nip: company.nip)
+    opts = Keyword.merge(reply_opts(company, record), company_name: company.name, nip: company.nip)
     send_reply(ReplyNotifier.rejection(record.sender, reason, opts), record)
     :ok
   end
@@ -162,12 +162,18 @@ defmodule KsefHub.InboundEmail.InboundEmailWorker do
     end
   end
 
-  @spec reply_opts(Companies.Company.t()) :: keyword()
-  defp reply_opts(company) do
-    case company.inbound_cc_email do
-      nil -> []
-      "" -> []
-      cc -> [cc: cc]
+  @spec reply_opts(Companies.Company.t(), InboundEmail.InboundEmail.t()) :: keyword()
+  defp reply_opts(company, record) do
+    opts =
+      case company.inbound_cc_email do
+        nil -> []
+        "" -> []
+        cc -> [cc: cc]
+      end
+
+    case record.mailgun_message_id do
+      nil -> opts
+      msg_id -> Keyword.put(opts, :in_reply_to, msg_id)
     end
   end
 

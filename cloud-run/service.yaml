@@ -3,7 +3,7 @@ kind: Service
 metadata:
   name: ksef-hub
   labels:
-    cloud.googleapis.com/location: europe-central2
+    cloud.googleapis.com/location: europe-west1
   annotations:
     run.googleapis.com/launch-stage: BETA
 spec:
@@ -45,7 +45,7 @@ spec:
             - name: PHX_SERVER
               value: "true"
             - name: PHX_HOST
-              value: "ksef-hub.appunite.com"
+              value: "invoices.appunite.com"
             - name: KSEF_API_URL
               value: "https://api.ksef.mf.gov.pl"
             - name: PDF_RENDERER_URL
@@ -77,10 +77,33 @@ spec:
                 secretKeyRef:
                   key: latest
                   name: credential-encryption-key
+            - name: MAILGUN_DOMAIN
+              value: "mg.payroll.appunite.co"
+            - name: INBOUND_EMAIL_DOMAIN
+              value: "mg.payroll.appunite.co"
+            - name: INVOICE_EXTRACTOR_URL
+              value: "http://localhost:3002"
+            - name: INVOICE_CLASSIFIER_URL
+              value: "http://localhost:3003"
+            - name: MAILGUN_SIGNING_KEY
+              valueFrom:
+                secretKeyRef:
+                  key: latest
+                  name: mailgun-signing-key
+            - name: MAILGUN_API_KEY
+              valueFrom:
+                secretKeyRef:
+                  key: latest
+                  name: mailgun-api-key
+            - name: INVOICE_EXTRACTOR_API_TOKEN
+              valueFrom:
+                secretKeyRef:
+                  key: latest
+                  name: invoice-extractor-api-token
 
         # --- PDF renderer sidecar (PDF + HTML generation) ---
         - name: pdf-renderer
-          image: europe-central2-docker.pkg.dev/au-ksef-ex/ksef-hub/ksef-pdf:latest
+          image: europe-west1-docker.pkg.dev/au-ksef-ex/ksef-hub/ksef-pdf:latest
           resources:
             limits:
               memory: 256Mi
