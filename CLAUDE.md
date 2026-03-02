@@ -15,7 +15,7 @@ See `docs/prd.md` for full product requirements.
 | Auth (API) | Bearer API tokens (hashed, revocable) |
 | PDF renderer | pdf-renderer sidecar (ghcr.io/appunite/ksef-pdf) |
 | Invoice extractor | invoice-extractor sidecar (ghcr.io/appunite/au-ksef-unstructured) |
-| Invoice classifier | invoice-classifier sidecar (ghcr.io/appunite/au-payroll-model-categories) |
+| Invoice classifier | Separate Cloud Run service (ghcr.io/appunite/au-payroll-model-categories) |
 | XADES signing | xmlsec1 (CLI, called via System.cmd) |
 | Background jobs | Oban (async workers, 60-min sync cron) |
 | API docs | open_api_spex (OpenAPI 3.0 + SwaggerUI) |
@@ -181,7 +181,7 @@ defp ksef_client, do: Application.get_env(:ksef_hub, :ksef_client, KsefHub.KsefC
 
 **PDF Extraction:** Uploaded PDF (non-KSeF invoice) -> invoice-extractor sidecar -> structured JSON.
 
-**Invoice Classification (Oban, on expense creation):** New expense invoice -> ClassifierWorker -> invoice-classifier sidecar -> auto-assign category/tags.
+**Invoice Classification (Oban, on expense creation):** New expense invoice -> ClassifierWorker -> invoice-classifier service -> auto-assign category/tags.
 
 ## Code Style
 
@@ -471,8 +471,13 @@ end
 | `INVOICE_EXTRACTOR_URL` | Invoice extractor sidecar URL (e.g., `http://localhost:3002`) |
 | `INVOICE_EXTRACTOR_API_TOKEN` | Bearer token for invoice-extractor authentication |
 | `KSEF_API_URL` | KSeF v2 API URL (`https://api-test.ksef.mf.gov.pl` for test, `https://api.ksef.mf.gov.pl` for production) |
-| `INVOICE_CLASSIFIER_URL` | Invoice classifier sidecar URL (e.g., `http://localhost:3003`) |
+| `INVOICE_CLASSIFIER_URL` | Invoice classifier service URL (e.g., `http://localhost:3003` locally, `https://invoice-classifier-*.run.app` in prod) |
+| `INVOICE_CLASSIFIER_API_TOKEN` | Bearer token for invoice-classifier authentication |
 | `SYNC_INTERVAL_MINUTES` | KSeF sync cron interval in minutes (default: `60`) |
+| `INBOUND_EMAIL_DOMAIN` | Domain for inbound email addresses (e.g., `mg.payroll.appunite.co`) |
+| `MAILGUN_SIGNING_KEY` | Mailgun webhook signing key for verifying inbound emails |
+| `MAILGUN_API_KEY` | Mailgun API key for sending emails |
+| `MAILGUN_DOMAIN` | Mailgun sending domain (e.g., `mg.payroll.appunite.co`) |
 
 ## Useful References
 
