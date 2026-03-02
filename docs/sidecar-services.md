@@ -43,7 +43,7 @@ All public images are hosted on **GitHub Container Registry (ghcr.io)**:
 
 ### Cloud Run and ghcr.io
 
-Cloud Run **cannot pull directly from ghcr.io**. Sidecar images must be mirrored to GCP Artifact Registry:
+Cloud Run **cannot pull directly from ghcr.io**. All images (sidecars and separate services) must be mirrored to GCP Artifact Registry before deployment:
 
 ```bash
 # 1. Pull the amd64 image (required — Cloud Run only runs amd64/linux)
@@ -63,7 +63,7 @@ docker push europe-west1-docker.pkg.dev/au-ksef-ex/ksef-hub/invoice-extractor:la
 
 **Important:** If building on Apple Silicon (M-series), use `--platform linux/amd64` when pulling. ARM images will be rejected by Cloud Run.
 
-The invoice-classifier is deployed as a separate Cloud Run service and pulls its own image directly during deployment.
+The invoice-classifier is deployed as a separate Cloud Run service. Its image must also be mirrored from ghcr.io to Artifact Registry before deployment (Cloud Run cannot pull from ghcr.io regardless of whether the service is a sidecar or standalone).
 
 ## Environment Variables
 
@@ -106,7 +106,7 @@ Sensitive values are stored in Secret Manager and mounted as env vars in Cloud R
 | `mailgun-signing-key` | `MAILGUN_SIGNING_KEY` | ksef-hub |
 | `mailgun-api-key` | `MAILGUN_API_KEY` | ksef-hub |
 | `invoice-extractor-api-token` | `INVOICE_EXTRACTOR_API_TOKEN` / `API_TOKEN` | ksef-hub + extractor sidecar |
-| `invoice-classifier-api-token` | `INVOICE_CLASSIFIER_API_TOKEN` | ksef-hub |
+| `invoice-classifier-api-token` | `INVOICE_CLASSIFIER_API_TOKEN` / `API_TOKEN` | ksef-hub + classifier service |
 | `anthropic-api-key` | `ANTHROPIC_API_KEY` | extractor sidecar |
 
 ## Running Locally

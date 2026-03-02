@@ -6,6 +6,7 @@ defmodule KsefHubWeb.ExportController do
   import KsefHubWeb.AuthHelpers, only: [resolve_role: 2]
   import KsefHubWeb.FilenameHelpers, only: [send_attachment: 4]
 
+  alias KsefHub.Companies
   alias KsefHub.Exports
 
   @doc "Downloads the ZIP file for a completed export batch."
@@ -13,7 +14,7 @@ defmodule KsefHubWeb.ExportController do
   def download(conn, %{"id" => batch_id}) do
     user_id = conn.assigns.current_user.id
 
-    case get_session(conn, :current_company_id) do
+    case get_session(conn, :current_company_id) || Companies.first_company_id_for_user(user_id) do
       nil ->
         conn
         |> put_flash(:error, "Please select a company first.")

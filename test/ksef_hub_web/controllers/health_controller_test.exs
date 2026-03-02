@@ -38,10 +38,11 @@ defmodule KsefHubWeb.HealthControllerTest do
 
       conn = get(conn, ~p"/healthz/services")
 
-      body = json_response(conn, 503)
-      assert body["pdf_renderer"] == "ok"
-      assert body["invoice_extractor"] != "ok"
-      assert body["invoice_classifier"] == "ok"
+      assert json_response(conn, 503) == %{
+               "pdf_renderer" => "ok",
+               "invoice_extractor" => "unhealthy",
+               "invoice_classifier" => "ok"
+             }
     end
 
     test "returns 503 when a service is not configured", %{conn: conn} do
@@ -56,7 +57,11 @@ defmodule KsefHubWeb.HealthControllerTest do
 
       conn = get(conn, ~p"/healthz/services")
 
-      assert conn.status == 503
+      assert json_response(conn, 503) == %{
+               "pdf_renderer" => "unhealthy",
+               "invoice_extractor" => "unhealthy",
+               "invoice_classifier" => "unhealthy"
+             }
     end
   end
 end

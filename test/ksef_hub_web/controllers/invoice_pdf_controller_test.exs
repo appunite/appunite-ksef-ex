@@ -130,4 +130,57 @@ defmodule KsefHubWeb.InvoicePdfControllerTest do
       assert Phoenix.Flash.get(conn.assigns.flash, :error) =~ "No PDF or XML"
     end
   end
+
+  describe "show/2 inline (iframe preview)" do
+    test "returns inline error when no company in session", %{conn: conn, user: user} do
+      # Create user with no companies
+      {:ok, lonely_user} =
+        Accounts.get_or_create_google_user(%{
+          uid: "g-lonely-#{System.unique_integer([:positive])}",
+          email: "lonely@example.com",
+          name: "No Company"
+        })
+
+      conn =
+        conn
+        |> recycle()
+        |> log_in_user(lonely_user)
+        |> get(~p"/invoices/#{Ecto.UUID.generate()}/pdf?inline=1")
+
+      assert conn.status == 400
+      assert conn.resp_body =~ "select a company"
+    end
+
+    test "returns inline error when invoice not found", %{conn: conn} do
+      conn = get(conn, ~p"/invoices/#{Ecto.UUID.generate()}/pdf?inline=1")
+
+      assert conn.status == 404
+      assert conn.resp_body =~ "not found"
+    end
+
+    test "returns inline error when no PDF or XML content", %{conn: conn, company: company} do
+      invoice = insert(:manual_invoice, company: company)
+
+      conn = get(conn, ~p"/invoices/#{invoice.id}/pdf?inline=1")
+
+      assert conn.status == 422
+      assert conn.resp_body =~ "No PDF or XML"
+    end
+
+    test "returns inline error when PDF generation fails", %{conn: conn, company: company} do
+      xml_file =
+        insert(:file, content: "<Faktura>test</Faktura>", content_type: "application/xml")
+
+      invoice = insert(:invoice, company: company, xml_file: xml_file)
+
+      expect(KsefHub.PdfRenderer.Mock, :generate_pdf, fn _xml, _meta ->
+        {:error, :renderer_unavailable}
+      end)
+
+      conn = get(conn, ~p"/invoices/#{invoice.id}/pdf?inline=1")
+
+      assert conn.status == 422
+      assert conn.resp_body =~ "PDF generation failed"
+    end
+  end
 end

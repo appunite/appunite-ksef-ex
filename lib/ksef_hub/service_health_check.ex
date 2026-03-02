@@ -10,6 +10,8 @@ defmodule KsefHub.ServiceHealthCheck do
 
   require Logger
 
+  alias KsefHub.ServiceHealth
+
   @delay_ms 5_000
 
   @spec start_link(keyword()) :: {:ok, pid()}
@@ -21,38 +23,11 @@ defmodule KsefHub.ServiceHealthCheck do
   def run do
     Process.sleep(@delay_ms)
 
-    services = [
-      {:pdf_renderer, &pdf_renderer().health/0},
-      {:invoice_extractor, &invoice_extractor().health/0},
-      {:invoice_classifier, &invoice_classifier().health/0}
-    ]
-
-    results =
-      services
-      |> Task.async_stream(
-        fn {name, check_fn} -> {name, safe_check(check_fn)} end,
-        timeout: 10_000,
-        on_timeout: :kill_task
-      )
-      |> Enum.map(fn
-        {:ok, result} -> result
-        {:exit, _} -> {:unknown, {:error, :timeout}}
-      end)
-
-    log_results(results)
+    ServiceHealth.check_all()
+    |> log_results()
   end
 
-  @spec safe_check((-> {:ok, map()} | {:error, term()})) :: :ok | {:error, term()}
-  defp safe_check(check_fn) do
-    case check_fn.() do
-      {:ok, _} -> :ok
-      {:error, reason} -> {:error, reason}
-    end
-  rescue
-    e -> {:error, Exception.message(e)}
-  end
-
-  @spec log_results([{atom(), :ok | {:error, term()}}]) :: :ok
+  @spec log_results(ServiceHealth.results()) :: :ok
   defp log_results(results) do
     {healthy, unhealthy} = Enum.split_with(results, fn {_, status} -> status == :ok end)
 
@@ -61,7 +36,7 @@ defmodule KsefHub.ServiceHealthCheck do
     end
 
     for {name, {:error, reason}} <- unhealthy do
-      Logger.warning("[ServiceHealthCheck] #{name}: FAILED (#{inspect(reason)})")
+      Logger.warning("[ServiceHealthCheck] #{name}: FAILED (#{sanitize_reason(reason)})")
     end
 
     if unhealthy == [] do
@@ -74,15 +49,19 @@ defmodule KsefHub.ServiceHealthCheck do
     :ok
   end
 
-  @spec pdf_renderer() :: module()
-  defp pdf_renderer,
-    do: Application.get_env(:ksef_hub, :pdf_renderer, KsefHub.PdfRenderer.Client)
+  @spec sanitize_reason(term()) :: String.t()
+  defp sanitize_reason(:timeout), do: "timeout"
+  defp sanitize_reason(:econnrefused), do: "connection_refused"
+  defp sanitize_reason(:nxdomain), do: "dns_not_found"
+  defp sanitize_reason({:ssl, _}), do: "ssl_error"
 
-  @spec invoice_extractor() :: module()
-  defp invoice_extractor,
-    do: Application.get_env(:ksef_hub, :invoice_extractor, KsefHub.InvoiceExtractor.Client)
+  defp sanitize_reason({tag, status})
+       when tag in [:pdf_renderer_error, :extractor_error, :classifier_error] and
+              is_integer(status),
+       do: "http_#{status}"
 
-  @spec invoice_classifier() :: module()
-  defp invoice_classifier,
-    do: Application.get_env(:ksef_hub, :invoice_classifier, KsefHub.InvoiceClassifier.Client)
+  defp sanitize_reason({:request_failed, inner}), do: "request_failed:#{sanitize_reason(inner)}"
+  defp sanitize_reason(atom) when is_atom(atom), do: Atom.to_string(atom)
+  defp sanitize_reason(msg) when is_binary(msg), do: "error"
+  defp sanitize_reason(_), do: "unknown_error"
 end

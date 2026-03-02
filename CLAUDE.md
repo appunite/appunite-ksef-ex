@@ -30,7 +30,7 @@ lib/
 │   ├── invoices/                 # Invoice context (income + expense)
 │   ├── credentials/              # Certificate storage & encryption
 │   ├── ksef_client/              # KSeF API client (auth, query, download)
-│   ├── invoice_classifier/       # ML classification sidecar client + Oban worker
+│   ├── invoice_classifier/       # ML classification service client + Oban worker
 │   ├── invoice_extractor/        # PDF extraction via invoice-extractor sidecar
 │   ├── pdf_renderer/             # PDF/HTML generation via pdf-renderer sidecar
 │   ├── sync_worker.ex            # GenServer — 60-min sync cron
@@ -138,7 +138,7 @@ Phoenix contexts are the primary boundaries. Each context owns its schema, queri
 | `KsefHub.KsefClient` | All KSeF API communication (auth, query, download) |
 | `KsefHub.PdfRenderer` | PDF and HTML generation via pdf-renderer sidecar |
 | `KsefHub.InvoiceExtractor` | PDF → structured JSON extraction via invoice-extractor sidecar |
-| `KsefHub.InvoiceClassifier` | ML-based category/tag classification via invoice-classifier sidecar |
+| `KsefHub.InvoiceClassifier` | ML-based category/tag classification via invoice-classifier service |
 | `KsefHub.Accounts` | API token generation, validation, usage tracking |
 
 ### Dependency Injection with Behaviours

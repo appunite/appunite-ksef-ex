@@ -37,7 +37,8 @@ defmodule KsefHub.PdfRenderer.Client do
   @impl true
   def health do
     with {:ok, base_url} <- fetch_url() do
-      case Req.get("#{base_url}/health", receive_timeout: @receive_timeout) do
+      case Req.new(base_url: base_url, receive_timeout: @receive_timeout)
+           |> Req.get(url: "/health") do
         {:ok, %{status: 200, body: body}} when is_map(body) ->
           {:ok, body}
 

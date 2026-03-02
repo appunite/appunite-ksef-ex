@@ -10,6 +10,7 @@ defmodule KsefHubWeb.InvoicePdfController do
   import KsefHubWeb.FilenameHelpers, only: [send_attachment: 4, send_inline: 4]
   import KsefHubWeb.AuthHelpers, only: [resolve_role: 2]
 
+  alias KsefHub.Companies
   alias KsefHub.Invoices
 
   @doc "Downloads the raw FA(3) XML of the invoice."
@@ -49,7 +50,8 @@ defmodule KsefHubWeb.InvoicePdfController do
     user_id = user && user.id
 
     with {:company, company_id} when not is_nil(company_id) <-
-           {:company, get_session(conn, :current_company_id) || first_company_id(user_id)},
+           {:company,
+            get_session(conn, :current_company_id) || Companies.first_company_id_for_user(user_id)},
          role <- resolve_role(user_id, company_id),
          {:invoice, %{} = invoice} <-
            {:invoice, Invoices.get_invoice_with_details(company_id, id, role: role)} do
@@ -57,7 +59,7 @@ defmodule KsefHubWeb.InvoicePdfController do
     else
       {:company, nil} ->
         if inline? do
-          send_inline_error(conn, "Please select a company first.")
+          send_inline_error(conn, 400, "Please select a company first.")
         else
           conn
           |> put_flash(:error, "Please select a company first.")
@@ -66,7 +68,7 @@ defmodule KsefHubWeb.InvoicePdfController do
 
       {:invoice, nil} ->
         if inline? do
-          send_inline_error(conn, "Invoice not found.")
+          send_inline_error(conn, 404, "Invoice not found.")
         else
           conn
           |> put_flash(:error, "Invoice not found.")
@@ -96,7 +98,7 @@ defmodule KsefHubWeb.InvoicePdfController do
 
   defp send_pdf(conn, invoice, inline?) do
     if inline? do
-      send_inline_error(conn, "No PDF or XML content available.")
+      send_inline_error(conn, 422, "No PDF or XML content available.")
     else
       conn
       |> put_flash(:error, "No PDF or XML content available for this invoice.")
@@ -126,7 +128,8 @@ defmodule KsefHubWeb.InvoicePdfController do
   end
 
   @spec pdf_error_response(Plug.Conn.t(), map(), boolean(), String.t()) :: Plug.Conn.t()
-  defp pdf_error_response(conn, _invoice, true, message), do: send_inline_error(conn, message)
+  defp pdf_error_response(conn, _invoice, true, message),
+    do: send_inline_error(conn, 422, message)
 
   defp pdf_error_response(conn, invoice, false, message) do
     conn
@@ -134,23 +137,15 @@ defmodule KsefHubWeb.InvoicePdfController do
     |> redirect(to: ~p"/invoices/#{invoice.id}")
   end
 
-  @spec first_company_id(String.t() | nil) :: String.t() | nil
-  defp first_company_id(nil), do: nil
+  @spec send_inline_error(Plug.Conn.t(), integer(), String.t()) :: Plug.Conn.t()
+  defp send_inline_error(conn, status, message) do
+    escaped = Plug.HTML.html_escape(message)
 
-  defp first_company_id(user_id) do
-    case KsefHub.Companies.list_companies_for_user(user_id) do
-      [%{id: id} | _] -> id
-      _ -> nil
-    end
-  end
-
-  @spec send_inline_error(Plug.Conn.t(), String.t()) :: Plug.Conn.t()
-  defp send_inline_error(conn, message) do
     conn
     |> put_resp_content_type("text/html")
-    |> send_resp(200, """
+    |> send_resp(status, """
     <html><body style="display:flex;align-items:center;justify-content:center;height:100%;margin:0;font-family:sans-serif;color:#666;">
-    <p>#{message}</p>
+    <p>#{escaped}</p>
     </body></html>
     """)
   end
