@@ -133,13 +133,48 @@ defmodule KsefHub.InboundEmail.ReplyNotifier do
     build_email(sender, "Invoice rejected — not a PDF", body, opts)
   end
 
+  @doc "Builds an error reply email when invoice creation fails."
+  @spec error(String.t(), term(), keyword()) :: Swoosh.Email.t()
+  def error(sender, reason, opts \\ []) do
+    detail = format_error_detail(reason)
+
+    body = """
+
+    ==============================
+
+    Your invoice could not be processed due to a system error.
+    #{detail}
+    Please try uploading the invoice manually or contact support.
+
+    ==============================
+    """
+
+    build_email(sender, "Invoice processing failed", body, opts)
+  end
+
+  @spec format_error_detail(term()) :: String.t()
+  defp format_error_detail(%Ecto.Changeset{} = changeset) do
+    errors =
+      Ecto.Changeset.traverse_errors(changeset, fn {msg, opts} ->
+        Regex.replace(~r"%{(\w+)}", msg, fn _, key ->
+          opts |> Keyword.get(String.to_existing_atom(key), key) |> to_string()
+        end)
+      end)
+
+    "Details: #{inspect(errors)}"
+  end
+
+  defp format_error_detail(_reason), do: ""
+
   @spec build_email(String.t(), String.t(), String.t(), keyword()) :: Swoosh.Email.t()
   defp build_email(sender, subject, body, opts) do
+    reply_subject = threading_subject(subject, Keyword.get(opts, :original_subject))
+
     email =
       new()
       |> to({sender, sender})
       |> from(from_email())
-      |> subject(subject)
+      |> subject(reply_subject)
       |> text_body(body)
 
     email =
@@ -154,15 +189,42 @@ defmodule KsefHub.InboundEmail.ReplyNotifier do
     end
   end
 
+  # Use "Re: <original_subject>" for threading when available.
+  @spec threading_subject(String.t(), String.t() | nil) :: String.t()
+  defp threading_subject(fallback, nil), do: fallback
+  defp threading_subject(fallback, ""), do: fallback
+
+  defp threading_subject(_fallback, original) do
+    if String.starts_with?(original, "Re:") do
+      original
+    else
+      "Re: #{original}"
+    end
+  end
+
   @spec maybe_add_threading_headers(Swoosh.Email.t(), String.t()) :: Swoosh.Email.t()
   defp maybe_add_threading_headers(email, message_id) do
-    if valid_message_id?(message_id) do
+    normalized = normalize_message_id(message_id)
+
+    if valid_message_id?(normalized) do
       email
-      |> header("In-Reply-To", message_id)
-      |> header("References", message_id)
+      |> header("In-Reply-To", normalized)
+      |> header("References", normalized)
     else
       Logger.warning("Skipping invalid Message-Id for threading: #{inspect(message_id)}")
       email
+    end
+  end
+
+  # Ensure Message-Id is wrapped in angle brackets per RFC 5322.
+  @spec normalize_message_id(String.t()) :: String.t()
+  defp normalize_message_id(id) do
+    trimmed = String.trim(id)
+
+    if String.starts_with?(trimmed, "<") do
+      trimmed
+    else
+      "<#{trimmed}>"
     end
   end
 
@@ -183,7 +245,13 @@ defmodule KsefHub.InboundEmail.ReplyNotifier do
 
   @spec from_email() :: {String.t(), String.t()}
   defp from_email do
-    Application.get_env(:ksef_hub, :mailer_from, {"KSeF Hub", "noreply@ksef-hub.com"})
+    case Application.get_env(:ksef_hub, :inbound_email_domain) do
+      domain when is_binary(domain) and domain != "" ->
+        {"Invoi", "noreply@#{domain}"}
+
+      _ ->
+        Application.get_env(:ksef_hub, :mailer_from, {"Invoi", "noreply@ksef-hub.com"})
+    end
   end
 
   @spec invoice_url(Ecto.UUID.t() | nil) :: String.t()

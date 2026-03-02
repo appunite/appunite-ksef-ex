@@ -124,6 +124,8 @@ defmodule KsefHub.InboundEmail.InboundEmailWorker do
           record.id
         )
 
+        opts = reply_opts(company, record)
+        send_reply(ReplyNotifier.error(record.sender, reason, opts), record)
         :ok
     end
   end
@@ -174,9 +176,16 @@ defmodule KsefHub.InboundEmail.InboundEmailWorker do
         cc -> [cc: cc]
       end
 
-    case record.mailgun_message_id do
+    opts =
+      case record.mailgun_message_id do
+        nil -> opts
+        msg_id -> Keyword.put(opts, :in_reply_to, msg_id)
+      end
+
+    case record.subject do
       nil -> opts
-      msg_id -> Keyword.put(opts, :in_reply_to, msg_id)
+      "" -> opts
+      subject -> Keyword.put(opts, :original_subject, subject)
     end
   end
 

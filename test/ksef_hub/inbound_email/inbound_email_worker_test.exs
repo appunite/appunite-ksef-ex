@@ -141,6 +141,31 @@ defmodule KsefHub.InboundEmail.InboundEmailWorkerTest do
       assert updated.error_message =~ "doesn't match"
     end
 
+    test "creates invoice with foreign (non-Polish) seller NIP", %{company: company} do
+      record = create_inbound_email(company)
+
+      KsefHub.InvoiceExtractor.Mock
+      |> expect(:extract, fn _pdf, _opts ->
+        {:ok,
+         %{
+           "seller_nip" => "FR61823475082",
+           "seller_name" => "LEMPIRE SAS",
+           "buyer_nip" => "1234567890",
+           "buyer_name" => "Buyer S.A.",
+           "invoice_number" => "FA-2026-001",
+           "issue_date" => "2026-02-15",
+           "net_amount" => "500.00",
+           "gross_amount" => "600.00"
+         }}
+      end)
+
+      assert :ok = perform_job(record.id, company.id)
+
+      updated = InboundEmail.get_inbound_email!(record.id)
+      assert updated.status == :completed
+      assert updated.invoice_id != nil
+    end
+
     test "cancels when inbound email record not found" do
       assert {:cancel, "inbound email not found"} =
                perform_job(Ecto.UUID.generate(), Ecto.UUID.generate())

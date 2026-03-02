@@ -976,10 +976,19 @@ defmodule KsefHub.InvoicesTest do
       assert updated.extraction_status == :partial
     end
 
-    test "returns error changeset for invalid NIP", %{company: company} do
+    test "accepts foreign tax ID in seller_nip", %{company: company} do
       invoice = insert(:invoice, company: company)
 
-      attrs = %{"seller_nip" => "abc"}
+      attrs = %{"seller_nip" => "FR61823475082"}
+
+      assert {:ok, updated} = Invoices.update_invoice_fields(invoice, attrs)
+      assert updated.seller_nip == "FR61823475082"
+    end
+
+    test "rejects seller_nip exceeding max length", %{company: company} do
+      invoice = insert(:invoice, company: company)
+
+      attrs = %{"seller_nip" => String.duplicate("1", 51)}
 
       assert {:error, changeset} = Invoices.update_invoice_fields(invoice, attrs)
       assert errors_on(changeset).seller_nip
@@ -1053,6 +1062,30 @@ defmodule KsefHub.InvoicesTest do
       assert invoice.type == :expense
       assert invoice.extraction_status == :failed
       assert invoice.original_filename == "bad.pdf"
+    end
+
+    test "creates invoice with foreign (non-Polish) seller NIP", %{company: company} do
+      pdf_binary = "%PDF-1.4 fake french invoice"
+
+      extracted = %{
+        "seller_nip" => "FR61823475082",
+        "seller_name" => "LEMPIRE SAS",
+        "buyer_nip" => company.nip,
+        "buyer_name" => "Buyer S.A.",
+        "invoice_number" => "FA-2026-001",
+        "issue_date" => "2026-02-15",
+        "net_amount" => "500.00",
+        "gross_amount" => "600.00"
+      }
+
+      assert {:ok, invoice} =
+               Invoices.create_email_invoice(company.id, pdf_binary, extracted,
+                 filename: "french_invoice.pdf"
+               )
+
+      assert invoice.source == :email
+      assert invoice.seller_nip == "FR61823475082"
+      assert invoice.seller_name == "LEMPIRE SAS"
     end
   end
 

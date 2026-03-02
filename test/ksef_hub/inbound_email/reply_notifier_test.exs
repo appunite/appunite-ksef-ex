@@ -37,6 +37,23 @@ defmodule KsefHub.InboundEmail.ReplyNotifierTest do
       assert email.headers["References"] == msg_id
     end
 
+    test "normalizes bare message-id by adding angle brackets" do
+      invoice = %{id: "abc", invoice_number: "FV/1", seller_name: "Seller"}
+      email = ReplyNotifier.success(@sender, invoice, in_reply_to: "msg-id@mailgun.org")
+
+      assert email.headers["In-Reply-To"] == "<msg-id@mailgun.org>"
+      assert email.headers["References"] == "<msg-id@mailgun.org>"
+    end
+
+    test "uses Re: original_subject for threading when provided" do
+      invoice = %{id: "abc", invoice_number: "FV/1", seller_name: "Seller"}
+
+      email =
+        ReplyNotifier.success(@sender, invoice, original_subject: "Invoice for February 2026")
+
+      assert email.subject == "Re: Invoice for February 2026"
+    end
+
     test "omits threading headers when in_reply_to is not provided" do
       invoice = %{id: "abc", invoice_number: "FV/1", seller_name: "Seller"}
       email = ReplyNotifier.success(@sender, invoice)
@@ -59,6 +76,25 @@ defmodule KsefHub.InboundEmail.ReplyNotifierTest do
       invoice = %{id: "abc-123"}
       email = ReplyNotifier.needs_review(@sender, invoice)
       assert email.text_body =~ "needs human review"
+    end
+  end
+
+  describe "error/3" do
+    test "builds error email for processing failure" do
+      email = ReplyNotifier.error(@sender, :some_reason)
+      assert email.to == [{@sender, @sender}]
+      assert email.subject =~ "processing failed"
+      assert email.text_body =~ "system error"
+    end
+
+    test "includes changeset error details" do
+      changeset = %Ecto.Changeset{
+        errors: [seller_nip: {"must be a 10-digit NIP", [validation: :format]}],
+        valid?: false
+      }
+
+      email = ReplyNotifier.error(@sender, changeset)
+      assert email.text_body =~ "seller_nip"
     end
   end
 
