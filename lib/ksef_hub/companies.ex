@@ -75,6 +75,18 @@ defmodule KsefHub.Companies do
     |> Repo.all()
   end
 
+  @doc "Returns the first company ID for a user, or nil if the user has no companies."
+  @spec first_company_id_for_user(Ecto.UUID.t()) :: Ecto.UUID.t() | nil
+  def first_company_id_for_user(user_id) do
+    Membership
+    |> where([m], m.user_id == ^user_id)
+    |> join(:inner, [m], c in Company, on: c.id == m.company_id and c.is_active == true)
+    |> order_by([m, c], asc: c.name, asc: c.id)
+    |> select([m, c], c.id)
+    |> limit(1)
+    |> Repo.one()
+  end
+
   @doc "Fetches a company by ID, raising if not found."
   @spec get_company!(Ecto.UUID.t()) :: Company.t()
   def get_company!(id), do: Repo.get!(Company, id)

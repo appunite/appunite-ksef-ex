@@ -68,6 +68,10 @@ if invoice_classifier_url = System.get_env("INVOICE_CLASSIFIER_URL") do
   config :ksef_hub, :invoice_classifier_url, invoice_classifier_url
 end
 
+if invoice_classifier_api_token = System.get_env("INVOICE_CLASSIFIER_API_TOKEN") do
+  config :ksef_hub, :invoice_classifier_api_token, invoice_classifier_api_token
+end
+
 if sync_interval_env = System.get_env("SYNC_INTERVAL_MINUTES") do
   valid_intervals = [1, 2, 3, 4, 5, 6, 10, 12, 15, 20, 30, 60]
 

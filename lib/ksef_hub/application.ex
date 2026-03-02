@@ -20,7 +20,8 @@ defmodule KsefHub.Application do
       {Registry, keys: :unique, name: KsefHub.TokenManagerRegistry},
       {DynamicSupervisor, name: KsefHub.TokenManagerSupervisor, strategy: :one_for_one},
       {Oban, Application.fetch_env!(:ksef_hub, Oban)},
-      KsefHubWeb.Endpoint
+      KsefHubWeb.Endpoint,
+      KsefHub.ServiceHealthCheck
     ]
 
     # See https://hexdocs.pm/elixir/Supervisor.html

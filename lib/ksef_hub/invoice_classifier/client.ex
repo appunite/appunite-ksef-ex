@@ -83,8 +83,24 @@ defmodule KsefHub.InvoiceClassifier.Client do
 
   @spec build_req(String.t()) :: Req.Request.t()
   defp build_req(base_url) do
-    [base_url: base_url, receive_timeout: @receive_timeout]
-    |> Keyword.merge(Application.get_env(:ksef_hub, :invoice_classifier_req_options, []))
+    req_options = Application.get_env(:ksef_hub, :invoice_classifier_req_options, [])
+    {extra_headers, req_options} = Keyword.pop(req_options, :headers, [])
+
+    auth_headers =
+      case Application.get_env(:ksef_hub, :invoice_classifier_api_token) do
+        token when is_binary(token) and token != "" ->
+          [{"authorization", "Bearer #{token}"}]
+
+        _ ->
+          []
+      end
+
+    [
+      base_url: base_url,
+      receive_timeout: @receive_timeout,
+      headers: auth_headers ++ extra_headers
+    ]
+    |> Keyword.merge(req_options)
     |> Req.new()
   end
 end
