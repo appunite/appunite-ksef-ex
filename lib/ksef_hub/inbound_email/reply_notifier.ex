@@ -202,11 +202,11 @@ defmodule KsefHub.InboundEmail.ReplyNotifier do
 
   defp format_error_detail(_reason), do: ""
 
-  @spec safe_to_atom(String.t()) :: atom()
+  @spec safe_to_atom(String.t()) :: atom() | String.t()
   defp safe_to_atom(key) do
     String.to_existing_atom(key)
   rescue
-    ArgumentError -> String.to_atom(key)
+    ArgumentError -> key
   end
 
   @spec build_email(String.t(), String.t(), String.t(), keyword()) :: Swoosh.Email.t()
