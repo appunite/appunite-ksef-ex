@@ -7,4 +7,5 @@ defmodule KsefHub.PdfRenderer.Behaviour do
               {:ok, String.t()} | {:error, term()}
   @callback generate_pdf(xml_content :: String.t(), metadata :: map()) ::
               {:ok, binary()} | {:error, term()}
+  @callback health() :: {:ok, map()} | {:error, term()}
 end

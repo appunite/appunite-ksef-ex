@@ -30,6 +30,7 @@ defmodule KsefHubWeb.Router do
   # Health check (no pipeline — used by Cloud Run probes)
   scope "/healthz" do
     get "/", KsefHubWeb.HealthController, :index
+    get "/services", KsefHubWeb.HealthController, :services
   end
 
   # Webhook routes (no CSRF, no session, no auth — signature-verified)

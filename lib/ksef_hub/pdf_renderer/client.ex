@@ -32,6 +32,27 @@ defmodule KsefHub.PdfRenderer.Client do
     post("/generate/html", xml_content, metadata)
   end
 
+  @doc "Checks the health of the PDF renderer service."
+  @spec health() :: {:ok, map()} | {:error, term()}
+  @impl true
+  def health do
+    with {:ok, base_url} <- fetch_url() do
+      case Req.get("#{base_url}/health", receive_timeout: @receive_timeout) do
+        {:ok, %{status: 200, body: body}} when is_map(body) ->
+          {:ok, body}
+
+        {:ok, %{status: 200, body: body}} when is_binary(body) ->
+          {:ok, %{"status" => "ok", "raw" => body}}
+
+        {:ok, %{status: status}} ->
+          {:error, {:pdf_renderer_error, status}}
+
+        {:error, reason} ->
+          {:error, {:request_failed, reason}}
+      end
+    end
+  end
+
   @spec post(String.t(), String.t(), map()) :: {:ok, binary()} | {:error, term()}
   defp post(path, xml_content, metadata) do
     with {:ok, base_url} <- fetch_url() do

@@ -27,4 +27,9 @@ defmodule KsefHub.PdfRenderer do
   def generate_pdf(xml_content, metadata \\ %{}) do
     Client.generate_pdf(xml_content, metadata)
   end
+
+  @doc "Checks the health of the PDF renderer service."
+  @spec health() :: {:ok, map()} | {:error, term()}
+  @impl true
+  def health, do: Client.health()
 end
