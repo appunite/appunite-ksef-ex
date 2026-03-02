@@ -7,11 +7,12 @@ defmodule KsefHub.Invoices do
 
   require Logger
 
+  alias KsefHub.Accounts.User
   alias KsefHub.Companies.{Company, Membership}
   alias KsefHub.Files
   alias KsefHub.InvoiceClassifier.Worker, as: ClassifierWorker
   alias KsefHub.InvoiceExtractor.ContextBuilder
-  alias KsefHub.Invoices.{Category, Invoice, InvoiceTag, Tag}
+  alias KsefHub.Invoices.{Category, Invoice, InvoiceComment, InvoiceTag, Tag}
   alias KsefHub.Repo
 
   @max_per_page 100
@@ -1032,6 +1033,71 @@ defmodule KsefHub.Invoices do
     case invoice_id |> InvoiceTag.changeset(tag_id) |> Repo.insert() do
       {:ok, _} -> :ok
       {:error, changeset} -> Repo.rollback(changeset)
+    end
+  end
+
+  # --- Invoice Notes ---
+
+  @doc "Updates the note on an invoice."
+  @spec update_invoice_note(Invoice.t(), map()) ::
+          {:ok, Invoice.t()} | {:error, Ecto.Changeset.t()}
+  def update_invoice_note(%Invoice{} = invoice, attrs) do
+    invoice
+    |> Invoice.note_changeset(attrs)
+    |> Repo.update()
+  end
+
+  # --- Invoice Comments ---
+
+  @doc "Lists comments for an invoice, ordered by insertion time ascending, with user preloaded."
+  @spec list_invoice_comments(Ecto.UUID.t()) :: [InvoiceComment.t()]
+  def list_invoice_comments(invoice_id) do
+    InvoiceComment
+    |> where([c], c.invoice_id == ^invoice_id)
+    |> order_by([c], asc: c.inserted_at, asc: c.id)
+    |> preload(:user)
+    |> Repo.all()
+  end
+
+  @doc "Creates a comment on an invoice and returns it with user preloaded."
+  @spec create_invoice_comment(Ecto.UUID.t(), Ecto.UUID.t(), map()) ::
+          {:ok, InvoiceComment.t()} | {:error, Ecto.Changeset.t()}
+  def create_invoice_comment(invoice_id, user_id, attrs) do
+    %InvoiceComment{}
+    |> Ecto.Changeset.change(%{invoice_id: invoice_id, user_id: user_id})
+    |> InvoiceComment.changeset(attrs)
+    |> Repo.insert()
+    |> case do
+      {:ok, comment} -> {:ok, Repo.preload(comment, :user)}
+      error -> error
+    end
+  end
+
+  @doc "Updates an existing comment's body. Returns {:error, :unauthorized} if the user doesn't own the comment."
+  @spec update_invoice_comment(InvoiceComment.t(), User.t(), map()) ::
+          {:ok, InvoiceComment.t()} | {:error, :unauthorized} | {:error, Ecto.Changeset.t()}
+  def update_invoice_comment(%InvoiceComment{} = comment, %User{} = user, attrs) do
+    if comment.user_id != user.id do
+      {:error, :unauthorized}
+    else
+      comment
+      |> InvoiceComment.changeset(attrs)
+      |> Repo.update()
+      |> case do
+        {:ok, comment} -> {:ok, Repo.preload(comment, :user)}
+        error -> error
+      end
+    end
+  end
+
+  @doc "Deletes a comment. Returns {:error, :unauthorized} if the user doesn't own the comment."
+  @spec delete_invoice_comment(InvoiceComment.t(), User.t()) ::
+          {:ok, InvoiceComment.t()} | {:error, :unauthorized} | {:error, Ecto.Changeset.t()}
+  def delete_invoice_comment(%InvoiceComment{} = comment, %User{} = user) do
+    if comment.user_id != user.id do
+      {:error, :unauthorized}
+    else
+      Repo.delete(comment)
     end
   end
 

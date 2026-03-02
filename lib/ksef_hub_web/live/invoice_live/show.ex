@@ -62,7 +62,14 @@ defmodule KsefHubWeb.InvoiceLive.Show do
            new_tag_form: new_tag_form(),
            tag_form_key: 0,
            editing: auto_edit,
-           edit_form: build_edit_form(invoice)
+           edit_form: build_edit_form(invoice),
+           editing_note: false,
+           note_form: note_form(invoice),
+           comments: Invoices.list_invoice_comments(invoice.id),
+           comment_form: comment_form(),
+           comment_form_key: 0,
+           editing_comment_id: nil,
+           edit_comment_form: nil
          )}
     end
   end
@@ -283,6 +290,131 @@ defmodule KsefHubWeb.InvoiceLive.Show do
      )}
   end
 
+  # --- Events: Note ---
+
+  @impl true
+  def handle_event("edit_note", _params, socket) do
+    {:noreply, assign(socket, editing_note: true, note_form: note_form(socket.assigns.invoice))}
+  end
+
+  @impl true
+  def handle_event("save_note", %{"note" => note}, socket) do
+    case Invoices.update_invoice_note(socket.assigns.invoice, %{note: note}) do
+      {:ok, updated} ->
+        reloaded = reload_details(updated, socket)
+
+        {:noreply,
+         socket
+         |> assign(invoice: reloaded, editing_note: false, note_form: note_form(reloaded))}
+
+      {:error, changeset} ->
+        {:noreply,
+         socket
+         |> put_flash(:error, "Failed to save note.")
+         |> assign(
+           note_form: to_form(%{"note" => Ecto.Changeset.get_field(changeset, :note) || ""})
+         )}
+    end
+  end
+
+  @impl true
+  def handle_event("cancel_note", _params, socket) do
+    {:noreply, assign(socket, editing_note: false, note_form: note_form(socket.assigns.invoice))}
+  end
+
+  # --- Events: Comments ---
+
+  @impl true
+  def handle_event("submit_comment", %{"body" => body}, socket) do
+    case String.trim(body) do
+      "" ->
+        {:noreply, socket}
+
+      trimmed ->
+        user_id = socket.assigns.current_user.id
+        invoice_id = socket.assigns.invoice.id
+
+        case Invoices.create_invoice_comment(invoice_id, user_id, %{body: trimmed}) do
+          {:ok, _comment} ->
+            {:noreply,
+             socket
+             |> assign(
+               comments: Invoices.list_invoice_comments(invoice_id),
+               comment_form: comment_form(),
+               comment_form_key: socket.assigns.comment_form_key + 1
+             )}
+
+          {:error, _changeset} ->
+            {:noreply, put_flash(socket, :error, "Failed to add comment.")}
+        end
+    end
+  end
+
+  @impl true
+  def handle_event("edit_comment", %{"id" => comment_id}, socket) do
+    comment = Enum.find(socket.assigns.comments, &(&1.id == comment_id))
+
+    if comment && comment.user_id == socket.assigns.current_user.id do
+      {:noreply,
+       assign(socket,
+         editing_comment_id: comment_id,
+         edit_comment_form: to_form(%{"body" => comment.body})
+       )}
+    else
+      {:noreply, socket}
+    end
+  end
+
+  @impl true
+  def handle_event("save_comment_edit", %{"body" => body}, socket) do
+    trimmed = String.trim(body)
+    comment_id = socket.assigns.editing_comment_id
+    comment = Enum.find(socket.assigns.comments, &(&1.id == comment_id))
+
+    if trimmed == "" or is_nil(comment) or comment.user_id != socket.assigns.current_user.id do
+      {:noreply, socket}
+    else
+      case Invoices.update_invoice_comment(comment, socket.assigns.current_user, %{body: trimmed}) do
+        {:ok, _updated} ->
+          {:noreply,
+           socket
+           |> assign(
+             comments: Invoices.list_invoice_comments(socket.assigns.invoice.id),
+             editing_comment_id: nil,
+             edit_comment_form: nil
+           )}
+
+        {:error, _changeset} ->
+          {:noreply, put_flash(socket, :error, "Failed to update comment.")}
+      end
+    end
+  end
+
+  @impl true
+  def handle_event("cancel_comment_edit", _params, socket) do
+    {:noreply, assign(socket, editing_comment_id: nil, edit_comment_form: nil)}
+  end
+
+  @impl true
+  def handle_event("delete_comment", %{"id" => comment_id}, socket) do
+    comment = Enum.find(socket.assigns.comments, &(&1.id == comment_id))
+
+    if comment do
+      case Invoices.delete_invoice_comment(comment, socket.assigns.current_user) do
+        {:ok, _} ->
+          {:noreply,
+           assign(socket,
+             comments: Invoices.list_invoice_comments(socket.assigns.invoice.id)
+           )}
+
+        {:error, _} ->
+          {:noreply, put_flash(socket, :error, "Failed to delete comment.")}
+      end
+    else
+      {:noreply, socket}
+    end
+  end
+
   # --- Private ---
 
   @spec do_create_and_add_tag(Phoenix.LiveView.Socket.t(), String.t()) ::
@@ -321,6 +453,14 @@ defmodule KsefHubWeb.InvoiceLive.Show do
   defp category_form(invoice) do
     to_form(%{"category_id" => invoice.category_id || ""})
   end
+
+  @spec note_form(Invoice.t()) :: Phoenix.HTML.Form.t()
+  defp note_form(invoice) do
+    to_form(%{"note" => invoice.note || ""})
+  end
+
+  @spec comment_form() :: Phoenix.HTML.Form.t()
+  defp comment_form, do: to_form(%{"body" => ""})
 
   @spec new_tag_form() :: Phoenix.HTML.Form.t()
   defp new_tag_form, do: to_form(%{"name" => ""})
@@ -366,6 +506,20 @@ defmodule KsefHubWeb.InvoiceLive.Show do
   @spec tag_assigned?(Invoice.t(), String.t()) :: boolean()
   defp tag_assigned?(invoice, tag_id) do
     Enum.any?(invoice.tags, &(&1.id == tag_id))
+  end
+
+  @spec relative_time(NaiveDateTime.t()) :: String.t()
+  defp relative_time(naive_dt) do
+    now = NaiveDateTime.utc_now()
+    diff = NaiveDateTime.diff(now, naive_dt, :second)
+
+    cond do
+      diff < 60 -> "just now"
+      diff < 3600 -> "#{div(diff, 60)}m ago"
+      diff < 86_400 -> "#{div(diff, 3600)}h ago"
+      diff < 2_592_000 -> "#{div(diff, 86_400)}d ago"
+      true -> Calendar.strftime(naive_dt, "%Y-%m-%d")
+    end
   end
 
   # --- Render ---
@@ -632,15 +786,63 @@ defmodule KsefHubWeb.InvoiceLive.Show do
             </div>
           </div>
         </div>
+        <!-- Note Card -->
+        <div class="card bg-base-100 border border-base-300">
+          <div class="p-4">
+            <div class="flex items-center justify-between mb-2">
+              <h2 class="text-base font-semibold">Note</h2>
+              <button
+                :if={!@editing_note}
+                phx-click="edit_note"
+                class="btn btn-xs btn-ghost"
+                aria-label="Edit note"
+              >
+                <.icon name="hero-pencil-square" class="size-3.5" />
+              </button>
+            </div>
+            <%= if @editing_note do %>
+              <.form for={@note_form} phx-submit="save_note" class="space-y-2">
+                <textarea
+                  name={@note_form[:note].name}
+                  class="textarea textarea-bordered w-full text-sm"
+                  rows="8"
+                  placeholder="Add a note..."
+                  id="note-textarea"
+                  autofocus
+                >{@note_form[:note].value}</textarea>
+                <div class="flex gap-2">
+                  <button type="submit" class="btn btn-xs btn-primary">Save</button>
+                  <button type="button" phx-click="cancel_note" class="btn btn-xs btn-ghost">
+                    Cancel
+                  </button>
+                </div>
+              </.form>
+            <% else %>
+              <div
+                class={[
+                  "text-sm cursor-pointer hover:bg-base-200 rounded p-1 -m-1",
+                  !@invoice.note && "text-base-content/40 italic"
+                ]}
+                phx-click="edit_note"
+              >
+                <span :if={@invoice.note} class="whitespace-pre-line">{@invoice.note}</span>
+                <span :if={!@invoice.note}>No note</span>
+              </div>
+            <% end %>
+          </div>
+        </div>
       </div>
       <!-- Preview -->
-      <div class="card bg-base-100 border border-base-300">
-        <div class="p-4">
+      <div class="card bg-base-100 border border-base-300 h-full">
+        <div class="p-4 flex flex-col h-full">
           <h2 class="text-base font-semibold mb-2">Preview</h2>
-          <div :if={@html_preview} class="border border-base-300 rounded-lg overflow-hidden">
+          <div
+            :if={@html_preview}
+            class="border border-base-300 rounded-lg overflow-hidden flex-1 min-h-[600px]"
+          >
             <iframe
               srcdoc={@html_preview}
-              class="w-full h-[600px] bg-white"
+              class="w-full h-full bg-white"
               sandbox=""
               title="Invoice preview"
             >
@@ -648,11 +850,11 @@ defmodule KsefHubWeb.InvoiceLive.Show do
           </div>
           <div
             :if={!@html_preview && @invoice.pdf_file}
-            class="border border-base-300 rounded-lg overflow-hidden"
+            class="border border-base-300 rounded-lg overflow-hidden flex-1 min-h-[600px]"
           >
             <iframe
               src={~p"/invoices/#{@invoice.id}/pdf?inline=1"}
-              class="w-full h-[600px] bg-white"
+              class="w-full h-full bg-white"
               title="Invoice PDF preview"
             >
             </iframe>
@@ -664,6 +866,125 @@ defmodule KsefHubWeb.InvoiceLive.Show do
             No preview available. XML content may be missing.
           </p>
         </div>
+      </div>
+    </div>
+    <!-- Comments Section (below grid) -->
+    <div class="mt-6">
+      <.comments_card
+        comments={@comments}
+        comment_form={@comment_form}
+        comment_form_key={@comment_form_key}
+        editing_comment_id={@editing_comment_id}
+        edit_comment_form={@edit_comment_form}
+        current_user_id={@current_user.id}
+      />
+    </div>
+    """
+  end
+
+  attr :comments, :list, required: true
+  attr :comment_form, :map, required: true
+  attr :comment_form_key, :integer, required: true
+  attr :editing_comment_id, :string, default: nil
+  attr :edit_comment_form, :map, default: nil
+  attr :current_user_id, :string, required: true
+
+  @spec comments_card(map()) :: Phoenix.LiveView.Rendered.t()
+  defp comments_card(assigns) do
+    ~H"""
+    <div class="card bg-base-100 border border-base-300">
+      <div class="p-4">
+        <h2 class="text-base font-semibold mb-3">Comments</h2>
+
+        <div :if={@comments == []} class="text-sm text-base-content/40 italic mb-3">
+          No comments yet
+        </div>
+
+        <div class="space-y-3 mb-3">
+          <div :for={comment <- @comments} class="group" id={"comment-#{comment.id}"}>
+            <div class="flex items-start gap-2">
+              <div class="avatar placeholder">
+                <div class="bg-neutral text-neutral-content rounded-full w-7 h-7">
+                  <span class="text-xs">
+                    {comment.user.name
+                    |> to_string()
+                    |> String.first()
+                    |> to_string()
+                    |> String.upcase()}
+                  </span>
+                </div>
+              </div>
+              <div class="flex-1 min-w-0">
+                <div class="flex items-baseline gap-2">
+                  <span class="text-sm font-medium">{comment.user.name || comment.user.email}</span>
+                  <span class="text-xs text-base-content/40">
+                    {relative_time(comment.inserted_at)}
+                  </span>
+                  <div
+                    :if={comment.user_id == @current_user_id}
+                    class="opacity-0 group-hover:opacity-100 focus-within:opacity-100 transition-opacity ml-auto flex gap-1"
+                  >
+                    <button
+                      phx-click="edit_comment"
+                      phx-value-id={comment.id}
+                      class="btn btn-xs btn-ghost"
+                      aria-label="Edit comment"
+                    >
+                      <.icon name="hero-pencil-square" class="size-3" />
+                    </button>
+                    <button
+                      phx-click="delete_comment"
+                      phx-value-id={comment.id}
+                      data-confirm="Delete this comment?"
+                      class="btn btn-xs btn-ghost text-error"
+                      aria-label="Delete comment"
+                    >
+                      <.icon name="hero-trash" class="size-3" />
+                    </button>
+                  </div>
+                </div>
+
+                <%= if @editing_comment_id == comment.id do %>
+                  <.form for={@edit_comment_form} phx-submit="save_comment_edit" class="mt-1">
+                    <textarea
+                      name={@edit_comment_form[:body].name}
+                      class="textarea textarea-bordered textarea-sm w-full"
+                      rows="2"
+                    >{@edit_comment_form[:body].value}</textarea>
+                    <div class="flex gap-2 mt-1">
+                      <button type="submit" class="btn btn-xs btn-primary">Save</button>
+                      <button
+                        type="button"
+                        phx-click="cancel_comment_edit"
+                        class="btn btn-xs btn-ghost"
+                      >
+                        Cancel
+                      </button>
+                    </div>
+                  </.form>
+                <% else %>
+                  <p class="text-sm whitespace-pre-wrap mt-0.5">{comment.body}</p>
+                <% end %>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <.form
+          for={@comment_form}
+          phx-submit="submit_comment"
+          id={"comment-form-#{@comment_form_key}"}
+          class="flex gap-2"
+        >
+          <input
+            type="text"
+            name={@comment_form[:body].name}
+            value={@comment_form[:body].value}
+            placeholder="Add a comment..."
+            class="input input-sm input-bordered flex-1"
+          />
+          <button type="submit" class="btn btn-sm btn-primary">Post</button>
+        </.form>
       </div>
     </div>
     """
