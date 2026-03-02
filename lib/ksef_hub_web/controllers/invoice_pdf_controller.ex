@@ -52,7 +52,7 @@ defmodule KsefHubWeb.InvoicePdfController do
     with {:company, company_id} when not is_nil(company_id) <-
            {:company,
             get_session(conn, :current_company_id) || Companies.first_company_id_for_user(user_id)},
-         role <- resolve_role(user_id, company_id),
+         {:role, role} when not is_nil(role) <- {:role, resolve_role(user_id, company_id)},
          {:invoice, %{} = invoice} <-
            {:invoice, Invoices.get_invoice_with_details(company_id, id, role: role)} do
       fun.(conn, invoice)
@@ -64,6 +64,15 @@ defmodule KsefHubWeb.InvoicePdfController do
           conn
           |> put_flash(:error, "Please select a company first.")
           |> redirect(to: ~p"/companies")
+        end
+
+      {:role, nil} ->
+        if inline? do
+          send_inline_error(conn, 403, "Access denied.")
+        else
+          conn
+          |> put_flash(:error, "Access denied.")
+          |> redirect(to: ~p"/invoices")
         end
 
       {:invoice, nil} ->

@@ -81,7 +81,7 @@ defmodule KsefHub.Companies do
     Membership
     |> where([m], m.user_id == ^user_id)
     |> join(:inner, [m], c in Company, on: c.id == m.company_id and c.is_active == true)
-    |> order_by([m, c], asc: c.name)
+    |> order_by([m, c], asc: c.name, asc: c.id)
     |> select([m, c], c.id)
     |> limit(1)
     |> Repo.one()

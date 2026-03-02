@@ -14,11 +14,13 @@ defmodule KsefHub.ServiceHealthCheck do
 
   @delay_ms 5_000
 
+  @doc "Starts the one-time health check task."
   @spec start_link(keyword()) :: {:ok, pid()}
   def start_link(_opts) do
     Task.start_link(__MODULE__, :run, [])
   end
 
+  @doc "Waits for sidecars to start, checks all services, and logs results."
   @spec run() :: :ok
   def run do
     Process.sleep(@delay_ms)
