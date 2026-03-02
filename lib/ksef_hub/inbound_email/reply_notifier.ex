@@ -7,8 +7,6 @@ defmodule KsefHub.InboundEmail.ReplyNotifier do
 
   import Swoosh.Email
 
-  require Logger
-
   alias KsefHub.Mailer
 
   @doc "Builds a success reply email for a processed invoice."

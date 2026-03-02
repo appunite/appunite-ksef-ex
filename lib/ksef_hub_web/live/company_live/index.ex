@@ -37,6 +37,10 @@ defmodule KsefHubWeb.CompanyLive.Index do
     socket
     |> assign(:page_title, "Edit #{company.name}")
     |> assign(:company, company)
+    |> assign(
+      :inbound_domain_configured,
+      Application.get_env(:ksef_hub, :inbound_email_domain) != nil
+    )
     |> assign(:form, to_form(Companies.Company.changeset(company, %{})))
     |> assign(
       :inbound_settings_form,
@@ -291,7 +295,7 @@ defmodule KsefHubWeb.CompanyLive.Index do
             {inbound_email_address(@company)}
           </code>
           <p
-            :if={is_nil(Application.get_env(:ksef_hub, :inbound_email_domain))}
+            :if={!@inbound_domain_configured}
             class="text-xs text-warning mt-1"
           >
             INBOUND_EMAIL_DOMAIN not configured — set it to display the full address.

@@ -41,7 +41,7 @@ defmodule KsefHubWeb.WebhookController do
         json(conn, %{status: "rejected", reason: "Unknown company token"})
 
       {:error, {:attachment_error, reason, sender, company}} ->
-        send_attachment_error_reply(sender, reason, company)
+        send_attachment_error_reply(sender, reason, company, params)
         json(conn, %{status: "rejected", reason: attachment_error_message(reason)})
     end
   end
@@ -232,9 +232,10 @@ defmodule KsefHubWeb.WebhookController do
     |> Oban.insert()
   end
 
-  @spec send_attachment_error_reply(String.t(), atom() | tuple(), Companies.Company.t()) :: :ok
-  defp send_attachment_error_reply(sender, reason, company) do
-    opts = cc_opts(company)
+  @spec send_attachment_error_reply(String.t(), atom() | tuple(), Companies.Company.t(), map()) ::
+          :ok
+  defp send_attachment_error_reply(sender, reason, company, params) do
+    opts = cc_opts(company) ++ in_reply_to_opts(params)
     {rejection_reason, extra_opts} = normalize_attachment_error(reason)
 
     email = ReplyNotifier.rejection(sender, rejection_reason, opts ++ extra_opts)
@@ -252,6 +253,12 @@ defmodule KsefHubWeb.WebhookController do
   defp cc_opts(%{inbound_cc_email: nil}), do: []
   defp cc_opts(%{inbound_cc_email: ""}), do: []
   defp cc_opts(%{inbound_cc_email: cc}), do: [cc: cc]
+
+  @spec in_reply_to_opts(map()) :: keyword()
+  defp in_reply_to_opts(%{"Message-Id" => msg_id}) when is_binary(msg_id),
+    do: [in_reply_to: msg_id]
+
+  defp in_reply_to_opts(_), do: []
 
   @spec normalize_attachment_error(atom() | tuple()) :: {atom(), keyword()}
   defp normalize_attachment_error(:no_attachment), do: {:no_attachment, []}

@@ -38,7 +38,7 @@ if invoice_extractor_url = System.get_env("INVOICE_EXTRACTOR_URL") do
   if config_env() == :prod do
     uri = URI.parse(invoice_extractor_url)
 
-    if uri.scheme != "https" and uri.host not in ["localhost", "127.0.0.1"] do
+    if uri.scheme != "https" and uri.host not in ~w(localhost 127.0.0.1 ::1 0.0.0.0) do
       raise """
       INVOICE_EXTRACTOR_URL must use HTTPS in production (unless localhost sidecar).
       Got: #{invoice_extractor_url}
@@ -57,7 +57,7 @@ if invoice_classifier_url = System.get_env("INVOICE_CLASSIFIER_URL") do
   if config_env() == :prod do
     uri = URI.parse(invoice_classifier_url)
 
-    if uri.scheme != "https" and uri.host not in ["localhost", "127.0.0.1"] do
+    if uri.scheme != "https" and uri.host not in ~w(localhost 127.0.0.1 ::1 0.0.0.0) do
       raise """
       INVOICE_CLASSIFIER_URL must use HTTPS in production (unless localhost sidecar).
       Got: #{invoice_classifier_url}
@@ -104,9 +104,8 @@ if inbound_email_domain = System.get_env("INBOUND_EMAIL_DOMAIN") do
 end
 
 if System.get_env("INBOUND_EMAIL_DOMAIN") && !System.get_env("MAILGUN_SIGNING_KEY") do
-  IO.warn("""
-  MAILGUN_SIGNING_KEY is not set but INBOUND_EMAIL_DOMAIN is configured.
-
+  IO.puts(:stderr, """
+  [warning] MAILGUN_SIGNING_KEY is not set but INBOUND_EMAIL_DOMAIN is configured.
   Inbound email webhooks will reject all requests without a valid signing key.
   Set MAILGUN_SIGNING_KEY from your Mailgun dashboard (Settings > Webhooks > Signing Key).
   """)
