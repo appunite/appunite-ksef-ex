@@ -673,22 +673,28 @@ defmodule KsefHub.Invoices do
 
   @spec parse_date(String.t()) :: Date.t() | nil
   defp parse_date(value) do
-    case Date.from_iso8601(value) do
-      {:ok, date} ->
-        date
+    with :error <- Date.from_iso8601(value),
+         :error <- parse_datetime_as_date(value),
+         :error <- parse_naive_datetime_as_date(value) do
+      nil
+    else
+      {:ok, date} -> date
+    end
+  end
 
-      _ ->
-        # Fall back to parsing datetime strings (with or without fractional seconds)
-        case DateTime.from_iso8601(value) do
-          {:ok, dt, _offset} ->
-            DateTime.to_date(dt)
+  @spec parse_datetime_as_date(String.t()) :: {:ok, Date.t()} | :error
+  defp parse_datetime_as_date(value) do
+    case DateTime.from_iso8601(value) do
+      {:ok, dt, _offset} -> {:ok, DateTime.to_date(dt)}
+      _ -> :error
+    end
+  end
 
-          _ ->
-            case NaiveDateTime.from_iso8601(value) do
-              {:ok, ndt} -> NaiveDateTime.to_date(ndt)
-              _ -> nil
-            end
-        end
+  @spec parse_naive_datetime_as_date(String.t()) :: {:ok, Date.t()} | :error
+  defp parse_naive_datetime_as_date(value) do
+    case NaiveDateTime.from_iso8601(value) do
+      {:ok, ndt} -> {:ok, NaiveDateTime.to_date(ndt)}
+      _ -> :error
     end
   end
 
