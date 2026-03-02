@@ -85,10 +85,14 @@ defmodule KsefHubWeb.InvoicePdfController do
     generate_and_send_pdf(conn, invoice, inline?)
   end
 
-  defp send_pdf(conn, invoice, _inline?) do
-    conn
-    |> put_flash(:error, "No PDF or XML content available for this invoice.")
-    |> redirect(to: ~p"/invoices/#{invoice.id}")
+  defp send_pdf(conn, invoice, inline?) do
+    if inline? do
+      send_inline_error(conn, "No PDF or XML content available.")
+    else
+      conn
+      |> put_flash(:error, "No PDF or XML content available for this invoice.")
+      |> redirect(to: ~p"/invoices/#{invoice.id}")
+    end
   end
 
   @spec generate_and_send_pdf(Plug.Conn.t(), map(), boolean()) :: Plug.Conn.t()
@@ -104,17 +108,31 @@ defmodule KsefHubWeb.InvoicePdfController do
 
       {:ok, _empty} ->
         Logger.error("PDF generation returned empty content for invoice #{invoice.id}")
-
-        conn
-        |> put_flash(:error, "PDF generation failed.")
-        |> redirect(to: ~p"/invoices/#{invoice.id}")
+        pdf_error_response(conn, invoice, inline?, "PDF generation failed.")
 
       {:error, reason} ->
         Logger.error("PDF generation failed for invoice #{invoice.id}: #{sanitize_error(reason)}")
-
-        conn
-        |> put_flash(:error, "PDF generation failed.")
-        |> redirect(to: ~p"/invoices/#{invoice.id}")
+        pdf_error_response(conn, invoice, inline?, "PDF generation failed.")
     end
+  end
+
+  @spec pdf_error_response(Plug.Conn.t(), map(), boolean(), String.t()) :: Plug.Conn.t()
+  defp pdf_error_response(conn, _invoice, true, message), do: send_inline_error(conn, message)
+
+  defp pdf_error_response(conn, invoice, false, message) do
+    conn
+    |> put_flash(:error, message)
+    |> redirect(to: ~p"/invoices/#{invoice.id}")
+  end
+
+  @spec send_inline_error(Plug.Conn.t(), String.t()) :: Plug.Conn.t()
+  defp send_inline_error(conn, message) do
+    conn
+    |> put_resp_content_type("text/html")
+    |> send_resp(200, """
+    <html><body style="display:flex;align-items:center;justify-content:center;height:100%;margin:0;font-family:sans-serif;color:#666;">
+    <p>#{message}</p>
+    </body></html>
+    """)
   end
 end
