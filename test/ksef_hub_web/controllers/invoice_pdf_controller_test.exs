@@ -51,7 +51,7 @@ defmodule KsefHubWeb.InvoicePdfControllerTest do
       assert Phoenix.Flash.get(conn.assigns.flash, :error) =~ "not found"
     end
 
-    test "redirects when no company selected", %{conn: conn, user: user} do
+    test "falls back to first company when no company in session", %{conn: conn, user: user} do
       invoice = insert(:invoice)
 
       conn =
@@ -60,7 +60,8 @@ defmodule KsefHubWeb.InvoicePdfControllerTest do
         |> log_in_user(user)
         |> get(~p"/invoices/#{invoice.id}/xml")
 
-      assert redirected_to(conn) == "/companies"
+      # User's first company is auto-selected, but invoice belongs to a different company
+      assert redirected_to(conn) == "/invoices"
     end
 
     test "redirects when invoice belongs to different company", %{conn: conn} do

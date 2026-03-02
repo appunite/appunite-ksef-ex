@@ -35,34 +35,43 @@ defmodule KsefHubWeb.InvoicePdfController do
   def show(%{assigns: %{current_user: %{id: _}}} = conn, %{"id" => id} = params) do
     inline? = params["inline"] == "1"
 
-    with_invoice(conn, id, fn conn, invoice ->
+    with_invoice(conn, id, inline?, fn conn, invoice ->
       send_pdf(conn, invoice, inline?)
     end)
   end
 
   def show(conn, _params), do: redirect_unauthenticated(conn)
 
-  @spec with_invoice(Plug.Conn.t(), String.t(), (Plug.Conn.t(), map() -> Plug.Conn.t())) ::
+  @spec with_invoice(Plug.Conn.t(), String.t(), boolean(), (Plug.Conn.t(), map() -> Plug.Conn.t())) ::
           Plug.Conn.t()
-  defp with_invoice(conn, id, fun) do
-    user_id = conn.assigns[:current_user] && conn.assigns.current_user.id
+  defp with_invoice(conn, id, inline? \\ false, fun) do
+    user = conn.assigns[:current_user]
+    user_id = user && user.id
 
     with {:company, company_id} when not is_nil(company_id) <-
-           {:company, get_session(conn, :current_company_id)},
+           {:company, get_session(conn, :current_company_id) || first_company_id(user_id)},
          role <- resolve_role(user_id, company_id),
          {:invoice, %{} = invoice} <-
            {:invoice, Invoices.get_invoice_with_details(company_id, id, role: role)} do
       fun.(conn, invoice)
     else
       {:company, nil} ->
-        conn
-        |> put_flash(:error, "Please select a company first.")
-        |> redirect(to: ~p"/companies")
+        if inline? do
+          send_inline_error(conn, "Please select a company first.")
+        else
+          conn
+          |> put_flash(:error, "Please select a company first.")
+          |> redirect(to: ~p"/companies")
+        end
 
       {:invoice, nil} ->
-        conn
-        |> put_flash(:error, "Invoice not found.")
-        |> redirect(to: ~p"/invoices")
+        if inline? do
+          send_inline_error(conn, "Invoice not found.")
+        else
+          conn
+          |> put_flash(:error, "Invoice not found.")
+          |> redirect(to: ~p"/invoices")
+        end
     end
   end
 
@@ -123,6 +132,16 @@ defmodule KsefHubWeb.InvoicePdfController do
     conn
     |> put_flash(:error, message)
     |> redirect(to: ~p"/invoices/#{invoice.id}")
+  end
+
+  @spec first_company_id(String.t() | nil) :: String.t() | nil
+  defp first_company_id(nil), do: nil
+
+  defp first_company_id(user_id) do
+    case KsefHub.Companies.list_companies_for_user(user_id) do
+      [%{id: id} | _] -> id
+      _ -> nil
+    end
   end
 
   @spec send_inline_error(Plug.Conn.t(), String.t()) :: Plug.Conn.t()
