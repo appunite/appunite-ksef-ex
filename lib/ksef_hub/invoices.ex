@@ -259,6 +259,71 @@ defmodule KsefHub.Invoices do
   end
 
   @doc """
+  Re-extracts data from an invoice's stored PDF file.
+
+  Calls the extraction sidecar to re-parse the PDF, then updates the invoice
+  with the newly extracted fields. Only works for invoices that have a stored
+  PDF file (source: :pdf_upload or :email).
+
+  Returns `{:ok, updated_invoice}` on success, `{:error, reason}` on failure.
+  """
+  @spec re_extract_invoice(Invoice.t(), Company.t()) ::
+          {:ok, Invoice.t()} | {:error, term()}
+  def re_extract_invoice(%Invoice{} = invoice, %Company{} = company) do
+    with {:ok, pdf_binary} <- load_pdf_content(invoice),
+         {:ok, extracted} <- do_re_extract(company, invoice, pdf_binary) do
+      apply_extraction_results(invoice, extracted)
+    end
+  end
+
+  @spec load_pdf_content(Invoice.t()) :: {:ok, binary()} | {:error, :no_pdf}
+  defp load_pdf_content(%Invoice{pdf_file: %{content: content}}) when is_binary(content),
+    do: {:ok, content}
+
+  defp load_pdf_content(%Invoice{pdf_file_id: pdf_file_id}) when not is_nil(pdf_file_id) do
+    case Files.get_file(pdf_file_id) do
+      %{content: content} when is_binary(content) -> {:ok, content}
+      _ -> {:error, :no_pdf}
+    end
+  end
+
+  defp load_pdf_content(_invoice), do: {:error, :no_pdf}
+
+  @spec do_re_extract(Company.t(), Invoice.t(), binary()) ::
+          {:ok, map()} | {:error, term()}
+  defp do_re_extract(company, invoice, pdf_binary) do
+    context = ContextBuilder.build(company)
+    filename = invoice.original_filename || "invoice.pdf"
+    invoice_extractor().extract(pdf_binary, filename: filename, context: context)
+  end
+
+  @spec apply_extraction_results(Invoice.t(), map()) ::
+          {:ok, Invoice.t()} | {:error, Ecto.Changeset.t()}
+  defp apply_extraction_results(invoice, extracted) do
+    extraction_status = determine_extraction_status(extracted)
+
+    attrs = %{
+      seller_nip: get_extracted_nip(extracted, "seller_nip"),
+      seller_name: get_extracted_string(extracted, "seller_name"),
+      buyer_nip: get_extracted_nip(extracted, "buyer_nip"),
+      buyer_name: get_extracted_string(extracted, "buyer_name"),
+      invoice_number: get_extracted_string(extracted, "invoice_number"),
+      issue_date: get_extracted_date(extracted, "issue_date"),
+      net_amount: get_extracted_decimal(extracted, "net_amount"),
+      vat_amount: get_extracted_decimal(extracted, "vat_amount"),
+      gross_amount: get_extracted_decimal(extracted, "gross_amount"),
+      currency: get_extracted_string(extracted, "currency") || "PLN",
+      ksef_number: get_extracted_string(extracted, "ksef_number"),
+      extraction_status: extraction_status
+    }
+
+    with {:ok, updated} <- update_invoice(invoice, attrs) do
+      maybe_enqueue_prediction(extraction_status, updated)
+      {:ok, updated}
+    end
+  end
+
+  @doc """
   Recalculates extraction status based on the presence of critical fields.
 
   Merges the given `attrs` over the invoice's current values, then checks

@@ -69,7 +69,10 @@ defmodule KsefHub.InvoiceExtractor.Client do
         {:error, {:extractor_error, status}}
 
       {:error, %{__struct__: struct_name} = reason} ->
-        Logger.error("Invoice extractor request failed for /extract: #{inspect(struct_name)}")
+        Logger.error(
+          "Invoice extractor request failed for /extract: #{inspect(struct_name)} - #{Exception.message(reason)}"
+        )
+
         {:error, {:request_failed, reason}}
 
       {:error, reason} ->

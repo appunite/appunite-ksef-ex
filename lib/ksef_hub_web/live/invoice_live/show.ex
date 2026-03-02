@@ -67,6 +67,8 @@ defmodule KsefHubWeb.InvoiceLive.Show do
            note_form: note_form(invoice),
            comments: Invoices.list_invoice_comments(company.id, invoice.id),
            comment_form: comment_form(),
+           extracting: false,
+           extract_ref: nil,
            comment_form_key: 0,
            editing_comment_id: nil,
            edit_comment_form: nil
@@ -74,12 +76,29 @@ defmodule KsefHubWeb.InvoiceLive.Show do
     end
   end
 
-  # --- Events: Approve/Reject ---
+  # --- Events: Re-extract ---
 
-  @doc "Handles approve, reject, category/tag, and edit actions."
   @impl true
   @spec handle_event(String.t(), map(), Phoenix.LiveView.Socket.t()) ::
           {:noreply, Phoenix.LiveView.Socket.t()}
+  def handle_event("re_extract", _params, socket) do
+    invoice = socket.assigns.invoice
+
+    if invoice.source in [:pdf_upload, :email] and not socket.assigns[:extracting] do
+      company = socket.assigns.current_company
+
+      task =
+        Task.Supervisor.async_nolink(KsefHub.TaskSupervisor, fn ->
+          Invoices.re_extract_invoice(invoice, company)
+        end)
+
+      {:noreply, assign(socket, extracting: true, extract_ref: task.ref)}
+    else
+      {:noreply, socket}
+    end
+  end
+
+  # --- Events: Approve/Reject ---
   def handle_event("approve", _params, socket) do
     case Invoices.approve_invoice(socket.assigns.invoice) do
       {:ok, updated} ->
@@ -424,6 +443,52 @@ defmodule KsefHubWeb.InvoiceLive.Show do
     end
   end
 
+  # --- Async: Re-extraction ---
+
+  @impl true
+  @spec handle_info(term(), Phoenix.LiveView.Socket.t()) ::
+          {:noreply, Phoenix.LiveView.Socket.t()}
+  def handle_info({ref, result}, %{assigns: %{extract_ref: ref}} = socket)
+      when is_reference(ref) do
+    Process.demonitor(ref, [:flush])
+
+    case result do
+      {:ok, updated} ->
+        {:noreply,
+         socket
+         |> assign(
+           extracting: false,
+           extract_ref: nil,
+           invoice: reload_details(updated, socket),
+           editing: updated.extraction_status in [:partial, :failed]
+         )
+         |> assign_new_edit_form(updated)
+         |> put_flash(:info, "Invoice data re-extracted successfully.")}
+
+      {:error, :no_pdf} ->
+        {:noreply,
+         socket
+         |> assign(extracting: false, extract_ref: nil)
+         |> put_flash(:error, "No PDF file stored for this invoice.")}
+
+      {:error, _reason} ->
+        {:noreply,
+         socket
+         |> assign(extracting: false, extract_ref: nil)
+         |> put_flash(:error, "Re-extraction failed. Please try again later.")}
+    end
+  end
+
+  def handle_info({:DOWN, ref, :process, _pid, _reason}, %{assigns: %{extract_ref: ref}} = socket)
+      when is_reference(ref) do
+    {:noreply,
+     socket
+     |> assign(extracting: false, extract_ref: nil)
+     |> put_flash(:error, "Re-extraction crashed. Please try again.")}
+  end
+
+  def handle_info(_msg, socket), do: {:noreply, socket}
+
   # --- Private ---
 
   @spec do_create_and_add_tag(Phoenix.LiveView.Socket.t(), String.t()) ::
@@ -482,6 +547,12 @@ defmodule KsefHubWeb.InvoiceLive.Show do
       {:ok, _} -> :ok
       :error -> {:error, :invalid_id}
     end
+  end
+
+  @spec assign_new_edit_form(Phoenix.LiveView.Socket.t(), Invoice.t()) ::
+          Phoenix.LiveView.Socket.t()
+  defp assign_new_edit_form(socket, invoice) do
+    assign(socket, edit_form: build_edit_form(invoice))
   end
 
   @spec reload_details(Invoice.t(), Phoenix.LiveView.Socket.t()) :: Invoice.t()
@@ -611,6 +682,14 @@ defmodule KsefHubWeb.InvoiceLive.Show do
       <span>
         This invoice has missing data. Please review and fill in the missing fields below.
       </span>
+      <button
+        :if={@invoice.source in [:pdf_upload, :email] and not @extracting}
+        phx-click="re_extract"
+        class="btn btn-sm btn-warning"
+      >
+        <.icon name="hero-arrow-path" class="size-4" /> Re-extract
+      </button>
+      <span :if={@extracting} class="loading loading-spinner loading-sm" />
     </div>
 
     <div
@@ -1011,32 +1090,34 @@ defmodule KsefHubWeb.InvoiceLive.Show do
       phx-submit="save_edit"
       class="space-y-3"
     >
-      <div class="form-control">
-        <label for="edit-invoice-number" class="label">
-          <span class="label-text text-xs">Invoice Number</span>
-        </label>
-        <input
-          type="text"
-          id="edit-invoice-number"
-          name={@edit_form[:invoice_number].name}
-          value={@edit_form[:invoice_number].value}
-          class="input input-sm input-bordered"
-        />
-        <.field_error errors={@edit_form[:invoice_number].errors} />
-      </div>
+      <div class="grid grid-cols-2 gap-3">
+        <div class="form-control">
+          <label for="edit-invoice-number" class="label">
+            <span class="label-text text-xs">Invoice Number</span>
+          </label>
+          <input
+            type="text"
+            id="edit-invoice-number"
+            name={@edit_form[:invoice_number].name}
+            value={@edit_form[:invoice_number].value}
+            class="input input-sm input-bordered w-full"
+          />
+          <.field_error errors={@edit_form[:invoice_number].errors} />
+        </div>
 
-      <div class="form-control">
-        <label for="edit-issue-date" class="label">
-          <span class="label-text text-xs">Issue Date</span>
-        </label>
-        <input
-          type="date"
-          id="edit-issue-date"
-          name={@edit_form[:issue_date].name}
-          value={@edit_form[:issue_date].value}
-          class="input input-sm input-bordered"
-        />
-        <.field_error errors={@edit_form[:issue_date].errors} />
+        <div class="form-control">
+          <label for="edit-issue-date" class="label">
+            <span class="label-text text-xs">Issue Date</span>
+          </label>
+          <input
+            type="date"
+            id="edit-issue-date"
+            name={@edit_form[:issue_date].name}
+            value={@edit_form[:issue_date].value}
+            class="input input-sm input-bordered w-full"
+          />
+          <.field_error errors={@edit_form[:issue_date].errors} />
+        </div>
       </div>
 
       <.seller_fields edit_form={@edit_form} />
@@ -1060,33 +1141,35 @@ defmodule KsefHubWeb.InvoiceLive.Show do
     ~H"""
     <div class="divider text-xs my-1">Seller</div>
 
-    <div class="form-control">
-      <label for="edit-seller-name" class="label">
-        <span class="label-text text-xs">Seller Name</span>
-      </label>
-      <input
-        type="text"
-        id="edit-seller-name"
-        name={@edit_form[:seller_name].name}
-        value={@edit_form[:seller_name].value}
-        class="input input-sm input-bordered"
-      />
-      <.field_error errors={@edit_form[:seller_name].errors} />
-    </div>
+    <div class="grid grid-cols-2 gap-3">
+      <div class="form-control">
+        <label for="edit-seller-name" class="label">
+          <span class="label-text text-xs">Name</span>
+        </label>
+        <input
+          type="text"
+          id="edit-seller-name"
+          name={@edit_form[:seller_name].name}
+          value={@edit_form[:seller_name].value}
+          class="input input-sm input-bordered w-full"
+        />
+        <.field_error errors={@edit_form[:seller_name].errors} />
+      </div>
 
-    <div class="form-control">
-      <label for="edit-seller-nip" class="label">
-        <span class="label-text text-xs">Seller NIP</span>
-      </label>
-      <input
-        type="text"
-        id="edit-seller-nip"
-        name={@edit_form[:seller_nip].name}
-        value={@edit_form[:seller_nip].value}
-        class="input input-sm input-bordered"
-        maxlength="10"
-      />
-      <.field_error errors={@edit_form[:seller_nip].errors} />
+      <div class="form-control">
+        <label for="edit-seller-nip" class="label">
+          <span class="label-text text-xs">NIP</span>
+        </label>
+        <input
+          type="text"
+          id="edit-seller-nip"
+          name={@edit_form[:seller_nip].name}
+          value={@edit_form[:seller_nip].value}
+          class="input input-sm input-bordered w-full"
+          maxlength="10"
+        />
+        <.field_error errors={@edit_form[:seller_nip].errors} />
+      </div>
     </div>
     """
   end
@@ -1098,33 +1181,35 @@ defmodule KsefHubWeb.InvoiceLive.Show do
     ~H"""
     <div class="divider text-xs my-1">Buyer</div>
 
-    <div class="form-control">
-      <label for="edit-buyer-name" class="label">
-        <span class="label-text text-xs">Buyer Name</span>
-      </label>
-      <input
-        type="text"
-        id="edit-buyer-name"
-        name={@edit_form[:buyer_name].name}
-        value={@edit_form[:buyer_name].value}
-        class="input input-sm input-bordered"
-      />
-      <.field_error errors={@edit_form[:buyer_name].errors} />
-    </div>
+    <div class="grid grid-cols-2 gap-3">
+      <div class="form-control">
+        <label for="edit-buyer-name" class="label">
+          <span class="label-text text-xs">Name</span>
+        </label>
+        <input
+          type="text"
+          id="edit-buyer-name"
+          name={@edit_form[:buyer_name].name}
+          value={@edit_form[:buyer_name].value}
+          class="input input-sm input-bordered w-full"
+        />
+        <.field_error errors={@edit_form[:buyer_name].errors} />
+      </div>
 
-    <div class="form-control">
-      <label for="edit-buyer-nip" class="label">
-        <span class="label-text text-xs">Buyer NIP</span>
-      </label>
-      <input
-        type="text"
-        id="edit-buyer-nip"
-        name={@edit_form[:buyer_nip].name}
-        value={@edit_form[:buyer_nip].value}
-        class="input input-sm input-bordered"
-        maxlength="10"
-      />
-      <.field_error errors={@edit_form[:buyer_nip].errors} />
+      <div class="form-control">
+        <label for="edit-buyer-nip" class="label">
+          <span class="label-text text-xs">NIP</span>
+        </label>
+        <input
+          type="text"
+          id="edit-buyer-nip"
+          name={@edit_form[:buyer_nip].name}
+          value={@edit_form[:buyer_nip].value}
+          class="input input-sm input-bordered w-full"
+          maxlength="10"
+        />
+        <.field_error errors={@edit_form[:buyer_nip].errors} />
+      </div>
     </div>
     """
   end
@@ -1136,7 +1221,7 @@ defmodule KsefHubWeb.InvoiceLive.Show do
     ~H"""
     <div class="divider text-xs my-1">Amounts</div>
 
-    <div class="grid grid-cols-3 gap-3">
+    <div class="grid grid-cols-4 gap-3">
       <div class="form-control">
         <label for="edit-net-amount" class="label">
           <span class="label-text text-xs">Netto</span>
@@ -1181,26 +1266,26 @@ defmodule KsefHubWeb.InvoiceLive.Show do
         />
         <.field_error errors={@edit_form[:gross_amount].errors} />
       </div>
-    </div>
 
-    <div class="form-control w-32">
-      <label for="edit-currency" class="label">
-        <span class="label-text text-xs">Currency</span>
-      </label>
-      <select
-        id="edit-currency"
-        name={@edit_form[:currency].name}
-        class="select select-sm select-bordered w-full"
-      >
-        <option
-          :for={code <- currencies()}
-          value={code}
-          selected={@edit_form[:currency].value == code}
+      <div class="form-control">
+        <label for="edit-currency" class="label">
+          <span class="label-text text-xs">Currency</span>
+        </label>
+        <select
+          id="edit-currency"
+          name={@edit_form[:currency].name}
+          class="select select-sm select-bordered w-full"
         >
-          {code}
-        </option>
-      </select>
-      <.field_error errors={@edit_form[:currency].errors} />
+          <option
+            :for={code <- currencies()}
+            value={code}
+            selected={@edit_form[:currency].value == code}
+          >
+            {code}
+          </option>
+        </select>
+        <.field_error errors={@edit_form[:currency].errors} />
+      </div>
     </div>
     """
   end
