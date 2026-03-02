@@ -5,6 +5,8 @@ defmodule KsefHubWeb.InvoiceLive.Show do
   """
   use KsefHubWeb, :live_view
 
+  require Logger
+
   alias KsefHub.Invoices
   alias KsefHub.Invoices.Invoice
 
@@ -84,7 +86,7 @@ defmodule KsefHubWeb.InvoiceLive.Show do
   def handle_event("re_extract", _params, socket) do
     invoice = socket.assigns.invoice
 
-    if invoice.source in [:pdf_upload, :email] and not socket.assigns[:extracting] do
+    if invoice.source in [:pdf_upload, :email] and not socket.assigns.extracting do
       company = socket.assigns.current_company
 
       task =
@@ -487,7 +489,10 @@ defmodule KsefHubWeb.InvoiceLive.Show do
      |> put_flash(:error, "Re-extraction crashed. Please try again.")}
   end
 
-  def handle_info(_msg, socket), do: {:noreply, socket}
+  def handle_info(msg, socket) do
+    Logger.debug("InvoiceLive.Show received unexpected message: #{inspect(msg)}")
+    {:noreply, socket}
+  end
 
   # --- Private ---
 
@@ -1166,7 +1171,7 @@ defmodule KsefHubWeb.InvoiceLive.Show do
           name={@edit_form[:seller_nip].name}
           value={@edit_form[:seller_nip].value}
           class="input input-sm input-bordered w-full"
-          maxlength="10"
+          maxlength="50"
         />
         <.field_error errors={@edit_form[:seller_nip].errors} />
       </div>
@@ -1206,7 +1211,7 @@ defmodule KsefHubWeb.InvoiceLive.Show do
           name={@edit_form[:buyer_nip].name}
           value={@edit_form[:buyer_nip].value}
           class="input input-sm input-bordered w-full"
-          maxlength="10"
+          maxlength="50"
         />
         <.field_error errors={@edit_form[:buyer_nip].errors} />
       </div>

@@ -146,8 +146,7 @@ defmodule KsefHub.Invoices.Invoice do
   def edit_changeset(invoice, attrs) do
     invoice
     |> cast(attrs, @edit_fields)
-    |> validate_length(:seller_nip, max: 50)
-    |> validate_length(:buyer_nip, max: 50)
+    |> validate_nip_fields()
     |> validate_number(:net_amount, greater_than_or_equal_to: 0)
     |> validate_number(:vat_amount, greater_than_or_equal_to: 0)
     |> validate_number(:gross_amount, greater_than_or_equal_to: 0)

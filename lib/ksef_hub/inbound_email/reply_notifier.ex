@@ -193,7 +193,7 @@ defmodule KsefHub.InboundEmail.ReplyNotifier do
     errors =
       Ecto.Changeset.traverse_errors(changeset, fn {msg, opts} ->
         Regex.replace(~r"%{(\w+)}", msg, fn _, key ->
-          opts |> Keyword.get(String.to_existing_atom(key), key) |> to_string()
+          opts |> Keyword.get(safe_to_atom(key), key) |> to_string()
         end)
       end)
 
@@ -201,6 +201,13 @@ defmodule KsefHub.InboundEmail.ReplyNotifier do
   end
 
   defp format_error_detail(_reason), do: ""
+
+  @spec safe_to_atom(String.t()) :: atom()
+  defp safe_to_atom(key) do
+    String.to_existing_atom(key)
+  rescue
+    ArgumentError -> String.to_atom(key)
+  end
 
   @spec build_email(String.t(), String.t(), String.t(), keyword()) :: Swoosh.Email.t()
   defp build_email(sender, subject, body, opts) do

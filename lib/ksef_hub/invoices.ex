@@ -302,20 +302,9 @@ defmodule KsefHub.Invoices do
   defp apply_extraction_results(invoice, extracted) do
     extraction_status = determine_extraction_status(extracted)
 
-    attrs = %{
-      seller_nip: get_extracted_nip(extracted, "seller_nip"),
-      seller_name: get_extracted_string(extracted, "seller_name"),
-      buyer_nip: get_extracted_nip(extracted, "buyer_nip"),
-      buyer_name: get_extracted_string(extracted, "buyer_name"),
-      invoice_number: get_extracted_string(extracted, "invoice_number"),
-      issue_date: get_extracted_date(extracted, "issue_date"),
-      net_amount: get_extracted_decimal(extracted, "net_amount"),
-      vat_amount: get_extracted_decimal(extracted, "vat_amount"),
-      gross_amount: get_extracted_decimal(extracted, "gross_amount"),
-      currency: get_extracted_string(extracted, "currency") || "PLN",
-      ksef_number: get_extracted_string(extracted, "ksef_number"),
-      extraction_status: extraction_status
-    }
+    attrs =
+      extracted_to_invoice_attrs(extracted)
+      |> Map.put(:extraction_status, extraction_status)
 
     with {:ok, updated} <- update_invoice(invoice, attrs) do
       maybe_enqueue_prediction(extraction_status, updated)
@@ -604,14 +593,22 @@ defmodule KsefHub.Invoices do
          filename,
          extraction_status
        ) do
-    %{
+    extracted_to_invoice_attrs(extracted)
+    |> Map.merge(%{
       source: :pdf_upload,
       type: type,
       company_id: company_id,
       pdf_content: pdf_binary,
       original_filename: filename,
-      extraction_status: extraction_status,
-      ksef_number: get_extracted_string(extracted, "ksef_number"),
+      extraction_status: extraction_status
+    })
+  end
+
+  # Shared mapping from extraction result (string-keyed map) to invoice attrs (atom-keyed map).
+  # Used by both initial PDF upload creation and re-extraction.
+  @spec extracted_to_invoice_attrs(map()) :: map()
+  defp extracted_to_invoice_attrs(extracted) do
+    %{
       seller_nip: get_extracted_nip(extracted, "seller_nip"),
       seller_name: get_extracted_string(extracted, "seller_name"),
       buyer_nip: get_extracted_nip(extracted, "buyer_nip"),
@@ -621,7 +618,8 @@ defmodule KsefHub.Invoices do
       net_amount: get_extracted_decimal(extracted, "net_amount"),
       vat_amount: get_extracted_decimal(extracted, "vat_amount"),
       gross_amount: get_extracted_decimal(extracted, "gross_amount"),
-      currency: get_extracted_string(extracted, "currency") || "PLN"
+      currency: get_extracted_string(extracted, "currency") || "PLN",
+      ksef_number: get_extracted_string(extracted, "ksef_number")
     }
   end
 

@@ -65,23 +65,16 @@ defmodule KsefHub.InboundEmail.InboundEmailWorker do
   @spec handle_extraction(InboundEmail.InboundEmail.t(), Companies.Company.t(), map()) :: :ok
   defp handle_extraction(record, company, extracted) do
     extraction_status = Invoices.determine_extraction_status_from_attrs(extracted)
+    nip_result = NipVerifier.verify_expense(extracted, company.nip)
 
-    case {extraction_status, NipVerifier.verify_expense(extracted, company.nip)} do
-      {:complete, {:ok, :expense}} ->
-        create_and_notify(record, company, extracted, :success)
+    reply_type =
+      case {extraction_status, nip_result} do
+        {:complete, {:ok, :expense}} -> :success
+        {_, {:error, reason}} -> {:nip_warning, reason}
+        _ -> :needs_review
+      end
 
-      {_, {:error, reason}} ->
-        create_and_notify(record, company, extracted, {:nip_warning, reason})
-
-      {:partial, {:ok, :expense}} ->
-        create_and_notify(record, company, extracted, :needs_review)
-
-      {_, {:undetermined, :needs_review}} ->
-        create_and_notify(record, company, extracted, :needs_review)
-
-      {_status, _nip_result} ->
-        create_and_notify(record, company, extracted, :needs_review)
-    end
+    create_and_notify(record, company, extracted, reply_type)
   end
 
   @type reply_type :: :success | :needs_review | {:nip_warning, atom()}
@@ -147,7 +140,7 @@ defmodule KsefHub.InboundEmail.InboundEmailWorker do
           term(),
           reply_type()
         ) :: :ok
-  defp fallback_create_and_notify(record, company, original_reason, _reply_type) do
+  defp fallback_create_and_notify(record, company, original_reason, reply_type) do
     create_opts = [filename: record.original_filename]
 
     case Invoices.create_email_invoice(
@@ -162,8 +155,14 @@ defmodule KsefHub.InboundEmail.InboundEmailWorker do
           record.id
         )
 
+        fallback_reply_type = fallback_reply_type(reply_type)
         opts = reply_opts(company, record)
-        send_reply(ReplyNotifier.needs_review(record.sender, invoice, opts), record)
+
+        send_reply(
+          build_reply(fallback_reply_type, record.sender, invoice, company, opts),
+          record
+        )
+
         :ok
 
       {:error, fallback_reason} ->
@@ -202,6 +201,12 @@ defmodule KsefHub.InboundEmail.InboundEmailWorker do
     ReplyNotifier.nip_warning(sender, invoice, reason, opts)
   end
 
+  # When fallback creates an invoice with :extraction_failed, preserve NIP warnings
+  # but downgrade :success to :needs_review since extraction data was lost.
+  @spec fallback_reply_type(reply_type()) :: reply_type()
+  defp fallback_reply_type(:success), do: :needs_review
+  defp fallback_reply_type(other), do: other
+
   @spec send_reply(Swoosh.Email.t(), InboundEmail.InboundEmail.t()) :: :ok
   defp send_reply(email, record) do
     case ReplyNotifier.deliver(email) do
@@ -216,25 +221,16 @@ defmodule KsefHub.InboundEmail.InboundEmailWorker do
 
   @spec reply_opts(Companies.Company.t(), InboundEmail.InboundEmail.t()) :: keyword()
   defp reply_opts(company, record) do
-    opts =
-      case company.inbound_cc_email do
-        nil -> []
-        "" -> []
-        cc -> [cc: cc]
-      end
-
-    opts =
-      case record.mailgun_message_id do
-        nil -> opts
-        msg_id -> Keyword.put(opts, :in_reply_to, msg_id)
-      end
-
-    case record.subject do
-      nil -> opts
-      "" -> opts
-      subject -> Keyword.put(opts, :original_subject, subject)
-    end
+    []
+    |> maybe_add(:cc, company.inbound_cc_email)
+    |> maybe_add(:in_reply_to, record.mailgun_message_id)
+    |> maybe_add(:original_subject, record.subject)
   end
+
+  @spec maybe_add(keyword(), atom(), String.t() | nil) :: keyword()
+  defp maybe_add(opts, _key, nil), do: opts
+  defp maybe_add(opts, _key, ""), do: opts
+  defp maybe_add(opts, key, value), do: Keyword.put(opts, key, value)
 
   @spec log_status_update({:ok, term()} | {:error, term()}, String.t()) :: :ok
   defp log_status_update({:ok, _}, _id), do: :ok

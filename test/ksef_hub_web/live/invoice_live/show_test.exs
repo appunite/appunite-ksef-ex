@@ -373,7 +373,7 @@ defmodule KsefHubWeb.InvoiceLive.ShowTest do
     end
 
     test "accepts foreign tax ID in seller_nip field", %{conn: conn, company: company} do
-      invoice = insert(:invoice, company: company)
+      invoice = insert(:pdf_upload_invoice, company: company)
 
       stub(KsefHub.PdfRenderer.Mock, :generate_html, fn _xml, _meta -> {:error, :no_xml} end)
 
