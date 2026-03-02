@@ -26,17 +26,19 @@ defmodule KsefHub.Exports do
   @spec create_export(Ecto.UUID.t(), Ecto.UUID.t(), map()) ::
           {:ok, ExportBatch.t()} | {:error, Ecto.Changeset.t()}
   def create_export(user_id, company_id, params) do
-    %ExportBatch{}
-    |> Ecto.Changeset.change(%{user_id: user_id, company_id: company_id})
-    |> ExportBatch.changeset(params)
-    |> Repo.insert()
-    |> case do
-      {:ok, batch} ->
-        {:ok, _job} = enqueue_worker(batch)
-        {:ok, batch}
+    changeset =
+      %ExportBatch{}
+      |> Ecto.Changeset.change(%{user_id: user_id, company_id: company_id})
+      |> ExportBatch.changeset(params)
 
-      {:error, changeset} ->
-        {:error, changeset}
+    Ecto.Multi.new()
+    |> Ecto.Multi.insert(:batch, changeset)
+    |> Ecto.Multi.run(:job, fn _repo, %{batch: batch} -> enqueue_worker(batch) end)
+    |> Repo.transaction()
+    |> case do
+      {:ok, %{batch: batch}} -> {:ok, batch}
+      {:error, :batch, changeset, _} -> {:error, changeset}
+      {:error, :job, reason, _} -> {:error, reason}
     end
   end
 
