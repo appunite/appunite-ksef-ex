@@ -302,9 +302,18 @@ defmodule KsefHub.Invoices do
   defp apply_extraction_results(invoice, extracted) do
     extraction_status = determine_extraction_status(extracted)
 
+    # For re-extraction, only overwrite fields that have non-nil extracted values.
+    # This preserves manually-edited data when re-extraction returns partial results.
     attrs =
       extracted_to_invoice_attrs(extracted)
+      |> Map.reject(fn {_k, v} -> is_nil(v) end)
       |> Map.put(:extraction_status, extraction_status)
+
+    # Preserve existing currency if extraction didn't provide one
+    attrs =
+      if Map.has_key?(attrs, :currency),
+        do: attrs,
+        else: Map.put(attrs, :currency, invoice.currency || "PLN")
 
     with {:ok, updated} <- update_invoice(invoice, attrs) do
       maybe_enqueue_prediction(extraction_status, updated)
@@ -593,7 +602,10 @@ defmodule KsefHub.Invoices do
          filename,
          extraction_status
        ) do
-    extracted_to_invoice_attrs(extracted)
+    attrs = extracted_to_invoice_attrs(extracted)
+
+    attrs
+    |> Map.put(:currency, attrs[:currency] || "PLN")
     |> Map.merge(%{
       source: :pdf_upload,
       type: type,
@@ -618,7 +630,7 @@ defmodule KsefHub.Invoices do
       net_amount: get_extracted_decimal(extracted, "net_amount"),
       vat_amount: get_extracted_decimal(extracted, "vat_amount"),
       gross_amount: get_extracted_decimal(extracted, "gross_amount"),
-      currency: get_extracted_string(extracted, "currency") || "PLN",
+      currency: get_extracted_string(extracted, "currency"),
       ksef_number: get_extracted_string(extracted, "ksef_number")
     }
   end
@@ -662,8 +674,21 @@ defmodule KsefHub.Invoices do
   @spec parse_date(String.t()) :: Date.t() | nil
   defp parse_date(value) do
     case Date.from_iso8601(value) do
-      {:ok, date} -> date
-      _ -> nil
+      {:ok, date} ->
+        date
+
+      _ ->
+        # Fall back to parsing datetime strings (with or without fractional seconds)
+        case DateTime.from_iso8601(value) do
+          {:ok, dt, _offset} ->
+            DateTime.to_date(dt)
+
+          _ ->
+            case NaiveDateTime.from_iso8601(value) do
+              {:ok, ndt} -> NaiveDateTime.to_date(ndt)
+              _ -> nil
+            end
+        end
     end
   end
 

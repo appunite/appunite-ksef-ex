@@ -1098,6 +1098,7 @@ defmodule KsefHub.InvoicesTest do
       assert invoice.source == :email
       assert invoice.seller_nip == "FR61823475082"
       assert invoice.seller_name == "LEMPIRE SAS"
+      assert invoice.extraction_status == :complete
     end
   end
 

@@ -388,6 +388,10 @@ defmodule KsefHubWeb.InvoiceLive.ShowTest do
 
       # Form should be closed (edit successful)
       refute has_element?(view, "form[phx-submit=save_edit]")
+
+      # Verify persistence
+      updated = Invoices.get_invoice!(company.id, invoice.id)
+      assert updated.seller_nip == "FR61823475082"
     end
   end
 

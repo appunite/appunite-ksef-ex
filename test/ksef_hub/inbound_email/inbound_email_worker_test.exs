@@ -169,6 +169,10 @@ defmodule KsefHub.InboundEmail.InboundEmailWorkerTest do
       updated = InboundEmail.get_inbound_email!(record.id)
       assert updated.status == :completed
       assert updated.invoice_id != nil
+
+      # Verify the foreign NIP was persisted without truncation
+      invoice = KsefHub.Invoices.get_invoice!(company.id, updated.invoice_id)
+      assert invoice.seller_nip == "FR61823475082"
     end
 
     test "cancels when inbound email record not found" do

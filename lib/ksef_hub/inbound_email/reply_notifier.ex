@@ -249,7 +249,7 @@ defmodule KsefHub.InboundEmail.ReplyNotifier do
   defp maybe_add_threading_headers(email, message_id) do
     normalized = normalize_message_id(message_id)
 
-    if valid_message_id?(normalized) do
+    if valid_message_id?(normalized) and normalized not in ["", "<>"] do
       email
       |> header("In-Reply-To", normalized)
       |> header("References", normalized)
