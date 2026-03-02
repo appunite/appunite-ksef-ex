@@ -98,6 +98,42 @@ defmodule KsefHub.InboundEmail.ReplyNotifierTest do
     end
   end
 
+  describe "nip_warning/4" do
+    test "builds NIP warning email for income_not_allowed" do
+      invoice = %{id: "abc-123"}
+
+      email =
+        ReplyNotifier.nip_warning(@sender, invoice, :income_not_allowed,
+          company_name: "Acme",
+          nip: "1234567890"
+        )
+
+      assert email.to == [{@sender, @sender}]
+      assert email.subject =~ "NIP warning"
+      assert email.text_body =~ "income invoice"
+      assert email.text_body =~ "Acme"
+    end
+
+    test "builds NIP warning email for nip_mismatch" do
+      invoice = %{id: "abc-123"}
+
+      email =
+        ReplyNotifier.nip_warning(@sender, invoice, :nip_mismatch,
+          company_name: "Acme",
+          nip: "1234567890"
+        )
+
+      assert email.text_body =~ "doesn't match"
+      assert email.text_body =~ "1234567890"
+    end
+
+    test "includes invoice URL" do
+      invoice = %{id: "abc-123"}
+      email = ReplyNotifier.nip_warning(@sender, invoice, :income_not_allowed)
+      assert email.text_body =~ "abc-123"
+    end
+  end
+
   describe "rejection/3" do
     test "builds email for income_not_allowed rejection" do
       email = ReplyNotifier.rejection(@sender, :income_not_allowed)

@@ -133,6 +133,42 @@ defmodule KsefHub.InboundEmail.ReplyNotifier do
     build_email(sender, "Invoice rejected — not a PDF", body, opts)
   end
 
+  @doc "Builds a NIP warning reply email — invoice was created but NIP verification flagged an issue."
+  @spec nip_warning(String.t(), KsefHub.Invoices.Invoice.t(), atom(), keyword()) ::
+          Swoosh.Email.t()
+  def nip_warning(sender, invoice, reason, opts \\ []) do
+    invoice_id = invoice.id
+    company_name = Keyword.get(opts, :company_name, "your company")
+    nip = Keyword.get(opts, :nip, "")
+
+    detail =
+      case reason do
+        :income_not_allowed ->
+          "This appears to be an income invoice (seller NIP matches #{company_name})."
+
+        :nip_mismatch ->
+          "Buyer NIP doesn't match #{company_name} (NIP: #{nip})."
+
+        _ ->
+          "NIP verification flagged a potential issue."
+      end
+
+    body = """
+
+    ==============================
+
+    Your invoice was uploaded but flagged for review.
+    #{detail}
+
+    Please verify the invoice details:
+    #{invoice_url(invoice_id)}
+
+    ==============================
+    """
+
+    build_email(sender, "Invoice uploaded — needs review (NIP warning)", body, opts)
+  end
+
   @doc "Builds an error reply email when invoice creation fails."
   @spec error(String.t(), term(), keyword()) :: Swoosh.Email.t()
   def error(sender, reason, opts \\ []) do

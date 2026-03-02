@@ -71,7 +71,7 @@ defmodule KsefHub.InboundEmail.InboundEmailWorker do
         create_and_notify(record, company, extracted, :success)
 
       {_, {:error, reason}} ->
-        reject_and_notify(record, company, reason)
+        create_and_notify(record, company, extracted, {:nip_warning, reason})
 
       {:partial, {:ok, :expense}} ->
         create_and_notify(record, company, extracted, :needs_review)
@@ -79,19 +79,20 @@ defmodule KsefHub.InboundEmail.InboundEmailWorker do
       {_, {:undetermined, :needs_review}} ->
         create_and_notify(record, company, extracted, :needs_review)
 
-      {status, nip_result} ->
-        Logger.warning("Unexpected extraction/NIP combination: #{inspect({status, nip_result})}")
+      {_status, _nip_result} ->
         create_and_notify(record, company, extracted, :needs_review)
     end
   end
+
+  @type reply_type :: :success | :needs_review | {:nip_warning, atom()}
 
   @spec create_and_notify(
           InboundEmail.InboundEmail.t(),
           Companies.Company.t(),
           map() | :extraction_failed,
-          :success | :needs_review
+          reply_type()
         ) :: :ok
-  defp create_and_notify(%{pdf_file: nil} = record, _company, _extracted, _reply_type) do
+  defp create_and_notify(%{pdf_file: nil} = record, company, _extracted, _reply_type) do
     Logger.error("No PDF file for inbound email #{record.id}")
 
     log_status_update(
@@ -99,12 +100,61 @@ defmodule KsefHub.InboundEmail.InboundEmailWorker do
       record.id
     )
 
+    opts = reply_opts(company, record)
+    send_reply(ReplyNotifier.error(record.sender, :no_pdf_file, opts), record)
     :ok
   end
 
   defp create_and_notify(record, company, extracted, reply_type) do
-    case Invoices.create_email_invoice(company.id, record.pdf_file.content, extracted,
-           filename: record.original_filename
+    create_opts = [filename: record.original_filename]
+
+    case Invoices.create_email_invoice(
+           company.id,
+           record.pdf_file.content,
+           extracted,
+           create_opts
+         ) do
+      {:ok, invoice} ->
+        complete_and_notify(record, company, invoice, reply_type)
+
+      {:error, reason} ->
+        Logger.error("Failed to create email invoice: #{inspect(reason)}, retrying as failed")
+        fallback_create_and_notify(record, company, reason, reply_type)
+    end
+  end
+
+  @spec complete_and_notify(
+          InboundEmail.InboundEmail.t(),
+          Companies.Company.t(),
+          Invoices.Invoice.t(),
+          reply_type()
+        ) :: :ok
+  defp complete_and_notify(record, company, invoice, reply_type) do
+    log_status_update(
+      InboundEmail.update_status(record, %{status: :completed, invoice_id: invoice.id}),
+      record.id
+    )
+
+    opts = reply_opts(company, record)
+    send_reply(build_reply(reply_type, record.sender, invoice, company, opts), record)
+    :ok
+  end
+
+  # If creation with extracted data fails, retry with :extraction_failed to store just the PDF.
+  @spec fallback_create_and_notify(
+          InboundEmail.InboundEmail.t(),
+          Companies.Company.t(),
+          term(),
+          reply_type()
+        ) :: :ok
+  defp fallback_create_and_notify(record, company, original_reason, _reply_type) do
+    create_opts = [filename: record.original_filename]
+
+    case Invoices.create_email_invoice(
+           company.id,
+           record.pdf_file.content,
+           :extraction_failed,
+           create_opts
          ) do
       {:ok, invoice} ->
         log_status_update(
@@ -113,46 +163,43 @@ defmodule KsefHub.InboundEmail.InboundEmailWorker do
         )
 
         opts = reply_opts(company, record)
-        send_reply(build_reply(reply_type, record.sender, invoice, opts), record)
+        send_reply(ReplyNotifier.needs_review(record.sender, invoice, opts), record)
         :ok
 
-      {:error, reason} ->
-        Logger.error("Failed to create email invoice: #{inspect(reason)}")
+      {:error, fallback_reason} ->
+        Logger.error("Fallback invoice creation also failed: #{inspect(fallback_reason)}")
 
         log_status_update(
-          InboundEmail.update_status(record, %{status: :failed, error_message: inspect(reason)}),
+          InboundEmail.update_status(record, %{
+            status: :failed,
+            error_message: inspect(original_reason)
+          }),
           record.id
         )
 
         opts = reply_opts(company, record)
-        send_reply(ReplyNotifier.error(record.sender, reason, opts), record)
+        send_reply(ReplyNotifier.error(record.sender, original_reason, opts), record)
         :ok
     end
   end
 
-  @spec build_reply(:success | :needs_review, String.t(), Invoices.Invoice.t(), keyword()) ::
+  @spec build_reply(
+          reply_type(),
+          String.t(),
+          Invoices.Invoice.t(),
+          Companies.Company.t(),
+          keyword()
+        ) ::
           Swoosh.Email.t()
-  defp build_reply(:success, sender, invoice, opts),
+  defp build_reply(:success, sender, invoice, _company, opts),
     do: ReplyNotifier.success(sender, invoice, opts)
 
-  defp build_reply(:needs_review, sender, invoice, opts),
+  defp build_reply(:needs_review, sender, invoice, _company, opts),
     do: ReplyNotifier.needs_review(sender, invoice, opts)
 
-  @spec reject_and_notify(InboundEmail.InboundEmail.t(), Companies.Company.t(), atom()) :: :ok
-  defp reject_and_notify(record, company, reason) do
-    log_status_update(
-      InboundEmail.update_status(record, %{
-        status: :rejected,
-        error_message: rejection_message(reason)
-      }),
-      record.id
-    )
-
-    opts =
-      Keyword.merge(reply_opts(company, record), company_name: company.name, nip: company.nip)
-
-    send_reply(ReplyNotifier.rejection(record.sender, reason, opts), record)
-    :ok
+  defp build_reply({:nip_warning, reason}, sender, invoice, company, opts) do
+    opts = Keyword.merge(opts, company_name: company.name, nip: company.nip)
+    ReplyNotifier.nip_warning(sender, invoice, reason, opts)
   end
 
   @spec send_reply(Swoosh.Email.t(), InboundEmail.InboundEmail.t()) :: :ok
@@ -188,13 +235,6 @@ defmodule KsefHub.InboundEmail.InboundEmailWorker do
       subject -> Keyword.put(opts, :original_subject, subject)
     end
   end
-
-  @spec rejection_message(atom()) :: String.t()
-  defp rejection_message(:income_not_allowed),
-    do: "Income invoice — seller NIP matches company"
-
-  defp rejection_message(:nip_mismatch),
-    do: "Buyer NIP doesn't match company"
 
   @spec log_status_update({:ok, term()} | {:error, term()}, String.t()) :: :ok
   defp log_status_update({:ok, _}, _id), do: :ok
