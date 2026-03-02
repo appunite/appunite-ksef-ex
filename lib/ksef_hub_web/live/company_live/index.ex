@@ -215,10 +215,8 @@ defmodule KsefHubWeb.CompanyLive.Index do
   defp inbound_email_address(%{inbound_email_token: nil}), do: nil
 
   defp inbound_email_address(%{inbound_email_token: token}) do
-    case Application.get_env(:ksef_hub, :inbound_email_domain) do
-      nil -> token
-      domain -> "inv-#{token}@#{domain}"
-    end
+    domain = Application.get_env(:ksef_hub, :inbound_email_domain, "example.com")
+    "inv-#{token}@#{domain}"
   end
 
   @doc "Renders the company list page with create/edit form."
