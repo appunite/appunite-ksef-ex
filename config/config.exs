@@ -34,7 +34,7 @@ config :ksef_hub, Oban,
      ]},
     {Oban.Plugins.Lifeline, rescue_after: :timer.minutes(15)}
   ],
-  queues: [sync: 1, default: 5]
+  queues: [sync: 1, default: 5, exports: 2]
 
 # Google OAuth
 config :ueberauth, Ueberauth,

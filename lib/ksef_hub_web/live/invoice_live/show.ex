@@ -65,7 +65,7 @@ defmodule KsefHubWeb.InvoiceLive.Show do
            edit_form: build_edit_form(invoice),
            editing_note: false,
            note_form: note_form(invoice),
-           comments: Invoices.list_invoice_comments(invoice.id),
+           comments: Invoices.list_invoice_comments(company.id, invoice.id),
            comment_form: comment_form(),
            comment_form_key: 0,
            editing_comment_id: nil,
@@ -333,13 +333,14 @@ defmodule KsefHubWeb.InvoiceLive.Show do
       trimmed ->
         user_id = socket.assigns.current_user.id
         invoice_id = socket.assigns.invoice.id
+        company_id = socket.assigns.current_company.id
 
-        case Invoices.create_invoice_comment(invoice_id, user_id, %{body: trimmed}) do
+        case Invoices.create_invoice_comment(company_id, invoice_id, user_id, %{body: trimmed}) do
           {:ok, _comment} ->
             {:noreply,
              socket
              |> assign(
-               comments: Invoices.list_invoice_comments(invoice_id),
+               comments: Invoices.list_invoice_comments(company_id, invoice_id),
                comment_form: comment_form(),
                comment_form_key: socket.assigns.comment_form_key + 1
              )}
@@ -379,7 +380,11 @@ defmodule KsefHubWeb.InvoiceLive.Show do
           {:noreply,
            socket
            |> assign(
-             comments: Invoices.list_invoice_comments(socket.assigns.invoice.id),
+             comments:
+               Invoices.list_invoice_comments(
+                 socket.assigns.current_company.id,
+                 socket.assigns.invoice.id
+               ),
              editing_comment_id: nil,
              edit_comment_form: nil
            )}
@@ -404,7 +409,11 @@ defmodule KsefHubWeb.InvoiceLive.Show do
         {:ok, _} ->
           {:noreply,
            assign(socket,
-             comments: Invoices.list_invoice_comments(socket.assigns.invoice.id)
+             comments:
+               Invoices.list_invoice_comments(
+                 socket.assigns.current_company.id,
+                 socket.assigns.invoice.id
+               )
            )}
 
         {:error, _} ->

@@ -10,6 +10,7 @@ defmodule KsefHub.Files.File do
   @foreign_key_type :binary_id
 
   @max_bytes 10_000_000
+  @max_export_bytes 50_000_000
 
   schema "files" do
     field :content, :binary
@@ -30,6 +31,19 @@ defmodule KsefHub.Files.File do
     |> validate_number(:byte_size,
       less_than_or_equal_to: @max_bytes,
       message: "must be at most 10MB"
+    )
+  end
+
+  @doc "Builds a changeset for creating a file without the 10MB size limit (for export ZIPs, max 50MB)."
+  @spec export_changeset(t(), map()) :: Ecto.Changeset.t()
+  def export_changeset(file, attrs) do
+    file
+    |> cast(attrs, [:content, :content_type, :filename])
+    |> validate_required([:content, :content_type])
+    |> compute_byte_size()
+    |> validate_number(:byte_size,
+      less_than_or_equal_to: @max_export_bytes,
+      message: "must be at most 50MB"
     )
   end
 

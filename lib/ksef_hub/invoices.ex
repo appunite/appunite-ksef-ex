@@ -1049,27 +1049,34 @@ defmodule KsefHub.Invoices do
 
   # --- Invoice Comments ---
 
-  @doc "Lists comments for an invoice, ordered by insertion time ascending, with user preloaded."
-  @spec list_invoice_comments(Ecto.UUID.t()) :: [InvoiceComment.t()]
-  def list_invoice_comments(invoice_id) do
+  @doc "Lists comments for an invoice, ordered by insertion time ascending, with user preloaded. Scoped to company."
+  @spec list_invoice_comments(Ecto.UUID.t(), Ecto.UUID.t()) :: [InvoiceComment.t()]
+  def list_invoice_comments(company_id, invoice_id) do
     InvoiceComment
-    |> where([c], c.invoice_id == ^invoice_id)
+    |> join(:inner, [c], i in Invoice, on: c.invoice_id == i.id)
+    |> where([c, i], c.invoice_id == ^invoice_id and i.company_id == ^company_id)
     |> order_by([c], asc: c.inserted_at, asc: c.id)
     |> preload(:user)
     |> Repo.all()
   end
 
-  @doc "Creates a comment on an invoice and returns it with user preloaded."
-  @spec create_invoice_comment(Ecto.UUID.t(), Ecto.UUID.t(), map()) ::
-          {:ok, InvoiceComment.t()} | {:error, Ecto.Changeset.t()}
-  def create_invoice_comment(invoice_id, user_id, attrs) do
-    %InvoiceComment{}
-    |> Ecto.Changeset.change(%{invoice_id: invoice_id, user_id: user_id})
-    |> InvoiceComment.changeset(attrs)
-    |> Repo.insert()
-    |> case do
-      {:ok, comment} -> {:ok, Repo.preload(comment, :user)}
-      error -> error
+  @doc "Creates a comment on an invoice and returns it with user preloaded. Verifies invoice belongs to company."
+  @spec create_invoice_comment(Ecto.UUID.t(), Ecto.UUID.t(), Ecto.UUID.t(), map()) ::
+          {:ok, InvoiceComment.t()} | {:error, :not_found} | {:error, Ecto.Changeset.t()}
+  def create_invoice_comment(company_id, invoice_id, user_id, attrs) do
+    case Repo.get_by(Invoice, id: invoice_id, company_id: company_id) do
+      nil ->
+        {:error, :not_found}
+
+      _invoice ->
+        %InvoiceComment{}
+        |> Ecto.Changeset.change(%{invoice_id: invoice_id, user_id: user_id})
+        |> InvoiceComment.changeset(attrs)
+        |> Repo.insert()
+        |> case do
+          {:ok, comment} -> {:ok, Repo.preload(comment, :user)}
+          error -> error
+        end
     end
   end
 
