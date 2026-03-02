@@ -45,6 +45,15 @@ defmodule KsefHub.InboundEmail.ReplyNotifierTest do
       assert email.headers["References"] == "<msg-id@mailgun.org>"
     end
 
+    test "rejects malformed bracket message-ids" do
+      invoice = %{id: "abc", invoice_number: "FV/1", seller_name: "Seller"}
+
+      for malformed <- ["<msg-id", "msg-id>"] do
+        email = ReplyNotifier.success(@sender, invoice, in_reply_to: malformed)
+        assert email.headers == %{}, "expected no headers for #{inspect(malformed)}"
+      end
+    end
+
     test "uses Re: original_subject for threading when provided" do
       invoice = %{id: "abc", invoice_number: "FV/1", seller_name: "Seller"}
 

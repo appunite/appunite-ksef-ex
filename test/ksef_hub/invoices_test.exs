@@ -1133,6 +1133,42 @@ defmodule KsefHub.InvoicesTest do
       assert {:error, :no_pdf} = Invoices.re_extract_invoice(invoice, company)
     end
 
+    test "preserves existing fields when re-extraction returns partial data", %{
+      company: company
+    } do
+      invoice =
+        insert(:pdf_upload_invoice,
+          company: company,
+          extraction_status: :complete,
+          seller_name: "Original Seller",
+          buyer_name: "Original Buyer",
+          invoice_number: "FV/ORIG/001",
+          net_amount: Decimal.new("1000.00"),
+          gross_amount: Decimal.new("1230.00")
+        )
+
+      KsefHub.InvoiceExtractor.Mock
+      |> expect(:extract, fn _pdf, _opts ->
+        # Only return seller_name — all other fields missing
+        {:ok, %{"seller_name" => "Updated Seller"}}
+      end)
+
+      assert {:ok, updated} = Invoices.re_extract_invoice(invoice, company)
+
+      # Updated field should change
+      assert updated.seller_name == "Updated Seller"
+
+      # Existing fields should be preserved (not overwritten with nil)
+      assert updated.buyer_name == "Original Buyer"
+      assert updated.invoice_number == "FV/ORIG/001"
+      assert updated.net_amount == Decimal.new("1000.00")
+      assert updated.gross_amount == Decimal.new("1230.00")
+
+      # Extraction status recalculated from the new extraction result (partial),
+      # not from the merged invoice state
+      assert updated.extraction_status == :partial
+    end
+
     test "returns error when extraction service fails", %{company: company} do
       invoice = insert(:pdf_upload_invoice, company: company)
 

@@ -277,6 +277,10 @@ defmodule KsefHub.InboundEmail.InboundEmailWorkerTest do
       # Fallback creates invoice with :extraction_failed
       assert updated.status == :completed
       assert updated.invoice_id != nil
+
+      # Verify fallback path created invoice with :failed extraction status
+      invoice = KsefHub.Invoices.get_invoice!(company.id, updated.invoice_id)
+      assert invoice.extraction_status == :failed
     end
 
     test "sends success email with invoice link on successful processing", %{company: company} do

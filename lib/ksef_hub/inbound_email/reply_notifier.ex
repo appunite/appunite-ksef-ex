@@ -249,7 +249,7 @@ defmodule KsefHub.InboundEmail.ReplyNotifier do
   defp maybe_add_threading_headers(email, message_id) do
     normalized = normalize_message_id(message_id)
 
-    if valid_message_id?(normalized) and normalized not in ["", "<>"] do
+    if valid_message_id?(normalized) do
       email
       |> header("In-Reply-To", normalized)
       |> header("References", normalized)
@@ -271,9 +271,11 @@ defmodule KsefHub.InboundEmail.ReplyNotifier do
     end
   end
 
+  # Validates Message-Id per RFC 5322: must be <non-empty-content>, no control chars.
   @spec valid_message_id?(String.t()) :: boolean()
   defp valid_message_id?(id) when is_binary(id) do
-    not String.contains?(id, ["\r", "\n", "\0"])
+    Regex.match?(~r/^<[^>]+>$/, id) and
+      not String.contains?(id, ["\r", "\n", "\0"])
   end
 
   defp valid_message_id?(_), do: false
