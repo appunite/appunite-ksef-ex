@@ -52,14 +52,11 @@ defmodule KsefHubWeb.CompanySwitchController do
   end
 
   @spec rewrite_company_in_path(String.t(), String.t()) :: String.t()
-  defp rewrite_company_in_path(path, new_company_id) do
-    case Regex.replace(~r{^/c/[^/]+}, path, "/c/#{new_company_id}") do
-      ^path ->
-        # Path doesn't contain /c/:id prefix — redirect to default
-        ~p"/c/#{new_company_id}/invoices"
+  defp rewrite_company_in_path("/c/" <> _ = path, new_company_id) do
+    Regex.replace(~r{^/c/[^/]+}, path, "/c/#{new_company_id}")
+  end
 
-      rewritten ->
-        rewritten
-    end
+  defp rewrite_company_in_path(_path, new_company_id) do
+    ~p"/c/#{new_company_id}/invoices"
   end
 end

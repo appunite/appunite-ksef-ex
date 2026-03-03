@@ -3,6 +3,18 @@ defmodule KsefHubWeb.UrlHelpers do
   Shared URL utility functions for the web layer.
   """
 
+  use KsefHubWeb, :verified_routes
+
+  @doc """
+  Returns the default landing path for a company context.
+
+  When a company is available, returns the company-scoped invoices path.
+  Falls back to `/companies` when no company is present.
+  """
+  @spec default_path(map() | nil) :: String.t()
+  def default_path(nil), do: ~p"/companies"
+  def default_path(%{id: id}), do: ~p"/c/#{id}/invoices"
+
   @doc """
   Sanitizes a return_to path to prevent open-redirect attacks.
 

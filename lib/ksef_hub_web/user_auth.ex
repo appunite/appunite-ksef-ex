@@ -13,7 +13,8 @@ defmodule KsefHubWeb.UserAuth do
 
   alias KsefHub.Accounts
   alias KsefHub.Companies
-  alias KsefHubWeb.UrlHelpers
+
+  import KsefHubWeb.UrlHelpers, only: [default_path: 1, sanitize_return_to: 1]
 
   @doc """
   Logs the user in by generating a session token, renewing the session,
@@ -22,7 +23,7 @@ defmodule KsefHubWeb.UserAuth do
   @spec log_in_user(Plug.Conn.t(), KsefHub.Accounts.User.t(), map()) :: Plug.Conn.t()
   def log_in_user(conn, user, params \\ %{}) do
     token = Accounts.generate_user_session_token(user)
-    return_to = UrlHelpers.sanitize_return_to(params[:return_to] || params["return_to"])
+    return_to = sanitize_return_to(params[:return_to] || params["return_to"])
 
     conn
     |> configure_session(renew: true)
@@ -60,9 +61,9 @@ defmodule KsefHubWeb.UserAuth do
   """
   @spec signed_in_path(KsefHub.Accounts.User.t()) :: String.t()
   def signed_in_path(user) do
-    case Companies.first_company_id_for_user(user.id) do
-      nil -> "/companies"
-      company_id -> ~p"/c/#{company_id}/invoices"
-    end
+    user.id
+    |> Companies.list_companies_for_user()
+    |> List.first()
+    |> default_path()
   end
 end

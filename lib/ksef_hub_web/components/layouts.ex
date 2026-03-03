@@ -71,7 +71,11 @@ defmodule KsefHubWeb.Layouts do
                     name="_csrf_token"
                     value={Plug.CSRFProtection.get_csrf_token()}
                   />
-                  <input type="hidden" name="return_to" value={@current_path || "/invoices"} />
+                  <input
+                    type="hidden"
+                    name="return_to"
+                    value={@current_path || ~p"/c/#{@current_company.id}/invoices"}
+                  />
                   <button
                     type="submit"
                     class={[

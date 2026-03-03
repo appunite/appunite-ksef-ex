@@ -49,8 +49,7 @@ defmodule KsefHubWeb.InvoicePdfController do
                                                                           Plug.Conn.t())) ::
           Plug.Conn.t()
   defp with_invoice(conn, company_id, id, inline? \\ false, fun) do
-    user = conn.assigns[:current_user]
-    user_id = user && user.id
+    %{id: user_id} = conn.assigns.current_user
 
     with {:role, role} when not is_nil(role) <- {:role, resolve_role(user_id, company_id)},
          {:invoice, %{} = invoice} <-
