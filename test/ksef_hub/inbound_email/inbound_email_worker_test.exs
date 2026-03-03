@@ -5,6 +5,7 @@ defmodule KsefHub.InboundEmail.InboundEmailWorkerTest do
 
   import KsefHub.Factory
   import Mox
+  import Swoosh.TestAssertions
 
   alias KsefHub.InboundEmail
   alias KsefHub.InboundEmail.InboundEmailWorker
@@ -91,7 +92,9 @@ defmodule KsefHub.InboundEmail.InboundEmailWorkerTest do
       assert updated.invoice_id != nil
     end
 
-    test "rejects when seller NIP matches company (income invoice)", %{company: company} do
+    test "creates invoice with NIP warning when seller NIP matches company (income)", %{
+      company: company
+    } do
       record = create_inbound_email(company)
 
       KsefHub.InvoiceExtractor.Mock
@@ -112,11 +115,13 @@ defmodule KsefHub.InboundEmail.InboundEmailWorkerTest do
       assert :ok = perform_job(record.id, company.id)
 
       updated = InboundEmail.get_inbound_email!(record.id)
-      assert updated.status == :rejected
-      assert updated.error_message =~ "Income invoice"
+      assert updated.status == :completed
+      assert updated.invoice_id != nil
     end
 
-    test "rejects when neither NIP matches company", %{company: company} do
+    test "creates invoice with NIP warning when neither NIP matches company", %{
+      company: company
+    } do
       record = create_inbound_email(company)
 
       KsefHub.InvoiceExtractor.Mock
@@ -137,8 +142,37 @@ defmodule KsefHub.InboundEmail.InboundEmailWorkerTest do
       assert :ok = perform_job(record.id, company.id)
 
       updated = InboundEmail.get_inbound_email!(record.id)
-      assert updated.status == :rejected
-      assert updated.error_message =~ "doesn't match"
+      assert updated.status == :completed
+      assert updated.invoice_id != nil
+    end
+
+    test "creates invoice with foreign (non-Polish) seller NIP", %{company: company} do
+      record = create_inbound_email(company)
+
+      KsefHub.InvoiceExtractor.Mock
+      |> expect(:extract, fn _pdf, _opts ->
+        {:ok,
+         %{
+           "seller_nip" => "FR61823475082",
+           "seller_name" => "LEMPIRE SAS",
+           "buyer_nip" => "1234567890",
+           "buyer_name" => "Buyer S.A.",
+           "invoice_number" => "FA-2026-001",
+           "issue_date" => "2026-02-15",
+           "net_amount" => "500.00",
+           "gross_amount" => "600.00"
+         }}
+      end)
+
+      assert :ok = perform_job(record.id, company.id)
+
+      updated = InboundEmail.get_inbound_email!(record.id)
+      assert updated.status == :completed
+      assert updated.invoice_id != nil
+
+      # Verify the foreign NIP was persisted without truncation
+      invoice = KsefHub.Invoices.get_invoice!(company.id, updated.invoice_id)
+      assert invoice.seller_nip == "FR61823475082"
     end
 
     test "cancels when inbound email record not found" do
@@ -196,6 +230,125 @@ defmodule KsefHub.InboundEmail.InboundEmailWorkerTest do
       updated = InboundEmail.get_inbound_email!(record.id)
       assert updated.status == :failed
       assert updated.error_message =~ "no PDF file"
+    end
+
+    test "sends error email when no pdf_file is present", %{company: company} do
+      {:ok, record} =
+        InboundEmail.create_inbound_email(company.id, %{
+          sender: "user@appunite.com",
+          recipient: "inv-test@inbound.ksef-hub.com",
+          status: :received,
+          original_filename: "invoice.pdf"
+        })
+
+      assert :ok = perform_job(record.id, company.id)
+
+      assert_email_sent(fn email ->
+        assert email.to == [{"user@appunite.com", "user@appunite.com"}]
+        assert email.subject =~ "processing failed"
+      end)
+    end
+
+    test "falls back to extraction_failed when extracted data causes creation error", %{
+      company: company
+    } do
+      record = create_inbound_email(company)
+
+      # Return extracted data with a seller_nip that is too long (>50 chars)
+      # which will fail changeset validation on first attempt
+      KsefHub.InvoiceExtractor.Mock
+      |> expect(:extract, fn _pdf, _opts ->
+        {:ok,
+         %{
+           "seller_nip" => String.duplicate("1", 51),
+           "seller_name" => "Bad Seller",
+           "buyer_nip" => "1234567890",
+           "buyer_name" => "Buyer S.A.",
+           "invoice_number" => "FV/2026/FALLBACK",
+           "issue_date" => "2026-02-25",
+           "net_amount" => "100.00",
+           "gross_amount" => "123.00"
+         }}
+      end)
+
+      assert :ok = perform_job(record.id, company.id)
+
+      updated = InboundEmail.get_inbound_email!(record.id)
+      # Fallback creates invoice with :extraction_failed
+      assert updated.status == :completed
+      assert updated.invoice_id != nil
+
+      # Verify fallback path created invoice with :failed extraction status
+      invoice = KsefHub.Invoices.get_invoice!(company.id, updated.invoice_id)
+      assert invoice.extraction_status == :failed
+    end
+
+    test "sends success email with invoice link on successful processing", %{company: company} do
+      record = create_inbound_email(company)
+
+      KsefHub.InvoiceExtractor.Mock
+      |> expect(:extract, fn _pdf, _opts ->
+        {:ok,
+         %{
+           "seller_nip" => "9999999999",
+           "seller_name" => "Seller Sp. z o.o.",
+           "buyer_nip" => "1234567890",
+           "buyer_name" => "Buyer S.A.",
+           "invoice_number" => "FV/2026/EMAIL",
+           "issue_date" => "2026-02-25",
+           "net_amount" => "1000.00",
+           "gross_amount" => "1230.00"
+         }}
+      end)
+
+      assert :ok = perform_job(record.id, company.id)
+
+      assert_email_sent(fn email ->
+        assert email.to == [{"user@appunite.com", "user@appunite.com"}]
+        assert email.subject =~ "FV/2026/EMAIL"
+        assert email.text_body =~ "added and is ready"
+      end)
+    end
+
+    test "sends NIP warning email when seller NIP matches company", %{company: company} do
+      record = create_inbound_email(company)
+
+      KsefHub.InvoiceExtractor.Mock
+      |> expect(:extract, fn _pdf, _opts ->
+        {:ok,
+         %{
+           "seller_nip" => "1234567890",
+           "seller_name" => "Our Company",
+           "buyer_nip" => "9999999999",
+           "buyer_name" => "Customer",
+           "invoice_number" => "FV/2026/NIP",
+           "issue_date" => "2026-02-25",
+           "net_amount" => "500.00",
+           "gross_amount" => "615.00"
+         }}
+      end)
+
+      assert :ok = perform_job(record.id, company.id)
+
+      assert_email_sent(fn email ->
+        assert email.subject =~ "NIP warning"
+        assert email.text_body =~ "income invoice"
+      end)
+    end
+
+    test "sends needs_review email when extraction is partial", %{company: company} do
+      record = create_inbound_email(company)
+
+      KsefHub.InvoiceExtractor.Mock
+      |> expect(:extract, fn _pdf, _opts ->
+        {:ok, %{"seller_name" => "Partial Seller"}}
+      end)
+
+      assert :ok = perform_job(record.id, company.id)
+
+      assert_email_sent(fn email ->
+        assert email.subject =~ "needs human review"
+      end)
     end
   end
 

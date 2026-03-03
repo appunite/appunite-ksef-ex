@@ -100,8 +100,7 @@ defmodule KsefHub.Invoices.Invoice do
       :original_filename
     ])
     |> validate_required([:type, :company_id])
-    |> validate_format(:seller_nip, ~r/^\d{10}$/, message: "must be a 10-digit NIP")
-    |> validate_format(:buyer_nip, ~r/^\d{10}$/, message: "must be a 10-digit NIP")
+    |> validate_nip_fields()
     |> validate_length(:original_filename, max: 255)
     |> validate_source_requirements()
     |> foreign_key_constraint(:company_id)
@@ -147,8 +146,7 @@ defmodule KsefHub.Invoices.Invoice do
   def edit_changeset(invoice, attrs) do
     invoice
     |> cast(attrs, @edit_fields)
-    |> validate_format(:seller_nip, ~r/^\d{10}$/, message: "must be a 10-digit NIP")
-    |> validate_format(:buyer_nip, ~r/^\d{10}$/, message: "must be a 10-digit NIP")
+    |> validate_nip_fields()
     |> validate_number(:net_amount, greater_than_or_equal_to: 0)
     |> validate_number(:vat_amount, greater_than_or_equal_to: 0)
     |> validate_number(:gross_amount, greater_than_or_equal_to: 0)
@@ -179,6 +177,21 @@ defmodule KsefHub.Invoices.Invoice do
     invoice
     |> cast(attrs, [:note])
     |> validate_length(:note, max: 5000)
+  end
+
+  @spec validate_nip_fields(Ecto.Changeset.t()) :: Ecto.Changeset.t()
+  defp validate_nip_fields(changeset) do
+    case get_field(changeset, :source) do
+      :ksef ->
+        changeset
+        |> validate_format(:seller_nip, ~r/^\d{10}$/, message: "must be a 10-digit NIP")
+        |> validate_format(:buyer_nip, ~r/^\d{10}$/, message: "must be a 10-digit NIP")
+
+      _ ->
+        changeset
+        |> validate_length(:seller_nip, max: 50)
+        |> validate_length(:buyer_nip, max: 50)
+    end
   end
 
   @spec validate_source_requirements(Ecto.Changeset.t()) :: Ecto.Changeset.t()

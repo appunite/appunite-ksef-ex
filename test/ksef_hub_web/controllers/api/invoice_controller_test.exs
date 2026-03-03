@@ -684,7 +684,8 @@ defmodule KsefHubWeb.Api.InvoiceControllerTest do
       invoice =
         insert(:pdf_upload_invoice, company: company, extraction_status: :partial)
 
-      body = Jason.encode!(%{seller_nip: "not-a-nip"})
+      too_long_nip = String.duplicate("1", 51)
+      body = Jason.encode!(%{seller_nip: too_long_nip})
       conn = conn |> api_conn(token) |> patch("/api/invoices/#{invoice.id}", body)
 
       assert conn.status == 422

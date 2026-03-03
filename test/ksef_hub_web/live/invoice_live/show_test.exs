@@ -372,22 +372,26 @@ defmodule KsefHubWeb.InvoiceLive.ShowTest do
       refute has_element?(view, ~s([data-testid="extraction-warning"]))
     end
 
-    test "shows validation errors for invalid NIP", %{conn: conn, company: company} do
-      invoice = insert(:invoice, company: company)
+    test "accepts foreign tax ID in seller_nip field", %{conn: conn, company: company} do
+      invoice = insert(:pdf_upload_invoice, company: company)
 
       stub(KsefHub.PdfRenderer.Mock, :generate_html, fn _xml, _meta -> {:error, :no_xml} end)
 
       {:ok, view, _html} = live(conn, ~p"/invoices/#{invoice.id}")
       view |> element("button", "Edit") |> render_click()
 
-      html =
-        view
-        |> form("form[phx-submit=save_edit]", %{
-          "invoice" => %{"seller_nip" => "abc"}
-        })
-        |> render_submit()
+      view
+      |> form("form[phx-submit=save_edit]", %{
+        "invoice" => %{"seller_nip" => "FR61823475082"}
+      })
+      |> render_submit()
 
-      assert html =~ "must be a 10-digit NIP"
+      # Form should be closed (edit successful)
+      refute has_element?(view, "form[phx-submit=save_edit]")
+
+      # Verify persistence
+      updated = Invoices.get_invoice!(company.id, invoice.id)
+      assert updated.seller_nip == "FR61823475082"
     end
   end
 

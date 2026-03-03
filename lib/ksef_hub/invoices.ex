@@ -259,6 +259,69 @@ defmodule KsefHub.Invoices do
   end
 
   @doc """
+  Re-extracts data from an invoice's stored PDF file.
+
+  Calls the extraction sidecar to re-parse the PDF, then updates the invoice
+  with the newly extracted fields. Only works for invoices that have a stored
+  PDF file (source: :pdf_upload or :email).
+
+  Returns `{:ok, updated_invoice}` on success, `{:error, reason}` on failure.
+  """
+  @spec re_extract_invoice(Invoice.t(), Company.t()) ::
+          {:ok, Invoice.t()} | {:error, term()}
+  def re_extract_invoice(%Invoice{} = invoice, %Company{} = company) do
+    with {:ok, pdf_binary} <- load_pdf_content(invoice),
+         {:ok, extracted} <- do_re_extract(company, invoice, pdf_binary) do
+      apply_extraction_results(invoice, extracted)
+    end
+  end
+
+  @spec load_pdf_content(Invoice.t()) :: {:ok, binary()} | {:error, :no_pdf}
+  defp load_pdf_content(%Invoice{pdf_file: %{content: content}}) when is_binary(content),
+    do: {:ok, content}
+
+  defp load_pdf_content(%Invoice{pdf_file_id: pdf_file_id}) when not is_nil(pdf_file_id) do
+    case Files.get_file(pdf_file_id) do
+      %{content: content} when is_binary(content) -> {:ok, content}
+      _ -> {:error, :no_pdf}
+    end
+  end
+
+  defp load_pdf_content(_invoice), do: {:error, :no_pdf}
+
+  @spec do_re_extract(Company.t(), Invoice.t(), binary()) ::
+          {:ok, map()} | {:error, term()}
+  defp do_re_extract(company, invoice, pdf_binary) do
+    context = ContextBuilder.build(company)
+    filename = invoice.original_filename || "invoice.pdf"
+    invoice_extractor().extract(pdf_binary, filename: filename, context: context)
+  end
+
+  @spec apply_extraction_results(Invoice.t(), map()) ::
+          {:ok, Invoice.t()} | {:error, Ecto.Changeset.t()}
+  defp apply_extraction_results(invoice, extracted) do
+    extraction_status = determine_extraction_status(extracted)
+
+    # For re-extraction, only overwrite fields that have non-nil extracted values.
+    # This preserves manually-edited data when re-extraction returns partial results.
+    attrs =
+      extracted_to_invoice_attrs(extracted)
+      |> Map.reject(fn {_k, v} -> is_nil(v) end)
+      |> Map.put(:extraction_status, extraction_status)
+
+    # Preserve existing currency if extraction didn't provide one
+    attrs =
+      if Map.has_key?(attrs, :currency),
+        do: attrs,
+        else: Map.put(attrs, :currency, invoice.currency || "PLN")
+
+    with {:ok, updated} <- update_invoice(invoice, attrs) do
+      maybe_enqueue_prediction(extraction_status, updated)
+      {:ok, updated}
+    end
+  end
+
+  @doc """
   Recalculates extraction status based on the presence of critical fields.
 
   Merges the given `attrs` over the invoice's current values, then checks
@@ -539,14 +602,25 @@ defmodule KsefHub.Invoices do
          filename,
          extraction_status
        ) do
-    %{
+    attrs = extracted_to_invoice_attrs(extracted)
+
+    attrs
+    |> Map.put(:currency, attrs[:currency] || "PLN")
+    |> Map.merge(%{
       source: :pdf_upload,
       type: type,
       company_id: company_id,
       pdf_content: pdf_binary,
       original_filename: filename,
-      extraction_status: extraction_status,
-      ksef_number: get_extracted_string(extracted, "ksef_number"),
+      extraction_status: extraction_status
+    })
+  end
+
+  # Shared mapping from extraction result (string-keyed map) to invoice attrs (atom-keyed map).
+  # Used by both initial PDF upload creation and re-extraction.
+  @spec extracted_to_invoice_attrs(map()) :: map()
+  defp extracted_to_invoice_attrs(extracted) do
+    %{
       seller_nip: get_extracted_nip(extracted, "seller_nip"),
       seller_name: get_extracted_string(extracted, "seller_name"),
       buyer_nip: get_extracted_nip(extracted, "buyer_nip"),
@@ -556,7 +630,8 @@ defmodule KsefHub.Invoices do
       net_amount: get_extracted_decimal(extracted, "net_amount"),
       vat_amount: get_extracted_decimal(extracted, "vat_amount"),
       gross_amount: get_extracted_decimal(extracted, "gross_amount"),
-      currency: get_extracted_string(extracted, "currency") || "PLN"
+      currency: get_extracted_string(extracted, "currency"),
+      ksef_number: get_extracted_string(extracted, "ksef_number")
     }
   end
 
@@ -598,9 +673,28 @@ defmodule KsefHub.Invoices do
 
   @spec parse_date(String.t()) :: Date.t() | nil
   defp parse_date(value) do
-    case Date.from_iso8601(value) do
+    with :error <- Date.from_iso8601(value),
+         :error <- parse_datetime_as_date(value),
+         :error <- parse_naive_datetime_as_date(value) do
+      nil
+    else
       {:ok, date} -> date
-      _ -> nil
+    end
+  end
+
+  @spec parse_datetime_as_date(String.t()) :: {:ok, Date.t()} | :error
+  defp parse_datetime_as_date(value) do
+    case DateTime.from_iso8601(value) do
+      {:ok, dt, _offset} -> {:ok, DateTime.to_date(dt)}
+      _ -> :error
+    end
+  end
+
+  @spec parse_naive_datetime_as_date(String.t()) :: {:ok, Date.t()} | :error
+  defp parse_naive_datetime_as_date(value) do
+    case NaiveDateTime.from_iso8601(value) do
+      {:ok, ndt} -> {:ok, NaiveDateTime.to_date(ndt)}
+      _ -> :error
     end
   end
 

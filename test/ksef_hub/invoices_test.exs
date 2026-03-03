@@ -2,9 +2,12 @@ defmodule KsefHub.InvoicesTest do
   use KsefHub.DataCase, async: true
 
   import KsefHub.Factory
+  import Mox
 
   alias KsefHub.Invoices
   alias KsefHub.Invoices.Invoice
+
+  setup :verify_on_exit!
 
   @sample_xml File.read!("test/support/fixtures/sample_income.xml")
 
@@ -976,10 +979,28 @@ defmodule KsefHub.InvoicesTest do
       assert updated.extraction_status == :partial
     end
 
-    test "returns error changeset for invalid NIP", %{company: company} do
+    test "accepts foreign tax ID in seller_nip for non-KSeF invoices", %{company: company} do
+      invoice = insert(:pdf_upload_invoice, company: company)
+
+      attrs = %{"seller_nip" => "FR61823475082"}
+
+      assert {:ok, updated} = Invoices.update_invoice_fields(invoice, attrs)
+      assert updated.seller_nip == "FR61823475082"
+    end
+
+    test "rejects foreign tax ID in seller_nip for KSeF invoices", %{company: company} do
       invoice = insert(:invoice, company: company)
 
-      attrs = %{"seller_nip" => "abc"}
+      attrs = %{"seller_nip" => "FR61823475082"}
+
+      assert {:error, changeset} = Invoices.update_invoice_fields(invoice, attrs)
+      assert errors_on(changeset).seller_nip
+    end
+
+    test "rejects seller_nip exceeding max length", %{company: company} do
+      invoice = insert(:pdf_upload_invoice, company: company)
+
+      attrs = %{"seller_nip" => String.duplicate("1", 51)}
 
       assert {:error, changeset} = Invoices.update_invoice_fields(invoice, attrs)
       assert errors_on(changeset).seller_nip
@@ -1053,6 +1074,111 @@ defmodule KsefHub.InvoicesTest do
       assert invoice.type == :expense
       assert invoice.extraction_status == :failed
       assert invoice.original_filename == "bad.pdf"
+    end
+
+    test "creates invoice with foreign (non-Polish) seller NIP", %{company: company} do
+      pdf_binary = "%PDF-1.4 fake french invoice"
+
+      extracted = %{
+        "seller_nip" => "FR61823475082",
+        "seller_name" => "LEMPIRE SAS",
+        "buyer_nip" => company.nip,
+        "buyer_name" => "Buyer S.A.",
+        "invoice_number" => "FA-2026-001",
+        "issue_date" => "2026-02-15",
+        "net_amount" => "500.00",
+        "gross_amount" => "600.00"
+      }
+
+      assert {:ok, invoice} =
+               Invoices.create_email_invoice(company.id, pdf_binary, extracted,
+                 filename: "french_invoice.pdf"
+               )
+
+      assert invoice.source == :email
+      assert invoice.seller_nip == "FR61823475082"
+      assert invoice.seller_name == "LEMPIRE SAS"
+      assert invoice.extraction_status == :complete
+    end
+  end
+
+  describe "re_extract_invoice/2" do
+    test "re-extracts data from stored PDF and updates invoice", %{company: company} do
+      invoice = insert(:pdf_upload_invoice, company: company, extraction_status: :partial)
+
+      KsefHub.InvoiceExtractor.Mock
+      |> expect(:extract, fn _pdf, _opts ->
+        {:ok,
+         %{
+           "seller_nip" => "5555555555",
+           "seller_name" => "Re-extracted Seller",
+           "buyer_nip" => "6666666666",
+           "buyer_name" => "Re-extracted Buyer",
+           "invoice_number" => "FV/RE/001",
+           "issue_date" => "2026-03-01",
+           "net_amount" => "2000.00",
+           "gross_amount" => "2460.00"
+         }}
+      end)
+
+      assert {:ok, updated} = Invoices.re_extract_invoice(invoice, company)
+      assert updated.seller_name == "Re-extracted Seller"
+      assert updated.invoice_number == "FV/RE/001"
+      assert updated.extraction_status == :complete
+    end
+
+    test "returns error when invoice has no PDF", %{company: company} do
+      invoice = insert(:invoice, company: company, pdf_file_id: nil)
+
+      assert {:error, :no_pdf} = Invoices.re_extract_invoice(invoice, company)
+    end
+
+    test "preserves existing fields when re-extraction returns partial data", %{
+      company: company
+    } do
+      invoice =
+        insert(:pdf_upload_invoice,
+          company: company,
+          extraction_status: :complete,
+          seller_name: "Original Seller",
+          buyer_name: "Original Buyer",
+          invoice_number: "FV/ORIG/001",
+          net_amount: Decimal.new("1000.00"),
+          gross_amount: Decimal.new("1230.00")
+        )
+
+      KsefHub.InvoiceExtractor.Mock
+      |> expect(:extract, fn _pdf, _opts ->
+        # Only return seller_name — all other fields missing
+        {:ok, %{"seller_name" => "Updated Seller"}}
+      end)
+
+      assert {:ok, updated} = Invoices.re_extract_invoice(invoice, company)
+
+      # Updated field should change
+      assert updated.seller_name == "Updated Seller"
+
+      # Existing fields should be preserved (not overwritten with nil)
+      assert updated.buyer_name == "Original Buyer"
+      assert updated.invoice_number == "FV/ORIG/001"
+      assert updated.net_amount == Decimal.new("1000.00")
+      assert updated.gross_amount == Decimal.new("1230.00")
+
+      # Extraction status recalculated from the new extraction result (partial),
+      # not from the merged invoice state
+      assert updated.extraction_status == :partial
+    end
+
+    test "returns error when extraction service fails", %{company: company} do
+      invoice = insert(:pdf_upload_invoice, company: company)
+
+      KsefHub.InvoiceExtractor.Mock
+      |> expect(:extract, fn _pdf, _opts ->
+        {:error, {:extractor_error, 500}}
+      end)
+
+      assert {:error, {:extractor_error, 500}} =
+               Invoices.re_extract_invoice(invoice, company)
     end
   end
 
