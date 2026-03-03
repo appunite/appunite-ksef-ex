@@ -173,7 +173,7 @@ defmodule KsefHubWeb.CompanyLive.Index do
         {:noreply,
          socket
          |> put_flash(:info, "Company created.")
-         |> redirect(to: ~p"/switch-company/#{company.id}?return_to=/invoices")}
+         |> redirect(to: ~p"/c/#{company.id}/invoices")}
 
       {:error, :company, changeset, _changes} ->
         {:noreply, assign(socket, form: to_form(changeset))}

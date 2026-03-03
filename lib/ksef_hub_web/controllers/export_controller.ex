@@ -6,21 +6,14 @@ defmodule KsefHubWeb.ExportController do
   import KsefHubWeb.AuthHelpers, only: [resolve_role: 2]
   import KsefHubWeb.FilenameHelpers, only: [send_attachment: 4]
 
-  alias KsefHub.Companies
   alias KsefHub.Exports
 
   @doc "Downloads the ZIP file for a completed export batch."
   @spec download(Plug.Conn.t(), map()) :: Plug.Conn.t()
-  def download(conn, %{"id" => batch_id}) do
-    user_id = conn.assigns.current_user.id
-
-    case get_session(conn, :current_company_id) || Companies.first_company_id_for_user(user_id) do
-      nil ->
-        conn
-        |> put_flash(:error, "Please select a company first.")
-        |> redirect(to: ~p"/companies")
-
-      company_id ->
+  def download(conn, %{"company_id" => company_id, "id" => batch_id}) do
+    case Ecto.UUID.cast(company_id) do
+      {:ok, _} ->
+        user_id = conn.assigns.current_user.id
         role = resolve_role(user_id, company_id)
 
         if role in [:owner, :accountant] do
@@ -28,8 +21,13 @@ defmodule KsefHubWeb.ExportController do
         else
           conn
           |> put_flash(:error, "You don't have permission to download exports.")
-          |> redirect(to: ~p"/invoices")
+          |> redirect(to: ~p"/c/#{company_id}/invoices")
         end
+
+      :error ->
+        conn
+        |> put_flash(:error, "Not found.")
+        |> redirect(to: ~p"/companies")
     end
   end
 
@@ -45,17 +43,17 @@ defmodule KsefHubWeb.ExportController do
       %{status: :completed} ->
         conn
         |> put_flash(:error, "Export file not found.")
-        |> redirect(to: ~p"/exports")
+        |> redirect(to: ~p"/c/#{company_id}/exports")
 
       _ ->
         conn
         |> put_flash(:error, "Export is not yet ready.")
-        |> redirect(to: ~p"/exports")
+        |> redirect(to: ~p"/c/#{company_id}/exports")
     end
   rescue
     Ecto.NoResultsError ->
       conn
       |> put_flash(:error, "Export not found.")
-      |> redirect(to: ~p"/exports")
+      |> redirect(to: ~p"/c/#{company_id}/exports")
   end
 end

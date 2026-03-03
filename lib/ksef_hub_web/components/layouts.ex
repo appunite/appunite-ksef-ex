@@ -31,7 +31,12 @@ defmodule KsefHubWeb.Layouts do
       <div class="navbar bg-base-100 border-b border-base-300 px-4">
         <!-- navbar-start: logo -->
         <div class="navbar-start">
-          <a href={~p"/invoices"} class="btn btn-ghost gap-2 h-auto py-1">
+          <a
+            href={
+              if @current_company, do: ~p"/c/#{@current_company.id}/invoices", else: ~p"/companies"
+            }
+            class="btn btn-ghost gap-2 h-auto py-1"
+          >
             <.icon name="hero-document-text" class="size-5 text-primary" />
             <span class="flex flex-col items-start leading-tight">
               <span class="text-lg font-bold">Invoi</span>
@@ -66,7 +71,11 @@ defmodule KsefHubWeb.Layouts do
                     name="_csrf_token"
                     value={Plug.CSRFProtection.get_csrf_token()}
                   />
-                  <input type="hidden" name="return_to" value={@current_path || "/invoices"} />
+                  <input
+                    type="hidden"
+                    name="return_to"
+                    value={@current_path || ~p"/c/#{company.id}/invoices"}
+                  />
                   <button
                     type="submit"
                     class={[
@@ -93,41 +102,57 @@ defmodule KsefHubWeb.Layouts do
               class="dropdown-content z-50 menu p-2 border border-base-300 bg-base-100 rounded-box w-64"
             >
               <li class="menu-title text-xs truncate">{@current_user.email}</li>
-              <li>
-                <.nav_link path={~p"/invoices"} current={@current_path} icon="hero-document-text">
+              <li :if={@current_company}>
+                <.nav_link
+                  path={~p"/c/#{@current_company.id}/invoices"}
+                  current={@current_path}
+                  icon="hero-document-text"
+                >
                   Invoices
                 </.nav_link>
               </li>
-              <li>
-                <.nav_link path={~p"/dashboard"} current={@current_path} icon="hero-home">
+              <li :if={@current_company}>
+                <.nav_link
+                  path={~p"/c/#{@current_company.id}/dashboard"}
+                  current={@current_path}
+                  icon="hero-home"
+                >
                   Dashboard
                 </.nav_link>
               </li>
-              <li>
+              <li :if={@current_company}>
                 <.nav_link
-                  path={~p"/categories"}
+                  path={~p"/c/#{@current_company.id}/categories"}
                   current={@current_path}
                   icon="hero-squares-2x2"
                 >
                   Categories
                 </.nav_link>
               </li>
-              <li>
-                <.nav_link path={~p"/tags"} current={@current_path} icon="hero-tag">
+              <li :if={@current_company}>
+                <.nav_link
+                  path={~p"/c/#{@current_company.id}/tags"}
+                  current={@current_path}
+                  icon="hero-tag"
+                >
                   Tags
                 </.nav_link>
               </li>
-              <li :if={@current_role in [:owner, :accountant]}>
+              <li :if={@current_company && @current_role in [:owner, :accountant]}>
                 <.nav_link
-                  path={~p"/exports"}
+                  path={~p"/c/#{@current_company.id}/exports"}
                   current={@current_path}
                   icon="hero-arrow-down-tray"
                 >
                   Exports
                 </.nav_link>
               </li>
-              <li>
-                <.nav_link path={~p"/syncs"} current={@current_path} icon="hero-arrow-path">
+              <li :if={@current_company}>
+                <.nav_link
+                  path={~p"/c/#{@current_company.id}/syncs"}
+                  current={@current_path}
+                  icon="hero-arrow-path"
+                >
                   Syncs
                 </.nav_link>
               </li>
@@ -140,23 +165,33 @@ defmodule KsefHubWeb.Layouts do
                   Companies
                 </.nav_link>
               </li>
-              <li :if={@current_role == :owner} class="menu-title text-xs pt-2">Admin</li>
-              <li :if={@current_role == :owner}>
+              <li :if={@current_company && @current_role == :owner} class="menu-title text-xs pt-2">
+                Admin
+              </li>
+              <li :if={@current_company && @current_role == :owner}>
                 <.nav_link
-                  path={~p"/certificates"}
+                  path={~p"/c/#{@current_company.id}/certificates"}
                   current={@current_path}
                   icon="hero-shield-check"
                 >
                   Certificates
                 </.nav_link>
               </li>
-              <li :if={@current_role == :owner}>
-                <.nav_link path={~p"/tokens"} current={@current_path} icon="hero-key">
+              <li :if={@current_company && @current_role == :owner}>
+                <.nav_link
+                  path={~p"/c/#{@current_company.id}/tokens"}
+                  current={@current_path}
+                  icon="hero-key"
+                >
                   API Tokens
                 </.nav_link>
               </li>
-              <li :if={@current_role == :owner}>
-                <.nav_link path={~p"/team"} current={@current_path} icon="hero-user-group">
+              <li :if={@current_company && @current_role == :owner}>
+                <.nav_link
+                  path={~p"/c/#{@current_company.id}/team"}
+                  current={@current_path}
+                  icon="hero-user-group"
+                >
                   Team
                 </.nav_link>
               </li>

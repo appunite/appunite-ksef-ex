@@ -29,9 +29,18 @@ defmodule KsefHubWeb.UserAuthTest do
       refute get_session(conn, :foo)
     end
 
-    test "redirects to signed_in_path", %{conn: conn, user: user} do
+    test "redirects to /companies when user has no companies", %{conn: conn, user: user} do
       conn = UserAuth.log_in_user(conn, user)
-      assert redirected_to(conn) =~ "/"
+      assert redirected_to(conn) == "/companies"
+    end
+
+    test "redirects to company-scoped invoices when user has a company", %{conn: conn} do
+      user = insert(:user)
+      company = insert(:company)
+      insert(:membership, user: user, company: company, role: :owner)
+
+      conn = UserAuth.log_in_user(conn, user)
+      assert redirected_to(conn) == "/c/#{company.id}/invoices"
     end
 
     test "respects valid return_to path", %{conn: conn, user: user} do
@@ -39,24 +48,40 @@ defmodule KsefHubWeb.UserAuthTest do
       assert redirected_to(conn) == "/invitations/accept/abc123"
     end
 
-    test "ignores return_to with absolute URL (open-redirect)", %{conn: conn, user: user} do
+    test "ignores return_to with absolute URL (open-redirect)", %{conn: conn} do
+      user = insert(:user)
+      company = insert(:company)
+      insert(:membership, user: user, company: company, role: :owner)
+
       conn = UserAuth.log_in_user(conn, user, %{return_to: "https://evil.com"})
-      assert redirected_to(conn) == ~p"/invoices"
+      assert redirected_to(conn) == "/c/#{company.id}/invoices"
     end
 
-    test "ignores return_to with protocol-relative URL (open-redirect)", %{conn: conn, user: user} do
+    test "ignores return_to with protocol-relative URL (open-redirect)", %{conn: conn} do
+      user = insert(:user)
+      company = insert(:company)
+      insert(:membership, user: user, company: company, role: :owner)
+
       conn = UserAuth.log_in_user(conn, user, %{return_to: "//evil.com"})
-      assert redirected_to(conn) == ~p"/invoices"
+      assert redirected_to(conn) == "/c/#{company.id}/invoices"
     end
 
-    test "ignores return_to that does not start with /", %{conn: conn, user: user} do
+    test "ignores return_to that does not start with /", %{conn: conn} do
+      user = insert(:user)
+      company = insert(:company)
+      insert(:membership, user: user, company: company, role: :owner)
+
       conn = UserAuth.log_in_user(conn, user, %{return_to: "evil.com/path"})
-      assert redirected_to(conn) == ~p"/invoices"
+      assert redirected_to(conn) == "/c/#{company.id}/invoices"
     end
 
-    test "ignores empty return_to", %{conn: conn, user: user} do
+    test "ignores empty return_to", %{conn: conn} do
+      user = insert(:user)
+      company = insert(:company)
+      insert(:membership, user: user, company: company, role: :owner)
+
       conn = UserAuth.log_in_user(conn, user, %{return_to: ""})
-      assert redirected_to(conn) == ~p"/invoices"
+      assert redirected_to(conn) == "/c/#{company.id}/invoices"
     end
   end
 

@@ -13,14 +13,14 @@ defmodule KsefHubWeb.RoleBasedNavTest do
       {:ok, view, _html} =
         conn
         |> log_in_user(user, %{current_company_id: company.id})
-        |> live("/dashboard")
+        |> live("/c/#{company.id}/dashboard")
 
-      assert has_element?(view, "a[href='/dashboard']")
-      assert has_element?(view, "a[href='/invoices']")
-      assert has_element?(view, "a[href='/categories']")
-      assert has_element?(view, "a[href='/tags']")
-      assert has_element?(view, "a[href='/certificates']")
-      assert has_element?(view, "a[href='/tokens']")
+      assert has_element?(view, "a[href='/c/#{company.id}/dashboard']")
+      assert has_element?(view, "a[href='/c/#{company.id}/invoices']")
+      assert has_element?(view, "a[href='/c/#{company.id}/categories']")
+      assert has_element?(view, "a[href='/c/#{company.id}/tags']")
+      assert has_element?(view, "a[href='/c/#{company.id}/certificates']")
+      assert has_element?(view, "a[href='/c/#{company.id}/tokens']")
     end
 
     test "accountant does not see Certificates or API Tokens nav items", %{conn: conn} do
@@ -31,14 +31,14 @@ defmodule KsefHubWeb.RoleBasedNavTest do
       {:ok, view, _html} =
         conn
         |> log_in_user(user, %{current_company_id: company.id})
-        |> live("/dashboard")
+        |> live("/c/#{company.id}/dashboard")
 
-      assert has_element?(view, "a[href='/dashboard']")
-      assert has_element?(view, "a[href='/invoices']")
-      assert has_element?(view, "a[href='/categories']")
-      assert has_element?(view, "a[href='/tags']")
-      refute has_element?(view, "a[href='/certificates']")
-      refute has_element?(view, "a[href='/tokens']")
+      assert has_element?(view, "a[href='/c/#{company.id}/dashboard']")
+      assert has_element?(view, "a[href='/c/#{company.id}/invoices']")
+      assert has_element?(view, "a[href='/c/#{company.id}/categories']")
+      assert has_element?(view, "a[href='/c/#{company.id}/tags']")
+      refute has_element?(view, "a[href='/c/#{company.id}/certificates']")
+      refute has_element?(view, "a[href='/c/#{company.id}/tokens']")
     end
 
     test "reviewer does not see Certificates or API Tokens nav items", %{conn: conn} do
@@ -49,14 +49,14 @@ defmodule KsefHubWeb.RoleBasedNavTest do
       {:ok, view, _html} =
         conn
         |> log_in_user(user, %{current_company_id: company.id})
-        |> live("/dashboard")
+        |> live("/c/#{company.id}/dashboard")
 
-      assert has_element?(view, "a[href='/dashboard']")
-      assert has_element?(view, "a[href='/invoices']")
-      assert has_element?(view, "a[href='/categories']")
-      assert has_element?(view, "a[href='/tags']")
-      refute has_element?(view, "a[href='/certificates']")
-      refute has_element?(view, "a[href='/tokens']")
+      assert has_element?(view, "a[href='/c/#{company.id}/dashboard']")
+      assert has_element?(view, "a[href='/c/#{company.id}/invoices']")
+      assert has_element?(view, "a[href='/c/#{company.id}/categories']")
+      assert has_element?(view, "a[href='/c/#{company.id}/tags']")
+      refute has_element?(view, "a[href='/c/#{company.id}/certificates']")
+      refute has_element?(view, "a[href='/c/#{company.id}/tokens']")
     end
   end
 end

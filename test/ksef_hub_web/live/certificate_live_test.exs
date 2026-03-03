@@ -61,36 +61,61 @@ defmodule KsefHubWeb.CertificateLiveTest do
   end
 
   describe "mount" do
-    test "renders certificate page", %{conn: conn} do
-      {:ok, _view, html} = live(conn, ~p"/certificates")
+    test "renders certificate page", %{conn: conn, company: company} do
+      {:ok, _view, html} = live(conn, ~p"/c/#{company.id}/certificates")
       assert html =~ "Certificates"
     end
 
-    test "shows empty state when no certificate", %{conn: conn} do
-      {:ok, view, _html} = live(conn, ~p"/certificates")
+    test "shows empty state when no certificate", %{conn: conn, company: company} do
+      {:ok, view, _html} = live(conn, ~p"/c/#{company.id}/certificates")
       assert has_element?(view, "#no-certificate")
       assert render(view) =~ "No Certificate Configured"
     end
 
-    test "shows upload form by default when no certificate", %{conn: conn} do
-      {:ok, view, _html} = live(conn, ~p"/certificates")
+    test "URL company_id takes precedence over session company", %{conn: conn, user: user} do
+      url_company = insert(:company, name: "URL Company")
+      session_company = insert(:company, name: "Session Company")
+      insert(:membership, user: user, company: url_company, role: :owner)
+      insert(:membership, user: user, company: session_company, role: :owner)
+
+      conn = conn |> init_test_session(%{current_company_id: session_company.id})
+
+      {:ok, view, _html} = live(conn, ~p"/c/#{url_company.id}/certificates")
+
+      assert has_element?(
+               view,
+               "[data-testid='current-company-name']",
+               "URL Company"
+             )
+    end
+
+    test "shows upload form by default when no certificate", %{conn: conn, company: company} do
+      {:ok, view, _html} = live(conn, ~p"/c/#{company.id}/certificates")
       assert has_element?(view, "#upload-form")
     end
 
-    test "shows current certificate when user has active cert", %{conn: conn, user: user} do
+    test "shows current certificate when user has active cert", %{
+      conn: conn,
+      user: user,
+      company: company
+    } do
       insert(:user_certificate,
         user: user,
         is_active: true,
         certificate_subject: "CN=Test Cert"
       )
 
-      {:ok, view, _html} = live(conn, ~p"/certificates")
+      {:ok, view, _html} = live(conn, ~p"/c/#{company.id}/certificates")
       assert has_element?(view, "#current-certificate")
       assert has_element?(view, "#cert-heading", "Your Certificate")
       assert has_element?(view, "#cert-subject", "CN=Test Cert")
     end
 
-    test "shows refresh hint when certificate has no metadata", %{conn: conn, user: user} do
+    test "shows refresh hint when certificate has no metadata", %{
+      conn: conn,
+      user: user,
+      company: company
+    } do
       insert(:user_certificate,
         user: user,
         is_active: true,
@@ -100,27 +125,31 @@ defmodule KsefHubWeb.CertificateLiveTest do
         fingerprint: nil
       )
 
-      {:ok, view, _html} = live(conn, ~p"/certificates")
+      {:ok, view, _html} = live(conn, ~p"/c/#{company.id}/certificates")
       assert has_element?(view, "#current-certificate")
       assert render(view) =~ "replace to refresh metadata"
     end
 
-    test "hides upload form when user has active certificate", %{conn: conn, user: user} do
+    test "hides upload form when user has active certificate", %{
+      conn: conn,
+      user: user,
+      company: company
+    } do
       insert(:user_certificate, user: user, is_active: true)
 
-      {:ok, view, _html} = live(conn, ~p"/certificates")
+      {:ok, view, _html} = live(conn, ~p"/c/#{company.id}/certificates")
       refute has_element?(view, "#upload-form")
     end
 
-    test "defaults to key_crt upload mode", %{conn: conn} do
-      {:ok, _view, html} = live(conn, ~p"/certificates")
+    test "defaults to key_crt upload mode", %{conn: conn, company: company} do
+      {:ok, _view, html} = live(conn, ~p"/c/#{company.id}/certificates")
       assert html =~ "Private Key File"
     end
   end
 
   describe "upload mode toggle" do
-    test "switches to p12 mode", %{conn: conn} do
-      {:ok, view, _html} = live(conn, ~p"/certificates")
+    test "switches to p12 mode", %{conn: conn, company: company} do
+      {:ok, view, _html} = live(conn, ~p"/c/#{company.id}/certificates")
 
       html =
         view
@@ -131,8 +160,8 @@ defmodule KsefHubWeb.CertificateLiveTest do
       refute html =~ "Private Key File"
     end
 
-    test "switches back to key_crt mode", %{conn: conn} do
-      {:ok, view, _html} = live(conn, ~p"/certificates")
+    test "switches back to key_crt mode", %{conn: conn, company: company} do
+      {:ok, view, _html} = live(conn, ~p"/c/#{company.id}/certificates")
 
       view
       |> element(~s(button[phx-value-mode="p12"]))
@@ -150,10 +179,14 @@ defmodule KsefHubWeb.CertificateLiveTest do
   end
 
   describe "toggle upload form" do
-    test "shows upload form when Replace Certificate clicked", %{conn: conn, user: user} do
+    test "shows upload form when Replace Certificate clicked", %{
+      conn: conn,
+      user: user,
+      company: company
+    } do
       insert(:user_certificate, user: user, is_active: true)
 
-      {:ok, view, _html} = live(conn, ~p"/certificates")
+      {:ok, view, _html} = live(conn, ~p"/c/#{company.id}/certificates")
       refute has_element?(view, "#upload-form")
 
       view
@@ -163,10 +196,10 @@ defmodule KsefHubWeb.CertificateLiveTest do
       assert has_element?(view, "#upload-form")
     end
 
-    test "hides upload form when Cancel clicked", %{conn: conn, user: user} do
+    test "hides upload form when Cancel clicked", %{conn: conn, user: user, company: company} do
       insert(:user_certificate, user: user, is_active: true)
 
-      {:ok, view, _html} = live(conn, ~p"/certificates")
+      {:ok, view, _html} = live(conn, ~p"/c/#{company.id}/certificates")
 
       # Show form
       view
@@ -185,8 +218,8 @@ defmodule KsefHubWeb.CertificateLiveTest do
   end
 
   describe "form validation" do
-    test "validates on change", %{conn: conn} do
-      {:ok, view, _html} = live(conn, ~p"/certificates")
+    test "validates on change", %{conn: conn, company: company} do
+      {:ok, view, _html} = live(conn, ~p"/c/#{company.id}/certificates")
 
       view
       |> element("form[phx-change=validate]")
@@ -198,7 +231,7 @@ defmodule KsefHubWeb.CertificateLiveTest do
   end
 
   describe "save with key_crt mode" do
-    test "converts and saves user certificate", %{conn: conn, user: user} do
+    test "converts and saves user certificate", %{conn: conn, user: user, company: company} do
       KsefHub.Credentials.Pkcs12Converter.Mock
       |> expect(:convert, fn _key, _crt, nil ->
         {:ok, %{p12_data: "fake-p12-binary", p12_password: "generated-pass"}}
@@ -209,7 +242,7 @@ defmodule KsefHubWeb.CertificateLiveTest do
         {:ok, %{subject: "CN=Test, O=TestOrg", expires_at: ~D[2026-12-31]}}
       end)
 
-      {:ok, view, _html} = live(conn, ~p"/certificates")
+      {:ok, view, _html} = live(conn, ~p"/c/#{company.id}/certificates")
 
       key_input =
         file_input(view, "form[phx-submit=save]", :private_key, [
@@ -236,7 +269,7 @@ defmodule KsefHubWeb.CertificateLiveTest do
       assert cert.not_after == ~D[2026-12-31]
     end
 
-    test "hides upload form after successful upload", %{conn: conn} do
+    test "hides upload form after successful upload", %{conn: conn, company: company} do
       KsefHub.Credentials.Pkcs12Converter.Mock
       |> expect(:convert, fn _key, _crt, nil ->
         {:ok, %{p12_data: "fake-p12", p12_password: "generated"}}
@@ -247,7 +280,7 @@ defmodule KsefHubWeb.CertificateLiveTest do
         {:ok, %{subject: "CN=Test", expires_at: ~D[2026-12-31]}}
       end)
 
-      {:ok, view, _html} = live(conn, ~p"/certificates")
+      {:ok, view, _html} = live(conn, ~p"/c/#{company.id}/certificates")
       assert has_element?(view, "#upload-form")
 
       key_input =
@@ -271,13 +304,13 @@ defmodule KsefHubWeb.CertificateLiveTest do
       assert has_element?(view, "#current-certificate")
     end
 
-    test "shows error when converter fails", %{conn: conn} do
+    test "shows error when converter fails", %{conn: conn, company: company} do
       KsefHub.Credentials.Pkcs12Converter.Mock
       |> expect(:convert, fn _key, _crt, nil ->
         {:error, {:openssl_failed, 1}}
       end)
 
-      {:ok, view, _html} = live(conn, ~p"/certificates")
+      {:ok, view, _html} = live(conn, ~p"/c/#{company.id}/certificates")
 
       key_input =
         file_input(view, "form[phx-submit=save]", :private_key, [
@@ -303,8 +336,8 @@ defmodule KsefHubWeb.CertificateLiveTest do
              )
     end
 
-    test "shows error when files missing", %{conn: conn} do
-      {:ok, view, _html} = live(conn, ~p"/certificates")
+    test "shows error when files missing", %{conn: conn, company: company} do
+      {:ok, view, _html} = live(conn, ~p"/c/#{company.id}/certificates")
 
       view
       |> form("form[phx-submit=save]", credential: %{key_passphrase: ""})
@@ -317,7 +350,7 @@ defmodule KsefHubWeb.CertificateLiveTest do
              )
     end
 
-    test "passes key passphrase to converter", %{conn: conn} do
+    test "passes key passphrase to converter", %{conn: conn, company: company} do
       KsefHub.Credentials.Pkcs12Converter.Mock
       |> expect(:convert, fn _key, _crt, "my-secret" ->
         {:ok, %{p12_data: "fake-p12", p12_password: "generated"}}
@@ -328,7 +361,7 @@ defmodule KsefHubWeb.CertificateLiveTest do
         {:ok, %{subject: "CN=Test", expires_at: ~D[2026-12-31]}}
       end)
 
-      {:ok, view, _html} = live(conn, ~p"/certificates")
+      {:ok, view, _html} = live(conn, ~p"/c/#{company.id}/certificates")
 
       key_input =
         file_input(view, "form[phx-submit=save]", :private_key, [
@@ -352,10 +385,10 @@ defmodule KsefHubWeb.CertificateLiveTest do
   end
 
   describe "remove certificate" do
-    test "deactivates the user certificate", %{conn: conn, user: user} do
+    test "deactivates the user certificate", %{conn: conn, user: user, company: company} do
       cert = insert(:user_certificate, user: user, is_active: true)
 
-      {:ok, view, _html} = live(conn, ~p"/certificates")
+      {:ok, view, _html} = live(conn, ~p"/c/#{company.id}/certificates")
 
       view
       |> element(~s(button[phx-click="remove_certificate"]))

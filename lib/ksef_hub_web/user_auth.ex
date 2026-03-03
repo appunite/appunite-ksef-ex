@@ -12,7 +12,9 @@ defmodule KsefHubWeb.UserAuth do
   import Phoenix.Controller
 
   alias KsefHub.Accounts
-  alias KsefHubWeb.UrlHelpers
+  alias KsefHub.Companies
+
+  import KsefHubWeb.UrlHelpers, only: [default_path: 1, sanitize_return_to: 1]
 
   @doc """
   Logs the user in by generating a session token, renewing the session,
@@ -21,7 +23,7 @@ defmodule KsefHubWeb.UserAuth do
   @spec log_in_user(Plug.Conn.t(), KsefHub.Accounts.User.t(), map()) :: Plug.Conn.t()
   def log_in_user(conn, user, params \\ %{}) do
     token = Accounts.generate_user_session_token(user)
-    return_to = UrlHelpers.sanitize_return_to(params[:return_to] || params["return_to"])
+    return_to = sanitize_return_to(params[:return_to] || params["return_to"])
 
     conn
     |> configure_session(renew: true)
@@ -54,11 +56,14 @@ defmodule KsefHubWeb.UserAuth do
   @doc """
   Returns the path to redirect to after login.
 
-  Always returns `/invoices`. Company resolution (and potential redirect
-  to `/companies/new`) is handled by the LiveAuth on_mount hook.
+  Resolves the user's first company and returns a company-scoped path.
+  Falls back to `/companies` if the user has no companies.
   """
   @spec signed_in_path(KsefHub.Accounts.User.t()) :: String.t()
-  def signed_in_path(_user) do
-    ~p"/invoices"
+  def signed_in_path(user) do
+    user.id
+    |> Companies.list_companies_for_user()
+    |> List.first()
+    |> default_path()
   end
 end

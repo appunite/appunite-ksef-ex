@@ -22,8 +22,8 @@ defmodule KsefHubWeb.TagLiveTest do
   end
 
   describe "mount" do
-    test "renders tags page", %{conn: conn} do
-      {:ok, _view, html} = live(conn, ~p"/tags")
+    test "renders tags page", %{conn: conn, company: company} do
+      {:ok, _view, html} = live(conn, ~p"/c/#{company.id}/tags")
       assert html =~ "Tags"
       assert html =~ "New Tag"
     end
@@ -31,7 +31,7 @@ defmodule KsefHubWeb.TagLiveTest do
     test "lists existing tags", %{conn: conn, company: company} do
       insert(:tag, company: company, name: "monthly")
 
-      {:ok, _view, html} = live(conn, ~p"/tags")
+      {:ok, _view, html} = live(conn, ~p"/c/#{company.id}/tags")
       assert html =~ "monthly"
     end
 
@@ -40,7 +40,7 @@ defmodule KsefHubWeb.TagLiveTest do
       invoice = insert(:invoice, company: company)
       insert(:invoice_tag, invoice: invoice, tag: tag)
 
-      {:ok, _view, html} = live(conn, ~p"/tags")
+      {:ok, _view, html} = live(conn, ~p"/c/#{company.id}/tags")
       assert html =~ "counted"
       # The usage count should show "1"
       assert html =~ ">1</span>"
@@ -48,8 +48,8 @@ defmodule KsefHubWeb.TagLiveTest do
   end
 
   describe "create" do
-    test "creates a tag with valid data", %{conn: conn} do
-      {:ok, view, _html} = live(conn, ~p"/tags")
+    test "creates a tag with valid data", %{conn: conn, company: company} do
+      {:ok, view, _html} = live(conn, ~p"/c/#{company.id}/tags")
 
       view
       |> element("form#tag-form")
@@ -63,7 +63,7 @@ defmodule KsefHubWeb.TagLiveTest do
     test "shows error for duplicate name", %{conn: conn, company: company} do
       insert(:tag, company: company, name: "duplicate")
 
-      {:ok, view, _html} = live(conn, ~p"/tags")
+      {:ok, view, _html} = live(conn, ~p"/c/#{company.id}/tags")
 
       view
       |> element("form#tag-form")
@@ -78,7 +78,7 @@ defmodule KsefHubWeb.TagLiveTest do
     test "populates form for editing", %{conn: conn, company: company} do
       tag = insert(:tag, company: company, name: "edit-me")
 
-      {:ok, view, _html} = live(conn, ~p"/tags")
+      {:ok, view, _html} = live(conn, ~p"/c/#{company.id}/tags")
 
       view |> element("button", "Edit") |> render_click(%{"id" => tag.id})
 
@@ -90,7 +90,7 @@ defmodule KsefHubWeb.TagLiveTest do
     test "updates tag", %{conn: conn, company: company} do
       tag = insert(:tag, company: company, name: "old-name")
 
-      {:ok, view, _html} = live(conn, ~p"/tags")
+      {:ok, view, _html} = live(conn, ~p"/c/#{company.id}/tags")
 
       view |> element("button", "Edit") |> render_click(%{"id" => tag.id})
 
@@ -106,7 +106,7 @@ defmodule KsefHubWeb.TagLiveTest do
     test "cancel edit resets form", %{conn: conn, company: company} do
       tag = insert(:tag, company: company, name: "cancel-test")
 
-      {:ok, view, _html} = live(conn, ~p"/tags")
+      {:ok, view, _html} = live(conn, ~p"/c/#{company.id}/tags")
 
       view |> element("button", "Edit") |> render_click(%{"id" => tag.id})
       assert render(view) =~ "Edit Tag"
@@ -120,7 +120,7 @@ defmodule KsefHubWeb.TagLiveTest do
     test "deletes a tag", %{conn: conn, company: company} do
       tag = insert(:tag, company: company, name: "delete-me")
 
-      {:ok, view, _html} = live(conn, ~p"/tags")
+      {:ok, view, _html} = live(conn, ~p"/c/#{company.id}/tags")
       assert render(view) =~ "delete-me"
 
       view |> element("button", "Delete") |> render_click(%{"id" => tag.id})
@@ -132,11 +132,11 @@ defmodule KsefHubWeb.TagLiveTest do
   end
 
   describe "company scoping" do
-    test "does not show tags from other companies", %{conn: conn} do
+    test "does not show tags from other companies", %{conn: conn, company: company} do
       other_company = insert(:company)
       insert(:tag, company: other_company, name: "other-secret")
 
-      {:ok, _view, html} = live(conn, ~p"/tags")
+      {:ok, _view, html} = live(conn, ~p"/c/#{company.id}/tags")
       refute html =~ "other-secret"
     end
   end

@@ -4,43 +4,41 @@ defmodule KsefHubWeb.LiveAuth do
   Redirects unauthenticated users to the home page.
   Redirects users with no companies to the company creation page.
   Assigns `:current_role` from the user's membership for the current company.
+
+  The company context is resolved from the URL `company_id` param (for company-scoped
+  routes under `/c/:company_id/...`), falling back to the session, then the user's
+  first company.
   """
+
+  use KsefHubWeb, :verified_routes
 
   import Phoenix.LiveView
   import Phoenix.Component
 
   import KsefHubWeb.AuthHelpers, only: [resolve_role: 2]
+  import KsefHubWeb.UrlHelpers, only: [default_path: 1]
 
   alias KsefHub.Accounts
   alias KsefHub.Companies
-  alias KsefHub.Companies.Company
 
   @doc """
   Assigns `:current_user`, `:current_company`, `:companies`, and `:current_role` to the socket.
   """
   @spec on_mount(atom(), map(), map(), Phoenix.LiveView.Socket.t()) ::
           {:cont, Phoenix.LiveView.Socket.t()} | {:halt, Phoenix.LiveView.Socket.t()}
-  def on_mount(:default, _params, session, socket) do
-    user_token = session["user_token"]
+  def on_mount(:default, params, session, socket) do
+    case fetch_user_from_session(session) do
+      {:ok, user} ->
+        case assign_user_and_companies(socket, user, params, session) do
+          {:halt, _} = halt -> halt
+          socket -> maybe_redirect_for_company(socket)
+        end
 
-    if is_binary(user_token) do
-      case Accounts.get_user_by_session_token(user_token) do
-        %{} = user ->
-          socket
-          |> assign_user_and_companies(user, session)
-          |> maybe_redirect_for_company()
-
-        nil ->
-          {:halt,
-           socket
-           |> put_flash(:error, "Session expired. Please log in again.")
-           |> redirect(to: "/")}
-      end
-    else
-      {:halt,
-       socket
-       |> put_flash(:error, "You must be logged in to access this page.")
-       |> redirect(to: "/")}
+      :error ->
+        {:halt,
+         socket
+         |> put_flash(:error, "You must be logged in to access this page.")
+         |> redirect(to: "/")}
     end
   end
 
@@ -51,48 +49,94 @@ defmodule KsefHubWeb.LiveAuth do
       {:halt,
        socket
        |> put_flash(:error, "Only the owner can manage the team.")
-       |> redirect(to: "/invoices")}
+       |> redirect(to: default_path(socket.assigns[:current_company]))}
     end
   end
 
   def on_mount(:redirect_if_authenticated, _params, session, socket) do
-    user_token = session["user_token"]
+    case fetch_user_from_session(session) do
+      {:ok, user} ->
+        company = user.id |> Companies.list_companies_for_user() |> List.first()
+        {:halt, redirect(socket, to: default_path(company))}
 
-    if is_binary(user_token) && Accounts.get_user_by_session_token(user_token) do
-      {:halt, redirect(socket, to: "/invoices")}
-    else
-      {:cont, assign(socket, :current_user, nil)}
+      :error ->
+        {:cont, assign(socket, :current_user, nil)}
     end
   end
 
   def on_mount(:mount_current_user, _params, session, socket) do
-    user_token = session["user_token"]
-
     user =
-      if is_binary(user_token),
-        do: Accounts.get_user_by_session_token(user_token),
-        else: nil
+      case fetch_user_from_session(session) do
+        {:ok, user} -> user
+        :error -> nil
+      end
 
     {:cont, assign(socket, :current_user, user)}
   end
 
-  @spec assign_user_and_companies(Phoenix.LiveView.Socket.t(), map(), map()) ::
-          Phoenix.LiveView.Socket.t()
-  defp assign_user_and_companies(socket, user, session) do
+  @spec assign_user_and_companies(Phoenix.LiveView.Socket.t(), map(), map(), map()) ::
+          Phoenix.LiveView.Socket.t() | {:halt, Phoenix.LiveView.Socket.t()}
+  defp assign_user_and_companies(socket, user, params, session) do
     companies = Companies.list_companies_for_user(user.id)
-    resolved = resolve_company(companies, session["current_company_id"])
-    current_company = resolved || List.first(companies)
-    current_role = resolve_role(user.id, current_company && current_company.id)
 
+    case resolve_current_company(companies, params["company_id"], session) do
+      {:error, :unauthorized} ->
+        halt_unauthorized(socket, user)
+
+      current_company ->
+        current_role = resolve_role(user.id, current_company && current_company.id)
+
+        socket
+        |> build_user_assigns(user, companies, current_company, current_role)
+        |> attach_current_path_hook()
+    end
+  end
+
+  @spec halt_unauthorized(Phoenix.LiveView.Socket.t(), map()) ::
+          {:halt, Phoenix.LiveView.Socket.t()}
+  defp halt_unauthorized(socket, user) do
+    {:halt,
+     socket
+     |> assign(:current_user, user)
+     |> put_flash(:error, "You don't have access to this company.")
+     |> redirect(to: ~p"/companies")}
+  end
+
+  @spec build_user_assigns(
+          Phoenix.LiveView.Socket.t(),
+          map(),
+          [Companies.Company.t()],
+          Companies.Company.t() | nil,
+          atom() | nil
+        ) :: Phoenix.LiveView.Socket.t()
+  defp build_user_assigns(socket, user, companies, current_company, current_role) do
     socket
     |> assign(:current_user, user)
     |> assign(:companies, companies)
     |> assign(:current_company, current_company)
     |> assign(:current_role, current_role)
     |> assign(:current_path, nil)
-    |> attach_hook(:set_current_path, :handle_params, fn _params, uri, socket ->
+  end
+
+  @spec attach_current_path_hook(Phoenix.LiveView.Socket.t()) :: Phoenix.LiveView.Socket.t()
+  defp attach_current_path_hook(socket) do
+    attach_hook(socket, :set_current_path, :handle_params, fn _params, uri, socket ->
       {:cont, assign(socket, :current_path, URI.parse(uri).path)}
     end)
+  end
+
+  @spec resolve_current_company([Companies.Company.t()], String.t() | nil, map()) ::
+          Companies.Company.t() | nil | {:error, :unauthorized}
+  defp resolve_current_company(companies, url_company_id, _session)
+       when is_binary(url_company_id) do
+    case find_company(companies, url_company_id) do
+      nil -> {:error, :unauthorized}
+      company -> company
+    end
+  end
+
+  defp resolve_current_company(companies, _nil, session) do
+    find_company(companies, session["current_company_id"]) || List.first(companies)
   end
 
   @spec maybe_redirect_for_company(Phoenix.LiveView.Socket.t()) ::
@@ -105,13 +149,19 @@ defmodule KsefHubWeb.LiveAuth do
     end
   end
 
-  @spec resolve_company([Company.t()], Ecto.UUID.t() | nil) :: Company.t() | nil
-  defp resolve_company([], _), do: nil
-  defp resolve_company(_companies, nil), do: nil
-
-  defp resolve_company(companies, company_id) do
-    Enum.find(companies, fn c -> c.id == company_id end)
+  @spec fetch_user_from_session(map()) :: {:ok, map()} | :error
+  defp fetch_user_from_session(session) do
+    with token when is_binary(token) <- session["user_token"],
+         %{} = user <- Accounts.get_user_by_session_token(token) do
+      {:ok, user}
+    else
+      _ -> :error
+    end
   end
+
+  @spec find_company([Companies.Company.t()], String.t() | nil) :: Companies.Company.t() | nil
+  defp find_company(_companies, nil), do: nil
+  defp find_company(companies, id), do: Enum.find(companies, &(&1.id == id))
 
   @spec company_route?(Phoenix.LiveView.Socket.t()) :: boolean()
   defp company_route?(socket) do

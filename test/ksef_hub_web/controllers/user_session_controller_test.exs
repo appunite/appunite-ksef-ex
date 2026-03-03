@@ -16,7 +16,7 @@ defmodule KsefHubWeb.UserSessionControllerTest do
           "user" => %{"email" => user.email, "password" => password}
         })
 
-      assert redirected_to(conn) == ~p"/invoices"
+      assert redirected_to(conn) == ~p"/companies"
       assert get_session(conn, :user_token)
     end
 

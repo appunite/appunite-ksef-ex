@@ -82,6 +82,20 @@ defmodule KsefHubWeb.Router do
   scope "/", KsefHubWeb do
     pipe_through [:browser, :require_auth]
 
+    # Company management routes (not company-scoped)
+    live_session :authenticated_top, on_mount: {KsefHubWeb.LiveAuth, :default} do
+      live "/companies", CompanyLive.Index
+      live "/companies/new", CompanyLive.Index, :new
+      live "/companies/:id/edit", CompanyLive.Index, :edit
+    end
+
+    post "/switch-company/:id", CompanySwitchController, :update
+  end
+
+  # Company-scoped routes
+  scope "/c/:company_id", KsefHubWeb do
+    pipe_through [:browser, :require_auth]
+
     live_session :authenticated, on_mount: {KsefHubWeb.LiveAuth, :default} do
       live "/dashboard", DashboardLive
       live "/certificates", CertificateLive
@@ -93,9 +107,6 @@ defmodule KsefHubWeb.Router do
       live "/tags", TagLive
       live "/syncs", SyncLive
       live "/exports", ExportLive.Index
-      live "/companies", CompanyLive.Index
-      live "/companies/new", CompanyLive.Index, :new
-      live "/companies/:id/edit", CompanyLive.Index, :edit
     end
 
     live_session :owner_only,
@@ -103,8 +114,6 @@ defmodule KsefHubWeb.Router do
       live "/team", TeamLive
     end
 
-    post "/switch-company/:id", CompanySwitchController, :update
-    get "/switch-company/:id", CompanySwitchController, :update
     get "/invoices/:id/pdf", InvoicePdfController, :show
     get "/invoices/:id/xml", InvoicePdfController, :xml
     get "/exports/:id/download", ExportController, :download
