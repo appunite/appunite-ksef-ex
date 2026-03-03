@@ -152,10 +152,14 @@ defmodule KsefHub.Invoices.Invoice do
     |> validate_number(:gross_amount, greater_than_or_equal_to: 0)
   end
 
+  @doc "Returns the company-owned fields that should not be user-editable for a given invoice type."
+  @spec company_fields(invoice_type()) :: [atom()]
+  def company_fields(:expense), do: [:buyer_nip, :buyer_name]
+  def company_fields(:income), do: [:seller_nip, :seller_name]
+  def company_fields(_), do: []
+
   @spec editable_fields(invoice_type() | nil) :: [atom()]
-  defp editable_fields(:expense), do: @all_edit_fields -- [:buyer_nip, :buyer_name]
-  defp editable_fields(:income), do: @all_edit_fields -- [:seller_nip, :seller_name]
-  defp editable_fields(_), do: @all_edit_fields
+  defp editable_fields(type), do: @all_edit_fields -- company_fields(type)
 
   @prediction_fields [
     :prediction_status,

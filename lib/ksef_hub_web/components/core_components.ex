@@ -43,7 +43,7 @@ defmodule KsefHubWeb.CoreComponents do
   attr :id, :string, doc: "the optional id of flash container"
   attr :flash, :map, default: %{}, doc: "the map of flash messages to display"
   attr :title, :string, default: nil
-  attr :kind, :atom, values: [:info, :error], doc: "used for styling and flash lookup"
+  attr :kind, :atom, values: [:info, :warning, :error], doc: "used for styling and flash lookup"
   attr :rest, :global, doc: "the arbitrary HTML attributes to add to the flash container"
 
   slot :inner_block, doc: "the optional inner block that renders the flash message"
@@ -63,12 +63,18 @@ defmodule KsefHubWeb.CoreComponents do
       <div class={[
         "w-80 sm:w-96 max-w-80 sm:max-w-96 text-wrap rounded-lg p-4 flex gap-3 items-start shadow-sm",
         @kind == :info && "bg-base-100 border border-base-300",
+        @kind == :warning && "bg-warning/5 border border-warning/20",
         @kind == :error && "bg-error/5 border border-error/20"
       ]}>
         <.icon
           :if={@kind == :info}
           name="hero-information-circle"
           class="size-5 shrink-0 text-base-content/50"
+        />
+        <.icon
+          :if={@kind == :warning}
+          name="hero-exclamation-triangle"
+          class="size-5 shrink-0 text-warning/70"
         />
         <.icon
           :if={@kind == :error}

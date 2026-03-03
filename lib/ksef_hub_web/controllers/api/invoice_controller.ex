@@ -257,7 +257,7 @@ defmodule KsefHubWeb.Api.InvoiceController do
     update_attrs =
       params
       |> atomize_keys(@update_allowed_keys)
-      |> strip_company_fields(invoice.type)
+      |> Map.drop(Invoice.company_fields(invoice.type))
 
     update_attrs = Invoices.recalculate_extraction_status(invoice, update_attrs)
 
@@ -953,11 +953,6 @@ defmodule KsefHubWeb.Api.InvoiceController do
       {:error, :invalid_uuid}
     end
   end
-
-  @spec strip_company_fields(map(), atom()) :: map()
-  defp strip_company_fields(attrs, :expense), do: Map.drop(attrs, [:buyer_nip, :buyer_name])
-  defp strip_company_fields(attrs, :income), do: Map.drop(attrs, [:seller_nip, :seller_name])
-  defp strip_company_fields(attrs, _), do: attrs
 
   @spec valid_uuid?(term()) :: boolean()
   defp valid_uuid?(value) when is_binary(value), do: match?({:ok, _}, Ecto.UUID.cast(value))

@@ -496,19 +496,9 @@ defmodule KsefHub.Invoices do
   @spec create_pdf_upload_invoice(Company.t(), binary(), map()) ::
           {:ok, Invoice.t()} | {:error, term()}
   def create_pdf_upload_invoice(%Company{} = company, pdf_binary, opts) do
-    type = opts[:type]
-    filename = opts[:filename]
-    context = ContextBuilder.build(company)
-
-    extract_opts = [filename: filename || "invoice.pdf", context: context]
-
-    case invoice_extractor().extract(pdf_binary, extract_opts) do
-      {:ok, extracted} ->
-        do_create_pdf_upload(company, pdf_binary, type, filename, extracted)
-
-      {:error, _reason} ->
-        Logger.warning("PDF extraction failed for file: #{filename || "invoice.pdf"}")
-        do_create_pdf_upload_failed(company, pdf_binary, type, filename)
+    case extract_and_create_pdf(company, pdf_binary, opts) do
+      {:ok, invoice, _meta} -> {:ok, invoice}
+      {:error, reason} -> {:error, reason}
     end
   end
 
@@ -521,6 +511,12 @@ defmodule KsefHub.Invoices do
   @spec create_pdf_upload_invoice_with_meta(Company.t(), binary(), map()) ::
           {:ok, Invoice.t(), keyword()} | {:error, term()}
   def create_pdf_upload_invoice_with_meta(%Company{} = company, pdf_binary, opts) do
+    extract_and_create_pdf(company, pdf_binary, opts)
+  end
+
+  @spec extract_and_create_pdf(Company.t(), binary(), map()) ::
+          {:ok, Invoice.t(), keyword()} | {:error, term()}
+  defp extract_and_create_pdf(company, pdf_binary, opts) do
     type = opts[:type]
     filename = opts[:filename]
     context = ContextBuilder.build(company)

@@ -1641,6 +1641,24 @@ defmodule KsefHub.InvoicesTest do
 
       assert result == attrs
     end
+
+    test "handles string type 'expense'", %{company: company} do
+      attrs = %{type: "expense", seller_nip: "9999999999", seller_name: "Other Co"}
+      result = Invoices.populate_company_fields(attrs, company)
+
+      assert result.buyer_nip == company.nip
+      assert result.buyer_name == company.name
+      assert result.seller_nip == "9999999999"
+    end
+
+    test "handles string type 'income'", %{company: company} do
+      attrs = %{type: "income", buyer_nip: "9999999999", buyer_name: "Other Co"}
+      result = Invoices.populate_company_fields(attrs, company)
+
+      assert result.seller_nip == company.nip
+      assert result.seller_name == company.name
+      assert result.buyer_nip == "9999999999"
+    end
   end
 
   describe "create_manual_invoice/2 company field auto-population" do
