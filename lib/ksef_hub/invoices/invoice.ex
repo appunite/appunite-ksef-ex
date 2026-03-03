@@ -158,8 +158,9 @@ defmodule KsefHub.Invoices.Invoice do
   def company_fields(:income), do: [:seller_nip, :seller_name]
   def company_fields(_), do: []
 
+  @doc "Returns the fields that are editable for a given invoice type (excludes company-owned fields)."
   @spec editable_fields(invoice_type() | nil) :: [atom()]
-  defp editable_fields(type), do: @all_edit_fields -- company_fields(type)
+  def editable_fields(type), do: @all_edit_fields -- company_fields(type)
 
   @prediction_fields [
     :prediction_status,

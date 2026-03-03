@@ -1005,6 +1005,39 @@ defmodule KsefHub.InvoicesTest do
       assert {:error, changeset} = Invoices.update_invoice_fields(invoice, attrs)
       assert errors_on(changeset).seller_nip
     end
+
+    test "company-side fields in attrs do not flip extraction_status to complete", %{
+      company: company
+    } do
+      # Expense invoice with partial extraction (missing seller fields)
+      invoice =
+        insert(:pdf_upload_invoice,
+          company: company,
+          type: :expense,
+          extraction_status: :partial,
+          seller_nip: nil,
+          seller_name: nil,
+          buyer_nip: company.nip,
+          buyer_name: company.name,
+          invoice_number: "FV/1",
+          issue_date: ~D[2025-01-01],
+          net_amount: Decimal.new("100"),
+          gross_amount: Decimal.new("123")
+        )
+
+      # Submit buyer fields (company-owned for expense) — these should be ignored
+      attrs = %{
+        "buyer_nip" => "9999999999",
+        "buyer_name" => "Injected Corp"
+      }
+
+      assert {:ok, updated} = Invoices.update_invoice_fields(invoice, attrs)
+      # Status should stay :partial because seller fields are still missing
+      assert updated.extraction_status == :partial
+      # Company-owned buyer fields should remain unchanged
+      assert updated.buyer_nip == company.nip
+      assert updated.buyer_name == company.name
+    end
   end
 
   describe "list_invoices source filter with pdf_upload" do

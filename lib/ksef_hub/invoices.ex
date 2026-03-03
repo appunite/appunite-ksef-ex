@@ -243,7 +243,14 @@ defmodule KsefHub.Invoices do
           {:ok, Invoice.t()} | {:error, Ecto.Changeset.t()}
   def update_invoice_fields(%Invoice{} = invoice, attrs) do
     old_status = invoice.extraction_status
-    merged = invoice |> Map.from_struct() |> Map.merge(atomize_known_keys(attrs))
+
+    # Only consider fields that edit_changeset will actually apply (excludes company-side fields)
+    allowed_attrs =
+      attrs
+      |> atomize_known_keys()
+      |> Map.take(Invoice.editable_fields(invoice.type))
+
+    merged = invoice |> Map.from_struct() |> Map.merge(allowed_attrs)
     new_status = determine_extraction_status_from_attrs(merged)
 
     changeset =
@@ -273,7 +280,7 @@ defmodule KsefHub.Invoices do
   def re_extract_invoice(%Invoice{} = invoice, %Company{} = company) do
     with {:ok, pdf_binary} <- load_pdf_content(invoice),
          {:ok, extracted} <- do_re_extract(company, invoice, pdf_binary) do
-      apply_extraction_results(invoice, extracted)
+      apply_extraction_results(invoice, extracted, company)
     end
   end
 
@@ -298,10 +305,9 @@ defmodule KsefHub.Invoices do
     invoice_extractor().extract(pdf_binary, filename: filename, context: context)
   end
 
-  @spec apply_extraction_results(Invoice.t(), map()) ::
+  @spec apply_extraction_results(Invoice.t(), map(), Company.t()) ::
           {:ok, Invoice.t()} | {:error, Ecto.Changeset.t()}
-  defp apply_extraction_results(invoice, extracted) do
-    company = Companies.get_company!(invoice.company_id)
+  defp apply_extraction_results(invoice, extracted, company) do
     extraction_status = determine_extraction_status(extracted)
 
     # For re-extraction, only overwrite fields that have non-nil extracted values.
