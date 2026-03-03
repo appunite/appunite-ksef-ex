@@ -73,8 +73,8 @@ defmodule KsefHubWeb.InvoiceLive.UploadTest do
 
       conn = build_conn() |> log_in_user(no_company_user)
 
-      # LiveAuth redirects to /companies/new when user has no companies
-      assert {:error, {:redirect, %{to: "/companies/new"}}} =
+      # LiveAuth rejects access to a company the user doesn't belong to
+      assert {:error, {:redirect, %{to: "/companies"}}} =
                live(conn, ~p"/c/#{Ecto.UUID.generate()}/invoices/upload")
     end
   end

@@ -19,7 +19,7 @@ defmodule KsefHubWeb.UserLoginLiveTest do
       conn = log_in_user(conn, user)
 
       assert {:error, redirect} = live(conn, ~p"/users/log-in")
-      assert {:redirect, %{to: "/invoices"}} = redirect
+      assert {:redirect, %{to: "/companies"}} = redirect
     end
   end
 
@@ -40,7 +40,7 @@ defmodule KsefHubWeb.UserLoginLiveTest do
           "user" => %{"email" => user.email, "password" => "valid_password123"}
         })
 
-      assert redirected_to(conn) == ~p"/invoices"
+      assert redirected_to(conn) == ~p"/companies"
     end
 
     test "shows error on invalid credentials via session controller", %{conn: conn} do
