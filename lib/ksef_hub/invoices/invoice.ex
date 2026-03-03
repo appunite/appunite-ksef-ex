@@ -128,7 +128,7 @@ defmodule KsefHub.Invoices.Invoice do
     |> foreign_key_constraint(:category_id)
   end
 
-  @edit_fields [
+  @all_edit_fields [
     :invoice_number,
     :issue_date,
     :seller_nip,
@@ -141,16 +141,21 @@ defmodule KsefHub.Invoices.Invoice do
     :currency
   ]
 
-  @doc "Builds a changeset for manual field edits on the show page."
+  @doc "Builds a changeset for manual field edits on the show page. Excludes company-side fields based on invoice type."
   @spec edit_changeset(t(), map()) :: Ecto.Changeset.t()
   def edit_changeset(invoice, attrs) do
     invoice
-    |> cast(attrs, @edit_fields)
+    |> cast(attrs, editable_fields(invoice.type))
     |> validate_nip_fields()
     |> validate_number(:net_amount, greater_than_or_equal_to: 0)
     |> validate_number(:vat_amount, greater_than_or_equal_to: 0)
     |> validate_number(:gross_amount, greater_than_or_equal_to: 0)
   end
+
+  @spec editable_fields(invoice_type() | nil) :: [atom()]
+  defp editable_fields(:expense), do: @all_edit_fields -- [:buyer_nip, :buyer_name]
+  defp editable_fields(:income), do: @all_edit_fields -- [:seller_nip, :seller_name]
+  defp editable_fields(_), do: @all_edit_fields
 
   @prediction_fields [
     :prediction_status,

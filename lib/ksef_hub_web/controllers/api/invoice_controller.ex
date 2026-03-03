@@ -254,7 +254,11 @@ defmodule KsefHubWeb.Api.InvoiceController do
 
   @spec do_update(Plug.Conn.t(), Invoice.t(), map()) :: Plug.Conn.t()
   defp do_update(conn, %Invoice{source: :pdf_upload} = invoice, params) do
-    update_attrs = atomize_keys(params, @update_allowed_keys)
+    update_attrs =
+      params
+      |> atomize_keys(@update_allowed_keys)
+      |> strip_company_fields(invoice.type)
+
     update_attrs = Invoices.recalculate_extraction_status(invoice, update_attrs)
 
     case Invoices.update_invoice(invoice, update_attrs) do
@@ -949,6 +953,11 @@ defmodule KsefHubWeb.Api.InvoiceController do
       {:error, :invalid_uuid}
     end
   end
+
+  @spec strip_company_fields(map(), atom()) :: map()
+  defp strip_company_fields(attrs, :expense), do: Map.drop(attrs, [:buyer_nip, :buyer_name])
+  defp strip_company_fields(attrs, :income), do: Map.drop(attrs, [:seller_nip, :seller_name])
+  defp strip_company_fields(attrs, _), do: attrs
 
   @spec valid_uuid?(term()) :: boolean()
   defp valid_uuid?(value) when is_binary(value), do: match?({:ok, _}, Ecto.UUID.cast(value))

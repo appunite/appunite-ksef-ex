@@ -92,7 +92,7 @@ defmodule KsefHub.InboundEmail.InboundEmailWorkerTest do
       assert updated.invoice_id != nil
     end
 
-    test "creates invoice with NIP warning when seller NIP matches company (income)", %{
+    test "rejects invoice when seller NIP matches company (income)", %{
       company: company
     } do
       record = create_inbound_email(company)
@@ -115,11 +115,12 @@ defmodule KsefHub.InboundEmail.InboundEmailWorkerTest do
       assert :ok = perform_job(record.id, company.id)
 
       updated = InboundEmail.get_inbound_email!(record.id)
-      assert updated.status == :completed
-      assert updated.invoice_id != nil
+      assert updated.status == :failed
+      assert updated.error_message =~ "income"
+      assert is_nil(updated.invoice_id)
     end
 
-    test "creates invoice with NIP warning when neither NIP matches company", %{
+    test "rejects invoice when neither NIP matches company", %{
       company: company
     } do
       record = create_inbound_email(company)
@@ -142,8 +143,9 @@ defmodule KsefHub.InboundEmail.InboundEmailWorkerTest do
       assert :ok = perform_job(record.id, company.id)
 
       updated = InboundEmail.get_inbound_email!(record.id)
-      assert updated.status == :completed
-      assert updated.invoice_id != nil
+      assert updated.status == :failed
+      assert updated.error_message =~ "NIP"
+      assert is_nil(updated.invoice_id)
     end
 
     test "creates invoice with foreign (non-Polish) seller NIP", %{company: company} do
@@ -310,7 +312,7 @@ defmodule KsefHub.InboundEmail.InboundEmailWorkerTest do
       end)
     end
 
-    test "sends NIP warning email when seller NIP matches company", %{company: company} do
+    test "sends rejection email when seller NIP matches company (income)", %{company: company} do
       record = create_inbound_email(company)
 
       KsefHub.InvoiceExtractor.Mock
@@ -331,8 +333,34 @@ defmodule KsefHub.InboundEmail.InboundEmailWorkerTest do
       assert :ok = perform_job(record.id, company.id)
 
       assert_email_sent(fn email ->
-        assert email.subject =~ "NIP warning"
+        assert email.subject =~ "rejected"
         assert email.text_body =~ "income invoice"
+      end)
+    end
+
+    test "sends rejection email when buyer NIP doesn't match company", %{company: company} do
+      record = create_inbound_email(company)
+
+      KsefHub.InvoiceExtractor.Mock
+      |> expect(:extract, fn _pdf, _opts ->
+        {:ok,
+         %{
+           "seller_nip" => "1111111111",
+           "seller_name" => "Other Seller",
+           "buyer_nip" => "2222222222",
+           "buyer_name" => "Other Buyer",
+           "invoice_number" => "FV/2026/MISMATCH",
+           "issue_date" => "2026-02-25",
+           "net_amount" => "300.00",
+           "gross_amount" => "369.00"
+         }}
+      end)
+
+      assert :ok = perform_job(record.id, company.id)
+
+      assert_email_sent(fn email ->
+        assert email.subject =~ "rejected"
+        assert email.text_body =~ "NIP"
       end)
     end
 

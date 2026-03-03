@@ -988,8 +988,8 @@ defmodule KsefHub.InvoicesTest do
       assert updated.seller_nip == "FR61823475082"
     end
 
-    test "rejects foreign tax ID in seller_nip for KSeF invoices", %{company: company} do
-      invoice = insert(:invoice, company: company)
+    test "rejects foreign tax ID in seller_nip for KSeF expense invoices", %{company: company} do
+      invoice = insert(:invoice, company: company, type: :expense)
 
       attrs = %{"seller_nip" => "FR61823475082"}
 
@@ -1158,8 +1158,11 @@ defmodule KsefHub.InvoicesTest do
       # Updated field should change
       assert updated.seller_name == "Updated Seller"
 
-      # Existing fields should be preserved (not overwritten with nil)
-      assert updated.buyer_name == "Original Buyer"
+      # Company-side fields (buyer for expense) are auto-populated from company
+      assert updated.buyer_name == company.name
+      assert updated.buyer_nip == company.nip
+
+      # Non-company fields should be preserved (not overwritten with nil)
       assert updated.invoice_number == "FV/ORIG/001"
       assert updated.net_amount == Decimal.new("1000.00")
       assert updated.gross_amount == Decimal.new("1230.00")
@@ -1610,6 +1613,109 @@ defmodule KsefHub.InvoicesTest do
 
       # Verify comment still exists
       assert [_] = Invoices.list_invoice_comments(company.id, invoice.id)
+    end
+  end
+
+  describe "populate_company_fields/2" do
+    test "sets buyer fields for expense invoices", %{company: company} do
+      attrs = %{type: :expense, seller_nip: "9999999999", seller_name: "Other Co"}
+      result = Invoices.populate_company_fields(attrs, company)
+
+      assert result.buyer_nip == company.nip
+      assert result.buyer_name == company.name
+      assert result.seller_nip == "9999999999"
+    end
+
+    test "sets seller fields for income invoices", %{company: company} do
+      attrs = %{type: :income, buyer_nip: "9999999999", buyer_name: "Other Co"}
+      result = Invoices.populate_company_fields(attrs, company)
+
+      assert result.seller_nip == company.nip
+      assert result.seller_name == company.name
+      assert result.buyer_nip == "9999999999"
+    end
+
+    test "does not modify attrs for unknown type", %{company: company} do
+      attrs = %{type: nil, seller_nip: "1111111111"}
+      result = Invoices.populate_company_fields(attrs, company)
+
+      assert result == attrs
+    end
+  end
+
+  describe "create_manual_invoice/2 company field auto-population" do
+    test "auto-populates buyer_nip and buyer_name for expense", %{company: company} do
+      attrs = %{
+        type: :expense,
+        seller_nip: "9999999999",
+        seller_name: "External Seller",
+        invoice_number: "FV/2026/AUTO-1",
+        issue_date: ~D[2026-02-20],
+        net_amount: Decimal.new("1000.00"),
+        gross_amount: Decimal.new("1230.00")
+      }
+
+      assert {:ok, invoice} = Invoices.create_manual_invoice(company.id, attrs)
+      assert invoice.buyer_nip == company.nip
+      assert invoice.buyer_name == company.name
+      assert invoice.seller_nip == "9999999999"
+    end
+
+    test "auto-populates seller_nip and seller_name for income", %{company: company} do
+      attrs = %{
+        type: :income,
+        buyer_nip: "9999999999",
+        buyer_name: "External Buyer",
+        invoice_number: "FV/2026/AUTO-2",
+        issue_date: ~D[2026-02-20],
+        net_amount: Decimal.new("1000.00"),
+        gross_amount: Decimal.new("1230.00")
+      }
+
+      assert {:ok, invoice} = Invoices.create_manual_invoice(company.id, attrs)
+      assert invoice.seller_nip == company.nip
+      assert invoice.seller_name == company.name
+      assert invoice.buyer_nip == "9999999999"
+    end
+  end
+
+  describe "edit_changeset/2 company field protection" do
+    test "ignores buyer fields for expense invoices", %{company: company} do
+      invoice = insert(:pdf_upload_invoice, company: company, type: :expense)
+
+      changeset =
+        Invoice.edit_changeset(invoice, %{
+          buyer_nip: "HACKED",
+          buyer_name: "Hacker Inc",
+          seller_nip: "5555555555",
+          seller_name: "New Seller"
+        })
+
+      # buyer fields should NOT be in changes
+      refute Map.has_key?(changeset.changes, :buyer_nip)
+      refute Map.has_key?(changeset.changes, :buyer_name)
+      # seller fields should be in changes
+      assert changeset.changes[:seller_nip] == "5555555555"
+      assert changeset.changes[:seller_name] == "New Seller"
+    end
+
+    test "ignores seller fields for income invoices", %{company: company} do
+      invoice = insert(:invoice, company: company, type: :income)
+
+      changeset =
+        Invoice.edit_changeset(invoice, %{
+          seller_nip: "HACKED",
+          seller_name: "Hacker Inc",
+          buyer_nip: "5555555555",
+          buyer_name: "New Buyer"
+        })
+
+      # seller fields should NOT be in changes
+      refute Map.has_key?(changeset.changes, :seller_nip)
+      refute Map.has_key?(changeset.changes, :seller_name)
+      # buyer fields should be in changes
+      assert changeset.changes[:buyer_nip] == "5555555555"
+      assert changeset.changes[:buyer_name] == "New Buyer"
     end
   end
 end
