@@ -51,11 +51,21 @@ defmodule KsefHubWeb.InvoicePdfController do
   defp with_invoice(conn, company_id, id, inline? \\ false, fun) do
     %{id: user_id} = conn.assigns.current_user
 
-    with {:role, role} when not is_nil(role) <- {:role, resolve_role(user_id, company_id)},
+    with {:uuid, {:ok, _}} <- {:uuid, Ecto.UUID.cast(company_id)},
+         {:role, role} when not is_nil(role) <- {:role, resolve_role(user_id, company_id)},
          {:invoice, %{} = invoice} <-
            {:invoice, Invoices.get_invoice_with_details(company_id, id, role: role)} do
       fun.(conn, invoice)
     else
+      {:uuid, :error} ->
+        if inline? do
+          send_inline_error(conn, 404, "Not found.")
+        else
+          conn
+          |> put_flash(:error, "Not found.")
+          |> redirect(to: ~p"/companies")
+        end
+
       {:role, nil} ->
         if inline? do
           send_inline_error(conn, 403, "Access denied.")

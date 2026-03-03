@@ -60,14 +60,23 @@ defmodule KsefHubWeb.LiveAuthTest do
       refute has_element?(view, "button", "Other Company")
     end
 
-    test "user with no memberships is redirected to company creation", %{conn: conn} do
+    test "user with no memberships accessing company-scoped URL is denied", %{conn: conn} do
       user = insert(:user)
       company = insert(:company)
 
-      {:error, {:redirect, %{to: "/companies/new"}}} =
+      {:error, {:redirect, %{to: "/companies"}}} =
         conn
         |> log_in_user(user)
         |> live(~p"/c/#{company.id}/categories")
+    end
+
+    test "user with no memberships on non-scoped route sees companies page", %{conn: conn} do
+      user = insert(:user)
+
+      {:ok, _view, _html} =
+        conn
+        |> log_in_user(user)
+        |> live(~p"/companies")
     end
 
     test "current_company comes from URL company_id param", %{conn: conn} do

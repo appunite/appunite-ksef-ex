@@ -11,15 +11,22 @@ defmodule KsefHubWeb.ExportController do
   @doc "Downloads the ZIP file for a completed export batch."
   @spec download(Plug.Conn.t(), map()) :: Plug.Conn.t()
   def download(conn, %{"company_id" => company_id, "id" => batch_id}) do
-    user_id = conn.assigns.current_user.id
-    role = resolve_role(user_id, company_id)
+    with {:ok, _} <- Ecto.UUID.cast(company_id) do
+      user_id = conn.assigns.current_user.id
+      role = resolve_role(user_id, company_id)
 
-    if role in [:owner, :accountant] do
-      do_download(conn, company_id, user_id, batch_id)
+      if role in [:owner, :accountant] do
+        do_download(conn, company_id, user_id, batch_id)
+      else
+        conn
+        |> put_flash(:error, "You don't have permission to download exports.")
+        |> redirect(to: ~p"/c/#{company_id}/invoices")
+      end
     else
-      conn
-      |> put_flash(:error, "You don't have permission to download exports.")
-      |> redirect(to: ~p"/c/#{company_id}/invoices")
+      :error ->
+        conn
+        |> put_flash(:error, "Not found.")
+        |> redirect(to: ~p"/companies")
     end
   end
 

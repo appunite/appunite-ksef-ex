@@ -29,9 +29,10 @@ defmodule KsefHubWeb.LiveAuth do
   def on_mount(:default, params, session, socket) do
     case fetch_user_from_session(session) do
       {:ok, user} ->
-        socket
-        |> assign_user_and_companies(user, params, session)
-        |> maybe_redirect_for_company()
+        case assign_user_and_companies(socket, user, params, session) do
+          {:halt, _} = halt -> halt
+          socket -> maybe_redirect_for_company(socket)
+        end
 
       :error ->
         {:halt,
@@ -74,26 +75,46 @@ defmodule KsefHubWeb.LiveAuth do
   end
 
   @spec assign_user_and_companies(Phoenix.LiveView.Socket.t(), map(), map(), map()) ::
-          Phoenix.LiveView.Socket.t()
+          Phoenix.LiveView.Socket.t() | {:halt, Phoenix.LiveView.Socket.t()}
   defp assign_user_and_companies(socket, user, params, session) do
     companies = Companies.list_companies_for_user(user.id)
+    url_company_id = params["company_id"]
 
-    current_company =
-      find_company(companies, params["company_id"]) ||
-        find_company(companies, session["current_company_id"]) ||
-        List.first(companies)
+    case resolve_current_company(companies, url_company_id, session) do
+      {:error, :unauthorized} ->
+        {:halt,
+         socket
+         |> assign(:current_user, user)
+         |> put_flash(:error, "You don't have access to this company.")
+         |> redirect(to: ~p"/companies")}
 
-    current_role = resolve_role(user.id, current_company && current_company.id)
+      current_company ->
+        current_role = resolve_role(user.id, current_company && current_company.id)
 
-    socket
-    |> assign(:current_user, user)
-    |> assign(:companies, companies)
-    |> assign(:current_company, current_company)
-    |> assign(:current_role, current_role)
-    |> assign(:current_path, nil)
-    |> attach_hook(:set_current_path, :handle_params, fn _params, uri, socket ->
-      {:cont, assign(socket, :current_path, URI.parse(uri).path)}
-    end)
+        socket
+        |> assign(:current_user, user)
+        |> assign(:companies, companies)
+        |> assign(:current_company, current_company)
+        |> assign(:current_role, current_role)
+        |> assign(:current_path, nil)
+        |> attach_hook(:set_current_path, :handle_params, fn _params, uri, socket ->
+          {:cont, assign(socket, :current_path, URI.parse(uri).path)}
+        end)
+    end
+  end
+
+  @spec resolve_current_company([Companies.Company.t()], String.t() | nil, map()) ::
+          Companies.Company.t() | nil | {:error, :unauthorized}
+  defp resolve_current_company(companies, url_company_id, _session)
+       when is_binary(url_company_id) do
+    case find_company(companies, url_company_id) do
+      nil -> {:error, :unauthorized}
+      company -> company
+    end
+  end
+
+  defp resolve_current_company(companies, _nil, session) do
+    find_company(companies, session["current_company_id"]) || List.first(companies)
   end
 
   @spec maybe_redirect_for_company(Phoenix.LiveView.Socket.t()) ::
