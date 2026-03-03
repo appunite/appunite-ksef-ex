@@ -76,14 +76,16 @@ defmodule KsefHubWeb.InvoiceLive.Upload do
   @impl true
   @spec handle_info(term(), Phoenix.LiveView.Socket.t()) ::
           {:noreply, Phoenix.LiveView.Socket.t()}
-  def handle_info({ref, {:ok, invoice}}, socket) when is_reference(ref) do
+  def handle_info({ref, {:ok, invoice, meta}}, socket) when is_reference(ref) do
     if MapSet.member?(socket.assigns.upload_refs, ref) do
       Process.demonitor(ref, [:flush])
+
+      {flash_kind, flash_msg} = upload_flash(meta, socket.assigns.current_company)
 
       {:noreply,
        socket
        |> update(:upload_refs, &MapSet.delete(&1, ref))
-       |> put_flash(:info, "Invoice uploaded successfully.")
+       |> put_flash(flash_kind, flash_msg)
        |> redirect(to: ~p"/invoices/#{invoice.id}")}
     else
       {:noreply, socket}
@@ -158,9 +160,23 @@ defmodule KsefHubWeb.InvoiceLive.Upload do
   end
 
   @spec do_upload(Company.t(), binary(), String.t()) ::
-          {:ok, Invoices.Invoice.t()} | {:error, term()}
+          {:ok, Invoices.Invoice.t(), keyword()} | {:error, term()}
   defp do_upload(company, binary, filename) do
-    Invoices.create_pdf_upload_invoice(company, binary, type: :expense, filename: filename)
+    Invoices.create_pdf_upload_invoice_with_meta(company, binary,
+      type: :expense,
+      filename: filename
+    )
+  end
+
+  @spec upload_flash(keyword(), Company.t()) :: {atom(), String.t()}
+  defp upload_flash(meta, company) do
+    extracted_buyer_nip = Keyword.get(meta, :extracted_buyer_nip)
+
+    if extracted_buyer_nip && company.nip && extracted_buyer_nip != company.nip do
+      {:warning, "Invoice uploaded but buyer NIP doesn't match your company. Please review."}
+    else
+      {:info, "Invoice uploaded successfully."}
+    end
   end
 
   # --- Render ---

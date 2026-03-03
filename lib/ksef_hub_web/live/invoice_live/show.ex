@@ -744,7 +744,11 @@ defmodule KsefHubWeb.InvoiceLive.Show do
             <h2 class="text-base font-semibold mb-2">Details</h2>
 
             <%= if @editing do %>
-              <.invoice_edit_form edit_form={@edit_form} />
+              <.invoice_edit_form
+                edit_form={@edit_form}
+                invoice={@invoice}
+                company={@current_company}
+              />
             <% else %>
               <table class="text-sm w-full">
                 <tbody>
@@ -757,17 +761,17 @@ defmodule KsefHubWeb.InvoiceLive.Show do
                     <td class="py-1.5 text-right">{format_date(@invoice.issue_date)}</td>
                   </tr>
                   <tr class="border-b border-base-300/50">
-                    <td class="py-1.5 pr-3 text-base-content/60">Seller</td>
-                    <td class="py-1.5 text-right">
-                      <div>{@invoice.seller_name}</div>
-                      <div class="text-xs text-base-content/50">{@invoice.seller_nip}</div>
-                    </td>
-                  </tr>
-                  <tr class="border-b border-base-300/50">
                     <td class="py-1.5 pr-3 text-base-content/60">Buyer</td>
                     <td class="py-1.5 text-right">
                       <div>{@invoice.buyer_name}</div>
                       <div class="text-xs text-base-content/50">{@invoice.buyer_nip}</div>
+                    </td>
+                  </tr>
+                  <tr class="border-b border-base-300/50">
+                    <td class="py-1.5 pr-3 text-base-content/60">Seller</td>
+                    <td class="py-1.5 text-right">
+                      <div>{@invoice.seller_name}</div>
+                      <div class="text-xs text-base-content/50">{@invoice.seller_nip}</div>
                     </td>
                   </tr>
                   <tr class={[
@@ -1084,6 +1088,8 @@ defmodule KsefHubWeb.InvoiceLive.Show do
   end
 
   attr :edit_form, :map, required: true
+  attr :invoice, :map, required: true
+  attr :company, :map, required: true
 
   @spec invoice_edit_form(map()) :: Phoenix.LiveView.Rendered.t()
   defp invoice_edit_form(assigns) do
@@ -1125,8 +1131,16 @@ defmodule KsefHubWeb.InvoiceLive.Show do
         </div>
       </div>
 
-      <.seller_fields edit_form={@edit_form} />
-      <.buyer_fields edit_form={@edit_form} />
+      <.buyer_fields
+        edit_form={@edit_form}
+        readonly={@invoice.type == :expense}
+        company={@company}
+      />
+      <.seller_fields
+        edit_form={@edit_form}
+        readonly={@invoice.type == :income}
+        company={@company}
+      />
       <.amount_fields edit_form={@edit_form} />
 
       <div class="flex gap-2 pt-2">
@@ -1140,6 +1154,8 @@ defmodule KsefHubWeb.InvoiceLive.Show do
   end
 
   attr :edit_form, :map, required: true
+  attr :readonly, :boolean, default: false
+  attr :company, :map, required: true
 
   @spec seller_fields(map()) :: Phoenix.LiveView.Rendered.t()
   defp seller_fields(assigns) do
@@ -1152,13 +1168,22 @@ defmodule KsefHubWeb.InvoiceLive.Show do
           <span class="label-text text-xs">Name</span>
         </label>
         <input
+          :if={@readonly}
+          type="text"
+          id="edit-seller-name"
+          value={@company.name}
+          class="input input-sm input-bordered w-full bg-base-200 text-base-content/60"
+          disabled
+        />
+        <input
+          :if={!@readonly}
           type="text"
           id="edit-seller-name"
           name={@edit_form[:seller_name].name}
           value={@edit_form[:seller_name].value}
           class="input input-sm input-bordered w-full"
         />
-        <.field_error errors={@edit_form[:seller_name].errors} />
+        <.field_error :if={!@readonly} errors={@edit_form[:seller_name].errors} />
       </div>
 
       <div class="form-control">
@@ -1166,6 +1191,15 @@ defmodule KsefHubWeb.InvoiceLive.Show do
           <span class="label-text text-xs">NIP</span>
         </label>
         <input
+          :if={@readonly}
+          type="text"
+          id="edit-seller-nip"
+          value={@company.nip}
+          class="input input-sm input-bordered w-full bg-base-200 text-base-content/60"
+          disabled
+        />
+        <input
+          :if={!@readonly}
           type="text"
           id="edit-seller-nip"
           name={@edit_form[:seller_nip].name}
@@ -1173,13 +1207,15 @@ defmodule KsefHubWeb.InvoiceLive.Show do
           class="input input-sm input-bordered w-full"
           maxlength="50"
         />
-        <.field_error errors={@edit_form[:seller_nip].errors} />
+        <.field_error :if={!@readonly} errors={@edit_form[:seller_nip].errors} />
       </div>
     </div>
     """
   end
 
   attr :edit_form, :map, required: true
+  attr :readonly, :boolean, default: false
+  attr :company, :map, required: true
 
   @spec buyer_fields(map()) :: Phoenix.LiveView.Rendered.t()
   defp buyer_fields(assigns) do
@@ -1192,13 +1228,22 @@ defmodule KsefHubWeb.InvoiceLive.Show do
           <span class="label-text text-xs">Name</span>
         </label>
         <input
+          :if={@readonly}
+          type="text"
+          id="edit-buyer-name"
+          value={@company.name}
+          class="input input-sm input-bordered w-full bg-base-200 text-base-content/60"
+          disabled
+        />
+        <input
+          :if={!@readonly}
           type="text"
           id="edit-buyer-name"
           name={@edit_form[:buyer_name].name}
           value={@edit_form[:buyer_name].value}
           class="input input-sm input-bordered w-full"
         />
-        <.field_error errors={@edit_form[:buyer_name].errors} />
+        <.field_error :if={!@readonly} errors={@edit_form[:buyer_name].errors} />
       </div>
 
       <div class="form-control">
@@ -1206,6 +1251,15 @@ defmodule KsefHubWeb.InvoiceLive.Show do
           <span class="label-text text-xs">NIP</span>
         </label>
         <input
+          :if={@readonly}
+          type="text"
+          id="edit-buyer-nip"
+          value={@company.nip}
+          class="input input-sm input-bordered w-full bg-base-200 text-base-content/60"
+          disabled
+        />
+        <input
+          :if={!@readonly}
           type="text"
           id="edit-buyer-nip"
           name={@edit_form[:buyer_nip].name}
@@ -1213,7 +1267,7 @@ defmodule KsefHubWeb.InvoiceLive.Show do
           class="input input-sm input-bordered w-full"
           maxlength="50"
         />
-        <.field_error errors={@edit_form[:buyer_nip].errors} />
+        <.field_error :if={!@readonly} errors={@edit_form[:buyer_nip].errors} />
       </div>
     </div>
     """

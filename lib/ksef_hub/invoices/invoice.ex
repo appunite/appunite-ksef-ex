@@ -128,7 +128,7 @@ defmodule KsefHub.Invoices.Invoice do
     |> foreign_key_constraint(:category_id)
   end
 
-  @edit_fields [
+  @all_edit_fields [
     :invoice_number,
     :issue_date,
     :seller_nip,
@@ -141,16 +141,26 @@ defmodule KsefHub.Invoices.Invoice do
     :currency
   ]
 
-  @doc "Builds a changeset for manual field edits on the show page."
+  @doc "Builds a changeset for manual field edits on the show page. Excludes company-side fields based on invoice type."
   @spec edit_changeset(t(), map()) :: Ecto.Changeset.t()
   def edit_changeset(invoice, attrs) do
     invoice
-    |> cast(attrs, @edit_fields)
+    |> cast(attrs, editable_fields(invoice.type))
     |> validate_nip_fields()
     |> validate_number(:net_amount, greater_than_or_equal_to: 0)
     |> validate_number(:vat_amount, greater_than_or_equal_to: 0)
     |> validate_number(:gross_amount, greater_than_or_equal_to: 0)
   end
+
+  @doc "Returns the company-owned fields that should not be user-editable for a given invoice type."
+  @spec company_fields(invoice_type()) :: [atom()]
+  def company_fields(:expense), do: [:buyer_nip, :buyer_name]
+  def company_fields(:income), do: [:seller_nip, :seller_name]
+  def company_fields(_), do: []
+
+  @doc "Returns the fields that are editable for a given invoice type (excludes company-owned fields)."
+  @spec editable_fields(invoice_type() | nil) :: [atom()]
+  def editable_fields(type), do: @all_edit_fields -- company_fields(type)
 
   @prediction_fields [
     :prediction_status,

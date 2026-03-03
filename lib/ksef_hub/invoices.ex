@@ -8,6 +8,7 @@ defmodule KsefHub.Invoices do
   require Logger
 
   alias KsefHub.Accounts.User
+  alias KsefHub.Companies
   alias KsefHub.Companies.{Company, Membership}
   alias KsefHub.Files
   alias KsefHub.InvoiceClassifier.Worker, as: ClassifierWorker
@@ -242,7 +243,14 @@ defmodule KsefHub.Invoices do
           {:ok, Invoice.t()} | {:error, Ecto.Changeset.t()}
   def update_invoice_fields(%Invoice{} = invoice, attrs) do
     old_status = invoice.extraction_status
-    merged = invoice |> Map.from_struct() |> Map.merge(atomize_known_keys(attrs))
+
+    # Only consider fields that edit_changeset will actually apply (excludes company-side fields)
+    allowed_attrs =
+      attrs
+      |> atomize_known_keys()
+      |> Map.take(Invoice.editable_fields(invoice.type))
+
+    merged = invoice |> Map.from_struct() |> Map.merge(allowed_attrs)
     new_status = determine_extraction_status_from_attrs(merged)
 
     changeset =
@@ -272,7 +280,7 @@ defmodule KsefHub.Invoices do
   def re_extract_invoice(%Invoice{} = invoice, %Company{} = company) do
     with {:ok, pdf_binary} <- load_pdf_content(invoice),
          {:ok, extracted} <- do_re_extract(company, invoice, pdf_binary) do
-      apply_extraction_results(invoice, extracted)
+      apply_extraction_results(invoice, extracted, company)
     end
   end
 
@@ -297,9 +305,9 @@ defmodule KsefHub.Invoices do
     invoice_extractor().extract(pdf_binary, filename: filename, context: context)
   end
 
-  @spec apply_extraction_results(Invoice.t(), map()) ::
+  @spec apply_extraction_results(Invoice.t(), map(), Company.t()) ::
           {:ok, Invoice.t()} | {:error, Ecto.Changeset.t()}
-  defp apply_extraction_results(invoice, extracted) do
+  defp apply_extraction_results(invoice, extracted, company) do
     extraction_status = determine_extraction_status(extracted)
 
     # For re-extraction, only overwrite fields that have non-nil extracted values.
@@ -308,6 +316,8 @@ defmodule KsefHub.Invoices do
       extracted_to_invoice_attrs(extracted)
       |> Map.reject(fn {_k, v} -> is_nil(v) end)
       |> Map.put(:extraction_status, extraction_status)
+      |> Map.put(:type, invoice.type)
+      |> populate_company_fields(company)
 
     # Preserve existing currency if extraction didn't provide one
     attrs =
@@ -393,6 +403,28 @@ defmodule KsefHub.Invoices do
   def reject_invoice(%Invoice{type: type}), do: {:error, {:invalid_type, type}}
 
   @doc """
+  Populates company-side fields on invoice attrs based on type.
+
+  For expense invoices, sets buyer_nip and buyer_name from the company.
+  For income invoices, sets seller_nip and seller_name from the company.
+  """
+  @spec populate_company_fields(map(), Company.t()) :: map()
+  def populate_company_fields(attrs, %Company{} = company) do
+    type = attrs[:type] || attrs["type"]
+
+    case type do
+      t when t in [:expense, "expense"] ->
+        Map.merge(attrs, %{buyer_nip: company.nip, buyer_name: company.name})
+
+      t when t in [:income, "income"] ->
+        Map.merge(attrs, %{seller_nip: company.nip, seller_name: company.name})
+
+      _ ->
+        attrs
+    end
+  end
+
+  @doc """
   Creates a manual invoice, optionally detecting duplicates by ksef_number.
 
   Forces `source: :manual` and strips KSeF-only fields. If a `ksef_number` is
@@ -402,11 +434,14 @@ defmodule KsefHub.Invoices do
   @spec create_manual_invoice(Ecto.UUID.t(), map()) ::
           {:ok, Invoice.t()} | {:error, Ecto.Changeset.t()}
   def create_manual_invoice(company_id, attrs) do
+    company = Companies.get_company!(company_id)
+
     attrs =
       attrs
       |> Map.drop([:ksef_acquisition_date, :permanent_storage_date])
       |> Map.drop(["ksef_acquisition_date", "permanent_storage_date"])
       |> Map.merge(%{source: :manual, company_id: company_id})
+      |> populate_company_fields(company)
 
     case create_or_retry_duplicate(company_id, attrs) do
       {:ok, invoice} ->
@@ -467,6 +502,27 @@ defmodule KsefHub.Invoices do
   @spec create_pdf_upload_invoice(Company.t(), binary(), map()) ::
           {:ok, Invoice.t()} | {:error, term()}
   def create_pdf_upload_invoice(%Company{} = company, pdf_binary, opts) do
+    case extract_and_create_pdf(company, pdf_binary, opts) do
+      {:ok, invoice, _meta} -> {:ok, invoice}
+      {:error, reason} -> {:error, reason}
+    end
+  end
+
+  @doc """
+  Creates a PDF upload invoice and returns the extracted buyer NIP for NIP mismatch detection.
+
+  Same as `create_pdf_upload_invoice/3` but returns the original extracted buyer NIP
+  so callers can warn users when it doesn't match the company.
+  """
+  @spec create_pdf_upload_invoice_with_meta(Company.t(), binary(), map()) ::
+          {:ok, Invoice.t(), keyword()} | {:error, term()}
+  def create_pdf_upload_invoice_with_meta(%Company{} = company, pdf_binary, opts) do
+    extract_and_create_pdf(company, pdf_binary, opts)
+  end
+
+  @spec extract_and_create_pdf(Company.t(), binary(), map()) ::
+          {:ok, Invoice.t(), keyword()} | {:error, term()}
+  defp extract_and_create_pdf(company, pdf_binary, opts) do
     type = opts[:type]
     filename = opts[:filename]
     context = ContextBuilder.build(company)
@@ -475,11 +531,20 @@ defmodule KsefHub.Invoices do
 
     case invoice_extractor().extract(pdf_binary, extract_opts) do
       {:ok, extracted} ->
-        do_create_pdf_upload(company.id, pdf_binary, type, filename, extracted)
+        extracted_buyer_nip = get_extracted_nip(extracted, "buyer_nip")
+
+        case do_create_pdf_upload(company, pdf_binary, type, filename, extracted) do
+          {:ok, invoice} -> {:ok, invoice, extracted_buyer_nip: extracted_buyer_nip}
+          error -> error
+        end
 
       {:error, _reason} ->
         Logger.warning("PDF extraction failed for file: #{filename || "invoice.pdf"}")
-        do_create_pdf_upload_failed(company.id, pdf_binary, type, filename)
+
+        case do_create_pdf_upload_failed(company, pdf_binary, type, filename) do
+          {:ok, invoice} -> {:ok, invoice, extracted_buyer_nip: nil}
+          error -> error
+        end
     end
   end
 
@@ -498,42 +563,45 @@ defmodule KsefHub.Invoices do
   @spec create_email_invoice(Ecto.UUID.t(), binary(), map() | :extraction_failed, keyword()) ::
           {:ok, Invoice.t()} | {:error, term()}
   def create_email_invoice(company_id, pdf_binary, :extraction_failed, opts) do
-    do_create_pdf_failed(company_id, pdf_binary, :expense, opts[:filename], :email)
+    company = Companies.get_company!(company_id)
+    do_create_pdf_failed(company, pdf_binary, :expense, opts[:filename], :email)
   end
 
   def create_email_invoice(company_id, pdf_binary, extracted, opts) when is_map(extracted) do
-    do_create_pdf_extracted(company_id, pdf_binary, :expense, opts[:filename], extracted, :email)
+    company = Companies.get_company!(company_id)
+    do_create_pdf_extracted(company, pdf_binary, :expense, opts[:filename], extracted, :email)
   end
 
-  @spec do_create_pdf_upload(Ecto.UUID.t(), binary(), atom(), String.t() | nil, map()) ::
+  @spec do_create_pdf_upload(Company.t(), binary(), atom(), String.t() | nil, map()) ::
           {:ok, Invoice.t()} | {:error, term()}
-  defp do_create_pdf_upload(company_id, pdf_binary, type, filename, extracted) do
-    do_create_pdf_extracted(company_id, pdf_binary, type, filename, extracted, :pdf_upload)
+  defp do_create_pdf_upload(company, pdf_binary, type, filename, extracted) do
+    do_create_pdf_extracted(company, pdf_binary, type, filename, extracted, :pdf_upload)
   end
 
-  @spec do_create_pdf_upload_failed(Ecto.UUID.t(), binary(), atom(), String.t() | nil) ::
+  @spec do_create_pdf_upload_failed(Company.t(), binary(), atom(), String.t() | nil) ::
           {:ok, Invoice.t()} | {:error, term()}
-  defp do_create_pdf_upload_failed(company_id, pdf_binary, type, filename) do
-    do_create_pdf_failed(company_id, pdf_binary, type, filename, :pdf_upload)
+  defp do_create_pdf_upload_failed(company, pdf_binary, type, filename) do
+    do_create_pdf_failed(company, pdf_binary, type, filename, :pdf_upload)
   end
 
   # Shared: create invoice from extracted fields with duplicate detection + prediction
   @spec do_create_pdf_extracted(
-          Ecto.UUID.t(),
+          Company.t(),
           binary(),
           atom(),
           String.t() | nil,
           map(),
           Invoice.invoice_source()
         ) :: {:ok, Invoice.t()} | {:error, term()}
-  defp do_create_pdf_extracted(company_id, pdf_binary, type, filename, extracted, source) do
+  defp do_create_pdf_extracted(company, pdf_binary, type, filename, extracted, source) do
     extraction_status = determine_extraction_status(extracted)
 
     invoice_attrs =
-      build_pdf_upload_attrs(extracted, company_id, pdf_binary, type, filename, extraction_status)
+      build_pdf_upload_attrs(extracted, company.id, pdf_binary, type, filename, extraction_status)
       |> Map.put(:source, source)
+      |> populate_company_fields(company)
 
-    case create_or_retry_duplicate(company_id, invoice_attrs) do
+    case create_or_retry_duplicate(company.id, invoice_attrs) do
       {:ok, invoice} ->
         maybe_enqueue_prediction(extraction_status, invoice)
         {:ok, invoice}
@@ -545,21 +613,23 @@ defmodule KsefHub.Invoices do
 
   # Shared: create invoice when extraction failed
   @spec do_create_pdf_failed(
-          Ecto.UUID.t(),
+          Company.t(),
           binary(),
           atom(),
           String.t() | nil,
           Invoice.invoice_source()
         ) :: {:ok, Invoice.t()} | {:error, term()}
-  defp do_create_pdf_failed(company_id, pdf_binary, type, filename, source) do
-    attrs = %{
-      source: source,
-      type: type,
-      company_id: company_id,
-      pdf_content: pdf_binary,
-      original_filename: filename,
-      extraction_status: :failed
-    }
+  defp do_create_pdf_failed(company, pdf_binary, type, filename, source) do
+    attrs =
+      %{
+        source: source,
+        type: type,
+        company_id: company.id,
+        pdf_content: pdf_binary,
+        original_filename: filename,
+        extraction_status: :failed
+      }
+      |> populate_company_fields(company)
 
     create_invoice(attrs)
   end

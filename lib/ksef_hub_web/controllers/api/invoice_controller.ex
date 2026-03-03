@@ -254,7 +254,11 @@ defmodule KsefHubWeb.Api.InvoiceController do
 
   @spec do_update(Plug.Conn.t(), Invoice.t(), map()) :: Plug.Conn.t()
   defp do_update(conn, %Invoice{source: :pdf_upload} = invoice, params) do
-    update_attrs = atomize_keys(params, @update_allowed_keys)
+    update_attrs =
+      params
+      |> atomize_keys(@update_allowed_keys)
+      |> Map.drop(Invoice.company_fields(invoice.type))
+
     update_attrs = Invoices.recalculate_extraction_status(invoice, update_attrs)
 
     case Invoices.update_invoice(invoice, update_attrs) do

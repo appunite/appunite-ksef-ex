@@ -67,17 +67,41 @@ defmodule KsefHub.InboundEmail.InboundEmailWorker do
     extraction_status = Invoices.determine_extraction_status_from_attrs(extracted)
     nip_result = NipVerifier.verify_expense(extracted, company.nip)
 
-    reply_type =
-      case {extraction_status, nip_result} do
-        {:complete, {:ok, :expense}} -> :success
-        {_, {:error, reason}} -> {:nip_warning, reason}
-        _ -> :needs_review
-      end
+    case {extraction_status, nip_result} do
+      {:complete, {:ok, :expense}} ->
+        create_and_notify(record, company, extracted, :success)
 
-    create_and_notify(record, company, extracted, reply_type)
+      {_, {:error, reason}} ->
+        reject_and_notify(record, company, reason)
+
+      _ ->
+        create_and_notify(record, company, extracted, :needs_review)
+    end
   end
 
-  @type reply_type :: :success | :needs_review | {:nip_warning, atom()}
+  @spec reject_and_notify(InboundEmail.InboundEmail.t(), Companies.Company.t(), atom()) :: :ok
+  defp reject_and_notify(record, company, reason) do
+    error_message =
+      case reason do
+        :income_not_allowed -> "Rejected: income invoice not accepted via email"
+        :nip_mismatch -> "Rejected: buyer NIP doesn't match company"
+        _ -> "Rejected: NIP verification failed"
+      end
+
+    log_status_update(
+      InboundEmail.update_status(record, %{status: :failed, error_message: error_message}),
+      record.id
+    )
+
+    opts =
+      reply_opts(company, record)
+      |> Keyword.merge(company_name: company.name, nip: company.nip)
+
+    send_reply(ReplyNotifier.rejection(record.sender, reason, opts), record)
+    :ok
+  end
+
+  @type reply_type :: :success | :needs_review
 
   @spec create_and_notify(
           InboundEmail.InboundEmail.t(),
@@ -196,13 +220,8 @@ defmodule KsefHub.InboundEmail.InboundEmailWorker do
   defp build_reply(:needs_review, sender, invoice, _company, opts),
     do: ReplyNotifier.needs_review(sender, invoice, opts)
 
-  defp build_reply({:nip_warning, reason}, sender, invoice, company, opts) do
-    opts = Keyword.merge(opts, company_name: company.name, nip: company.nip)
-    ReplyNotifier.nip_warning(sender, invoice, reason, opts)
-  end
-
-  # When fallback creates an invoice with :extraction_failed, preserve NIP warnings
-  # but downgrade :success to :needs_review since extraction data was lost.
+  # When fallback creates an invoice with :extraction_failed,
+  # downgrade :success to :needs_review since extraction data was lost.
   @spec fallback_reply_type(reply_type()) :: reply_type()
   defp fallback_reply_type(:success), do: :needs_review
   defp fallback_reply_type(other), do: other
