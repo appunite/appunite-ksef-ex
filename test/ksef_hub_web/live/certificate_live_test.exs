@@ -72,6 +72,23 @@ defmodule KsefHubWeb.CertificateLiveTest do
       assert render(view) =~ "No Certificate Configured"
     end
 
+    test "URL company_id takes precedence over session company", %{conn: conn, user: user} do
+      url_company = insert(:company, name: "URL Company")
+      session_company = insert(:company, name: "Session Company")
+      insert(:membership, user: user, company: url_company, role: :owner)
+      insert(:membership, user: user, company: session_company, role: :owner)
+
+      conn = conn |> init_test_session(%{current_company_id: session_company.id})
+
+      {:ok, view, _html} = live(conn, ~p"/c/#{url_company.id}/certificates")
+
+      assert has_element?(
+               view,
+               "[data-testid='current-company-name']",
+               "URL Company"
+             )
+    end
+
     test "shows upload form by default when no certificate", %{conn: conn, company: company} do
       {:ok, view, _html} = live(conn, ~p"/c/#{company.id}/certificates")
       assert has_element?(view, "#upload-form")

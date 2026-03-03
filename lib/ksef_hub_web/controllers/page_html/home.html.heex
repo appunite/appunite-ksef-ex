@@ -14,8 +14,8 @@
       </p>
 
       <%= if @conn.assigns[:current_user] do %>
-        <a href={~p"/companies"} class="btn btn-primary w-full">
-          Go to Invoices
+        <a id="primary-cta-companies" href={~p"/companies"} class="btn btn-primary w-full">
+          Go to Companies
         </a>
       <% else %>
         <a href={~p"/users/log-in"} class="btn btn-primary w-full mb-3">

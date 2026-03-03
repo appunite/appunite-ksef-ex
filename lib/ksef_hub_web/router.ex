@@ -90,7 +90,6 @@ defmodule KsefHubWeb.Router do
     end
 
     post "/switch-company/:id", CompanySwitchController, :update
-    get "/switch-company/:id", CompanySwitchController, :update
   end
 
   # Company-scoped routes

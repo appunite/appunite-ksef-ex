@@ -169,7 +169,8 @@ defmodule KsefHubWeb.InvoiceLive.UploadTest do
     test "shows Upload PDF button for owner", %{conn: conn, company: company} do
       {:ok, view, _html} = live(conn, ~p"/c/#{company.id}/invoices")
 
-      assert has_element?(view, ~s(a[href="/c/#{company.id}/invoices/upload"]), "Upload PDF")
+      upload_path = ~p"/c/#{company.id}/invoices/upload"
+      assert has_element?(view, ~s(a[href="#{upload_path}"]), "Upload PDF")
     end
 
     test "hides Upload PDF button for reviewer" do
@@ -186,7 +187,8 @@ defmodule KsefHubWeb.InvoiceLive.UploadTest do
       conn = build_conn() |> log_in_user(reviewer, %{current_company_id: company.id})
       {:ok, view, _html} = live(conn, ~p"/c/#{company.id}/invoices")
 
-      refute has_element?(view, ~s(a[href="/c/#{company.id}/invoices/upload"]))
+      upload_path = ~p"/c/#{company.id}/invoices/upload"
+      refute has_element?(view, ~s(a[href="#{upload_path}"]))
     end
   end
 end

@@ -74,7 +74,7 @@ defmodule KsefHubWeb.Layouts do
                   <input
                     type="hidden"
                     name="return_to"
-                    value={@current_path || ~p"/c/#{@current_company.id}/invoices"}
+                    value={@current_path || ~p"/c/#{company.id}/invoices"}
                   />
                   <button
                     type="submit"

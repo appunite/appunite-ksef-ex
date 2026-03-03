@@ -11,7 +11,7 @@ defmodule KsefHubWeb.UrlHelpers do
   When a company is available, returns the company-scoped invoices path.
   Falls back to `/companies` when no company is present.
   """
-  @spec default_path(map() | nil) :: String.t()
+  @spec default_path(%{id: any()} | nil) :: String.t()
   def default_path(nil), do: ~p"/companies"
   def default_path(%{id: id}), do: ~p"/c/#{id}/invoices"
 
