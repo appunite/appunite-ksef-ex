@@ -25,7 +25,6 @@ defmodule KsefHub.Invoices.Invoice do
     field :invoice_number, :string
     field :issue_date, :date
     field :net_amount, :decimal
-    field :vat_amount, :decimal
     field :gross_amount, :decimal
     field :currency, :string, default: "PLN"
     field :status, Ecto.Enum, values: [:pending, :approved, :rejected], default: :pending
@@ -87,7 +86,6 @@ defmodule KsefHub.Invoices.Invoice do
       :invoice_number,
       :issue_date,
       :net_amount,
-      :vat_amount,
       :gross_amount,
       :currency,
       :status,
@@ -136,7 +134,6 @@ defmodule KsefHub.Invoices.Invoice do
     :buyer_nip,
     :buyer_name,
     :net_amount,
-    :vat_amount,
     :gross_amount,
     :currency
   ]
@@ -148,7 +145,6 @@ defmodule KsefHub.Invoices.Invoice do
     |> cast(attrs, editable_fields(invoice.type))
     |> validate_nip_fields()
     |> validate_number(:net_amount, greater_than_or_equal_to: 0)
-    |> validate_number(:vat_amount, greater_than_or_equal_to: 0)
     |> validate_number(:gross_amount, greater_than_or_equal_to: 0)
   end
 

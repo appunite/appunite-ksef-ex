@@ -28,7 +28,6 @@ defmodule KsefHubWeb.Schemas.UpdateInvoiceRequest do
       invoice_number: %Schema{type: :string, description: "Sequential invoice number."},
       issue_date: %Schema{type: :string, format: :date, description: "Invoice issue date."},
       net_amount: %Schema{type: :string, description: "Net amount as decimal string."},
-      vat_amount: %Schema{type: :string, description: "VAT amount as decimal string."},
       gross_amount: %Schema{type: :string, description: "Gross amount as decimal string."},
       currency: %Schema{type: :string, description: "ISO 4217 currency code.", example: "PLN"}
     },

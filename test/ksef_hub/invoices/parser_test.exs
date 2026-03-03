@@ -29,7 +29,6 @@ defmodule KsefHub.Invoices.ParserTest do
 
       assert {:ok, invoice} = Parser.parse(xml)
       assert Decimal.equal?(invoice.net_amount, Decimal.new("10000.00"))
-      assert Decimal.equal?(invoice.vat_amount, Decimal.new("2300.00"))
       assert Decimal.equal?(invoice.gross_amount, Decimal.new("12300.00"))
     end
 
@@ -73,8 +72,6 @@ defmodule KsefHub.Invoices.ParserTest do
       assert {:ok, invoice} = Parser.parse(xml)
       # net = P_13_1 (1000) + P_13_2 (500) + P_13_3 (200) = 1700
       assert Decimal.equal?(invoice.net_amount, Decimal.new("1700.00"))
-      # vat = P_14_1 (230) + P_14_2 (40) + P_14_3 (10) = 280
-      assert Decimal.equal?(invoice.vat_amount, Decimal.new("280.00"))
       assert Decimal.equal?(invoice.gross_amount, Decimal.new("1980.00"))
     end
 
@@ -83,7 +80,6 @@ defmodule KsefHub.Invoices.ParserTest do
 
       assert {:ok, invoice} = Parser.parse(xml)
       assert Decimal.equal?(invoice.net_amount, Decimal.new("800.00"))
-      assert Decimal.equal?(invoice.vat_amount, Decimal.new("64.00"))
       assert Decimal.equal?(invoice.gross_amount, Decimal.new("864.00"))
     end
 

@@ -40,7 +40,6 @@ defmodule KsefHubWeb.Schemas.Invoice do
       },
       issue_date: %Schema{type: :string, format: :date, nullable: true},
       net_amount: %Schema{type: :string, nullable: true, description: "Decimal as string."},
-      vat_amount: %Schema{type: :string, nullable: true, description: "Decimal as string."},
       gross_amount: %Schema{type: :string, nullable: true, description: "Decimal as string."},
       currency: %Schema{
         type: :string,
@@ -161,7 +160,6 @@ defmodule KsefHubWeb.Schemas.Invoice do
       invoice_number: "FV/2024/001",
       issue_date: "2024-01-15",
       net_amount: "1000.00",
-      vat_amount: "230.00",
       gross_amount: "1230.00",
       currency: "PLN",
       status: "pending",
@@ -199,7 +197,6 @@ defmodule KsefHubWeb.Schemas.Invoice do
       invoice_number: "FV/2026/042",
       issue_date: "2026-02-20",
       net_amount: "5000.00",
-      vat_amount: nil,
       gross_amount: "6150.00",
       currency: "PLN",
       inserted_at: "2026-02-20T14:30:00Z",
