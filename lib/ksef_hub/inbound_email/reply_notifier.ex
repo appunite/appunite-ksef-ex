@@ -238,7 +238,9 @@ defmodule KsefHub.InboundEmail.ReplyNotifier do
   defp threading_subject(fallback, ""), do: fallback
 
   defp threading_subject(_fallback, original) do
-    if String.starts_with?(original, "Re:") do
+    trimmed = String.trim_leading(original)
+
+    if String.starts_with?(String.downcase(trimmed), "re:") do
       original
     else
       "Re: #{original}"
@@ -291,12 +293,23 @@ defmodule KsefHub.InboundEmail.ReplyNotifier do
   @spec from_email() :: {String.t(), String.t()}
   defp from_email do
     case Application.get_env(:ksef_hub, :inbound_email_domain) do
-      domain when is_binary(domain) and domain != "" ->
-        {"Invoi", "noreply@#{domain}"}
+      domain when is_binary(domain) ->
+        trimmed = String.trim(domain)
+
+        if trimmed != "" and Regex.match?(~r/^[a-zA-Z0-9.\-]+$/, trimmed) do
+          {"Invoi", "noreply@#{trimmed}"}
+        else
+          default_from()
+        end
 
       _ ->
-        Application.get_env(:ksef_hub, :mailer_from, {"Invoi", "noreply@ksef-hub.com"})
+        default_from()
     end
+  end
+
+  @spec default_from() :: {String.t(), String.t()}
+  defp default_from do
+    Application.get_env(:ksef_hub, :mailer_from, {"Invoi", "noreply@ksef-hub.com"})
   end
 
   @spec invoice_url(Ecto.UUID.t() | nil) :: String.t()
