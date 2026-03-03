@@ -38,11 +38,6 @@ defmodule KsefHubWeb.Schemas.CreateInvoiceRequest do
       invoice_number: %Schema{type: :string, description: "Sequential invoice number."},
       issue_date: %Schema{type: :string, format: :date, description: "Invoice issue date."},
       net_amount: %Schema{type: :string, description: "Net amount as decimal string."},
-      vat_amount: %Schema{
-        type: :string,
-        nullable: true,
-        description: "VAT amount as decimal string."
-      },
       gross_amount: %Schema{type: :string, description: "Gross amount as decimal string."},
       currency: %Schema{
         type: :string,
@@ -71,7 +66,6 @@ defmodule KsefHubWeb.Schemas.CreateInvoiceRequest do
       invoice_number: "FV/2026/042",
       issue_date: "2026-02-20",
       net_amount: "5000.00",
-      vat_amount: "1150.00",
       gross_amount: "6150.00",
       currency: "PLN"
     }

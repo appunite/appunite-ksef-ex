@@ -753,14 +753,6 @@ defmodule KsefHubWeb.InvoiceLive.Show do
               <table class="text-sm w-full">
                 <tbody>
                   <tr class="border-b border-base-300/50">
-                    <td class="py-1.5 pr-3 text-base-content/60 whitespace-nowrap">Number</td>
-                    <td class="py-1.5 text-right">{@invoice.invoice_number}</td>
-                  </tr>
-                  <tr class="border-b border-base-300/50">
-                    <td class="py-1.5 pr-3 text-base-content/60">Date</td>
-                    <td class="py-1.5 text-right">{format_date(@invoice.issue_date)}</td>
-                  </tr>
-                  <tr class="border-b border-base-300/50">
                     <td class="py-1.5 pr-3 text-base-content/60">Buyer</td>
                     <td class="py-1.5 text-right">
                       <div>{@invoice.buyer_name}</div>
@@ -774,6 +766,14 @@ defmodule KsefHubWeb.InvoiceLive.Show do
                       <div class="text-xs text-base-content/50">{@invoice.seller_nip}</div>
                     </td>
                   </tr>
+                  <tr class="border-b border-base-300/50">
+                    <td class="py-1.5 pr-3 text-base-content/60 whitespace-nowrap">Number</td>
+                    <td class="py-1.5 text-right">{@invoice.invoice_number}</td>
+                  </tr>
+                  <tr class="border-b border-base-300/50">
+                    <td class="py-1.5 pr-3 text-base-content/60">Date</td>
+                    <td class="py-1.5 text-right">{format_date(@invoice.issue_date)}</td>
+                  </tr>
                   <tr class={[
                     "border-b border-base-300/50",
                     is_nil(@invoice.net_amount) && "bg-warning/5"
@@ -781,15 +781,6 @@ defmodule KsefHubWeb.InvoiceLive.Show do
                     <td class="py-1.5 pr-3 text-base-content/60">Netto</td>
                     <td class="py-1.5 text-right font-mono">
                       {format_amount(@invoice.net_amount)} {@invoice.currency}
-                    </td>
-                  </tr>
-                  <tr class={[
-                    "border-b border-base-300/50",
-                    is_nil(@invoice.vat_amount) && "bg-warning/5"
-                  ]}>
-                    <td class="py-1.5 pr-3 text-base-content/60">VAT</td>
-                    <td class="py-1.5 text-right font-mono">
-                      {format_amount(@invoice.vat_amount)} {@invoice.currency}
                     </td>
                   </tr>
                   <tr class={[
@@ -1101,6 +1092,19 @@ defmodule KsefHubWeb.InvoiceLive.Show do
       phx-submit="save_edit"
       class="space-y-3"
     >
+      <.buyer_fields
+        edit_form={@edit_form}
+        readonly={@invoice.type == :expense}
+        company={@company}
+      />
+      <.seller_fields
+        edit_form={@edit_form}
+        readonly={@invoice.type == :income}
+        company={@company}
+      />
+
+      <div class="divider text-xs my-1">Invoice</div>
+
       <div class="grid grid-cols-2 gap-3">
         <div class="form-control">
           <label for="edit-invoice-number" class="label">
@@ -1131,16 +1135,6 @@ defmodule KsefHubWeb.InvoiceLive.Show do
         </div>
       </div>
 
-      <.buyer_fields
-        edit_form={@edit_form}
-        readonly={@invoice.type == :expense}
-        company={@company}
-      />
-      <.seller_fields
-        edit_form={@edit_form}
-        readonly={@invoice.type == :income}
-        company={@company}
-      />
       <.amount_fields edit_form={@edit_form} />
 
       <div class="flex gap-2 pt-2">
@@ -1280,7 +1274,7 @@ defmodule KsefHubWeb.InvoiceLive.Show do
     ~H"""
     <div class="divider text-xs my-1">Amounts</div>
 
-    <div class="grid grid-cols-4 gap-3">
+    <div class="grid grid-cols-3 gap-3">
       <div class="form-control">
         <label for="edit-net-amount" class="label">
           <span class="label-text text-xs">Netto</span>
@@ -1294,21 +1288,6 @@ defmodule KsefHubWeb.InvoiceLive.Show do
           class="input input-sm input-bordered w-full font-mono"
         />
         <.field_error errors={@edit_form[:net_amount].errors} />
-      </div>
-
-      <div class="form-control">
-        <label for="edit-vat-amount" class="label">
-          <span class="label-text text-xs">VAT</span>
-        </label>
-        <input
-          type="text"
-          inputmode="decimal"
-          id="edit-vat-amount"
-          name={@edit_form[:vat_amount].name}
-          value={@edit_form[:vat_amount].value}
-          class="input input-sm input-bordered w-full font-mono"
-        />
-        <.field_error errors={@edit_form[:vat_amount].errors} />
       </div>
 
       <div class="form-control">

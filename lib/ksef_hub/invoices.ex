@@ -200,7 +200,6 @@ defmodule KsefHub.Invoices do
     :invoice_number,
     :issue_date,
     :net_amount,
-    :vat_amount,
     :gross_amount,
     :currency,
     :ksef_acquisition_date,
@@ -698,7 +697,6 @@ defmodule KsefHub.Invoices do
       invoice_number: get_extracted_string(extracted, "invoice_number"),
       issue_date: get_extracted_date(extracted, "issue_date"),
       net_amount: get_extracted_decimal(extracted, "net_amount"),
-      vat_amount: get_extracted_decimal(extracted, "vat_amount"),
       gross_amount: get_extracted_decimal(extracted, "gross_amount"),
       currency: get_extracted_string(extracted, "currency"),
       ksef_number: get_extracted_string(extracted, "ksef_number")

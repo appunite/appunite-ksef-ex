@@ -87,7 +87,6 @@ defmodule KsefHubWeb.InvoiceLive.UploadTest do
            "invoice_number" => "FV/2025/1",
            "issue_date" => "2025-01-15",
            "net_amount" => "1000.00",
-           "vat_amount" => "230.00",
            "gross_amount" => "1230.00",
            "currency" => "PLN"
          }}

@@ -13,8 +13,8 @@ defmodule KsefHub.Exports.CsvBuilderTest do
       content = String.replace_prefix(csv, <<0xEF, 0xBB, 0xBF>>, "")
       [header_line | _] = String.split(content, "\r\n", trim: true)
 
-      assert header_line =~
-               "Invoice Number,Issue Date,Type,Source,Seller NIP,Seller Name,Buyer NIP,Buyer Name,Net Amount,VAT Amount,Gross Amount,Currency,Category,Tags,KSeF Number,Added At,Original Filename,Duplicate Status"
+      assert header_line ==
+               "Invoice Number,Issue Date,Type,Source,Seller NIP,Seller Name,Buyer NIP,Buyer Name,Net Amount,Gross Amount,Currency,Category,Tags,KSeF Number,Added At,Original Filename,Duplicate Status"
     end
 
     test "includes invoice data in correct columns" do
@@ -36,7 +36,6 @@ defmodule KsefHub.Exports.CsvBuilderTest do
       assert data =~ "0987654321"
       assert data =~ "Buyer Inc"
       assert data =~ "1000.00"
-      assert data =~ "230.00"
       assert data =~ "1230.00"
       assert data =~ "PLN"
       assert data =~ "2026-01-10 09:00"
@@ -106,7 +105,6 @@ defmodule KsefHub.Exports.CsvBuilderTest do
       buyer_nip: "0987654321",
       buyer_name: "Buyer Inc",
       net_amount: Decimal.new("1000.00"),
-      vat_amount: Decimal.new("230.00"),
       gross_amount: Decimal.new("1230.00"),
       currency: "PLN",
       category: nil,

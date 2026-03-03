@@ -13,7 +13,6 @@ defmodule KsefHub.InvoiceExtractor.StubClient do
        "invoice_number" => "FV/2026/EXTRACTED/001",
        "issue_date" => "2026-02-20",
        "net_amount" => "1000.00",
-       "vat_amount" => "230.00",
        "gross_amount" => "1230.00",
        "currency" => "PLN"
      }}
