@@ -78,29 +78,51 @@ defmodule KsefHubWeb.LiveAuth do
           Phoenix.LiveView.Socket.t() | {:halt, Phoenix.LiveView.Socket.t()}
   defp assign_user_and_companies(socket, user, params, session) do
     companies = Companies.list_companies_for_user(user.id)
-    url_company_id = params["company_id"]
 
-    case resolve_current_company(companies, url_company_id, session) do
+    case resolve_current_company(companies, params["company_id"], session) do
       {:error, :unauthorized} ->
-        {:halt,
-         socket
-         |> assign(:current_user, user)
-         |> put_flash(:error, "You don't have access to this company.")
-         |> redirect(to: ~p"/companies")}
+        halt_unauthorized(socket, user)
 
       current_company ->
         current_role = resolve_role(user.id, current_company && current_company.id)
 
         socket
-        |> assign(:current_user, user)
-        |> assign(:companies, companies)
-        |> assign(:current_company, current_company)
-        |> assign(:current_role, current_role)
-        |> assign(:current_path, nil)
-        |> attach_hook(:set_current_path, :handle_params, fn _params, uri, socket ->
-          {:cont, assign(socket, :current_path, URI.parse(uri).path)}
-        end)
+        |> build_user_assigns(user, companies, current_company, current_role)
+        |> attach_current_path_hook()
     end
+  end
+
+  @spec halt_unauthorized(Phoenix.LiveView.Socket.t(), map()) ::
+          {:halt, Phoenix.LiveView.Socket.t()}
+  defp halt_unauthorized(socket, user) do
+    {:halt,
+     socket
+     |> assign(:current_user, user)
+     |> put_flash(:error, "You don't have access to this company.")
+     |> redirect(to: ~p"/companies")}
+  end
+
+  @spec build_user_assigns(
+          Phoenix.LiveView.Socket.t(),
+          map(),
+          [Companies.Company.t()],
+          Companies.Company.t() | nil,
+          atom() | nil
+        ) :: Phoenix.LiveView.Socket.t()
+  defp build_user_assigns(socket, user, companies, current_company, current_role) do
+    socket
+    |> assign(:current_user, user)
+    |> assign(:companies, companies)
+    |> assign(:current_company, current_company)
+    |> assign(:current_role, current_role)
+    |> assign(:current_path, nil)
+  end
+
+  @spec attach_current_path_hook(Phoenix.LiveView.Socket.t()) :: Phoenix.LiveView.Socket.t()
+  defp attach_current_path_hook(socket) do
+    attach_hook(socket, :set_current_path, :handle_params, fn _params, uri, socket ->
+      {:cont, assign(socket, :current_path, URI.parse(uri).path)}
+    end)
   end
 
   @spec resolve_current_company([Companies.Company.t()], String.t() | nil, map()) ::

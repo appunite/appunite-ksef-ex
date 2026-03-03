@@ -73,10 +73,12 @@ defmodule KsefHubWeb.LiveAuthTest do
     test "user with no memberships on non-scoped route sees companies page", %{conn: conn} do
       user = insert(:user)
 
-      {:ok, _view, _html} =
+      {:ok, view, _html} =
         conn
         |> log_in_user(user)
         |> live(~p"/companies")
+
+      assert has_element?(view, "h1", "Companies")
     end
 
     test "current_company comes from URL company_id param", %{conn: conn} do
