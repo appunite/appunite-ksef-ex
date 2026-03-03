@@ -47,7 +47,7 @@ defmodule KsefHubWeb.InvoiceLive.Show do
         {:ok,
          socket
          |> put_flash(:error, "Invoice not found.")
-         |> redirect(to: ~p"/invoices")}
+         |> redirect(to: ~p"/c/#{company.id}/invoices")}
 
       invoice ->
         auto_edit = invoice.extraction_status in [:partial, :failed]
@@ -615,7 +615,7 @@ defmodule KsefHubWeb.InvoiceLive.Show do
     ~H"""
     <div class="breadcrumbs text-sm mb-2">
       <ul>
-        <li><.link navigate={~p"/invoices"}>Invoices</.link></li>
+        <li><.link navigate={~p"/c/#{@current_company.id}/invoices"}>Invoices</.link></li>
         <li>{@invoice.invoice_number}</li>
       </ul>
     </div>
@@ -645,10 +645,10 @@ defmodule KsefHubWeb.InvoiceLive.Show do
               class="dropdown-content z-50 menu p-2 border border-base-300 bg-base-100 rounded-box w-44"
             >
               <li>
-                <a href={~p"/invoices/#{@invoice.id}/pdf"}>PDF</a>
+                <a href={~p"/c/#{@current_company.id}/invoices/#{@invoice.id}/pdf"}>PDF</a>
               </li>
               <li :if={@invoice.xml_file}>
-                <a href={~p"/invoices/#{@invoice.id}/xml"}>XML</a>
+                <a href={~p"/c/#{@current_company.id}/invoices/#{@invoice.id}/xml"}>XML</a>
               </li>
             </ul>
           </div>
@@ -706,7 +706,10 @@ defmodule KsefHubWeb.InvoiceLive.Show do
       <.icon name="hero-document-duplicate" class="size-5" />
       <span>
         This invoice may be a duplicate.
-        <.link navigate={~p"/invoices/#{@invoice.duplicate_of_id}"} class="link link-primary">
+        <.link
+          navigate={~p"/c/#{@current_company.id}/invoices/#{@invoice.duplicate_of_id}"}
+          class="link link-primary"
+        >
           View original
         </.link>
       </span>
@@ -728,7 +731,7 @@ defmodule KsefHubWeb.InvoiceLive.Show do
       <.icon name="hero-document-duplicate" class="size-5" />
       <span>
         This invoice is a confirmed duplicate of <.link
-          navigate={~p"/invoices/#{@invoice.duplicate_of_id}"}
+          navigate={~p"/c/#{@current_company.id}/invoices/#{@invoice.duplicate_of_id}"}
           class="link link-primary"
         >
           the original
@@ -941,7 +944,7 @@ defmodule KsefHubWeb.InvoiceLive.Show do
             class="border border-base-300 rounded-lg overflow-hidden flex-1 min-h-[600px]"
           >
             <iframe
-              src={~p"/invoices/#{@invoice.id}/pdf?inline=1"}
+              src={~p"/c/#{@current_company.id}/invoices/#{@invoice.id}/pdf?inline=1"}
               class="w-full h-full bg-white"
               title="Invoice PDF preview"
             >

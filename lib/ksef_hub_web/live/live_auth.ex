@@ -4,7 +4,13 @@ defmodule KsefHubWeb.LiveAuth do
   Redirects unauthenticated users to the home page.
   Redirects users with no companies to the company creation page.
   Assigns `:current_role` from the user's membership for the current company.
+
+  The company context is resolved from the URL `company_id` param (for company-scoped
+  routes under `/c/:company_id/...`), falling back to the session, then the user's
+  first company.
   """
+
+  use KsefHubWeb, :verified_routes
 
   import Phoenix.LiveView
   import Phoenix.Component
@@ -20,14 +26,14 @@ defmodule KsefHubWeb.LiveAuth do
   """
   @spec on_mount(atom(), map(), map(), Phoenix.LiveView.Socket.t()) ::
           {:cont, Phoenix.LiveView.Socket.t()} | {:halt, Phoenix.LiveView.Socket.t()}
-  def on_mount(:default, _params, session, socket) do
+  def on_mount(:default, params, session, socket) do
     user_token = session["user_token"]
 
     if is_binary(user_token) do
       case Accounts.get_user_by_session_token(user_token) do
         %{} = user ->
           socket
-          |> assign_user_and_companies(user, session)
+          |> assign_user_and_companies(user, params, session)
           |> maybe_redirect_for_company()
 
         nil ->
@@ -48,18 +54,39 @@ defmodule KsefHubWeb.LiveAuth do
     if socket.assigns[:current_role] == :owner do
       {:cont, socket}
     else
+      company = socket.assigns[:current_company]
+
+      redirect_path =
+        if company,
+          do: ~p"/c/#{company.id}/invoices",
+          else: "/companies"
+
       {:halt,
        socket
        |> put_flash(:error, "Only the owner can manage the team.")
-       |> redirect(to: "/invoices")}
+       |> redirect(to: redirect_path)}
     end
   end
 
   def on_mount(:redirect_if_authenticated, _params, session, socket) do
     user_token = session["user_token"]
 
-    if is_binary(user_token) && Accounts.get_user_by_session_token(user_token) do
-      {:halt, redirect(socket, to: "/invoices")}
+    if is_binary(user_token) do
+      case Accounts.get_user_by_session_token(user_token) do
+        %{} = user ->
+          companies = Companies.list_companies_for_user(user.id)
+          company = List.first(companies)
+
+          redirect_path =
+            if company,
+              do: ~p"/c/#{company.id}/invoices",
+              else: "/companies"
+
+          {:halt, redirect(socket, to: redirect_path)}
+
+        nil ->
+          {:cont, assign(socket, :current_user, nil)}
+      end
     else
       {:cont, assign(socket, :current_user, nil)}
     end
@@ -76,12 +103,17 @@ defmodule KsefHubWeb.LiveAuth do
     {:cont, assign(socket, :current_user, user)}
   end
 
-  @spec assign_user_and_companies(Phoenix.LiveView.Socket.t(), map(), map()) ::
+  @spec assign_user_and_companies(Phoenix.LiveView.Socket.t(), map(), map(), map()) ::
           Phoenix.LiveView.Socket.t()
-  defp assign_user_and_companies(socket, user, session) do
+  defp assign_user_and_companies(socket, user, params, session) do
     companies = Companies.list_companies_for_user(user.id)
-    resolved = resolve_company(companies, session["current_company_id"])
-    current_company = resolved || List.first(companies)
+    url_company_id = params["company_id"]
+
+    current_company =
+      resolve_company_from_url(companies, url_company_id) ||
+        resolve_company(companies, session["current_company_id"]) ||
+        List.first(companies)
+
     current_role = resolve_role(user.id, current_company && current_company.id)
 
     socket
@@ -103,6 +135,13 @@ defmodule KsefHubWeb.LiveAuth do
     else
       {:cont, socket}
     end
+  end
+
+  @spec resolve_company_from_url([Company.t()], String.t() | nil) :: Company.t() | nil
+  defp resolve_company_from_url(_companies, nil), do: nil
+
+  defp resolve_company_from_url(companies, url_company_id) do
+    Enum.find(companies, fn c -> c.id == url_company_id end)
   end
 
   @spec resolve_company([Company.t()], Ecto.UUID.t() | nil) :: Company.t() | nil

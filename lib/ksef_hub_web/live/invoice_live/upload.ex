@@ -33,10 +33,12 @@ defmodule KsefHubWeb.InvoiceLive.Upload do
          |> redirect(to: ~p"/companies")}
 
       socket.assigns[:current_role] == :reviewer ->
+        company = socket.assigns[:current_company]
+
         {:ok,
          socket
          |> put_flash(:error, "You do not have permission to upload invoices.")
-         |> redirect(to: ~p"/invoices")}
+         |> redirect(to: ~p"/c/#{company.id}/invoices")}
 
       true ->
         {:ok,
@@ -86,7 +88,7 @@ defmodule KsefHubWeb.InvoiceLive.Upload do
        socket
        |> update(:upload_refs, &MapSet.delete(&1, ref))
        |> put_flash(flash_kind, flash_msg)
-       |> redirect(to: ~p"/invoices/#{invoice.id}")}
+       |> redirect(to: ~p"/c/#{socket.assigns.current_company.id}/invoices/#{invoice.id}")}
     else
       {:noreply, socket}
     end
@@ -188,7 +190,7 @@ defmodule KsefHubWeb.InvoiceLive.Upload do
     ~H"""
     <div class="breadcrumbs text-sm mb-2">
       <ul>
-        <li><.link navigate={~p"/invoices"}>Invoices</.link></li>
+        <li><.link navigate={~p"/c/#{@current_company.id}/invoices"}>Invoices</.link></li>
         <li>Upload</li>
       </ul>
     </div>

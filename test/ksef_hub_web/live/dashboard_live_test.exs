@@ -23,8 +23,8 @@ defmodule KsefHubWeb.DashboardLiveTest do
   end
 
   describe "mount" do
-    test "renders dashboard with zero counts", %{conn: conn} do
-      {:ok, view, html} = live(conn, ~p"/dashboard")
+    test "renders dashboard with zero counts", %{conn: conn, company: company} do
+      {:ok, view, html} = live(conn, ~p"/c/#{company.id}/dashboard")
       assert html =~ "Dashboard"
       assert has_element?(view, "[class*='text-2xl font-bold']", "0")
       # Top navbar navigation rendered via app layout
@@ -39,21 +39,21 @@ defmodule KsefHubWeb.DashboardLiveTest do
       insert(:invoice, type: :income, status: :pending, company: company)
       insert(:invoice, type: :expense, status: :pending, company: company)
 
-      {:ok, view, _html} = live(conn, ~p"/dashboard")
+      {:ok, view, _html} = live(conn, ~p"/c/#{company.id}/dashboard")
       assert has_element?(view, "[class*='text-2xl font-bold']", "3")
       assert has_element?(view, "[class*='text-2xl font-bold']", "2")
       assert has_element?(view, "[class*='text-2xl font-bold']", "1")
     end
 
-    test "shows sync status when no credential", %{conn: conn} do
-      {:ok, _view, html} = live(conn, ~p"/dashboard")
+    test "shows sync status when no credential", %{conn: conn, company: company} do
+      {:ok, _view, html} = live(conn, ~p"/c/#{company.id}/dashboard")
       assert html =~ "Not configured"
     end
   end
 
   describe "PubSub" do
     test "refreshes on sync completed event", %{conn: conn, company: company} do
-      {:ok, view, _html} = live(conn, ~p"/dashboard")
+      {:ok, view, _html} = live(conn, ~p"/c/#{company.id}/dashboard")
 
       # Verify zero counts initially
       assert has_element?(view, "[class*='text-2xl font-bold']", "0")

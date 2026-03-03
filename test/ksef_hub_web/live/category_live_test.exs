@@ -22,8 +22,8 @@ defmodule KsefHubWeb.CategoryLiveTest do
   end
 
   describe "mount" do
-    test "renders categories page", %{conn: conn} do
-      {:ok, _view, html} = live(conn, ~p"/categories")
+    test "renders categories page", %{conn: conn, company: company} do
+      {:ok, _view, html} = live(conn, ~p"/c/#{company.id}/categories")
       assert html =~ "Categories"
       assert html =~ "New Category"
     end
@@ -31,15 +31,15 @@ defmodule KsefHubWeb.CategoryLiveTest do
     test "lists existing categories", %{conn: conn, company: company} do
       insert(:category, company: company, name: "finance:invoices", emoji: "💰")
 
-      {:ok, _view, html} = live(conn, ~p"/categories")
+      {:ok, _view, html} = live(conn, ~p"/c/#{company.id}/categories")
       assert html =~ "finance:invoices"
       assert html =~ "💰"
     end
   end
 
   describe "create" do
-    test "creates a category with valid data", %{conn: conn} do
-      {:ok, view, _html} = live(conn, ~p"/categories")
+    test "creates a category with valid data", %{conn: conn, company: company} do
+      {:ok, view, _html} = live(conn, ~p"/c/#{company.id}/categories")
 
       view
       |> element("form#category-form")
@@ -57,8 +57,8 @@ defmodule KsefHubWeb.CategoryLiveTest do
       assert html =~ "Category created."
     end
 
-    test "shows error for invalid name format", %{conn: conn} do
-      {:ok, view, _html} = live(conn, ~p"/categories")
+    test "shows error for invalid name format", %{conn: conn, company: company} do
+      {:ok, view, _html} = live(conn, ~p"/c/#{company.id}/categories")
 
       view
       |> element("form#category-form")
@@ -75,7 +75,7 @@ defmodule KsefHubWeb.CategoryLiveTest do
     test "populates form for editing", %{conn: conn, company: company} do
       cat = insert(:category, company: company, name: "hr:salaries", emoji: "💼")
 
-      {:ok, view, _html} = live(conn, ~p"/categories")
+      {:ok, view, _html} = live(conn, ~p"/c/#{company.id}/categories")
 
       view |> element("button", "Edit") |> render_click(%{"id" => cat.id})
 
@@ -87,7 +87,7 @@ defmodule KsefHubWeb.CategoryLiveTest do
     test "updates category", %{conn: conn, company: company} do
       cat = insert(:category, company: company, name: "hr:salaries", emoji: "💼")
 
-      {:ok, view, _html} = live(conn, ~p"/categories")
+      {:ok, view, _html} = live(conn, ~p"/c/#{company.id}/categories")
 
       view |> element("button", "Edit") |> render_click(%{"id" => cat.id})
 
@@ -105,7 +105,7 @@ defmodule KsefHubWeb.CategoryLiveTest do
     test "cancel edit resets form", %{conn: conn, company: company} do
       cat = insert(:category, company: company, name: "hr:salaries")
 
-      {:ok, view, _html} = live(conn, ~p"/categories")
+      {:ok, view, _html} = live(conn, ~p"/c/#{company.id}/categories")
 
       view |> element("button", "Edit") |> render_click(%{"id" => cat.id})
       assert render(view) =~ "Edit Category"
@@ -119,7 +119,7 @@ defmodule KsefHubWeb.CategoryLiveTest do
     test "deletes a category", %{conn: conn, company: company} do
       cat = insert(:category, company: company, name: "delete:me")
 
-      {:ok, view, _html} = live(conn, ~p"/categories")
+      {:ok, view, _html} = live(conn, ~p"/c/#{company.id}/categories")
       assert render(view) =~ "delete:me"
 
       view |> element("button", "Delete") |> render_click(%{"id" => cat.id})
@@ -131,11 +131,11 @@ defmodule KsefHubWeb.CategoryLiveTest do
   end
 
   describe "company scoping" do
-    test "does not show categories from other companies", %{conn: conn} do
+    test "does not show categories from other companies", %{conn: conn, company: company} do
       other_company = insert(:company)
       insert(:category, company: other_company, name: "other:secret")
 
-      {:ok, _view, html} = live(conn, ~p"/categories")
+      {:ok, _view, html} = live(conn, ~p"/c/#{company.id}/categories")
       refute html =~ "other:secret"
     end
   end

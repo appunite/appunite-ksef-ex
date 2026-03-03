@@ -6,30 +6,20 @@ defmodule KsefHubWeb.ExportController do
   import KsefHubWeb.AuthHelpers, only: [resolve_role: 2]
   import KsefHubWeb.FilenameHelpers, only: [send_attachment: 4]
 
-  alias KsefHub.Companies
   alias KsefHub.Exports
 
   @doc "Downloads the ZIP file for a completed export batch."
   @spec download(Plug.Conn.t(), map()) :: Plug.Conn.t()
-  def download(conn, %{"id" => batch_id}) do
+  def download(conn, %{"company_id" => company_id, "id" => batch_id}) do
     user_id = conn.assigns.current_user.id
+    role = resolve_role(user_id, company_id)
 
-    case get_session(conn, :current_company_id) || Companies.first_company_id_for_user(user_id) do
-      nil ->
-        conn
-        |> put_flash(:error, "Please select a company first.")
-        |> redirect(to: ~p"/companies")
-
-      company_id ->
-        role = resolve_role(user_id, company_id)
-
-        if role in [:owner, :accountant] do
-          do_download(conn, company_id, user_id, batch_id)
-        else
-          conn
-          |> put_flash(:error, "You don't have permission to download exports.")
-          |> redirect(to: ~p"/invoices")
-        end
+    if role in [:owner, :accountant] do
+      do_download(conn, company_id, user_id, batch_id)
+    else
+      conn
+      |> put_flash(:error, "You don't have permission to download exports.")
+      |> redirect(to: ~p"/c/#{company_id}/invoices")
     end
   end
 
@@ -45,17 +35,17 @@ defmodule KsefHubWeb.ExportController do
       %{status: :completed} ->
         conn
         |> put_flash(:error, "Export file not found.")
-        |> redirect(to: ~p"/exports")
+        |> redirect(to: ~p"/c/#{company_id}/exports")
 
       _ ->
         conn
         |> put_flash(:error, "Export is not yet ready.")
-        |> redirect(to: ~p"/exports")
+        |> redirect(to: ~p"/c/#{company_id}/exports")
     end
   rescue
     Ecto.NoResultsError ->
       conn
       |> put_flash(:error, "Export not found.")
-      |> redirect(to: ~p"/exports")
+      |> redirect(to: ~p"/c/#{company_id}/exports")
   end
 end

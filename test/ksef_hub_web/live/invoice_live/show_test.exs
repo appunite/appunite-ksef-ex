@@ -40,7 +40,7 @@ defmodule KsefHubWeb.InvoiceLive.ShowTest do
         {:ok, "<html>preview</html>"}
       end)
 
-      {:ok, _view, html} = live(conn, ~p"/invoices/#{invoice.id}")
+      {:ok, _view, html} = live(conn, ~p"/c/#{company.id}/invoices/#{invoice.id}")
       assert html =~ invoice.invoice_number
       assert html =~ invoice.seller_name
       assert html =~ invoice.buyer_name
@@ -57,11 +57,11 @@ defmodule KsefHubWeb.InvoiceLive.ShowTest do
         {:ok, "<html>preview</html>"}
       end)
 
-      {:ok, view, _html} = live(conn, ~p"/invoices/#{invoice.id}")
+      {:ok, view, _html} = live(conn, ~p"/c/#{company.id}/invoices/#{invoice.id}")
 
       assert has_element?(view, "div.dropdown")
-      assert has_element?(view, ~s(a[href="/invoices/#{invoice.id}/pdf"]))
-      assert has_element?(view, ~s(a[href="/invoices/#{invoice.id}/xml"]))
+      assert has_element?(view, ~s(a[href="/c/#{company.id}/invoices/#{invoice.id}/pdf"]))
+      assert has_element?(view, ~s(a[href="/c/#{company.id}/invoices/#{invoice.id}/xml"]))
     end
 
     test "shows preview when xml_file is available", %{conn: conn, company: company} do
@@ -75,7 +75,7 @@ defmodule KsefHubWeb.InvoiceLive.ShowTest do
         {:ok, "<html>preview</html>"}
       end)
 
-      {:ok, _view, html} = live(conn, ~p"/invoices/#{invoice.id}")
+      {:ok, _view, html} = live(conn, ~p"/c/#{company.id}/invoices/#{invoice.id}")
       assert html =~ "preview"
     end
   end
@@ -86,7 +86,7 @@ defmodule KsefHubWeb.InvoiceLive.ShowTest do
     test "approve button shown for pending expense invoices", %{conn: conn, company: company} do
       invoice = insert(:invoice, type: :expense, company: company)
 
-      {:ok, view, _html} = live(conn, ~p"/invoices/#{invoice.id}")
+      {:ok, view, _html} = live(conn, ~p"/c/#{company.id}/invoices/#{invoice.id}")
       assert has_element?(view, "button", "Approve")
       assert has_element?(view, "button", "Reject")
     end
@@ -94,14 +94,14 @@ defmodule KsefHubWeb.InvoiceLive.ShowTest do
     test "approve button not shown for income invoices", %{conn: conn, company: company} do
       invoice = insert(:invoice, type: :income, company: company)
 
-      {:ok, view, _html} = live(conn, ~p"/invoices/#{invoice.id}")
+      {:ok, view, _html} = live(conn, ~p"/c/#{company.id}/invoices/#{invoice.id}")
       refute has_element?(view, "button", "Approve")
     end
 
     test "clicking approve updates status", %{conn: conn, company: company} do
       invoice = insert(:invoice, type: :expense, company: company)
 
-      {:ok, view, _html} = live(conn, ~p"/invoices/#{invoice.id}")
+      {:ok, view, _html} = live(conn, ~p"/c/#{company.id}/invoices/#{invoice.id}")
 
       view |> element("button", "Approve") |> render_click()
 
@@ -113,7 +113,7 @@ defmodule KsefHubWeb.InvoiceLive.ShowTest do
     test "clicking reject updates status", %{conn: conn, company: company} do
       invoice = insert(:invoice, type: :expense, company: company)
 
-      {:ok, view, _html} = live(conn, ~p"/invoices/#{invoice.id}")
+      {:ok, view, _html} = live(conn, ~p"/c/#{company.id}/invoices/#{invoice.id}")
 
       view |> element("button", "Reject") |> render_click()
 
@@ -125,7 +125,7 @@ defmodule KsefHubWeb.InvoiceLive.ShowTest do
     test "approve on income invoice is rejected", %{conn: conn, company: company} do
       invoice = insert(:invoice, type: :income, company: company)
 
-      {:ok, view, _html} = live(conn, ~p"/invoices/#{invoice.id}")
+      {:ok, view, _html} = live(conn, ~p"/c/#{company.id}/invoices/#{invoice.id}")
 
       # Buttons aren't shown for income, but test the server-side guard via hook
       render_hook(view, "approve", %{})
@@ -138,7 +138,7 @@ defmodule KsefHubWeb.InvoiceLive.ShowTest do
     test "already-approved invoice does not show action buttons", %{conn: conn, company: company} do
       invoice = insert(:invoice, type: :expense, status: :approved, company: company)
 
-      {:ok, view, _html} = live(conn, ~p"/invoices/#{invoice.id}")
+      {:ok, view, _html} = live(conn, ~p"/c/#{company.id}/invoices/#{invoice.id}")
 
       assert has_element?(view, "[class*=rounded-md]", "approved")
       refute has_element?(view, "button", "Approve")
@@ -153,7 +153,7 @@ defmodule KsefHubWeb.InvoiceLive.ShowTest do
       category = insert(:category, company: company, name: "finance:invoices", emoji: "💰")
       invoice = insert(:invoice, company: company, category: category)
 
-      {:ok, view, _html} = live(conn, ~p"/invoices/#{invoice.id}")
+      {:ok, view, _html} = live(conn, ~p"/c/#{company.id}/invoices/#{invoice.id}")
       assert has_element?(view, "[data-testid=category-select]")
       html = render(view)
       assert html =~ "finance:invoices"
@@ -165,14 +165,14 @@ defmodule KsefHubWeb.InvoiceLive.ShowTest do
       invoice = insert(:invoice, company: company)
       insert(:invoice_tag, invoice: invoice, tag: tag)
 
-      {:ok, _view, html} = live(conn, ~p"/invoices/#{invoice.id}")
+      {:ok, _view, html} = live(conn, ~p"/c/#{company.id}/invoices/#{invoice.id}")
       assert html =~ "quarterly-report"
     end
 
     test "shows needs_review prediction indicator", %{conn: conn, company: company} do
       invoice = insert(:invoice, company: company, prediction_status: :needs_review)
 
-      {:ok, _view, html} = live(conn, ~p"/invoices/#{invoice.id}")
+      {:ok, _view, html} = live(conn, ~p"/c/#{company.id}/invoices/#{invoice.id}")
       assert html =~ "needs review"
     end
   end
@@ -184,7 +184,7 @@ defmodule KsefHubWeb.InvoiceLive.ShowTest do
       category = insert(:category, company: company, name: "ops:hosting", emoji: "🖥")
       invoice = insert(:invoice, company: company)
 
-      {:ok, view, _html} = live(conn, ~p"/invoices/#{invoice.id}")
+      {:ok, view, _html} = live(conn, ~p"/c/#{company.id}/invoices/#{invoice.id}")
 
       view
       |> form("[data-testid=category-form]", %{"category_id" => category.id})
@@ -202,7 +202,7 @@ defmodule KsefHubWeb.InvoiceLive.ShowTest do
       category = insert(:category, company: company, name: "ops:clear-test")
       invoice = insert(:invoice, company: company, category: category)
 
-      {:ok, view, _html} = live(conn, ~p"/invoices/#{invoice.id}")
+      {:ok, view, _html} = live(conn, ~p"/c/#{company.id}/invoices/#{invoice.id}")
 
       view
       |> form("[data-testid=category-form]", %{"category_id" => ""})
@@ -220,7 +220,7 @@ defmodule KsefHubWeb.InvoiceLive.ShowTest do
       tag = insert(:tag, company: company, name: "toggle-on")
       invoice = insert(:invoice, company: company)
 
-      {:ok, view, _html} = live(conn, ~p"/invoices/#{invoice.id}")
+      {:ok, view, _html} = live(conn, ~p"/c/#{company.id}/invoices/#{invoice.id}")
 
       view
       |> element(~s(input[phx-value-tag-id="#{tag.id}"]))
@@ -235,7 +235,7 @@ defmodule KsefHubWeb.InvoiceLive.ShowTest do
       invoice = insert(:invoice, company: company)
       insert(:invoice_tag, invoice: invoice, tag: tag)
 
-      {:ok, view, _html} = live(conn, ~p"/invoices/#{invoice.id}")
+      {:ok, view, _html} = live(conn, ~p"/c/#{company.id}/invoices/#{invoice.id}")
 
       view
       |> element(~s(input[phx-value-tag-id="#{tag.id}"]))
@@ -248,7 +248,7 @@ defmodule KsefHubWeb.InvoiceLive.ShowTest do
     test "creating a new tag inline adds it to the invoice", %{conn: conn, company: company} do
       invoice = insert(:invoice, company: company)
 
-      {:ok, view, _html} = live(conn, ~p"/invoices/#{invoice.id}")
+      {:ok, view, _html} = live(conn, ~p"/c/#{company.id}/invoices/#{invoice.id}")
 
       view
       |> element("form[phx-submit=create_and_add_tag]")
@@ -269,7 +269,7 @@ defmodule KsefHubWeb.InvoiceLive.ShowTest do
 
       stub(KsefHub.PdfRenderer.Mock, :generate_html, fn _xml, _meta -> {:error, :no_xml} end)
 
-      {:ok, view, _html} = live(conn, ~p"/invoices/#{invoice.id}")
+      {:ok, view, _html} = live(conn, ~p"/c/#{company.id}/invoices/#{invoice.id}")
       assert has_element?(view, "[class*=rounded-md]", "Incomplete")
       assert has_element?(view, ~s([data-testid="extraction-warning"]))
     end
@@ -279,7 +279,7 @@ defmodule KsefHubWeb.InvoiceLive.ShowTest do
 
       stub(KsefHub.PdfRenderer.Mock, :generate_html, fn _xml, _meta -> {:error, :no_xml} end)
 
-      {:ok, view, _html} = live(conn, ~p"/invoices/#{invoice.id}")
+      {:ok, view, _html} = live(conn, ~p"/c/#{company.id}/invoices/#{invoice.id}")
       refute has_element?(view, "[class*=rounded-md]", "Incomplete")
       refute has_element?(view, ~s([data-testid="extraction-warning"]))
     end
@@ -298,7 +298,7 @@ defmodule KsefHubWeb.InvoiceLive.ShowTest do
 
       stub(KsefHub.PdfRenderer.Mock, :generate_html, fn _xml, _meta -> {:error, :no_xml} end)
 
-      {:ok, view, _html} = live(conn, ~p"/invoices/#{invoice.id}")
+      {:ok, view, _html} = live(conn, ~p"/c/#{company.id}/invoices/#{invoice.id}")
 
       html = view |> element("button", "Approve") |> render_click()
       assert html =~ "extraction is incomplete"
@@ -311,7 +311,7 @@ defmodule KsefHubWeb.InvoiceLive.ShowTest do
 
       stub(KsefHub.PdfRenderer.Mock, :generate_html, fn _xml, _meta -> {:error, :no_xml} end)
 
-      {:ok, view, _html} = live(conn, ~p"/invoices/#{invoice.id}")
+      {:ok, view, _html} = live(conn, ~p"/c/#{company.id}/invoices/#{invoice.id}")
       refute has_element?(view, "form[phx-submit=save_edit]")
 
       view |> element("button", "Edit") |> render_click()
@@ -327,7 +327,7 @@ defmodule KsefHubWeb.InvoiceLive.ShowTest do
 
       stub(KsefHub.PdfRenderer.Mock, :generate_html, fn _xml, _meta -> {:error, :no_xml} end)
 
-      {:ok, view, _html} = live(conn, ~p"/invoices/#{invoice.id}")
+      {:ok, view, _html} = live(conn, ~p"/c/#{company.id}/invoices/#{invoice.id}")
       assert has_element?(view, "form[phx-submit=save_edit]")
     end
 
@@ -337,7 +337,7 @@ defmodule KsefHubWeb.InvoiceLive.ShowTest do
 
       stub(KsefHub.PdfRenderer.Mock, :generate_html, fn _xml, _meta -> {:error, :no_xml} end)
 
-      {:ok, view, _html} = live(conn, ~p"/invoices/#{invoice.id}")
+      {:ok, view, _html} = live(conn, ~p"/c/#{company.id}/invoices/#{invoice.id}")
       assert has_element?(view, "form[phx-submit=save_edit]")
 
       view |> element("button", "Cancel") |> render_click()
@@ -355,7 +355,7 @@ defmodule KsefHubWeb.InvoiceLive.ShowTest do
 
       stub(KsefHub.PdfRenderer.Mock, :generate_html, fn _xml, _meta -> {:error, :no_xml} end)
 
-      {:ok, view, _html} = live(conn, ~p"/invoices/#{invoice.id}")
+      {:ok, view, _html} = live(conn, ~p"/c/#{company.id}/invoices/#{invoice.id}")
 
       view
       |> form("form[phx-submit=save_edit]", %{
@@ -377,7 +377,7 @@ defmodule KsefHubWeb.InvoiceLive.ShowTest do
 
       stub(KsefHub.PdfRenderer.Mock, :generate_html, fn _xml, _meta -> {:error, :no_xml} end)
 
-      {:ok, view, _html} = live(conn, ~p"/invoices/#{invoice.id}")
+      {:ok, view, _html} = live(conn, ~p"/c/#{company.id}/invoices/#{invoice.id}")
       view |> element("button", "Edit") |> render_click()
 
       view
@@ -401,20 +401,20 @@ defmodule KsefHubWeb.InvoiceLive.ShowTest do
     test "shows PDF preview iframe", %{conn: conn, company: company} do
       invoice = insert(:pdf_upload_invoice, company: company)
 
-      {:ok, _view, html} = live(conn, ~p"/invoices/#{invoice.id}")
+      {:ok, _view, html} = live(conn, ~p"/c/#{company.id}/invoices/#{invoice.id}")
 
-      assert html =~ ~s(src="/invoices/#{invoice.id}/pdf?inline=1")
+      assert html =~ ~s(src="/c/#{company.id}/invoices/#{invoice.id}/pdf?inline=1")
       assert html =~ "Invoice PDF preview"
     end
 
     test "shows download dropdown with PDF but not XML", %{conn: conn, company: company} do
       invoice = insert(:pdf_upload_invoice, company: company)
 
-      {:ok, view, _html} = live(conn, ~p"/invoices/#{invoice.id}")
+      {:ok, view, _html} = live(conn, ~p"/c/#{company.id}/invoices/#{invoice.id}")
 
       assert has_element?(view, "div.dropdown")
-      assert has_element?(view, ~s(a[href="/invoices/#{invoice.id}/pdf"]))
-      refute has_element?(view, ~s(a[href="/invoices/#{invoice.id}/xml"]))
+      assert has_element?(view, ~s(a[href="/c/#{company.id}/invoices/#{invoice.id}/pdf"]))
+      refute has_element?(view, ~s(a[href="/c/#{company.id}/invoices/#{invoice.id}/xml"]))
     end
   end
 
@@ -434,10 +434,16 @@ defmodule KsefHubWeb.InvoiceLive.ShowTest do
           duplicate_status: :suspected
         )
 
-      {:ok, view, _html} = live(conn, ~p"/invoices/#{duplicate.id}")
+      {:ok, view, _html} = live(conn, ~p"/c/#{company.id}/invoices/#{duplicate.id}")
 
       assert has_element?(view, ~s([data-testid="duplicate-warning"]))
-      assert has_element?(view, ~s(a[href="/invoices/#{original.id}"]), "View original")
+
+      assert has_element?(
+               view,
+               ~s(a[href="/c/#{company.id}/invoices/#{original.id}"]),
+               "View original"
+             )
+
       assert has_element?(view, "button", "Not a duplicate")
       assert has_element?(view, "button", "Confirm duplicate")
     end
@@ -452,7 +458,7 @@ defmodule KsefHubWeb.InvoiceLive.ShowTest do
           duplicate_status: :suspected
         )
 
-      {:ok, view, _html} = live(conn, ~p"/invoices/#{duplicate.id}")
+      {:ok, view, _html} = live(conn, ~p"/c/#{company.id}/invoices/#{duplicate.id}")
 
       view |> element("button", "Not a duplicate") |> render_click()
 
@@ -469,7 +475,7 @@ defmodule KsefHubWeb.InvoiceLive.ShowTest do
           duplicate_status: :suspected
         )
 
-      {:ok, view, _html} = live(conn, ~p"/invoices/#{duplicate.id}")
+      {:ok, view, _html} = live(conn, ~p"/c/#{company.id}/invoices/#{duplicate.id}")
 
       view |> element("button", "Confirm duplicate") |> render_click()
 
@@ -480,7 +486,7 @@ defmodule KsefHubWeb.InvoiceLive.ShowTest do
     test "not shown when duplicate_of_id is nil", %{conn: conn, company: company} do
       invoice = insert(:pdf_upload_invoice, company: company)
 
-      {:ok, view, _html} = live(conn, ~p"/invoices/#{invoice.id}")
+      {:ok, view, _html} = live(conn, ~p"/c/#{company.id}/invoices/#{invoice.id}")
 
       refute has_element?(view, ~s([data-testid="duplicate-warning"]))
     end
@@ -506,15 +512,17 @@ defmodule KsefHubWeb.InvoiceLive.ShowTest do
     test "reviewer can view expense invoice", %{conn: conn, company: company} do
       invoice = insert(:invoice, type: :expense, company: company)
 
-      {:ok, _view, html} = live(conn, ~p"/invoices/#{invoice.id}")
+      {:ok, _view, html} = live(conn, ~p"/c/#{company.id}/invoices/#{invoice.id}")
       assert html =~ invoice.invoice_number
     end
 
     test "reviewer is redirected when viewing income invoice", %{conn: conn, company: company} do
       invoice = insert(:invoice, type: :income, company: company)
 
-      assert {:error, {:redirect, %{to: "/invoices"}}} =
-               live(conn, ~p"/invoices/#{invoice.id}")
+      expected_path = "/c/#{company.id}/invoices"
+
+      assert {:error, {:redirect, %{to: ^expected_path}}} =
+               live(conn, ~p"/c/#{company.id}/invoices/#{invoice.id}")
     end
   end
 end

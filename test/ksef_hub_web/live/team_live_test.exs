@@ -23,8 +23,8 @@ defmodule KsefHubWeb.TeamLiveTest do
   end
 
   describe "mount" do
-    test "renders team page for owner", %{conn: conn} do
-      {:ok, view, _html} = live(conn, ~p"/team")
+    test "renders team page for owner", %{conn: conn, company: company} do
+      {:ok, view, _html} = live(conn, ~p"/c/#{company.id}/team")
       assert has_element?(view, "h1", "Team")
       assert has_element?(view, "h2", "Members")
     end
@@ -40,8 +40,10 @@ defmodule KsefHubWeb.TeamLiveTest do
       insert(:membership, user: non_owner, company: company, role: :accountant)
       non_owner_conn = log_in_user(conn, non_owner, %{current_company_id: company.id})
 
-      assert {:error, {:redirect, %{to: "/invoices", flash: flash}}} =
-               live(non_owner_conn, ~p"/team")
+      expected_path = "/c/#{company.id}/invoices"
+
+      assert {:error, {:redirect, %{to: ^expected_path, flash: flash}}} =
+               live(non_owner_conn, ~p"/c/#{company.id}/team")
 
       assert flash["error"] =~ "owner"
     end
@@ -52,7 +54,7 @@ defmodule KsefHubWeb.TeamLiveTest do
       member = insert(:user, name: "Bob Accountant", email: "bob@example.com")
       insert(:membership, user: member, company: company, role: :accountant)
 
-      {:ok, view, _html} = live(conn, ~p"/team")
+      {:ok, view, _html} = live(conn, ~p"/c/#{company.id}/team")
       assert has_element?(view, "[data-testid='member-list']")
       assert has_element?(view, "[data-testid='member-list'] td", "Owner")
       assert has_element?(view, "[data-testid='member-list'] td", "Bob Accountant")
@@ -60,8 +62,8 @@ defmodule KsefHubWeb.TeamLiveTest do
   end
 
   describe "invite member" do
-    test "owner can send invitation", %{conn: conn} do
-      {:ok, view, _html} = live(conn, ~p"/team")
+    test "owner can send invitation", %{conn: conn, company: company} do
+      {:ok, view, _html} = live(conn, ~p"/c/#{company.id}/team")
 
       view
       |> form("[data-testid='invite-form']", %{
@@ -77,7 +79,7 @@ defmodule KsefHubWeb.TeamLiveTest do
       existing = insert(:user, email: "existing@example.com")
       insert(:membership, user: existing, company: company, role: :accountant)
 
-      {:ok, view, _html} = live(conn, ~p"/team")
+      {:ok, view, _html} = live(conn, ~p"/c/#{company.id}/team")
 
       view
       |> form("[data-testid='invite-form']", %{
@@ -97,7 +99,7 @@ defmodule KsefHubWeb.TeamLiveTest do
           role: :reviewer
         })
 
-      {:ok, view, _html} = live(conn, ~p"/team")
+      {:ok, view, _html} = live(conn, ~p"/c/#{company.id}/team")
       assert has_element?(view, "[data-testid='team-table'] td", "pending@example.com")
       assert has_element?(view, "[data-testid='team-table'] .badge[data-role='reviewer']")
     end
@@ -109,7 +111,7 @@ defmodule KsefHubWeb.TeamLiveTest do
           role: :accountant
         })
 
-      {:ok, view, _html} = live(conn, ~p"/team")
+      {:ok, view, _html} = live(conn, ~p"/c/#{company.id}/team")
       assert has_element?(view, "[data-testid='team-table'] td", "cancel-me@example.com")
 
       view
@@ -127,8 +129,12 @@ defmodule KsefHubWeb.TeamLiveTest do
   end
 
   describe "remove member" do
-    test "cannot remove the owner via server-side event", %{conn: conn, owner: owner} do
-      {:ok, view, _html} = live(conn, ~p"/team")
+    test "cannot remove the owner via server-side event", %{
+      conn: conn,
+      company: company,
+      owner: owner
+    } do
+      {:ok, view, _html} = live(conn, ~p"/c/#{company.id}/team")
 
       # Simulate sending the event directly (bypassing UI guard)
       render_click(view, "remove_member", %{"user-id" => owner.id})
@@ -140,7 +146,7 @@ defmodule KsefHubWeb.TeamLiveTest do
       member = insert(:user, name: "Remove Me", email: "removeme@example.com")
       insert(:membership, user: member, company: company, role: :accountant)
 
-      {:ok, view, _html} = live(conn, ~p"/team")
+      {:ok, view, _html} = live(conn, ~p"/c/#{company.id}/team")
       assert has_element?(view, "[data-testid='member-list'] td", "Remove Me")
 
       view

@@ -81,7 +81,8 @@ defmodule KsefHubWeb.InvoiceLive.Index do
       |> maybe_put("category_id", params["category_id"])
       |> maybe_put("tag_id", params["tag_id"])
 
-    {:noreply, push_patch(socket, to: ~p"/invoices?#{query_params}")}
+    company_id = socket.assigns.current_company.id
+    {:noreply, push_patch(socket, to: ~p"/c/#{company_id}/invoices?#{query_params}")}
   end
 
   @spec parse_filters(map()) :: map()
@@ -214,7 +215,11 @@ defmodule KsefHubWeb.InvoiceLive.Index do
       Invoices
       <:subtitle>Browse and manage KSeF invoices</:subtitle>
       <:actions>
-        <.link :if={!@is_reviewer} navigate={~p"/invoices/upload"} class="btn btn-sm btn-primary">
+        <.link
+          :if={!@is_reviewer}
+          navigate={~p"/c/#{@current_company.id}/invoices/upload"}
+          class="btn btn-sm btn-primary"
+        >
           <.icon name="hero-arrow-up-tray" class="size-4" /> Upload PDF
         </.link>
       </:actions>
@@ -324,7 +329,7 @@ defmodule KsefHubWeb.InvoiceLive.Index do
           <.type_badge type={inv.type} />
         </:col>
         <:col :let={inv} label="Seller">
-          <.link navigate={~p"/invoices/#{inv.id}"} class="link link-primary">
+          <.link navigate={~p"/c/#{@current_company.id}/invoices/#{inv.id}"} class="link link-primary">
             {inv.seller_name}
           </.link>
         </:col>
@@ -370,7 +375,7 @@ defmodule KsefHubWeb.InvoiceLive.Index do
       <div class="join">
         <.link
           :if={@page > 1}
-          patch={~p"/invoices?#{pagination_params(@filters, @page - 1)}"}
+          patch={~p"/c/#{@current_company.id}/invoices?#{pagination_params(@filters, @page - 1)}"}
           class="join-item btn btn-sm"
         >
           Prev
@@ -379,7 +384,7 @@ defmodule KsefHubWeb.InvoiceLive.Index do
 
         <.link
           :for={p <- visible_pages(@page, @total_pages)}
-          patch={~p"/invoices?#{pagination_params(@filters, p)}"}
+          patch={~p"/c/#{@current_company.id}/invoices?#{pagination_params(@filters, p)}"}
           class={["join-item btn btn-sm", p == @page && "btn-active"]}
         >
           {p}
@@ -387,7 +392,7 @@ defmodule KsefHubWeb.InvoiceLive.Index do
 
         <.link
           :if={@page < @total_pages}
-          patch={~p"/invoices?#{pagination_params(@filters, @page + 1)}"}
+          patch={~p"/c/#{@current_company.id}/invoices?#{pagination_params(@filters, @page + 1)}"}
           class="join-item btn btn-sm"
         >
           Next

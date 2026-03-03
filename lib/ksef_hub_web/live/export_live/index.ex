@@ -19,7 +19,7 @@ defmodule KsefHubWeb.ExportLive.Index do
       {:ok,
        socket
        |> put_flash(:error, "You don't have permission to access exports.")
-       |> redirect(to: ~p"/invoices")}
+       |> redirect(to: ~p"/c/#{socket.assigns.current_company.id}/invoices")}
     end
   end
 
@@ -277,7 +277,7 @@ defmodule KsefHubWeb.ExportLive.Index do
                 </span>
                 <.link
                   :if={batch.status == :completed}
-                  href={~p"/exports/#{batch.id}/download"}
+                  href={~p"/c/#{@current_company.id}/exports/#{batch.id}/download"}
                   class="btn btn-success btn-sm gap-1"
                 >
                   <.icon name="hero-arrow-down-tray" class="size-4" /> Download ZIP

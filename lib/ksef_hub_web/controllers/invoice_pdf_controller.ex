@@ -10,13 +10,12 @@ defmodule KsefHubWeb.InvoicePdfController do
   import KsefHubWeb.FilenameHelpers, only: [send_attachment: 4, send_inline: 4]
   import KsefHubWeb.AuthHelpers, only: [resolve_role: 2]
 
-  alias KsefHub.Companies
   alias KsefHub.Invoices
 
   @doc "Downloads the raw FA(3) XML of the invoice."
   @spec xml(Plug.Conn.t(), map()) :: Plug.Conn.t()
-  def xml(%{assigns: %{current_user: %{id: _}}} = conn, %{"id" => id}) do
-    with_invoice(conn, id, fn conn, invoice ->
+  def xml(%{assigns: %{current_user: %{id: _}}} = conn, %{"company_id" => company_id, "id" => id}) do
+    with_invoice(conn, company_id, id, fn conn, invoice ->
       case invoice do
         %{xml_file: %{content: content}} when is_binary(content) and content != "" ->
           send_attachment(conn, "application/xml", "#{invoice.invoice_number}.xml", content)
@@ -24,7 +23,7 @@ defmodule KsefHubWeb.InvoicePdfController do
         _ ->
           conn
           |> put_flash(:error, "No XML content available for this invoice.")
-          |> redirect(to: ~p"/invoices/#{invoice.id}")
+          |> redirect(to: ~p"/c/#{company_id}/invoices/#{invoice.id}")
       end
     end)
   end
@@ -33,46 +32,38 @@ defmodule KsefHubWeb.InvoicePdfController do
 
   @doc "Downloads a PDF for the invoice — serves the stored PDF for pdf_upload invoices, or generates one from XML. Pass `?inline=1` to use Content-Disposition: inline (for iframe previews)."
   @spec show(Plug.Conn.t(), map()) :: Plug.Conn.t()
-  def show(%{assigns: %{current_user: %{id: _}}} = conn, %{"id" => id} = params) do
+  def show(
+        %{assigns: %{current_user: %{id: _}}} = conn,
+        %{"company_id" => company_id, "id" => id} = params
+      ) do
     inline? = params["inline"] == "1"
 
-    with_invoice(conn, id, inline?, fn conn, invoice ->
-      send_pdf(conn, invoice, inline?)
+    with_invoice(conn, company_id, id, inline?, fn conn, invoice ->
+      send_pdf(conn, company_id, invoice, inline?)
     end)
   end
 
   def show(conn, _params), do: redirect_unauthenticated(conn)
 
-  @spec with_invoice(Plug.Conn.t(), String.t(), boolean(), (Plug.Conn.t(), map() -> Plug.Conn.t())) ::
+  @spec with_invoice(Plug.Conn.t(), String.t(), String.t(), boolean(), (Plug.Conn.t(), map() ->
+                                                                          Plug.Conn.t())) ::
           Plug.Conn.t()
-  defp with_invoice(conn, id, inline? \\ false, fun) do
+  defp with_invoice(conn, company_id, id, inline? \\ false, fun) do
     user = conn.assigns[:current_user]
     user_id = user && user.id
 
-    with {:company, company_id} when not is_nil(company_id) <-
-           {:company,
-            get_session(conn, :current_company_id) || Companies.first_company_id_for_user(user_id)},
-         {:role, role} when not is_nil(role) <- {:role, resolve_role(user_id, company_id)},
+    with {:role, role} when not is_nil(role) <- {:role, resolve_role(user_id, company_id)},
          {:invoice, %{} = invoice} <-
            {:invoice, Invoices.get_invoice_with_details(company_id, id, role: role)} do
       fun.(conn, invoice)
     else
-      {:company, nil} ->
-        if inline? do
-          send_inline_error(conn, 400, "Please select a company first.")
-        else
-          conn
-          |> put_flash(:error, "Please select a company first.")
-          |> redirect(to: ~p"/companies")
-        end
-
       {:role, nil} ->
         if inline? do
           send_inline_error(conn, 403, "Access denied.")
         else
           conn
           |> put_flash(:error, "Access denied.")
-          |> redirect(to: ~p"/invoices")
+          |> redirect(to: ~p"/companies")
         end
 
       {:invoice, nil} ->
@@ -81,7 +72,7 @@ defmodule KsefHubWeb.InvoicePdfController do
         else
           conn
           |> put_flash(:error, "Invoice not found.")
-          |> redirect(to: ~p"/invoices")
+          |> redirect(to: ~p"/c/#{company_id}/invoices")
         end
     end
   end
@@ -90,28 +81,28 @@ defmodule KsefHubWeb.InvoicePdfController do
   defp redirect_unauthenticated(conn) do
     conn
     |> put_flash(:error, "You must be logged in to download invoices.")
-    |> redirect(to: ~p"/invoices")
+    |> redirect(to: ~p"/")
   end
 
-  @spec send_pdf(Plug.Conn.t(), map(), boolean()) :: Plug.Conn.t()
-  defp send_pdf(conn, %{pdf_file: %{content: content}} = invoice, inline?)
+  @spec send_pdf(Plug.Conn.t(), String.t(), map(), boolean()) :: Plug.Conn.t()
+  defp send_pdf(conn, _company_id, %{pdf_file: %{content: content}} = invoice, inline?)
        when is_binary(content) and content != "" do
     send_fn = if inline?, do: &send_inline/4, else: &send_attachment/4
     send_fn.(conn, "application/pdf", "#{invoice.invoice_number}.pdf", content)
   end
 
-  defp send_pdf(conn, %{xml_file: %{content: content}} = invoice, inline?)
+  defp send_pdf(conn, _company_id, %{xml_file: %{content: content}} = invoice, inline?)
        when is_binary(content) and content != "" do
     generate_and_send_pdf(conn, invoice, inline?)
   end
 
-  defp send_pdf(conn, invoice, inline?) do
+  defp send_pdf(conn, company_id, invoice, inline?) do
     if inline? do
       send_inline_error(conn, 422, "No PDF or XML content available.")
     else
       conn
       |> put_flash(:error, "No PDF or XML content available for this invoice.")
-      |> redirect(to: ~p"/invoices/#{invoice.id}")
+      |> redirect(to: ~p"/c/#{company_id}/invoices/#{invoice.id}")
     end
   end
 
@@ -141,9 +132,11 @@ defmodule KsefHubWeb.InvoicePdfController do
     do: send_inline_error(conn, 422, message)
 
   defp pdf_error_response(conn, invoice, false, message) do
+    company_id = invoice.company_id
+
     conn
     |> put_flash(:error, message)
-    |> redirect(to: ~p"/invoices/#{invoice.id}")
+    |> redirect(to: ~p"/c/#{company_id}/invoices/#{invoice.id}")
   end
 
   @spec send_inline_error(Plug.Conn.t(), integer(), String.t()) :: Plug.Conn.t()

@@ -22,14 +22,14 @@ defmodule KsefHubWeb.SyncLiveTest do
   end
 
   describe "mount" do
-    test "renders sync page with header and button", %{conn: conn} do
-      {:ok, _view, html} = live(conn, ~p"/syncs")
+    test "renders sync page with header and button", %{conn: conn, company: company} do
+      {:ok, _view, html} = live(conn, ~p"/c/#{company.id}/syncs")
       assert html =~ "Syncs"
       assert html =~ "Sync Now"
     end
 
-    test "shows empty state when no sync jobs", %{conn: conn} do
-      {:ok, _view, html} = live(conn, ~p"/syncs")
+    test "shows empty state when no sync jobs", %{conn: conn, company: company} do
+      {:ok, _view, html} = live(conn, ~p"/c/#{company.id}/syncs")
       assert html =~ "No sync runs yet"
     end
 
@@ -40,7 +40,7 @@ defmodule KsefHubWeb.SyncLiveTest do
         args: %{"company_id" => company.id}
       )
 
-      {:ok, _view, html} = live(conn, ~p"/syncs")
+      {:ok, _view, html} = live(conn, ~p"/c/#{company.id}/syncs")
       assert html =~ "completed"
       refute html =~ "No sync runs yet"
     end
@@ -48,7 +48,7 @@ defmodule KsefHubWeb.SyncLiveTest do
 
   describe "PubSub" do
     test "refreshes on sync completed event", %{conn: conn, company: company} do
-      {:ok, view, _html} = live(conn, ~p"/syncs")
+      {:ok, view, _html} = live(conn, ~p"/c/#{company.id}/syncs")
 
       # Insert a job and broadcast
       insert(:sync_job,
@@ -65,8 +65,8 @@ defmodule KsefHubWeb.SyncLiveTest do
   end
 
   describe "trigger_sync" do
-    test "clicking Sync Now triggers a manual sync", %{conn: conn} do
-      {:ok, view, _html} = live(conn, ~p"/syncs")
+    test "clicking Sync Now triggers a manual sync", %{conn: conn, company: company} do
+      {:ok, view, _html} = live(conn, ~p"/c/#{company.id}/syncs")
 
       view |> element("button", "Sync Now") |> render_click()
 
@@ -80,7 +80,7 @@ defmodule KsefHubWeb.SyncLiveTest do
         args: %{"company_id" => company.id}
       )
 
-      {:ok, view, _html} = live(conn, ~p"/syncs")
+      {:ok, view, _html} = live(conn, ~p"/c/#{company.id}/syncs")
 
       view |> element("button", "Sync Now") |> render_click()
 

@@ -30,16 +30,16 @@ defmodule KsefHubWeb.InvoiceLive.UploadTest do
   end
 
   describe "mount" do
-    test "renders upload form", %{conn: conn} do
-      {:ok, view, _html} = live(conn, ~p"/invoices/upload")
+    test "renders upload form", %{conn: conn, company: company} do
+      {:ok, view, _html} = live(conn, ~p"/c/#{company.id}/invoices/upload")
 
       assert has_element?(view, "#upload-form")
       assert has_element?(view, "button[type='submit']", "Upload & Extract")
       assert has_element?(view, ~s(input[type="file"]))
     end
 
-    test "does not show income/expense type selector", %{conn: conn} do
-      {:ok, view, _html} = live(conn, ~p"/invoices/upload")
+    test "does not show income/expense type selector", %{conn: conn, company: company} do
+      {:ok, view, _html} = live(conn, ~p"/c/#{company.id}/invoices/upload")
 
       refute has_element?(view, ~s(input[type="radio"]))
     end
@@ -57,7 +57,10 @@ defmodule KsefHubWeb.InvoiceLive.UploadTest do
 
       conn = build_conn() |> log_in_user(reviewer, %{current_company_id: company.id})
 
-      assert {:error, {:redirect, %{to: "/invoices"}}} = live(conn, ~p"/invoices/upload")
+      expected_path = "/c/#{company.id}/invoices"
+
+      assert {:error, {:redirect, %{to: ^expected_path}}} =
+               live(conn, ~p"/c/#{company.id}/invoices/upload")
     end
 
     test "redirects when user has no companies" do
@@ -71,7 +74,8 @@ defmodule KsefHubWeb.InvoiceLive.UploadTest do
       conn = build_conn() |> log_in_user(no_company_user)
 
       # LiveAuth redirects to /companies/new when user has no companies
-      assert {:error, {:redirect, %{to: "/companies/new"}}} = live(conn, ~p"/invoices/upload")
+      assert {:error, {:redirect, %{to: "/companies/new"}}} =
+               live(conn, ~p"/c/#{Ecto.UUID.generate()}/invoices/upload")
     end
   end
 
@@ -92,7 +96,7 @@ defmodule KsefHubWeb.InvoiceLive.UploadTest do
          }}
       end)
 
-      {:ok, view, _html} = live(conn, ~p"/invoices/upload")
+      {:ok, view, _html} = live(conn, ~p"/c/#{company.id}/invoices/upload")
 
       pdf_content = "%PDF-1.4 test content"
 
@@ -109,7 +113,7 @@ defmodule KsefHubWeb.InvoiceLive.UploadTest do
       render_submit(view, "upload", %{})
 
       {path, _flash} = assert_redirect(view)
-      assert path =~ ~r|/invoices/[a-f0-9-]+|
+      assert path =~ ~r|/c/#{company.id}/invoices/[a-f0-9-]+|
 
       # Verify the created invoice is an expense
       [invoice_id] = Regex.run(~r|/invoices/([a-f0-9-]+)|, path, capture: :all_but_first)
@@ -127,7 +131,7 @@ defmodule KsefHubWeb.InvoiceLive.UploadTest do
         {:error, :extractor_not_configured}
       end)
 
-      {:ok, view, _html} = live(conn, ~p"/invoices/upload")
+      {:ok, view, _html} = live(conn, ~p"/c/#{company.id}/invoices/upload")
 
       pdf_content = "%PDF-1.4 test content"
 
@@ -144,7 +148,7 @@ defmodule KsefHubWeb.InvoiceLive.UploadTest do
       render_submit(view, "upload", %{})
 
       {path, _flash} = assert_redirect(view)
-      assert path =~ ~r|/invoices/[a-f0-9-]+|
+      assert path =~ ~r|/c/#{company.id}/invoices/[a-f0-9-]+|
 
       # Verify the invoice was created with :failed extraction status
       [invoice_id] = Regex.run(~r|/invoices/([a-f0-9-]+)|, path, capture: :all_but_first)
@@ -153,8 +157,8 @@ defmodule KsefHubWeb.InvoiceLive.UploadTest do
       assert invoice.source == :pdf_upload
     end
 
-    test "upload without file shows error", %{conn: conn} do
-      {:ok, view, _html} = live(conn, ~p"/invoices/upload")
+    test "upload without file shows error", %{conn: conn, company: company} do
+      {:ok, view, _html} = live(conn, ~p"/c/#{company.id}/invoices/upload")
 
       html = render_submit(view, "upload", %{})
       assert html =~ "Please select a PDF file"
@@ -162,10 +166,10 @@ defmodule KsefHubWeb.InvoiceLive.UploadTest do
   end
 
   describe "index button visibility" do
-    test "shows Upload PDF button for owner", %{conn: conn} do
-      {:ok, view, _html} = live(conn, ~p"/invoices")
+    test "shows Upload PDF button for owner", %{conn: conn, company: company} do
+      {:ok, view, _html} = live(conn, ~p"/c/#{company.id}/invoices")
 
-      assert has_element?(view, ~s(a[href="/invoices/upload"]), "Upload PDF")
+      assert has_element?(view, ~s(a[href="/c/#{company.id}/invoices/upload"]), "Upload PDF")
     end
 
     test "hides Upload PDF button for reviewer" do
@@ -180,9 +184,9 @@ defmodule KsefHubWeb.InvoiceLive.UploadTest do
       insert(:membership, user: reviewer, company: company, role: :reviewer)
 
       conn = build_conn() |> log_in_user(reviewer, %{current_company_id: company.id})
-      {:ok, view, _html} = live(conn, ~p"/invoices")
+      {:ok, view, _html} = live(conn, ~p"/c/#{company.id}/invoices")
 
-      refute has_element?(view, ~s(a[href="/invoices/upload"]))
+      refute has_element?(view, ~s(a[href="/c/#{company.id}/invoices/upload"]))
     end
   end
 end

@@ -12,6 +12,7 @@ defmodule KsefHubWeb.UserAuth do
   import Phoenix.Controller
 
   alias KsefHub.Accounts
+  alias KsefHub.Companies
   alias KsefHubWeb.UrlHelpers
 
   @doc """
@@ -54,11 +55,14 @@ defmodule KsefHubWeb.UserAuth do
   @doc """
   Returns the path to redirect to after login.
 
-  Always returns `/invoices`. Company resolution (and potential redirect
-  to `/companies/new`) is handled by the LiveAuth on_mount hook.
+  Resolves the user's first company and returns a company-scoped path.
+  Falls back to `/companies` if the user has no companies.
   """
   @spec signed_in_path(KsefHub.Accounts.User.t()) :: String.t()
-  def signed_in_path(_user) do
-    ~p"/invoices"
+  def signed_in_path(user) do
+    case Companies.first_company_id_for_user(user.id) do
+      nil -> "/companies"
+      company_id -> ~p"/c/#{company_id}/invoices"
+    end
   end
 end

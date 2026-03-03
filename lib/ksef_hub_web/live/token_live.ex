@@ -14,7 +14,7 @@ defmodule KsefHubWeb.TokenLive do
       {:ok,
        socket
        |> put_flash(:error, "Only company owners can manage API tokens.")
-       |> redirect(to: ~p"/invoices")}
+       |> redirect(to: ~p"/c/#{socket.assigns.current_company.id}/invoices")}
     else
       company_id = socket.assigns.current_company.id
       tokens = Accounts.list_api_tokens(socket.assigns.current_user.id, company_id)
