@@ -7,7 +7,7 @@ KSeF Hub delegates specialized processing to companion microservices. In product
 | Service | Purpose | Deployment | Port | Repository |
 |---------|---------|------------|------|------------|
 | **pdf-renderer** | FA(3) XML → PDF/HTML rendering | Sidecar | 3001 | [appunite/ksef-pdf-generator](https://github.com/appunite/ksef-pdf-generator) |
-| **invoice-extractor** | PDF → structured JSON extraction (Claude) | Sidecar | 8082 (prod) / 3002 (local) | [appunite/au-ksef-unstructured](https://github.com/appunite/au-ksef-unstructured) |
+| **invoice-extractor** | PDF → structured JSON extraction (Claude) | Sidecar | 3002 | [appunite/au-ksef-unstructured](https://github.com/appunite/au-ksef-unstructured) |
 | **invoice-classifier** | Invoice category/tag classification (LightGBM) | Sidecar | 3003 | [appunite/au-payroll-model-categories](https://github.com/appunite/au-payroll-model-categories) |
 
 ## Architecture
@@ -19,7 +19,7 @@ Cloud Run service: ksef-hub (gen2, GCS FUSE enabled)
 │                                                                   │
 │  KsefHub.PdfRenderer ──────────────► pdf-renderer (:3001)         │
 │                                                                   │
-│  KsefHub.InvoiceExtractor ─────────► invoice-extractor (:8082)    │
+│  KsefHub.InvoiceExtractor ─────────► invoice-extractor (:3002)    │
 │                                                                   │
 │  KsefHub.InvoiceClassifier ────────► invoice-classifier (:3003)   │
 │                                        │                          │
@@ -148,7 +148,7 @@ Or use `make models.train` to see these instructions at any time.
 | Variable | Service | Description |
 |----------|---------|-------------|
 | `PDF_RENDERER_URL` | pdf-renderer | Sidecar URL (`http://localhost:3001`) |
-| `INVOICE_EXTRACTOR_URL` | invoice-extractor | Sidecar URL (`http://localhost:8082` in prod, `http://localhost:3002` locally) |
+| `INVOICE_EXTRACTOR_URL` | invoice-extractor | Sidecar URL (`http://localhost:3002`) |
 | `INVOICE_EXTRACTOR_API_TOKEN` | invoice-extractor | Bearer token for authentication |
 | `INVOICE_CLASSIFIER_URL` | invoice-classifier | Sidecar URL (`http://localhost:3003`) |
 | `INVOICE_CLASSIFIER_API_TOKEN` | invoice-classifier | Bearer token for authentication |
@@ -157,7 +157,7 @@ Or use `make models.train` to see these instructions at any time.
 
 | Variable | Description |
 |----------|-------------|
-| `PORT` | Listen port (set to `8082` in prod to avoid conflicts) |
+| `PORT` | Listen port (set to `3002`) |
 | `API_TOKEN` | Token for authenticating incoming requests |
 | `ANTHROPIC_API_KEY` | Anthropic API key for Claude (used for PDF extraction) |
 | `ANTHROPIC_MODEL` | Claude model to use (e.g., `claude-sonnet-4-5-20250929`) |
@@ -194,10 +194,10 @@ All services are defined in `docker-compose.yml`:
 docker compose up
 ```
 
-Locally, port mapping handles the differences:
-- pdf-renderer: container port 3001 → host port 3001
-- invoice-extractor: container port 8080 → host port 3002
-- invoice-classifier: container port 8080 → host port 3003
+Each service uses its dedicated port consistently across all environments:
+- pdf-renderer: 3001
+- invoice-extractor: 3002
+- invoice-classifier: 3003
 
 The classifier mounts `./ml-models` as a read-only volume, matching the GCS FUSE mount in production.
 
