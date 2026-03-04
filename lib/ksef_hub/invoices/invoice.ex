@@ -273,18 +273,22 @@ defmodule KsefHub.Invoices.Invoice do
 
   @spec normalize_address_fields(Ecto.Changeset.t()) :: Ecto.Changeset.t()
   defp normalize_address_fields(changeset) do
-    Enum.reduce([:seller_address, :buyer_address], changeset, fn field, cs ->
-      case get_change(cs, field) do
-        %{} = addr -> if address_blank?(addr), do: put_change(cs, field, nil), else: cs
-        _ -> cs
-      end
-    end)
+    Enum.reduce([:seller_address, :buyer_address], changeset, &maybe_nil_blank_address/2)
+  end
+
+  @spec maybe_nil_blank_address(atom(), Ecto.Changeset.t()) :: Ecto.Changeset.t()
+  defp maybe_nil_blank_address(field, changeset) do
+    case get_change(changeset, field) do
+      %{} = addr ->
+        if address_blank?(addr), do: put_change(changeset, field, nil), else: changeset
+
+      _ ->
+        changeset
+    end
   end
 
   @spec address_blank?(map()) :: boolean()
   defp address_blank?(addr) do
-    addr
-    |> Map.values()
-    |> Enum.all?(fn v -> is_nil(v) or v == "" end)
+    addr |> Map.values() |> Enum.all?(&(is_nil(&1) or &1 == ""))
   end
 end
