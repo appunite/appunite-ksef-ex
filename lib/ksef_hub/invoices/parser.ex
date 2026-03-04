@@ -61,21 +61,18 @@ defmodule KsefHub.Invoices.Parser do
 
   @spec extract_iban(term()) :: String.t() | nil
   defp extract_iban(doc) do
-    # Try Fa > Rachunek > NrRB first, then fallback to Podmiot1 > NrRB
-    case xpath(
-           doc,
-           ~x"//*[local-name()='Fa']//*[local-name()='Rachunek']//*[local-name()='NrRB']/text()"s
-         ) do
-      "" ->
-        case xpath(doc, ~x"//*[local-name()='Podmiot1']//*[local-name()='NrRB']/text()"s) do
-          "" -> nil
-          value -> value
-        end
-
-      value ->
-        value
-    end
+    presence(
+      xpath(
+        doc,
+        ~x"//*[local-name()='Fa']//*[local-name()='Rachunek']//*[local-name()='NrRB']/text()"s
+      )
+    ) ||
+      presence(xpath(doc, ~x"//*[local-name()='Podmiot1']//*[local-name()='NrRB']/text()"s))
   end
+
+  @spec presence(String.t()) :: String.t() | nil
+  defp presence(""), do: nil
+  defp presence(value), do: value
 
   @spec extract_address(term(), String.t()) :: map() | nil
   defp extract_address(doc, subject) do

@@ -78,6 +78,19 @@ defmodule KsefHub.Invoices.Invoice do
   @spec sources() :: [invoice_source()]
   def sources, do: Ecto.Enum.values(__MODULE__, :source)
 
+  @address_fields ~w(street city postal_code country)
+
+  @doc "Formats an address map as a comma-separated string. Handles both atom and string keys (JSONB round-trip returns strings)."
+  @spec format_address(map() | nil) :: String.t()
+  def format_address(nil), do: ""
+
+  def format_address(addr) when is_map(addr) do
+    @address_fields
+    |> Enum.map(fn key -> addr[key] || addr[String.to_atom(key)] end)
+    |> Enum.reject(&(is_nil(&1) or &1 == ""))
+    |> Enum.join(", ")
+  end
+
   @doc "Builds a changeset for invoice creation/update."
   @spec changeset(t() | Ecto.Changeset.t(), map()) :: Ecto.Changeset.t()
   def changeset(invoice, attrs) do

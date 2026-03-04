@@ -121,14 +121,7 @@ defmodule KsefHub.Exports.CsvBuilder do
   defp format_category(_), do: ""
 
   @spec format_address(map() | nil) :: String.t()
-  defp format_address(nil), do: ""
-
-  defp format_address(addr) when is_map(addr) do
-    ~w(street city postal_code country)
-    |> Enum.map(&(addr[&1] || addr[String.to_existing_atom(&1)]))
-    |> Enum.reject(&(is_nil(&1) or &1 == ""))
-    |> Enum.join(", ")
-  end
+  defp format_address(addr), do: Invoice.format_address(addr)
 
   @spec format_tags(Invoice.t()) :: String.t()
   defp format_tags(%{tags: tags}) when is_list(tags) do
