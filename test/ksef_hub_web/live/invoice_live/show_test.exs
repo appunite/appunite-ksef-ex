@@ -270,7 +270,7 @@ defmodule KsefHubWeb.InvoiceLive.ShowTest do
       stub(KsefHub.PdfRenderer.Mock, :generate_html, fn _xml, _meta -> {:error, :no_xml} end)
 
       {:ok, view, _html} = live(conn, ~p"/c/#{company.id}/invoices/#{invoice.id}")
-      assert has_element?(view, "[class*=rounded-md]", "Incomplete")
+      assert has_element?(view, "[class*=rounded-md]", "incomplete")
       assert has_element?(view, ~s([data-testid="extraction-warning"]))
     end
 
@@ -280,7 +280,7 @@ defmodule KsefHubWeb.InvoiceLive.ShowTest do
       stub(KsefHub.PdfRenderer.Mock, :generate_html, fn _xml, _meta -> {:error, :no_xml} end)
 
       {:ok, view, _html} = live(conn, ~p"/c/#{company.id}/invoices/#{invoice.id}")
-      refute has_element?(view, "[class*=rounded-md]", "Incomplete")
+      refute has_element?(view, "[class*=rounded-md]", "incomplete")
       refute has_element?(view, ~s([data-testid="extraction-warning"]))
     end
 
@@ -625,6 +625,126 @@ defmodule KsefHubWeb.InvoiceLive.ShowTest do
       assert updated.sales_date == ~D[2025-06-01]
       assert updated.due_date == ~D[2025-07-01]
       assert updated.iban == "PL61109010140000071219812874"
+    end
+  end
+
+  describe "address editing" do
+    setup :stub_pdf
+
+    test "edit form shows address inputs pre-filled from existing data", %{
+      conn: conn,
+      company: company
+    } do
+      invoice =
+        insert(:pdf_upload_invoice,
+          company: company,
+          seller_address: %{
+            "street" => "ul. Testowa 1",
+            "city" => "Warszawa",
+            "postal_code" => "00-001",
+            "country" => "PL"
+          }
+        )
+
+      {:ok, view, _html} = live(conn, ~p"/c/#{company.id}/invoices/#{invoice.id}")
+      view |> element("button", "Edit") |> render_click()
+
+      assert has_element?(view, "input#edit-seller-address-street[value='ul. Testowa 1']")
+      assert has_element?(view, "input#edit-seller-address-city[value='Warszawa']")
+      assert has_element?(view, "input#edit-seller-address-postal-code[value='00-001']")
+      assert has_element?(view, "input#edit-seller-address-country[value='PL']")
+    end
+
+    test "saving address fields persists them", %{conn: conn, company: company} do
+      invoice = insert(:pdf_upload_invoice, company: company)
+
+      {:ok, view, _html} = live(conn, ~p"/c/#{company.id}/invoices/#{invoice.id}")
+      view |> element("button", "Edit") |> render_click()
+
+      view
+      |> form("form[phx-submit=save_edit]", %{
+        "invoice" => %{
+          "seller_address" => %{
+            "street" => "ul. Nowa 5",
+            "city" => "Kraków",
+            "postal_code" => "30-001",
+            "country" => "PL"
+          }
+        }
+      })
+      |> render_submit()
+
+      updated = Invoices.get_invoice!(company.id, invoice.id)
+      assert updated.seller_address["street"] == "ul. Nowa 5"
+      assert updated.seller_address["city"] == "Kraków"
+      assert updated.seller_address["postal_code"] == "30-001"
+      assert updated.seller_address["country"] == "PL"
+    end
+
+    test "clearing all address sub-fields stores nil", %{conn: conn, company: company} do
+      invoice =
+        insert(:pdf_upload_invoice,
+          company: company,
+          seller_address: %{
+            "street" => "ul. Testowa 1",
+            "city" => "Warszawa",
+            "postal_code" => "00-001",
+            "country" => "PL"
+          }
+        )
+
+      {:ok, view, _html} = live(conn, ~p"/c/#{company.id}/invoices/#{invoice.id}")
+      view |> element("button", "Edit") |> render_click()
+
+      view
+      |> form("form[phx-submit=save_edit]", %{
+        "invoice" => %{
+          "seller_address" => %{
+            "street" => "",
+            "city" => "",
+            "postal_code" => "",
+            "country" => ""
+          }
+        }
+      })
+      |> render_submit()
+
+      updated = Invoices.get_invoice!(company.id, invoice.id)
+      assert is_nil(updated.seller_address)
+    end
+
+    test "saving buyer_address persists and pre-fills correctly", %{
+      conn: conn,
+      company: company
+    } do
+      invoice = insert(:pdf_upload_invoice, company: company)
+
+      {:ok, view, _html} = live(conn, ~p"/c/#{company.id}/invoices/#{invoice.id}")
+      view |> element("button", "Edit") |> render_click()
+
+      view
+      |> form("form[phx-submit=save_edit]", %{
+        "invoice" => %{
+          "buyer_address" => %{
+            "street" => "ul. Kupna 10",
+            "city" => "Gdańsk",
+            "postal_code" => "80-001",
+            "country" => "PL"
+          }
+        }
+      })
+      |> render_submit()
+
+      updated = Invoices.get_invoice!(company.id, invoice.id)
+      assert updated.buyer_address["street"] == "ul. Kupna 10"
+      assert updated.buyer_address["city"] == "Gdańsk"
+
+      # Re-open edit form and verify pre-fill
+      {:ok, view, _html} = live(conn, ~p"/c/#{company.id}/invoices/#{invoice.id}")
+      view |> element("button", "Edit") |> render_click()
+
+      assert has_element?(view, "input#edit-buyer-address-street[value='ul. Kupna 10']")
+      assert has_element?(view, "input#edit-buyer-address-city[value='Gdańsk']")
     end
   end
 

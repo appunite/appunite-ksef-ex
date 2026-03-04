@@ -167,7 +167,9 @@ defmodule KsefHub.Invoices.Invoice do
     :gross_amount,
     :currency,
     :purchase_order,
-    :iban
+    :iban,
+    :seller_address,
+    :buyer_address
   ]
 
   @doc "Builds a changeset for manual field edits on the show page. Excludes company-side fields based on invoice type."
@@ -180,6 +182,7 @@ defmodule KsefHub.Invoices.Invoice do
     |> validate_number(:gross_amount, greater_than_or_equal_to: 0)
     |> validate_length(:purchase_order, max: 256)
     |> validate_length(:iban, min: 15, max: 34)
+    |> normalize_address_fields()
   end
 
   @doc "Returns the company-owned fields that should not be user-editable for a given invoice type."
@@ -267,4 +270,30 @@ defmodule KsefHub.Invoices.Invoice do
         changeset
     end
   end
+
+  @spec normalize_address_fields(Ecto.Changeset.t()) :: Ecto.Changeset.t()
+  defp normalize_address_fields(changeset) do
+    Enum.reduce([:seller_address, :buyer_address], changeset, &maybe_nil_blank_address/2)
+  end
+
+  @spec maybe_nil_blank_address(atom(), Ecto.Changeset.t()) :: Ecto.Changeset.t()
+  defp maybe_nil_blank_address(field, changeset) do
+    case get_change(changeset, field) do
+      %{} = addr ->
+        if address_blank?(addr), do: put_change(changeset, field, nil), else: changeset
+
+      _ ->
+        changeset
+    end
+  end
+
+  @spec address_blank?(map()) :: boolean()
+  defp address_blank?(addr) do
+    addr |> Map.values() |> Enum.all?(&blank_value?/1)
+  end
+
+  @spec blank_value?(term()) :: boolean()
+  defp blank_value?(nil), do: true
+  defp blank_value?(v) when is_binary(v), do: String.trim(v) == ""
+  defp blank_value?(_), do: false
 end

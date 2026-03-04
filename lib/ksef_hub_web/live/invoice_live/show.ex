@@ -1246,6 +1246,9 @@ defmodule KsefHubWeb.InvoiceLive.Show do
         <.field_error errors={@edit_form[:iban].errors} />
       </div>
 
+      <.address_fields edit_form={@edit_form} field={:seller_address} label="Seller Address" />
+      <.address_fields edit_form={@edit_form} field={:buyer_address} label="Buyer Address" />
+
       <div class="flex gap-2 pt-2">
         <button type="submit" class="btn btn-sm btn-primary">Save</button>
         <button type="button" phx-click="cancel_edit" class="btn btn-sm btn-ghost">
@@ -1255,6 +1258,86 @@ defmodule KsefHubWeb.InvoiceLive.Show do
     </.form>
     """
   end
+
+  attr :edit_form, :map, required: true
+  attr :field, :atom, required: true
+  attr :label, :string, required: true
+
+  @spec address_fields(map()) :: Phoenix.LiveView.Rendered.t()
+  defp address_fields(assigns) do
+    addr = assigns.edit_form[assigns.field].value |> stringify_keys()
+    prefix = "invoice[#{assigns.field}]"
+
+    assigns =
+      assign(assigns,
+        addr: addr,
+        prefix: prefix,
+        field_id: assigns.field |> Atom.to_string() |> String.replace("_", "-")
+      )
+
+    ~H"""
+    <div class="divider text-xs my-1">{@label}</div>
+
+    <div class="form-control">
+      <label for={"edit-#{@field_id}-street"} class="label">
+        <span class="label-text text-xs">Street</span>
+      </label>
+      <input
+        type="text"
+        id={"edit-#{@field_id}-street"}
+        name={"#{@prefix}[street]"}
+        value={@addr["street"]}
+        class="input input-sm input-bordered w-full"
+      />
+    </div>
+
+    <div class="grid grid-cols-2 gap-3">
+      <div class="form-control">
+        <label for={"edit-#{@field_id}-city"} class="label">
+          <span class="label-text text-xs">City</span>
+        </label>
+        <input
+          type="text"
+          id={"edit-#{@field_id}-city"}
+          name={"#{@prefix}[city]"}
+          value={@addr["city"]}
+          class="input input-sm input-bordered w-full"
+        />
+      </div>
+
+      <div class="form-control">
+        <label for={"edit-#{@field_id}-postal-code"} class="label">
+          <span class="label-text text-xs">Postal Code</span>
+        </label>
+        <input
+          type="text"
+          id={"edit-#{@field_id}-postal-code"}
+          name={"#{@prefix}[postal_code]"}
+          value={@addr["postal_code"]}
+          class="input input-sm input-bordered w-full"
+        />
+      </div>
+    </div>
+
+    <div class="form-control">
+      <label for={"edit-#{@field_id}-country"} class="label">
+        <span class="label-text text-xs">Country</span>
+      </label>
+      <input
+        type="text"
+        id={"edit-#{@field_id}-country"}
+        name={"#{@prefix}[country]"}
+        value={@addr["country"]}
+        class="input input-sm input-bordered w-full"
+        maxlength="10"
+      />
+    </div>
+    """
+  end
+
+  @spec stringify_keys(map() | nil) :: map()
+  defp stringify_keys(nil), do: %{}
+  defp stringify_keys(map), do: Map.new(map, fn {k, v} -> {to_string(k), v} end)
 
   attr :edit_form, :map, required: true
   attr :readonly, :boolean, default: false

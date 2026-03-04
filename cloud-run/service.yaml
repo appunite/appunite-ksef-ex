@@ -12,7 +12,7 @@ spec:
       annotations:
         autoscaling.knative.dev/minScale: "0"
         autoscaling.knative.dev/maxScale: "3"
-        run.googleapis.com/container-dependencies: '{"ksef-hub":["pdf-renderer"]}'
+        run.googleapis.com/container-dependencies: '{"ksef-hub":["pdf-renderer","invoice-extractor"]}'
         run.googleapis.com/startup-cpu-boost: "true"
     spec:
       containerConcurrency: 80
@@ -100,6 +100,34 @@ spec:
                 secretKeyRef:
                   key: latest
                   name: invoice-extractor-api-token
+
+        # --- Invoice extractor sidecar (PDF → structured JSON) ---
+        - name: invoice-extractor
+          image: europe-west1-docker.pkg.dev/au-ksef-ex/ksef-hub/invoice-extractor:latest
+          env:
+            - name: PORT
+              value: "3002"
+            - name: API_TOKEN
+              valueFrom:
+                secretKeyRef:
+                  key: latest
+                  name: invoice-extractor-api-token
+            - name: ANTHROPIC_API_KEY
+              valueFrom:
+                secretKeyRef:
+                  key: latest
+                  name: anthropic-api-key
+          resources:
+            limits:
+              memory: 256Mi
+              cpu: "0.5"
+          startupProbe:
+            httpGet:
+              path: /health
+              port: 3002
+            initialDelaySeconds: 5
+            periodSeconds: 5
+            failureThreshold: 10
 
         # --- PDF renderer sidecar (PDF + HTML generation) ---
         - name: pdf-renderer
