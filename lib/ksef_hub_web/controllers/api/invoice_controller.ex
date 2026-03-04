@@ -21,10 +21,10 @@ defmodule KsefHubWeb.Api.InvoiceController do
   alias OpenApiSpex.Schema
 
   @create_allowed_keys ~w(type ksef_number seller_nip seller_name buyer_nip buyer_name
-    invoice_number issue_date net_amount gross_amount currency)
+    invoice_number issue_date net_amount gross_amount currency purchase_order)
 
   @update_allowed_keys ~w(seller_nip seller_name buyer_nip buyer_name invoice_number
-    issue_date net_amount gross_amount currency ksef_number)
+    issue_date net_amount gross_amount currency ksef_number purchase_order)
 
   @max_pdf_size 10_000_000
 
@@ -1024,6 +1024,7 @@ defmodule KsefHubWeb.Api.InvoiceController do
       prediction_predicted_at: invoice.prediction_predicted_at,
       extraction_status: invoice.extraction_status,
       original_filename: invoice.original_filename,
+      purchase_order: invoice.purchase_order,
       inserted_at: invoice.inserted_at,
       updated_at: invoice.updated_at
     }

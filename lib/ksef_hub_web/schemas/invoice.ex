@@ -65,6 +65,13 @@ defmodule KsefHubWeb.Schemas.Invoice do
         nullable: true,
         description: "Original filename of the uploaded PDF."
       },
+      purchase_order: %Schema{
+        type: :string,
+        nullable: true,
+        maxLength: 256,
+        description:
+          "Purchase order identifier. Extracted from KSeF XML (NrZamowienia or DodatkowyOpis) or PDF extraction."
+      },
       category_id: %Schema{
         type: :string,
         format: :uuid,
