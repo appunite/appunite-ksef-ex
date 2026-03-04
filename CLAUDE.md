@@ -13,9 +13,9 @@ See `docs/prd.md` for full product requirements.
 | Database | PostgreSQL (Supabase) via Ecto |
 | Auth (UI) | Google Sign-In (company membership RBAC) |
 | Auth (API) | Bearer API tokens (hashed, revocable) |
-| PDF renderer | pdf-renderer sidecar (ghcr.io/appunite/ksef-pdf) |
-| Invoice extractor | invoice-extractor sidecar (ghcr.io/appunite/au-ksef-unstructured) |
-| Invoice classifier | Separate Cloud Run service (ghcr.io/appunite/au-payroll-model-categories) |
+| PDF renderer | pdf-renderer sidecar ([ghcr.io/appunite/ksef-pdf](https://github.com/appunite/ksef-pdf-generator)) |
+| Invoice extractor | invoice-extractor sidecar ([ghcr.io/appunite/au-ksef-unstructured](https://github.com/appunite/au-ksef-unstructured)) |
+| Invoice classifier | Separate Cloud Run service ([ghcr.io/appunite/au-payroll-model-categories](https://github.com/appunite/au-payroll-model-categories)) |
 | XADES signing | xmlsec1 (CLI, called via System.cmd) |
 | Background jobs | Oban (async workers, 60-min sync cron) |
 | API docs | open_api_spex (OpenAPI 3.0 + SwaggerUI) |
