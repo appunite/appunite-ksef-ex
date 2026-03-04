@@ -492,6 +492,56 @@ defmodule KsefHubWeb.InvoiceLive.ShowTest do
     end
   end
 
+  describe "purchase_order display and editing" do
+    setup :stub_pdf
+
+    test "displays purchase_order in details table when present", %{
+      conn: conn,
+      company: company
+    } do
+      invoice = insert(:invoice, company: company, purchase_order: "PO-LV-001")
+
+      {:ok, _view, html} = live(conn, ~p"/c/#{company.id}/invoices/#{invoice.id}")
+      assert html =~ "PO-LV-001"
+      assert html =~ "PO</td>"
+    end
+
+    test "hides purchase_order row when nil", %{conn: conn, company: company} do
+      invoice = insert(:invoice, company: company, purchase_order: nil)
+
+      {:ok, _view, html} = live(conn, ~p"/c/#{company.id}/invoices/#{invoice.id}")
+      refute html =~ "PO</td>"
+    end
+
+    test "edit form includes purchase_order field", %{conn: conn, company: company} do
+      invoice = insert(:pdf_upload_invoice, company: company)
+
+      {:ok, view, _html} = live(conn, ~p"/c/#{company.id}/invoices/#{invoice.id}")
+      view |> element("button", "Edit") |> render_click()
+
+      assert has_element?(view, "input#edit-purchase-order")
+    end
+
+    test "saving purchase_order via edit form persists the value", %{
+      conn: conn,
+      company: company
+    } do
+      invoice = insert(:pdf_upload_invoice, company: company)
+
+      {:ok, view, _html} = live(conn, ~p"/c/#{company.id}/invoices/#{invoice.id}")
+      view |> element("button", "Edit") |> render_click()
+
+      view
+      |> form("form[phx-submit=save_edit]", %{
+        "invoice" => %{"purchase_order" => "PO-SAVED-123"}
+      })
+      |> render_submit()
+
+      updated = Invoices.get_invoice!(company.id, invoice.id)
+      assert updated.purchase_order == "PO-SAVED-123"
+    end
+  end
+
   describe "reviewer role" do
     setup %{conn: _conn} do
       {:ok, reviewer} =

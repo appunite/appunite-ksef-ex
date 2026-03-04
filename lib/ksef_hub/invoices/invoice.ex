@@ -46,6 +46,7 @@ defmodule KsefHub.Invoices.Invoice do
     field :extraction_status, Ecto.Enum, values: [:complete, :partial, :failed]
     field :original_filename, :string
     field :note, :string
+    field :purchase_order, :string
 
     belongs_to :company, KsefHub.Companies.Company
     belongs_to :duplicate_of, __MODULE__
@@ -95,11 +96,13 @@ defmodule KsefHub.Invoices.Invoice do
       :ksef_acquisition_date,
       :permanent_storage_date,
       :extraction_status,
-      :original_filename
+      :original_filename,
+      :purchase_order
     ])
     |> validate_required([:type, :company_id])
     |> validate_nip_fields()
     |> validate_length(:original_filename, max: 255)
+    |> validate_length(:purchase_order, max: 256)
     |> validate_source_requirements()
     |> foreign_key_constraint(:company_id)
     |> foreign_key_constraint(:duplicate_of_id)
@@ -135,7 +138,8 @@ defmodule KsefHub.Invoices.Invoice do
     :buyer_name,
     :net_amount,
     :gross_amount,
-    :currency
+    :currency,
+    :purchase_order
   ]
 
   @doc "Builds a changeset for manual field edits on the show page. Excludes company-side fields based on invoice type."
@@ -146,6 +150,7 @@ defmodule KsefHub.Invoices.Invoice do
     |> validate_nip_fields()
     |> validate_number(:net_amount, greater_than_or_equal_to: 0)
     |> validate_number(:gross_amount, greater_than_or_equal_to: 0)
+    |> validate_length(:purchase_order, max: 256)
   end
 
   @doc "Returns the company-owned fields that should not be user-editable for a given invoice type."

@@ -1059,6 +1059,67 @@ defmodule KsefHubWeb.Api.InvoiceControllerTest do
     |> Plug.Conn.put_req_header("accept", "application/json")
   end
 
+  describe "purchase_order" do
+    test "show returns purchase_order in response", %{conn: conn} do
+      %{company: company, token: token} = create_owner_with_token()
+      invoice = insert(:invoice, company: company, purchase_order: "PO-SHOW-001")
+
+      conn = conn |> api_conn(token) |> get("/api/invoices/#{invoice.id}")
+
+      assert conn.status == 200
+      data = Jason.decode!(conn.resp_body)["data"]
+      assert data["purchase_order"] == "PO-SHOW-001"
+    end
+
+    test "show returns null purchase_order when absent", %{conn: conn} do
+      %{company: company, token: token} = create_owner_with_token()
+      invoice = insert(:invoice, company: company, purchase_order: nil)
+
+      conn = conn |> api_conn(token) |> get("/api/invoices/#{invoice.id}")
+
+      assert conn.status == 200
+      data = Jason.decode!(conn.resp_body)["data"]
+      assert is_nil(data["purchase_order"])
+    end
+
+    test "create accepts purchase_order", %{conn: conn} do
+      %{token: token} = create_owner_with_token()
+
+      body =
+        Jason.encode!(%{
+          type: "expense",
+          seller_nip: "1234567890",
+          seller_name: "Seller Sp. z o.o.",
+          buyer_nip: "0987654321",
+          buyer_name: "Buyer S.A.",
+          invoice_number: "FV/2026/PO1",
+          issue_date: "2026-02-20",
+          net_amount: "1000.00",
+          gross_amount: "1230.00",
+          purchase_order: "PO-CREATE-001"
+        })
+
+      conn = conn |> api_conn(token) |> post("/api/invoices", body)
+
+      assert conn.status == 201
+      data = Jason.decode!(conn.resp_body)["data"]
+      assert data["purchase_order"] == "PO-CREATE-001"
+    end
+
+    test "update accepts purchase_order on pdf_upload invoice", %{conn: conn} do
+      %{company: company, token: token} = create_owner_with_token()
+      invoice = insert(:pdf_upload_invoice, company: company)
+
+      body = Jason.encode!(%{purchase_order: "PO-UPDATE-001"})
+
+      conn = conn |> api_conn(token) |> patch("/api/invoices/#{invoice.id}", body)
+
+      assert conn.status == 200
+      data = Jason.decode!(conn.resp_body)["data"]
+      assert data["purchase_order"] == "PO-UPDATE-001"
+    end
+  end
+
   @spec create_temp_pdf() :: String.t()
   defp create_temp_pdf do
     path = Path.join(System.tmp_dir!(), "test_invoice_#{System.unique_integer([:positive])}.pdf")

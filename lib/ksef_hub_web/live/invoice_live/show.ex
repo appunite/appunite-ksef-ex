@@ -801,6 +801,12 @@ defmodule KsefHubWeb.InvoiceLive.Show do
                       {@invoice.ksef_number}
                     </td>
                   </tr>
+                  <tr :if={@invoice.purchase_order} class="border-b border-base-300/50">
+                    <td class="py-1.5 pr-3 text-base-content/60 whitespace-nowrap">PO</td>
+                    <td class="py-1.5 text-right font-mono text-sm break-all">
+                      {@invoice.purchase_order}
+                    </td>
+                  </tr>
                   <tr :if={@invoice.ksef_acquisition_date}>
                     <td class="py-1.5 pr-3 text-base-content/60 whitespace-nowrap">Acquired</td>
                     <td class="py-1.5 text-right text-xs">
@@ -1139,6 +1145,22 @@ defmodule KsefHubWeb.InvoiceLive.Show do
       </div>
 
       <.amount_fields edit_form={@edit_form} />
+
+      <div class="form-control mt-3">
+        <label for="edit-purchase-order" class="label">
+          <span class="label-text text-xs">Purchase Order</span>
+        </label>
+        <input
+          type="text"
+          id="edit-purchase-order"
+          name={@edit_form[:purchase_order].name}
+          value={@edit_form[:purchase_order].value}
+          class="input input-sm input-bordered w-full"
+          maxlength="256"
+          placeholder="e.g. PO-2025-001"
+        />
+        <.field_error errors={@edit_form[:purchase_order].errors} />
+      </div>
 
       <div class="flex gap-2 pt-2">
         <button type="submit" class="btn btn-sm btn-primary">Save</button>

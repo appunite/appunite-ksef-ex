@@ -44,6 +44,12 @@ defmodule KsefHubWeb.Schemas.CreateInvoiceRequest do
         description: "ISO 4217 currency code.",
         default: "PLN",
         example: "PLN"
+      },
+      purchase_order: %Schema{
+        type: :string,
+        nullable: true,
+        maxLength: 256,
+        description: "Purchase order identifier."
       }
     },
     required: [

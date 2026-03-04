@@ -29,7 +29,13 @@ defmodule KsefHubWeb.Schemas.UpdateInvoiceRequest do
       issue_date: %Schema{type: :string, format: :date, description: "Invoice issue date."},
       net_amount: %Schema{type: :string, description: "Net amount as decimal string."},
       gross_amount: %Schema{type: :string, description: "Gross amount as decimal string."},
-      currency: %Schema{type: :string, description: "ISO 4217 currency code.", example: "PLN"}
+      currency: %Schema{type: :string, description: "ISO 4217 currency code.", example: "PLN"},
+      purchase_order: %Schema{
+        type: :string,
+        nullable: true,
+        maxLength: 256,
+        description: "Purchase order identifier."
+      }
     },
     example: %{
       seller_nip: "1234567890",
