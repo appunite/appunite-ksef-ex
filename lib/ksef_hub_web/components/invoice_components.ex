@@ -120,7 +120,7 @@ defmodule KsefHubWeb.InvoiceComponents do
   def extraction_badge(%{status: :partial} = assigns) do
     ~H"""
     <span class="inline-flex items-center px-2 py-0.5 rounded-md text-xs font-medium border bg-warning/10 text-warning border-warning/20">
-      Incomplete
+      incomplete
     </span>
     """
   end
@@ -128,7 +128,7 @@ defmodule KsefHubWeb.InvoiceComponents do
   def extraction_badge(%{status: :failed} = assigns) do
     ~H"""
     <span class="inline-flex items-center px-2 py-0.5 rounded-md text-xs font-medium border bg-error/10 text-error border-error/20">
-      Failed
+      failed
     </span>
     """
   end

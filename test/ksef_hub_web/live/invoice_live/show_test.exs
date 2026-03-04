@@ -270,7 +270,7 @@ defmodule KsefHubWeb.InvoiceLive.ShowTest do
       stub(KsefHub.PdfRenderer.Mock, :generate_html, fn _xml, _meta -> {:error, :no_xml} end)
 
       {:ok, view, _html} = live(conn, ~p"/c/#{company.id}/invoices/#{invoice.id}")
-      assert has_element?(view, "[class*=rounded-md]", "Incomplete")
+      assert has_element?(view, "[class*=rounded-md]", "incomplete")
       assert has_element?(view, ~s([data-testid="extraction-warning"]))
     end
 
@@ -280,7 +280,7 @@ defmodule KsefHubWeb.InvoiceLive.ShowTest do
       stub(KsefHub.PdfRenderer.Mock, :generate_html, fn _xml, _meta -> {:error, :no_xml} end)
 
       {:ok, view, _html} = live(conn, ~p"/c/#{company.id}/invoices/#{invoice.id}")
-      refute has_element?(view, "[class*=rounded-md]", "Incomplete")
+      refute has_element?(view, "[class*=rounded-md]", "incomplete")
       refute has_element?(view, ~s([data-testid="extraction-warning"]))
     end
 
