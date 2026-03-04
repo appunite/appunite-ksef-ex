@@ -94,7 +94,7 @@ deploy: ## Deploy current service.yaml to Cloud Run (uses latest pushed image)
 	@echo "Image: $(IMAGE_NAME):latest"
 	@read -p "Continue? [y/N] " confirm && [ "$$confirm" = "y" ] || (echo "Aborted." && exit 1)
 	sed "s|IMAGE_PLACEHOLDER|$(IMAGE_NAME):latest|g" cloud-run/service.yaml | \
-		gcloud run services replace - --region $(GCP_REGION)
+		gcloud run services replace - --region $(GCP_REGION) --project $(GCP_PROJECT_ID)
 
 # --- ML Models ---
 
@@ -104,7 +104,8 @@ models.upload: ## Upload ML models from ml-models/ to GCS and restart classifier
 	@echo "Models uploaded. Run 'make models.restart' to pick up changes."
 
 models.restart: ## Restart Cloud Run to pick up new models from GCS
-	gcloud run services update ksef-hub --region $(GCP_REGION)
+	gcloud run services update ksef-hub --region $(GCP_REGION) --project $(GCP_PROJECT_ID) \
+		--update-env-vars=MODELS_REV=$$(date +%s)
 	@echo "Service restarting — new models will be loaded."
 
 models.train: ## Show instructions for training new models
@@ -119,8 +120,13 @@ models.train: ## Show instructions for training new models
 	@echo "  5. Commit updated models:"
 	@echo "     git add ml-models/ && git commit -m 'chore: update ML models'"
 
-classifier.mirror: ## Mirror classifier Docker image from ghcr.io to Artifact Registry
-	docker pull --platform linux/amd64 ghcr.io/appunite/au-payroll-model-categories:latest
-	docker tag ghcr.io/appunite/au-payroll-model-categories:latest \
-		europe-west1-docker.pkg.dev/au-ksef-ex/ksef-hub/invoice-classifier:latest
-	docker push europe-west1-docker.pkg.dev/au-ksef-ex/ksef-hub/invoice-classifier:latest
+CLASSIFIER_TARGET_TAG ?= latest
+CLASSIFIER_TARGET_REPO := $(GCP_REGION)-docker.pkg.dev/$(GCP_PROJECT_ID)/ksef-hub/invoice-classifier
+
+classifier.mirror: ## Mirror classifier image to Artifact Registry (CLASSIFIER_SRC=image@sha256:...)
+ifndef CLASSIFIER_SRC
+	$(error CLASSIFIER_SRC is required — use an image@sha256:<digest> for reproducible deploys, e.g. CLASSIFIER_SRC=ghcr.io/appunite/au-payroll-model-categories@sha256:abc123)
+endif
+	docker pull --platform linux/amd64 $(CLASSIFIER_SRC)
+	docker tag $(CLASSIFIER_SRC) $(CLASSIFIER_TARGET_REPO):$(CLASSIFIER_TARGET_TAG)
+	docker push $(CLASSIFIER_TARGET_REPO):$(CLASSIFIER_TARGET_TAG)
