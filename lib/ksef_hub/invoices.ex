@@ -205,6 +205,7 @@ defmodule KsefHub.Invoices do
     :ksef_acquisition_date,
     :permanent_storage_date,
     :extraction_status,
+    :purchase_order,
     :updated_at
   ]
 
@@ -699,7 +700,8 @@ defmodule KsefHub.Invoices do
       net_amount: get_extracted_decimal(extracted, "net_amount"),
       gross_amount: get_extracted_decimal(extracted, "gross_amount"),
       currency: get_extracted_string(extracted, "currency"),
-      ksef_number: get_extracted_string(extracted, "ksef_number")
+      ksef_number: get_extracted_string(extracted, "ksef_number"),
+      purchase_order: get_extracted_string(extracted, "purchase_order")
     }
   end
 
@@ -1363,7 +1365,8 @@ defmodule KsefHub.Invoices do
           [i],
           fragment("? ILIKE ? ESCAPE '\\'", i.invoice_number, ^pattern) or
             fragment("? ILIKE ? ESCAPE '\\'", i.seller_name, ^pattern) or
-            fragment("? ILIKE ? ESCAPE '\\'", i.buyer_name, ^pattern)
+            fragment("? ILIKE ? ESCAPE '\\'", i.buyer_name, ^pattern) or
+            fragment("? ILIKE ? ESCAPE '\\'", i.purchase_order, ^pattern)
         )
 
       {:source, source}, q when source in [:ksef, :manual, :pdf_upload, :email] ->

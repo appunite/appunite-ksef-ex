@@ -30,6 +30,7 @@ defmodule KsefHub.Invoices.Parser do
          ),
        gross_amount: xpath(doc, ~x"//*[local-name()='P_15']/text()"s) |> parse_decimal(),
        currency: xpath(doc, ~x"//*[local-name()='KodWaluty']/text()"s) |> default_currency(),
+       purchase_order: extract_purchase_order(doc),
        line_items: parse_line_items(doc)
      }}
   rescue
@@ -70,6 +71,51 @@ defmodule KsefHub.Invoices.Parser do
         xpath(doc, ~x"//*[local-name()='#{subject}']//*[local-name()='Nazwisko']/text()"s)
 
       String.trim("#{first} #{last}")
+    end
+  end
+
+  @po_key_patterns ~w(zamowienie zamówienie purchase.order po order.number)
+  @po_value_regex ~r/(?:PO|P\.O\.|Purchase\s*Order)[:#\s]*\s*(\S+)/i
+
+  @spec extract_purchase_order(term()) :: String.t() | nil
+  defp extract_purchase_order(doc) do
+    nr_zamowienia =
+      xpath(doc, ~x"//*[local-name()='Fa']//*[local-name()='NrZamowienia']/text()"s)
+
+    if nr_zamowienia != "" do
+      nr_zamowienia
+    else
+      extract_po_from_dodatkowy_opis(doc)
+    end
+  end
+
+  @spec extract_po_from_dodatkowy_opis(term()) :: String.t() | nil
+  defp extract_po_from_dodatkowy_opis(doc) do
+    doc
+    |> xpath(~x"//*[local-name()='DodatkowyOpis']"l)
+    |> Enum.find_value(fn entry ->
+      key = xpath(entry, ~x"./*[local-name()='Klucz']/text()"s)
+      value = xpath(entry, ~x"./*[local-name()='Wartosc']/text()"s)
+
+      cond do
+        po_key_match?(key) && value != "" -> value
+        value != "" -> extract_po_from_value(value)
+        true -> nil
+      end
+    end)
+  end
+
+  @spec po_key_match?(String.t()) :: boolean()
+  defp po_key_match?(key) do
+    downcased = String.downcase(key)
+    Enum.any?(@po_key_patterns, &String.contains?(downcased, &1))
+  end
+
+  @spec extract_po_from_value(String.t()) :: String.t() | nil
+  defp extract_po_from_value(value) do
+    case Regex.run(@po_value_regex, value) do
+      [_, captured] -> captured
+      _ -> nil
     end
   end
 
