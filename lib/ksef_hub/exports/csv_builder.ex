@@ -6,15 +6,21 @@ defmodule KsefHub.Exports.CsvBuilder do
   @headers [
     "Invoice Number",
     "Issue Date",
+    "Sales Date",
+    "Due Date",
     "Type",
     "Source",
     "Seller NIP",
     "Seller Name",
+    "Seller Address",
     "Buyer NIP",
     "Buyer Name",
+    "Buyer Address",
     "Net Amount",
     "Gross Amount",
     "Currency",
+    "IBAN",
+    "Purchase Order",
     "Category",
     "Tags",
     "KSeF Number",
@@ -40,15 +46,21 @@ defmodule KsefHub.Exports.CsvBuilder do
     [
       s(invoice.invoice_number),
       format_date(invoice.issue_date),
+      format_date(invoice.sales_date),
+      format_date(invoice.due_date),
       s(invoice.type),
       s(invoice.source),
       s(invoice.seller_nip),
       s(invoice.seller_name),
+      format_address(invoice.seller_address),
       s(invoice.buyer_nip),
       s(invoice.buyer_name),
+      format_address(invoice.buyer_address),
       format_decimal(invoice.net_amount),
       format_decimal(invoice.gross_amount),
       s(invoice.currency),
+      s(invoice.iban),
+      s(invoice.purchase_order),
       format_category(invoice),
       format_tags(invoice),
       s(invoice.ksef_number),
@@ -107,6 +119,16 @@ defmodule KsefHub.Exports.CsvBuilder do
   @spec format_category(Invoice.t()) :: String.t()
   defp format_category(%{category: %{name: name}}) when is_binary(name), do: name
   defp format_category(_), do: ""
+
+  @spec format_address(map() | nil) :: String.t()
+  defp format_address(nil), do: ""
+
+  defp format_address(addr) when is_map(addr) do
+    ~w(street city postal_code country)
+    |> Enum.map(&(addr[&1] || addr[String.to_existing_atom(&1)]))
+    |> Enum.reject(&(is_nil(&1) or &1 == ""))
+    |> Enum.join(", ")
+  end
 
   @spec format_tags(Invoice.t()) :: String.t()
   defp format_tags(%{tags: tags}) when is_list(tags) do
