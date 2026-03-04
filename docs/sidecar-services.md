@@ -42,7 +42,7 @@ All public images are hosted on **GitHub Container Registry (ghcr.io)**:
 |-------|--------|
 | `ghcr.io/appunite/ksef-pdf:latest` | [ksef-pdf-generator](https://github.com/appunite/ksef-pdf-generator) |
 | `ghcr.io/appunite/au-ksef-unstructured:latest` | [au-ksef-unstructured](https://github.com/appunite/au-ksef-unstructured) |
-| `ghcr.io/appunite/au-payroll-model-categories:latest` | [au-payroll-model-categories](https://github.com/appunite/au-payroll-model-categories) (private — model is confidential) |
+| `ghcr.io/appunite/au-payroll-model-categories:latest` | [au-payroll-model-categories](https://github.com/appunite/au-payroll-model-categories) |
 
 ### Cloud Run and ghcr.io
 
