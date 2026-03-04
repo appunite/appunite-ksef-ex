@@ -2,12 +2,15 @@
        server console \
        docker.build docker.run docker.up docker.down \
        db.setup db.migrate db.reset db.rollback \
+       deploy \
        models.upload models.restart models.train classifier.mirror
 
 APP_NAME := ksef-hub
 DOCKER_TAG := $(APP_NAME):latest
 GCS_MODELS_BUCKET := gs://au-ksef-ex-ml-models
 GCP_REGION := europe-west1
+GCP_PROJECT_ID := au-ksef-ex
+IMAGE_NAME := $(GCP_REGION)-docker.pkg.dev/$(GCP_PROJECT_ID)/ksef-hub/ksef-hub
 CLASSIFIER_REPO := git@github.com:appunite/au-payroll-model-categories.git
 
 # --- Help ---
@@ -83,6 +86,15 @@ docker.up: ## Start all services with docker compose
 
 docker.down: ## Stop all services
 	docker compose down
+
+# --- Deploy ---
+
+deploy: ## Deploy current service.yaml to Cloud Run (uses latest pushed image)
+	@echo "Deploying cloud-run/service.yaml to Cloud Run ($(GCP_REGION))..."
+	@echo "Image: $(IMAGE_NAME):latest"
+	@read -p "Continue? [y/N] " confirm && [ "$$confirm" = "y" ] || (echo "Aborted." && exit 1)
+	sed "s|IMAGE_PLACEHOLDER|$(IMAGE_NAME):latest|g" cloud-run/service.yaml | \
+		gcloud run services replace - --region $(GCP_REGION)
 
 # --- ML Models ---
 

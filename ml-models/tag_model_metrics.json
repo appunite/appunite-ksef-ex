@@ -1,0 +1,44 @@
+{
+  "model_type": "tag",
+  "training_date": "2026-01-08T02:03:13.562363",
+  "n_samples": 1108,
+  "n_train": 886,
+  "n_test": 222,
+  "n_classes": 17,
+  "classes": [
+    "BHP",
+    "accounting",
+    "benefit-apartments",
+    "benefit-books-formula",
+    "benefit-computer-formula",
+    "benefit-english",
+    "benefit-insurance",
+    "benefit-medical-care",
+    "benefit-multisport",
+    "benefit-outing",
+    "benefit-psychologist",
+    "benefit-training",
+    "dashbit-jose-valim",
+    "esop",
+    "legal-advice",
+    "referral-fee",
+    "visual-panda"
+  ],
+  "cv_mean_accuracy": 0.8682361094125799,
+  "cv_std_accuracy": 0.019582909090784233,
+  "cv_scores": [
+    0.8738738738738738,
+    0.8918918918918919,
+    0.8333333333333334,
+    0.8642533936651584,
+    0.8778280542986425
+  ],
+  "test_accuracy": 0.8423423423423423,
+  "test_precision": 0.8420371857153466,
+  "test_recall": 0.8423423423423423,
+  "test_f1": 0.8410484583118853,
+  "features": {
+    "text_features": 56,
+    "total_features": "TF-IDF + numerical + categorical"
+  }
+}
