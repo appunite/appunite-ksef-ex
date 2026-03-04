@@ -88,8 +88,8 @@ defmodule KsefHub.Invoices.Invoice do
   def format_address(addr) when is_map(addr) do
     Enum.zip(@address_field_atoms, @address_field_strings)
     |> Enum.map(fn {atom_key, str_key} -> addr[atom_key] || addr[str_key] end)
-    |> Enum.reject(&(is_nil(&1) or &1 == ""))
-    |> Enum.join(", ")
+    |> Enum.reject(&blank_value?/1)
+    |> Enum.map_join(", ", &String.trim/1)
   end
 
   @doc "Builds a changeset for invoice creation/update."
@@ -128,6 +128,7 @@ defmodule KsefHub.Invoices.Invoice do
     |> validate_length(:original_filename, max: 255)
     |> validate_length(:purchase_order, max: 256)
     |> validate_length(:iban, min: 15, max: 34)
+    |> normalize_address_fields()
     |> validate_source_requirements()
     |> foreign_key_constraint(:company_id)
     |> foreign_key_constraint(:duplicate_of_id)

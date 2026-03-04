@@ -1870,8 +1870,7 @@ defmodule KsefHub.InvoicesTest do
       changeset =
         Invoice.edit_changeset(invoice, %{purchase_order: String.duplicate("x", 257)})
 
-      assert {:purchase_order, {"should be at most %{count} character(s)", _}} =
-               hd(changeset.errors)
+      assert {"should be at most %{count} character(s)", _} = changeset.errors[:purchase_order]
     end
 
     test "edit_changeset accepts valid purchase_order" do
@@ -1943,8 +1942,7 @@ defmodule KsefHub.InvoicesTest do
 
       changeset = Invoice.edit_changeset(invoice, %{iban: String.duplicate("X", 35)})
 
-      assert {:iban, {"should be at most %{count} character(s)", _}} =
-               hd(changeset.errors)
+      assert {"should be at most %{count} character(s)", _} = changeset.errors[:iban]
     end
 
     test "edit_changeset validates iban min length" do
@@ -1952,8 +1950,7 @@ defmodule KsefHub.InvoicesTest do
 
       changeset = Invoice.edit_changeset(invoice, %{iban: "PL6110901014"})
 
-      assert {:iban, {"should be at least %{count} character(s)", _}} =
-               hd(changeset.errors)
+      assert {"should be at least %{count} character(s)", _} = changeset.errors[:iban]
     end
 
     test "edit_changeset accepts valid iban" do
@@ -1978,6 +1975,11 @@ defmodule KsefHub.InvoicesTest do
 
     test "skips nil and empty values" do
       addr = %{street: "ul. Testowa 1", city: nil, postal_code: "", country: "PL"}
+      assert Invoice.format_address(addr) == "ul. Testowa 1, PL"
+    end
+
+    test "skips whitespace-only values and trims others" do
+      addr = %{street: " ul. Testowa 1 ", city: "   ", postal_code: nil, country: "PL"}
       assert Invoice.format_address(addr) == "ul. Testowa 1, PL"
     end
 
