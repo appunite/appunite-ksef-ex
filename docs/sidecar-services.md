@@ -1,34 +1,37 @@
 # Sidecar & External Services
 
-KSeF Hub delegates specialized processing to companion microservices. In production, some run as **sidecars** (containers in the same Cloud Run service) and others as **separate Cloud Run services**.
+KSeF Hub delegates specialized processing to companion microservices. In production, all run as **sidecars** (containers in the same Cloud Run service), communicating over localhost.
 
 ## Services
 
 | Service | Purpose | Deployment | Port | Repository |
 |---------|---------|------------|------|------------|
 | **pdf-renderer** | FA(3) XML → PDF/HTML rendering | Sidecar | 3001 | [appunite/ksef-pdf-generator](https://github.com/appunite/ksef-pdf-generator) |
-| **invoice-extractor** | PDF → structured JSON extraction (Claude) | Sidecar | 8082 (prod) / 3002 (local) | [appunite/au-ksef-unstructured](https://github.com/appunite/au-ksef-unstructured) |
-| **invoice-classifier** | Invoice category/tag classification (LightGBM) | Separate service | 3003 (local) / HTTPS (prod) | [appunite/au-payroll-model-categories](https://github.com/appunite/au-payroll-model-categories) |
+| **invoice-extractor** | PDF → structured JSON extraction (Claude) | Sidecar | 3002 | [appunite/au-ksef-unstructured](https://github.com/appunite/au-ksef-unstructured) |
+| **invoice-classifier** | Invoice category/tag classification (LightGBM) | Sidecar | 3003 | [appunite/au-payroll-model-categories](https://github.com/appunite/au-payroll-model-categories) |
 
 ## Architecture
 
 ```text
-Cloud Run service: ksef-hub
-┌──────────────────────────────────────────────────────────┐
-│  ksef-hub (Elixir, :4000)                                │
-│                                                          │
-│  KsefHub.PdfRenderer ──────────► pdf-renderer (:3001)    │
-│                                                          │
-│  KsefHub.InvoiceExtractor ────► invoice-extractor (:8082)│
-│                                                          │
-└──────────────────────────────────────────────────────────┘
-         │
-         │  HTTPS
-         ▼
-┌──────────────────────────────────────────────────────────┐
-│  Cloud Run service: invoice-classifier                   │
-│  KsefHub.InvoiceClassifier ──► invoice-classifier (:8080)│
-└──────────────────────────────────────────────────────────┘
+Cloud Run service: ksef-hub (gen2, GCS FUSE enabled)
+┌───────────────────────────────────────────────────────────────────┐
+│  ksef-hub (Elixir, :4000)                                         │
+│                                                                   │
+│  KsefHub.PdfRenderer ──────────────► pdf-renderer (:3001)         │
+│                                                                   │
+│  KsefHub.InvoiceExtractor ─────────► invoice-extractor (:3002)    │
+│                                                                   │
+│  KsefHub.InvoiceClassifier ────────► invoice-classifier (:3003)   │
+│                                        │                          │
+│                                        ▼                          │
+│                                   /app/models (GCS FUSE mount)    │
+│                                   ├── invoice_classifier.joblib   │
+│                                   └── invoice_tag_classifier.joblib│
+└───────────────────────────────────────────────────────────────────┘
+                                        ▲
+                                        │ read-only mount
+                                        │
+                              GCS: au-ksef-ex-ml-models
 ```
 
 ## Docker Images
@@ -39,31 +42,104 @@ All public images are hosted on **GitHub Container Registry (ghcr.io)**:
 |-------|--------|
 | `ghcr.io/appunite/ksef-pdf:latest` | [ksef-pdf-generator](https://github.com/appunite/ksef-pdf-generator) |
 | `ghcr.io/appunite/au-ksef-unstructured:latest` | [au-ksef-unstructured](https://github.com/appunite/au-ksef-unstructured) |
-| `ghcr.io/appunite/au-payroll-model-categories:latest` | [au-payroll-model-categories](https://github.com/appunite/au-payroll-model-categories) (private — model is confidential) |
+| `ghcr.io/appunite/au-payroll-model-categories:latest` | [au-payroll-model-categories](https://github.com/appunite/au-payroll-model-categories) |
 
 ### Cloud Run and ghcr.io
 
-Cloud Run **cannot pull directly from ghcr.io**. All images (sidecars and separate services) must be mirrored to GCP Artifact Registry before deployment:
+Cloud Run **cannot pull directly from ghcr.io**. All sidecar images must be mirrored to GCP Artifact Registry before deployment:
 
 ```bash
 # 1. Pull the amd64 image (required — Cloud Run only runs amd64/linux)
 docker pull --platform linux/amd64 ghcr.io/appunite/ksef-pdf:latest
 docker pull --platform linux/amd64 ghcr.io/appunite/au-ksef-unstructured:latest
+docker pull --platform linux/amd64 ghcr.io/appunite/au-payroll-model-categories:latest
 
 # 2. Tag for Artifact Registry
 docker tag ghcr.io/appunite/ksef-pdf:latest \
   europe-west1-docker.pkg.dev/au-ksef-ex/ksef-hub/ksef-pdf:latest
 docker tag ghcr.io/appunite/au-ksef-unstructured:latest \
   europe-west1-docker.pkg.dev/au-ksef-ex/ksef-hub/invoice-extractor:latest
+docker tag ghcr.io/appunite/au-payroll-model-categories:latest \
+  europe-west1-docker.pkg.dev/au-ksef-ex/ksef-hub/invoice-classifier:latest
 
 # 3. Push to Artifact Registry
 docker push europe-west1-docker.pkg.dev/au-ksef-ex/ksef-hub/ksef-pdf:latest
 docker push europe-west1-docker.pkg.dev/au-ksef-ex/ksef-hub/invoice-extractor:latest
+docker push europe-west1-docker.pkg.dev/au-ksef-ex/ksef-hub/invoice-classifier:latest
+```
+
+Or use the Makefile shortcut for the classifier:
+
+```bash
+make classifier.mirror
 ```
 
 **Important:** If building on Apple Silicon (M-series), use `--platform linux/amd64` when pulling. ARM images will be rejected by Cloud Run.
 
-The invoice-classifier is deployed as a separate Cloud Run service. Its image must also be mirrored from ghcr.io to Artifact Registry before deployment (Cloud Run cannot pull from ghcr.io regardless of whether the service is a sidecar or standalone).
+## GCS Model Storage
+
+The invoice-classifier requires ML model files (~18MB) at `/app/models`. In production, these are stored in a GCS bucket and mounted via Cloud Storage FUSE:
+
+- **Bucket:** `gs://au-ksef-ex-ml-models`
+- **Mount path:** `/app/models` (read-only)
+- **Requires:** gen2 execution environment
+
+### GCS setup (one-time)
+
+```bash
+# Create bucket
+gsutil mb -l europe-west1 gs://au-ksef-ex-ml-models
+
+# Upload initial models
+gsutil cp ml-models/*.joblib gs://au-ksef-ex-ml-models/
+
+# Grant read access to the Cloud Run service account
+gcloud projects add-iam-policy-binding au-ksef-ex \
+  --member="serviceAccount:ksef-hub-runner@au-ksef-ex.iam.gserviceaccount.com" \
+  --role="roles/storage.objectViewer"
+```
+
+## Updating ML Models
+
+The invoice-classifier uses LightGBM models stored in a GCS bucket and mounted
+at runtime. When you need to retrain or update models:
+
+### Step-by-step
+
+1. **Train new models** in the classifier repo:
+   ```bash
+   git clone git@github.com:appunite/au-payroll-model-categories.git /tmp/classifier
+   cd /tmp/classifier
+   make train
+   ```
+
+2. **Copy trained models** to this repo:
+   ```bash
+   cp /tmp/classifier/models/invoice_classifier.joblib ml-models/
+   cp /tmp/classifier/models/invoice_tag_classifier.joblib ml-models/
+   ```
+
+3. **Upload to GCS and restart** the production service:
+   ```bash
+   make models.upload
+   make models.restart
+   ```
+
+4. **Commit** the updated models:
+   ```bash
+   git add ml-models/
+   git commit -m "chore: update ML models"
+   ```
+
+Or use `make models.train` to see these instructions at any time.
+
+### How it works
+
+- Models are stored in GCS bucket `gs://au-ksef-ex-ml-models`
+- Cloud Run mounts the bucket at `/app/models` via GCS FUSE (read-only)
+- The classifier container loads models on startup
+- `make models.restart` triggers a new Cloud Run revision that re-mounts the bucket
+- Models are also committed to the repo (via Git LFS) for reproducibility
 
 ## Environment Variables
 
@@ -72,24 +148,25 @@ The invoice-classifier is deployed as a separate Cloud Run service. Its image mu
 | Variable | Service | Description |
 |----------|---------|-------------|
 | `PDF_RENDERER_URL` | pdf-renderer | Sidecar URL (`http://localhost:3001`) |
-| `INVOICE_EXTRACTOR_URL` | invoice-extractor | Sidecar URL (`http://localhost:8082` in prod, `http://localhost:3002` locally) |
+| `INVOICE_EXTRACTOR_URL` | invoice-extractor | Sidecar URL (`http://localhost:3002`) |
 | `INVOICE_EXTRACTOR_API_TOKEN` | invoice-extractor | Bearer token for authentication |
-| `INVOICE_CLASSIFIER_URL` | invoice-classifier | Service URL (`http://localhost:3003` locally, `https://invoice-classifier-*.run.app` in prod) |
+| `INVOICE_CLASSIFIER_URL` | invoice-classifier | Sidecar URL (`http://localhost:3003`) |
 | `INVOICE_CLASSIFIER_API_TOKEN` | invoice-classifier | Bearer token for authentication |
 
 ### Invoice extractor sidecar
 
 | Variable | Description |
 |----------|-------------|
-| `PORT` | Listen port (set to `8082` in prod to avoid conflicts) |
+| `PORT` | Listen port (set to `3002`) |
 | `API_TOKEN` | Token for authenticating incoming requests |
 | `ANTHROPIC_API_KEY` | Anthropic API key for Claude (used for PDF extraction) |
 | `ANTHROPIC_MODEL` | Claude model to use (e.g., `claude-sonnet-4-5-20250929`) |
 
-### Invoice classifier service
+### Invoice classifier sidecar
 
 | Variable | Description |
 |----------|-------------|
+| `PORT` | Listen port (set to `3003`) |
 | `API_TOKEN` | Token for authenticating incoming requests |
 
 ## GCP Secret Manager
@@ -106,7 +183,7 @@ Sensitive values are stored in Secret Manager and mounted as env vars in Cloud R
 | `mailgun-signing-key` | `MAILGUN_SIGNING_KEY` | ksef-hub |
 | `mailgun-api-key` | `MAILGUN_API_KEY` | ksef-hub |
 | `invoice-extractor-api-token` | `INVOICE_EXTRACTOR_API_TOKEN` / `API_TOKEN` | ksef-hub + extractor sidecar |
-| `invoice-classifier-api-token` | `INVOICE_CLASSIFIER_API_TOKEN` / `API_TOKEN` | ksef-hub + classifier service |
+| `invoice-classifier-api-token` | `INVOICE_CLASSIFIER_API_TOKEN` / `API_TOKEN` | ksef-hub + classifier sidecar |
 | `anthropic-api-key` | `ANTHROPIC_API_KEY` | extractor sidecar |
 
 ## Running Locally
@@ -117,10 +194,12 @@ All services are defined in `docker-compose.yml`:
 docker compose up
 ```
 
-Locally, port mapping handles the differences:
-- pdf-renderer: container port 3001 → host port 3001
-- invoice-extractor: container port 8080 → host port 3002
-- invoice-classifier: container port 8080 → host port 3003
+Each service uses its dedicated port consistently across all environments:
+- pdf-renderer: 3001
+- invoice-extractor: 3002
+- invoice-classifier: 3003
+
+The classifier mounts `./ml-models` as a read-only volume, matching the GCS FUSE mount in production.
 
 ## Updating Sidecar Images in Production
 

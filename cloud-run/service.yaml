@@ -12,7 +12,8 @@ spec:
       annotations:
         autoscaling.knative.dev/minScale: "0"
         autoscaling.knative.dev/maxScale: "3"
-        run.googleapis.com/container-dependencies: '{"ksef-hub":["pdf-renderer","invoice-extractor"]}'
+        run.googleapis.com/execution-environment: gen2
+        run.googleapis.com/container-dependencies: '{"ksef-hub":["pdf-renderer","invoice-extractor","invoice-classifier"]}'
         run.googleapis.com/startup-cpu-boost: "true"
     spec:
       containerConcurrency: 80
@@ -100,6 +101,11 @@ spec:
                 secretKeyRef:
                   key: latest
                   name: invoice-extractor-api-token
+            - name: INVOICE_CLASSIFIER_API_TOKEN
+              valueFrom:
+                secretKeyRef:
+                  key: latest
+                  name: invoice-classifier-api-token
 
         # --- Invoice extractor sidecar (PDF → structured JSON) ---
         - name: invoice-extractor
@@ -117,6 +123,8 @@ spec:
                 secretKeyRef:
                   key: latest
                   name: anthropic-api-key
+            - name: ANTHROPIC_MODEL
+              value: "claude-sonnet-4-5-20250929"
           resources:
             limits:
               memory: 256Mi
@@ -143,3 +151,43 @@ spec:
             initialDelaySeconds: 3
             periodSeconds: 3
             failureThreshold: 5
+
+        # --- Invoice classifier sidecar (LightGBM category/tag prediction) ---
+        - name: invoice-classifier
+          image: europe-west1-docker.pkg.dev/au-ksef-ex/ksef-hub/invoice-classifier:latest
+          env:
+            - name: PORT
+              value: "3003"
+            - name: API_TOKEN
+              valueFrom:
+                secretKeyRef:
+                  key: latest
+                  name: invoice-classifier-api-token
+          resources:
+            limits:
+              memory: 1Gi
+              cpu: "1"
+          startupProbe:
+            httpGet:
+              path: /health
+              port: 3003
+            initialDelaySeconds: 5
+            periodSeconds: 5
+            failureThreshold: 10
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: 3003
+            periodSeconds: 30
+            failureThreshold: 3
+          volumeMounts:
+            - name: ml-models
+              mountPath: /app/models
+              readOnly: true
+      volumes:
+        - name: ml-models
+          csi:
+            driver: gcsfuse.run.googleapis.com
+            readOnly: true
+            volumeAttributes:
+              bucketName: au-ksef-ex-ml-models

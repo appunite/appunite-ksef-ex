@@ -853,6 +853,18 @@ defmodule KsefHubWeb.InvoiceLive.Show do
                       {format_datetime(@invoice.ksef_acquisition_date)}
                     </td>
                   </tr>
+                  <tr class="border-b border-base-300/50">
+                    <td class="py-1.5 pr-3 text-base-content/60 whitespace-nowrap">Created</td>
+                    <td class="py-1.5 text-right text-xs">
+                      {format_datetime(@invoice.inserted_at)}
+                    </td>
+                  </tr>
+                  <tr :if={NaiveDateTime.compare(@invoice.updated_at, @invoice.inserted_at) != :eq}>
+                    <td class="py-1.5 pr-3 text-base-content/60 whitespace-nowrap">Updated</td>
+                    <td class="py-1.5 text-right text-xs">
+                      {format_datetime(@invoice.updated_at)}
+                    </td>
+                  </tr>
                 </tbody>
               </table>
             <% end %>
