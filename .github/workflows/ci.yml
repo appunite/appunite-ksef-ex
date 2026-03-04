@@ -127,15 +127,6 @@ jobs:
           docker push "${KSEF_PDF_IMAGE}:${{ github.sha }}"
           docker push "${KSEF_PDF_IMAGE}:latest"
 
-      - name: Mirror invoice-classifier image to Artifact Registry
-        env:
-          CLASSIFIER_IMAGE: europe-west1-docker.pkg.dev/au-ksef-ex/ksef-hub/invoice-classifier
-        run: |
-          docker pull --platform linux/amd64 ghcr.io/appunite/au-payroll-model-categories:latest
-          docker tag ghcr.io/appunite/au-payroll-model-categories:latest \
-            "${CLASSIFIER_IMAGE}:latest"
-          docker push "${CLASSIFIER_IMAGE}:latest"
-
       - name: Run database migrations
         run: |
           MIGRATE_ARGS=(
