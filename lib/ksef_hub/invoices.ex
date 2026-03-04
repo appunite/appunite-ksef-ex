@@ -1378,23 +1378,7 @@ defmodule KsefHub.Invoices do
         where(q, [i], i.buyer_nip == ^nip)
 
       {:query, search}, q when is_binary(search) and search != "" ->
-        escaped =
-          search
-          |> String.replace("\\", "\\\\")
-          |> String.replace("%", "\\%")
-          |> String.replace("_", "\\_")
-
-        pattern = "%" <> escaped <> "%"
-
-        where(
-          q,
-          [i],
-          fragment("? ILIKE ? ESCAPE '\\'", i.invoice_number, ^pattern) or
-            fragment("? ILIKE ? ESCAPE '\\'", i.seller_name, ^pattern) or
-            fragment("? ILIKE ? ESCAPE '\\'", i.buyer_name, ^pattern) or
-            fragment("? ILIKE ? ESCAPE '\\'", i.purchase_order, ^pattern) or
-            fragment("? ILIKE ? ESCAPE '\\'", i.iban, ^pattern)
-        )
+        apply_text_search(q, search)
 
       {:source, source}, q when source in [:ksef, :manual, :pdf_upload, :email] ->
         where(q, [i], i.source == ^source)
@@ -1411,6 +1395,27 @@ defmodule KsefHub.Invoices do
       _, q ->
         q
     end)
+  end
+
+  @spec apply_text_search(Ecto.Queryable.t(), String.t()) :: Ecto.Query.t()
+  defp apply_text_search(query, search) do
+    escaped =
+      search
+      |> String.replace("\\", "\\\\")
+      |> String.replace("%", "\\%")
+      |> String.replace("_", "\\_")
+
+    pattern = "%" <> escaped <> "%"
+
+    where(
+      query,
+      [i],
+      fragment("? ILIKE ? ESCAPE '\\'", i.invoice_number, ^pattern) or
+        fragment("? ILIKE ? ESCAPE '\\'", i.seller_name, ^pattern) or
+        fragment("? ILIKE ? ESCAPE '\\'", i.buyer_name, ^pattern) or
+        fragment("? ILIKE ? ESCAPE '\\'", i.purchase_order, ^pattern) or
+        fragment("? ILIKE ? ESCAPE '\\'", i.iban, ^pattern)
+    )
   end
 
   @spec extract_pagination(map()) :: {pos_integer(), pos_integer()}
