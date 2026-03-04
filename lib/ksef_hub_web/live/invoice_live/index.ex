@@ -330,10 +330,11 @@ defmodule KsefHubWeb.InvoiceLive.Index do
         </:col>
         <:col :let={inv} label="Seller">
           <.link navigate={~p"/c/#{@current_company.id}/invoices/#{inv.id}"} class="link link-primary">
-            {if(String.trim(inv.seller_name || "") != "",
-              do: inv.seller_name,
-              else: inv.invoice_number || "Untitled invoice"
-            )}
+            {cond do
+              String.trim(inv.seller_name || "") != "" -> inv.seller_name
+              String.trim(inv.invoice_number || "") != "" -> inv.invoice_number
+              true -> "Untitled invoice"
+            end}
           </.link>
         </:col>
         <:col :let={inv} label="Gross" class="w-36 text-right">
