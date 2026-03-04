@@ -47,6 +47,11 @@ defmodule KsefHub.Invoices.Invoice do
     field :original_filename, :string
     field :note, :string
     field :purchase_order, :string
+    field :sales_date, :date
+    field :due_date, :date
+    field :iban, :string
+    field :seller_address, :map
+    field :buyer_address, :map
 
     belongs_to :company, KsefHub.Companies.Company
     belongs_to :duplicate_of, __MODULE__
@@ -97,12 +102,18 @@ defmodule KsefHub.Invoices.Invoice do
       :permanent_storage_date,
       :extraction_status,
       :original_filename,
-      :purchase_order
+      :purchase_order,
+      :sales_date,
+      :due_date,
+      :iban,
+      :seller_address,
+      :buyer_address
     ])
     |> validate_required([:type, :company_id])
     |> validate_nip_fields()
     |> validate_length(:original_filename, max: 255)
     |> validate_length(:purchase_order, max: 256)
+    |> validate_length(:iban, max: 34)
     |> validate_source_requirements()
     |> foreign_key_constraint(:company_id)
     |> foreign_key_constraint(:duplicate_of_id)
@@ -132,6 +143,8 @@ defmodule KsefHub.Invoices.Invoice do
   @all_edit_fields [
     :invoice_number,
     :issue_date,
+    :sales_date,
+    :due_date,
     :seller_nip,
     :seller_name,
     :buyer_nip,
@@ -139,7 +152,8 @@ defmodule KsefHub.Invoices.Invoice do
     :net_amount,
     :gross_amount,
     :currency,
-    :purchase_order
+    :purchase_order,
+    :iban
   ]
 
   @doc "Builds a changeset for manual field edits on the show page. Excludes company-side fields based on invoice type."
@@ -151,6 +165,7 @@ defmodule KsefHub.Invoices.Invoice do
     |> validate_number(:net_amount, greater_than_or_equal_to: 0)
     |> validate_number(:gross_amount, greater_than_or_equal_to: 0)
     |> validate_length(:purchase_order, max: 256)
+    |> validate_length(:iban, max: 34)
   end
 
   @doc "Returns the company-owned fields that should not be user-editable for a given invoice type."
