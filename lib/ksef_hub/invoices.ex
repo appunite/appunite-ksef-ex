@@ -34,7 +34,7 @@ defmodule KsefHub.Invoices do
     * `:seller_nip` - filter by seller NIP
     * `:buyer_nip` - filter by buyer NIP
     * `:source` - `:ksef`, `:manual`, or `:pdf_upload`
-    * `:query` - search across invoice_number, seller_name, buyer_name, purchase_order
+    * `:query` - search across invoice_number, seller_name, buyer_name, purchase_order, iban
     * `:page` - page number (1-based, default 1)
     * `:per_page` - results per page (default 25, max 100)
   """
@@ -206,6 +206,11 @@ defmodule KsefHub.Invoices do
     :permanent_storage_date,
     :extraction_status,
     :purchase_order,
+    :sales_date,
+    :due_date,
+    :iban,
+    :seller_address,
+    :buyer_address,
     :updated_at
   ]
 
@@ -701,8 +706,29 @@ defmodule KsefHub.Invoices do
       gross_amount: get_extracted_decimal(extracted, "gross_amount"),
       currency: get_extracted_string(extracted, "currency"),
       ksef_number: get_extracted_string(extracted, "ksef_number"),
-      purchase_order: get_extracted_string(extracted, "purchase_order")
+      purchase_order: get_extracted_string(extracted, "purchase_order"),
+      sales_date: get_extracted_date(extracted, "sales_date"),
+      due_date: get_extracted_date(extracted, "due_date"),
+      iban: get_extracted_string(extracted, "iban"),
+      seller_address: get_extracted_address(extracted, "seller_address"),
+      buyer_address: get_extracted_address(extracted, "buyer_address")
     }
+  end
+
+  @spec get_extracted_address(map(), String.t()) :: map() | nil
+  defp get_extracted_address(data, key) do
+    case data[key] do
+      %{} = addr ->
+        cleaned =
+          addr
+          |> Enum.reject(fn {_k, v} -> is_nil(v) or v == "" end)
+          |> Map.new()
+
+        if map_size(cleaned) == 0, do: nil, else: addr
+
+      _ ->
+        nil
+    end
   end
 
   @spec get_extracted_string(map(), String.t()) :: String.t() | nil
@@ -1366,7 +1392,8 @@ defmodule KsefHub.Invoices do
           fragment("? ILIKE ? ESCAPE '\\'", i.invoice_number, ^pattern) or
             fragment("? ILIKE ? ESCAPE '\\'", i.seller_name, ^pattern) or
             fragment("? ILIKE ? ESCAPE '\\'", i.buyer_name, ^pattern) or
-            fragment("? ILIKE ? ESCAPE '\\'", i.purchase_order, ^pattern)
+            fragment("? ILIKE ? ESCAPE '\\'", i.purchase_order, ^pattern) or
+            fragment("? ILIKE ? ESCAPE '\\'", i.iban, ^pattern)
         )
 
       {:source, source}, q when source in [:ksef, :manual, :pdf_upload, :email] ->
