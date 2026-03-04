@@ -74,19 +74,15 @@ defmodule KsefHub.Invoices.Parser do
     end
   end
 
-  @po_key_substrings ~w(zamowien zamówien purchase order)
+  @po_key_substrings ~w(zamowien zamówien purchase order.number)
   @po_key_regex ~r/\bpo\b/i
   @po_value_regex ~r/(?:PO|P\.O\.|Purchase\s*Order)[:#\s]*\s*(\S+)/i
 
   @spec extract_purchase_order(term()) :: String.t() | nil
   defp extract_purchase_order(doc) do
-    nr_zamowienia =
-      xpath(doc, ~x"//*[local-name()='Fa']//*[local-name()='NrZamowienia']/text()"s)
-
-    if nr_zamowienia != "" do
-      nr_zamowienia
-    else
-      extract_po_from_dodatkowy_opis(doc)
+    case xpath(doc, ~x"//*[local-name()='Fa']//*[local-name()='NrZamowienia']/text()"s) do
+      "" -> extract_po_from_dodatkowy_opis(doc)
+      nr_zamowienia -> nr_zamowienia
     end
   end
 
