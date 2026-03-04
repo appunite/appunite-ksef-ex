@@ -1990,4 +1990,65 @@ defmodule KsefHub.InvoicesTest do
       assert Invoice.format_address(addr) == ""
     end
   end
+
+  describe "edit_changeset/2 address normalization" do
+    test "accepts valid address map" do
+      invoice = %Invoice{type: :expense, source: :pdf_upload}
+
+      changeset =
+        Invoice.edit_changeset(invoice, %{
+          seller_address: %{"street" => "ul. Nowa 5", "city" => "Kraków"}
+        })
+
+      assert changeset.valid?
+      assert changeset.changes[:seller_address] == %{"street" => "ul. Nowa 5", "city" => "Kraków"}
+    end
+
+    test "normalizes all-blank address to nil" do
+      invoice = %Invoice{type: :expense, source: :pdf_upload}
+
+      changeset =
+        Invoice.edit_changeset(invoice, %{
+          seller_address: %{"street" => "", "city" => "", "postal_code" => "", "country" => ""}
+        })
+
+      assert changeset.valid?
+      assert changeset.changes[:seller_address] == nil
+    end
+
+    test "keeps partial address (some sub-fields blank)" do
+      invoice = %Invoice{type: :expense, source: :pdf_upload}
+
+      changeset =
+        Invoice.edit_changeset(invoice, %{
+          buyer_address: %{
+            "street" => "ul. Nowa 5",
+            "city" => "",
+            "postal_code" => "",
+            "country" => ""
+          }
+        })
+
+      assert changeset.valid?
+
+      assert changeset.changes[:buyer_address] == %{
+               "street" => "ul. Nowa 5",
+               "city" => "",
+               "postal_code" => "",
+               "country" => ""
+             }
+    end
+
+    test "normalizes nil-only address map to nil" do
+      invoice = %Invoice{type: :expense, source: :pdf_upload}
+
+      changeset =
+        Invoice.edit_changeset(invoice, %{
+          seller_address: %{"street" => nil, "city" => nil}
+        })
+
+      assert changeset.valid?
+      assert changeset.changes[:seller_address] == nil
+    end
+  end
 end

@@ -712,6 +712,40 @@ defmodule KsefHubWeb.InvoiceLive.ShowTest do
       updated = Invoices.get_invoice!(company.id, invoice.id)
       assert is_nil(updated.seller_address)
     end
+
+    test "saving buyer_address persists and pre-fills correctly", %{
+      conn: conn,
+      company: company
+    } do
+      invoice = insert(:pdf_upload_invoice, company: company)
+
+      {:ok, view, _html} = live(conn, ~p"/c/#{company.id}/invoices/#{invoice.id}")
+      view |> element("button", "Edit") |> render_click()
+
+      view
+      |> form("form[phx-submit=save_edit]", %{
+        "invoice" => %{
+          "buyer_address" => %{
+            "street" => "ul. Kupna 10",
+            "city" => "Gdańsk",
+            "postal_code" => "80-001",
+            "country" => "PL"
+          }
+        }
+      })
+      |> render_submit()
+
+      updated = Invoices.get_invoice!(company.id, invoice.id)
+      assert updated.buyer_address["street"] == "ul. Kupna 10"
+      assert updated.buyer_address["city"] == "Gdańsk"
+
+      # Re-open edit form and verify pre-fill
+      {:ok, view, _html} = live(conn, ~p"/c/#{company.id}/invoices/#{invoice.id}")
+      view |> element("button", "Edit") |> render_click()
+
+      assert has_element?(view, "input#edit-buyer-address-street[value='ul. Kupna 10']")
+      assert has_element?(view, "input#edit-buyer-address-city[value='Gdańsk']")
+    end
   end
 
   describe "reviewer role" do
