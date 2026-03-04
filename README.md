@@ -23,11 +23,11 @@ Embedding KSeF complexity (certificate auth, XADES signing, XML parsing, rate li
 
 ### Sidecar Services
 
-| Service | Image | Purpose |
-|---------|-------|---------|
-| **pdf-renderer** | `ghcr.io/appunite/ksef-pdf` | FA(3) XML → PDF/HTML rendering |
-| **invoice-extractor** | `ghcr.io/appunite/au-ksef-unstructured` | PDF → structured invoice data extraction |
-| **invoice-classifier** | `ghcr.io/appunite/au-payroll-model-categories` | ML-based category/tag classification |
+| Service | Image | Repository | Purpose |
+|---------|-------|------------|---------|
+| **pdf-renderer** | `ghcr.io/appunite/ksef-pdf` | [ksef-pdf-generator](https://github.com/appunite/ksef-pdf-generator) | FA(3) XML → PDF/HTML rendering |
+| **invoice-extractor** | `ghcr.io/appunite/au-ksef-unstructured` | [au-ksef-unstructured](https://github.com/appunite/au-ksef-unstructured) | PDF → structured invoice data extraction |
+| **invoice-classifier** | `ghcr.io/appunite/au-payroll-model-categories` | [au-payroll-model-categories](https://github.com/appunite/au-payroll-model-categories) | ML-based category/tag classification |
 
 See [`docs/sidecar-services.md`](docs/sidecar-services.md) for integration details.
 

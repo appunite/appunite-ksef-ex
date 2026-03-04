@@ -760,6 +760,13 @@ defmodule KsefHubWeb.InvoiceLive.Show do
                     <td class="py-1.5 text-right">
                       <div>{@invoice.buyer_name}</div>
                       <div class="text-xs text-base-content/50">{@invoice.buyer_nip}</div>
+                      <div
+                        :if={format_address(@invoice.buyer_address) != ""}
+                        class="text-xs text-base-content/50"
+                        data-testid="buyer-address"
+                      >
+                        {format_address(@invoice.buyer_address)}
+                      </div>
                     </td>
                   </tr>
                   <tr class="border-b border-base-300/50">
@@ -767,6 +774,13 @@ defmodule KsefHubWeb.InvoiceLive.Show do
                     <td class="py-1.5 text-right">
                       <div>{@invoice.seller_name}</div>
                       <div class="text-xs text-base-content/50">{@invoice.seller_nip}</div>
+                      <div
+                        :if={format_address(@invoice.seller_address) != ""}
+                        class="text-xs text-base-content/50"
+                        data-testid="seller-address"
+                      >
+                        {format_address(@invoice.seller_address)}
+                      </div>
                     </td>
                   </tr>
                   <tr class="border-b border-base-300/50">
@@ -776,6 +790,22 @@ defmodule KsefHubWeb.InvoiceLive.Show do
                   <tr class="border-b border-base-300/50">
                     <td class="py-1.5 pr-3 text-base-content/60">Date</td>
                     <td class="py-1.5 text-right">{format_date(@invoice.issue_date)}</td>
+                  </tr>
+                  <tr
+                    :if={@invoice.sales_date}
+                    class="border-b border-base-300/50"
+                    data-testid="sales-date"
+                  >
+                    <td class="py-1.5 pr-3 text-base-content/60 whitespace-nowrap">Sales Date</td>
+                    <td class="py-1.5 text-right">{format_date(@invoice.sales_date)}</td>
+                  </tr>
+                  <tr
+                    :if={@invoice.due_date}
+                    class="border-b border-base-300/50"
+                    data-testid="due-date"
+                  >
+                    <td class="py-1.5 pr-3 text-base-content/60 whitespace-nowrap">Due Date</td>
+                    <td class="py-1.5 text-right">{format_date(@invoice.due_date)}</td>
                   </tr>
                   <tr class={[
                     "border-b border-base-300/50",
@@ -805,6 +835,16 @@ defmodule KsefHubWeb.InvoiceLive.Show do
                     <td class="py-1.5 pr-3 text-base-content/60 whitespace-nowrap">PO</td>
                     <td class="py-1.5 text-right font-mono text-sm break-all">
                       {@invoice.purchase_order}
+                    </td>
+                  </tr>
+                  <tr
+                    :if={@invoice.iban}
+                    class="border-b border-base-300/50"
+                    data-testid="iban"
+                  >
+                    <td class="py-1.5 pr-3 text-base-content/60 whitespace-nowrap">IBAN</td>
+                    <td class="py-1.5 text-right font-mono text-xs break-all">
+                      {@invoice.iban}
                     </td>
                   </tr>
                   <tr :if={@invoice.ksef_acquisition_date}>
@@ -1114,7 +1154,7 @@ defmodule KsefHubWeb.InvoiceLive.Show do
 
       <div class="divider text-xs my-1">Invoice</div>
 
-      <div class="grid grid-cols-2 gap-3">
+      <div class="grid grid-cols-3 gap-3">
         <div class="form-control">
           <label for="edit-invoice-number" class="label">
             <span class="label-text text-xs">Invoice Number</span>
@@ -1142,6 +1182,34 @@ defmodule KsefHubWeb.InvoiceLive.Show do
           />
           <.field_error errors={@edit_form[:issue_date].errors} />
         </div>
+
+        <div class="form-control">
+          <label for="edit-sales-date" class="label">
+            <span class="label-text text-xs">Sales Date</span>
+          </label>
+          <input
+            type="date"
+            id="edit-sales-date"
+            name={@edit_form[:sales_date].name}
+            value={@edit_form[:sales_date].value}
+            class="input input-sm input-bordered w-full"
+          />
+          <.field_error errors={@edit_form[:sales_date].errors} />
+        </div>
+      </div>
+
+      <div class="form-control">
+        <label for="edit-due-date" class="label">
+          <span class="label-text text-xs">Due Date</span>
+        </label>
+        <input
+          type="date"
+          id="edit-due-date"
+          name={@edit_form[:due_date].name}
+          value={@edit_form[:due_date].value}
+          class="input input-sm input-bordered w-full"
+        />
+        <.field_error errors={@edit_form[:due_date].errors} />
       </div>
 
       <.amount_fields edit_form={@edit_form} />
@@ -1162,6 +1230,25 @@ defmodule KsefHubWeb.InvoiceLive.Show do
         <.field_error errors={@edit_form[:purchase_order].errors} />
       </div>
 
+      <div class="form-control mt-3">
+        <label for="edit-iban" class="label">
+          <span class="label-text text-xs">IBAN</span>
+        </label>
+        <input
+          type="text"
+          id="edit-iban"
+          name={@edit_form[:iban].name}
+          value={@edit_form[:iban].value}
+          class="input input-sm input-bordered w-full font-mono"
+          maxlength="34"
+          placeholder="e.g. PL61109010140000071219812874"
+        />
+        <.field_error errors={@edit_form[:iban].errors} />
+      </div>
+
+      <.address_fields edit_form={@edit_form} field={:seller_address} label="Seller Address" />
+      <.address_fields edit_form={@edit_form} field={:buyer_address} label="Buyer Address" />
+
       <div class="flex gap-2 pt-2">
         <button type="submit" class="btn btn-sm btn-primary">Save</button>
         <button type="button" phx-click="cancel_edit" class="btn btn-sm btn-ghost">
@@ -1171,6 +1258,86 @@ defmodule KsefHubWeb.InvoiceLive.Show do
     </.form>
     """
   end
+
+  attr :edit_form, :map, required: true
+  attr :field, :atom, required: true
+  attr :label, :string, required: true
+
+  @spec address_fields(map()) :: Phoenix.LiveView.Rendered.t()
+  defp address_fields(assigns) do
+    addr = assigns.edit_form[assigns.field].value |> stringify_keys()
+    prefix = "invoice[#{assigns.field}]"
+
+    assigns =
+      assign(assigns,
+        addr: addr,
+        prefix: prefix,
+        field_id: assigns.field |> Atom.to_string() |> String.replace("_", "-")
+      )
+
+    ~H"""
+    <div class="divider text-xs my-1">{@label}</div>
+
+    <div class="form-control">
+      <label for={"edit-#{@field_id}-street"} class="label">
+        <span class="label-text text-xs">Street</span>
+      </label>
+      <input
+        type="text"
+        id={"edit-#{@field_id}-street"}
+        name={"#{@prefix}[street]"}
+        value={@addr["street"]}
+        class="input input-sm input-bordered w-full"
+      />
+    </div>
+
+    <div class="grid grid-cols-2 gap-3">
+      <div class="form-control">
+        <label for={"edit-#{@field_id}-city"} class="label">
+          <span class="label-text text-xs">City</span>
+        </label>
+        <input
+          type="text"
+          id={"edit-#{@field_id}-city"}
+          name={"#{@prefix}[city]"}
+          value={@addr["city"]}
+          class="input input-sm input-bordered w-full"
+        />
+      </div>
+
+      <div class="form-control">
+        <label for={"edit-#{@field_id}-postal-code"} class="label">
+          <span class="label-text text-xs">Postal Code</span>
+        </label>
+        <input
+          type="text"
+          id={"edit-#{@field_id}-postal-code"}
+          name={"#{@prefix}[postal_code]"}
+          value={@addr["postal_code"]}
+          class="input input-sm input-bordered w-full"
+        />
+      </div>
+    </div>
+
+    <div class="form-control">
+      <label for={"edit-#{@field_id}-country"} class="label">
+        <span class="label-text text-xs">Country</span>
+      </label>
+      <input
+        type="text"
+        id={"edit-#{@field_id}-country"}
+        name={"#{@prefix}[country]"}
+        value={@addr["country"]}
+        class="input input-sm input-bordered w-full"
+        maxlength="10"
+      />
+    </div>
+    """
+  end
+
+  @spec stringify_keys(map() | nil) :: map()
+  defp stringify_keys(nil), do: %{}
+  defp stringify_keys(map), do: Map.new(map, fn {k, v} -> {to_string(k), v} end)
 
   attr :edit_form, :map, required: true
   attr :readonly, :boolean, default: false

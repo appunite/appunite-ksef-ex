@@ -47,6 +47,11 @@ defmodule KsefHub.Invoices.Invoice do
     field :original_filename, :string
     field :note, :string
     field :purchase_order, :string
+    field :sales_date, :date
+    field :due_date, :date
+    field :iban, :string
+    field :seller_address, :map
+    field :buyer_address, :map
 
     belongs_to :company, KsefHub.Companies.Company
     belongs_to :duplicate_of, __MODULE__
@@ -73,6 +78,20 @@ defmodule KsefHub.Invoices.Invoice do
   @spec sources() :: [invoice_source()]
   def sources, do: Ecto.Enum.values(__MODULE__, :source)
 
+  @address_field_atoms ~w(street city postal_code country)a
+  @address_field_strings Enum.map(@address_field_atoms, &Atom.to_string/1)
+
+  @doc "Formats an address map as a comma-separated string. Handles both atom and string keys (JSONB round-trip returns strings)."
+  @spec format_address(map() | nil) :: String.t()
+  def format_address(nil), do: ""
+
+  def format_address(addr) when is_map(addr) do
+    Enum.zip(@address_field_atoms, @address_field_strings)
+    |> Enum.map(fn {atom_key, str_key} -> addr[atom_key] || addr[str_key] end)
+    |> Enum.reject(&blank_value?/1)
+    |> Enum.map_join(", ", &String.trim/1)
+  end
+
   @doc "Builds a changeset for invoice creation/update."
   @spec changeset(t() | Ecto.Changeset.t(), map()) :: Ecto.Changeset.t()
   def changeset(invoice, attrs) do
@@ -97,12 +116,19 @@ defmodule KsefHub.Invoices.Invoice do
       :permanent_storage_date,
       :extraction_status,
       :original_filename,
-      :purchase_order
+      :purchase_order,
+      :sales_date,
+      :due_date,
+      :iban,
+      :seller_address,
+      :buyer_address
     ])
     |> validate_required([:type, :company_id])
     |> validate_nip_fields()
     |> validate_length(:original_filename, max: 255)
     |> validate_length(:purchase_order, max: 256)
+    |> validate_length(:iban, min: 15, max: 34)
+    |> normalize_address_fields()
     |> validate_source_requirements()
     |> foreign_key_constraint(:company_id)
     |> foreign_key_constraint(:duplicate_of_id)
@@ -132,6 +158,8 @@ defmodule KsefHub.Invoices.Invoice do
   @all_edit_fields [
     :invoice_number,
     :issue_date,
+    :sales_date,
+    :due_date,
     :seller_nip,
     :seller_name,
     :buyer_nip,
@@ -139,7 +167,10 @@ defmodule KsefHub.Invoices.Invoice do
     :net_amount,
     :gross_amount,
     :currency,
-    :purchase_order
+    :purchase_order,
+    :iban,
+    :seller_address,
+    :buyer_address
   ]
 
   @doc "Builds a changeset for manual field edits on the show page. Excludes company-side fields based on invoice type."
@@ -151,6 +182,8 @@ defmodule KsefHub.Invoices.Invoice do
     |> validate_number(:net_amount, greater_than_or_equal_to: 0)
     |> validate_number(:gross_amount, greater_than_or_equal_to: 0)
     |> validate_length(:purchase_order, max: 256)
+    |> validate_length(:iban, min: 15, max: 34)
+    |> normalize_address_fields()
   end
 
   @doc "Returns the company-owned fields that should not be user-editable for a given invoice type."
@@ -238,4 +271,30 @@ defmodule KsefHub.Invoices.Invoice do
         changeset
     end
   end
+
+  @spec normalize_address_fields(Ecto.Changeset.t()) :: Ecto.Changeset.t()
+  defp normalize_address_fields(changeset) do
+    Enum.reduce([:seller_address, :buyer_address], changeset, &maybe_nil_blank_address/2)
+  end
+
+  @spec maybe_nil_blank_address(atom(), Ecto.Changeset.t()) :: Ecto.Changeset.t()
+  defp maybe_nil_blank_address(field, changeset) do
+    case get_change(changeset, field) do
+      %{} = addr ->
+        if address_blank?(addr), do: put_change(changeset, field, nil), else: changeset
+
+      _ ->
+        changeset
+    end
+  end
+
+  @spec address_blank?(map()) :: boolean()
+  defp address_blank?(addr) do
+    addr |> Map.values() |> Enum.all?(&blank_value?/1)
+  end
+
+  @spec blank_value?(term()) :: boolean()
+  defp blank_value?(nil), do: true
+  defp blank_value?(v) when is_binary(v), do: String.trim(v) == ""
+  defp blank_value?(_), do: false
 end

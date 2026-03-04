@@ -172,6 +172,62 @@ defmodule KsefHub.Invoices.ParserTest do
       assert {:ok, invoice} = Parser.parse(xml)
       assert invoice.purchase_order == nil
     end
+
+    test "extracts seller and buyer addresses from Adres elements" do
+      xml = File.read!(Path.join(@fixtures_path, "sample_income.xml"))
+
+      assert {:ok, invoice} = Parser.parse(xml)
+
+      assert invoice.seller_address == %{
+               street: "ul. Testowa 1",
+               city: "00-001 Warszawa",
+               postal_code: nil,
+               country: "PL"
+             }
+
+      assert invoice.buyer_address == %{
+               street: "ul. Kupna 5",
+               city: "00-002 Kraków",
+               postal_code: nil,
+               country: "PL"
+             }
+    end
+
+    test "returns nil addresses when Adres elements are absent" do
+      xml = dodatkowy_opis_xml("Notes", "nothing relevant")
+
+      assert {:ok, invoice} = Parser.parse(xml)
+      assert invoice.seller_address == nil
+      assert invoice.buyer_address == nil
+    end
+
+    test "extracts sales_date from P_6" do
+      xml = File.read!(Path.join(@fixtures_path, "sample_income_with_iban.xml"))
+
+      assert {:ok, invoice} = Parser.parse(xml)
+      assert invoice.sales_date == ~D[2025-01-14]
+    end
+
+    test "returns nil sales_date when P_6 is absent" do
+      xml = File.read!(Path.join(@fixtures_path, "sample_income.xml"))
+
+      assert {:ok, invoice} = Parser.parse(xml)
+      assert invoice.sales_date == nil
+    end
+
+    test "extracts iban from Rachunek/NrRB" do
+      xml = File.read!(Path.join(@fixtures_path, "sample_income_with_iban.xml"))
+
+      assert {:ok, invoice} = Parser.parse(xml)
+      assert invoice.iban == "PL61109010140000071219812874"
+    end
+
+    test "returns nil iban when Rachunek is absent" do
+      xml = File.read!(Path.join(@fixtures_path, "sample_income.xml"))
+
+      assert {:ok, invoice} = Parser.parse(xml)
+      assert invoice.iban == nil
+    end
   end
 
   @spec dodatkowy_opis_xml(String.t(), String.t()) :: String.t()

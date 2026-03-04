@@ -72,6 +72,47 @@ defmodule KsefHubWeb.Schemas.Invoice do
         description:
           "Purchase order identifier. Extracted from KSeF XML (NrZamowienia or DodatkowyOpis) or PDF extraction."
       },
+      sales_date: %Schema{
+        type: :string,
+        format: :date,
+        nullable: true,
+        description: "Sales/delivery date (P_6 from FA(3) XML or PDF extraction)."
+      },
+      due_date: %Schema{
+        type: :string,
+        format: :date,
+        nullable: true,
+        description: "Payment due date. PDF-only (not in FA(3) spec)."
+      },
+      iban: %Schema{
+        type: :string,
+        nullable: true,
+        maxLength: 34,
+        description:
+          "Seller's bank account number (IBAN). From KSeF Rachunek/NrRB or PDF extraction."
+      },
+      seller_address: %Schema{
+        type: :object,
+        nullable: true,
+        description: "Seller address extracted from KSeF XML or PDF.",
+        properties: %{
+          street: %Schema{type: :string, nullable: true},
+          city: %Schema{type: :string, nullable: true},
+          postal_code: %Schema{type: :string, nullable: true},
+          country: %Schema{type: :string, nullable: true}
+        }
+      },
+      buyer_address: %Schema{
+        type: :object,
+        nullable: true,
+        description: "Buyer address extracted from KSeF XML or PDF.",
+        properties: %{
+          street: %Schema{type: :string, nullable: true},
+          city: %Schema{type: :string, nullable: true},
+          postal_code: %Schema{type: :string, nullable: true},
+          country: %Schema{type: :string, nullable: true}
+        }
+      },
       category_id: %Schema{
         type: :string,
         format: :uuid,

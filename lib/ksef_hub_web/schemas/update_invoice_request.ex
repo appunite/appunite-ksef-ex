@@ -35,6 +35,24 @@ defmodule KsefHubWeb.Schemas.UpdateInvoiceRequest do
         nullable: true,
         maxLength: 256,
         description: "Purchase order identifier."
+      },
+      sales_date: %Schema{
+        type: :string,
+        format: :date,
+        nullable: true,
+        description: "Sales/delivery date."
+      },
+      due_date: %Schema{
+        type: :string,
+        format: :date,
+        nullable: true,
+        description: "Payment due date."
+      },
+      iban: %Schema{
+        type: :string,
+        nullable: true,
+        maxLength: 34,
+        description: "Seller's bank account number (IBAN)."
       }
     },
     example: %{

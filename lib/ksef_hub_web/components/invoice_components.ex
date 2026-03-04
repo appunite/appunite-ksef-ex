@@ -120,7 +120,7 @@ defmodule KsefHubWeb.InvoiceComponents do
   def extraction_badge(%{status: :partial} = assigns) do
     ~H"""
     <span class="inline-flex items-center px-2 py-0.5 rounded-md text-xs font-medium border bg-warning/10 text-warning border-warning/20">
-      Incomplete
+      incomplete
     </span>
     """
   end
@@ -128,7 +128,7 @@ defmodule KsefHubWeb.InvoiceComponents do
   def extraction_badge(%{status: :failed} = assigns) do
     ~H"""
     <span class="inline-flex items-center px-2 py-0.5 rounded-md text-xs font-medium border bg-error/10 text-error border-error/20">
-      Failed
+      failed
     </span>
     """
   end
@@ -153,4 +153,8 @@ defmodule KsefHubWeb.InvoiceComponents do
   @spec format_datetime(DateTime.t() | NaiveDateTime.t() | nil) :: String.t()
   def format_datetime(nil), do: "-"
   def format_datetime(dt), do: Calendar.strftime(dt, "%Y-%m-%d %H:%M UTC")
+
+  @doc "Formats an address map as a comma-separated string. Delegates to Invoice.format_address/1."
+  @spec format_address(map() | nil) :: String.t()
+  defdelegate format_address(addr), to: KsefHub.Invoices.Invoice
 end

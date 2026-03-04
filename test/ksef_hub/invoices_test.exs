@@ -779,6 +779,53 @@ defmodule KsefHub.InvoicesTest do
       assert {:ok, %Invoice{}} =
                Invoices.create_pdf_upload_invoice(company, "pdf-data", %{type: :expense})
     end
+
+    test "stores addresses, dates, and iban from extraction", %{company: company} do
+      Mox.expect(KsefHub.InvoiceExtractor.Mock, :extract, fn _pdf, _opts ->
+        {:ok,
+         %{
+           "seller_nip" => "1234567890",
+           "seller_name" => "PDF Seller Sp. z o.o.",
+           "buyer_nip" => "0987654321",
+           "buyer_name" => "PDF Buyer S.A.",
+           "invoice_number" => "FV/PDF/ADDR",
+           "issue_date" => "2026-02-20",
+           "sales_date" => "2026-02-15",
+           "due_date" => "2026-03-20",
+           "net_amount" => "1000.00",
+           "gross_amount" => "1230.00",
+           "currency" => "PLN",
+           "iban" => "PL61109010140000071219812874",
+           "seller_address" => %{
+             "street" => "ul. Sprzedawcy 10",
+             "city" => "Warszawa",
+             "postal_code" => "00-001",
+             "country" => "PL"
+           },
+           "buyer_address" => %{
+             "street" => "ul. Kupca 5",
+             "city" => "Kraków",
+             "postal_code" => "30-002",
+             "country" => "PL"
+           }
+         }}
+      end)
+
+      assert {:ok, %Invoice{} = invoice} =
+               Invoices.create_pdf_upload_invoice(company, "pdf-data", %{
+                 type: :expense,
+                 filename: "with_addresses.pdf"
+               })
+
+      assert invoice.sales_date == ~D[2026-02-15]
+      assert invoice.due_date == ~D[2026-03-20]
+      assert invoice.iban == "PL61109010140000071219812874"
+
+      assert invoice.seller_address["street"] == "ul. Sprzedawcy 10"
+      assert invoice.seller_address["postal_code"] == "00-001"
+      assert invoice.buyer_address["city"] == "Kraków"
+      assert invoice.buyer_address["country"] == "PL"
+    end
   end
 
   describe "approve_invoice/1 with extraction_status" do
@@ -1823,8 +1870,7 @@ defmodule KsefHub.InvoicesTest do
       changeset =
         Invoice.edit_changeset(invoice, %{purchase_order: String.duplicate("x", 257)})
 
-      assert {:purchase_order, {"should be at most %{count} character(s)", _}} =
-               hd(changeset.errors)
+      assert {"should be at most %{count} character(s)", _} = changeset.errors[:purchase_order]
     end
 
     test "edit_changeset accepts valid purchase_order" do
@@ -1833,6 +1879,195 @@ defmodule KsefHub.InvoicesTest do
       changeset = Invoice.edit_changeset(invoice, %{purchase_order: "PO-2025-001"})
       assert changeset.valid?
       assert changeset.changes[:purchase_order] == "PO-2025-001"
+    end
+  end
+
+  describe "extraction fields (sales_date, due_date, iban, addresses)" do
+    test "upsert stores provided sales_date, iban, and addresses when passed in attrs", %{
+      company: company
+    } do
+      xml = File.read!("test/support/fixtures/sample_income_with_iban.xml")
+
+      attrs =
+        params_for(:invoice, ksef_number: "iban-upsert-1", company_id: company.id)
+        |> Map.put(:xml_content, xml)
+        |> Map.put(:sales_date, ~D[2025-01-14])
+        |> Map.put(:iban, "PL61109010140000071219812874")
+        |> Map.put(:seller_address, %{
+          street: "ul. Testowa 1",
+          city: "00-001 Warszawa",
+          postal_code: nil,
+          country: "PL"
+        })
+        |> Map.put(:buyer_address, %{
+          street: "ul. Kupna 5",
+          city: "00-002 Kraków",
+          postal_code: nil,
+          country: "PL"
+        })
+
+      assert {:ok, %Invoice{} = invoice, :inserted} = Invoices.upsert_invoice(attrs)
+      assert invoice.sales_date == ~D[2025-01-14]
+      assert invoice.iban == "PL61109010140000071219812874"
+      assert invoice.seller_address["street"] == "ul. Testowa 1"
+      assert invoice.buyer_address["street"] == "ul. Kupna 5"
+    end
+
+    test "update_invoice_fields updates sales_date, due_date, iban", %{company: company} do
+      invoice = insert(:pdf_upload_invoice, company: company)
+
+      attrs = %{
+        "sales_date" => "2025-06-01",
+        "due_date" => "2025-07-01",
+        "iban" => "PL61109010140000071219812874"
+      }
+
+      assert {:ok, updated} = Invoices.update_invoice_fields(invoice, attrs)
+      assert updated.sales_date == ~D[2025-06-01]
+      assert updated.due_date == ~D[2025-07-01]
+      assert updated.iban == "PL61109010140000071219812874"
+    end
+
+    test "search matches iban", %{company: company} do
+      insert(:invoice, iban: "PL61109010140000071219812874", company: company)
+      insert(:invoice, iban: nil, company: company)
+
+      results = Invoices.list_invoices(company.id, %{query: "PL611090"})
+      assert length(results) == 1
+      assert hd(results).iban == "PL61109010140000071219812874"
+    end
+
+    test "edit_changeset validates iban max length" do
+      invoice = %Invoice{type: :expense, source: :pdf_upload}
+
+      changeset = Invoice.edit_changeset(invoice, %{iban: String.duplicate("X", 35)})
+
+      assert {"should be at most %{count} character(s)", _} = changeset.errors[:iban]
+    end
+
+    test "edit_changeset validates iban min length" do
+      invoice = %Invoice{type: :expense, source: :pdf_upload}
+
+      changeset = Invoice.edit_changeset(invoice, %{iban: "PL6110901014"})
+
+      assert {"should be at least %{count} character(s)", _} = changeset.errors[:iban]
+    end
+
+    test "edit_changeset accepts valid iban" do
+      invoice = %Invoice{type: :expense, source: :pdf_upload}
+
+      changeset = Invoice.edit_changeset(invoice, %{iban: "PL61109010140000071219812874"})
+      assert changeset.valid?
+      assert changeset.changes[:iban] == "PL61109010140000071219812874"
+    end
+  end
+
+  describe "Invoice.format_address/1" do
+    test "formats atom-keyed address map" do
+      addr = %{street: "ul. Testowa 1", city: "Warszawa", postal_code: "00-001", country: "PL"}
+      assert Invoice.format_address(addr) == "ul. Testowa 1, Warszawa, 00-001, PL"
+    end
+
+    test "formats string-keyed address map (JSONB round-trip)" do
+      addr = %{"street" => "ul. Testowa 1", "city" => "Warszawa", "country" => "PL"}
+      assert Invoice.format_address(addr) == "ul. Testowa 1, Warszawa, PL"
+    end
+
+    test "skips nil and empty values" do
+      addr = %{street: "ul. Testowa 1", city: nil, postal_code: "", country: "PL"}
+      assert Invoice.format_address(addr) == "ul. Testowa 1, PL"
+    end
+
+    test "skips whitespace-only values and trims others" do
+      addr = %{street: " ul. Testowa 1 ", city: "   ", postal_code: nil, country: "PL"}
+      assert Invoice.format_address(addr) == "ul. Testowa 1, PL"
+    end
+
+    test "returns empty string for nil" do
+      assert Invoice.format_address(nil) == ""
+    end
+
+    test "returns empty string when all values nil" do
+      addr = %{street: nil, city: nil, postal_code: nil, country: nil}
+      assert Invoice.format_address(addr) == ""
+    end
+  end
+
+  describe "edit_changeset/2 address normalization" do
+    test "accepts valid address map" do
+      invoice = %Invoice{type: :expense, source: :pdf_upload}
+
+      changeset =
+        Invoice.edit_changeset(invoice, %{
+          seller_address: %{"street" => "ul. Nowa 5", "city" => "Kraków"}
+        })
+
+      assert changeset.valid?
+      assert changeset.changes[:seller_address] == %{"street" => "ul. Nowa 5", "city" => "Kraków"}
+    end
+
+    test "normalizes all-blank address to nil" do
+      invoice = %Invoice{type: :expense, source: :pdf_upload}
+
+      changeset =
+        Invoice.edit_changeset(invoice, %{
+          seller_address: %{"street" => "", "city" => "", "postal_code" => "", "country" => ""}
+        })
+
+      assert changeset.valid?
+      assert changeset.changes[:seller_address] == nil
+    end
+
+    test "keeps partial address (some sub-fields blank)" do
+      invoice = %Invoice{type: :expense, source: :pdf_upload}
+
+      changeset =
+        Invoice.edit_changeset(invoice, %{
+          buyer_address: %{
+            "street" => "ul. Nowa 5",
+            "city" => "",
+            "postal_code" => "",
+            "country" => ""
+          }
+        })
+
+      assert changeset.valid?
+
+      assert changeset.changes[:buyer_address] == %{
+               "street" => "ul. Nowa 5",
+               "city" => "",
+               "postal_code" => "",
+               "country" => ""
+             }
+    end
+
+    test "normalizes nil-only address map to nil" do
+      invoice = %Invoice{type: :expense, source: :pdf_upload}
+
+      changeset =
+        Invoice.edit_changeset(invoice, %{
+          seller_address: %{"street" => nil, "city" => nil}
+        })
+
+      assert changeset.valid?
+      assert changeset.changes[:seller_address] == nil
+    end
+
+    test "normalizes whitespace-only address to nil" do
+      invoice = %Invoice{type: :expense, source: :pdf_upload}
+
+      changeset =
+        Invoice.edit_changeset(invoice, %{
+          seller_address: %{
+            "street" => "   ",
+            "city" => " ",
+            "postal_code" => "",
+            "country" => nil
+          }
+        })
+
+      assert changeset.valid?
+      assert changeset.changes[:seller_address] == nil
     end
   end
 end
