@@ -289,6 +289,11 @@ defmodule KsefHub.Invoices.Invoice do
 
   @spec address_blank?(map()) :: boolean()
   defp address_blank?(addr) do
-    addr |> Map.values() |> Enum.all?(&(is_nil(&1) or &1 == ""))
+    addr |> Map.values() |> Enum.all?(&blank_value?/1)
   end
+
+  @spec blank_value?(term()) :: boolean()
+  defp blank_value?(nil), do: true
+  defp blank_value?(v) when is_binary(v), do: String.trim(v) == ""
+  defp blank_value?(_), do: false
 end

@@ -2050,5 +2050,22 @@ defmodule KsefHub.InvoicesTest do
       assert changeset.valid?
       assert changeset.changes[:seller_address] == nil
     end
+
+    test "normalizes whitespace-only address to nil" do
+      invoice = %Invoice{type: :expense, source: :pdf_upload}
+
+      changeset =
+        Invoice.edit_changeset(invoice, %{
+          seller_address: %{
+            "street" => "   ",
+            "city" => " ",
+            "postal_code" => "",
+            "country" => nil
+          }
+        })
+
+      assert changeset.valid?
+      assert changeset.changes[:seller_address] == nil
+    end
   end
 end
