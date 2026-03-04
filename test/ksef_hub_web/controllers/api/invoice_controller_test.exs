@@ -1120,6 +1120,95 @@ defmodule KsefHubWeb.Api.InvoiceControllerTest do
     end
   end
 
+  describe "extraction fields (sales_date, due_date, iban, addresses)" do
+    test "show returns all 5 new fields", %{conn: conn} do
+      %{company: company, token: token} = create_owner_with_token()
+
+      invoice =
+        insert(:invoice,
+          company: company,
+          sales_date: ~D[2025-01-14],
+          due_date: ~D[2025-02-14],
+          iban: "PL61109010140000071219812874",
+          seller_address: %{street: "ul. Testowa 1", city: "Warszawa", postal_code: nil, country: "PL"},
+          buyer_address: %{street: "ul. Kupna 5", city: "Kraków", postal_code: nil, country: "PL"}
+        )
+
+      conn = conn |> api_conn(token) |> get("/api/invoices/#{invoice.id}")
+
+      assert conn.status == 200
+      data = Jason.decode!(conn.resp_body)["data"]
+      assert data["sales_date"] == "2025-01-14"
+      assert data["due_date"] == "2025-02-14"
+      assert data["iban"] == "PL61109010140000071219812874"
+      assert data["seller_address"]["street"] == "ul. Testowa 1"
+      assert data["buyer_address"]["street"] == "ul. Kupna 5"
+    end
+
+    test "show returns null for absent extraction fields", %{conn: conn} do
+      %{company: company, token: token} = create_owner_with_token()
+      invoice = insert(:invoice, company: company)
+
+      conn = conn |> api_conn(token) |> get("/api/invoices/#{invoice.id}")
+
+      assert conn.status == 200
+      data = Jason.decode!(conn.resp_body)["data"]
+      assert is_nil(data["sales_date"])
+      assert is_nil(data["due_date"])
+      assert is_nil(data["iban"])
+      assert is_nil(data["seller_address"])
+      assert is_nil(data["buyer_address"])
+    end
+
+    test "create accepts sales_date, due_date, iban", %{conn: conn} do
+      %{token: token} = create_owner_with_token()
+
+      body =
+        Jason.encode!(%{
+          type: "expense",
+          seller_nip: "1234567890",
+          seller_name: "Seller Sp. z o.o.",
+          buyer_nip: "0987654321",
+          buyer_name: "Buyer S.A.",
+          invoice_number: "FV/2026/EX1",
+          issue_date: "2026-02-20",
+          net_amount: "1000.00",
+          gross_amount: "1230.00",
+          sales_date: "2026-02-18",
+          due_date: "2026-03-20",
+          iban: "PL61109010140000071219812874"
+        })
+
+      conn = conn |> api_conn(token) |> post("/api/invoices", body)
+
+      assert conn.status == 201
+      data = Jason.decode!(conn.resp_body)["data"]
+      assert data["sales_date"] == "2026-02-18"
+      assert data["due_date"] == "2026-03-20"
+      assert data["iban"] == "PL61109010140000071219812874"
+    end
+
+    test "update accepts sales_date, due_date, iban on pdf_upload invoice", %{conn: conn} do
+      %{company: company, token: token} = create_owner_with_token()
+      invoice = insert(:pdf_upload_invoice, company: company)
+
+      body =
+        Jason.encode!(%{
+          sales_date: "2026-02-18",
+          due_date: "2026-03-20",
+          iban: "PL61109010140000071219812874"
+        })
+
+      conn = conn |> api_conn(token) |> patch("/api/invoices/#{invoice.id}", body)
+
+      assert conn.status == 200
+      data = Jason.decode!(conn.resp_body)["data"]
+      assert data["sales_date"] == "2026-02-18"
+      assert data["due_date"] == "2026-03-20"
+      assert data["iban"] == "PL61109010140000071219812874"
+    end
+  end
+
   @spec create_temp_pdf() :: String.t()
   defp create_temp_pdf do
     path = Path.join(System.tmp_dir!(), "test_invoice_#{System.unique_integer([:positive])}.pdf")

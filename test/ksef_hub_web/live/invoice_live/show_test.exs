@@ -542,6 +542,90 @@ defmodule KsefHubWeb.InvoiceLive.ShowTest do
     end
   end
 
+  describe "extraction fields display and editing" do
+    setup :stub_pdf
+
+    test "displays addresses when present", %{conn: conn, company: company} do
+      invoice =
+        insert(:invoice,
+          company: company,
+          seller_address: %{street: "ul. Testowa 1", city: "Warszawa", postal_code: nil, country: "PL"},
+          buyer_address: %{street: "ul. Kupna 5", city: "Kraków", postal_code: nil, country: "PL"}
+        )
+
+      {:ok, _view, html} = live(conn, ~p"/c/#{company.id}/invoices/#{invoice.id}")
+      assert html =~ "ul. Testowa 1"
+      assert html =~ "ul. Kupna 5"
+    end
+
+    test "hides addresses when nil", %{conn: conn, company: company} do
+      invoice = insert(:invoice, company: company, seller_address: nil, buyer_address: nil)
+
+      {:ok, view, _html} = live(conn, ~p"/c/#{company.id}/invoices/#{invoice.id}")
+      refute has_element?(view, "[data-testid=seller-address]")
+      refute has_element?(view, "[data-testid=buyer-address]")
+    end
+
+    test "displays sales_date and due_date when present", %{conn: conn, company: company} do
+      invoice =
+        insert(:invoice,
+          company: company,
+          sales_date: ~D[2025-01-14],
+          due_date: ~D[2025-02-14]
+        )
+
+      {:ok, _view, html} = live(conn, ~p"/c/#{company.id}/invoices/#{invoice.id}")
+      assert html =~ "Sales Date"
+      assert html =~ "2025-01-14"
+      assert html =~ "Due Date"
+      assert html =~ "2025-02-14"
+    end
+
+    test "displays iban when present", %{conn: conn, company: company} do
+      invoice = insert(:invoice, company: company, iban: "PL61109010140000071219812874")
+
+      {:ok, _view, html} = live(conn, ~p"/c/#{company.id}/invoices/#{invoice.id}")
+      assert html =~ "IBAN"
+      assert html =~ "PL61109010140000071219812874"
+    end
+
+    test "edit form includes iban and date fields", %{conn: conn, company: company} do
+      invoice = insert(:pdf_upload_invoice, company: company)
+
+      {:ok, view, _html} = live(conn, ~p"/c/#{company.id}/invoices/#{invoice.id}")
+      view |> element("button", "Edit") |> render_click()
+
+      assert has_element?(view, "input#edit-sales-date")
+      assert has_element?(view, "input#edit-due-date")
+      assert has_element?(view, "input#edit-iban")
+    end
+
+    test "saving extraction fields via edit form persists values", %{
+      conn: conn,
+      company: company
+    } do
+      invoice = insert(:pdf_upload_invoice, company: company)
+
+      {:ok, view, _html} = live(conn, ~p"/c/#{company.id}/invoices/#{invoice.id}")
+      view |> element("button", "Edit") |> render_click()
+
+      view
+      |> form("form[phx-submit=save_edit]", %{
+        "invoice" => %{
+          "sales_date" => "2025-06-01",
+          "due_date" => "2025-07-01",
+          "iban" => "PL61109010140000071219812874"
+        }
+      })
+      |> render_submit()
+
+      updated = Invoices.get_invoice!(company.id, invoice.id)
+      assert updated.sales_date == ~D[2025-06-01]
+      assert updated.due_date == ~D[2025-07-01]
+      assert updated.iban == "PL61109010140000071219812874"
+    end
+  end
+
   describe "reviewer role" do
     setup %{conn: _conn} do
       {:ok, reviewer} =

@@ -1835,4 +1835,65 @@ defmodule KsefHub.InvoicesTest do
       assert changeset.changes[:purchase_order] == "PO-2025-001"
     end
   end
+
+  describe "extraction fields (sales_date, due_date, iban, addresses)" do
+    test "upsert stores sales_date, iban, and addresses from parsed XML", %{company: company} do
+      xml = File.read!("test/support/fixtures/sample_income_with_iban.xml")
+
+      attrs =
+        params_for(:invoice, ksef_number: "iban-upsert-1", company_id: company.id)
+        |> Map.put(:xml_content, xml)
+        |> Map.put(:sales_date, ~D[2025-01-14])
+        |> Map.put(:iban, "PL61109010140000071219812874")
+        |> Map.put(:seller_address, %{street: "ul. Testowa 1", city: "00-001 Warszawa", postal_code: nil, country: "PL"})
+        |> Map.put(:buyer_address, %{street: "ul. Kupna 5", city: "00-002 Kraków", postal_code: nil, country: "PL"})
+
+      assert {:ok, %Invoice{} = invoice, :inserted} = Invoices.upsert_invoice(attrs)
+      assert invoice.sales_date == ~D[2025-01-14]
+      assert invoice.iban == "PL61109010140000071219812874"
+      assert invoice.seller_address["street"] == "ul. Testowa 1"
+      assert invoice.buyer_address["street"] == "ul. Kupna 5"
+    end
+
+    test "update_invoice_fields updates sales_date, due_date, iban", %{company: company} do
+      invoice = insert(:pdf_upload_invoice, company: company)
+
+      attrs = %{
+        "sales_date" => "2025-06-01",
+        "due_date" => "2025-07-01",
+        "iban" => "PL61109010140000071219812874"
+      }
+
+      assert {:ok, updated} = Invoices.update_invoice_fields(invoice, attrs)
+      assert updated.sales_date == ~D[2025-06-01]
+      assert updated.due_date == ~D[2025-07-01]
+      assert updated.iban == "PL61109010140000071219812874"
+    end
+
+    test "search matches iban", %{company: company} do
+      insert(:invoice, iban: "PL61109010140000071219812874", company: company)
+      insert(:invoice, iban: nil, company: company)
+
+      results = Invoices.list_invoices(company.id, %{query: "PL611090"})
+      assert length(results) == 1
+      assert hd(results).iban == "PL61109010140000071219812874"
+    end
+
+    test "edit_changeset validates iban max length" do
+      invoice = %Invoice{type: :expense, source: :pdf_upload}
+
+      changeset = Invoice.edit_changeset(invoice, %{iban: String.duplicate("X", 35)})
+
+      assert {:iban, {"should be at most %{count} character(s)", _}} =
+               hd(changeset.errors)
+    end
+
+    test "edit_changeset accepts valid iban" do
+      invoice = %Invoice{type: :expense, source: :pdf_upload}
+
+      changeset = Invoice.edit_changeset(invoice, %{iban: "PL61109010140000071219812874"})
+      assert changeset.valid?
+      assert changeset.changes[:iban] == "PL61109010140000071219812874"
+    end
+  end
 end

@@ -14,7 +14,7 @@ defmodule KsefHub.Exports.CsvBuilderTest do
       [header_line | _] = String.split(content, "\r\n", trim: true)
 
       assert header_line ==
-               "Invoice Number,Issue Date,Type,Source,Seller NIP,Seller Name,Buyer NIP,Buyer Name,Net Amount,Gross Amount,Currency,Category,Tags,KSeF Number,Added At,Original Filename,Duplicate Status"
+               "Invoice Number,Issue Date,Sales Date,Due Date,Type,Source,Seller NIP,Seller Name,Seller Address,Buyer NIP,Buyer Name,Buyer Address,Net Amount,Gross Amount,Currency,IBAN,Purchase Order,Category,Tags,KSeF Number,Added At,Original Filename,Duplicate Status"
     end
 
     test "includes invoice data in correct columns" do
@@ -90,6 +90,28 @@ defmodule KsefHub.Exports.CsvBuilderTest do
       lines = String.split(content, "\r\n", trim: true)
       assert length(lines) == 3
     end
+
+    test "includes extraction fields in output" do
+      invoice =
+        build_invoice(%{
+          sales_date: ~D[2026-01-14],
+          due_date: ~D[2026-02-14],
+          iban: "PL61109010140000071219812874",
+          purchase_order: "PO-CSV-001",
+          seller_address: %{"street" => "ul. Testowa 1", "city" => "Warszawa", "country" => "PL"},
+          buyer_address: %{"street" => "ul. Kupna 5", "city" => "Kraków", "country" => "PL"}
+        })
+
+      csv = CsvBuilder.build([invoice])
+      content = String.replace_prefix(csv, <<0xEF, 0xBB, 0xBF>>, "")
+
+      assert content =~ "2026-01-14"
+      assert content =~ "2026-02-14"
+      assert content =~ "PL61109010140000071219812874"
+      assert content =~ "PO-CSV-001"
+      assert content =~ "ul. Testowa 1"
+      assert content =~ "ul. Kupna 5"
+    end
   end
 
   @spec build_invoice(map()) :: Invoice.t()
@@ -112,7 +134,13 @@ defmodule KsefHub.Exports.CsvBuilderTest do
       ksef_number: nil,
       inserted_at: ~N[2026-01-10 09:00:00],
       original_filename: "invoice.pdf",
-      duplicate_status: nil
+      duplicate_status: nil,
+      sales_date: nil,
+      due_date: nil,
+      iban: nil,
+      purchase_order: nil,
+      seller_address: nil,
+      buyer_address: nil
     }
 
     struct!(Invoice, Map.merge(defaults, overrides))
