@@ -558,9 +558,9 @@ defmodule KsefHubWeb.InvoiceLive.ShowTest do
           buyer_address: %{street: "ul. Kupna 5", city: "Kraków", postal_code: nil, country: "PL"}
         )
 
-      {:ok, _view, html} = live(conn, ~p"/c/#{company.id}/invoices/#{invoice.id}")
-      assert html =~ "ul. Testowa 1"
-      assert html =~ "ul. Kupna 5"
+      {:ok, view, _html} = live(conn, ~p"/c/#{company.id}/invoices/#{invoice.id}")
+      assert has_element?(view, "[data-testid=seller-address]", "ul. Testowa 1")
+      assert has_element?(view, "[data-testid=buyer-address]", "ul. Kupna 5")
     end
 
     test "hides addresses when nil", %{conn: conn, company: company} do
