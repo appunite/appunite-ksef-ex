@@ -628,6 +628,92 @@ defmodule KsefHubWeb.InvoiceLive.ShowTest do
     end
   end
 
+  describe "address editing" do
+    setup :stub_pdf
+
+    test "edit form shows address inputs pre-filled from existing data", %{
+      conn: conn,
+      company: company
+    } do
+      invoice =
+        insert(:pdf_upload_invoice,
+          company: company,
+          seller_address: %{
+            "street" => "ul. Testowa 1",
+            "city" => "Warszawa",
+            "postal_code" => "00-001",
+            "country" => "PL"
+          }
+        )
+
+      {:ok, view, _html} = live(conn, ~p"/c/#{company.id}/invoices/#{invoice.id}")
+      view |> element("button", "Edit") |> render_click()
+
+      assert has_element?(view, "input#edit-seller-address-street[value='ul. Testowa 1']")
+      assert has_element?(view, "input#edit-seller-address-city[value='Warszawa']")
+      assert has_element?(view, "input#edit-seller-address-postal-code[value='00-001']")
+      assert has_element?(view, "input#edit-seller-address-country[value='PL']")
+    end
+
+    test "saving address fields persists them", %{conn: conn, company: company} do
+      invoice = insert(:pdf_upload_invoice, company: company)
+
+      {:ok, view, _html} = live(conn, ~p"/c/#{company.id}/invoices/#{invoice.id}")
+      view |> element("button", "Edit") |> render_click()
+
+      view
+      |> form("form[phx-submit=save_edit]", %{
+        "invoice" => %{
+          "seller_address" => %{
+            "street" => "ul. Nowa 5",
+            "city" => "Kraków",
+            "postal_code" => "30-001",
+            "country" => "PL"
+          }
+        }
+      })
+      |> render_submit()
+
+      updated = Invoices.get_invoice!(company.id, invoice.id)
+      assert updated.seller_address["street"] == "ul. Nowa 5"
+      assert updated.seller_address["city"] == "Kraków"
+      assert updated.seller_address["postal_code"] == "30-001"
+      assert updated.seller_address["country"] == "PL"
+    end
+
+    test "clearing all address sub-fields stores nil", %{conn: conn, company: company} do
+      invoice =
+        insert(:pdf_upload_invoice,
+          company: company,
+          seller_address: %{
+            "street" => "ul. Testowa 1",
+            "city" => "Warszawa",
+            "postal_code" => "00-001",
+            "country" => "PL"
+          }
+        )
+
+      {:ok, view, _html} = live(conn, ~p"/c/#{company.id}/invoices/#{invoice.id}")
+      view |> element("button", "Edit") |> render_click()
+
+      view
+      |> form("form[phx-submit=save_edit]", %{
+        "invoice" => %{
+          "seller_address" => %{
+            "street" => "",
+            "city" => "",
+            "postal_code" => "",
+            "country" => ""
+          }
+        }
+      })
+      |> render_submit()
+
+      updated = Invoices.get_invoice!(company.id, invoice.id)
+      assert is_nil(updated.seller_address)
+    end
+  end
+
   describe "reviewer role" do
     setup %{conn: _conn} do
       {:ok, reviewer} =
