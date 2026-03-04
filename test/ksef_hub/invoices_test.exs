@@ -1768,4 +1768,71 @@ defmodule KsefHub.InvoicesTest do
       assert changeset.changes[:buyer_name] == "New Buyer"
     end
   end
+
+  describe "purchase_order" do
+    test "upsert stores purchase_order from parsed XML", %{company: company} do
+      xml = File.read!("test/support/fixtures/sample_income_with_po.xml")
+
+      attrs =
+        params_for(:invoice, ksef_number: "po-upsert-1", company_id: company.id)
+        |> Map.put(:xml_content, xml)
+        |> Map.put(:purchase_order, "PO-2025-001")
+
+      assert {:ok, %Invoice{} = invoice, :inserted} = Invoices.upsert_invoice(attrs)
+      assert invoice.purchase_order == "PO-2025-001"
+    end
+
+    test "upsert updates purchase_order on re-sync", %{company: company} do
+      insert(:invoice,
+        ksef_number: "po-resync",
+        company: company,
+        purchase_order: "OLD-PO",
+        inserted_at: NaiveDateTime.add(NaiveDateTime.utc_now(), -60)
+      )
+
+      attrs =
+        params_for(:invoice, ksef_number: "po-resync", company_id: company.id)
+        |> Map.put(:xml_content, @sample_xml)
+        |> Map.put(:purchase_order, "NEW-PO")
+
+      {:ok, updated, :updated} = Invoices.upsert_invoice(attrs)
+      assert updated.purchase_order == "NEW-PO"
+    end
+
+    test "update_invoice_fields updates purchase_order", %{company: company} do
+      invoice = insert(:pdf_upload_invoice, company: company)
+
+      assert {:ok, updated} =
+               Invoices.update_invoice_fields(invoice, %{"purchase_order" => "PO-EDITED"})
+
+      assert updated.purchase_order == "PO-EDITED"
+    end
+
+    test "search matches purchase_order", %{company: company} do
+      insert(:invoice, purchase_order: "PO-FINDME-123", company: company)
+      insert(:invoice, purchase_order: nil, company: company)
+
+      results = Invoices.list_invoices(company.id, %{query: "FINDME"})
+      assert length(results) == 1
+      assert hd(results).purchase_order == "PO-FINDME-123"
+    end
+
+    test "edit_changeset validates purchase_order max length" do
+      invoice = %Invoice{type: :expense, source: :pdf_upload}
+
+      changeset =
+        Invoice.edit_changeset(invoice, %{purchase_order: String.duplicate("x", 257)})
+
+      assert {:purchase_order, {"should be at most %{count} character(s)", _}} =
+               hd(changeset.errors)
+    end
+
+    test "edit_changeset accepts valid purchase_order" do
+      invoice = %Invoice{type: :expense, source: :pdf_upload}
+
+      changeset = Invoice.edit_changeset(invoice, %{purchase_order: "PO-2025-001"})
+      assert changeset.valid?
+      assert changeset.changes[:purchase_order] == "PO-2025-001"
+    end
+  end
 end
