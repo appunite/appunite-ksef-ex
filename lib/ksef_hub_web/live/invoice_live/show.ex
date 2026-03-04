@@ -1265,7 +1265,7 @@ defmodule KsefHubWeb.InvoiceLive.Show do
 
   @spec address_fields(map()) :: Phoenix.LiveView.Rendered.t()
   defp address_fields(assigns) do
-    addr = assigns.edit_form[assigns.field].value || %{}
+    addr = assigns.edit_form[assigns.field].value |> stringify_keys()
     prefix = "invoice[#{assigns.field}]"
 
     assigns =
@@ -1286,7 +1286,7 @@ defmodule KsefHubWeb.InvoiceLive.Show do
         type="text"
         id={"edit-#{@field_id}-street"}
         name={"#{@prefix}[street]"}
-        value={@addr["street"] || @addr[:street]}
+        value={@addr["street"]}
         class="input input-sm input-bordered w-full"
       />
     </div>
@@ -1300,7 +1300,7 @@ defmodule KsefHubWeb.InvoiceLive.Show do
           type="text"
           id={"edit-#{@field_id}-city"}
           name={"#{@prefix}[city]"}
-          value={@addr["city"] || @addr[:city]}
+          value={@addr["city"]}
           class="input input-sm input-bordered w-full"
         />
       </div>
@@ -1313,7 +1313,7 @@ defmodule KsefHubWeb.InvoiceLive.Show do
           type="text"
           id={"edit-#{@field_id}-postal-code"}
           name={"#{@prefix}[postal_code]"}
-          value={@addr["postal_code"] || @addr[:postal_code]}
+          value={@addr["postal_code"]}
           class="input input-sm input-bordered w-full"
         />
       </div>
@@ -1327,13 +1327,17 @@ defmodule KsefHubWeb.InvoiceLive.Show do
         type="text"
         id={"edit-#{@field_id}-country"}
         name={"#{@prefix}[country]"}
-        value={@addr["country"] || @addr[:country]}
+        value={@addr["country"]}
         class="input input-sm input-bordered w-full"
         maxlength="10"
       />
     </div>
     """
   end
+
+  @spec stringify_keys(map() | nil) :: map()
+  defp stringify_keys(nil), do: %{}
+  defp stringify_keys(map), do: Map.new(map, fn {k, v} -> {to_string(k), v} end)
 
   attr :edit_form, :map, required: true
   attr :readonly, :boolean, default: false
