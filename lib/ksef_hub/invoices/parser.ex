@@ -74,7 +74,8 @@ defmodule KsefHub.Invoices.Parser do
     end
   end
 
-  @po_key_patterns ~w(zamowienie zamówienie purchase.order po order.number)
+  @po_key_substrings ~w(zamowien zamówien purchase order)
+  @po_key_regex ~r/\bpo\b/i
   @po_value_regex ~r/(?:PO|P\.O\.|Purchase\s*Order)[:#\s]*\s*(\S+)/i
 
   @spec extract_purchase_order(term()) :: String.t() | nil
@@ -108,7 +109,9 @@ defmodule KsefHub.Invoices.Parser do
   @spec po_key_match?(String.t()) :: boolean()
   defp po_key_match?(key) do
     downcased = String.downcase(key)
-    Enum.any?(@po_key_patterns, &String.contains?(downcased, &1))
+
+    Enum.any?(@po_key_substrings, &String.contains?(downcased, &1)) ||
+      Regex.match?(@po_key_regex, key)
   end
 
   @spec extract_po_from_value(String.t()) :: String.t() | nil
