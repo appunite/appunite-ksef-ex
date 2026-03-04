@@ -1845,8 +1845,18 @@ defmodule KsefHub.InvoicesTest do
         |> Map.put(:xml_content, xml)
         |> Map.put(:sales_date, ~D[2025-01-14])
         |> Map.put(:iban, "PL61109010140000071219812874")
-        |> Map.put(:seller_address, %{street: "ul. Testowa 1", city: "00-001 Warszawa", postal_code: nil, country: "PL"})
-        |> Map.put(:buyer_address, %{street: "ul. Kupna 5", city: "00-002 Kraków", postal_code: nil, country: "PL"})
+        |> Map.put(:seller_address, %{
+          street: "ul. Testowa 1",
+          city: "00-001 Warszawa",
+          postal_code: nil,
+          country: "PL"
+        })
+        |> Map.put(:buyer_address, %{
+          street: "ul. Kupna 5",
+          city: "00-002 Kraków",
+          postal_code: nil,
+          country: "PL"
+        })
 
       assert {:ok, %Invoice{} = invoice, :inserted} = Invoices.upsert_invoice(attrs)
       assert invoice.sales_date == ~D[2025-01-14]

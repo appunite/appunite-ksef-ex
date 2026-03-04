@@ -172,37 +172,6 @@ defmodule KsefHub.Invoices.ParserTest do
       assert {:ok, invoice} = Parser.parse(xml)
       assert invoice.purchase_order == nil
     end
-  end
-
-  @spec dodatkowy_opis_xml(String.t(), String.t()) :: String.t()
-  defp dodatkowy_opis_xml(key, value) do
-    """
-    <?xml version="1.0" encoding="UTF-8"?>
-    <Faktura xmlns="http://crd.gov.pl/wzor/2025/06/25/13775/">
-      <Naglowek>
-        <KodFormularza kodSystemowy="FA (3)" wersjaSchemy="1-0E">FA</KodFormularza>
-        <WariantFormularza>3</WariantFormularza>
-        <DataWytworzeniaFa>2025-01-15T10:30:00</DataWytworzeniaFa>
-        <SystemInfo>Test</SystemInfo>
-      </Naglowek>
-      <Podmiot1><DaneIdentyfikacyjne><NIP>1234567890</NIP><Nazwa>Seller</Nazwa></DaneIdentyfikacyjne></Podmiot1>
-      <Podmiot2><DaneIdentyfikacyjne><NIP>0987654321</NIP><Nazwa>Buyer</Nazwa></DaneIdentyfikacyjne></Podmiot2>
-      <Fa>
-        <KodWaluty>PLN</KodWaluty>
-        <P_1>2025-01-15</P_1>
-        <P_2>FV/2025/001</P_2>
-        <DodatkowyOpis>
-          <Klucz>#{key}</Klucz>
-          <Wartosc>#{value}</Wartosc>
-        </DodatkowyOpis>
-        <P_13_1>1000.00</P_13_1>
-        <P_15>1230.00</P_15>
-        <Adnotacje><P_16>2</P_16><P_17>2</P_17><P_18>2</P_18><P_18A>2</P_18A><Zwolnienie><P_19N>1</P_19N></Zwolnienie><NoweSrodkiTransportu><P_22N>1</P_22N></NoweSrodkiTransportu><P_23>2</P_23><PMarzy><P_PMarzyN>1</P_PMarzyN></PMarzy></Adnotacje>
-        <FaWiersz><NrWierszaFa>1</NrWierszaFa><P_7>Item</P_7><P_11>1000.00</P_11><P_12>23</P_12></FaWiersz>
-      </Fa>
-    </Faktura>
-    """
-  end
 
     test "extracts seller and buyer addresses from Adres elements" do
       xml = File.read!(Path.join(@fixtures_path, "sample_income.xml"))
@@ -259,6 +228,36 @@ defmodule KsefHub.Invoices.ParserTest do
       assert {:ok, invoice} = Parser.parse(xml)
       assert invoice.iban == nil
     end
+  end
+
+  @spec dodatkowy_opis_xml(String.t(), String.t()) :: String.t()
+  defp dodatkowy_opis_xml(key, value) do
+    """
+    <?xml version="1.0" encoding="UTF-8"?>
+    <Faktura xmlns="http://crd.gov.pl/wzor/2025/06/25/13775/">
+      <Naglowek>
+        <KodFormularza kodSystemowy="FA (3)" wersjaSchemy="1-0E">FA</KodFormularza>
+        <WariantFormularza>3</WariantFormularza>
+        <DataWytworzeniaFa>2025-01-15T10:30:00</DataWytworzeniaFa>
+        <SystemInfo>Test</SystemInfo>
+      </Naglowek>
+      <Podmiot1><DaneIdentyfikacyjne><NIP>1234567890</NIP><Nazwa>Seller</Nazwa></DaneIdentyfikacyjne></Podmiot1>
+      <Podmiot2><DaneIdentyfikacyjne><NIP>0987654321</NIP><Nazwa>Buyer</Nazwa></DaneIdentyfikacyjne></Podmiot2>
+      <Fa>
+        <KodWaluty>PLN</KodWaluty>
+        <P_1>2025-01-15</P_1>
+        <P_2>FV/2025/001</P_2>
+        <DodatkowyOpis>
+          <Klucz>#{key}</Klucz>
+          <Wartosc>#{value}</Wartosc>
+        </DodatkowyOpis>
+        <P_13_1>1000.00</P_13_1>
+        <P_15>1230.00</P_15>
+        <Adnotacje><P_16>2</P_16><P_17>2</P_17><P_18>2</P_18><P_18A>2</P_18A><Zwolnienie><P_19N>1</P_19N></Zwolnienie><NoweSrodkiTransportu><P_22N>1</P_22N></NoweSrodkiTransportu><P_23>2</P_23><PMarzy><P_PMarzyN>1</P_PMarzyN></PMarzy></Adnotacje>
+        <FaWiersz><NrWierszaFa>1</NrWierszaFa><P_7>Item</P_7><P_11>1000.00</P_11><P_12>23</P_12></FaWiersz>
+      </Fa>
+    </Faktura>
+    """
   end
 
   describe "determine_type/2" do

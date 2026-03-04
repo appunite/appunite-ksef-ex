@@ -88,7 +88,8 @@ defmodule KsefHubWeb.Schemas.Invoice do
         type: :string,
         nullable: true,
         maxLength: 34,
-        description: "Seller's bank account number (IBAN). From KSeF Rachunek/NrRB or PDF extraction."
+        description:
+          "Seller's bank account number (IBAN). From KSeF Rachunek/NrRB or PDF extraction."
       },
       seller_address: %Schema{
         type: :object,

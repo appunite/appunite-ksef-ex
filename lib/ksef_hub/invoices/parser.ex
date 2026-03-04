@@ -62,7 +62,10 @@ defmodule KsefHub.Invoices.Parser do
   @spec extract_iban(term()) :: String.t() | nil
   defp extract_iban(doc) do
     # Try Fa > Rachunek > NrRB first, then fallback to Podmiot1 > NrRB
-    case xpath(doc, ~x"//*[local-name()='Fa']//*[local-name()='Rachunek']//*[local-name()='NrRB']/text()"s) do
+    case xpath(
+           doc,
+           ~x"//*[local-name()='Fa']//*[local-name()='Rachunek']//*[local-name()='NrRB']/text()"s
+         ) do
       "" ->
         case xpath(doc, ~x"//*[local-name()='Podmiot1']//*[local-name()='NrRB']/text()"s) do
           "" -> nil
@@ -77,13 +80,22 @@ defmodule KsefHub.Invoices.Parser do
   @spec extract_address(term(), String.t()) :: map() | nil
   defp extract_address(doc, subject) do
     country =
-      xpath(doc, ~x"//*[local-name()='#{subject}']//*[local-name()='Adres']//*[local-name()='KodKraju']/text()"s)
+      xpath(
+        doc,
+        ~x"//*[local-name()='#{subject}']//*[local-name()='Adres']//*[local-name()='KodKraju']/text()"s
+      )
 
     street =
-      xpath(doc, ~x"//*[local-name()='#{subject}']//*[local-name()='Adres']//*[local-name()='AdresL1']/text()"s)
+      xpath(
+        doc,
+        ~x"//*[local-name()='#{subject}']//*[local-name()='Adres']//*[local-name()='AdresL1']/text()"s
+      )
 
     city =
-      xpath(doc, ~x"//*[local-name()='#{subject}']//*[local-name()='Adres']//*[local-name()='AdresL2']/text()"s)
+      xpath(
+        doc,
+        ~x"//*[local-name()='#{subject}']//*[local-name()='Adres']//*[local-name()='AdresL2']/text()"s
+      )
 
     addr = %{
       street: if(street != "", do: street),

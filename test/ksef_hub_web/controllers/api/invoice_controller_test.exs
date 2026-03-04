@@ -1130,7 +1130,12 @@ defmodule KsefHubWeb.Api.InvoiceControllerTest do
           sales_date: ~D[2025-01-14],
           due_date: ~D[2025-02-14],
           iban: "PL61109010140000071219812874",
-          seller_address: %{street: "ul. Testowa 1", city: "Warszawa", postal_code: nil, country: "PL"},
+          seller_address: %{
+            street: "ul. Testowa 1",
+            city: "Warszawa",
+            postal_code: nil,
+            country: "PL"
+          },
           buyer_address: %{street: "ul. Kupna 5", city: "Kraków", postal_code: nil, country: "PL"}
         )
 

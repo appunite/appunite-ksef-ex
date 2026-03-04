@@ -549,7 +549,12 @@ defmodule KsefHubWeb.InvoiceLive.ShowTest do
       invoice =
         insert(:invoice,
           company: company,
-          seller_address: %{street: "ul. Testowa 1", city: "Warszawa", postal_code: nil, country: "PL"},
+          seller_address: %{
+            street: "ul. Testowa 1",
+            city: "Warszawa",
+            postal_code: nil,
+            country: "PL"
+          },
           buyer_address: %{street: "ul. Kupna 5", city: "Kraków", postal_code: nil, country: "PL"}
         )
 
