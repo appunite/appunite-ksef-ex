@@ -1,10 +1,14 @@
 .PHONY: help setup build test test.integration fmt lint dialyzer precommit \
        server console \
        docker.build docker.run docker.up docker.down \
-       db.setup db.migrate db.reset db.rollback
+       db.setup db.migrate db.reset db.rollback \
+       models.upload models.restart models.train classifier.mirror
 
 APP_NAME := ksef-hub
 DOCKER_TAG := $(APP_NAME):latest
+GCS_MODELS_BUCKET := gs://au-ksef-ex-ml-models
+GCP_REGION := europe-west1
+CLASSIFIER_REPO := git@github.com:appunite/au-payroll-model-categories.git
 
 # --- Help ---
 
@@ -79,3 +83,32 @@ docker.up: ## Start all services with docker compose
 
 docker.down: ## Stop all services
 	docker compose down
+
+# --- ML Models ---
+
+models.upload: ## Upload ML models from ml-models/ to GCS and restart classifier
+	gsutil cp ml-models/invoice_classifier.joblib $(GCS_MODELS_BUCKET)/
+	gsutil cp ml-models/invoice_tag_classifier.joblib $(GCS_MODELS_BUCKET)/
+	@echo "Models uploaded. Run 'make models.restart' to pick up changes."
+
+models.restart: ## Restart Cloud Run to pick up new models from GCS
+	gcloud run services update ksef-hub --region $(GCP_REGION)
+	@echo "Service restarting — new models will be loaded."
+
+models.train: ## Show instructions for training new models
+	@echo "To train new models:"
+	@echo "  1. Clone the classifier repo:"
+	@echo "     git clone $(CLASSIFIER_REPO) /tmp/au-payroll-model-categories"
+	@echo "  2. Follow training instructions in that repo (make train)"
+	@echo "  3. Copy trained models here:"
+	@echo "     cp /tmp/au-payroll-model-categories/models/*.joblib ml-models/"
+	@echo "  4. Upload to GCS and restart:"
+	@echo "     make models.upload models.restart"
+	@echo "  5. Commit updated models:"
+	@echo "     git add ml-models/ && git commit -m 'chore: update ML models'"
+
+classifier.mirror: ## Mirror classifier Docker image from ghcr.io to Artifact Registry
+	docker pull --platform linux/amd64 ghcr.io/appunite/au-payroll-model-categories:latest
+	docker tag ghcr.io/appunite/au-payroll-model-categories:latest \
+		europe-west1-docker.pkg.dev/au-ksef-ex/ksef-hub/invoice-classifier:latest
+	docker push europe-west1-docker.pkg.dev/au-ksef-ex/ksef-hub/invoice-classifier:latest
