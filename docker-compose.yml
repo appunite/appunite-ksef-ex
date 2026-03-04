@@ -44,6 +44,10 @@ services:
     image: ghcr.io/appunite/au-payroll-model-categories:latest
     ports:
       - "3003:8080"
+    volumes:
+      - ./ml-models:/app/models:ro
+    environment:
+      - API_TOKEN=${INVOICE_CLASSIFIER_API_TOKEN}
     healthcheck:
       test: ["CMD", "wget", "-qO-", "http://localhost:8080/health"]
       interval: 10s
