@@ -760,6 +760,13 @@ defmodule KsefHubWeb.InvoiceLive.Show do
                     <td class="py-1.5 text-right">
                       <div>{@invoice.buyer_name}</div>
                       <div class="text-xs text-base-content/50">{@invoice.buyer_nip}</div>
+                      <div
+                        :if={@invoice.buyer_address}
+                        class="text-xs text-base-content/50"
+                        data-testid="buyer-address"
+                      >
+                        {format_address(@invoice.buyer_address)}
+                      </div>
                     </td>
                   </tr>
                   <tr class="border-b border-base-300/50">
@@ -767,6 +774,13 @@ defmodule KsefHubWeb.InvoiceLive.Show do
                     <td class="py-1.5 text-right">
                       <div>{@invoice.seller_name}</div>
                       <div class="text-xs text-base-content/50">{@invoice.seller_nip}</div>
+                      <div
+                        :if={@invoice.seller_address}
+                        class="text-xs text-base-content/50"
+                        data-testid="seller-address"
+                      >
+                        {format_address(@invoice.seller_address)}
+                      </div>
                     </td>
                   </tr>
                   <tr class="border-b border-base-300/50">
@@ -776,6 +790,14 @@ defmodule KsefHubWeb.InvoiceLive.Show do
                   <tr class="border-b border-base-300/50">
                     <td class="py-1.5 pr-3 text-base-content/60">Date</td>
                     <td class="py-1.5 text-right">{format_date(@invoice.issue_date)}</td>
+                  </tr>
+                  <tr :if={@invoice.sales_date} class="border-b border-base-300/50">
+                    <td class="py-1.5 pr-3 text-base-content/60 whitespace-nowrap">Sales Date</td>
+                    <td class="py-1.5 text-right">{format_date(@invoice.sales_date)}</td>
+                  </tr>
+                  <tr :if={@invoice.due_date} class="border-b border-base-300/50">
+                    <td class="py-1.5 pr-3 text-base-content/60 whitespace-nowrap">Due Date</td>
+                    <td class="py-1.5 text-right">{format_date(@invoice.due_date)}</td>
                   </tr>
                   <tr class={[
                     "border-b border-base-300/50",
@@ -805,6 +827,12 @@ defmodule KsefHubWeb.InvoiceLive.Show do
                     <td class="py-1.5 pr-3 text-base-content/60 whitespace-nowrap">PO</td>
                     <td class="py-1.5 text-right font-mono text-sm break-all">
                       {@invoice.purchase_order}
+                    </td>
+                  </tr>
+                  <tr :if={@invoice.iban} class="border-b border-base-300/50">
+                    <td class="py-1.5 pr-3 text-base-content/60 whitespace-nowrap">IBAN</td>
+                    <td class="py-1.5 text-right font-mono text-xs break-all">
+                      {@invoice.iban}
                     </td>
                   </tr>
                   <tr :if={@invoice.ksef_acquisition_date}>
@@ -1114,7 +1142,7 @@ defmodule KsefHubWeb.InvoiceLive.Show do
 
       <div class="divider text-xs my-1">Invoice</div>
 
-      <div class="grid grid-cols-2 gap-3">
+      <div class="grid grid-cols-3 gap-3">
         <div class="form-control">
           <label for="edit-invoice-number" class="label">
             <span class="label-text text-xs">Invoice Number</span>
@@ -1142,6 +1170,34 @@ defmodule KsefHubWeb.InvoiceLive.Show do
           />
           <.field_error errors={@edit_form[:issue_date].errors} />
         </div>
+
+        <div class="form-control">
+          <label for="edit-sales-date" class="label">
+            <span class="label-text text-xs">Sales Date</span>
+          </label>
+          <input
+            type="date"
+            id="edit-sales-date"
+            name={@edit_form[:sales_date].name}
+            value={@edit_form[:sales_date].value}
+            class="input input-sm input-bordered w-full"
+          />
+          <.field_error errors={@edit_form[:sales_date].errors} />
+        </div>
+      </div>
+
+      <div class="form-control">
+        <label for="edit-due-date" class="label">
+          <span class="label-text text-xs">Due Date</span>
+        </label>
+        <input
+          type="date"
+          id="edit-due-date"
+          name={@edit_form[:due_date].name}
+          value={@edit_form[:due_date].value}
+          class="input input-sm input-bordered w-full"
+        />
+        <.field_error errors={@edit_form[:due_date].errors} />
       </div>
 
       <.amount_fields edit_form={@edit_form} />
@@ -1160,6 +1216,22 @@ defmodule KsefHubWeb.InvoiceLive.Show do
           placeholder="e.g. PO-2025-001"
         />
         <.field_error errors={@edit_form[:purchase_order].errors} />
+      </div>
+
+      <div class="form-control mt-3">
+        <label for="edit-iban" class="label">
+          <span class="label-text text-xs">IBAN</span>
+        </label>
+        <input
+          type="text"
+          id="edit-iban"
+          name={@edit_form[:iban].name}
+          value={@edit_form[:iban].value}
+          class="input input-sm input-bordered w-full font-mono"
+          maxlength="34"
+          placeholder="e.g. PL61109010140000071219812874"
+        />
+        <.field_error errors={@edit_form[:iban].errors} />
       </div>
 
       <div class="flex gap-2 pt-2">

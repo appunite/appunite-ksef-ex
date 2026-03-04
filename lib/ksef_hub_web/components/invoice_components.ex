@@ -153,4 +153,17 @@ defmodule KsefHubWeb.InvoiceComponents do
   @spec format_datetime(DateTime.t() | NaiveDateTime.t() | nil) :: String.t()
   def format_datetime(nil), do: "-"
   def format_datetime(dt), do: Calendar.strftime(dt, "%Y-%m-%d %H:%M UTC")
+
+  @doc "Formats an address map as a comma-separated string, or returns \"\" for nil."
+  @spec format_address(map() | nil) :: String.t()
+  def format_address(nil), do: ""
+
+  def format_address(addr) when is_map(addr) do
+    addr
+    |> Map.take(~w(street city postal_code country)a ++ ~w(street city postal_code country))
+    |> Map.values()
+    |> Enum.reject(&(is_nil(&1) or &1 == ""))
+    |> Enum.uniq()
+    |> Enum.join(", ")
+  end
 end
