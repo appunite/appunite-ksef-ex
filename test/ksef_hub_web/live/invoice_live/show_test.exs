@@ -579,19 +579,16 @@ defmodule KsefHubWeb.InvoiceLive.ShowTest do
           due_date: ~D[2025-02-14]
         )
 
-      {:ok, _view, html} = live(conn, ~p"/c/#{company.id}/invoices/#{invoice.id}")
-      assert html =~ "Sales Date"
-      assert html =~ "2025-01-14"
-      assert html =~ "Due Date"
-      assert html =~ "2025-02-14"
+      {:ok, view, _html} = live(conn, ~p"/c/#{company.id}/invoices/#{invoice.id}")
+      assert has_element?(view, "[data-testid=sales-date]", "2025-01-14")
+      assert has_element?(view, "[data-testid=due-date]", "2025-02-14")
     end
 
     test "displays iban when present", %{conn: conn, company: company} do
       invoice = insert(:invoice, company: company, iban: "PL61109010140000071219812874")
 
-      {:ok, _view, html} = live(conn, ~p"/c/#{company.id}/invoices/#{invoice.id}")
-      assert html =~ "IBAN"
-      assert html =~ "PL61109010140000071219812874"
+      {:ok, view, _html} = live(conn, ~p"/c/#{company.id}/invoices/#{invoice.id}")
+      assert has_element?(view, "[data-testid=iban]", "PL61109010140000071219812874")
     end
 
     test "edit form includes iban and date fields", %{conn: conn, company: company} do

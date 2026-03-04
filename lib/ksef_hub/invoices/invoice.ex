@@ -78,15 +78,16 @@ defmodule KsefHub.Invoices.Invoice do
   @spec sources() :: [invoice_source()]
   def sources, do: Ecto.Enum.values(__MODULE__, :source)
 
-  @address_fields ~w(street city postal_code country)
+  @address_field_atoms ~w(street city postal_code country)a
+  @address_field_strings Enum.map(@address_field_atoms, &Atom.to_string/1)
 
   @doc "Formats an address map as a comma-separated string. Handles both atom and string keys (JSONB round-trip returns strings)."
   @spec format_address(map() | nil) :: String.t()
   def format_address(nil), do: ""
 
   def format_address(addr) when is_map(addr) do
-    @address_fields
-    |> Enum.map(fn key -> addr[key] || addr[String.to_atom(key)] end)
+    Enum.zip(@address_field_atoms, @address_field_strings)
+    |> Enum.map(fn {atom_key, str_key} -> addr[atom_key] || addr[str_key] end)
     |> Enum.reject(&(is_nil(&1) or &1 == ""))
     |> Enum.join(", ")
   end
@@ -126,7 +127,7 @@ defmodule KsefHub.Invoices.Invoice do
     |> validate_nip_fields()
     |> validate_length(:original_filename, max: 255)
     |> validate_length(:purchase_order, max: 256)
-    |> validate_length(:iban, max: 34)
+    |> validate_length(:iban, min: 15, max: 34)
     |> validate_source_requirements()
     |> foreign_key_constraint(:company_id)
     |> foreign_key_constraint(:duplicate_of_id)
@@ -178,7 +179,7 @@ defmodule KsefHub.Invoices.Invoice do
     |> validate_number(:net_amount, greater_than_or_equal_to: 0)
     |> validate_number(:gross_amount, greater_than_or_equal_to: 0)
     |> validate_length(:purchase_order, max: 256)
-    |> validate_length(:iban, max: 34)
+    |> validate_length(:iban, min: 15, max: 34)
   end
 
   @doc "Returns the company-owned fields that should not be user-editable for a given invoice type."

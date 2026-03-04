@@ -761,7 +761,7 @@ defmodule KsefHubWeb.InvoiceLive.Show do
                       <div>{@invoice.buyer_name}</div>
                       <div class="text-xs text-base-content/50">{@invoice.buyer_nip}</div>
                       <div
-                        :if={@invoice.buyer_address}
+                        :if={format_address(@invoice.buyer_address) != ""}
                         class="text-xs text-base-content/50"
                         data-testid="buyer-address"
                       >
@@ -775,7 +775,7 @@ defmodule KsefHubWeb.InvoiceLive.Show do
                       <div>{@invoice.seller_name}</div>
                       <div class="text-xs text-base-content/50">{@invoice.seller_nip}</div>
                       <div
-                        :if={@invoice.seller_address}
+                        :if={format_address(@invoice.seller_address) != ""}
                         class="text-xs text-base-content/50"
                         data-testid="seller-address"
                       >
@@ -791,11 +791,19 @@ defmodule KsefHubWeb.InvoiceLive.Show do
                     <td class="py-1.5 pr-3 text-base-content/60">Date</td>
                     <td class="py-1.5 text-right">{format_date(@invoice.issue_date)}</td>
                   </tr>
-                  <tr :if={@invoice.sales_date} class="border-b border-base-300/50">
+                  <tr
+                    :if={@invoice.sales_date}
+                    class="border-b border-base-300/50"
+                    data-testid="sales-date"
+                  >
                     <td class="py-1.5 pr-3 text-base-content/60 whitespace-nowrap">Sales Date</td>
                     <td class="py-1.5 text-right">{format_date(@invoice.sales_date)}</td>
                   </tr>
-                  <tr :if={@invoice.due_date} class="border-b border-base-300/50">
+                  <tr
+                    :if={@invoice.due_date}
+                    class="border-b border-base-300/50"
+                    data-testid="due-date"
+                  >
                     <td class="py-1.5 pr-3 text-base-content/60 whitespace-nowrap">Due Date</td>
                     <td class="py-1.5 text-right">{format_date(@invoice.due_date)}</td>
                   </tr>
@@ -829,7 +837,11 @@ defmodule KsefHubWeb.InvoiceLive.Show do
                       {@invoice.purchase_order}
                     </td>
                   </tr>
-                  <tr :if={@invoice.iban} class="border-b border-base-300/50">
+                  <tr
+                    :if={@invoice.iban}
+                    class="border-b border-base-300/50"
+                    data-testid="iban"
+                  >
                     <td class="py-1.5 pr-3 text-base-content/60 whitespace-nowrap">IBAN</td>
                     <td class="py-1.5 text-right font-mono text-xs break-all">
                       {@invoice.iban}

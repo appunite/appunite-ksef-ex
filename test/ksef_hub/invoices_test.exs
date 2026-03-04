@@ -1884,7 +1884,9 @@ defmodule KsefHub.InvoicesTest do
   end
 
   describe "extraction fields (sales_date, due_date, iban, addresses)" do
-    test "upsert stores sales_date, iban, and addresses from parsed XML", %{company: company} do
+    test "upsert stores provided sales_date, iban, and addresses when passed in attrs", %{
+      company: company
+    } do
       xml = File.read!("test/support/fixtures/sample_income_with_iban.xml")
 
       attrs =
@@ -1942,6 +1944,15 @@ defmodule KsefHub.InvoicesTest do
       changeset = Invoice.edit_changeset(invoice, %{iban: String.duplicate("X", 35)})
 
       assert {:iban, {"should be at most %{count} character(s)", _}} =
+               hd(changeset.errors)
+    end
+
+    test "edit_changeset validates iban min length" do
+      invoice = %Invoice{type: :expense, source: :pdf_upload}
+
+      changeset = Invoice.edit_changeset(invoice, %{iban: "PL6110901014"})
+
+      assert {:iban, {"should be at least %{count} character(s)", _}} =
                hd(changeset.errors)
     end
 

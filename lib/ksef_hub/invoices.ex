@@ -724,7 +724,7 @@ defmodule KsefHub.Invoices do
           |> Enum.reject(fn {_k, v} -> is_nil(v) or v == "" end)
           |> Map.new()
 
-        if map_size(cleaned) == 0, do: nil, else: addr
+        if map_size(cleaned) == 0, do: nil, else: cleaned
 
       _ ->
         nil

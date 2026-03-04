@@ -9,5 +9,10 @@ defmodule KsefHub.Repo.Migrations.AddExtractionFieldsToInvoices do
       add :seller_address, :map
       add :buyer_address, :map
     end
+
+    execute(
+      "CREATE INDEX invoices_iban_trgm_idx ON invoices USING gin (iban gin_trgm_ops)",
+      "DROP INDEX IF EXISTS invoices_iban_trgm_idx"
+    )
   end
 end

@@ -91,7 +91,7 @@ defmodule KsefHub.Exports.CsvBuilderTest do
       assert length(lines) == 3
     end
 
-    test "includes extraction fields in output" do
+    test "includes extraction fields at correct column positions" do
       invoice =
         build_invoice(%{
           sales_date: ~D[2026-01-14],
@@ -104,13 +104,16 @@ defmodule KsefHub.Exports.CsvBuilderTest do
 
       csv = CsvBuilder.build([invoice])
       content = String.replace_prefix(csv, <<0xEF, 0xBB, 0xBF>>, "")
+      [_header, data_line | _] = String.split(content, "\r\n", trim: true)
+      cols = parse_csv_row(data_line)
 
-      assert content =~ "2026-01-14"
-      assert content =~ "2026-02-14"
-      assert content =~ "PL61109010140000071219812874"
-      assert content =~ "PO-CSV-001"
-      assert content =~ "ul. Testowa 1"
-      assert content =~ "ul. Kupna 5"
+      # Column indices based on header order
+      assert Enum.at(cols, 2) == "2026-01-14"
+      assert Enum.at(cols, 3) == "2026-02-14"
+      assert Enum.at(cols, 15) == "PL61109010140000071219812874"
+      assert Enum.at(cols, 16) == "PO-CSV-001"
+      assert Enum.at(cols, 8) =~ "ul. Testowa 1"
+      assert Enum.at(cols, 11) =~ "ul. Kupna 5"
     end
   end
 
@@ -144,5 +147,17 @@ defmodule KsefHub.Exports.CsvBuilderTest do
     }
 
     struct!(Invoice, Map.merge(defaults, overrides))
+  end
+
+  # Simple CSV row parser that handles quoted fields with commas.
+  @spec parse_csv_row(String.t()) :: [String.t()]
+  defp parse_csv_row(row) do
+    ~r/(?:\"([^\"]*(?:\"\"[^\"]*)*)\"|([^,]*))(,|$)/
+    |> Regex.scan(row)
+    |> Enum.map(fn
+      [_, quoted, "", _] -> String.replace(quoted, ~s(""), ~s("))
+      [_, "", unquoted, _] -> unquoted
+      [_, "", "", _] -> ""
+    end)
   end
 end
