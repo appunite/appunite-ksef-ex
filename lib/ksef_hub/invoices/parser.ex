@@ -31,6 +31,9 @@ defmodule KsefHub.Invoices.Parser do
        gross_amount: xpath(doc, ~x"//*[local-name()='P_15']/text()"s) |> parse_decimal(),
        currency: xpath(doc, ~x"//*[local-name()='KodWaluty']/text()"s) |> default_currency(),
        purchase_order: extract_purchase_order(doc),
+       iban: extract_iban(doc),
+       seller_address: extract_address(doc, "Podmiot1"),
+       buyer_address: extract_address(doc, "Podmiot2"),
        line_items: parse_line_items(doc)
      }}
   rescue
@@ -55,6 +58,42 @@ defmodule KsefHub.Invoices.Parser do
   end
 
   # --- Private ---
+
+  @spec extract_iban(term()) :: String.t() | nil
+  defp extract_iban(doc) do
+    # Try Fa > Rachunek > NrRB first, then fallback to Podmiot1 > NrRB
+    case xpath(doc, ~x"//*[local-name()='Fa']//*[local-name()='Rachunek']//*[local-name()='NrRB']/text()"s) do
+      "" ->
+        case xpath(doc, ~x"//*[local-name()='Podmiot1']//*[local-name()='NrRB']/text()"s) do
+          "" -> nil
+          value -> value
+        end
+
+      value ->
+        value
+    end
+  end
+
+  @spec extract_address(term(), String.t()) :: map() | nil
+  defp extract_address(doc, subject) do
+    country =
+      xpath(doc, ~x"//*[local-name()='#{subject}']//*[local-name()='Adres']//*[local-name()='KodKraju']/text()"s)
+
+    street =
+      xpath(doc, ~x"//*[local-name()='#{subject}']//*[local-name()='Adres']//*[local-name()='AdresL1']/text()"s)
+
+    city =
+      xpath(doc, ~x"//*[local-name()='#{subject}']//*[local-name()='Adres']//*[local-name()='AdresL2']/text()"s)
+
+    addr = %{
+      street: if(street != "", do: street),
+      city: if(city != "", do: city),
+      postal_code: nil,
+      country: if(country != "", do: country)
+    }
+
+    if Enum.all?(Map.values(addr), &is_nil/1), do: nil, else: addr
+  end
 
   @spec extract_name(term(), String.t()) :: String.t()
   defp extract_name(doc, subject) do
