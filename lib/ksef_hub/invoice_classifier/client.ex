@@ -16,14 +16,18 @@ defmodule KsefHub.InvoiceClassifier.Client do
   @spec predict_category(map()) :: {:ok, map()} | {:error, term()}
   @impl true
   def predict_category(input) when is_map(input) do
-    post("/predict/category", input)
+    with {:ok, body} <- post("/predict/category", input) do
+      normalize_response(body, "top_category")
+    end
   end
 
   @doc "Predicts a tag for the given invoice input."
   @spec predict_tag(map()) :: {:ok, map()} | {:error, term()}
   @impl true
   def predict_tag(input) when is_map(input) do
-    post("/predict/tag", input)
+    with {:ok, body} <- post("/predict/tag", input) do
+      normalize_response(body, "top_tag")
+    end
   end
 
   @doc "Checks the health of the classification service."
@@ -102,5 +106,45 @@ defmodule KsefHub.InvoiceClassifier.Client do
     ]
     |> Keyword.merge(req_options)
     |> Req.new()
+  end
+
+  # Normalizes sidecar-specific response keys to canonical keys used by the
+  # classifier context. The `label_key` is the sidecar's top-prediction key
+  # (e.g. "top_category" or "top_tag").
+  @spec normalize_response(map(), String.t()) :: {:ok, map()} | {:error, :invalid_response}
+  defp normalize_response(body, label_key) do
+    with {:ok, label} <- fetch_string(body, label_key),
+         {:ok, probability} <- fetch_number(body, "top_probability") do
+      {:ok,
+       %{
+         "predicted_label" => label,
+         "confidence" => probability,
+         "model_version" => body["model_version"],
+         "probabilities" => body["probabilities"]
+       }}
+    else
+      :error ->
+        Logger.error(
+          "Classifier response missing required keys (#{label_key}, top_probability): #{inspect(body, limit: 200)}"
+        )
+
+        {:error, :invalid_response}
+    end
+  end
+
+  @spec fetch_string(map(), String.t()) :: {:ok, String.t()} | :error
+  defp fetch_string(map, key) do
+    case map[key] do
+      value when is_binary(value) and value != "" -> {:ok, value}
+      _ -> :error
+    end
+  end
+
+  @spec fetch_number(map(), String.t()) :: {:ok, number()} | :error
+  defp fetch_number(map, key) do
+    case map[key] do
+      value when is_number(value) -> {:ok, value}
+      _ -> :error
+    end
   end
 end
