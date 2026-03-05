@@ -84,8 +84,8 @@ defmodule KsefHub.InvoiceClassifier.WorkerTest do
       |> expect(:predict_tag, fn _input ->
         {:ok,
          %{
-           "top_tag" => "x",
-           "top_probability" => 0.0,
+           "predicted_label" => "x",
+           "confidence" => 0.0,
            "model_version" => "v1.0",
            "probabilities" => %{}
          }}
@@ -127,8 +127,8 @@ defmodule KsefHub.InvoiceClassifier.WorkerTest do
     |> expect(:predict_category, fn _input ->
       {:ok,
        %{
-         "top_category" => "some:category",
-         "top_probability" => 0.50,
+         "predicted_label" => "some:category",
+         "confidence" => 0.50,
          "model_version" => "v1.0",
          "probabilities" => %{}
        }}
@@ -136,8 +136,8 @@ defmodule KsefHub.InvoiceClassifier.WorkerTest do
     |> expect(:predict_tag, fn _input ->
       {:ok,
        %{
-         "top_tag" => "some-tag",
-         "top_probability" => 0.50,
+         "predicted_label" => "some-tag",
+         "confidence" => 0.50,
          "model_version" => "v1.0",
          "probabilities" => %{}
        }}

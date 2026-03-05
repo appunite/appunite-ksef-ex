@@ -21,6 +21,7 @@ defmodule KsefHub.InboundEmail.ReplyNotifierTest do
       assert email.subject =~ "FV/2026/001"
       assert email.text_body =~ "added and is ready"
       assert email.text_body =~ "FV/2026/001"
+      assert email.text_body =~ "/c/company-456/invoices/abc-123"
     end
 
     test "includes CC when configured" do
@@ -86,6 +87,7 @@ defmodule KsefHub.InboundEmail.ReplyNotifierTest do
       invoice = %{id: "abc-123", company_id: "company-456"}
       email = ReplyNotifier.needs_review(@sender, invoice)
       assert email.text_body =~ "needs human review"
+      assert email.text_body =~ "/c/company-456/invoices/abc-123"
     end
   end
 
@@ -137,10 +139,10 @@ defmodule KsefHub.InboundEmail.ReplyNotifierTest do
       assert email.text_body =~ "1234567890"
     end
 
-    test "includes invoice URL" do
+    test "includes invoice URL with company_id" do
       invoice = %{id: "abc-123", company_id: "company-456"}
       email = ReplyNotifier.nip_warning(@sender, invoice, :income_not_allowed)
-      assert email.text_body =~ "abc-123"
+      assert email.text_body =~ "/c/company-456/invoices/abc-123"
     end
   end
 

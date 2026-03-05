@@ -13,18 +13,37 @@ defmodule KsefHub.InvoiceClassifier.ClientTest do
                Client.predict_category(%{invoice_title: "Test"})
     end
 
-    test "returns prediction on 200 success" do
+    test "normalizes sidecar response to canonical keys" do
       setup_classifier_config()
 
       Req.Test.stub(Client, fn conn ->
         assert conn.method == "POST"
         assert conn.request_path == "/predict/category"
 
-        Req.Test.json(conn, %{"category" => "office", "confidence" => 0.95})
+        Req.Test.json(conn, %{
+          "top_category" => "operations:infrastructure",
+          "top_probability" => 0.95,
+          "model_version" => "1.0.0",
+          "probabilities" => %{"operations:infrastructure" => 0.95, "other" => 0.05}
+        })
       end)
 
-      assert {:ok, %{"category" => "office", "confidence" => 0.95}} =
-               Client.predict_category(%{invoice_title: "Office supplies"})
+      assert {:ok, result} = Client.predict_category(%{invoice_title: "Office supplies"})
+      assert result["predicted_label"] == "operations:infrastructure"
+      assert result["confidence"] == 0.95
+      assert result["model_version"] == "1.0.0"
+      assert result["probabilities"]["operations:infrastructure"] == 0.95
+    end
+
+    test "returns error when response missing required keys" do
+      setup_classifier_config()
+
+      Req.Test.stub(Client, fn conn ->
+        Req.Test.json(conn, %{"unexpected" => "format"})
+      end)
+
+      assert {:error, :invalid_response} =
+               Client.predict_category(%{invoice_title: "Test"})
     end
 
     test "returns error on non-200 status" do
@@ -60,18 +79,36 @@ defmodule KsefHub.InvoiceClassifier.ClientTest do
                Client.predict_tag(%{invoice_title: "Test"})
     end
 
-    test "returns prediction on 200 success" do
+    test "normalizes sidecar response to canonical keys" do
       setup_classifier_config()
 
       Req.Test.stub(Client, fn conn ->
         assert conn.method == "POST"
         assert conn.request_path == "/predict/tag"
 
-        Req.Test.json(conn, %{"tag" => "recurring", "confidence" => 0.88})
+        Req.Test.json(conn, %{
+          "top_tag" => "benefit-books-formula",
+          "top_probability" => 0.88,
+          "model_version" => "1.0.0",
+          "probabilities" => %{"benefit-books-formula" => 0.88, "other" => 0.12}
+        })
       end)
 
-      assert {:ok, %{"tag" => "recurring", "confidence" => 0.88}} =
-               Client.predict_tag(%{invoice_title: "Monthly subscription"})
+      assert {:ok, result} = Client.predict_tag(%{invoice_title: "Monthly subscription"})
+      assert result["predicted_label"] == "benefit-books-formula"
+      assert result["confidence"] == 0.88
+      assert result["model_version"] == "1.0.0"
+    end
+
+    test "returns error when response missing required keys" do
+      setup_classifier_config()
+
+      Req.Test.stub(Client, fn conn ->
+        Req.Test.json(conn, %{"unexpected" => "format"})
+      end)
+
+      assert {:error, :invalid_response} =
+               Client.predict_tag(%{invoice_title: "Test"})
     end
 
     test "returns error on non-200 status" do

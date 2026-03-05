@@ -32,14 +32,14 @@ defmodule KsefHub.InvoiceClassifierTest do
 
       expect_predictions(
         category: %{
-          "top_category" => "finance:invoices",
-          "top_probability" => 0.92,
+          "predicted_label" => "finance:invoices",
+          "confidence" => 0.92,
           "model_version" => "v1.0",
           "probabilities" => %{"finance:invoices" => 0.92, "hr:payroll" => 0.08}
         },
         tag: %{
-          "top_tag" => "monthly",
-          "top_probability" => 0.85,
+          "predicted_label" => "monthly",
+          "confidence" => 0.85,
           "model_version" => "v1.0",
           "probabilities" => %{"monthly" => 0.85, "quarterly" => 0.15}
         }
@@ -68,14 +68,14 @@ defmodule KsefHub.InvoiceClassifierTest do
 
       expect_predictions(
         category: %{
-          "top_category" => "finance:invoices",
-          "top_probability" => 0.65,
+          "predicted_label" => "finance:invoices",
+          "confidence" => 0.65,
           "model_version" => "v1.0",
           "probabilities" => %{"finance:invoices" => 0.65}
         },
         tag: %{
-          "top_tag" => "monthly",
-          "top_probability" => 0.45,
+          "predicted_label" => "monthly",
+          "confidence" => 0.45,
           "model_version" => "v1.0",
           "probabilities" => %{"monthly" => 0.45}
         }
@@ -105,14 +105,14 @@ defmodule KsefHub.InvoiceClassifierTest do
 
       expect_predictions(
         category: %{
-          "top_category" => "nonexistent:category",
-          "top_probability" => 0.95,
+          "predicted_label" => "nonexistent:category",
+          "confidence" => 0.95,
           "model_version" => "v1.0",
           "probabilities" => %{"nonexistent:category" => 0.95}
         },
         tag: %{
-          "top_tag" => "nonexistent-tag",
-          "top_probability" => 0.90,
+          "predicted_label" => "nonexistent-tag",
+          "confidence" => 0.90,
           "model_version" => "v1.0",
           "probabilities" => %{"nonexistent-tag" => 0.90}
         }
@@ -135,8 +135,8 @@ defmodule KsefHub.InvoiceClassifierTest do
       |> expect(:predict_tag, fn _input ->
         {:ok,
          %{
-           "top_tag" => "x",
-           "top_probability" => 0.0,
+           "predicted_label" => "x",
+           "confidence" => 0.0,
            "model_version" => "v1.0",
            "probabilities" => %{}
          }}
@@ -153,14 +153,14 @@ defmodule KsefHub.InvoiceClassifierTest do
 
       expect_predictions(
         category: %{
-          "top_category" => "finance:invoices",
-          "top_probability" => 0.40,
+          "predicted_label" => "finance:invoices",
+          "confidence" => 0.40,
           "model_version" => "v1.0",
           "probabilities" => %{"finance:invoices" => 0.40}
         },
         tag: %{
-          "top_tag" => "monthly",
-          "top_probability" => 0.90,
+          "predicted_label" => "monthly",
+          "confidence" => 0.90,
           "model_version" => "v1.0",
           "probabilities" => %{"monthly" => 0.90}
         }
@@ -181,14 +181,14 @@ defmodule KsefHub.InvoiceClassifierTest do
 
       expect_predictions(
         category: %{
-          "top_category" => "finance:invoices",
-          "top_probability" => 0.90,
+          "predicted_label" => "finance:invoices",
+          "confidence" => 0.90,
           "model_version" => "v1.0",
           "probabilities" => %{"finance:invoices" => 0.90}
         },
         tag: %{
-          "top_tag" => "some-tag",
-          "top_probability" => 0.50,
+          "predicted_label" => "some-tag",
+          "confidence" => 0.50,
           "model_version" => "v1.0",
           "probabilities" => %{"some-tag" => 0.50}
         }
@@ -208,8 +208,8 @@ defmodule KsefHub.InvoiceClassifierTest do
       |> expect(:predict_category, fn _input ->
         {:ok,
          %{
-           "top_category" => "finance:invoices",
-           "top_probability" => 0.90,
+           "predicted_label" => "finance:invoices",
+           "confidence" => 0.90,
            "model_version" => "v1.0",
            "probabilities" => %{}
          }}
@@ -232,14 +232,14 @@ defmodule KsefHub.InvoiceClassifierTest do
 
       expect_predictions(
         category: %{
-          "top_category" => "finance:invoices",
-          "top_probability" => 0.80,
+          "predicted_label" => "finance:invoices",
+          "confidence" => 0.80,
           "model_version" => "v1.0",
           "probabilities" => %{"finance:invoices" => 0.80}
         },
         tag: %{
-          "top_tag" => "some-tag",
-          "top_probability" => 0.79,
+          "predicted_label" => "some-tag",
+          "confidence" => 0.79,
           "model_version" => "v1.0",
           "probabilities" => %{"some-tag" => 0.79}
         }
@@ -261,14 +261,14 @@ defmodule KsefHub.InvoiceClassifierTest do
 
       expect_predictions(
         category: %{
-          "top_category" => "finance:invoices",
-          "top_probability" => 0.60,
+          "predicted_label" => "finance:invoices",
+          "confidence" => 0.60,
           "model_version" => "v2.1",
           "probabilities" => cat_probs
         },
         tag: %{
-          "top_tag" => "monthly",
-          "top_probability" => 0.55,
+          "predicted_label" => "monthly",
+          "confidence" => 0.55,
           "model_version" => "v2.1",
           "probabilities" => tag_probs
         }
