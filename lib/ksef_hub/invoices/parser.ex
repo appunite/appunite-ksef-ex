@@ -6,6 +6,10 @@ defmodule KsefHub.Invoices.Parser do
 
   import SweetXml
 
+  # Polish postal code: exactly 2 digits, dash, 3 digits (e.g. "00-001")
+  @postal_in_line ~r/^(\d{2}-\d{3})\s+(.+)$/
+  @full_address ~r/^(.+?),?\s*(\d{2}-\d{3})\s+([^,]+)/
+
   @doc """
   Parses an FA(3) XML string into a structured invoice map.
   Returns `{:ok, map}` or `{:error, reason}`.
@@ -110,7 +114,7 @@ defmodule KsefHub.Invoices.Parser do
   @spec parse_address_fields(String.t(), String.t()) ::
           {String.t() | nil, String.t() | nil, String.t() | nil}
   defp parse_address_fields(addr_l1, "") do
-    case Regex.run(~r/^(.+?),?\s*(\d{2}-\d{3})\s+([^,]+)/, addr_l1) do
+    case Regex.run(@full_address, addr_l1) do
       [_, street, postal_code, city] ->
         {String.trim(street), String.trim(city), postal_code}
 
@@ -121,7 +125,7 @@ defmodule KsefHub.Invoices.Parser do
 
   # When AdresL2 is present, try to split postal code from city
   defp parse_address_fields(addr_l1, addr_l2) do
-    case Regex.run(~r/^(\d{2}-\d{3})\s+(.+)$/, addr_l2) do
+    case Regex.run(@postal_in_line, addr_l2) do
       [_, postal_code, city] -> {addr_l1, city, postal_code}
       _ -> {addr_l1, addr_l2, nil}
     end

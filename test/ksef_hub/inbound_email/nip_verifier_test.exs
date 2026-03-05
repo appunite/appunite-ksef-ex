@@ -58,6 +58,11 @@ defmodule KsefHub.InboundEmail.NipVerifierTest do
       assert {:ok, :expense} = NipVerifier.verify_expense(extracted, @company_nip)
     end
 
+    test "matches buyer_nip with lowercase pl prefix" do
+      extracted = %{buyer_nip: "pl1234567890", seller_nip: "9999999999"}
+      assert {:ok, :expense} = NipVerifier.verify_expense(extracted, @company_nip)
+    end
+
     test "matches seller_nip with PL prefix for income detection" do
       extracted = %{buyer_nip: "9999999999", seller_nip: "PL1234567890"}
       assert {:error, :income_not_allowed} = NipVerifier.verify_expense(extracted, @company_nip)

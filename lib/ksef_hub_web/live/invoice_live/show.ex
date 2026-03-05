@@ -624,7 +624,7 @@ defmodule KsefHubWeb.InvoiceLive.Show do
       Invoice {@invoice.invoice_number}
       <:subtitle>
         <.type_badge type={@invoice.type} />
-        <.status_badge status={if @invoice.duplicate_status == :confirmed, do: :duplicate, else: @invoice.status} />
+        <.status_badge status={display_status(@invoice)} />
         <.needs_review_badge
           prediction_status={@invoice.prediction_status}
           duplicate_status={@invoice.duplicate_status}
@@ -660,14 +660,20 @@ defmodule KsefHubWeb.InvoiceLive.Show do
             <.icon name="hero-pencil-square" class="size-4" /> Edit
           </button>
           <button
-            :if={@invoice.type == :expense && @invoice.status == :pending && @invoice.duplicate_status != :confirmed}
+            :if={
+              @invoice.type == :expense && @invoice.status == :pending &&
+                @invoice.duplicate_status != :confirmed
+            }
             phx-click="approve"
             class="btn btn-sm btn-success"
           >
             Approve
           </button>
           <button
-            :if={@invoice.type == :expense && @invoice.status == :pending && @invoice.duplicate_status != :confirmed}
+            :if={
+              @invoice.type == :expense && @invoice.status == :pending &&
+                @invoice.duplicate_status != :confirmed
+            }
             phx-click="reject"
             class="btn btn-sm btn-error"
           >
