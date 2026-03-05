@@ -86,10 +86,10 @@ defmodule KsefHub.InvoiceClassifier do
 
   @spec resolve_predictions(Ecto.UUID.t(), map(), map()) :: map()
   defp resolve_predictions(company_id, cat_result, tag_result) do
-    cat_name = cat_result["predicted_label"]
-    cat_confidence = cat_result["confidence"] || 0.0
-    tag_name = tag_result["predicted_label"]
-    tag_confidence = tag_result["confidence"] || 0.0
+    cat_name = cat_result["top_category"]
+    cat_confidence = cat_result["top_probability"] || 0.0
+    tag_name = tag_result["top_tag"]
+    tag_confidence = tag_result["top_probability"] || 0.0
 
     matching_category = find_category_by_name(company_id, cat_name)
     matching_tag = find_tag_by_name(company_id, tag_name)
@@ -110,10 +110,10 @@ defmodule KsefHub.InvoiceClassifier do
 
     %{
       prediction_status: status,
-      prediction_category_name: cat_result["predicted_label"],
-      prediction_tag_name: tag_result["predicted_label"],
-      prediction_category_confidence: cat_result["confidence"] || 0.0,
-      prediction_tag_confidence: tag_result["confidence"] || 0.0,
+      prediction_category_name: cat_result["top_category"],
+      prediction_tag_name: tag_result["top_tag"],
+      prediction_category_confidence: cat_result["top_probability"] || 0.0,
+      prediction_tag_confidence: tag_result["top_probability"] || 0.0,
       prediction_model_version: cat_result["model_version"] || tag_result["model_version"],
       prediction_category_probabilities: cat_result["probabilities"],
       prediction_tag_probabilities: tag_result["probabilities"],

@@ -6,8 +6,8 @@ defmodule KsefHub.InvoiceClassifier.StubClient do
   def predict_category(_input) do
     {:ok,
      %{
-       "predicted_label" => "unknown:category",
-       "confidence" => 0.10,
+       "top_category" => "unknown:category",
+       "top_probability" => 0.10,
        "model_version" => "stub",
        "probabilities" => %{}
      }}
@@ -17,8 +17,8 @@ defmodule KsefHub.InvoiceClassifier.StubClient do
   def predict_tag(_input) do
     {:ok,
      %{
-       "predicted_label" => "unknown-tag",
-       "confidence" => 0.10,
+       "top_tag" => "unknown-tag",
+       "top_probability" => 0.10,
        "model_version" => "stub",
        "probabilities" => %{}
      }}
