@@ -127,8 +127,8 @@ spec:
               value: "claude-sonnet-4-5-20250929"
           resources:
             limits:
-              memory: 256Mi
-              cpu: "0.5"
+              memory: 2Gi
+              cpu: "1"
           startupProbe:
             httpGet:
               path: /health
@@ -165,7 +165,7 @@ spec:
                   name: invoice-classifier-api-token
           resources:
             limits:
-              memory: 1Gi
+              memory: 512Mi
               cpu: "1"
           startupProbe:
             httpGet:

@@ -79,6 +79,7 @@ jobs:
     permissions:
       contents: read
       id-token: write
+      packages: read
 
     env:
       GCP_PROJECT_ID: au-ksef-ex
@@ -126,6 +127,13 @@ jobs:
             /tmp/ksef-pdf
           docker push "${KSEF_PDF_IMAGE}:${{ github.sha }}"
           docker push "${KSEF_PDF_IMAGE}:latest"
+
+      - name: Login to GitHub Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Mirror invoice-classifier image to Artifact Registry
         env:
