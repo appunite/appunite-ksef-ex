@@ -16,7 +16,6 @@ defmodule KsefHub.InboundEmail.ReplyNotifier do
   def success(sender, invoice, opts \\ []) do
     invoice_number = invoice.invoice_number
     seller_name = invoice.seller_name || ""
-    invoice_id = invoice.id
 
     subject =
       if invoice_number,
@@ -30,7 +29,7 @@ defmodule KsefHub.InboundEmail.ReplyNotifier do
     Expense invoice #{invoice_number || "(no number)"}#{if seller_name != "", do: " from #{seller_name}", else: ""}
     has been added and is ready for review.
 
-    #{invoice_url(invoice_id)}
+    #{invoice_url(invoice)}
 
     ==============================
     """
@@ -41,8 +40,6 @@ defmodule KsefHub.InboundEmail.ReplyNotifier do
   @doc "Builds a needs-review reply email."
   @spec needs_review(String.t(), KsefHub.Invoices.Invoice.t(), keyword()) :: Swoosh.Email.t()
   def needs_review(sender, invoice, opts \\ []) do
-    invoice_id = invoice.id
-
     body = """
 
     ==============================
@@ -50,7 +47,7 @@ defmodule KsefHub.InboundEmail.ReplyNotifier do
     Your invoice was uploaded but needs human review — some fields
     could not be extracted automatically.
 
-    #{invoice_url(invoice_id)}
+    #{invoice_url(invoice)}
 
     ==============================
     """
@@ -137,7 +134,6 @@ defmodule KsefHub.InboundEmail.ReplyNotifier do
   @spec nip_warning(String.t(), KsefHub.Invoices.Invoice.t(), atom(), keyword()) ::
           Swoosh.Email.t()
   def nip_warning(sender, invoice, reason, opts \\ []) do
-    invoice_id = invoice.id
     company_name = Keyword.get(opts, :company_name, "your company")
     nip = Keyword.get(opts, :nip, "")
 
@@ -161,7 +157,7 @@ defmodule KsefHub.InboundEmail.ReplyNotifier do
     #{detail}
 
     Please verify the invoice details:
-    #{invoice_url(invoice_id)}
+    #{invoice_url(invoice)}
 
     ==============================
     """
@@ -312,10 +308,10 @@ defmodule KsefHub.InboundEmail.ReplyNotifier do
     Application.get_env(:ksef_hub, :mailer_from, {"Invoi", "noreply@ksef-hub.com"})
   end
 
-  @spec invoice_url(Ecto.UUID.t() | nil) :: String.t()
+  @spec invoice_url(KsefHub.Invoices.Invoice.t() | nil) :: String.t()
   defp invoice_url(nil), do: ""
 
-  defp invoice_url(id) do
-    "#{KsefHubWeb.Endpoint.url()}/invoices/#{id}"
+  defp invoice_url(invoice) do
+    "#{KsefHubWeb.Endpoint.url()}/c/#{invoice.company_id}/invoices/#{invoice.id}"
   end
 end

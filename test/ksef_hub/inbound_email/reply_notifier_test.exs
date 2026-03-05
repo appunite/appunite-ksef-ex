@@ -11,6 +11,7 @@ defmodule KsefHub.InboundEmail.ReplyNotifierTest do
     test "builds email for successful invoice creation" do
       invoice = %{
         id: "abc-123",
+        company_id: "company-456",
         invoice_number: "FV/2026/001",
         seller_name: "Seller Sp. z o.o."
       }
@@ -23,13 +24,13 @@ defmodule KsefHub.InboundEmail.ReplyNotifierTest do
     end
 
     test "includes CC when configured" do
-      invoice = %{id: "abc", invoice_number: "FV/1", seller_name: "Seller"}
+      invoice = %{id: "abc", company_id: "c1", invoice_number: "FV/1", seller_name: "Seller"}
       email = ReplyNotifier.success(@sender, invoice, cc: "team@appunite.com")
       assert email.cc == [{"team@appunite.com", "team@appunite.com"}]
     end
 
     test "sets In-Reply-To and References headers when in_reply_to is provided" do
-      invoice = %{id: "abc", invoice_number: "FV/1", seller_name: "Seller"}
+      invoice = %{id: "abc", company_id: "c1", invoice_number: "FV/1", seller_name: "Seller"}
       msg_id = "<original-msg-id@mailgun.org>"
       email = ReplyNotifier.success(@sender, invoice, in_reply_to: msg_id)
 
@@ -38,7 +39,7 @@ defmodule KsefHub.InboundEmail.ReplyNotifierTest do
     end
 
     test "normalizes bare message-id by adding angle brackets" do
-      invoice = %{id: "abc", invoice_number: "FV/1", seller_name: "Seller"}
+      invoice = %{id: "abc", company_id: "c1", invoice_number: "FV/1", seller_name: "Seller"}
       email = ReplyNotifier.success(@sender, invoice, in_reply_to: "msg-id@mailgun.org")
 
       assert email.headers["In-Reply-To"] == "<msg-id@mailgun.org>"
@@ -46,7 +47,7 @@ defmodule KsefHub.InboundEmail.ReplyNotifierTest do
     end
 
     test "rejects malformed bracket message-ids" do
-      invoice = %{id: "abc", invoice_number: "FV/1", seller_name: "Seller"}
+      invoice = %{id: "abc", company_id: "c1", invoice_number: "FV/1", seller_name: "Seller"}
 
       for malformed <- ["<msg-id", "msg-id>"] do
         email = ReplyNotifier.success(@sender, invoice, in_reply_to: malformed)
@@ -55,7 +56,7 @@ defmodule KsefHub.InboundEmail.ReplyNotifierTest do
     end
 
     test "uses Re: original_subject for threading when provided" do
-      invoice = %{id: "abc", invoice_number: "FV/1", seller_name: "Seller"}
+      invoice = %{id: "abc", company_id: "c1", invoice_number: "FV/1", seller_name: "Seller"}
 
       email =
         ReplyNotifier.success(@sender, invoice, original_subject: "Invoice for February 2026")
@@ -64,14 +65,14 @@ defmodule KsefHub.InboundEmail.ReplyNotifierTest do
     end
 
     test "omits threading headers when in_reply_to is not provided" do
-      invoice = %{id: "abc", invoice_number: "FV/1", seller_name: "Seller"}
+      invoice = %{id: "abc", company_id: "c1", invoice_number: "FV/1", seller_name: "Seller"}
       email = ReplyNotifier.success(@sender, invoice)
 
       assert email.headers == %{}
     end
 
     test "omits threading headers when in_reply_to contains control characters" do
-      invoice = %{id: "abc", invoice_number: "FV/1", seller_name: "Seller"}
+      invoice = %{id: "abc", company_id: "c1", invoice_number: "FV/1", seller_name: "Seller"}
 
       for malformed <- ["<msg\r\nBcc: evil@hacker.com>", "<msg\nid>", "<msg\0id>"] do
         email = ReplyNotifier.success(@sender, invoice, in_reply_to: malformed)
@@ -82,7 +83,7 @@ defmodule KsefHub.InboundEmail.ReplyNotifierTest do
 
   describe "needs_review/3" do
     test "builds email for needs-review invoice" do
-      invoice = %{id: "abc-123"}
+      invoice = %{id: "abc-123", company_id: "company-456"}
       email = ReplyNotifier.needs_review(@sender, invoice)
       assert email.text_body =~ "needs human review"
     end
@@ -109,7 +110,7 @@ defmodule KsefHub.InboundEmail.ReplyNotifierTest do
 
   describe "nip_warning/4" do
     test "builds NIP warning email for income_not_allowed" do
-      invoice = %{id: "abc-123"}
+      invoice = %{id: "abc-123", company_id: "company-456"}
 
       email =
         ReplyNotifier.nip_warning(@sender, invoice, :income_not_allowed,
@@ -124,7 +125,7 @@ defmodule KsefHub.InboundEmail.ReplyNotifierTest do
     end
 
     test "builds NIP warning email for nip_mismatch" do
-      invoice = %{id: "abc-123"}
+      invoice = %{id: "abc-123", company_id: "company-456"}
 
       email =
         ReplyNotifier.nip_warning(@sender, invoice, :nip_mismatch,
@@ -137,7 +138,7 @@ defmodule KsefHub.InboundEmail.ReplyNotifierTest do
     end
 
     test "includes invoice URL" do
-      invoice = %{id: "abc-123"}
+      invoice = %{id: "abc-123", company_id: "company-456"}
       email = ReplyNotifier.nip_warning(@sender, invoice, :income_not_allowed)
       assert email.text_body =~ "abc-123"
     end
