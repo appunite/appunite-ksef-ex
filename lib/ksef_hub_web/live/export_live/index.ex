@@ -278,6 +278,7 @@ defmodule KsefHubWeb.ExportLive.Index do
                 <.link
                   :if={batch.status == :completed}
                   href={~p"/c/#{@current_company.id}/exports/#{batch.id}/download"}
+                  target="_blank"
                   class="btn btn-success btn-sm gap-1"
                 >
                   <.icon name="hero-arrow-down-tray" class="size-4" /> Download ZIP

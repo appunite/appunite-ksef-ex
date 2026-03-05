@@ -645,10 +645,14 @@ defmodule KsefHubWeb.InvoiceLive.Show do
               class="dropdown-content z-50 menu p-2 border border-base-300 bg-base-100 rounded-box w-44"
             >
               <li>
-                <a href={~p"/c/#{@current_company.id}/invoices/#{@invoice.id}/pdf"}>PDF</a>
+                <a href={~p"/c/#{@current_company.id}/invoices/#{@invoice.id}/pdf"} target="_blank">
+                  PDF
+                </a>
               </li>
               <li :if={@invoice.xml_file}>
-                <a href={~p"/c/#{@current_company.id}/invoices/#{@invoice.id}/xml"}>XML</a>
+                <a href={~p"/c/#{@current_company.id}/invoices/#{@invoice.id}/xml"} target="_blank">
+                  XML
+                </a>
               </li>
             </ul>
           </div>
