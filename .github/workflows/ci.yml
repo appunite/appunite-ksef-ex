@@ -120,7 +120,7 @@ jobs:
           KSEF_PDF_IMAGE: europe-west1-docker.pkg.dev/au-ksef-ex/ksef-hub/ksef-pdf
         run: |
           git clone --depth 1 --branch feature/html-output \
-            https://github.com/emilwojtaszek/ksef-pdf-generator.git /tmp/ksef-pdf
+            https://github.com/appunite/ksef-pdf-generator.git /tmp/ksef-pdf
           docker build \
             -t "${KSEF_PDF_IMAGE}:${{ github.sha }}" \
             -t "${KSEF_PDF_IMAGE}:latest" \
@@ -146,6 +146,18 @@ jobs:
             "${CLASSIFIER_IMAGE}:latest"
           docker push "${CLASSIFIER_IMAGE}:${{ github.sha }}"
           docker push "${CLASSIFIER_IMAGE}:latest"
+
+      - name: Mirror invoice-extractor image to Artifact Registry
+        env:
+          EXTRACTOR_IMAGE: europe-west1-docker.pkg.dev/au-ksef-ex/ksef-hub/invoice-extractor
+        run: |
+          docker pull --platform linux/amd64 ghcr.io/appunite/au-ksef-unstructured:latest
+          docker tag ghcr.io/appunite/au-ksef-unstructured:latest \
+            "${EXTRACTOR_IMAGE}:${{ github.sha }}"
+          docker tag ghcr.io/appunite/au-ksef-unstructured:latest \
+            "${EXTRACTOR_IMAGE}:latest"
+          docker push "${EXTRACTOR_IMAGE}:${{ github.sha }}"
+          docker push "${EXTRACTOR_IMAGE}:latest"
 
       - name: Run database migrations
         run: |

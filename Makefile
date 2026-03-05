@@ -3,7 +3,7 @@
        docker.build docker.run docker.up docker.down \
        db.setup db.migrate db.reset db.rollback \
        deploy \
-       models.upload models.restart models.train classifier.mirror
+       models.upload models.restart models.train classifier.mirror extractor.mirror
 
 APP_NAME := ksef-hub
 DOCKER_TAG := $(APP_NAME):latest
@@ -130,3 +130,14 @@ endif
 	docker pull --platform linux/amd64 $(CLASSIFIER_SRC)
 	docker tag $(CLASSIFIER_SRC) $(CLASSIFIER_TARGET_REPO):$(CLASSIFIER_TARGET_TAG)
 	docker push $(CLASSIFIER_TARGET_REPO):$(CLASSIFIER_TARGET_TAG)
+
+EXTRACTOR_TARGET_TAG ?= latest
+EXTRACTOR_TARGET_REPO := $(GCP_REGION)-docker.pkg.dev/$(GCP_PROJECT_ID)/ksef-hub/invoice-extractor
+
+extractor.mirror: ## Mirror extractor image to Artifact Registry (EXTRACTOR_SRC=image@sha256:...)
+ifndef EXTRACTOR_SRC
+	$(error EXTRACTOR_SRC is required — use an image@sha256:<digest> for reproducible deploys, e.g. EXTRACTOR_SRC=ghcr.io/appunite/au-ksef-unstructured@sha256:abc123)
+endif
+	docker pull --platform linux/amd64 $(EXTRACTOR_SRC)
+	docker tag $(EXTRACTOR_SRC) $(EXTRACTOR_TARGET_REPO):$(EXTRACTOR_TARGET_TAG)
+	docker push $(EXTRACTOR_TARGET_REPO):$(EXTRACTOR_TARGET_TAG)
