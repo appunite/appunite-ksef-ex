@@ -22,7 +22,7 @@ defmodule KsefHubWeb.InvoiceComponents do
     """
   end
 
-  @doc "Renders a coloured badge for the invoice status (:pending / :approved / :rejected)."
+  @doc "Renders a coloured badge for the invoice status (:pending / :approved / :rejected / :duplicate)."
   @spec status_badge(map()) :: Phoenix.LiveView.Rendered.t()
   attr :status, :atom, required: true
 
@@ -33,7 +33,8 @@ defmodule KsefHubWeb.InvoiceComponents do
       @status == :pending && "bg-warning/10 text-warning border-warning/20",
       @status == :approved && "bg-success/10 text-success border-success/20",
       @status == :rejected && "bg-error/10 text-error border-error/20",
-      @status not in [:pending, :approved, :rejected] &&
+      @status == :duplicate && "bg-error/10 text-error border-error/20",
+      @status not in [:pending, :approved, :rejected, :duplicate] &&
         "bg-base-200 text-base-content/60 border-base-300"
     ]}>
       {@status}
