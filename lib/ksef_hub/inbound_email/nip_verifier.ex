@@ -23,12 +23,13 @@ defmodule KsefHub.InboundEmail.NipVerifier do
   """
   @spec verify_expense(map(), String.t()) :: result()
   def verify_expense(extracted, company_nip) do
-    buyer_nip = get_nip(extracted, :buyer_nip)
-    seller_nip = get_nip(extracted, :seller_nip)
+    buyer_nip = get_nip(extracted, :buyer_nip) |> normalize_nip()
+    seller_nip = get_nip(extracted, :seller_nip) |> normalize_nip()
+    normalized_company = normalize_nip(company_nip)
 
     cond do
-      present?(buyer_nip) && buyer_nip == company_nip -> {:ok, :expense}
-      present?(seller_nip) && seller_nip == company_nip -> {:error, :income_not_allowed}
+      present?(buyer_nip) && buyer_nip == normalized_company -> {:ok, :expense}
+      present?(seller_nip) && seller_nip == normalized_company -> {:error, :income_not_allowed}
       present?(buyer_nip) -> {:error, :nip_mismatch}
       true -> {:undetermined, :needs_review}
     end
@@ -37,6 +38,21 @@ defmodule KsefHub.InboundEmail.NipVerifier do
   @spec get_nip(map(), atom()) :: String.t() | nil
   defp get_nip(map, key) do
     Map.get(map, key) || Map.get(map, Atom.to_string(key))
+  end
+
+  # Strips PL prefix, dashes, spaces from Polish NIPs before comparison.
+  @spec normalize_nip(String.t() | nil) :: String.t() | nil
+  defp normalize_nip(nil), do: nil
+  defp normalize_nip(""), do: ""
+
+  defp normalize_nip(value) do
+    stripped =
+      value
+      |> String.trim()
+      |> String.replace(~r/^PL/i, "")
+      |> String.replace(~r/[\s\-]/, "")
+
+    if Regex.match?(~r/^\d{10}$/, stripped), do: stripped, else: String.trim(value)
   end
 
   @spec present?(term()) :: boolean()
