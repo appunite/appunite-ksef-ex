@@ -138,24 +138,26 @@ jobs:
       - name: Mirror invoice-classifier image to Artifact Registry
         env:
           CLASSIFIER_IMAGE: europe-west1-docker.pkg.dev/au-ksef-ex/ksef-hub/invoice-classifier
+          CLASSIFIER_SRC: ghcr.io/appunite/au-payroll-model-categories:latest
         run: |
-          docker pull --platform linux/amd64 ghcr.io/appunite/au-payroll-model-categories:latest
-          docker tag ghcr.io/appunite/au-payroll-model-categories:latest \
-            "${CLASSIFIER_IMAGE}:${{ github.sha }}"
-          docker tag ghcr.io/appunite/au-payroll-model-categories:latest \
-            "${CLASSIFIER_IMAGE}:latest"
+          docker pull --platform linux/amd64 "${CLASSIFIER_SRC}"
+          DIGEST=$(docker inspect --format='{{index .RepoDigests 0}}' "${CLASSIFIER_SRC}")
+          echo "Pinned classifier digest: ${DIGEST}"
+          docker tag "${CLASSIFIER_SRC}" "${CLASSIFIER_IMAGE}:${{ github.sha }}"
+          docker tag "${CLASSIFIER_SRC}" "${CLASSIFIER_IMAGE}:latest"
           docker push "${CLASSIFIER_IMAGE}:${{ github.sha }}"
           docker push "${CLASSIFIER_IMAGE}:latest"
 
       - name: Mirror invoice-extractor image to Artifact Registry
         env:
           EXTRACTOR_IMAGE: europe-west1-docker.pkg.dev/au-ksef-ex/ksef-hub/invoice-extractor
+          EXTRACTOR_SRC: ghcr.io/appunite/au-ksef-unstructured:latest
         run: |
-          docker pull --platform linux/amd64 ghcr.io/appunite/au-ksef-unstructured:latest
-          docker tag ghcr.io/appunite/au-ksef-unstructured:latest \
-            "${EXTRACTOR_IMAGE}:${{ github.sha }}"
-          docker tag ghcr.io/appunite/au-ksef-unstructured:latest \
-            "${EXTRACTOR_IMAGE}:latest"
+          docker pull --platform linux/amd64 "${EXTRACTOR_SRC}"
+          DIGEST=$(docker inspect --format='{{index .RepoDigests 0}}' "${EXTRACTOR_SRC}")
+          echo "Pinned extractor digest: ${DIGEST}"
+          docker tag "${EXTRACTOR_SRC}" "${EXTRACTOR_IMAGE}:${{ github.sha }}"
+          docker tag "${EXTRACTOR_SRC}" "${EXTRACTOR_IMAGE}:latest"
           docker push "${EXTRACTOR_IMAGE}:${{ github.sha }}"
           docker push "${EXTRACTOR_IMAGE}:latest"
 
