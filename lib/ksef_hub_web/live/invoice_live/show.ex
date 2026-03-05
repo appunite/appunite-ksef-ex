@@ -101,6 +101,14 @@ defmodule KsefHubWeb.InvoiceLive.Show do
   end
 
   # --- Events: Approve/Reject ---
+  def handle_event(
+        "approve",
+        _params,
+        %{assigns: %{invoice: %{duplicate_status: :confirmed}}} = socket
+      ) do
+    {:noreply, put_flash(socket, :error, "Cannot approve a confirmed duplicate.")}
+  end
+
   def handle_event("approve", _params, socket) do
     case Invoices.approve_invoice(socket.assigns.invoice) do
       {:ok, updated} ->
@@ -126,6 +134,14 @@ defmodule KsefHubWeb.InvoiceLive.Show do
   end
 
   @impl true
+  def handle_event(
+        "reject",
+        _params,
+        %{assigns: %{invoice: %{duplicate_status: :confirmed}}} = socket
+      ) do
+    {:noreply, put_flash(socket, :error, "Cannot reject a confirmed duplicate.")}
+  end
+
   def handle_event("reject", _params, socket) do
     case Invoices.reject_invoice(socket.assigns.invoice) do
       {:ok, updated} ->
@@ -624,7 +640,7 @@ defmodule KsefHubWeb.InvoiceLive.Show do
       Invoice {@invoice.invoice_number}
       <:subtitle>
         <.type_badge type={@invoice.type} />
-        <.status_badge status={@invoice.status} />
+        <.status_badge status={display_status(@invoice)} />
         <.needs_review_badge
           prediction_status={@invoice.prediction_status}
           duplicate_status={@invoice.duplicate_status}
@@ -645,10 +661,14 @@ defmodule KsefHubWeb.InvoiceLive.Show do
               class="dropdown-content z-50 menu p-2 border border-base-300 bg-base-100 rounded-box w-44"
             >
               <li>
-                <a href={~p"/c/#{@current_company.id}/invoices/#{@invoice.id}/pdf"}>PDF</a>
+                <a href={~p"/c/#{@current_company.id}/invoices/#{@invoice.id}/pdf"} target="_blank">
+                  PDF
+                </a>
               </li>
               <li :if={@invoice.xml_file}>
-                <a href={~p"/c/#{@current_company.id}/invoices/#{@invoice.id}/xml"}>XML</a>
+                <a href={~p"/c/#{@current_company.id}/invoices/#{@invoice.id}/xml"} target="_blank">
+                  XML
+                </a>
               </li>
             </ul>
           </div>
@@ -660,14 +680,20 @@ defmodule KsefHubWeb.InvoiceLive.Show do
             <.icon name="hero-pencil-square" class="size-4" /> Edit
           </button>
           <button
-            :if={@invoice.type == :expense && @invoice.status == :pending}
+            :if={
+              @invoice.type == :expense && @invoice.status == :pending &&
+                @invoice.duplicate_status != :confirmed
+            }
             phx-click="approve"
             class="btn btn-sm btn-success"
           >
             Approve
           </button>
           <button
-            :if={@invoice.type == :expense && @invoice.status == :pending}
+            :if={
+              @invoice.type == :expense && @invoice.status == :pending &&
+                @invoice.duplicate_status != :confirmed
+            }
             phx-click="reject"
             class="btn btn-sm btn-error"
           >

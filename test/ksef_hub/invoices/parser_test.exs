@@ -180,14 +180,56 @@ defmodule KsefHub.Invoices.ParserTest do
 
       assert invoice.seller_address == %{
                street: "ul. Testowa 1",
-               city: "00-001 Warszawa",
-               postal_code: nil,
+               city: "Warszawa",
+               postal_code: "00-001",
                country: "PL"
              }
 
       assert invoice.buyer_address == %{
                street: "ul. Kupna 5",
-               city: "00-002 Kraków",
+               city: "Kraków",
+               postal_code: "00-002",
+               country: "PL"
+             }
+    end
+
+    test "parses address when everything is in AdresL1 (no AdresL2)" do
+      xml = File.read!(Path.join(@fixtures_path, "sample_address_in_l1_only.xml"))
+
+      assert {:ok, invoice} = Parser.parse(xml)
+
+      assert invoice.seller_address == %{
+               street: "Św. Mikołaja 8-11",
+               city: "Wrocław",
+               postal_code: "50-125",
+               country: "PL"
+             }
+
+      assert invoice.buyer_address == %{
+               street: "ul. Droga Dębińska 3A/3",
+               city: "Poznań",
+               postal_code: "61-555",
+               country: "PL"
+             }
+    end
+
+    test "keeps street as-is when AdresL1 has no postal code pattern" do
+      xml = File.read!(Path.join(@fixtures_path, "sample_foreign_address.xml"))
+
+      assert {:ok, invoice} = Parser.parse(xml)
+
+      # Foreign address: no postal code pattern, street kept as-is
+      assert invoice.seller_address == %{
+               street: "Friedrichstraße 123",
+               city: nil,
+               postal_code: nil,
+               country: "DE"
+             }
+
+      # AdresL2 without postal code: kept as city
+      assert invoice.buyer_address == %{
+               street: "ul. Testowa 1",
+               city: "Warszawa",
                postal_code: nil,
                country: "PL"
              }

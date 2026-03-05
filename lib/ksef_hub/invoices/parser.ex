@@ -6,6 +6,10 @@ defmodule KsefHub.Invoices.Parser do
 
   import SweetXml
 
+  # Polish postal code: exactly 2 digits, dash, 3 digits (e.g. "00-001")
+  @postal_in_line ~r/^(\d{2}-\d{3})\s+(.+)$/
+  @full_address ~r/^(.+?),?\s*(\d{2}-\d{3})\s+([^,]+)/
+
   @doc """
   Parses an FA(3) XML string into a structured invoice map.
   Returns `{:ok, map}` or `{:error, reason}`.
@@ -82,26 +86,52 @@ defmodule KsefHub.Invoices.Parser do
         ~x"//*[local-name()='#{subject}']//*[local-name()='Adres']//*[local-name()='KodKraju']/text()"s
       )
 
-    street =
+    addr_l1 =
       xpath(
         doc,
         ~x"//*[local-name()='#{subject}']//*[local-name()='Adres']//*[local-name()='AdresL1']/text()"s
       )
 
-    city =
+    addr_l2 =
       xpath(
         doc,
         ~x"//*[local-name()='#{subject}']//*[local-name()='Adres']//*[local-name()='AdresL2']/text()"s
       )
 
+    {street, city, postal_code} = parse_address_fields(addr_l1, addr_l2)
+
     addr = %{
-      street: if(street != "", do: street),
-      city: if(city != "", do: city),
-      postal_code: nil,
-      country: if(country != "", do: country)
+      street: presence(street),
+      city: presence(city),
+      postal_code: presence(postal_code),
+      country: presence(country)
     }
 
     if Enum.all?(Map.values(addr), &is_nil/1), do: nil, else: addr
+  end
+
+  @spec parse_address_fields(String.t(), String.t()) ::
+          {String.t() | nil, String.t() | nil, String.t() | nil}
+  defp parse_address_fields(raw_l1, raw_l2) do
+    addr_l1 = String.trim(raw_l1)
+    addr_l2 = String.trim(raw_l2)
+
+    if addr_l2 == "" do
+      # AdresL2 is empty/blank — try to parse street, postal code, and city from AdresL1
+      case Regex.run(@full_address, addr_l1) do
+        [_, street, postal_code, city] ->
+          {String.trim(street), String.trim(city), postal_code}
+
+        _ ->
+          {addr_l1, nil, nil}
+      end
+    else
+      # AdresL2 is present — try to split postal code from city
+      case Regex.run(@postal_in_line, addr_l2) do
+        [_, postal_code, city] -> {addr_l1, city, postal_code}
+        _ -> {addr_l1, addr_l2, nil}
+      end
+    end
   end
 
   @spec extract_name(term(), String.t()) :: String.t()

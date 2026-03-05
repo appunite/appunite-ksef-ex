@@ -22,7 +22,7 @@ defmodule KsefHubWeb.InvoiceComponents do
     """
   end
 
-  @doc "Renders a coloured badge for the invoice status (:pending / :approved / :rejected)."
+  @doc "Renders a coloured badge for the invoice status (:pending / :approved / :rejected / :duplicate)."
   @spec status_badge(map()) :: Phoenix.LiveView.Rendered.t()
   attr :status, :atom, required: true
 
@@ -32,14 +32,25 @@ defmodule KsefHubWeb.InvoiceComponents do
       "inline-flex items-center px-2 py-0.5 rounded-md text-xs font-medium border",
       @status == :pending && "bg-warning/10 text-warning border-warning/20",
       @status == :approved && "bg-success/10 text-success border-success/20",
-      @status == :rejected && "bg-error/10 text-error border-error/20",
-      @status not in [:pending, :approved, :rejected] &&
+      @status in [:rejected, :duplicate] && "bg-error/10 text-error border-error/20",
+      @status not in [:pending, :approved, :rejected, :duplicate] &&
         "bg-base-200 text-base-content/60 border-base-300"
     ]}>
       {@status}
     </span>
     """
   end
+
+  @doc """
+  Returns the display status for an invoice, accounting for confirmed duplicates.
+
+  Confirmed duplicates show as `:duplicate` regardless of actual DB status.
+  """
+  @spec display_status(map()) :: atom()
+  def display_status(%{duplicate_status: :confirmed}), do: :duplicate
+  def display_status(%{"duplicate_status" => :confirmed}), do: :duplicate
+  def display_status(%{status: status}), do: status
+  def display_status(%{"status" => status}), do: status
 
   @doc "Renders a category badge with emoji and name, or \"-\" when nil."
   @spec category_badge(map()) :: Phoenix.LiveView.Rendered.t()
@@ -90,6 +101,7 @@ defmodule KsefHubWeb.InvoiceComponents do
   def needs_review_badge(assigns) do
     show? =
       assigns.status == :pending &&
+        assigns.duplicate_status != :confirmed &&
         (assigns.extraction_status in [:partial, :failed] ||
            assigns.prediction_status == :needs_review ||
            assigns.duplicate_status == :suspected)

@@ -343,7 +343,7 @@ defmodule KsefHubWeb.InvoiceLive.Index do
         </:col>
         <:col :let={inv} label="Status" class="w-28">
           <div class="flex flex-wrap gap-1">
-            <.status_badge status={inv.status} />
+            <.status_badge status={display_status(inv)} />
             <.needs_review_badge
               prediction_status={inv.prediction_status}
               duplicate_status={inv.duplicate_status}

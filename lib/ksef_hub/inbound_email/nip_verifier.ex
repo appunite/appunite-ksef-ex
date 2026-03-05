@@ -6,6 +6,8 @@ defmodule KsefHub.InboundEmail.NipVerifier do
   whether the invoice should be accepted, rejected, or flagged for review.
   """
 
+  alias KsefHub.Nip
+
   @type result ::
           {:ok, :expense}
           | {:error, :income_not_allowed}
@@ -23,12 +25,13 @@ defmodule KsefHub.InboundEmail.NipVerifier do
   """
   @spec verify_expense(map(), String.t()) :: result()
   def verify_expense(extracted, company_nip) do
-    buyer_nip = get_nip(extracted, :buyer_nip)
-    seller_nip = get_nip(extracted, :seller_nip)
+    buyer_nip = get_nip(extracted, :buyer_nip) |> Nip.normalize()
+    seller_nip = get_nip(extracted, :seller_nip) |> Nip.normalize()
+    normalized_company = Nip.normalize(company_nip)
 
     cond do
-      present?(buyer_nip) && buyer_nip == company_nip -> {:ok, :expense}
-      present?(seller_nip) && seller_nip == company_nip -> {:error, :income_not_allowed}
+      present?(buyer_nip) && buyer_nip == normalized_company -> {:ok, :expense}
+      present?(seller_nip) && seller_nip == normalized_company -> {:error, :income_not_allowed}
       present?(buyer_nip) -> {:error, :nip_mismatch}
       true -> {:undetermined, :needs_review}
     end

@@ -43,6 +43,31 @@ defmodule KsefHub.InboundEmail.NipVerifierTest do
       assert {:undetermined, :needs_review} = NipVerifier.verify_expense(extracted, @company_nip)
     end
 
+    test "matches buyer_nip with PL prefix" do
+      extracted = %{buyer_nip: "PL1234567890", seller_nip: "9999999999"}
+      assert {:ok, :expense} = NipVerifier.verify_expense(extracted, @company_nip)
+    end
+
+    test "matches buyer_nip with PL prefix and space" do
+      extracted = %{"buyer_nip" => "PL 1234567890", "seller_nip" => "9999999999"}
+      assert {:ok, :expense} = NipVerifier.verify_expense(extracted, @company_nip)
+    end
+
+    test "matches buyer_nip with dashes" do
+      extracted = %{buyer_nip: "123-456-78-90", seller_nip: "9999999999"}
+      assert {:ok, :expense} = NipVerifier.verify_expense(extracted, @company_nip)
+    end
+
+    test "matches buyer_nip with lowercase pl prefix" do
+      extracted = %{buyer_nip: "pl1234567890", seller_nip: "9999999999"}
+      assert {:ok, :expense} = NipVerifier.verify_expense(extracted, @company_nip)
+    end
+
+    test "matches seller_nip with PL prefix for income detection" do
+      extracted = %{buyer_nip: "9999999999", seller_nip: "PL1234567890"}
+      assert {:error, :income_not_allowed} = NipVerifier.verify_expense(extracted, @company_nip)
+    end
+
     test "seller_nip match takes priority over missing buyer_nip" do
       extracted = %{buyer_nip: nil, seller_nip: @company_nip}
 
