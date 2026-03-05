@@ -101,6 +101,14 @@ defmodule KsefHubWeb.InvoiceLive.Show do
   end
 
   # --- Events: Approve/Reject ---
+  def handle_event(
+        "approve",
+        _params,
+        %{assigns: %{invoice: %{duplicate_status: :confirmed}}} = socket
+      ) do
+    {:noreply, put_flash(socket, :error, "Cannot approve a confirmed duplicate.")}
+  end
+
   def handle_event("approve", _params, socket) do
     case Invoices.approve_invoice(socket.assigns.invoice) do
       {:ok, updated} ->
@@ -126,6 +134,14 @@ defmodule KsefHubWeb.InvoiceLive.Show do
   end
 
   @impl true
+  def handle_event(
+        "reject",
+        _params,
+        %{assigns: %{invoice: %{duplicate_status: :confirmed}}} = socket
+      ) do
+    {:noreply, put_flash(socket, :error, "Cannot reject a confirmed duplicate.")}
+  end
+
   def handle_event("reject", _params, socket) do
     case Invoices.reject_invoice(socket.assigns.invoice) do
       {:ok, updated} ->

@@ -110,24 +110,27 @@ defmodule KsefHub.Invoices.Parser do
     if Enum.all?(Map.values(addr), &is_nil/1), do: nil, else: addr
   end
 
-  # When AdresL2 is empty, try to parse street, postal code, and city from AdresL1
   @spec parse_address_fields(String.t(), String.t()) ::
           {String.t() | nil, String.t() | nil, String.t() | nil}
-  defp parse_address_fields(addr_l1, "") do
-    case Regex.run(@full_address, addr_l1) do
-      [_, street, postal_code, city] ->
-        {String.trim(street), String.trim(city), postal_code}
+  defp parse_address_fields(raw_l1, raw_l2) do
+    addr_l1 = String.trim(raw_l1)
+    addr_l2 = String.trim(raw_l2)
 
-      _ ->
-        {addr_l1, nil, nil}
-    end
-  end
+    if addr_l2 == "" do
+      # AdresL2 is empty/blank — try to parse street, postal code, and city from AdresL1
+      case Regex.run(@full_address, addr_l1) do
+        [_, street, postal_code, city] ->
+          {String.trim(street), String.trim(city), postal_code}
 
-  # When AdresL2 is present, try to split postal code from city
-  defp parse_address_fields(addr_l1, addr_l2) do
-    case Regex.run(@postal_in_line, addr_l2) do
-      [_, postal_code, city] -> {addr_l1, city, postal_code}
-      _ -> {addr_l1, addr_l2, nil}
+        _ ->
+          {addr_l1, nil, nil}
+      end
+    else
+      # AdresL2 is present — try to split postal code from city
+      case Regex.run(@postal_in_line, addr_l2) do
+        [_, postal_code, city] -> {addr_l1, city, postal_code}
+        _ -> {addr_l1, addr_l2, nil}
+      end
     end
   end
 
