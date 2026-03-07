@@ -23,8 +23,10 @@ defmodule KsefHubWeb.Api.TokenController do
     description:
       "Returns all API tokens belonging to the authenticated user for the token's company.",
     responses: %{
-      200 => {"Token list for the authenticated user", "application/json", Schemas.TokenListResponse},
-      401 => {"Unauthorized — missing or invalid API token", "application/json", Schemas.ErrorResponse}
+      200 =>
+        {"Token list for the authenticated user", "application/json", Schemas.TokenListResponse},
+      401 =>
+        {"Unauthorized — missing or invalid API token", "application/json", Schemas.ErrorResponse}
     }
   )
 
@@ -56,9 +58,14 @@ defmodule KsefHubWeb.Api.TokenController do
          required: [:name]
        }},
     responses: %{
-      201 => {"Created token — the full token value is included only in this response", "application/json", Schemas.TokenCreatedResponse},
-      401 => {"Unauthorized — missing or invalid API token", "application/json", Schemas.ErrorResponse},
-      403 => {"Forbidden — only company owners can create tokens", "application/json", Schemas.ErrorResponse},
+      201 =>
+        {"Created token — the full token value is included only in this response",
+         "application/json", Schemas.TokenCreatedResponse},
+      401 =>
+        {"Unauthorized — missing or invalid API token", "application/json", Schemas.ErrorResponse},
+      403 =>
+        {"Forbidden — only company owners can create tokens", "application/json",
+         Schemas.ErrorResponse},
       422 => {"Validation error — name is required", "application/json", Schemas.ErrorResponse}
     }
   )
@@ -106,8 +113,11 @@ defmodule KsefHubWeb.Api.TokenController do
     ],
     responses: %{
       200 => {"Token permanently revoked", "application/json", Schemas.MessageResponse},
-      401 => {"Unauthorized — missing or invalid API token", "application/json", Schemas.ErrorResponse},
-      403 => {"Forbidden — only company owners can revoke tokens", "application/json", Schemas.ErrorResponse},
+      401 =>
+        {"Unauthorized — missing or invalid API token", "application/json", Schemas.ErrorResponse},
+      403 =>
+        {"Forbidden — only company owners can revoke tokens", "application/json",
+         Schemas.ErrorResponse},
       404 => {"Token not found", "application/json", Schemas.ErrorResponse}
     }
   )
