@@ -107,44 +107,14 @@ All API endpoints require a Bearer token. Full OpenAPI spec available at `/api/o
 curl -H "Authorization: Bearer <token>" http://localhost:4000/api/invoices
 ```
 
-### Invoices
+### API Documentation
 
-```http
-GET    /api/invoices                    # list with filters
-GET    /api/invoices/:id                # invoice detail
-POST   /api/invoices                    # create from FA(3) XML
-PATCH  /api/invoices/:id                # update invoice
-POST   /api/invoices/upload             # upload PDF/image for extraction
-POST   /api/invoices/:id/approve        # approve expense
-POST   /api/invoices/:id/reject         # reject expense
-POST   /api/invoices/:id/confirm-duplicate
-POST   /api/invoices/:id/dismiss-duplicate
-GET    /api/invoices/:id/html           # HTML preview
-GET    /api/invoices/:id/pdf            # PDF download
-GET    /api/invoices/:id/xml            # XML download
-PUT    /api/invoices/:id/category       # set category
-POST   /api/invoices/:id/tags           # add tags
-PUT    /api/invoices/:id/tags           # replace tags
-DELETE /api/invoices/:id/tags/:tag_id   # remove tag
-```
+All REST endpoints are documented with OpenAPI 3.0 specs (via `open_api_spex`):
 
-### Categories & Tags
+- `GET /api/openapi` — raw OpenAPI 3.0 JSON spec
+- `GET /dev/swaggerui` — interactive SwaggerUI (dev only)
 
-```http
-GET    /api/categories      POST   /api/categories
-GET    /api/categories/:id  PATCH  /api/categories/:id  DELETE /api/categories/:id
-
-GET    /api/tags            POST   /api/tags
-GET    /api/tags/:id        PATCH  /api/tags/:id        DELETE /api/tags/:id
-```
-
-### API Tokens
-
-```http
-GET    /api/tokens          # list tokens
-POST   /api/tokens          # create token
-DELETE /api/tokens/:id      # revoke token
-```
+Run `mix phx.server` and visit [http://localhost:4000/dev/swaggerui](http://localhost:4000/dev/swaggerui) to browse the API interactively.
 
 ## Architecture
 
