@@ -170,7 +170,7 @@ defmodule KsefHubWeb.Api.InvoiceController do
         {"Unauthorized — missing or invalid API token", "application/json", Schemas.ErrorResponse},
       413 => {"File too large — maximum 10 MB", "application/json", Schemas.ErrorResponse},
       415 =>
-        {"Unsupported content type — accepted: PDF, PNG, JPG, HEIC, WEBP", "application/json",
+        {"Unsupported content type — only PDF files are accepted", "application/json",
          Schemas.ErrorResponse},
       422 =>
         {"Validation error — missing file or type parameter, or invalid values",
