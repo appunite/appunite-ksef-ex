@@ -165,7 +165,9 @@ defmodule KsefHubWeb.Api.InvoiceController do
       "Uploads a PDF invoice file for automatic data extraction via the au-ksef-unstructured service. If extraction is incomplete, the invoice is created with extraction_status 'partial' and can be completed via PATCH.",
     request_body: {"PDF invoice upload", "multipart/form-data", Schemas.UploadInvoiceRequest},
     responses: %{
-      201 => {"Created invoice", "application/json", Schemas.InvoiceResponse},
+      201 =>
+        {"Created invoice — check extraction_status (complete, partial, or failed)",
+         "application/json", Schemas.InvoiceResponse},
       401 =>
         {"Unauthorized — missing or invalid API token", "application/json", Schemas.ErrorResponse},
       413 => {"File too large — maximum 10 MB", "application/json", Schemas.ErrorResponse},
@@ -174,10 +176,7 @@ defmodule KsefHubWeb.Api.InvoiceController do
          Schemas.ErrorResponse},
       422 =>
         {"Validation error — missing file or type parameter, or invalid values",
-         "application/json", Schemas.ErrorResponse},
-      502 =>
-        {"Extraction service unavailable or returned an error", "application/json",
-         Schemas.ErrorResponse}
+         "application/json", Schemas.ErrorResponse}
     }
   )
 
@@ -480,7 +479,7 @@ defmodule KsefHubWeb.Api.InvoiceController do
         {"Unauthorized — missing or invalid API token", "application/json", Schemas.ErrorResponse},
       404 => {"Invoice not found", "application/json", Schemas.ErrorResponse},
       422 =>
-        {"Invoice is not flagged as a suspected duplicate", "application/json",
+        {"Invoice is not a duplicate, or has already been dismissed", "application/json",
          Schemas.ErrorResponse}
     }
   )
