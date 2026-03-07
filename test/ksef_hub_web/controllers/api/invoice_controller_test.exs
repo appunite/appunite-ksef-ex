@@ -962,6 +962,28 @@ defmodule KsefHubWeb.Api.InvoiceControllerTest do
       assert Jason.decode!(conn.resp_body)["error"] ==
                "One or more tags not found in this company"
     end
+
+    test "returns 422 for non-list tag_ids", %{conn: conn} do
+      %{company: company, token: token} = create_owner_with_token()
+      invoice = insert(:invoice, company: company)
+
+      body = Jason.encode!(%{tag_ids: "not-a-list"})
+      conn = conn |> api_conn(token) |> put("/api/invoices/#{invoice.id}/tags", body)
+
+      assert conn.status == 422
+      assert Jason.decode!(conn.resp_body)["error"] == "Invalid tag_ids payload"
+    end
+
+    test "returns 422 for invalid UUIDs in tag_ids", %{conn: conn} do
+      %{company: company, token: token} = create_owner_with_token()
+      invoice = insert(:invoice, company: company)
+
+      body = Jason.encode!(%{tag_ids: ["not-a-uuid"]})
+      conn = conn |> api_conn(token) |> put("/api/invoices/#{invoice.id}/tags", body)
+
+      assert conn.status == 422
+      assert Jason.decode!(conn.resp_body)["error"] == "Invalid tag_ids payload"
+    end
   end
 
   describe "filtering by category_id" do

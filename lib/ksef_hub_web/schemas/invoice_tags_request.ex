@@ -1,6 +1,6 @@
 defmodule KsefHubWeb.Schemas.InvoiceTagsRequest do
   @moduledoc """
-  OpenAPI request schema for adding or setting tags on an invoice.
+  OpenAPI request schema for setting tags on an invoice.
   """
 
   require OpenApiSpex

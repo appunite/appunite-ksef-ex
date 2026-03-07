@@ -742,7 +742,8 @@ defmodule KsefHubWeb.Api.InvoiceController do
 
   operation(:set_tags,
     summary: "Set invoice tags",
-    description: "Replaces all tags on an invoice with the given list.",
+    description:
+      "Replaces all tags on an invoice with the given list. Pass an empty list to clear all tags.",
     parameters: [
       id: [
         in: :path,
@@ -865,12 +866,6 @@ defmodule KsefHubWeb.Api.InvoiceController do
   end
 
   defp render_tag_error(conn, _id, false) do
-    conn
-    |> put_status(:unprocessable_entity)
-    |> json(%{error: "One or more tags not found in this company"})
-  end
-
-  defp render_tag_error(conn, _id, {:error, :tag_not_in_company}) do
     conn
     |> put_status(:unprocessable_entity)
     |> json(%{error: "One or more tags not found in this company"})
