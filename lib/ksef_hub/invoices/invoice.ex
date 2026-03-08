@@ -64,6 +64,8 @@ defmodule KsefHub.Invoices.Invoice do
     has_many :invoice_tags, KsefHub.Invoices.InvoiceTag
     many_to_many :tags, KsefHub.Invoices.Tag, join_through: KsefHub.Invoices.InvoiceTag
     has_many :comments, KsefHub.Invoices.InvoiceComment
+    belongs_to :created_by, KsefHub.Accounts.User
+    has_one :inbound_email, KsefHub.InboundEmail.InboundEmail
 
     field :public_token, :string
 
@@ -81,6 +83,42 @@ defmodule KsefHub.Invoices.Invoice do
   @doc "Returns the list of valid invoice sources."
   @spec sources() :: [invoice_source()]
   def sources, do: Ecto.Enum.values(__MODULE__, :source)
+
+  @doc "Returns a human-readable display label for the invoice source."
+  @spec source_label(invoice_source()) :: String.t()
+  def source_label(:ksef), do: "KSeF"
+  def source_label(:manual), do: "manual"
+  def source_label(:pdf_upload), do: "PDF upload"
+  def source_label(:email), do: "email"
+  def source_label(_), do: "unknown"
+
+  @doc """
+  Returns a human-readable label for who added an invoice, combining source and creator info.
+
+  Handles all source types with appropriate fallbacks:
+  - KSeF: "KSeF (automatic sync)"
+  - Email with loaded sender: "sender@example.com (email)"
+  - Manual/PDF with loaded user: "Jan Kowalski (manual)"
+  - Fallback: source label only
+  """
+  @spec added_by_label(t()) :: String.t()
+  def added_by_label(%{source: :ksef}), do: "KSeF (automatic sync)"
+
+  def added_by_label(%{source: :email, inbound_email: %{sender: sender}})
+      when is_binary(sender),
+      do: "#{sender} (email)"
+
+  def added_by_label(%{source: :email}), do: "Email"
+
+  def added_by_label(%{source: source, created_by: %{name: name}})
+      when is_binary(name) and name != "",
+      do: "#{name} (#{source_label(source)})"
+
+  def added_by_label(%{source: source, created_by: %{email: email}})
+      when is_binary(email),
+      do: "#{email} (#{source_label(source)})"
+
+  def added_by_label(%{source: source}), do: source_label(source)
 
   @address_field_atoms ~w(street city postal_code country)a
   @address_field_strings Enum.map(@address_field_atoms, &Atom.to_string/1)
@@ -136,6 +174,7 @@ defmodule KsefHub.Invoices.Invoice do
     |> validate_source_requirements()
     |> foreign_key_constraint(:company_id)
     |> foreign_key_constraint(:duplicate_of_id)
+    |> foreign_key_constraint(:created_by_id)
     |> foreign_key_constraint(:xml_file_id)
     |> foreign_key_constraint(:pdf_file_id)
     |> unique_constraint([:company_id, :ksef_number],

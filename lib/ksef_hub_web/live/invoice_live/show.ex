@@ -843,7 +843,7 @@ defmodule KsefHubWeb.InvoiceLive.Show do
                 company={@current_company}
               />
             <% else %>
-              <.invoice_details_table invoice={@invoice} />
+              <.invoice_details_table invoice={@invoice} show_added_by={true} />
             <% end %>
           </div>
         </div>

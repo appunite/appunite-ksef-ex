@@ -5,6 +5,8 @@ defmodule KsefHubWeb.InvoiceComponents do
 
   use Phoenix.Component
 
+  alias KsefHub.Invoices.Invoice
+
   @doc "Renders a coloured badge for the invoice type (:income / :expense)."
   @spec type_badge(map()) :: Phoenix.LiveView.Rendered.t()
   attr :type, :atom, required: true
@@ -174,7 +176,12 @@ defmodule KsefHubWeb.InvoiceComponents do
   def format_datetime(nil), do: "-"
   def format_datetime(dt), do: Calendar.strftime(dt, "%Y-%m-%d %H:%M UTC")
 
+  @doc "Returns a human-readable label for who added an invoice, combining source and creator info. Delegates to `Invoice.added_by_label/1`."
+  @spec added_by_label(Invoice.t()) :: String.t()
+  defdelegate added_by_label(invoice), to: Invoice
+
   attr :invoice, :map, required: true
+  attr :show_added_by, :boolean, default: false
 
   @doc "Renders a read-only invoice details table (buyer, seller, amounts, dates, KSeF number)."
   @spec invoice_details_table(map()) :: Phoenix.LiveView.Rendered.t()
@@ -273,6 +280,10 @@ defmodule KsefHubWeb.InvoiceComponents do
           <td class="py-1.5 text-right text-xs">
             {format_datetime(@invoice.inserted_at)}
           </td>
+        </tr>
+        <tr :if={@show_added_by} id="added-by-row" class="border-b border-base-300/50">
+          <td class="py-1.5 pr-3 text-base-content/60 whitespace-nowrap">Added by</td>
+          <td class="py-1.5 text-right text-xs">{added_by_label(@invoice)}</td>
         </tr>
         <tr :if={NaiveDateTime.compare(@invoice.updated_at, @invoice.inserted_at) != :eq}>
           <td class="py-1.5 pr-3 text-base-content/60 whitespace-nowrap">Updated</td>

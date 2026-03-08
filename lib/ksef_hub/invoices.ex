@@ -116,7 +116,7 @@ defmodule KsefHub.Invoices do
     Invoice
     |> where([i], i.company_id == ^company_id and i.id == ^id)
     |> maybe_scope_type_by_role(opts[:role])
-    |> preload([:xml_file, :pdf_file, :category, :tags])
+    |> preload([:xml_file, :pdf_file, :category, :tags, :created_by, :inbound_email])
     |> Repo.one!()
   end
 
@@ -126,7 +126,7 @@ defmodule KsefHub.Invoices do
     Invoice
     |> where([i], i.company_id == ^company_id and i.id == ^id)
     |> maybe_scope_type_by_role(opts[:role])
-    |> preload([:xml_file, :pdf_file, :category, :tags])
+    |> preload([:xml_file, :pdf_file, :category, :tags, :created_by, :inbound_email])
     |> Repo.one()
   end
 
@@ -481,6 +481,10 @@ defmodule KsefHub.Invoices do
     end
   end
 
+  @spec maybe_put_created_by(map(), Ecto.UUID.t() | nil) :: map()
+  defp maybe_put_created_by(attrs, nil), do: attrs
+  defp maybe_put_created_by(attrs, id), do: Map.put(attrs, :created_by_id, id)
+
   @doc """
   Creates a manual invoice, optionally detecting duplicates by ksef_number.
 
@@ -582,6 +586,7 @@ defmodule KsefHub.Invoices do
   defp extract_and_create_pdf(company, pdf_binary, opts) do
     type = opts[:type]
     filename = opts[:filename]
+    created_by_id = opts[:created_by_id]
     context = ContextBuilder.build(company)
 
     extract_opts = [filename: filename || "invoice.pdf", context: context]
@@ -590,7 +595,9 @@ defmodule KsefHub.Invoices do
       {:ok, extracted} ->
         extracted_buyer_nip = get_extracted_nip(extracted, "buyer_nip")
 
-        case do_create_pdf_upload(company, pdf_binary, type, filename, extracted) do
+        case do_create_pdf_extracted(company, pdf_binary, type, filename, extracted, :pdf_upload,
+               created_by_id: created_by_id
+             ) do
           {:ok, invoice} -> {:ok, invoice, extracted_buyer_nip: extracted_buyer_nip}
           error -> error
         end
@@ -598,7 +605,9 @@ defmodule KsefHub.Invoices do
       {:error, _reason} ->
         Logger.warning("PDF extraction failed for file: #{filename || "invoice.pdf"}")
 
-        case do_create_pdf_upload_failed(company, pdf_binary, type, filename) do
+        case do_create_pdf_failed(company, pdf_binary, type, filename, :pdf_upload,
+               created_by_id: created_by_id
+             ) do
           {:ok, invoice} -> {:ok, invoice, extracted_buyer_nip: nil}
           error -> error
         end
@@ -629,18 +638,6 @@ defmodule KsefHub.Invoices do
     do_create_pdf_extracted(company, pdf_binary, :expense, opts[:filename], extracted, :email)
   end
 
-  @spec do_create_pdf_upload(Company.t(), binary(), atom(), String.t() | nil, map()) ::
-          {:ok, Invoice.t()} | {:error, term()}
-  defp do_create_pdf_upload(company, pdf_binary, type, filename, extracted) do
-    do_create_pdf_extracted(company, pdf_binary, type, filename, extracted, :pdf_upload)
-  end
-
-  @spec do_create_pdf_upload_failed(Company.t(), binary(), atom(), String.t() | nil) ::
-          {:ok, Invoice.t()} | {:error, term()}
-  defp do_create_pdf_upload_failed(company, pdf_binary, type, filename) do
-    do_create_pdf_failed(company, pdf_binary, type, filename, :pdf_upload)
-  end
-
   # Shared: create invoice from extracted fields with duplicate detection + prediction
   @spec do_create_pdf_extracted(
           Company.t(),
@@ -648,14 +645,16 @@ defmodule KsefHub.Invoices do
           atom(),
           String.t() | nil,
           map(),
-          Invoice.invoice_source()
+          Invoice.invoice_source(),
+          keyword()
         ) :: {:ok, Invoice.t()} | {:error, term()}
-  defp do_create_pdf_extracted(company, pdf_binary, type, filename, extracted, source) do
+  defp do_create_pdf_extracted(company, pdf_binary, type, filename, extracted, source, opts \\ []) do
     extraction_status = determine_extraction_status(extracted)
 
     invoice_attrs =
       build_pdf_upload_attrs(extracted, company.id, pdf_binary, type, filename, extraction_status)
       |> Map.put(:source, source)
+      |> maybe_put_created_by(opts[:created_by_id])
       |> populate_company_fields(company)
 
     case create_or_retry_duplicate(company.id, invoice_attrs) do
@@ -674,9 +673,10 @@ defmodule KsefHub.Invoices do
           binary(),
           atom(),
           String.t() | nil,
-          Invoice.invoice_source()
+          Invoice.invoice_source(),
+          keyword()
         ) :: {:ok, Invoice.t()} | {:error, term()}
-  defp do_create_pdf_failed(company, pdf_binary, type, filename, source) do
+  defp do_create_pdf_failed(company, pdf_binary, type, filename, source, opts \\ []) do
     attrs =
       %{
         source: source,
@@ -686,6 +686,7 @@ defmodule KsefHub.Invoices do
         original_filename: filename,
         extraction_status: :failed
       }
+      |> maybe_put_created_by(opts[:created_by_id])
       |> populate_company_fields(company)
 
     create_invoice(attrs)
@@ -858,9 +859,17 @@ defmodule KsefHub.Invoices do
           {:ok, Invoice.t()} | {:error, Ecto.Changeset.t()}
   defp do_insert_invoice(company_id, attrs) do
     {file_ids, attrs} = pop_file_ids(attrs)
+    {created_by_id, attrs} = Map.pop(attrs, :created_by_id)
+
+    trusted_fields =
+      file_ids
+      |> Map.put(:company_id, company_id)
+      |> then(fn m ->
+        if created_by_id, do: Map.put(m, :created_by_id, created_by_id), else: m
+      end)
 
     %Invoice{}
-    |> Ecto.Changeset.change(Map.put(file_ids, :company_id, company_id))
+    |> Ecto.Changeset.change(trusted_fields)
     |> Invoice.changeset(attrs)
     |> Repo.insert()
   end
@@ -869,9 +878,17 @@ defmodule KsefHub.Invoices do
           {:ok, Invoice.t()} | {:error, Ecto.Changeset.t()}
   defp do_upsert_invoice(company_id, attrs) do
     {file_ids, attrs} = pop_file_ids(attrs)
+    {created_by_id, attrs} = Map.pop(attrs, :created_by_id)
+
+    trusted_fields =
+      file_ids
+      |> Map.put(:company_id, company_id)
+      |> then(fn m ->
+        if created_by_id, do: Map.put(m, :created_by_id, created_by_id), else: m
+      end)
 
     %Invoice{}
-    |> Ecto.Changeset.change(Map.put(file_ids, :company_id, company_id))
+    |> Ecto.Changeset.change(trusted_fields)
     |> Invoice.changeset(attrs)
     |> Repo.insert(
       on_conflict: {:replace, @upsert_replace_fields},
