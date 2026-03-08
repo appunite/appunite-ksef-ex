@@ -48,7 +48,18 @@ defmodule KsefHubWeb.LiveAuth do
     else
       {:halt,
        socket
-       |> put_flash(:error, "Only the owner can manage the team.")
+       |> put_flash(:error, "Only the owner can access this page.")
+       |> redirect(to: default_path(socket.assigns[:current_company]))}
+    end
+  end
+
+  def on_mount(:require_admin, _params, _session, socket) do
+    if socket.assigns[:current_role] in [:owner, :admin] do
+      {:cont, socket}
+    else
+      {:halt,
+       socket
+       |> put_flash(:error, "You don't have permission to access this page.")
        |> redirect(to: default_path(socket.assigns[:current_company]))}
     end
   end

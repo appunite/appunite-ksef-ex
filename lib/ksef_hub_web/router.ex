@@ -98,19 +98,19 @@ defmodule KsefHubWeb.Router do
 
     live_session :authenticated, on_mount: {KsefHubWeb.LiveAuth, :default} do
       live "/dashboard", DashboardLive
-      live "/certificates", CertificateLive
       live "/invoices", InvoiceLive.Index
       live "/invoices/upload", InvoiceLive.Upload
       live "/invoices/:id", InvoiceLive.Show
       live "/tokens", TokenLive
-      live "/categories", CategoryLive
-      live "/tags", TagLive
       live "/syncs", SyncLive
       live "/exports", ExportLive.Index
     end
 
-    live_session :owner_only,
-      on_mount: [{KsefHubWeb.LiveAuth, :default}, {KsefHubWeb.LiveAuth, :require_owner}] do
+    live_session :admin_only,
+      on_mount: [{KsefHubWeb.LiveAuth, :default}, {KsefHubWeb.LiveAuth, :require_admin}] do
+      live "/certificates", CertificateLive
+      live "/categories", CategoryLive
+      live "/tags", TagLive
       live "/team", TeamLive
     end
 
