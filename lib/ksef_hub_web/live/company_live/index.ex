@@ -71,6 +71,18 @@ defmodule KsefHubWeb.CompanyLive.Index do
     |> assign(:inbound_settings_form, nil)
   end
 
+  # --- Authorization guard for mutation events ---
+  # All company-mutating handlers require :manage_company permission.
+
+  @company_mutation_events ~w(save validate enable_inbound_email disable_inbound_email
+    regenerate_inbound_email validate_inbound_settings save_inbound_settings)
+
+  @impl true
+  def handle_event(event, _params, %{assigns: %{can_manage_company: false}} = socket)
+      when event in @company_mutation_events do
+    {:noreply, put_flash(socket, :error, "You don't have permission to manage companies.")}
+  end
+
   @doc "Handles form validation and save events."
   @impl true
   def handle_event("validate", %{"company" => params}, socket) do

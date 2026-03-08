@@ -53,6 +53,9 @@ defmodule KsefHubWeb.InvoiceLive.Show do
       invoice ->
         auto_edit = invoice.extraction_status in [:partial, :failed]
         can_mutate = Authorization.can?(role, :update_invoice)
+        can_approve = Authorization.can?(role, :approve_invoice)
+        can_set_category = Authorization.can?(role, :set_invoice_category)
+        can_set_tags = Authorization.can?(role, :set_invoice_tags)
 
         {:ok,
          socket
@@ -60,6 +63,9 @@ defmodule KsefHubWeb.InvoiceLive.Show do
            page_title: "Invoice #{invoice.invoice_number}",
            invoice: invoice,
            can_mutate: can_mutate,
+           can_approve: can_approve,
+           can_set_category: can_set_category,
+           can_set_tags: can_set_tags,
            html_preview: generate_preview(invoice),
            categories: Invoices.list_categories(company.id),
            all_tags: Invoices.list_tags(company.id),
@@ -84,8 +90,12 @@ defmodule KsefHubWeb.InvoiceLive.Show do
   # --- Authorization guard ---
   # Catch-all for mutation events when the user lacks permission.
 
-  @mutation_events ~w(re_extract approve reject dismiss_duplicate confirm_duplicate
-    set_category toggle_tag create_and_add_tag toggle_edit save_edit)
+  @mutation_events ~w(re_extract dismiss_duplicate confirm_duplicate
+    toggle_edit save_edit edit_note save_note)
+
+  @approve_events ~w(approve reject)
+  @category_events ~w(set_category)
+  @tag_events ~w(toggle_tag create_and_add_tag)
 
   @impl true
   @spec handle_event(String.t(), map(), Phoenix.LiveView.Socket.t()) ::
@@ -93,6 +103,22 @@ defmodule KsefHubWeb.InvoiceLive.Show do
   def handle_event(event, _params, %{assigns: %{can_mutate: false}} = socket)
       when event in @mutation_events do
     {:noreply, put_flash(socket, :error, "You don't have permission to modify this invoice.")}
+  end
+
+  def handle_event(event, _params, %{assigns: %{can_approve: false}} = socket)
+      when event in @approve_events do
+    {:noreply,
+     put_flash(socket, :error, "You don't have permission to approve or reject invoices.")}
+  end
+
+  def handle_event(event, _params, %{assigns: %{can_set_category: false}} = socket)
+      when event in @category_events do
+    {:noreply, put_flash(socket, :error, "You don't have permission to set invoice categories.")}
+  end
+
+  def handle_event(event, _params, %{assigns: %{can_set_tags: false}} = socket)
+      when event in @tag_events do
+    {:noreply, put_flash(socket, :error, "You don't have permission to manage invoice tags.")}
   end
 
   # --- Events: Re-extract ---
