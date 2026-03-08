@@ -13,6 +13,7 @@ defmodule KsefHub.Authorization do
   - `:accountant` — read-only invoice access plus exports and API token management
   """
 
+  alias KsefHub.Companies
   alias KsefHub.Companies.Membership
 
   @type permission ::
@@ -37,6 +38,29 @@ defmodule KsefHub.Authorization do
           | :manage_tokens
           | :manage_team
 
+  @admin_denied MapSet.new([:delete_company, :transfer_ownership])
+
+  @reviewer_permissions MapSet.new([
+                          :view_dashboard,
+                          :view_invoices,
+                          :create_invoice,
+                          :update_invoice,
+                          :approve_invoice,
+                          :set_invoice_category,
+                          :set_invoice_tags,
+                          :view_syncs,
+                          :trigger_sync
+                        ])
+
+  @accountant_permissions MapSet.new([
+                            :view_dashboard,
+                            :view_invoices,
+                            :view_all_invoice_types,
+                            :view_exports,
+                            :create_export,
+                            :manage_tokens
+                          ])
+
   @doc """
   Checks whether the given role has the specified permission.
 
@@ -52,36 +76,26 @@ defmodule KsefHub.Authorization do
       true
   """
   @spec can?(Membership.role() | nil, permission()) :: boolean()
-  # nil role (no membership) has no permissions
   def can?(nil, _permission), do: false
-
-  # Owner can do everything
   def can?(:owner, _permission), do: true
+  def can?(:admin, permission), do: permission not in @admin_denied
+  def can?(:reviewer, permission), do: permission in @reviewer_permissions
+  def can?(:accountant, permission), do: permission in @accountant_permissions
 
-  # Admin can do everything except delete company and transfer ownership
-  def can?(:admin, :delete_company), do: false
-  def can?(:admin, :transfer_ownership), do: false
-  def can?(:admin, _permission), do: true
+  @doc """
+  Checks whether a user has the specified permission for a company,
+  by looking up their membership role.
 
-  # Reviewer permissions
-  def can?(:reviewer, :view_dashboard), do: true
-  def can?(:reviewer, :view_invoices), do: true
-  def can?(:reviewer, :view_all_invoice_types), do: false
-  def can?(:reviewer, :create_invoice), do: true
-  def can?(:reviewer, :update_invoice), do: true
-  def can?(:reviewer, :approve_invoice), do: true
-  def can?(:reviewer, :set_invoice_category), do: true
-  def can?(:reviewer, :set_invoice_tags), do: true
-  def can?(:reviewer, :view_syncs), do: true
-  def can?(:reviewer, :trigger_sync), do: true
-  def can?(:reviewer, _permission), do: false
+  ## Examples
 
-  # Accountant permissions
-  def can?(:accountant, :view_dashboard), do: true
-  def can?(:accountant, :view_invoices), do: true
-  def can?(:accountant, :view_all_invoice_types), do: true
-  def can?(:accountant, :view_exports), do: true
-  def can?(:accountant, :create_export), do: true
-  def can?(:accountant, :manage_tokens), do: true
-  def can?(:accountant, _permission), do: false
+      iex> KsefHub.Authorization.can?(user_id, company_id, :manage_tokens)
+      true
+  """
+  @spec can?(Ecto.UUID.t(), Ecto.UUID.t(), permission()) :: boolean()
+  def can?(user_id, company_id, permission) when is_binary(user_id) and is_binary(company_id) do
+    case Companies.get_membership(user_id, company_id) do
+      %{role: role} -> can?(role, permission)
+      nil -> false
+    end
+  end
 end

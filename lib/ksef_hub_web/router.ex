@@ -96,18 +96,49 @@ defmodule KsefHubWeb.Router do
   scope "/c/:company_id", KsefHubWeb do
     pipe_through [:browser, :require_auth]
 
+    live_session :require_create_invoice,
+      on_mount: [
+        {KsefHubWeb.LiveAuth, :default},
+        {KsefHubWeb.LiveAuth, {:require_permission, :create_invoice}}
+      ] do
+      live "/invoices/upload", InvoiceLive.Upload
+    end
+
     live_session :authenticated, on_mount: {KsefHubWeb.LiveAuth, :default} do
       live "/dashboard", DashboardLive
       live "/invoices", InvoiceLive.Index
-      live "/invoices/upload", InvoiceLive.Upload
       live "/invoices/:id", InvoiceLive.Show
+    end
+
+    live_session :require_manage_tokens,
+      on_mount: [
+        {KsefHubWeb.LiveAuth, :default},
+        {KsefHubWeb.LiveAuth, {:require_permission, :manage_tokens}}
+      ] do
       live "/tokens", TokenLive
+    end
+
+    live_session :require_view_syncs,
+      on_mount: [
+        {KsefHubWeb.LiveAuth, :default},
+        {KsefHubWeb.LiveAuth, {:require_permission, :view_syncs}}
+      ] do
       live "/syncs", SyncLive
+    end
+
+    live_session :require_view_exports,
+      on_mount: [
+        {KsefHubWeb.LiveAuth, :default},
+        {KsefHubWeb.LiveAuth, {:require_permission, :view_exports}}
+      ] do
       live "/exports", ExportLive.Index
     end
 
     live_session :admin_only,
-      on_mount: [{KsefHubWeb.LiveAuth, :default}, {KsefHubWeb.LiveAuth, :require_admin}] do
+      on_mount: [
+        {KsefHubWeb.LiveAuth, :default},
+        {KsefHubWeb.LiveAuth, {:require_permission, :manage_team}}
+      ] do
       live "/certificates", CertificateLive
       live "/categories", CategoryLive
       live "/tags", TagLive

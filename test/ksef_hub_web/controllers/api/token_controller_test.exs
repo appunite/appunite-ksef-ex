@@ -8,7 +8,7 @@ defmodule KsefHubWeb.Api.TokenControllerTest do
 
   describe "index" do
     test "lists tokens for the token's company only", %{conn: conn} do
-      %{user: user, company: company, token: token} = create_owner_with_token()
+      %{user: user, company: company, token: token} = create_user_with_token(:owner)
 
       # Create another token for same user+company
       {:ok, _} =
@@ -32,7 +32,7 @@ defmodule KsefHubWeb.Api.TokenControllerTest do
 
   describe "create" do
     test "creates a new token scoped to the token's company", %{conn: conn} do
-      %{token: token} = create_owner_with_token()
+      %{token: token} = create_user_with_token(:owner)
 
       conn =
         conn
@@ -47,7 +47,7 @@ defmodule KsefHubWeb.Api.TokenControllerTest do
     end
 
     test "returns 422 for missing name", %{conn: conn} do
-      %{token: token} = create_owner_with_token()
+      %{token: token} = create_user_with_token(:owner)
 
       conn = conn |> api_conn(token) |> post("/api/tokens", %{description: "No name"})
 
@@ -55,7 +55,7 @@ defmodule KsefHubWeb.Api.TokenControllerTest do
     end
 
     test "admin can create token", %{conn: conn} do
-      {:ok, %{token: token}} = create_admin_with_token()
+      {:ok, %{token: token}} = create_user_with_token(:admin)
 
       conn =
         conn
@@ -68,7 +68,7 @@ defmodule KsefHubWeb.Api.TokenControllerTest do
     end
 
     test "accountant can create token", %{conn: conn} do
-      {:ok, %{token: token}} = create_accountant_with_token()
+      {:ok, %{token: token}} = create_user_with_token(:accountant)
 
       conn =
         conn
@@ -81,7 +81,7 @@ defmodule KsefHubWeb.Api.TokenControllerTest do
     end
 
     test "returns 403 when reviewer tries to create token", %{conn: conn} do
-      {:ok, %{token: token}} = create_reviewer_with_token()
+      {:ok, %{token: token}} = create_user_with_token(:reviewer)
 
       conn =
         conn
@@ -94,7 +94,7 @@ defmodule KsefHubWeb.Api.TokenControllerTest do
 
   describe "delete" do
     test "revokes a token from the same company", %{conn: conn} do
-      %{user: user, company: company, token: token} = create_owner_with_token()
+      %{user: user, company: company, token: token} = create_user_with_token(:owner)
 
       {:ok, %{api_token: target}} =
         Accounts.create_api_token(user.id, company.id, %{name: "To Revoke"})
@@ -106,7 +106,7 @@ defmodule KsefHubWeb.Api.TokenControllerTest do
     end
 
     test "returns 404 for token from different company", %{conn: conn} do
-      %{user: user, token: token} = create_owner_with_token()
+      %{user: user, token: token} = create_user_with_token(:owner)
 
       company2 = insert(:company)
       insert(:membership, user: user, company: company2, role: :owner)
@@ -122,7 +122,7 @@ defmodule KsefHubWeb.Api.TokenControllerTest do
 
   describe "role-based enforcement" do
     test "reviewer cannot access token endpoints", %{conn: conn} do
-      {:ok, %{token: token}} = create_reviewer_with_token()
+      {:ok, %{token: token}} = create_user_with_token(:reviewer)
 
       conn = conn |> api_conn(token) |> get("/api/tokens")
 
@@ -130,7 +130,7 @@ defmodule KsefHubWeb.Api.TokenControllerTest do
     end
 
     test "reviewer cannot revoke tokens via API", %{conn: conn} do
-      {:ok, %{token: token}} = create_reviewer_with_token()
+      {:ok, %{token: token}} = create_user_with_token(:reviewer)
 
       conn = conn |> api_conn(token) |> delete("/api/tokens/#{Ecto.UUID.generate()}")
 

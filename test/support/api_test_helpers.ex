@@ -2,8 +2,8 @@ defmodule KsefHubWeb.ApiTestHelpers do
   @moduledoc """
   Shared helpers for API controller and plug tests.
 
-  Provides `create_owner_with_token/1` for setting up an authenticated
-  owner user with a company-scoped API token, and `api_conn/2` for
+  Provides `create_user_with_token/2` for setting up an authenticated
+  user with a company-scoped API token at any role, and `api_conn/2` for
   building an authenticated JSON request conn.
   """
 
@@ -12,18 +12,37 @@ defmodule KsefHubWeb.ApiTestHelpers do
   alias KsefHub.Accounts
 
   @doc """
-  Creates a user, company, owner membership, and company-scoped API token.
+  Creates a user, company, membership, and company-scoped API token for the given role.
 
-  Accepts optional `attrs` merged into the token creation params.
-  Returns a map with `:user`, `:company`, `:token` (plaintext), and `:api_token`.
+  For non-owner roles, the user is created as owner first (required to create tokens),
+  then downgraded to the target role.
+
+  Returns `%{user, company, token, api_token}` for `:owner`,
+  or `{:ok, %{user, company, token, api_token}}` for other roles.
+
+  ## Examples
+
+      %{token: token} = create_user_with_token(:owner)
+      {:ok, %{token: token}} = create_user_with_token(:reviewer)
   """
-  @spec create_owner_with_token(map()) :: %{
-          user: KsefHub.Accounts.User.t(),
-          company: KsefHub.Companies.Company.t(),
-          token: String.t(),
-          api_token: KsefHub.Accounts.ApiToken.t()
-        }
-  def create_owner_with_token(attrs \\ %{}) do
+  @spec create_user_with_token(KsefHub.Companies.Membership.role(), map()) ::
+          %{
+            user: Accounts.User.t(),
+            company: KsefHub.Companies.Company.t(),
+            token: String.t(),
+            api_token: Accounts.ApiToken.t()
+          }
+          | {:ok,
+             %{
+               user: Accounts.User.t(),
+               company: KsefHub.Companies.Company.t(),
+               token: String.t(),
+               api_token: Accounts.ApiToken.t()
+             }}
+          | {:error, term()}
+  def create_user_with_token(role, attrs \\ %{})
+
+  def create_user_with_token(:owner, attrs) do
     user = insert(:user, google_uid: "uid-#{System.unique_integer([:positive])}")
     company = insert(:company)
     insert(:membership, user: user, company: company, role: :owner)
@@ -38,21 +57,7 @@ defmodule KsefHubWeb.ApiTestHelpers do
     %{user: user, company: company, token: result.token, api_token: result.api_token}
   end
 
-  @doc """
-  Creates a user, company, and company-scoped API token, then changes the
-  user's membership to reviewer. Token creation requires owner role, so we
-  create as owner first and downgrade afterward.
-  """
-  @spec create_reviewer_with_token(map()) ::
-          {:ok,
-           %{
-             user: KsefHub.Accounts.User.t(),
-             company: KsefHub.Companies.Company.t(),
-             token: String.t(),
-             api_token: KsefHub.Accounts.ApiToken.t()
-           }}
-          | {:error, term()}
-  def create_reviewer_with_token(attrs \\ %{}) do
+  def create_user_with_token(role, attrs) do
     user = insert(:user, google_uid: "uid-#{System.unique_integer([:positive])}")
     company = insert(:company)
     membership = insert(:membership, user: user, company: company, role: :owner)
@@ -61,70 +66,10 @@ defmodule KsefHubWeb.ApiTestHelpers do
            Accounts.create_api_token(
              user.id,
              company.id,
-             Map.merge(%{name: "Reviewer Token"}, attrs)
+             Map.merge(%{name: "#{role} Token"}, attrs)
            ),
          {:ok, _membership} <-
-           membership |> Ecto.Changeset.change(role: :reviewer) |> KsefHub.Repo.update() do
-      {:ok, %{user: user, company: company, token: result.token, api_token: result.api_token}}
-    end
-  end
-
-  @doc """
-  Creates a user, company, admin membership, and company-scoped API token.
-  Token creation requires owner role, so we create as owner first and downgrade.
-  """
-  @spec create_admin_with_token(map()) ::
-          {:ok,
-           %{
-             user: KsefHub.Accounts.User.t(),
-             company: KsefHub.Companies.Company.t(),
-             token: String.t(),
-             api_token: KsefHub.Accounts.ApiToken.t()
-           }}
-          | {:error, term()}
-  def create_admin_with_token(attrs \\ %{}) do
-    user = insert(:user, google_uid: "uid-#{System.unique_integer([:positive])}")
-    company = insert(:company)
-    membership = insert(:membership, user: user, company: company, role: :owner)
-
-    with {:ok, result} <-
-           Accounts.create_api_token(
-             user.id,
-             company.id,
-             Map.merge(%{name: "Admin Token"}, attrs)
-           ),
-         {:ok, _membership} <-
-           membership |> Ecto.Changeset.change(role: :admin) |> KsefHub.Repo.update() do
-      {:ok, %{user: user, company: company, token: result.token, api_token: result.api_token}}
-    end
-  end
-
-  @doc """
-  Creates a user, company, accountant membership, and company-scoped API token.
-  Token creation requires eligible role, so we create as owner first and downgrade.
-  """
-  @spec create_accountant_with_token(map()) ::
-          {:ok,
-           %{
-             user: KsefHub.Accounts.User.t(),
-             company: KsefHub.Companies.Company.t(),
-             token: String.t(),
-             api_token: KsefHub.Accounts.ApiToken.t()
-           }}
-          | {:error, term()}
-  def create_accountant_with_token(attrs \\ %{}) do
-    user = insert(:user, google_uid: "uid-#{System.unique_integer([:positive])}")
-    company = insert(:company)
-    membership = insert(:membership, user: user, company: company, role: :owner)
-
-    with {:ok, result} <-
-           Accounts.create_api_token(
-             user.id,
-             company.id,
-             Map.merge(%{name: "Accountant Token"}, attrs)
-           ),
-         {:ok, _membership} <-
-           membership |> Ecto.Changeset.change(role: :accountant) |> KsefHub.Repo.update() do
+           membership |> Ecto.Changeset.change(role: role) |> KsefHub.Repo.update() do
       {:ok, %{user: user, company: company, token: result.token, api_token: result.api_token}}
     end
   end

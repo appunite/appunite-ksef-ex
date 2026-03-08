@@ -75,7 +75,7 @@ defmodule KsefHubWeb.TokenLiveTest do
       assert {:error, {:redirect, %{to: ^expected_path, flash: %{"error" => message}}}} =
                live(conn, ~p"/c/#{company.id}/tokens")
 
-      assert message =~ "permission to manage API tokens"
+      assert message =~ "permission"
     end
   end
 

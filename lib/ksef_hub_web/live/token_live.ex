@@ -7,30 +7,22 @@ defmodule KsefHubWeb.TokenLive do
   use KsefHubWeb, :live_view
 
   alias KsefHub.Accounts
-  alias KsefHub.Authorization
 
   @impl true
   def mount(_params, _session, socket) do
-    if Authorization.can?(socket.assigns.current_role, :manage_tokens) do
-      company_id = socket.assigns.current_company.id
-      tokens = Accounts.list_api_tokens(socket.assigns.current_user.id, company_id)
+    company_id = socket.assigns.current_company.id
+    tokens = Accounts.list_api_tokens(socket.assigns.current_user.id, company_id)
 
-      {:ok,
-       socket
-       |> assign(
-         page_title: "API Tokens",
-         tokens_count: length(tokens),
-         form: to_form(%{"name" => "", "description" => ""}, as: :token),
-         show_token: nil,
-         show_create_form: false
-       )
-       |> stream(:tokens, tokens)}
-    else
-      {:ok,
-       socket
-       |> put_flash(:error, "You don't have permission to manage API tokens.")
-       |> redirect(to: ~p"/c/#{socket.assigns.current_company.id}/invoices")}
-    end
+    {:ok,
+     socket
+     |> assign(
+       page_title: "API Tokens",
+       tokens_count: length(tokens),
+       form: to_form(%{"name" => "", "description" => ""}, as: :token),
+       show_token: nil,
+       show_create_form: false
+     )
+     |> stream(:tokens, tokens)}
   end
 
   @impl true

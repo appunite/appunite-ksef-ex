@@ -43,19 +43,8 @@ defmodule KsefHubWeb.LiveAuth do
     end
   end
 
-  def on_mount(:require_owner, _params, _session, socket) do
-    if Authorization.can?(socket.assigns[:current_role], :delete_company) do
-      {:cont, socket}
-    else
-      {:halt,
-       socket
-       |> put_flash(:error, "Only the owner can access this page.")
-       |> redirect(to: default_path(socket.assigns[:current_company]))}
-    end
-  end
-
-  def on_mount(:require_admin, _params, _session, socket) do
-    if Authorization.can?(socket.assigns[:current_role], :manage_team) do
+  def on_mount({:require_permission, permission}, _params, _session, socket) do
+    if Authorization.can?(socket.assigns[:current_role], permission) do
       {:cont, socket}
     else
       {:halt,

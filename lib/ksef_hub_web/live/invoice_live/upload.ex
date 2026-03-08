@@ -15,42 +15,19 @@ defmodule KsefHubWeb.InvoiceLive.Upload do
 
   import KsefHubWeb.UploadHelpers, only: [format_bytes: 1, upload_error_to_string: 1]
 
-  @doc "Mounts the upload page with access checks and file upload configuration."
+  @doc "Mounts the upload page with file upload configuration."
   @impl true
   @spec mount(map(), map(), Phoenix.LiveView.Socket.t()) ::
           {:ok, Phoenix.LiveView.Socket.t()}
   def mount(_params, _session, socket) do
-    cond do
-      !socket.assigns[:current_user] ->
-        {:ok,
-         socket
-         |> put_flash(:error, "You must be logged in.")
-         |> redirect(to: ~p"/")}
-
-      !socket.assigns[:current_company] ->
-        {:ok,
-         socket
-         |> put_flash(:error, "No company selected.")
-         |> redirect(to: ~p"/companies")}
-
-      not Authorization.can?(socket.assigns[:current_role], :create_invoice) ->
-        company = socket.assigns[:current_company]
-
-        {:ok,
-         socket
-         |> put_flash(:error, "You do not have permission to upload invoices.")
-         |> redirect(to: ~p"/c/#{company.id}/invoices")}
-
-      true ->
-        {:ok,
-         socket
-         |> assign(page_title: "Upload PDF Invoice", uploading: false, upload_refs: MapSet.new())
-         |> allow_upload(:invoice_pdf,
-           accept: ~w(.pdf),
-           max_entries: 1,
-           max_file_size: 10_000_000
-         )}
-    end
+    {:ok,
+     socket
+     |> assign(page_title: "Upload PDF Invoice", uploading: false, upload_refs: MapSet.new())
+     |> allow_upload(:invoice_pdf,
+       accept: ~w(.pdf),
+       max_entries: 1,
+       max_file_size: 10_000_000
+     )}
   end
 
   @doc "Handles `validate` (no-op for live uploads) and `upload` (consumes file and starts extraction)."

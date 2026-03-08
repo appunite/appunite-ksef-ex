@@ -14,18 +14,6 @@ defmodule KsefHubWeb.ExportLive.Index do
   @impl true
   @spec mount(map(), map(), Phoenix.LiveView.Socket.t()) :: {:ok, Phoenix.LiveView.Socket.t()}
   def mount(_params, _session, socket) do
-    if Authorization.can?(socket.assigns[:current_role], :view_exports) do
-      do_mount(socket)
-    else
-      {:ok,
-       socket
-       |> put_flash(:error, "You don't have permission to access exports.")
-       |> redirect(to: ~p"/c/#{socket.assigns.current_company.id}/invoices")}
-    end
-  end
-
-  @spec do_mount(Phoenix.LiveView.Socket.t()) :: {:ok, Phoenix.LiveView.Socket.t()}
-  defp do_mount(socket) do
     company = socket.assigns.current_company
 
     if connected?(socket) && company do
