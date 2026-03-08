@@ -62,21 +62,9 @@ defmodule KsefHubWeb.InvoiceLive.PublicShow do
     KsefHub.Companies.get_membership(user_id, company_id) != nil
   end
 
-  @spec generate_preview(Invoice.t()) :: String.t() | nil
-  defp generate_preview(invoice) do
-    if invoice.xml_file do
-      pdf_mod = Application.get_env(:ksef_hub, :pdf_renderer, KsefHub.PdfRenderer)
-      metadata = %{ksef_number: invoice.ksef_number}
-
-      case pdf_mod.generate_html(invoice.xml_file.content, metadata) do
-        {:ok, html} -> html
-        {:error, _} -> nil
-      end
-    end
-  end
-
   # --- Render ---
 
+  @doc "Renders the public read-only invoice view with details and preview."
   @impl true
   def render(assigns) do
     ~H"""
@@ -93,58 +81,7 @@ defmodule KsefHubWeb.InvoiceLive.PublicShow do
         <div class="card bg-base-100 border border-base-300">
           <div class="p-4">
             <h2 class="text-base font-semibold mb-2">Details</h2>
-            <table class="text-sm w-full">
-              <tbody>
-                <tr class="border-b border-base-300/50">
-                  <td class="py-1.5 pr-3 text-base-content/60">Buyer</td>
-                  <td class="py-1.5 text-right">
-                    <div>{@invoice.buyer_name}</div>
-                    <div class="text-xs text-base-content/50">{@invoice.buyer_nip}</div>
-                  </td>
-                </tr>
-                <tr class="border-b border-base-300/50">
-                  <td class="py-1.5 pr-3 text-base-content/60">Seller</td>
-                  <td class="py-1.5 text-right">
-                    <div>{@invoice.seller_name}</div>
-                    <div class="text-xs text-base-content/50">{@invoice.seller_nip}</div>
-                  </td>
-                </tr>
-                <tr class="border-b border-base-300/50">
-                  <td class="py-1.5 pr-3 text-base-content/60 whitespace-nowrap">Number</td>
-                  <td class="py-1.5 text-right">{@invoice.invoice_number}</td>
-                </tr>
-                <tr class="border-b border-base-300/50">
-                  <td class="py-1.5 pr-3 text-base-content/60">Date</td>
-                  <td class="py-1.5 text-right">{format_date(@invoice.issue_date)}</td>
-                </tr>
-                <tr :if={@invoice.sales_date} class="border-b border-base-300/50">
-                  <td class="py-1.5 pr-3 text-base-content/60 whitespace-nowrap">Sales Date</td>
-                  <td class="py-1.5 text-right">{format_date(@invoice.sales_date)}</td>
-                </tr>
-                <tr :if={@invoice.due_date} class="border-b border-base-300/50">
-                  <td class="py-1.5 pr-3 text-base-content/60 whitespace-nowrap">Due Date</td>
-                  <td class="py-1.5 text-right">{format_date(@invoice.due_date)}</td>
-                </tr>
-                <tr class="border-b border-base-300/50">
-                  <td class="py-1.5 pr-3 text-base-content/60">Netto</td>
-                  <td class="py-1.5 text-right font-mono">
-                    {format_amount(@invoice.net_amount)} {@invoice.currency}
-                  </td>
-                </tr>
-                <tr class="border-b border-base-300/50">
-                  <td class="py-1.5 pr-3 text-base-content/60">Brutto</td>
-                  <td class="py-1.5 text-right font-mono font-bold">
-                    {format_amount(@invoice.gross_amount)} {@invoice.currency}
-                  </td>
-                </tr>
-                <tr :if={@invoice.ksef_number} class="border-b border-base-300/50">
-                  <td class="py-1.5 pr-3 text-base-content/60">KSeF</td>
-                  <td class="py-1.5 text-right font-mono text-xs break-all">
-                    {@invoice.ksef_number}
-                  </td>
-                </tr>
-              </tbody>
-            </table>
+            <.invoice_details_table invoice={@invoice} />
           </div>
         </div>
       </div>

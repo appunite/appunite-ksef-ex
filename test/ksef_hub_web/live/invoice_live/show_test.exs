@@ -80,6 +80,34 @@ defmodule KsefHubWeb.InvoiceLive.ShowTest do
     end
   end
 
+  describe "copy_public_link" do
+    setup :stub_pdf
+
+    test "generates token and pushes clipboard event", %{conn: conn, company: company} do
+      invoice = insert(:invoice, company: company)
+
+      {:ok, view, _html} = live(conn, ~p"/c/#{company.id}/invoices/#{invoice.id}")
+      assert has_element?(view, ~s([data-testid="copy-public-link"]))
+
+      html = view |> element(~s([data-testid="copy-public-link"])) |> render_click()
+
+      assert html =~ "Public link copied to clipboard."
+      updated = KsefHub.Repo.get!(KsefHub.Invoices.Invoice, invoice.id)
+      assert updated.public_token != nil
+    end
+
+    test "is idempotent — reuses existing token", %{conn: conn, company: company} do
+      invoice = insert(:invoice, company: company)
+      {:ok, invoice} = Invoices.generate_public_token(invoice)
+
+      {:ok, view, _html} = live(conn, ~p"/c/#{company.id}/invoices/#{invoice.id}")
+      view |> element(~s([data-testid="copy-public-link"])) |> render_click()
+
+      updated = KsefHub.Repo.get!(KsefHub.Invoices.Invoice, invoice.id)
+      assert updated.public_token == invoice.public_token
+    end
+  end
+
   describe "approve/reject" do
     setup :stub_pdf
 

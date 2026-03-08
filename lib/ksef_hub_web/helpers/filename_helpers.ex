@@ -26,6 +26,20 @@ defmodule KsefHubWeb.FilenameHelpers do
     send_file_resp(conn, content_type, filename, body, "inline")
   end
 
+  @doc "Sends a minimal HTML error page inline (for iframe error display)."
+  @spec send_inline_error(Plug.Conn.t(), integer(), String.t()) :: Plug.Conn.t()
+  def send_inline_error(conn, status, message) do
+    escaped = Plug.HTML.html_escape(message)
+
+    conn
+    |> put_resp_content_type("text/html")
+    |> send_resp(status, """
+    <html><body style="display:flex;align-items:center;justify-content:center;height:100%;margin:0;font-family:sans-serif;color:#666;">
+    <p>#{escaped}</p>
+    </body></html>
+    """)
+  end
+
   @spec send_file_resp(Plug.Conn.t(), String.t(), String.t(), binary(), String.t()) ::
           Plug.Conn.t()
   defp send_file_resp(conn, content_type, filename, body, disposition) do

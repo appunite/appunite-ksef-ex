@@ -174,7 +174,133 @@ defmodule KsefHubWeb.InvoiceComponents do
   def format_datetime(nil), do: "-"
   def format_datetime(dt), do: Calendar.strftime(dt, "%Y-%m-%d %H:%M UTC")
 
+  attr :invoice, :map, required: true
+
+  @doc "Renders a read-only invoice details table (buyer, seller, amounts, dates, KSeF number)."
+  @spec invoice_details_table(map()) :: Phoenix.LiveView.Rendered.t()
+  def invoice_details_table(assigns) do
+    ~H"""
+    <table class="text-sm w-full">
+      <tbody>
+        <tr class="border-b border-base-300/50">
+          <td class="py-1.5 pr-3 text-base-content/60">Buyer</td>
+          <td class="py-1.5 text-right">
+            <div>{@invoice.buyer_name}</div>
+            <div class="text-xs text-base-content/50">{@invoice.buyer_nip}</div>
+            <div
+              :if={format_address(@invoice.buyer_address) != ""}
+              class="text-xs text-base-content/50"
+              data-testid="buyer-address"
+            >
+              {format_address(@invoice.buyer_address)}
+            </div>
+          </td>
+        </tr>
+        <tr class="border-b border-base-300/50">
+          <td class="py-1.5 pr-3 text-base-content/60">Seller</td>
+          <td class="py-1.5 text-right">
+            <div>{@invoice.seller_name}</div>
+            <div class="text-xs text-base-content/50">{@invoice.seller_nip}</div>
+            <div
+              :if={format_address(@invoice.seller_address) != ""}
+              class="text-xs text-base-content/50"
+              data-testid="seller-address"
+            >
+              {format_address(@invoice.seller_address)}
+            </div>
+          </td>
+        </tr>
+        <tr class="border-b border-base-300/50">
+          <td class="py-1.5 pr-3 text-base-content/60 whitespace-nowrap">Number</td>
+          <td class="py-1.5 text-right">{@invoice.invoice_number}</td>
+        </tr>
+        <tr class="border-b border-base-300/50">
+          <td class="py-1.5 pr-3 text-base-content/60">Date</td>
+          <td class="py-1.5 text-right">{format_date(@invoice.issue_date)}</td>
+        </tr>
+        <tr :if={@invoice.sales_date} class="border-b border-base-300/50" data-testid="sales-date">
+          <td class="py-1.5 pr-3 text-base-content/60 whitespace-nowrap">Sales Date</td>
+          <td class="py-1.5 text-right">{format_date(@invoice.sales_date)}</td>
+        </tr>
+        <tr :if={@invoice.due_date} class="border-b border-base-300/50" data-testid="due-date">
+          <td class="py-1.5 pr-3 text-base-content/60 whitespace-nowrap">Due Date</td>
+          <td class="py-1.5 text-right">{format_date(@invoice.due_date)}</td>
+        </tr>
+        <tr class={[
+          "border-b border-base-300/50",
+          is_nil(@invoice.net_amount) && "bg-warning/5"
+        ]}>
+          <td class="py-1.5 pr-3 text-base-content/60">Netto</td>
+          <td class="py-1.5 text-right font-mono">
+            {format_amount(@invoice.net_amount)} {@invoice.currency}
+          </td>
+        </tr>
+        <tr class={[
+          "border-b border-base-300/50",
+          is_nil(@invoice.gross_amount) && "bg-warning/5"
+        ]}>
+          <td class="py-1.5 pr-3 text-base-content/60">Brutto</td>
+          <td class="py-1.5 text-right font-mono font-bold">
+            {format_amount(@invoice.gross_amount)} {@invoice.currency}
+          </td>
+        </tr>
+        <tr :if={@invoice.ksef_number} class="border-b border-base-300/50">
+          <td class="py-1.5 pr-3 text-base-content/60">KSeF</td>
+          <td class="py-1.5 text-right font-mono text-xs break-all">
+            {@invoice.ksef_number}
+          </td>
+        </tr>
+        <tr :if={@invoice.purchase_order} class="border-b border-base-300/50">
+          <td class="py-1.5 pr-3 text-base-content/60 whitespace-nowrap">PO</td>
+          <td class="py-1.5 text-right font-mono text-sm break-all">
+            {@invoice.purchase_order}
+          </td>
+        </tr>
+        <tr :if={@invoice.iban} class="border-b border-base-300/50" data-testid="iban">
+          <td class="py-1.5 pr-3 text-base-content/60 whitespace-nowrap">IBAN</td>
+          <td class="py-1.5 text-right font-mono text-xs break-all">
+            {@invoice.iban}
+          </td>
+        </tr>
+        <tr :if={@invoice.ksef_acquisition_date}>
+          <td class="py-1.5 pr-3 text-base-content/60 whitespace-nowrap">Acquired</td>
+          <td class="py-1.5 text-right text-xs">
+            {format_datetime(@invoice.ksef_acquisition_date)}
+          </td>
+        </tr>
+        <tr class="border-b border-base-300/50">
+          <td class="py-1.5 pr-3 text-base-content/60 whitespace-nowrap">Created</td>
+          <td class="py-1.5 text-right text-xs">
+            {format_datetime(@invoice.inserted_at)}
+          </td>
+        </tr>
+        <tr :if={NaiveDateTime.compare(@invoice.updated_at, @invoice.inserted_at) != :eq}>
+          <td class="py-1.5 pr-3 text-base-content/60 whitespace-nowrap">Updated</td>
+          <td class="py-1.5 text-right text-xs">
+            {format_datetime(@invoice.updated_at)}
+          </td>
+        </tr>
+      </tbody>
+    </table>
+    """
+  end
+
   @doc "Formats an address map as a comma-separated string. Delegates to Invoice.format_address/1."
   @spec format_address(map() | nil) :: String.t()
   defdelegate format_address(addr), to: KsefHub.Invoices.Invoice
+
+  @doc "Generates an HTML preview for an invoice using the configured PDF renderer. Returns nil on failure or missing XML."
+  @spec generate_preview(map()) :: String.t() | nil
+  def generate_preview(%{xml_file: %{content: content}} = invoice)
+      when is_binary(content) and content != "" do
+    pdf_mod = Application.get_env(:ksef_hub, :pdf_renderer, KsefHub.PdfRenderer)
+    metadata = %{ksef_number: invoice.ksef_number}
+
+    case pdf_mod.generate_html(content, metadata) do
+      {:ok, html} -> html
+      {:error, _} -> nil
+    end
+  end
+
+  def generate_preview(_invoice), do: nil
 end

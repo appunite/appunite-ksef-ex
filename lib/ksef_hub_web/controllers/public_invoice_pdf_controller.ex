@@ -7,7 +7,7 @@ defmodule KsefHubWeb.PublicInvoicePdfController do
   require Logger
 
   import KsefHubWeb.ErrorHelpers, only: [sanitize_error: 1]
-  import KsefHubWeb.FilenameHelpers, only: [send_inline: 4]
+  import KsefHubWeb.FilenameHelpers, only: [send_inline: 4, send_inline_error: 3]
 
   alias KsefHub.Invoices
   alias KsefHub.Invoices.Invoice
@@ -60,18 +60,5 @@ defmodule KsefHubWeb.PublicInvoicePdfController do
 
         send_inline_error(conn, 422, "PDF generation failed.")
     end
-  end
-
-  @spec send_inline_error(Plug.Conn.t(), integer(), String.t()) :: Plug.Conn.t()
-  defp send_inline_error(conn, status, message) do
-    escaped = Plug.HTML.html_escape(message)
-
-    conn
-    |> put_resp_content_type("text/html")
-    |> send_resp(status, """
-    <html><body style="display:flex;align-items:center;justify-content:center;height:100%;margin:0;font-family:sans-serif;color:#666;">
-    <p>#{escaped}</p>
-    </body></html>
-    """)
   end
 end

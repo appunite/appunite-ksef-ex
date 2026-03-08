@@ -139,9 +139,9 @@ defmodule KsefHub.Invoices do
     |> Repo.one()
   end
 
-  @doc "Fetches an invoice by its public sharing token, with details preloaded. Returns nil if not found."
+  @doc "Fetches an invoice by its public sharing token, with details preloaded. Returns nil if not found or token is invalid."
   @spec get_invoice_by_public_token(String.t()) :: Invoice.t() | nil
-  def get_invoice_by_public_token(token) when is_binary(token) do
+  def get_invoice_by_public_token(token) when is_binary(token) and byte_size(token) in 20..100 do
     Invoice
     |> where([i], i.public_token == ^token)
     |> preload([:company, :xml_file, :pdf_file, :category, :tags])
@@ -158,14 +158,37 @@ defmodule KsefHub.Invoices do
     |> Repo.update()
   end
 
-  @doc "Ensures an invoice has a public token, generating one if absent. Idempotent."
+  @doc """
+  Ensures an invoice has a public token, generating one if absent. Idempotent.
+
+  Handles the race condition where two concurrent callers both try to generate:
+  if the unique constraint fires, reloads the invoice to fetch the winning token.
+  """
   @spec ensure_public_token(Invoice.t()) :: {:ok, Invoice.t()} | {:error, Ecto.Changeset.t()}
   def ensure_public_token(%Invoice{public_token: token} = invoice) when is_binary(token) do
     {:ok, invoice}
   end
 
   def ensure_public_token(%Invoice{} = invoice) do
-    generate_public_token(invoice)
+    case generate_public_token(invoice) do
+      {:ok, _} = ok ->
+        ok
+
+      {:error, %Ecto.Changeset{} = changeset} ->
+        if unique_constraint_error?(changeset, :public_token) do
+          {:ok, Repo.reload!(invoice)}
+        else
+          {:error, changeset}
+        end
+    end
+  end
+
+  @spec unique_constraint_error?(Ecto.Changeset.t(), atom()) :: boolean()
+  defp unique_constraint_error?(changeset, field) do
+    Enum.any?(changeset.errors, fn
+      {^field, {_, opts}} when is_list(opts) -> Keyword.get(opts, :constraint) == :unique
+      _ -> false
+    end)
   end
 
   @doc "Fetches an invoice by its KSeF reference number within a company (excludes duplicates)."
