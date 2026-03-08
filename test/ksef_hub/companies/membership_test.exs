@@ -52,7 +52,7 @@ defmodule KsefHub.Companies.MembershipTest do
       user = insert(:user)
       company = insert(:company)
 
-      for role <- [:owner, :accountant, :reviewer] do
+      for role <- [:owner, :admin, :accountant, :reviewer] do
         changeset =
           %Membership{user_id: user.id, company_id: company.id}
           |> Membership.changeset(%{role: role})
@@ -67,7 +67,7 @@ defmodule KsefHub.Companies.MembershipTest do
 
       changeset =
         %Membership{user_id: user.id, company_id: company.id}
-        |> Membership.changeset(%{role: "admin"})
+        |> Membership.changeset(%{role: "superadmin"})
 
       assert "is invalid" in errors_on(changeset).role
     end

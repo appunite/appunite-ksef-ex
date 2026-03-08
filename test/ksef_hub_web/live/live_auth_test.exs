@@ -102,15 +102,13 @@ defmodule KsefHubWeb.LiveAuthTest do
       company = insert(:company)
       insert(:membership, user: user, company: company, role: :accountant)
 
-      {:ok, view, _html} =
-        conn
-        |> log_in_user(user, %{current_company_id: company.id})
-        |> live(~p"/c/#{company.id}/categories")
+      # Accountant cannot access admin-only pages like categories
+      expected_path = "/c/#{company.id}/invoices"
 
-      # Accountant should see Dashboard but not owner-only nav items
-      assert has_element?(view, "a[href='/c/#{company.id}/dashboard']")
-      refute has_element?(view, "a[href='/c/#{company.id}/certificates']")
-      refute has_element?(view, "a[href='/c/#{company.id}/tokens']")
+      assert {:error, {:redirect, %{to: ^expected_path}}} =
+               conn
+               |> log_in_user(user, %{current_company_id: company.id})
+               |> live(~p"/c/#{company.id}/categories")
     end
   end
 end

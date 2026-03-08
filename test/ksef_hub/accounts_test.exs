@@ -357,10 +357,10 @@ defmodule KsefHub.AccountsTest do
       assert api_token.name == "Company Token"
     end
 
-    test "create_api_token/3 rejects non-owner" do
+    test "create_api_token/3 rejects non-authorized role" do
       user = create_user()
       company = insert(:company)
-      insert(:membership, user: user, company: company, role: :accountant)
+      insert(:membership, user: user, company: company, role: :reviewer)
 
       assert {:error, :unauthorized} =
                Accounts.create_api_token(user.id, company.id, %{name: "Nope"})
@@ -440,12 +440,12 @@ defmodule KsefHub.AccountsTest do
                Accounts.revoke_api_token(user2.id, company.id, api_token.id)
     end
 
-    test "revoke_api_token/3 rejects non-owner" do
+    test "revoke_api_token/3 rejects non-authorized role" do
       user = create_user()
       company = insert(:company)
-      insert(:membership, user: user, company: company, role: :accountant)
+      insert(:membership, user: user, company: company, role: :reviewer)
 
-      # Insert a token directly (bypassing owner check) to test revoke guard
+      # Insert a token directly (bypassing authorization check) to test revoke guard
       token = insert(:api_token, created_by: user, company: company)
 
       assert {:error, :unauthorized} =

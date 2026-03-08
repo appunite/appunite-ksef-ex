@@ -44,18 +44,18 @@ defmodule KsefHubWeb.InvoiceLive.UploadTest do
       refute has_element?(view, ~s(input[type="radio"]))
     end
 
-    test "redirects reviewer to invoices", %{conn: _conn} do
-      {:ok, reviewer} =
+    test "redirects accountant to invoices", %{conn: _conn} do
+      {:ok, accountant} =
         Accounts.get_or_create_google_user(%{
-          uid: "g-upload-reviewer",
-          email: "reviewer-upload@example.com",
-          name: "Reviewer"
+          uid: "g-upload-accountant",
+          email: "accountant-upload@example.com",
+          name: "Accountant"
         })
 
       company = insert(:company)
-      insert(:membership, user: reviewer, company: company, role: :reviewer)
+      insert(:membership, user: accountant, company: company, role: :accountant)
 
-      conn = build_conn() |> log_in_user(reviewer, %{current_company_id: company.id})
+      conn = build_conn() |> log_in_user(accountant, %{current_company_id: company.id})
 
       expected_path = "/c/#{company.id}/invoices"
 
