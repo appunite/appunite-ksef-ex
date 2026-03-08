@@ -318,17 +318,18 @@ defmodule KsefHub.Accounts do
   end
 
   @doc """
-  Creates a new API token scoped to a company. Only owners can create tokens.
+  Creates a new API token scoped to a company.
+  Owners, admins, and accountants can create tokens.
   Returns the plaintext token exactly once.
 
   ## Parameters
-    - `user_id` — the creating user's ID (must be company owner)
+    - `user_id` — the creating user's ID
     - `company_id` — the company to scope the token to
     - `attrs` — token attributes (`:name`, `:description`, `:expires_at`)
 
   ## Returns
     - `{:ok, %{token: String.t(), api_token: ApiToken.t()}}` on success
-    - `{:error, :unauthorized}` if user is not an owner of the company
+    - `{:error, :unauthorized}` if user does not have token management permission
     - `{:error, Ecto.Changeset.t()}` on validation failure
   """
   @spec create_api_token(Ecto.UUID.t(), Ecto.UUID.t(), map()) ::
@@ -336,7 +337,7 @@ defmodule KsefHub.Accounts do
           | {:error, :unauthorized}
           | {:error, Ecto.Changeset.t()}
   def create_api_token(user_id, company_id, attrs) do
-    if Companies.has_role?(user_id, company_id, :owner) do
+    if Companies.has_role?(user_id, company_id, [:owner, :admin, :accountant]) do
       do_create_api_token(user_id, company_id, attrs)
     else
       {:error, :unauthorized}
@@ -422,11 +423,11 @@ defmodule KsefHub.Accounts do
 
   @doc """
   Revokes an API token by ID, scoped to the given user and company.
-  Only owners can revoke tokens.
+  Owners, admins, and accountants can revoke tokens.
 
   ## Returns
     - `{:ok, ApiToken.t()}` on success
-    - `{:error, :unauthorized}` if user is not an owner of the company
+    - `{:error, :unauthorized}` if user does not have token management permission
     - `{:error, :not_found}` if the token doesn't exist for user + company
     - `{:error, Ecto.Changeset.t()}` on update failure
   """
@@ -436,7 +437,7 @@ defmodule KsefHub.Accounts do
           | {:error, :not_found}
           | {:error, Ecto.Changeset.t()}
   def revoke_api_token(user_id, company_id, token_id) do
-    if Companies.has_role?(user_id, company_id, :owner) do
+    if Companies.has_role?(user_id, company_id, [:owner, :admin, :accountant]) do
       do_revoke_api_token(user_id, company_id, token_id)
     else
       {:error, :unauthorized}

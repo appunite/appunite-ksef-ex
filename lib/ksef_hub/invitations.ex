@@ -32,7 +32,7 @@ defmodule KsefHub.Invitations do
   Returns `{:ok, %{invitation: invitation, token: raw_token}}` on success.
 
   ## Errors
-    - `{:error, :unauthorized}` — caller is not the company owner
+    - `{:error, :unauthorized}` — caller is not the company owner or admin
     - `{:error, :already_member}` — invitee email already has a membership
     - `{:error, changeset}` — validation failure (e.g., duplicate pending invitation)
   """
@@ -51,7 +51,7 @@ defmodule KsefHub.Invitations do
 
     Multi.new()
     |> Multi.run(:authorize, fn _repo, _changes ->
-      Companies.authorize(user_id, company_id, [:owner])
+      Companies.authorize(user_id, company_id, [:owner, :admin])
     end)
     |> Multi.run(:check_member, fn _repo, _changes ->
       case check_not_already_member(company_id, email) do
@@ -190,17 +190,18 @@ defmodule KsefHub.Invitations do
   # ---------------------------------------------------------------------------
 
   @doc """
-  Cancels a pending invitation. Only the company owner can cancel.
+  Cancels a pending invitation. Only owners and admins can cancel.
 
   ## Errors
-    - `{:error, :unauthorized}` — caller is not the company owner
+    - `{:error, :unauthorized}` — caller is not the company owner or admin
     - `{:error, :not_found}` — invitation not found or not pending
   """
   @spec cancel_invitation(Ecto.UUID.t(), Ecto.UUID.t()) ::
           {:ok, Invitation.t()} | {:error, :unauthorized} | {:error, :not_found}
   def cancel_invitation(user_id, invitation_id) do
     with %Invitation{status: :pending} = invitation <- Repo.get(Invitation, invitation_id),
-         {:ok, _membership} <- Companies.authorize(user_id, invitation.company_id, [:owner]) do
+         {:ok, _membership} <-
+           Companies.authorize(user_id, invitation.company_id, [:owner, :admin]) do
       do_atomic_cancel(invitation_id)
     else
       %Invitation{} -> {:error, :not_found}
