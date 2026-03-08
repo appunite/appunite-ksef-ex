@@ -22,9 +22,13 @@ defmodule KsefHubWeb.InvoiceComponents do
     """
   end
 
-  @doc "Renders a coloured badge for the invoice status (:pending / :approved / :rejected / :duplicate)."
+  @doc "Renders a coloured badge for the invoice status (:pending / :approved / :rejected / :duplicate). Renders nothing for nil."
   @spec status_badge(map()) :: Phoenix.LiveView.Rendered.t()
   attr :status, :atom, required: true
+
+  def status_badge(%{status: nil} = assigns) do
+    ~H""
+  end
 
   def status_badge(assigns) do
     ~H"""
@@ -42,13 +46,17 @@ defmodule KsefHubWeb.InvoiceComponents do
   end
 
   @doc """
-  Returns the display status for an invoice, accounting for confirmed duplicates.
+  Returns the display status for an invoice, accounting for confirmed duplicates
+  and income invoices (which have no approval workflow).
 
-  Confirmed duplicates show as `:duplicate` regardless of actual DB status.
+  - Confirmed duplicates show as `:duplicate` regardless of actual DB status.
+  - Income invoices always return `nil` (no actionable status to display).
   """
-  @spec display_status(map()) :: atom()
+  @spec display_status(map()) :: atom() | nil
   def display_status(%{duplicate_status: :confirmed}), do: :duplicate
   def display_status(%{"duplicate_status" => :confirmed}), do: :duplicate
+  def display_status(%{type: :income}), do: nil
+  def display_status(%{"type" => :income}), do: nil
   def display_status(%{status: status}), do: status
   def display_status(%{"status" => status}), do: status
 

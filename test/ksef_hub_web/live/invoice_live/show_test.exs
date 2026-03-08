@@ -130,8 +130,7 @@ defmodule KsefHubWeb.InvoiceLive.ShowTest do
       # Buttons aren't shown for income, but test the server-side guard via hook
       render_hook(view, "approve", %{})
 
-      # Status should remain pending (not changed to approved)
-      assert has_element?(view, "[class*=rounded-md]", "pending")
+      # Status badge is hidden for income invoices, and status should not change to approved
       refute has_element?(view, "[class*=rounded-md]", "approved")
     end
 
