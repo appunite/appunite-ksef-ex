@@ -62,6 +62,8 @@ defmodule KsefHub.Invoices.Invoice do
     has_many :invoice_tags, KsefHub.Invoices.InvoiceTag
     many_to_many :tags, KsefHub.Invoices.Tag, join_through: KsefHub.Invoices.InvoiceTag
     has_many :comments, KsefHub.Invoices.InvoiceComment
+    belongs_to :created_by, KsefHub.Accounts.User
+    has_one :inbound_email, KsefHub.InboundEmail.InboundEmail
 
     field :public_token, :string
 
@@ -123,7 +125,8 @@ defmodule KsefHub.Invoices.Invoice do
       :due_date,
       :iban,
       :seller_address,
-      :buyer_address
+      :buyer_address,
+      :created_by_id
     ])
     |> validate_required([:type, :company_id])
     |> validate_nip_fields()
@@ -134,6 +137,7 @@ defmodule KsefHub.Invoices.Invoice do
     |> validate_source_requirements()
     |> foreign_key_constraint(:company_id)
     |> foreign_key_constraint(:duplicate_of_id)
+    |> foreign_key_constraint(:created_by_id)
     |> foreign_key_constraint(:xml_file_id)
     |> foreign_key_constraint(:pdf_file_id)
     |> unique_constraint([:company_id, :ksef_number],
