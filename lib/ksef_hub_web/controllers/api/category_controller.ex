@@ -15,6 +15,8 @@ defmodule KsefHubWeb.Api.CategoryController do
   alias KsefHubWeb.Schemas
   alias OpenApiSpex.Schema
 
+  plug KsefHubWeb.Plugs.RequirePermission, :manage_categories when action in [:create, :update, :delete]
+
   @category_allowed_keys ~w(name emoji description sort_order)
 
   tags(["Categories"])

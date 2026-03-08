@@ -15,6 +15,8 @@ defmodule KsefHubWeb.Api.TagController do
   alias KsefHubWeb.Schemas
   alias OpenApiSpex.Schema
 
+  plug KsefHubWeb.Plugs.RequirePermission, :manage_tags when action in [:create, :update, :delete]
+
   @tag_allowed_keys ~w(name description)
 
   tags(["Tags"])

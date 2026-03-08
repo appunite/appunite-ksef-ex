@@ -20,6 +20,12 @@ defmodule KsefHubWeb.Api.InvoiceController do
   alias KsefHubWeb.Schemas
   alias OpenApiSpex.Schema
 
+  plug KsefHubWeb.Plugs.RequirePermission, :create_invoice when action in [:create, :upload]
+  plug KsefHubWeb.Plugs.RequirePermission, :update_invoice when action in [:update, :confirm_duplicate, :dismiss_duplicate]
+  plug KsefHubWeb.Plugs.RequirePermission, :approve_invoice when action in [:approve, :reject]
+  plug KsefHubWeb.Plugs.RequirePermission, :set_invoice_category when action == :set_category
+  plug KsefHubWeb.Plugs.RequirePermission, :set_invoice_tags when action == :set_tags
+
   @create_allowed_keys ~w(type ksef_number seller_nip seller_name buyer_nip buyer_name
     invoice_number issue_date net_amount gross_amount currency purchase_order
     sales_date due_date iban)
