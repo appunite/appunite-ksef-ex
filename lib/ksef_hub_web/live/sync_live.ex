@@ -14,13 +14,13 @@ defmodule KsefHubWeb.SyncLive do
   @doc "Subscribes to sync PubSub topic and loads sync job history."
   @impl true
   def mount(_params, _session, socket) do
-    if not Authorization.can?(socket.assigns[:current_role], :view_syncs) do
+    if Authorization.can?(socket.assigns[:current_role], :view_syncs) do
+      do_mount_sync(socket)
+    else
       {:ok,
        socket
        |> put_flash(:error, "You don't have permission to view syncs.")
        |> redirect(to: ~p"/c/#{socket.assigns.current_company.id}/invoices")}
-    else
-      do_mount_sync(socket)
     end
   end
 

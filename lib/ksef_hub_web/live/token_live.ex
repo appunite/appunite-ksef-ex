@@ -11,12 +11,7 @@ defmodule KsefHubWeb.TokenLive do
 
   @impl true
   def mount(_params, _session, socket) do
-    if not Authorization.can?(socket.assigns.current_role, :manage_tokens) do
-      {:ok,
-       socket
-       |> put_flash(:error, "You don't have permission to manage API tokens.")
-       |> redirect(to: ~p"/c/#{socket.assigns.current_company.id}/invoices")}
-    else
+    if Authorization.can?(socket.assigns.current_role, :manage_tokens) do
       company_id = socket.assigns.current_company.id
       tokens = Accounts.list_api_tokens(socket.assigns.current_user.id, company_id)
 
@@ -30,6 +25,11 @@ defmodule KsefHubWeb.TokenLive do
          show_create_form: false
        )
        |> stream(:tokens, tokens)}
+    else
+      {:ok,
+       socket
+       |> put_flash(:error, "You don't have permission to manage API tokens.")
+       |> redirect(to: ~p"/c/#{socket.assigns.current_company.id}/invoices")}
     end
   end
 

@@ -39,11 +39,7 @@ defmodule KsefHubWeb.CompanyLive.Index do
   end
 
   defp apply_action(socket, :edit, %{"id" => id}) do
-    if not Authorization.can?(socket.assigns[:current_role], :manage_company) do
-      socket
-      |> put_flash(:error, "You don't have permission to edit companies.")
-      |> push_patch(to: ~p"/companies")
-    else
+    if Authorization.can?(socket.assigns[:current_role], :manage_company) do
       company = Companies.get_company!(id)
 
       socket
@@ -58,6 +54,10 @@ defmodule KsefHubWeb.CompanyLive.Index do
         :inbound_settings_form,
         to_form(Company.inbound_email_settings_changeset(company, %{}))
       )
+    else
+      socket
+      |> put_flash(:error, "You don't have permission to edit companies.")
+      |> push_patch(to: ~p"/companies")
     end
   end
 
