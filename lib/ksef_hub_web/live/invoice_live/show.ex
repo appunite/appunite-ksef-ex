@@ -7,6 +7,7 @@ defmodule KsefHubWeb.InvoiceLive.Show do
 
   require Logger
 
+  alias KsefHub.Authorization
   alias KsefHub.Invoices
   alias KsefHub.Invoices.Invoice
 
@@ -51,19 +52,29 @@ defmodule KsefHubWeb.InvoiceLive.Show do
 
       invoice ->
         auto_edit = invoice.extraction_status in [:partial, :failed]
+        can_mutate = Authorization.can?(role, :update_invoice)
+        can_approve = Authorization.can?(role, :approve_invoice)
+        can_set_category = Authorization.can?(role, :set_invoice_category)
+        can_set_tags = Authorization.can?(role, :set_invoice_tags)
+        can_manage_tags = Authorization.can?(role, :manage_tags)
 
         {:ok,
          socket
          |> assign(
            page_title: "Invoice #{invoice.invoice_number}",
            invoice: invoice,
+           can_mutate: can_mutate,
+           can_approve: can_approve,
+           can_set_category: can_set_category,
+           can_set_tags: can_set_tags,
+           can_manage_tags: can_manage_tags,
            html_preview: generate_preview(invoice),
            categories: Invoices.list_categories(company.id),
            all_tags: Invoices.list_tags(company.id),
            category_form: category_form(invoice),
            new_tag_form: new_tag_form(),
            tag_form_key: 0,
-           editing: auto_edit,
+           editing: auto_edit && can_mutate,
            edit_form: build_edit_form(invoice),
            editing_note: false,
            note_form: note_form(invoice),
@@ -78,11 +89,48 @@ defmodule KsefHubWeb.InvoiceLive.Show do
     end
   end
 
-  # --- Events: Re-extract ---
+  # --- Authorization guard ---
+  # Catch-all for mutation events when the user lacks permission.
+
+  @mutation_events ~w(re_extract dismiss_duplicate confirm_duplicate
+    toggle_edit save_edit edit_note save_note)
+
+  @approve_events ~w(approve reject)
+  @category_events ~w(set_category)
+  @tag_events ~w(toggle_tag)
+  @create_tag_events ~w(create_and_add_tag)
 
   @impl true
   @spec handle_event(String.t(), map(), Phoenix.LiveView.Socket.t()) ::
           {:noreply, Phoenix.LiveView.Socket.t()}
+  def handle_event(event, _params, %{assigns: %{can_mutate: false}} = socket)
+      when event in @mutation_events do
+    {:noreply, put_flash(socket, :error, "You don't have permission to modify this invoice.")}
+  end
+
+  def handle_event(event, _params, %{assigns: %{can_approve: false}} = socket)
+      when event in @approve_events do
+    {:noreply,
+     put_flash(socket, :error, "You don't have permission to approve or reject invoices.")}
+  end
+
+  def handle_event(event, _params, %{assigns: %{can_set_category: false}} = socket)
+      when event in @category_events do
+    {:noreply, put_flash(socket, :error, "You don't have permission to set invoice categories.")}
+  end
+
+  def handle_event(event, _params, %{assigns: %{can_set_tags: false}} = socket)
+      when event in @tag_events do
+    {:noreply, put_flash(socket, :error, "You don't have permission to manage invoice tags.")}
+  end
+
+  def handle_event(event, _params, %{assigns: %{can_manage_tags: false}} = socket)
+      when event in @create_tag_events do
+    {:noreply, put_flash(socket, :error, "You don't have permission to create tags.")}
+  end
+
+  # --- Events: Re-extract ---
+
   def handle_event("re_extract", _params, socket) do
     invoice = socket.assigns.invoice
 
@@ -673,7 +721,7 @@ defmodule KsefHubWeb.InvoiceLive.Show do
             </ul>
           </div>
           <button
-            :if={!@editing}
+            :if={@can_mutate && !@editing}
             phx-click="toggle_edit"
             class="btn btn-sm btn-outline"
           >
@@ -681,7 +729,7 @@ defmodule KsefHubWeb.InvoiceLive.Show do
           </button>
           <button
             :if={
-              @invoice.type == :expense && @invoice.status == :pending &&
+              @can_approve && @invoice.type == :expense && @invoice.status == :pending &&
                 @invoice.duplicate_status != :confirmed
             }
             phx-click="approve"
@@ -691,7 +739,7 @@ defmodule KsefHubWeb.InvoiceLive.Show do
           </button>
           <button
             :if={
-              @invoice.type == :expense && @invoice.status == :pending &&
+              @can_approve && @invoice.type == :expense && @invoice.status == :pending &&
                 @invoice.duplicate_status != :confirmed
             }
             phx-click="reject"
@@ -714,7 +762,7 @@ defmodule KsefHubWeb.InvoiceLive.Show do
         This invoice has missing data. Please review and fill in the missing fields below.
       </span>
       <button
-        :if={@invoice.source in [:pdf_upload, :email] and not @extracting}
+        :if={(@can_mutate && @invoice.source in [:pdf_upload, :email]) and not @extracting}
         phx-click="re_extract"
         class="btn btn-sm btn-warning"
       >
@@ -739,7 +787,7 @@ defmodule KsefHubWeb.InvoiceLive.Show do
           View original
         </.link>
       </span>
-      <div class="flex-none flex gap-2">
+      <div :if={@can_mutate} class="flex-none flex gap-2">
         <button phx-click="dismiss_duplicate" class="btn btn-sm btn-ghost">
           Not a duplicate
         </button>
@@ -903,7 +951,7 @@ defmodule KsefHubWeb.InvoiceLive.Show do
             <!-- Category Select -->
             <.form
               for={@category_form}
-              phx-change="set_category"
+              phx-change={if(@can_set_category, do: "set_category")}
               data-testid="category-form"
               class="mb-4"
             >
@@ -912,6 +960,7 @@ defmodule KsefHubWeb.InvoiceLive.Show do
                 name={@category_form[:category_id].name}
                 class="select select-sm select-bordered w-full"
                 data-testid="category-select"
+                disabled={not @can_set_category}
               >
                 <option value="">No category</option>
                 <option
@@ -935,14 +984,16 @@ defmodule KsefHubWeb.InvoiceLive.Show do
                     type="checkbox"
                     class="checkbox checkbox-xs"
                     checked={tag_assigned?(@invoice, tag.id)}
-                    phx-click="toggle_tag"
+                    phx-click={if(@can_set_tags, do: "toggle_tag")}
                     phx-value-tag-id={tag.id}
+                    disabled={not @can_set_tags}
                   />
                   <span class="text-sm">{tag.name}</span>
                 </label>
               </div>
               <!-- New Tag Inline -->
               <.form
+                :if={@can_manage_tags}
                 for={@new_tag_form}
                 phx-submit="create_and_add_tag"
                 id={"new-tag-form-#{@tag_form_key}"}
@@ -967,7 +1018,7 @@ defmodule KsefHubWeb.InvoiceLive.Show do
             <div class="flex items-center justify-between mb-2">
               <h2 class="text-base font-semibold">Note</h2>
               <button
-                :if={!@editing_note}
+                :if={@can_mutate && !@editing_note}
                 phx-click="edit_note"
                 class="btn btn-xs btn-ghost"
                 aria-label="Edit note"
@@ -995,10 +1046,11 @@ defmodule KsefHubWeb.InvoiceLive.Show do
             <% else %>
               <div
                 class={[
-                  "text-sm cursor-pointer hover:bg-base-200 rounded p-1 -m-1",
+                  "text-sm rounded p-1 -m-1",
+                  @can_mutate && "cursor-pointer hover:bg-base-200",
                   !@invoice.note && "text-base-content/40 italic"
                 ]}
-                phx-click="edit_note"
+                phx-click={if(@can_mutate, do: "edit_note")}
               >
                 <span :if={@invoice.note} class="whitespace-pre-line">{@invoice.note}</span>
                 <span :if={!@invoice.note}>No note</span>

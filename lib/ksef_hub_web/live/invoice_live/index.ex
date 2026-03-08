@@ -4,6 +4,7 @@ defmodule KsefHubWeb.InvoiceLive.Index do
   """
   use KsefHubWeb, :live_view
 
+  alias KsefHub.Authorization
   alias KsefHub.Invoices
   alias KsefHub.Invoices.Invoice
 
@@ -65,7 +66,8 @@ defmodule KsefHubWeb.InvoiceLive.Index do
       per_page: result.per_page,
       total_count: result.total_count,
       total_pages: result.total_pages,
-      is_reviewer: role == :reviewer
+      can_view_all_types: Authorization.can?(role, :view_all_invoice_types),
+      can_create: Authorization.can?(role, :create_invoice)
     ]
   end
 
@@ -216,7 +218,7 @@ defmodule KsefHubWeb.InvoiceLive.Index do
       <:subtitle>Browse and manage KSeF invoices</:subtitle>
       <:actions>
         <.link
-          :if={!@is_reviewer}
+          :if={@can_create}
           navigate={~p"/c/#{@current_company.id}/invoices/upload"}
           class="btn btn-sm btn-primary"
         >
@@ -230,7 +232,7 @@ defmodule KsefHubWeb.InvoiceLive.Index do
       <div class="form-control w-32">
         <label class="label"><span class="label-text text-xs">Type</span></label>
         <select
-          :if={!@is_reviewer}
+          :if={@can_view_all_types}
           name={@form[:type].name}
           class="select select-sm select-bordered"
         >
@@ -239,7 +241,7 @@ defmodule KsefHubWeb.InvoiceLive.Index do
           <option value="expense" selected={@form[:type].value == "expense"}>Expense</option>
         </select>
         <select
-          :if={@is_reviewer}
+          :if={!@can_view_all_types}
           name={@form[:type].name}
           class="select select-sm select-bordered"
           disabled

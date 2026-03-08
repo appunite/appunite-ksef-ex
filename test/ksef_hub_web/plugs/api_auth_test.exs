@@ -7,7 +7,7 @@ defmodule KsefHubWeb.Plugs.ApiAuthTest do
 
   describe "ApiAuth plug" do
     test "assigns api_token and current_company for valid bearer token", %{conn: conn} do
-      %{token: token, company: company} = create_owner_with_token()
+      %{token: token, company: company} = create_user_with_token(:owner)
 
       conn =
         conn
@@ -42,7 +42,7 @@ defmodule KsefHubWeb.Plugs.ApiAuthTest do
 
     test "rejects expired token", %{conn: conn} do
       expired_at = DateTime.add(DateTime.utc_now(), -3600, :second)
-      %{token: token} = create_owner_with_token(%{expires_at: expired_at})
+      %{token: token} = create_user_with_token(:owner, %{expires_at: expired_at})
 
       conn =
         conn
@@ -56,7 +56,7 @@ defmodule KsefHubWeb.Plugs.ApiAuthTest do
 
     test "rejects request with revoked token", %{conn: conn} do
       %{user: user, company: company, token: token, api_token: api_token} =
-        create_owner_with_token()
+        create_user_with_token(:owner)
 
       {:ok, _} = Accounts.revoke_api_token(user.id, company.id, api_token.id)
 
@@ -69,7 +69,7 @@ defmodule KsefHubWeb.Plugs.ApiAuthTest do
     end
 
     test "tracks token usage on successful auth", %{conn: conn} do
-      %{token: token, api_token: api_token} = create_owner_with_token(%{name: "Track Me"})
+      %{token: token, api_token: api_token} = create_user_with_token(:owner, %{name: "Track Me"})
 
       conn
       |> api_conn(token)
@@ -81,7 +81,7 @@ defmodule KsefHubWeb.Plugs.ApiAuthTest do
     end
 
     test "assigns current_role from token creator's membership", %{conn: conn} do
-      %{token: token} = create_owner_with_token()
+      %{token: token} = create_user_with_token(:owner)
 
       conn =
         conn
@@ -92,7 +92,7 @@ defmodule KsefHubWeb.Plugs.ApiAuthTest do
     end
 
     test "assigns reviewer role for reviewer-created token", %{conn: conn} do
-      {:ok, %{token: token}} = create_reviewer_with_token()
+      {:ok, %{token: token}} = create_user_with_token(:reviewer)
 
       conn =
         conn

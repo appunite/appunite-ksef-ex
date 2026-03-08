@@ -45,7 +45,7 @@ defmodule KsefHubWeb.TeamLiveTest do
       assert {:error, {:redirect, %{to: ^expected_path, flash: flash}}} =
                live(non_owner_conn, ~p"/c/#{company.id}/team")
 
-      assert flash["error"] =~ "owner"
+      assert flash["error"] =~ "You don't have permission to access this page."
     end
   end
 

@@ -8,6 +8,7 @@ defmodule KsefHubWeb.SyncLive do
 
   require Logger
 
+  alias KsefHub.Authorization
   alias KsefHub.Sync.History
 
   @doc "Subscribes to sync PubSub topic and loads sync job history."
@@ -42,6 +43,15 @@ defmodule KsefHubWeb.SyncLive do
   end
 
   def handle_event("trigger_sync", _params, socket) do
+    if Authorization.can?(socket.assigns[:current_role], :trigger_sync) do
+      do_trigger_sync(socket)
+    else
+      {:noreply, put_flash(socket, :error, "You don't have permission to trigger syncs.")}
+    end
+  end
+
+  @spec do_trigger_sync(Phoenix.LiveView.Socket.t()) :: {:noreply, Phoenix.LiveView.Socket.t()}
+  defp do_trigger_sync(socket) do
     company = socket.assigns.current_company
 
     case History.trigger_manual_sync(company.id) do

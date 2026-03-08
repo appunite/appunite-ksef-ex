@@ -6,7 +6,7 @@ defmodule KsefHubWeb.Api.TagControllerTest do
 
   describe "index" do
     test "returns tags for the token's company with usage_count", %{conn: conn} do
-      %{company: company, token: token} = create_owner_with_token()
+      %{company: company, token: token} = create_user_with_token(:owner)
       tag = insert(:tag, company: company, name: "urgent")
       invoice = insert(:invoice, company: company)
       insert(:invoice_tag, invoice: invoice, tag: tag)
@@ -24,7 +24,7 @@ defmodule KsefHubWeb.Api.TagControllerTest do
     end
 
     test "returns empty list when no tags exist", %{conn: conn} do
-      %{token: token} = create_owner_with_token()
+      %{token: token} = create_user_with_token(:owner)
 
       conn = conn |> api_conn(token) |> get("/api/tags")
 
@@ -35,7 +35,7 @@ defmodule KsefHubWeb.Api.TagControllerTest do
 
   describe "show" do
     test "returns a tag", %{conn: conn} do
-      %{company: company, token: token} = create_owner_with_token()
+      %{company: company, token: token} = create_user_with_token(:owner)
       tag = insert(:tag, company: company, name: "urgent")
 
       conn = conn |> api_conn(token) |> get("/api/tags/#{tag.id}")
@@ -45,7 +45,7 @@ defmodule KsefHubWeb.Api.TagControllerTest do
     end
 
     test "returns 404 for tag from different company", %{conn: conn} do
-      %{token: token} = create_owner_with_token()
+      %{token: token} = create_user_with_token(:owner)
       other_company = insert(:company)
       tag = insert(:tag, company: other_company)
 
@@ -57,7 +57,7 @@ defmodule KsefHubWeb.Api.TagControllerTest do
 
   describe "create" do
     test "creates a tag with valid attrs", %{conn: conn} do
-      %{token: token} = create_owner_with_token()
+      %{token: token} = create_user_with_token(:owner)
 
       body = Jason.encode!(%{name: "urgent", description: "Needs attention"})
       conn = conn |> api_conn(token) |> post("/api/tags", body)
@@ -69,7 +69,7 @@ defmodule KsefHubWeb.Api.TagControllerTest do
     end
 
     test "returns 422 for missing name", %{conn: conn} do
-      %{token: token} = create_owner_with_token()
+      %{token: token} = create_user_with_token(:owner)
 
       body = Jason.encode!(%{description: "no name"})
       conn = conn |> api_conn(token) |> post("/api/tags", body)
@@ -78,7 +78,7 @@ defmodule KsefHubWeb.Api.TagControllerTest do
     end
 
     test "returns 422 for duplicate name in same company", %{conn: conn} do
-      %{company: company, token: token} = create_owner_with_token()
+      %{company: company, token: token} = create_user_with_token(:owner)
       insert(:tag, company: company, name: "dup")
 
       body = Jason.encode!(%{name: "dup"})
@@ -90,7 +90,7 @@ defmodule KsefHubWeb.Api.TagControllerTest do
 
   describe "update" do
     test "updates a tag", %{conn: conn} do
-      %{company: company, token: token} = create_owner_with_token()
+      %{company: company, token: token} = create_user_with_token(:owner)
       tag = insert(:tag, company: company, name: "old")
 
       body = Jason.encode!(%{name: "new"})
@@ -101,7 +101,7 @@ defmodule KsefHubWeb.Api.TagControllerTest do
     end
 
     test "returns 404 for tag from different company", %{conn: conn} do
-      %{token: token} = create_owner_with_token()
+      %{token: token} = create_user_with_token(:owner)
       other_company = insert(:company)
       tag = insert(:tag, company: other_company)
 
@@ -112,7 +112,7 @@ defmodule KsefHubWeb.Api.TagControllerTest do
     end
 
     test "returns 422 for invalid update", %{conn: conn} do
-      %{company: company, token: token} = create_owner_with_token()
+      %{company: company, token: token} = create_user_with_token(:owner)
       tag = insert(:tag, company: company)
 
       body = Jason.encode!(%{name: ""})
@@ -124,7 +124,7 @@ defmodule KsefHubWeb.Api.TagControllerTest do
 
   describe "delete" do
     test "deletes a tag", %{conn: conn} do
-      %{company: company, token: token} = create_owner_with_token()
+      %{company: company, token: token} = create_user_with_token(:owner)
       tag = insert(:tag, company: company)
 
       conn = conn |> api_conn(token) |> delete("/api/tags/#{tag.id}")
@@ -134,13 +134,106 @@ defmodule KsefHubWeb.Api.TagControllerTest do
     end
 
     test "returns 404 for tag from different company", %{conn: conn} do
-      %{token: token} = create_owner_with_token()
+      %{token: token} = create_user_with_token(:owner)
       other_company = insert(:company)
       tag = insert(:tag, company: other_company)
 
       conn = conn |> api_conn(token) |> delete("/api/tags/#{tag.id}")
 
       assert conn.status == 404
+    end
+  end
+
+  describe "permission enforcement" do
+    test "accountant can read tags (index)", %{conn: conn} do
+      {:ok, %{company: company, token: token}} = create_user_with_token(:accountant)
+      insert(:tag, company: company, name: "test")
+
+      conn = conn |> api_conn(token) |> get("/api/tags")
+      assert conn.status == 200
+    end
+
+    test "reviewer can read tags (index)", %{conn: conn} do
+      {:ok, %{company: company, token: token}} = create_user_with_token(:reviewer)
+      insert(:tag, company: company, name: "test")
+
+      conn = conn |> api_conn(token) |> get("/api/tags")
+      assert conn.status == 200
+    end
+
+    test "accountant cannot create tags", %{conn: conn} do
+      {:ok, %{token: token}} = create_user_with_token(:accountant)
+
+      body = Jason.encode!(%{name: "test"})
+      conn = conn |> api_conn(token) |> post("/api/tags", body)
+      assert conn.status == 403
+    end
+
+    test "reviewer cannot create tags", %{conn: conn} do
+      {:ok, %{token: token}} = create_user_with_token(:reviewer)
+
+      body = Jason.encode!(%{name: "test"})
+      conn = conn |> api_conn(token) |> post("/api/tags", body)
+      assert conn.status == 403
+    end
+
+    test "admin can create tags", %{conn: conn} do
+      {:ok, %{token: token}} = create_user_with_token(:admin)
+
+      body = Jason.encode!(%{name: "test"})
+      conn = conn |> api_conn(token) |> post("/api/tags", body)
+      assert conn.status == 201
+    end
+
+    test "accountant cannot update tags", %{conn: conn} do
+      {:ok, %{company: company, token: token}} = create_user_with_token(:accountant)
+      tag = insert(:tag, company: company, name: "original")
+
+      body = Jason.encode!(%{name: "updated"})
+      conn = conn |> api_conn(token) |> patch("/api/tags/#{tag.id}", body)
+      assert conn.status == 403
+    end
+
+    test "reviewer cannot update tags", %{conn: conn} do
+      {:ok, %{company: company, token: token}} = create_user_with_token(:reviewer)
+      tag = insert(:tag, company: company, name: "original")
+
+      body = Jason.encode!(%{name: "updated"})
+      conn = conn |> api_conn(token) |> patch("/api/tags/#{tag.id}", body)
+      assert conn.status == 403
+    end
+
+    test "admin can update tags", %{conn: conn} do
+      {:ok, %{company: company, token: token}} = create_user_with_token(:admin)
+      tag = insert(:tag, company: company, name: "original")
+
+      body = Jason.encode!(%{name: "updated"})
+      conn = conn |> api_conn(token) |> patch("/api/tags/#{tag.id}", body)
+      assert conn.status == 200
+    end
+
+    test "accountant cannot delete tags", %{conn: conn} do
+      {:ok, %{company: company, token: token}} = create_user_with_token(:accountant)
+      tag = insert(:tag, company: company, name: "to-delete")
+
+      conn = conn |> api_conn(token) |> delete("/api/tags/#{tag.id}")
+      assert conn.status == 403
+    end
+
+    test "reviewer cannot delete tags", %{conn: conn} do
+      {:ok, %{company: company, token: token}} = create_user_with_token(:reviewer)
+      tag = insert(:tag, company: company, name: "to-delete")
+
+      conn = conn |> api_conn(token) |> delete("/api/tags/#{tag.id}")
+      assert conn.status == 403
+    end
+
+    test "admin can delete tags", %{conn: conn} do
+      {:ok, %{company: company, token: token}} = create_user_with_token(:admin)
+      tag = insert(:tag, company: company, name: "to-delete")
+
+      conn = conn |> api_conn(token) |> delete("/api/tags/#{tag.id}")
+      assert conn.status == 200
     end
   end
 end

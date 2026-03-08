@@ -4,6 +4,7 @@ defmodule KsefHubWeb.CompanyLive.Index do
   """
   use KsefHubWeb, :live_view
 
+  alias KsefHub.Authorization
   alias KsefHub.Companies
   alias KsefHub.Companies.Company
 
@@ -12,7 +13,10 @@ defmodule KsefHubWeb.CompanyLive.Index do
   def mount(_params, _session, socket) do
     {:ok,
      socket
-     |> assign(page_title: "Companies")
+     |> assign(
+       page_title: "Companies",
+       can_manage_company: Authorization.can?(socket.assigns[:current_role], :manage_company)
+     )
      |> load_companies()}
   end
 
@@ -24,28 +28,40 @@ defmodule KsefHubWeb.CompanyLive.Index do
 
   @spec apply_action(Phoenix.LiveView.Socket.t(), atom(), map()) :: Phoenix.LiveView.Socket.t()
   defp apply_action(socket, :new, _params) do
-    socket
-    |> assign(:page_title, "New Company")
-    |> assign(:company, %Company{})
-    |> assign(:form, to_form(Companies.Company.changeset(%Company{}, %{})))
-    |> assign(:inbound_settings_form, nil)
+    if Authorization.can?(socket.assigns[:current_role], :manage_company) do
+      socket
+      |> assign(:page_title, "New Company")
+      |> assign(:company, %Company{})
+      |> assign(:form, to_form(Companies.Company.changeset(%Company{}, %{})))
+      |> assign(:inbound_settings_form, nil)
+    else
+      socket
+      |> put_flash(:error, "You don't have permission to create companies.")
+      |> push_patch(to: ~p"/companies")
+    end
   end
 
   defp apply_action(socket, :edit, %{"id" => id}) do
-    company = Companies.get_company!(id)
+    if Authorization.can?(socket.assigns[:current_role], :manage_company) do
+      company = Companies.get_company!(id)
 
-    socket
-    |> assign(:page_title, "Edit #{company.name}")
-    |> assign(:company, company)
-    |> assign(
-      :inbound_domain_configured,
-      Application.get_env(:ksef_hub, :inbound_email_domain) != nil
-    )
-    |> assign(:form, to_form(Companies.Company.changeset(company, %{})))
-    |> assign(
-      :inbound_settings_form,
-      to_form(Company.inbound_email_settings_changeset(company, %{}))
-    )
+      socket
+      |> assign(:page_title, "Edit #{company.name}")
+      |> assign(:company, company)
+      |> assign(
+        :inbound_domain_configured,
+        Application.get_env(:ksef_hub, :inbound_email_domain) != nil
+      )
+      |> assign(:form, to_form(Companies.Company.changeset(company, %{})))
+      |> assign(
+        :inbound_settings_form,
+        to_form(Company.inbound_email_settings_changeset(company, %{}))
+      )
+    else
+      socket
+      |> put_flash(:error, "You don't have permission to edit companies.")
+      |> push_patch(to: ~p"/companies")
+    end
   end
 
   defp apply_action(socket, _action, _params) do
@@ -53,6 +69,18 @@ defmodule KsefHubWeb.CompanyLive.Index do
     |> assign(:company, nil)
     |> assign(:form, nil)
     |> assign(:inbound_settings_form, nil)
+  end
+
+  # --- Authorization guard for mutation events ---
+  # All company-mutating handlers require :manage_company permission.
+
+  @company_mutation_events ~w(save validate enable_inbound_email disable_inbound_email
+    regenerate_inbound_email validate_inbound_settings save_inbound_settings)
+
+  @impl true
+  def handle_event(event, _params, %{assigns: %{can_manage_company: false}} = socket)
+      when event in @company_mutation_events do
+    {:noreply, put_flash(socket, :error, "You don't have permission to manage companies.")}
   end
 
   @doc "Handles form validation and save events."
@@ -233,7 +261,7 @@ defmodule KsefHubWeb.CompanyLive.Index do
       Companies
       <:subtitle>Manage your companies</:subtitle>
       <:actions>
-        <.link navigate={~p"/companies/new"} class="btn btn-primary btn-sm">
+        <.link :if={@can_manage_company} navigate={~p"/companies/new"} class="btn btn-primary btn-sm">
           <.icon name="hero-plus" class="size-4" /> New Company
         </.link>
       </:actions>
@@ -407,7 +435,11 @@ defmodule KsefHubWeb.CompanyLive.Index do
           </span>
         </:col>
         <:action :let={company}>
-          <.link navigate={~p"/companies/#{company.id}/edit"} class="btn btn-ghost btn-xs">
+          <.link
+            :if={@can_manage_company}
+            navigate={~p"/companies/#{company.id}/edit"}
+            class="btn btn-ghost btn-xs"
+          >
             Edit
           </.link>
         </:action>

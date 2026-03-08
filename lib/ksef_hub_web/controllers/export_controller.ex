@@ -6,6 +6,7 @@ defmodule KsefHubWeb.ExportController do
   import KsefHubWeb.AuthHelpers, only: [resolve_role: 2]
   import KsefHubWeb.FilenameHelpers, only: [send_attachment: 4]
 
+  alias KsefHub.Authorization
   alias KsefHub.Exports
 
   @doc "Downloads the ZIP file for a completed export batch."
@@ -16,7 +17,7 @@ defmodule KsefHubWeb.ExportController do
         user_id = conn.assigns.current_user.id
         role = resolve_role(user_id, company_id)
 
-        if role in [:owner, :accountant] do
+        if Authorization.can?(role, :view_exports) do
           do_download(conn, company_id, user_id, batch_id)
         else
           conn

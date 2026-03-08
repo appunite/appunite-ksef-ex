@@ -23,7 +23,7 @@ defmodule KsefHubWeb.RoleBasedNavTest do
       assert has_element?(view, "a[href='/c/#{company.id}/tokens']")
     end
 
-    test "accountant does not see Certificates or API Tokens nav items", %{conn: conn} do
+    test "accountant does not see admin-only nav items", %{conn: conn} do
       user = insert(:user)
       company = insert(:company)
       insert(:membership, user: user, company: company, role: :accountant)
@@ -35,13 +35,14 @@ defmodule KsefHubWeb.RoleBasedNavTest do
 
       assert has_element?(view, "a[href='/c/#{company.id}/dashboard']")
       assert has_element?(view, "a[href='/c/#{company.id}/invoices']")
-      assert has_element?(view, "a[href='/c/#{company.id}/categories']")
-      assert has_element?(view, "a[href='/c/#{company.id}/tags']")
+      refute has_element?(view, "a[href='/c/#{company.id}/categories']")
+      refute has_element?(view, "a[href='/c/#{company.id}/tags']")
       refute has_element?(view, "a[href='/c/#{company.id}/certificates']")
-      refute has_element?(view, "a[href='/c/#{company.id}/tokens']")
+      # Accountant can manage tokens
+      assert has_element?(view, "a[href='/c/#{company.id}/tokens']")
     end
 
-    test "reviewer does not see Certificates or API Tokens nav items", %{conn: conn} do
+    test "reviewer does not see admin-only nav items", %{conn: conn} do
       user = insert(:user)
       company = insert(:company)
       insert(:membership, user: user, company: company, role: :reviewer)
@@ -53,8 +54,8 @@ defmodule KsefHubWeb.RoleBasedNavTest do
 
       assert has_element?(view, "a[href='/c/#{company.id}/dashboard']")
       assert has_element?(view, "a[href='/c/#{company.id}/invoices']")
-      assert has_element?(view, "a[href='/c/#{company.id}/categories']")
-      assert has_element?(view, "a[href='/c/#{company.id}/tags']")
+      refute has_element?(view, "a[href='/c/#{company.id}/categories']")
+      refute has_element?(view, "a[href='/c/#{company.id}/tags']")
       refute has_element?(view, "a[href='/c/#{company.id}/certificates']")
       refute has_element?(view, "a[href='/c/#{company.id}/tokens']")
     end

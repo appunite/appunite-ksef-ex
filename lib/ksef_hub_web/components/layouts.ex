@@ -5,6 +5,8 @@ defmodule KsefHubWeb.Layouts do
   """
   use KsefHubWeb, :html
 
+  alias KsefHub.Authorization
+
   embed_templates "layouts/*"
 
   attr :flash, :map, required: true, doc: "the map of flash messages"
@@ -102,99 +104,16 @@ defmodule KsefHubWeb.Layouts do
               class="dropdown-content z-50 menu p-2 border border-base-300 bg-base-100 rounded-box w-64"
             >
               <li class="menu-title text-xs truncate">{@current_user.email}</li>
-              <li :if={@current_company}>
-                <.nav_link
-                  path={~p"/c/#{@current_company.id}/invoices"}
-                  current={@current_path}
-                  icon="hero-document-text"
-                >
-                  Invoices
-                </.nav_link>
-              </li>
-              <li :if={@current_company}>
-                <.nav_link
-                  path={~p"/c/#{@current_company.id}/dashboard"}
-                  current={@current_path}
-                  icon="hero-home"
-                >
-                  Dashboard
-                </.nav_link>
-              </li>
-              <li :if={@current_company}>
-                <.nav_link
-                  path={~p"/c/#{@current_company.id}/categories"}
-                  current={@current_path}
-                  icon="hero-squares-2x2"
-                >
-                  Categories
-                </.nav_link>
-              </li>
-              <li :if={@current_company}>
-                <.nav_link
-                  path={~p"/c/#{@current_company.id}/tags"}
-                  current={@current_path}
-                  icon="hero-tag"
-                >
-                  Tags
-                </.nav_link>
-              </li>
-              <li :if={@current_company && @current_role in [:owner, :accountant]}>
-                <.nav_link
-                  path={~p"/c/#{@current_company.id}/exports"}
-                  current={@current_path}
-                  icon="hero-arrow-down-tray"
-                >
-                  Exports
-                </.nav_link>
-              </li>
-              <li :if={@current_company}>
-                <.nav_link
-                  path={~p"/c/#{@current_company.id}/syncs"}
-                  current={@current_path}
-                  icon="hero-arrow-path"
-                >
-                  Syncs
-                </.nav_link>
-              </li>
-              <li>
-                <.nav_link
-                  path={~p"/companies"}
-                  current={@current_path}
-                  icon="hero-building-office-2"
-                >
-                  Companies
-                </.nav_link>
-              </li>
-              <li :if={@current_company && @current_role == :owner} class="menu-title text-xs pt-2">
-                Admin
-              </li>
-              <li :if={@current_company && @current_role == :owner}>
-                <.nav_link
-                  path={~p"/c/#{@current_company.id}/certificates"}
-                  current={@current_path}
-                  icon="hero-shield-check"
-                >
-                  Certificates
-                </.nav_link>
-              </li>
-              <li :if={@current_company && @current_role == :owner}>
-                <.nav_link
-                  path={~p"/c/#{@current_company.id}/tokens"}
-                  current={@current_path}
-                  icon="hero-key"
-                >
-                  API Tokens
-                </.nav_link>
-              </li>
-              <li :if={@current_company && @current_role == :owner}>
-                <.nav_link
-                  path={~p"/c/#{@current_company.id}/team"}
-                  current={@current_path}
-                  icon="hero-user-group"
-                >
-                  Team
-                </.nav_link>
-              </li>
+              <%= for item <- nav_items(@current_company, @current_role) do %>
+                <%= if item.section do %>
+                  <li class="menu-title text-xs pt-2">{item.section}</li>
+                <% end %>
+                <li>
+                  <.nav_link path={item.path} current={@current_path} icon={item.icon}>
+                    {item.label}
+                  </.nav_link>
+                </li>
+              <% end %>
               <div class="divider my-1"></div>
               <li class="flex flex-row items-center justify-center px-2 py-1">
                 <.theme_toggle />
@@ -219,6 +138,33 @@ defmodule KsefHubWeb.Layouts do
 
     <.flash_group flash={@flash} />
     """
+  end
+
+  @spec nav_items(map() | nil, atom() | nil) :: [map()]
+  defp nav_items(nil, _role), do: []
+
+  defp nav_items(company, role) do
+    id = company.id
+
+    [
+      {nil, nil, "Invoices", ~p"/c/#{id}/invoices", "hero-document-text"},
+      {nil, nil, "Dashboard", ~p"/c/#{id}/dashboard", "hero-home"},
+      {nil, :manage_categories, "Categories", ~p"/c/#{id}/categories", "hero-squares-2x2"},
+      {nil, :manage_tags, "Tags", ~p"/c/#{id}/tags", "hero-tag"},
+      {nil, :view_exports, "Exports", ~p"/c/#{id}/exports", "hero-arrow-down-tray"},
+      {nil, :view_syncs, "Syncs", ~p"/c/#{id}/syncs", "hero-arrow-path"},
+      {nil, :manage_company, "Companies", ~p"/companies", "hero-building-office-2"},
+      {"Admin", :manage_certificates, "Certificates", ~p"/c/#{id}/certificates",
+       "hero-shield-check"},
+      {nil, :manage_tokens, "API Tokens", ~p"/c/#{id}/tokens", "hero-key"},
+      {nil, :manage_team, "Team", ~p"/c/#{id}/team", "hero-user-group"}
+    ]
+    |> Enum.filter(fn {_section, perm, _label, _path, _icon} ->
+      is_nil(perm) or Authorization.can?(role, perm)
+    end)
+    |> Enum.map(fn {section, _perm, label, path, icon} ->
+      %{section: section, label: label, path: path, icon: icon}
+    end)
   end
 
   attr :path, :string, required: true

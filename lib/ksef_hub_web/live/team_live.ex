@@ -13,7 +13,7 @@ defmodule KsefHubWeb.TeamLive do
   alias KsefHub.Invitations
   alias KsefHub.Invitations.InvitationNotifier
 
-  @doc "Mounts the team page. Owner check is enforced by the :require_owner on_mount hook."
+  @doc "Mounts the team page. Permission check is enforced by the :require_permission on_mount hook."
   @spec mount(map(), map(), Phoenix.LiveView.Socket.t()) :: {:ok, Phoenix.LiveView.Socket.t()}
   @impl true
   def mount(_params, _session, socket) do

@@ -44,18 +44,18 @@ defmodule KsefHubWeb.InvoiceLive.UploadTest do
       refute has_element?(view, ~s(input[type="radio"]))
     end
 
-    test "redirects reviewer to invoices", %{conn: _conn} do
-      {:ok, reviewer} =
+    test "redirects accountant to invoices", %{conn: _conn} do
+      {:ok, accountant} =
         Accounts.get_or_create_google_user(%{
-          uid: "g-upload-reviewer",
-          email: "reviewer-upload@example.com",
-          name: "Reviewer"
+          uid: "g-upload-accountant",
+          email: "accountant-upload@example.com",
+          name: "Accountant"
         })
 
       company = insert(:company)
-      insert(:membership, user: reviewer, company: company, role: :reviewer)
+      insert(:membership, user: accountant, company: company, role: :accountant)
 
-      conn = build_conn() |> log_in_user(reviewer, %{current_company_id: company.id})
+      conn = build_conn() |> log_in_user(accountant, %{current_company_id: company.id})
 
       expected_path = "/c/#{company.id}/invoices"
 
@@ -173,18 +173,36 @@ defmodule KsefHubWeb.InvoiceLive.UploadTest do
       assert has_element?(view, ~s(a[href="#{upload_path}"]), "Upload PDF")
     end
 
-    test "hides Upload PDF button for reviewer" do
-      {:ok, reviewer} =
+    test "shows Upload PDF button for admin" do
+      {:ok, admin} =
         Accounts.get_or_create_google_user(%{
-          uid: "g-upload-idx-rev",
-          email: "reviewer-idx@example.com",
-          name: "Reviewer"
+          uid: "g-upload-idx-admin",
+          email: "admin-idx@example.com",
+          name: "Admin"
         })
 
       company = insert(:company)
-      insert(:membership, user: reviewer, company: company, role: :reviewer)
+      insert(:membership, user: admin, company: company, role: :admin)
 
-      conn = build_conn() |> log_in_user(reviewer, %{current_company_id: company.id})
+      conn = build_conn() |> log_in_user(admin, %{current_company_id: company.id})
+      {:ok, view, _html} = live(conn, ~p"/c/#{company.id}/invoices")
+
+      upload_path = ~p"/c/#{company.id}/invoices/upload"
+      assert has_element?(view, ~s(a[href="#{upload_path}"]), "Upload PDF")
+    end
+
+    test "hides Upload PDF button for accountant" do
+      {:ok, accountant} =
+        Accounts.get_or_create_google_user(%{
+          uid: "g-upload-idx-acct",
+          email: "accountant-idx@example.com",
+          name: "Accountant"
+        })
+
+      company = insert(:company)
+      insert(:membership, user: accountant, company: company, role: :accountant)
+
+      conn = build_conn() |> log_in_user(accountant, %{current_company_id: company.id})
       {:ok, view, _html} = live(conn, ~p"/c/#{company.id}/invoices")
 
       upload_path = ~p"/c/#{company.id}/invoices/upload"

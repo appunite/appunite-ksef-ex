@@ -8,7 +8,7 @@ defmodule KsefHubWeb.Api.TokenControllerTest do
 
   describe "index" do
     test "lists tokens for the token's company only", %{conn: conn} do
-      %{user: user, company: company, token: token} = create_owner_with_token()
+      %{user: user, company: company, token: token} = create_user_with_token(:owner)
 
       # Create another token for same user+company
       {:ok, _} =
@@ -32,7 +32,7 @@ defmodule KsefHubWeb.Api.TokenControllerTest do
 
   describe "create" do
     test "creates a new token scoped to the token's company", %{conn: conn} do
-      %{token: token} = create_owner_with_token()
+      %{token: token} = create_user_with_token(:owner)
 
       conn =
         conn
@@ -47,26 +47,41 @@ defmodule KsefHubWeb.Api.TokenControllerTest do
     end
 
     test "returns 422 for missing name", %{conn: conn} do
-      %{token: token} = create_owner_with_token()
+      %{token: token} = create_user_with_token(:owner)
 
       conn = conn |> api_conn(token) |> post("/api/tokens", %{description: "No name"})
 
       assert conn.status == 422
     end
 
-    test "returns 403 when non-owner tries to create token", %{conn: conn} do
-      %{user: user, company: company, token: token} = create_owner_with_token()
+    test "admin can create token", %{conn: conn} do
+      {:ok, %{token: token}} = create_user_with_token(:admin)
 
-      # Demote from owner to accountant
-      membership =
-        KsefHub.Repo.get_by!(KsefHub.Companies.Membership,
-          user_id: user.id,
-          company_id: company.id
-        )
+      conn =
+        conn
+        |> api_conn(token)
+        |> post("/api/tokens", %{name: "Admin Token"})
 
-      membership
-      |> Ecto.Changeset.change(role: :accountant)
-      |> KsefHub.Repo.update!()
+      assert conn.status == 201
+      body = Jason.decode!(conn.resp_body)
+      assert body["data"]["name"] == "Admin Token"
+    end
+
+    test "accountant can create token", %{conn: conn} do
+      {:ok, %{token: token}} = create_user_with_token(:accountant)
+
+      conn =
+        conn
+        |> api_conn(token)
+        |> post("/api/tokens", %{name: "Accountant Token"})
+
+      assert conn.status == 201
+      body = Jason.decode!(conn.resp_body)
+      assert body["data"]["name"] == "Accountant Token"
+    end
+
+    test "returns 403 when reviewer tries to create token", %{conn: conn} do
+      {:ok, %{token: token}} = create_user_with_token(:reviewer)
 
       conn =
         conn
@@ -74,13 +89,12 @@ defmodule KsefHubWeb.Api.TokenControllerTest do
         |> post("/api/tokens", %{name: "Should Fail"})
 
       assert conn.status == 403
-      assert Jason.decode!(conn.resp_body)["error"] =~ "Only company owners"
     end
   end
 
   describe "delete" do
     test "revokes a token from the same company", %{conn: conn} do
-      %{user: user, company: company, token: token} = create_owner_with_token()
+      %{user: user, company: company, token: token} = create_user_with_token(:owner)
 
       {:ok, %{api_token: target}} =
         Accounts.create_api_token(user.id, company.id, %{name: "To Revoke"})
@@ -92,7 +106,7 @@ defmodule KsefHubWeb.Api.TokenControllerTest do
     end
 
     test "returns 404 for token from different company", %{conn: conn} do
-      %{user: user, token: token} = create_owner_with_token()
+      %{user: user, token: token} = create_user_with_token(:owner)
 
       company2 = insert(:company)
       insert(:membership, user: user, company: company2, role: :owner)
@@ -106,34 +120,21 @@ defmodule KsefHubWeb.Api.TokenControllerTest do
     end
   end
 
-  describe "owner-only enforcement" do
-    test "non-owner cannot revoke tokens via API", %{conn: conn} do
-      # Create a company with an owner who creates a token
-      owner = insert(:user, google_uid: "uid-#{System.unique_integer([:positive])}")
-      company = insert(:company)
-      insert(:membership, user: owner, company: company, role: :owner)
+  describe "role-based enforcement" do
+    test "reviewer cannot access token endpoints", %{conn: conn} do
+      {:ok, %{token: token}} = create_user_with_token(:reviewer)
 
-      {:ok, %{api_token: target}} =
-        Accounts.create_api_token(owner.id, company.id, %{name: "Target Token"})
-
-      # Create an accountant with a token for the same company
-      accountant = insert(:user, google_uid: "uid-#{System.unique_integer([:positive])}")
-      insert(:membership, user: accountant, company: company, role: :accountant)
-
-      {:ok, %{token: acct_plain_token}} =
-        Accounts.create_api_token(accountant.id, %{name: "Acct Token"})
-
-      # Set company_id on the accountant's token so ApiAuth derives the company
-      acct_api_token = KsefHub.Repo.get_by!(Accounts.ApiToken, created_by_id: accountant.id)
-
-      acct_api_token
-      |> Ecto.Changeset.change(company_id: company.id)
-      |> KsefHub.Repo.update!()
-
-      conn = conn |> api_conn(acct_plain_token) |> delete("/api/tokens/#{target.id}")
+      conn = conn |> api_conn(token) |> get("/api/tokens")
 
       assert conn.status == 403
-      assert Jason.decode!(conn.resp_body)["error"] =~ "Only company owners"
+    end
+
+    test "reviewer cannot revoke tokens via API", %{conn: conn} do
+      {:ok, %{token: token}} = create_user_with_token(:reviewer)
+
+      conn = conn |> api_conn(token) |> delete("/api/tokens/#{Ecto.UUID.generate()}")
+
+      assert conn.status == 403
     end
   end
 end

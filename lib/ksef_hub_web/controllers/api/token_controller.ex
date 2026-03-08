@@ -3,7 +3,7 @@ defmodule KsefHubWeb.Api.TokenController do
   REST API controller for token management.
 
   All actions are scoped to the company associated with the authenticated API token.
-  Only company owners can create and revoke tokens.
+  Owners, admins, and accountants can create and revoke tokens.
   """
 
   use KsefHubWeb, :controller
@@ -14,6 +14,8 @@ defmodule KsefHubWeb.Api.TokenController do
   alias KsefHub.Accounts
   alias KsefHubWeb.Schemas
   alias OpenApiSpex.Schema
+
+  plug KsefHubWeb.Plugs.RequirePermission, :manage_tokens
 
   tags(["Tokens"])
   security([%{"bearer" => []}])
@@ -64,7 +66,7 @@ defmodule KsefHubWeb.Api.TokenController do
       401 =>
         {"Unauthorized — missing or invalid API token", "application/json", Schemas.ErrorResponse},
       403 =>
-        {"Forbidden — only company owners can create tokens", "application/json",
+        {"Forbidden — insufficient permissions to create tokens", "application/json",
          Schemas.ErrorResponse},
       422 => {"Validation error — name is required", "application/json", Schemas.ErrorResponse}
     }
@@ -92,7 +94,7 @@ defmodule KsefHubWeb.Api.TokenController do
       {:error, :unauthorized} ->
         conn
         |> put_status(:forbidden)
-        |> json(%{error: "Only company owners can create API tokens"})
+        |> json(%{error: "Forbidden — insufficient permissions to create API tokens"})
 
       {:error, changeset} ->
         conn
@@ -116,7 +118,7 @@ defmodule KsefHubWeb.Api.TokenController do
       401 =>
         {"Unauthorized — missing or invalid API token", "application/json", Schemas.ErrorResponse},
       403 =>
-        {"Forbidden — only company owners can revoke tokens", "application/json",
+        {"Forbidden — insufficient permissions to revoke tokens", "application/json",
          Schemas.ErrorResponse},
       404 => {"Token not found", "application/json", Schemas.ErrorResponse}
     }
@@ -133,7 +135,7 @@ defmodule KsefHubWeb.Api.TokenController do
       {:error, :unauthorized} ->
         conn
         |> put_status(:forbidden)
-        |> json(%{error: "Only company owners can revoke API tokens"})
+        |> json(%{error: "Forbidden — insufficient permissions to revoke API tokens"})
 
       {:error, :not_found} ->
         conn

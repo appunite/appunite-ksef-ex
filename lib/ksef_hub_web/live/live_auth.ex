@@ -19,6 +19,7 @@ defmodule KsefHubWeb.LiveAuth do
   import KsefHubWeb.UrlHelpers, only: [default_path: 1]
 
   alias KsefHub.Accounts
+  alias KsefHub.Authorization
   alias KsefHub.Companies
 
   @doc """
@@ -42,13 +43,13 @@ defmodule KsefHubWeb.LiveAuth do
     end
   end
 
-  def on_mount(:require_owner, _params, _session, socket) do
-    if socket.assigns[:current_role] == :owner do
+  def on_mount({:require_permission, permission}, _params, _session, socket) do
+    if Authorization.can?(socket.assigns[:current_role], permission) do
       {:cont, socket}
     else
       {:halt,
        socket
-       |> put_flash(:error, "Only the owner can manage the team.")
+       |> put_flash(:error, "You don't have permission to access this page.")
        |> redirect(to: default_path(socket.assigns[:current_company]))}
     end
   end

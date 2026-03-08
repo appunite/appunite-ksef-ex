@@ -6,7 +6,7 @@ defmodule KsefHubWeb.Api.InvoiceControllerTest do
 
   describe "index" do
     test "returns invoices for the token's company without company_id param", %{conn: conn} do
-      %{company: company, token: token} = create_owner_with_token()
+      %{company: company, token: token} = create_user_with_token(:owner)
       insert(:invoice, company: company, seller_name: "My Seller")
 
       other_company = insert(:company)
@@ -21,7 +21,7 @@ defmodule KsefHubWeb.Api.InvoiceControllerTest do
     end
 
     test "returns empty list when company has no invoices", %{conn: conn} do
-      %{token: token} = create_owner_with_token()
+      %{token: token} = create_user_with_token(:owner)
 
       conn = conn |> api_conn(token) |> get("/api/invoices")
 
@@ -32,7 +32,7 @@ defmodule KsefHubWeb.Api.InvoiceControllerTest do
     end
 
     test "returns paginated response with meta", %{conn: conn} do
-      %{company: company, token: token} = create_owner_with_token()
+      %{company: company, token: token} = create_user_with_token(:owner)
 
       for i <- 1..5 do
         insert(:invoice, company: company, invoice_number: "FV/#{i}")
@@ -50,7 +50,7 @@ defmodule KsefHubWeb.Api.InvoiceControllerTest do
     end
 
     test "defaults to page 1 per_page 25", %{conn: conn} do
-      %{company: company, token: token} = create_owner_with_token()
+      %{company: company, token: token} = create_user_with_token(:owner)
       insert(:invoice, company: company)
 
       conn = conn |> api_conn(token) |> get("/api/invoices")
@@ -63,7 +63,7 @@ defmodule KsefHubWeb.Api.InvoiceControllerTest do
 
   describe "show" do
     test "returns invoice from token's company", %{conn: conn} do
-      %{company: company, token: token} = create_owner_with_token()
+      %{company: company, token: token} = create_user_with_token(:owner)
       invoice = insert(:invoice, company: company)
 
       conn = conn |> api_conn(token) |> get("/api/invoices/#{invoice.id}")
@@ -73,7 +73,7 @@ defmodule KsefHubWeb.Api.InvoiceControllerTest do
     end
 
     test "returns 404 for invoice from different company", %{conn: conn} do
-      %{token: token} = create_owner_with_token()
+      %{token: token} = create_user_with_token(:owner)
       other_company = insert(:company)
       invoice = insert(:invoice, company: other_company)
 
@@ -85,7 +85,7 @@ defmodule KsefHubWeb.Api.InvoiceControllerTest do
 
   describe "approve" do
     test "approves expense invoice from token's company", %{conn: conn} do
-      %{company: company, token: token} = create_owner_with_token()
+      %{company: company, token: token} = create_user_with_token(:owner)
       invoice = insert(:invoice, company: company, type: :expense, status: :pending)
 
       conn = conn |> api_conn(token) |> post("/api/invoices/#{invoice.id}/approve")
@@ -95,7 +95,7 @@ defmodule KsefHubWeb.Api.InvoiceControllerTest do
     end
 
     test "returns 404 when approving invoice from different company", %{conn: conn} do
-      %{token: token} = create_owner_with_token()
+      %{token: token} = create_user_with_token(:owner)
       other_company = insert(:company)
       invoice = insert(:invoice, company: other_company, type: :expense, status: :pending)
 
@@ -107,7 +107,7 @@ defmodule KsefHubWeb.Api.InvoiceControllerTest do
 
   describe "reject" do
     test "rejects expense invoice from token's company", %{conn: conn} do
-      %{company: company, token: token} = create_owner_with_token()
+      %{company: company, token: token} = create_user_with_token(:owner)
       invoice = insert(:invoice, company: company, type: :expense, status: :pending)
 
       conn = conn |> api_conn(token) |> post("/api/invoices/#{invoice.id}/reject")
@@ -117,7 +117,7 @@ defmodule KsefHubWeb.Api.InvoiceControllerTest do
     end
 
     test "returns 404 when rejecting invoice from different company", %{conn: conn} do
-      %{token: token} = create_owner_with_token()
+      %{token: token} = create_user_with_token(:owner)
       other_company = insert(:company)
       invoice = insert(:invoice, company: other_company, type: :expense, status: :pending)
 
@@ -129,7 +129,7 @@ defmodule KsefHubWeb.Api.InvoiceControllerTest do
 
   describe "xml" do
     test "returns XML content with correct headers", %{conn: conn} do
-      %{company: company, token: token} = create_owner_with_token()
+      %{company: company, token: token} = create_user_with_token(:owner)
       xml = "<Faktura>test</Faktura>"
       xml_file = insert(:file, content: xml, content_type: "application/xml")
 
@@ -149,7 +149,7 @@ defmodule KsefHubWeb.Api.InvoiceControllerTest do
     end
 
     test "returns 404 for invoice from different company", %{conn: conn} do
-      %{token: token} = create_owner_with_token()
+      %{token: token} = create_user_with_token(:owner)
       other_company = insert(:company)
       invoice = insert(:invoice, company: other_company)
 
@@ -161,7 +161,7 @@ defmodule KsefHubWeb.Api.InvoiceControllerTest do
 
   describe "create" do
     test "creates a manual invoice and returns 201", %{conn: conn} do
-      %{token: token} = create_owner_with_token()
+      %{token: token} = create_user_with_token(:owner)
 
       body =
         Jason.encode!(%{
@@ -187,7 +187,7 @@ defmodule KsefHubWeb.Api.InvoiceControllerTest do
     end
 
     test "creates manual invoice and detects duplicate by ksef_number", %{conn: conn} do
-      %{company: company, token: token} = create_owner_with_token()
+      %{company: company, token: token} = create_user_with_token(:owner)
       existing = insert(:invoice, ksef_number: "dup-ksef-123", company: company)
 
       body =
@@ -213,7 +213,7 @@ defmodule KsefHubWeb.Api.InvoiceControllerTest do
     end
 
     test "does not detect duplicate from different company", %{conn: conn} do
-      %{token: token} = create_owner_with_token()
+      %{token: token} = create_user_with_token(:owner)
       other_company = insert(:company)
       insert(:invoice, ksef_number: "cross-company-123", company: other_company)
 
@@ -239,7 +239,7 @@ defmodule KsefHubWeb.Api.InvoiceControllerTest do
     end
 
     test "returns 422 with validation errors for invalid data", %{conn: conn} do
-      %{token: token} = create_owner_with_token()
+      %{token: token} = create_user_with_token(:owner)
 
       body = Jason.encode!(%{type: "expense"})
 
@@ -252,7 +252,7 @@ defmodule KsefHubWeb.Api.InvoiceControllerTest do
 
   describe "confirm_duplicate" do
     test "confirms a suspected duplicate invoice", %{conn: conn} do
-      %{company: company, token: token} = create_owner_with_token()
+      %{company: company, token: token} = create_user_with_token(:owner)
       original = insert(:invoice, ksef_number: "confirm-orig", company: company)
 
       duplicate =
@@ -271,7 +271,7 @@ defmodule KsefHubWeb.Api.InvoiceControllerTest do
     end
 
     test "returns 422 for non-duplicate invoice", %{conn: conn} do
-      %{company: company, token: token} = create_owner_with_token()
+      %{company: company, token: token} = create_user_with_token(:owner)
       invoice = insert(:invoice, company: company)
 
       conn =
@@ -282,7 +282,7 @@ defmodule KsefHubWeb.Api.InvoiceControllerTest do
     end
 
     test "returns 404 for invoice from different company", %{conn: conn} do
-      %{token: token} = create_owner_with_token()
+      %{token: token} = create_user_with_token(:owner)
       other_company = insert(:company)
       original = insert(:invoice, ksef_number: "cross-confirm", company: other_company)
 
@@ -302,7 +302,7 @@ defmodule KsefHubWeb.Api.InvoiceControllerTest do
 
   describe "dismiss_duplicate" do
     test "dismisses a suspected duplicate invoice", %{conn: conn} do
-      %{company: company, token: token} = create_owner_with_token()
+      %{company: company, token: token} = create_user_with_token(:owner)
       original = insert(:invoice, ksef_number: "dismiss-orig", company: company)
 
       duplicate =
@@ -321,7 +321,7 @@ defmodule KsefHubWeb.Api.InvoiceControllerTest do
     end
 
     test "returns 422 for non-duplicate invoice", %{conn: conn} do
-      %{company: company, token: token} = create_owner_with_token()
+      %{company: company, token: token} = create_user_with_token(:owner)
       invoice = insert(:invoice, company: company)
 
       conn =
@@ -332,7 +332,7 @@ defmodule KsefHubWeb.Api.InvoiceControllerTest do
     end
 
     test "returns 404 for invoice from different company", %{conn: conn} do
-      %{token: token} = create_owner_with_token()
+      %{token: token} = create_user_with_token(:owner)
       other_company = insert(:company)
       original = insert(:invoice, ksef_number: "cross-dismiss", company: other_company)
 
@@ -350,7 +350,7 @@ defmodule KsefHubWeb.Api.InvoiceControllerTest do
     end
 
     test "dismisses a confirmed duplicate invoice", %{conn: conn} do
-      %{company: company, token: token} = create_owner_with_token()
+      %{company: company, token: token} = create_user_with_token(:owner)
       original = insert(:invoice, ksef_number: "dismiss-conf", company: company)
 
       duplicate =
@@ -372,7 +372,7 @@ defmodule KsefHubWeb.Api.InvoiceControllerTest do
   describe "content endpoints with no xml_file" do
     for endpoint <- ~w(xml html) do
       test "#{endpoint} returns 422 for invoice without xml_file", %{conn: conn} do
-        %{company: company, token: token} = create_owner_with_token()
+        %{company: company, token: token} = create_user_with_token(:owner)
         invoice = insert(:manual_invoice, company: company)
 
         conn =
@@ -386,7 +386,7 @@ defmodule KsefHubWeb.Api.InvoiceControllerTest do
     end
 
     test "pdf returns 422 for invoice without xml_file or pdf_file", %{conn: conn} do
-      %{company: company, token: token} = create_owner_with_token()
+      %{company: company, token: token} = create_user_with_token(:owner)
       invoice = insert(:manual_invoice, company: company)
 
       conn =
@@ -401,7 +401,7 @@ defmodule KsefHubWeb.Api.InvoiceControllerTest do
 
   describe "confirm_duplicate status transitions" do
     test "returns 422 when confirming already confirmed duplicate", %{conn: conn} do
-      %{company: company, token: token} = create_owner_with_token()
+      %{company: company, token: token} = create_user_with_token(:owner)
       original = insert(:invoice, ksef_number: "confirm-trans", company: company)
 
       duplicate =
@@ -422,7 +422,7 @@ defmodule KsefHubWeb.Api.InvoiceControllerTest do
     end
 
     test "returns 422 when confirming dismissed duplicate", %{conn: conn} do
-      %{company: company, token: token} = create_owner_with_token()
+      %{company: company, token: token} = create_user_with_token(:owner)
       original = insert(:invoice, ksef_number: "confirm-dis", company: company)
 
       duplicate =
@@ -445,7 +445,7 @@ defmodule KsefHubWeb.Api.InvoiceControllerTest do
 
   describe "dismiss_duplicate status transitions" do
     test "returns 422 when dismissing already dismissed duplicate", %{conn: conn} do
-      %{company: company, token: token} = create_owner_with_token()
+      %{company: company, token: token} = create_user_with_token(:owner)
       original = insert(:invoice, ksef_number: "dismiss-trans", company: company)
 
       duplicate =
@@ -466,7 +466,7 @@ defmodule KsefHubWeb.Api.InvoiceControllerTest do
 
   describe "upload" do
     test "returns 201 with extracted data", %{conn: conn} do
-      %{token: token} = create_owner_with_token()
+      %{token: token} = create_user_with_token(:owner)
 
       Mox.expect(KsefHub.InvoiceExtractor.Mock, :extract, fn _pdf, _opts ->
         {:ok,
@@ -503,7 +503,7 @@ defmodule KsefHubWeb.Api.InvoiceControllerTest do
     end
 
     test "returns 201 with partial extraction", %{conn: conn} do
-      %{token: token} = create_owner_with_token()
+      %{token: token} = create_user_with_token(:owner)
 
       Mox.expect(KsefHub.InvoiceExtractor.Mock, :extract, fn _pdf, _opts ->
         {:ok, %{"seller_name" => "Partial Seller"}}
@@ -527,7 +527,7 @@ defmodule KsefHubWeb.Api.InvoiceControllerTest do
     end
 
     test "returns 422 when file missing", %{conn: conn} do
-      %{token: token} = create_owner_with_token()
+      %{token: token} = create_user_with_token(:owner)
 
       conn =
         conn
@@ -539,7 +539,7 @@ defmodule KsefHubWeb.Api.InvoiceControllerTest do
     end
 
     test "returns 422 when type missing", %{conn: conn} do
-      %{token: token} = create_owner_with_token()
+      %{token: token} = create_user_with_token(:owner)
 
       upload = %Plug.Upload{
         path: create_temp_pdf(),
@@ -557,7 +557,7 @@ defmodule KsefHubWeb.Api.InvoiceControllerTest do
     end
 
     test "returns 415 for non-PDF file", %{conn: conn} do
-      %{token: token} = create_owner_with_token()
+      %{token: token} = create_user_with_token(:owner)
 
       path = create_temp_non_pdf()
 
@@ -579,7 +579,7 @@ defmodule KsefHubWeb.Api.InvoiceControllerTest do
     test "creates invoice with failed extraction status when extraction service fails", %{
       conn: conn
     } do
-      %{token: token} = create_owner_with_token()
+      %{token: token} = create_user_with_token(:owner)
 
       Mox.expect(KsefHub.InvoiceExtractor.Mock, :extract, fn _pdf, _opts ->
         {:error, {:extractor_error, 500}}
@@ -603,7 +603,7 @@ defmodule KsefHubWeb.Api.InvoiceControllerTest do
     end
 
     test "returns 201 for income-type upload", %{conn: conn} do
-      %{token: token} = create_owner_with_token()
+      %{token: token} = create_user_with_token(:owner)
 
       upload = %Plug.Upload{
         path: create_temp_pdf(),
@@ -625,7 +625,7 @@ defmodule KsefHubWeb.Api.InvoiceControllerTest do
 
   describe "update (PATCH)" do
     test "updates fields on a pdf_upload invoice", %{conn: conn} do
-      %{company: company, token: token} = create_owner_with_token()
+      %{company: company, token: token} = create_user_with_token(:owner)
 
       invoice =
         insert(:pdf_upload_invoice,
@@ -654,7 +654,7 @@ defmodule KsefHubWeb.Api.InvoiceControllerTest do
     end
 
     test "recalculates extraction_status to complete", %{conn: conn} do
-      %{company: company, token: token} = create_owner_with_token()
+      %{company: company, token: token} = create_user_with_token(:owner)
 
       invoice =
         insert(:pdf_upload_invoice,
@@ -678,7 +678,7 @@ defmodule KsefHubWeb.Api.InvoiceControllerTest do
     end
 
     test "returns 422 for invalid update data", %{conn: conn} do
-      %{company: company, token: token} = create_owner_with_token()
+      %{company: company, token: token} = create_user_with_token(:owner)
 
       invoice =
         insert(:pdf_upload_invoice, company: company, extraction_status: :partial)
@@ -691,7 +691,7 @@ defmodule KsefHubWeb.Api.InvoiceControllerTest do
     end
 
     test "returns 422 for non-pdf_upload invoice", %{conn: conn} do
-      %{company: company, token: token} = create_owner_with_token()
+      %{company: company, token: token} = create_user_with_token(:owner)
       invoice = insert(:invoice, company: company)
 
       body = Jason.encode!(%{seller_name: "New Name"})
@@ -704,7 +704,7 @@ defmodule KsefHubWeb.Api.InvoiceControllerTest do
 
   describe "pdf download for pdf_upload invoices" do
     test "returns original uploaded PDF", %{conn: conn} do
-      %{company: company, token: token} = create_owner_with_token()
+      %{company: company, token: token} = create_user_with_token(:owner)
       pdf_file = insert(:file, content: "fake-pdf-bytes", content_type: "application/pdf")
 
       invoice =
@@ -723,7 +723,7 @@ defmodule KsefHubWeb.Api.InvoiceControllerTest do
     end
 
     test "returns original uploaded PDF for email-source invoice", %{conn: conn} do
-      %{company: company, token: token} = create_owner_with_token()
+      %{company: company, token: token} = create_user_with_token(:owner)
       pdf_file = insert(:file, content: "email-pdf-bytes", content_type: "application/pdf")
 
       invoice =
@@ -743,7 +743,7 @@ defmodule KsefHubWeb.Api.InvoiceControllerTest do
     end
 
     test "xml returns 422 for pdf_upload invoice", %{conn: conn} do
-      %{company: company, token: token} = create_owner_with_token()
+      %{company: company, token: token} = create_user_with_token(:owner)
       invoice = insert(:pdf_upload_invoice, company: company)
 
       conn = conn |> api_conn(token) |> get("/api/invoices/#{invoice.id}/xml")
@@ -753,7 +753,7 @@ defmodule KsefHubWeb.Api.InvoiceControllerTest do
     end
 
     test "html returns 422 for pdf_upload invoice", %{conn: conn} do
-      %{company: company, token: token} = create_owner_with_token()
+      %{company: company, token: token} = create_user_with_token(:owner)
       invoice = insert(:pdf_upload_invoice, company: company)
 
       conn = conn |> api_conn(token) |> get("/api/invoices/#{invoice.id}/html")
@@ -765,7 +765,7 @@ defmodule KsefHubWeb.Api.InvoiceControllerTest do
 
   describe "source filter" do
     test "filters invoices by source=manual in index", %{conn: conn} do
-      %{company: company, token: token} = create_owner_with_token()
+      %{company: company, token: token} = create_user_with_token(:owner)
       insert(:invoice, company: company, source: :ksef)
       insert(:manual_invoice, company: company, source: :manual)
 
@@ -777,7 +777,7 @@ defmodule KsefHubWeb.Api.InvoiceControllerTest do
     end
 
     test "filters invoices by source=ksef in index", %{conn: conn} do
-      %{company: company, token: token} = create_owner_with_token()
+      %{company: company, token: token} = create_user_with_token(:owner)
       insert(:invoice, company: company, source: :ksef)
       insert(:manual_invoice, company: company, source: :manual)
 
@@ -791,7 +791,7 @@ defmodule KsefHubWeb.Api.InvoiceControllerTest do
 
   describe "reviewer role scoping" do
     test "reviewer token returns only expense invoices from index", %{conn: conn} do
-      {:ok, %{company: company, token: token}} = create_reviewer_with_token()
+      {:ok, %{company: company, token: token}} = create_user_with_token(:reviewer)
       insert(:invoice, company: company, type: :income, seller_name: "Income Seller")
       insert(:invoice, company: company, type: :expense, seller_name: "Expense Seller")
 
@@ -804,7 +804,7 @@ defmodule KsefHubWeb.Api.InvoiceControllerTest do
     end
 
     test "reviewer token returns 404 for income invoice show", %{conn: conn} do
-      {:ok, %{company: company, token: token}} = create_reviewer_with_token()
+      {:ok, %{company: company, token: token}} = create_user_with_token(:reviewer)
       income = insert(:invoice, company: company, type: :income)
 
       assert_error_sent 404, fn ->
@@ -813,7 +813,7 @@ defmodule KsefHubWeb.Api.InvoiceControllerTest do
     end
 
     test "reviewer token can access expense invoice show", %{conn: conn} do
-      {:ok, %{company: company, token: token}} = create_reviewer_with_token()
+      {:ok, %{company: company, token: token}} = create_user_with_token(:reviewer)
       expense = insert(:invoice, company: company, type: :expense)
 
       conn = conn |> api_conn(token) |> get("/api/invoices/#{expense.id}")
@@ -823,7 +823,7 @@ defmodule KsefHubWeb.Api.InvoiceControllerTest do
     end
 
     test "reviewer token returns 404 for income invoice approve", %{conn: conn} do
-      {:ok, %{company: company, token: token}} = create_reviewer_with_token()
+      {:ok, %{company: company, token: token}} = create_user_with_token(:reviewer)
       income = insert(:invoice, company: company, type: :income)
 
       assert_error_sent 404, fn ->
@@ -832,7 +832,7 @@ defmodule KsefHubWeb.Api.InvoiceControllerTest do
     end
 
     test "reviewer token returns 404 for income invoice reject", %{conn: conn} do
-      {:ok, %{company: company, token: token}} = create_reviewer_with_token()
+      {:ok, %{company: company, token: token}} = create_user_with_token(:reviewer)
       income = insert(:invoice, company: company, type: :income)
 
       assert_error_sent 404, fn ->
@@ -841,7 +841,7 @@ defmodule KsefHubWeb.Api.InvoiceControllerTest do
     end
 
     test "reviewer token returns 404 for income invoice xml", %{conn: conn} do
-      {:ok, %{company: company, token: token}} = create_reviewer_with_token()
+      {:ok, %{company: company, token: token}} = create_user_with_token(:reviewer)
       income = insert(:invoice, company: company, type: :income)
 
       assert_error_sent 404, fn ->
@@ -852,7 +852,7 @@ defmodule KsefHubWeb.Api.InvoiceControllerTest do
 
   describe "show with category and tags" do
     test "includes category and tags in show response", %{conn: conn} do
-      %{company: company, token: token} = create_owner_with_token()
+      %{company: company, token: token} = create_user_with_token(:owner)
       category = insert(:category, company: company, name: "ops:test")
       tag = insert(:tag, company: company, name: "urgent")
       invoice = insert(:invoice, company: company, category_id: category.id)
@@ -868,7 +868,7 @@ defmodule KsefHubWeb.Api.InvoiceControllerTest do
     end
 
     test "includes category_id in list response", %{conn: conn} do
-      %{company: company, token: token} = create_owner_with_token()
+      %{company: company, token: token} = create_user_with_token(:owner)
       category = insert(:category, company: company)
       insert(:invoice, company: company, category_id: category.id)
 
@@ -881,7 +881,7 @@ defmodule KsefHubWeb.Api.InvoiceControllerTest do
 
   describe "set_category" do
     test "assigns a category to an invoice", %{conn: conn} do
-      %{company: company, token: token} = create_owner_with_token()
+      %{company: company, token: token} = create_user_with_token(:owner)
       category = insert(:category, company: company)
       invoice = insert(:invoice, company: company)
 
@@ -893,7 +893,7 @@ defmodule KsefHubWeb.Api.InvoiceControllerTest do
     end
 
     test "clears category with null", %{conn: conn} do
-      %{company: company, token: token} = create_owner_with_token()
+      %{company: company, token: token} = create_user_with_token(:owner)
       category = insert(:category, company: company)
       invoice = insert(:invoice, company: company, category_id: category.id)
 
@@ -905,7 +905,7 @@ defmodule KsefHubWeb.Api.InvoiceControllerTest do
     end
 
     test "returns 422 for category from different company", %{conn: conn} do
-      %{company: company, token: token} = create_owner_with_token()
+      %{company: company, token: token} = create_user_with_token(:owner)
       other_company = insert(:company)
       category = insert(:category, company: other_company)
       invoice = insert(:invoice, company: company)
@@ -920,7 +920,7 @@ defmodule KsefHubWeb.Api.InvoiceControllerTest do
 
   describe "set_tags" do
     test "replaces all tags on an invoice", %{conn: conn} do
-      %{company: company, token: token} = create_owner_with_token()
+      %{company: company, token: token} = create_user_with_token(:owner)
       tag1 = insert(:tag, company: company, name: "alpha")
       tag2 = insert(:tag, company: company, name: "beta")
       invoice = insert(:invoice, company: company)
@@ -936,7 +936,7 @@ defmodule KsefHubWeb.Api.InvoiceControllerTest do
     end
 
     test "clears all tags with empty list", %{conn: conn} do
-      %{company: company, token: token} = create_owner_with_token()
+      %{company: company, token: token} = create_user_with_token(:owner)
       tag = insert(:tag, company: company)
       invoice = insert(:invoice, company: company)
       insert(:invoice_tag, invoice: invoice, tag: tag)
@@ -949,7 +949,7 @@ defmodule KsefHubWeb.Api.InvoiceControllerTest do
     end
 
     test "returns 422 for tags from different company", %{conn: conn} do
-      %{company: company, token: token} = create_owner_with_token()
+      %{company: company, token: token} = create_user_with_token(:owner)
       other_company = insert(:company)
       tag = insert(:tag, company: other_company)
       invoice = insert(:invoice, company: company)
@@ -964,7 +964,7 @@ defmodule KsefHubWeb.Api.InvoiceControllerTest do
     end
 
     test "returns 422 for non-list tag_ids", %{conn: conn} do
-      %{company: company, token: token} = create_owner_with_token()
+      %{company: company, token: token} = create_user_with_token(:owner)
       invoice = insert(:invoice, company: company)
 
       body = Jason.encode!(%{tag_ids: "not-a-list"})
@@ -975,7 +975,7 @@ defmodule KsefHubWeb.Api.InvoiceControllerTest do
     end
 
     test "returns 422 for invalid UUIDs in tag_ids", %{conn: conn} do
-      %{company: company, token: token} = create_owner_with_token()
+      %{company: company, token: token} = create_user_with_token(:owner)
       invoice = insert(:invoice, company: company)
 
       body = Jason.encode!(%{tag_ids: ["not-a-uuid"]})
@@ -988,7 +988,7 @@ defmodule KsefHubWeb.Api.InvoiceControllerTest do
 
   describe "filtering by category_id" do
     test "filters invoices by category_id", %{conn: conn} do
-      %{company: company, token: token} = create_owner_with_token()
+      %{company: company, token: token} = create_user_with_token(:owner)
       category = insert(:category, company: company)
       insert(:invoice, company: company, category_id: category.id, seller_name: "Cat Invoice")
       insert(:invoice, company: company, seller_name: "No Cat Invoice")
@@ -1003,7 +1003,7 @@ defmodule KsefHubWeb.Api.InvoiceControllerTest do
 
   describe "filtering by tag_ids" do
     test "filters invoices by tag_ids", %{conn: conn} do
-      %{company: company, token: token} = create_owner_with_token()
+      %{company: company, token: token} = create_user_with_token(:owner)
       tag = insert(:tag, company: company)
       invoice = insert(:invoice, company: company, seller_name: "Tagged")
       insert(:invoice, company: company, seller_name: "Untagged")
@@ -1020,7 +1020,7 @@ defmodule KsefHubWeb.Api.InvoiceControllerTest do
 
   describe "source filter with pdf_upload" do
     test "filters invoices by source=pdf_upload", %{conn: conn} do
-      %{company: company, token: token} = create_owner_with_token()
+      %{company: company, token: token} = create_user_with_token(:owner)
       insert(:invoice, company: company, source: :ksef)
       insert(:pdf_upload_invoice, company: company, source: :pdf_upload)
 
@@ -1043,7 +1043,7 @@ defmodule KsefHubWeb.Api.InvoiceControllerTest do
 
   describe "purchase_order" do
     test "show returns purchase_order in response", %{conn: conn} do
-      %{company: company, token: token} = create_owner_with_token()
+      %{company: company, token: token} = create_user_with_token(:owner)
       invoice = insert(:invoice, company: company, purchase_order: "PO-SHOW-001")
 
       conn = conn |> api_conn(token) |> get("/api/invoices/#{invoice.id}")
@@ -1054,7 +1054,7 @@ defmodule KsefHubWeb.Api.InvoiceControllerTest do
     end
 
     test "show returns null purchase_order when absent", %{conn: conn} do
-      %{company: company, token: token} = create_owner_with_token()
+      %{company: company, token: token} = create_user_with_token(:owner)
       invoice = insert(:invoice, company: company, purchase_order: nil)
 
       conn = conn |> api_conn(token) |> get("/api/invoices/#{invoice.id}")
@@ -1065,7 +1065,7 @@ defmodule KsefHubWeb.Api.InvoiceControllerTest do
     end
 
     test "create accepts purchase_order", %{conn: conn} do
-      %{token: token} = create_owner_with_token()
+      %{token: token} = create_user_with_token(:owner)
 
       body =
         Jason.encode!(%{
@@ -1089,7 +1089,7 @@ defmodule KsefHubWeb.Api.InvoiceControllerTest do
     end
 
     test "update accepts purchase_order on pdf_upload invoice", %{conn: conn} do
-      %{company: company, token: token} = create_owner_with_token()
+      %{company: company, token: token} = create_user_with_token(:owner)
       invoice = insert(:pdf_upload_invoice, company: company)
 
       body = Jason.encode!(%{purchase_order: "PO-UPDATE-001"})
@@ -1104,7 +1104,7 @@ defmodule KsefHubWeb.Api.InvoiceControllerTest do
 
   describe "extraction fields (sales_date, due_date, iban, addresses)" do
     test "show returns all 5 new fields", %{conn: conn} do
-      %{company: company, token: token} = create_owner_with_token()
+      %{company: company, token: token} = create_user_with_token(:owner)
 
       invoice =
         insert(:invoice,
@@ -1133,7 +1133,7 @@ defmodule KsefHubWeb.Api.InvoiceControllerTest do
     end
 
     test "show returns null for absent extraction fields", %{conn: conn} do
-      %{company: company, token: token} = create_owner_with_token()
+      %{company: company, token: token} = create_user_with_token(:owner)
       invoice = insert(:invoice, company: company)
 
       conn = conn |> api_conn(token) |> get("/api/invoices/#{invoice.id}")
@@ -1148,7 +1148,7 @@ defmodule KsefHubWeb.Api.InvoiceControllerTest do
     end
 
     test "create accepts sales_date, due_date, iban", %{conn: conn} do
-      %{token: token} = create_owner_with_token()
+      %{token: token} = create_user_with_token(:owner)
 
       body =
         Jason.encode!(%{
@@ -1176,7 +1176,7 @@ defmodule KsefHubWeb.Api.InvoiceControllerTest do
     end
 
     test "update accepts sales_date, due_date, iban on pdf_upload invoice", %{conn: conn} do
-      %{company: company, token: token} = create_owner_with_token()
+      %{company: company, token: token} = create_user_with_token(:owner)
       invoice = insert(:pdf_upload_invoice, company: company)
 
       body =
@@ -1210,5 +1210,138 @@ defmodule KsefHubWeb.Api.InvoiceControllerTest do
     File.write!(path, "not a pdf file at all")
     on_exit(fn -> File.rm(path) end)
     path
+  end
+
+  # --- Permission Tests ---
+
+  describe "accountant permission enforcement" do
+    test "accountant can read invoices (index)", %{conn: conn} do
+      {:ok, %{company: company, token: token}} = create_user_with_token(:accountant)
+      insert(:invoice, company: company)
+
+      conn = conn |> api_conn(token) |> get("/api/invoices")
+      assert conn.status == 200
+    end
+
+    test "accountant can read single invoice (show)", %{conn: conn} do
+      {:ok, %{company: company, token: token}} = create_user_with_token(:accountant)
+      invoice = insert(:invoice, company: company)
+
+      conn = conn |> api_conn(token) |> get("/api/invoices/#{invoice.id}")
+      assert conn.status == 200
+    end
+
+    test "accountant cannot create invoices", %{conn: conn} do
+      {:ok, %{token: token}} = create_user_with_token(:accountant)
+
+      conn =
+        conn
+        |> api_conn(token)
+        |> post("/api/invoices", %{
+          type: "expense",
+          seller_nip: "1234567890",
+          seller_name: "Test",
+          buyer_nip: "0987654321",
+          buyer_name: "Test Buyer",
+          invoice_number: "FV/1",
+          issue_date: "2026-01-01",
+          net_amount: "100.00",
+          gross_amount: "123.00",
+          currency: "PLN"
+        })
+
+      assert conn.status == 403
+    end
+
+    test "accountant cannot update invoices", %{conn: conn} do
+      {:ok, %{company: company, token: token}} = create_user_with_token(:accountant)
+      invoice = insert(:invoice, company: company, source: :pdf_upload)
+
+      conn =
+        conn
+        |> api_conn(token)
+        |> patch("/api/invoices/#{invoice.id}", %{seller_name: "Updated"})
+
+      assert conn.status == 403
+    end
+
+    test "accountant cannot approve invoices", %{conn: conn} do
+      {:ok, %{company: company, token: token}} = create_user_with_token(:accountant)
+      invoice = insert(:invoice, company: company, type: :expense)
+
+      conn = conn |> api_conn(token) |> post("/api/invoices/#{invoice.id}/approve")
+      assert conn.status == 403
+    end
+
+    test "accountant cannot reject invoices", %{conn: conn} do
+      {:ok, %{company: company, token: token}} = create_user_with_token(:accountant)
+      invoice = insert(:invoice, company: company, type: :expense)
+
+      conn = conn |> api_conn(token) |> post("/api/invoices/#{invoice.id}/reject")
+      assert conn.status == 403
+    end
+
+    test "accountant cannot set category", %{conn: conn} do
+      {:ok, %{company: company, token: token}} = create_user_with_token(:accountant)
+      invoice = insert(:invoice, company: company)
+
+      conn =
+        conn
+        |> api_conn(token)
+        |> put("/api/invoices/#{invoice.id}/category", %{category_id: nil})
+
+      assert conn.status == 403
+    end
+
+    test "accountant cannot set tags", %{conn: conn} do
+      {:ok, %{company: company, token: token}} = create_user_with_token(:accountant)
+      invoice = insert(:invoice, company: company)
+
+      conn =
+        conn
+        |> api_conn(token)
+        |> put("/api/invoices/#{invoice.id}/tags", %{tag_ids: []})
+
+      assert conn.status == 403
+    end
+  end
+
+  describe "admin permission enforcement" do
+    test "admin can create invoices", %{conn: conn} do
+      {:ok, %{token: token}} = create_user_with_token(:admin)
+
+      conn =
+        conn
+        |> api_conn(token)
+        |> post("/api/invoices", %{
+          type: "expense",
+          seller_nip: "1234567890",
+          seller_name: "Test",
+          buyer_nip: "0987654321",
+          buyer_name: "Test Buyer",
+          invoice_number: "FV/1",
+          issue_date: "2026-01-01",
+          net_amount: "100.00",
+          gross_amount: "123.00",
+          currency: "PLN"
+        })
+
+      assert conn.status == 201
+    end
+
+    test "admin can approve invoices", %{conn: conn} do
+      {:ok, %{company: company, token: token}} = create_user_with_token(:admin)
+
+      invoice =
+        insert(:invoice,
+          company: company,
+          type: :expense,
+          status: :pending,
+          source: :ksef
+        )
+
+      conn = conn |> api_conn(token) |> post("/api/invoices/#{invoice.id}/approve")
+      assert conn.status == 200
+    end
   end
 end

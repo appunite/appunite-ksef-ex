@@ -2,7 +2,7 @@ defmodule KsefHubWeb.TokenLive do
   @moduledoc """
   LiveView for managing API tokens — create, view, and revoke bearer tokens.
 
-  Tokens are scoped to the current company. Only company owners can access this page.
+  Tokens are scoped to the current company. Owners, admins, and accountants can access.
   """
   use KsefHubWeb, :live_view
 
@@ -10,26 +10,19 @@ defmodule KsefHubWeb.TokenLive do
 
   @impl true
   def mount(_params, _session, socket) do
-    if socket.assigns.current_role != :owner do
-      {:ok,
-       socket
-       |> put_flash(:error, "Only company owners can manage API tokens.")
-       |> redirect(to: ~p"/c/#{socket.assigns.current_company.id}/invoices")}
-    else
-      company_id = socket.assigns.current_company.id
-      tokens = Accounts.list_api_tokens(socket.assigns.current_user.id, company_id)
+    company_id = socket.assigns.current_company.id
+    tokens = Accounts.list_api_tokens(socket.assigns.current_user.id, company_id)
 
-      {:ok,
-       socket
-       |> assign(
-         page_title: "API Tokens",
-         tokens_count: length(tokens),
-         form: to_form(%{"name" => "", "description" => ""}, as: :token),
-         show_token: nil,
-         show_create_form: false
-       )
-       |> stream(:tokens, tokens)}
-    end
+    {:ok,
+     socket
+     |> assign(
+       page_title: "API Tokens",
+       tokens_count: length(tokens),
+       form: to_form(%{"name" => "", "description" => ""}, as: :token),
+       show_token: nil,
+       show_create_form: false
+     )
+     |> stream(:tokens, tokens)}
   end
 
   @impl true
@@ -66,7 +59,7 @@ defmodule KsefHubWeb.TokenLive do
          |> put_flash(:info, "Token created. Copy it now — it won't be shown again.")}
 
       {:error, :unauthorized} ->
-        {:noreply, put_flash(socket, :error, "Only company owners can create tokens.")}
+        {:noreply, put_flash(socket, :error, "You don't have permission to create tokens.")}
 
       {:error, changeset} ->
         {:noreply,

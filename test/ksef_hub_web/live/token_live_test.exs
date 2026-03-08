@@ -56,26 +56,26 @@ defmodule KsefHubWeb.TokenLiveTest do
   end
 
   describe "access control" do
-    test "non-owner is redirected away", %{company: company} do
-      {:ok, non_owner} =
+    test "non-authorized role is redirected away", %{company: company} do
+      {:ok, non_authorized} =
         Accounts.get_or_create_google_user(%{
           uid: "g-tok-nonowner",
           email: "nonowner@example.com",
           name: "Non-Owner"
         })
 
-      insert(:membership, user: non_owner, company: company, role: :accountant)
+      insert(:membership, user: non_authorized, company: company, role: :reviewer)
 
       conn =
         build_conn()
-        |> log_in_user(non_owner, %{current_company_id: company.id})
+        |> log_in_user(non_authorized, %{current_company_id: company.id})
 
       expected_path = "/c/#{company.id}/invoices"
 
       assert {:error, {:redirect, %{to: ^expected_path, flash: %{"error" => message}}}} =
                live(conn, ~p"/c/#{company.id}/tokens")
 
-      assert message =~ "Only company owners"
+      assert message =~ "permission"
     end
   end
 
