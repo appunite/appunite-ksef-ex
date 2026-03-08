@@ -70,59 +70,6 @@ defmodule KsefHubWeb.InvoiceComponentsTest do
     end
   end
 
-  describe "added_by_label/1" do
-    test "returns KSeF label for ksef source" do
-      assert InvoiceComponents.added_by_label(%{source: :ksef}) == "KSeF (automatic sync)"
-    end
-
-    test "returns email sender when inbound_email is loaded" do
-      assert InvoiceComponents.added_by_label(%{
-               source: :email,
-               inbound_email: %{sender: "sender@example.com"}
-             }) == "sender@example.com (email)"
-    end
-
-    test "returns Email when inbound_email is nil" do
-      assert InvoiceComponents.added_by_label(%{source: :email, inbound_email: nil}) == "Email"
-    end
-
-    test "returns user name with source for manual invoice" do
-      assert InvoiceComponents.added_by_label(%{
-               source: :manual,
-               created_by: %{name: "Jan Kowalski", email: "jan@example.com"}
-             }) == "Jan Kowalski (manual)"
-    end
-
-    test "returns user name with source for pdf_upload" do
-      assert InvoiceComponents.added_by_label(%{
-               source: :pdf_upload,
-               created_by: %{name: "Jan Kowalski", email: "jan@example.com"}
-             }) == "Jan Kowalski (PDF upload)"
-    end
-
-    test "falls back to email when user name is empty" do
-      assert InvoiceComponents.added_by_label(%{
-               source: :manual,
-               created_by: %{name: "", email: "jan@example.com"}
-             }) == "jan@example.com (manual)"
-    end
-
-    test "falls back to email when user name is nil" do
-      assert InvoiceComponents.added_by_label(%{
-               source: :manual,
-               created_by: %{name: nil, email: "jan@example.com"}
-             }) == "jan@example.com (manual)"
-    end
-
-    test "falls back to source label when no creator" do
-      assert InvoiceComponents.added_by_label(%{source: :manual, created_by: nil}) == "manual"
-    end
-
-    test "falls back to source label when created_by is not loaded" do
-      assert InvoiceComponents.added_by_label(%{source: :pdf_upload}) == "PDF upload"
-    end
-  end
-
   describe "status_badge/1" do
     test "renders pending badge" do
       html = render_component(&InvoiceComponents.status_badge/1, status: :pending)

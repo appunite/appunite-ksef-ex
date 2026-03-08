@@ -176,32 +176,9 @@ defmodule KsefHubWeb.InvoiceComponents do
   def format_datetime(nil), do: "-"
   def format_datetime(dt), do: Calendar.strftime(dt, "%Y-%m-%d %H:%M UTC")
 
-  @doc "Returns a human-readable label for who added an invoice, combining source and creator info."
+  @doc "Returns a human-readable label for who added an invoice, combining source and creator info. Delegates to `Invoice.added_by_label/1`."
   @spec added_by_label(Invoice.t()) :: String.t()
-  def added_by_label(%{source: :ksef}), do: "KSeF (automatic sync)"
-
-  def added_by_label(%{source: :email, inbound_email: %{sender: sender}})
-      when is_binary(sender),
-      do: "#{sender} (email)"
-
-  def added_by_label(%{source: :email}), do: "Email"
-
-  def added_by_label(%{source: source, created_by: %{name: name}})
-      when is_binary(name) and name != "",
-      do: "#{name} (#{source_label(source)})"
-
-  def added_by_label(%{source: source, created_by: %{email: email}})
-      when is_binary(email),
-      do: "#{email} (#{source_label(source)})"
-
-  def added_by_label(%{source: source}), do: source_label(source)
-
-  @spec source_label(atom()) :: String.t()
-  defp source_label(:ksef), do: "KSeF"
-  defp source_label(:manual), do: "manual"
-  defp source_label(:pdf_upload), do: "PDF upload"
-  defp source_label(:email), do: "email"
-  defp source_label(_), do: "unknown"
+  defdelegate added_by_label(invoice), to: Invoice
 
   attr :invoice, :map, required: true
   attr :show_added_by, :boolean, default: false

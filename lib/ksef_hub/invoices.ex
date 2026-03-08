@@ -595,7 +595,9 @@ defmodule KsefHub.Invoices do
       {:ok, extracted} ->
         extracted_buyer_nip = get_extracted_nip(extracted, "buyer_nip")
 
-        case do_create_pdf_upload(company, pdf_binary, type, filename, extracted, created_by_id) do
+        case do_create_pdf_extracted(company, pdf_binary, type, filename, extracted, :pdf_upload,
+               created_by_id: created_by_id
+             ) do
           {:ok, invoice} -> {:ok, invoice, extracted_buyer_nip: extracted_buyer_nip}
           error -> error
         end
@@ -603,7 +605,9 @@ defmodule KsefHub.Invoices do
       {:error, _reason} ->
         Logger.warning("PDF extraction failed for file: #{filename || "invoice.pdf"}")
 
-        case do_create_pdf_upload_failed(company, pdf_binary, type, filename, created_by_id) do
+        case do_create_pdf_failed(company, pdf_binary, type, filename, :pdf_upload,
+               created_by_id: created_by_id
+             ) do
           {:ok, invoice} -> {:ok, invoice, extracted_buyer_nip: nil}
           error -> error
         end
@@ -632,35 +636,6 @@ defmodule KsefHub.Invoices do
   def create_email_invoice(company_id, pdf_binary, extracted, opts) when is_map(extracted) do
     company = Companies.get_company!(company_id)
     do_create_pdf_extracted(company, pdf_binary, :expense, opts[:filename], extracted, :email)
-  end
-
-  @spec do_create_pdf_upload(
-          Company.t(),
-          binary(),
-          atom(),
-          String.t() | nil,
-          map(),
-          Ecto.UUID.t() | nil
-        ) ::
-          {:ok, Invoice.t()} | {:error, term()}
-  defp do_create_pdf_upload(company, pdf_binary, type, filename, extracted, created_by_id) do
-    do_create_pdf_extracted(company, pdf_binary, type, filename, extracted, :pdf_upload,
-      created_by_id: created_by_id
-    )
-  end
-
-  @spec do_create_pdf_upload_failed(
-          Company.t(),
-          binary(),
-          atom(),
-          String.t() | nil,
-          Ecto.UUID.t() | nil
-        ) ::
-          {:ok, Invoice.t()} | {:error, term()}
-  defp do_create_pdf_upload_failed(company, pdf_binary, type, filename, created_by_id) do
-    do_create_pdf_failed(company, pdf_binary, type, filename, :pdf_upload,
-      created_by_id: created_by_id
-    )
   end
 
   # Shared: create invoice from extracted fields with duplicate detection + prediction
