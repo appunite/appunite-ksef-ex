@@ -1211,4 +1211,137 @@ defmodule KsefHubWeb.Api.InvoiceControllerTest do
     on_exit(fn -> File.rm(path) end)
     path
   end
+
+  # --- Permission Tests ---
+
+  describe "accountant permission enforcement" do
+    test "accountant can read invoices (index)", %{conn: conn} do
+      {:ok, %{company: company, token: token}} = create_accountant_with_token()
+      insert(:invoice, company: company)
+
+      conn = conn |> api_conn(token) |> get("/api/invoices")
+      assert conn.status == 200
+    end
+
+    test "accountant can read single invoice (show)", %{conn: conn} do
+      {:ok, %{company: company, token: token}} = create_accountant_with_token()
+      invoice = insert(:invoice, company: company)
+
+      conn = conn |> api_conn(token) |> get("/api/invoices/#{invoice.id}")
+      assert conn.status == 200
+    end
+
+    test "accountant cannot create invoices", %{conn: conn} do
+      {:ok, %{token: token}} = create_accountant_with_token()
+
+      conn =
+        conn
+        |> api_conn(token)
+        |> post("/api/invoices", %{
+          type: "expense",
+          seller_nip: "1234567890",
+          seller_name: "Test",
+          buyer_nip: "0987654321",
+          buyer_name: "Test Buyer",
+          invoice_number: "FV/1",
+          issue_date: "2026-01-01",
+          net_amount: "100.00",
+          gross_amount: "123.00",
+          currency: "PLN"
+        })
+
+      assert conn.status == 403
+    end
+
+    test "accountant cannot update invoices", %{conn: conn} do
+      {:ok, %{company: company, token: token}} = create_accountant_with_token()
+      invoice = insert(:invoice, company: company, source: :pdf_upload)
+
+      conn =
+        conn
+        |> api_conn(token)
+        |> patch("/api/invoices/#{invoice.id}", %{seller_name: "Updated"})
+
+      assert conn.status == 403
+    end
+
+    test "accountant cannot approve invoices", %{conn: conn} do
+      {:ok, %{company: company, token: token}} = create_accountant_with_token()
+      invoice = insert(:invoice, company: company, type: :expense)
+
+      conn = conn |> api_conn(token) |> post("/api/invoices/#{invoice.id}/approve")
+      assert conn.status == 403
+    end
+
+    test "accountant cannot reject invoices", %{conn: conn} do
+      {:ok, %{company: company, token: token}} = create_accountant_with_token()
+      invoice = insert(:invoice, company: company, type: :expense)
+
+      conn = conn |> api_conn(token) |> post("/api/invoices/#{invoice.id}/reject")
+      assert conn.status == 403
+    end
+
+    test "accountant cannot set category", %{conn: conn} do
+      {:ok, %{company: company, token: token}} = create_accountant_with_token()
+      invoice = insert(:invoice, company: company)
+
+      conn =
+        conn
+        |> api_conn(token)
+        |> put("/api/invoices/#{invoice.id}/category", %{category_id: nil})
+
+      assert conn.status == 403
+    end
+
+    test "accountant cannot set tags", %{conn: conn} do
+      {:ok, %{company: company, token: token}} = create_accountant_with_token()
+      invoice = insert(:invoice, company: company)
+
+      conn =
+        conn
+        |> api_conn(token)
+        |> put("/api/invoices/#{invoice.id}/tags", %{tag_ids: []})
+
+      assert conn.status == 403
+    end
+  end
+
+  describe "admin permission enforcement" do
+    test "admin can create invoices", %{conn: conn} do
+      {:ok, %{token: token}} = create_admin_with_token()
+
+      conn =
+        conn
+        |> api_conn(token)
+        |> post("/api/invoices", %{
+          type: "expense",
+          seller_nip: "1234567890",
+          seller_name: "Test",
+          buyer_nip: "0987654321",
+          buyer_name: "Test Buyer",
+          invoice_number: "FV/1",
+          issue_date: "2026-01-01",
+          net_amount: "100.00",
+          gross_amount: "123.00",
+          currency: "PLN"
+        })
+
+      assert conn.status == 201
+    end
+
+    test "admin can approve invoices", %{conn: conn} do
+      {:ok, %{company: company, token: token}} = create_admin_with_token()
+
+      invoice =
+        insert(:invoice,
+          company: company,
+          type: :expense,
+          status: :pending,
+          source: :ksef
+        )
+
+      conn = conn |> api_conn(token) |> post("/api/invoices/#{invoice.id}/approve")
+      assert conn.status == 200
+    end
+  end
 end

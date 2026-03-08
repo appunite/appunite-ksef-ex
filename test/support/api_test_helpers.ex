@@ -70,6 +70,66 @@ defmodule KsefHubWeb.ApiTestHelpers do
   end
 
   @doc """
+  Creates a user, company, admin membership, and company-scoped API token.
+  Token creation requires owner role, so we create as owner first and downgrade.
+  """
+  @spec create_admin_with_token(map()) ::
+          {:ok,
+           %{
+             user: KsefHub.Accounts.User.t(),
+             company: KsefHub.Companies.Company.t(),
+             token: String.t(),
+             api_token: KsefHub.Accounts.ApiToken.t()
+           }}
+          | {:error, term()}
+  def create_admin_with_token(attrs \\ %{}) do
+    user = insert(:user, google_uid: "uid-#{System.unique_integer([:positive])}")
+    company = insert(:company)
+    membership = insert(:membership, user: user, company: company, role: :owner)
+
+    with {:ok, result} <-
+           Accounts.create_api_token(
+             user.id,
+             company.id,
+             Map.merge(%{name: "Admin Token"}, attrs)
+           ),
+         {:ok, _membership} <-
+           membership |> Ecto.Changeset.change(role: :admin) |> KsefHub.Repo.update() do
+      {:ok, %{user: user, company: company, token: result.token, api_token: result.api_token}}
+    end
+  end
+
+  @doc """
+  Creates a user, company, accountant membership, and company-scoped API token.
+  Token creation requires eligible role, so we create as owner first and downgrade.
+  """
+  @spec create_accountant_with_token(map()) ::
+          {:ok,
+           %{
+             user: KsefHub.Accounts.User.t(),
+             company: KsefHub.Companies.Company.t(),
+             token: String.t(),
+             api_token: KsefHub.Accounts.ApiToken.t()
+           }}
+          | {:error, term()}
+  def create_accountant_with_token(attrs \\ %{}) do
+    user = insert(:user, google_uid: "uid-#{System.unique_integer([:positive])}")
+    company = insert(:company)
+    membership = insert(:membership, user: user, company: company, role: :owner)
+
+    with {:ok, result} <-
+           Accounts.create_api_token(
+             user.id,
+             company.id,
+             Map.merge(%{name: "Accountant Token"}, attrs)
+           ),
+         {:ok, _membership} <-
+           membership |> Ecto.Changeset.change(role: :accountant) |> KsefHub.Repo.update() do
+      {:ok, %{user: user, company: company, token: result.token, api_token: result.api_token}}
+    end
+  end
+
+  @doc """
   Builds a conn with Bearer authorization, JSON accept, and content-type headers.
   """
   @spec api_conn(Plug.Conn.t(), String.t()) :: Plug.Conn.t()

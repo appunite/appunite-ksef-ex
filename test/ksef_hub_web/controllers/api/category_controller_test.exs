@@ -164,4 +164,54 @@ defmodule KsefHubWeb.Api.CategoryControllerTest do
       assert conn.status == 404
     end
   end
+
+  describe "permission enforcement" do
+    test "accountant can read categories (index)", %{conn: conn} do
+      {:ok, %{company: company, token: token}} = create_accountant_with_token()
+      insert(:category, company: company, name: "ops:test")
+
+      conn = conn |> api_conn(token) |> get("/api/categories")
+      assert conn.status == 200
+    end
+
+    test "reviewer can read categories (index)", %{conn: conn} do
+      {:ok, %{company: company, token: token}} = create_reviewer_with_token()
+      insert(:category, company: company, name: "ops:test")
+
+      conn = conn |> api_conn(token) |> get("/api/categories")
+      assert conn.status == 200
+    end
+
+    test "accountant cannot create categories", %{conn: conn} do
+      {:ok, %{token: token}} = create_accountant_with_token()
+
+      body = Jason.encode!(%{name: "ops:test"})
+      conn = conn |> api_conn(token) |> post("/api/categories", body)
+      assert conn.status == 403
+    end
+
+    test "reviewer cannot create categories", %{conn: conn} do
+      {:ok, %{token: token}} = create_reviewer_with_token()
+
+      body = Jason.encode!(%{name: "ops:test"})
+      conn = conn |> api_conn(token) |> post("/api/categories", body)
+      assert conn.status == 403
+    end
+
+    test "admin can create categories", %{conn: conn} do
+      {:ok, %{token: token}} = create_admin_with_token()
+
+      body = Jason.encode!(%{name: "ops:test"})
+      conn = conn |> api_conn(token) |> post("/api/categories", body)
+      assert conn.status == 201
+    end
+
+    test "accountant cannot delete categories", %{conn: conn} do
+      {:ok, %{company: company, token: token}} = create_accountant_with_token()
+      category = insert(:category, company: company)
+
+      conn = conn |> api_conn(token) |> delete("/api/categories/#{category.id}")
+      assert conn.status == 403
+    end
+  end
 end
