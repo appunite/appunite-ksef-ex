@@ -3,22 +3,23 @@ defmodule KsefHub.Companies.Membership do
   Membership schema. Links a user to a company with a specific role.
 
   Roles:
-  - `owner` — full access including certificates, API tokens, team management, and company settings
-  - `accountant` — can view invoices, manage bookkeeping, and submit expense approvals
-  - `reviewer` — can view invoices and approve or reject individual expense items
+  - `owner` — full access including destructive operations (delete company, transfer ownership)
+  - `admin` — same as owner except cannot delete company or transfer ownership
+  - `accountant` — read-only invoice access plus exports and API token management
+  - `reviewer` — can view and manage expense invoices, trigger syncs
   """
 
   use Ecto.Schema
   import Ecto.Changeset
 
   @type t :: %__MODULE__{}
-  @type role :: :owner | :accountant | :reviewer
+  @type role :: :owner | :admin | :accountant | :reviewer
 
   @primary_key {:id, :binary_id, autogenerate: true}
   @foreign_key_type :binary_id
 
   schema "memberships" do
-    field :role, Ecto.Enum, values: [:owner, :accountant, :reviewer]
+    field :role, Ecto.Enum, values: [:owner, :admin, :accountant, :reviewer]
 
     belongs_to :user, KsefHub.Accounts.User
     belongs_to :company, KsefHub.Companies.Company
