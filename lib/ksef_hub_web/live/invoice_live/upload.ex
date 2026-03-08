@@ -122,10 +122,11 @@ defmodule KsefHubWeb.InvoiceLive.Upload do
           {:noreply, Phoenix.LiveView.Socket.t()}
   defp start_upload_task(socket, binary, filename) do
     company = socket.assigns.current_company
+    user_id = socket.assigns.current_user.id
 
     task =
       Task.Supervisor.async_nolink(KsefHub.TaskSupervisor, fn ->
-        do_upload(company, binary, filename)
+        do_upload(company, binary, filename, user_id)
       end)
 
     {:noreply,
@@ -152,12 +153,13 @@ defmodule KsefHubWeb.InvoiceLive.Upload do
     end
   end
 
-  @spec do_upload(Company.t(), binary(), String.t()) ::
+  @spec do_upload(Company.t(), binary(), String.t(), Ecto.UUID.t()) ::
           {:ok, Invoices.Invoice.t(), keyword()} | {:error, term()}
-  defp do_upload(company, binary, filename) do
+  defp do_upload(company, binary, filename, user_id) do
     Invoices.create_pdf_upload_invoice_with_meta(company, binary,
       type: :expense,
-      filename: filename
+      filename: filename,
+      created_by_id: user_id
     )
   end
 
