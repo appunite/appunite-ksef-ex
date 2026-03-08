@@ -56,6 +56,7 @@ defmodule KsefHubWeb.InvoiceLive.Show do
         can_approve = Authorization.can?(role, :approve_invoice)
         can_set_category = Authorization.can?(role, :set_invoice_category)
         can_set_tags = Authorization.can?(role, :set_invoice_tags)
+        can_manage_tags = Authorization.can?(role, :manage_tags)
 
         {:ok,
          socket
@@ -66,6 +67,7 @@ defmodule KsefHubWeb.InvoiceLive.Show do
            can_approve: can_approve,
            can_set_category: can_set_category,
            can_set_tags: can_set_tags,
+           can_manage_tags: can_manage_tags,
            html_preview: generate_preview(invoice),
            categories: Invoices.list_categories(company.id),
            all_tags: Invoices.list_tags(company.id),
@@ -95,7 +97,8 @@ defmodule KsefHubWeb.InvoiceLive.Show do
 
   @approve_events ~w(approve reject)
   @category_events ~w(set_category)
-  @tag_events ~w(toggle_tag create_and_add_tag)
+  @tag_events ~w(toggle_tag)
+  @create_tag_events ~w(create_and_add_tag)
 
   @impl true
   @spec handle_event(String.t(), map(), Phoenix.LiveView.Socket.t()) ::
@@ -119,6 +122,11 @@ defmodule KsefHubWeb.InvoiceLive.Show do
   def handle_event(event, _params, %{assigns: %{can_set_tags: false}} = socket)
       when event in @tag_events do
     {:noreply, put_flash(socket, :error, "You don't have permission to manage invoice tags.")}
+  end
+
+  def handle_event(event, _params, %{assigns: %{can_manage_tags: false}} = socket)
+      when event in @create_tag_events do
+    {:noreply, put_flash(socket, :error, "You don't have permission to create tags.")}
   end
 
   # --- Events: Re-extract ---

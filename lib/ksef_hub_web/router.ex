@@ -134,14 +134,35 @@ defmodule KsefHubWeb.Router do
       live "/exports", ExportLive.Index
     end
 
-    live_session :admin_only,
+    live_session :require_manage_certificates,
+      on_mount: [
+        {KsefHubWeb.LiveAuth, :default},
+        {KsefHubWeb.LiveAuth, {:require_permission, :manage_certificates}}
+      ] do
+      live "/certificates", CertificateLive
+    end
+
+    live_session :require_manage_categories,
+      on_mount: [
+        {KsefHubWeb.LiveAuth, :default},
+        {KsefHubWeb.LiveAuth, {:require_permission, :manage_categories}}
+      ] do
+      live "/categories", CategoryLive
+    end
+
+    live_session :require_manage_tags,
+      on_mount: [
+        {KsefHubWeb.LiveAuth, :default},
+        {KsefHubWeb.LiveAuth, {:require_permission, :manage_tags}}
+      ] do
+      live "/tags", TagLive
+    end
+
+    live_session :require_manage_team,
       on_mount: [
         {KsefHubWeb.LiveAuth, :default},
         {KsefHubWeb.LiveAuth, {:require_permission, :manage_team}}
       ] do
-      live "/certificates", CertificateLive
-      live "/categories", CategoryLive
-      live "/tags", TagLive
       live "/team", TeamLive
     end
 

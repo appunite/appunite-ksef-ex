@@ -231,5 +231,22 @@ defmodule KsefHubWeb.Api.CategoryControllerTest do
       conn = conn |> api_conn(token) |> delete("/api/categories/#{category.id}")
       assert conn.status == 403
     end
+
+    test "reviewer cannot update categories", %{conn: conn} do
+      {:ok, %{company: company, token: token}} = create_user_with_token(:reviewer)
+      category = insert(:category, company: company)
+
+      body = Jason.encode!(%{name: "ops:updated"})
+      conn = conn |> api_conn(token) |> patch("/api/categories/#{category.id}", body)
+      assert conn.status == 403
+    end
+
+    test "reviewer cannot delete categories", %{conn: conn} do
+      {:ok, %{company: company, token: token}} = create_user_with_token(:reviewer)
+      category = insert(:category, company: company)
+
+      conn = conn |> api_conn(token) |> delete("/api/categories/#{category.id}")
+      assert conn.status == 403
+    end
   end
 end

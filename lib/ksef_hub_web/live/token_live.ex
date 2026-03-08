@@ -59,7 +59,7 @@ defmodule KsefHubWeb.TokenLive do
          |> put_flash(:info, "Token created. Copy it now — it won't be shown again.")}
 
       {:error, :unauthorized} ->
-        {:noreply, put_flash(socket, :error, "Only company owners can create tokens.")}
+        {:noreply, put_flash(socket, :error, "You don't have permission to create tokens.")}
 
       {:error, changeset} ->
         {:noreply,
