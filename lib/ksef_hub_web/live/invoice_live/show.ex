@@ -717,7 +717,7 @@ defmodule KsefHubWeb.InvoiceLive.Show do
         This invoice has missing data. Please review and fill in the missing fields below.
       </span>
       <button
-        :if={@can_mutate && @invoice.source in [:pdf_upload, :email] and not @extracting}
+        :if={(@can_mutate && @invoice.source in [:pdf_upload, :email]) and not @extracting}
         phx-click="re_extract"
         class="btn btn-sm btn-warning"
       >
