@@ -78,6 +78,34 @@ defmodule KsefHubWeb.InvoiceLive.ShowTest do
       {:ok, _view, html} = live(conn, ~p"/c/#{company.id}/invoices/#{invoice.id}")
       assert html =~ "preview"
     end
+
+    test "shows 'Added by' row with creator name for pdf_upload invoice", %{
+      conn: conn,
+      company: company,
+      user: user
+    } do
+      stub(KsefHub.PdfRenderer.Mock, :generate_html, fn _xml, _meta -> {:error, :no_xml} end)
+
+      invoice =
+        insert(:pdf_upload_invoice, company: company, created_by: user)
+
+      {:ok, _view, html} = live(conn, ~p"/c/#{company.id}/invoices/#{invoice.id}")
+      assert html =~ "Added by"
+      assert html =~ user.name
+    end
+
+    test "shows 'Added by' row with KSeF label for ksef invoice", %{
+      conn: conn,
+      company: company
+    } do
+      stub(KsefHub.PdfRenderer.Mock, :generate_html, fn _xml, _meta -> {:error, :no_xml} end)
+
+      invoice = insert(:invoice, company: company, source: :ksef)
+
+      {:ok, _view, html} = live(conn, ~p"/c/#{company.id}/invoices/#{invoice.id}")
+      assert html =~ "Added by"
+      assert html =~ "KSeF (automatic sync)"
+    end
   end
 
   describe "copy_public_link" do

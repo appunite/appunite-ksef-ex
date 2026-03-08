@@ -70,6 +70,12 @@ defmodule KsefHubWeb.InvoiceLive.PublicShowTest do
 
       refute html =~ "Classification"
     end
+
+    test "does not show 'Added by' row", %{conn: conn, invoice: invoice, token: token} do
+      {:ok, _view, html} = live(conn, ~p"/public/invoices/#{invoice.id}?token=#{token}")
+
+      refute html =~ "Added by"
+    end
   end
 
   describe "public show with invalid/missing token" do
