@@ -173,6 +173,24 @@ defmodule KsefHubWeb.InvoiceLive.UploadTest do
       assert has_element?(view, ~s(a[href="#{upload_path}"]), "Upload PDF")
     end
 
+    test "shows Upload PDF button for admin" do
+      {:ok, admin} =
+        Accounts.get_or_create_google_user(%{
+          uid: "g-upload-idx-admin",
+          email: "admin-idx@example.com",
+          name: "Admin"
+        })
+
+      company = insert(:company)
+      insert(:membership, user: admin, company: company, role: :admin)
+
+      conn = build_conn() |> log_in_user(admin, %{current_company_id: company.id})
+      {:ok, view, _html} = live(conn, ~p"/c/#{company.id}/invoices")
+
+      upload_path = ~p"/c/#{company.id}/invoices/upload"
+      assert has_element?(view, ~s(a[href="#{upload_path}"]), "Upload PDF")
+    end
+
     test "hides Upload PDF button for accountant" do
       {:ok, accountant} =
         Accounts.get_or_create_google_user(%{

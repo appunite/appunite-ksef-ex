@@ -95,9 +95,18 @@ defmodule KsefHubWeb.ExportLive.Index do
   end
 
   def handle_event("export", _params, socket) do
-    case socket.assigns.current_company do
-      nil -> {:noreply, socket}
-      company -> do_export(socket, company)
+    cond do
+      !Authorization.can?(socket.assigns[:current_role], :create_export) ->
+        {:noreply,
+         socket
+         |> put_flash(:error, "You don't have permission to create exports.")
+         |> redirect(to: ~p"/c/#{socket.assigns.current_company.id}/invoices")}
+
+      is_nil(socket.assigns.current_company) ->
+        {:noreply, socket}
+
+      true ->
+        do_export(socket, socket.assigns.current_company)
     end
   end
 

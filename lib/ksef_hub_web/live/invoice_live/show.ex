@@ -81,11 +81,22 @@ defmodule KsefHubWeb.InvoiceLive.Show do
     end
   end
 
-  # --- Events: Re-extract ---
+  # --- Authorization guard ---
+  # Catch-all for mutation events when the user lacks permission.
+
+  @mutation_events ~w(re_extract approve reject dismiss_duplicate confirm_duplicate
+    set_category toggle_tag create_and_add_tag toggle_edit save_edit)
 
   @impl true
   @spec handle_event(String.t(), map(), Phoenix.LiveView.Socket.t()) ::
           {:noreply, Phoenix.LiveView.Socket.t()}
+  def handle_event(event, _params, %{assigns: %{can_mutate: false}} = socket)
+      when event in @mutation_events do
+    {:noreply, put_flash(socket, :error, "You don't have permission to modify this invoice.")}
+  end
+
+  # --- Events: Re-extract ---
+
   def handle_event("re_extract", _params, socket) do
     invoice = socket.assigns.invoice
 

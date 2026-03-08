@@ -62,6 +62,19 @@ defmodule KsefHubWeb.InvoiceLive.Upload do
   end
 
   def handle_event("upload", _params, socket) do
+    if Authorization.can?(socket.assigns[:current_role], :create_invoice) do
+      do_handle_upload(socket)
+    else
+      {:noreply,
+       socket
+       |> put_flash(:error, "You do not have permission to upload invoices.")
+       |> redirect(to: ~p"/c/#{socket.assigns.current_company.id}/invoices")}
+    end
+  end
+
+  @spec do_handle_upload(Phoenix.LiveView.Socket.t()) ::
+          {:noreply, Phoenix.LiveView.Socket.t()}
+  defp do_handle_upload(socket) do
     case consume_pdf(socket) do
       {:ok, {binary, filename}} ->
         start_upload_task(socket, binary, filename)

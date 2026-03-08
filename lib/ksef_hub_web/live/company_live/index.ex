@@ -13,7 +13,10 @@ defmodule KsefHubWeb.CompanyLive.Index do
   def mount(_params, _session, socket) do
     {:ok,
      socket
-     |> assign(page_title: "Companies")
+     |> assign(
+       page_title: "Companies",
+       can_manage_company: Authorization.can?(socket.assigns[:current_role], :manage_company)
+     )
      |> load_companies()}
   end
 
@@ -246,7 +249,7 @@ defmodule KsefHubWeb.CompanyLive.Index do
       Companies
       <:subtitle>Manage your companies</:subtitle>
       <:actions>
-        <.link navigate={~p"/companies/new"} class="btn btn-primary btn-sm">
+        <.link :if={@can_manage_company} navigate={~p"/companies/new"} class="btn btn-primary btn-sm">
           <.icon name="hero-plus" class="size-4" /> New Company
         </.link>
       </:actions>
@@ -420,7 +423,11 @@ defmodule KsefHubWeb.CompanyLive.Index do
           </span>
         </:col>
         <:action :let={company}>
-          <.link navigate={~p"/companies/#{company.id}/edit"} class="btn btn-ghost btn-xs">
+          <.link
+            :if={@can_manage_company}
+            navigate={~p"/companies/#{company.id}/edit"}
+            class="btn btn-ghost btn-xs"
+          >
             Edit
           </.link>
         </:action>

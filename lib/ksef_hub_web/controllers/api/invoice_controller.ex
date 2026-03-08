@@ -144,6 +144,7 @@ defmodule KsefHubWeb.Api.InvoiceController do
       201 => {"Created invoice", "application/json", Schemas.InvoiceResponse},
       401 =>
         {"Unauthorized — missing or invalid API token", "application/json", Schemas.ErrorResponse},
+      403 => {"Forbidden — insufficient permissions", "application/json", Schemas.ErrorResponse},
       422 =>
         {"Validation error — missing required fields or invalid values", "application/json",
          Schemas.ErrorResponse}
@@ -179,6 +180,7 @@ defmodule KsefHubWeb.Api.InvoiceController do
          "application/json", Schemas.InvoiceResponse},
       401 =>
         {"Unauthorized — missing or invalid API token", "application/json", Schemas.ErrorResponse},
+      403 => {"Forbidden — insufficient permissions", "application/json", Schemas.ErrorResponse},
       413 => {"File too large — maximum 10 MB", "application/json", Schemas.ErrorResponse},
       415 =>
         {"Unsupported content type — only PDF files are accepted", "application/json",
@@ -262,6 +264,7 @@ defmodule KsefHubWeb.Api.InvoiceController do
       200 => {"Updated invoice", "application/json", Schemas.InvoiceResponse},
       401 =>
         {"Unauthorized — missing or invalid API token", "application/json", Schemas.ErrorResponse},
+      403 => {"Forbidden — insufficient permissions", "application/json", Schemas.ErrorResponse},
       404 => {"Invoice not found", "application/json", Schemas.ErrorResponse},
       422 =>
         {"Validation error — only pdf_upload invoices can be updated, or invalid field values",
@@ -346,6 +349,7 @@ defmodule KsefHubWeb.Api.InvoiceController do
       200 => {"Approved invoice", "application/json", Schemas.InvoiceResponse},
       401 =>
         {"Unauthorized — missing or invalid API token", "application/json", Schemas.ErrorResponse},
+      403 => {"Forbidden — insufficient permissions", "application/json", Schemas.ErrorResponse},
       404 => {"Invoice not found", "application/json", Schemas.ErrorResponse},
       422 =>
         {"Only expense invoices can be approved, or extraction is incomplete", "application/json",
@@ -397,6 +401,7 @@ defmodule KsefHubWeb.Api.InvoiceController do
       200 => {"Rejected invoice", "application/json", Schemas.InvoiceResponse},
       401 =>
         {"Unauthorized — missing or invalid API token", "application/json", Schemas.ErrorResponse},
+      403 => {"Forbidden — insufficient permissions", "application/json", Schemas.ErrorResponse},
       404 => {"Invoice not found", "application/json", Schemas.ErrorResponse},
       422 => {"Only expense invoices can be rejected", "application/json", Schemas.ErrorResponse}
     }
@@ -438,6 +443,7 @@ defmodule KsefHubWeb.Api.InvoiceController do
       200 => {"Confirmed duplicate", "application/json", Schemas.InvoiceResponse},
       401 =>
         {"Unauthorized — missing or invalid API token", "application/json", Schemas.ErrorResponse},
+      403 => {"Forbidden — insufficient permissions", "application/json", Schemas.ErrorResponse},
       404 => {"Invoice not found", "application/json", Schemas.ErrorResponse},
       422 =>
         {"Invoice is not flagged as a suspected duplicate", "application/json",
@@ -486,6 +492,7 @@ defmodule KsefHubWeb.Api.InvoiceController do
       200 => {"Dismissed duplicate", "application/json", Schemas.InvoiceResponse},
       401 =>
         {"Unauthorized — missing or invalid API token", "application/json", Schemas.ErrorResponse},
+      403 => {"Forbidden — insufficient permissions", "application/json", Schemas.ErrorResponse},
       404 => {"Invoice not found", "application/json", Schemas.ErrorResponse},
       422 =>
         {"Invoice is not a duplicate, or has already been dismissed", "application/json",
@@ -710,6 +717,7 @@ defmodule KsefHubWeb.Api.InvoiceController do
       200 => {"Updated invoice with category", "application/json", Schemas.InvoiceResponse},
       401 =>
         {"Unauthorized — missing or invalid API token", "application/json", Schemas.ErrorResponse},
+      403 => {"Forbidden — insufficient permissions", "application/json", Schemas.ErrorResponse},
       404 => {"Invoice not found", "application/json", Schemas.ErrorResponse},
       422 =>
         {"Category not found in this company, or invalid UUID format", "application/json",
@@ -764,6 +772,7 @@ defmodule KsefHubWeb.Api.InvoiceController do
       200 => {"Updated list of tags on the invoice", "application/json", Schemas.TagListResponse},
       401 =>
         {"Unauthorized — missing or invalid API token", "application/json", Schemas.ErrorResponse},
+      403 => {"Forbidden — insufficient permissions", "application/json", Schemas.ErrorResponse},
       404 => {"Invoice not found", "application/json", Schemas.ErrorResponse},
       422 =>
         {"One or more tags not found in this company, or invalid UUID format", "application/json",

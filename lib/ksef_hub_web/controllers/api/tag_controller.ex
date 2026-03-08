@@ -85,6 +85,7 @@ defmodule KsefHubWeb.Api.TagController do
       201 => {"Created tag", "application/json", Schemas.TagResponse},
       401 =>
         {"Unauthorized — missing or invalid API token", "application/json", Schemas.ErrorResponse},
+      403 => {"Forbidden — insufficient permissions", "application/json", Schemas.ErrorResponse},
       422 =>
         {"Validation error — name is required and must be unique within the company",
          "application/json", Schemas.ErrorResponse}
@@ -124,6 +125,7 @@ defmodule KsefHubWeb.Api.TagController do
       200 => {"Updated tag", "application/json", Schemas.TagResponse},
       401 =>
         {"Unauthorized — missing or invalid API token", "application/json", Schemas.ErrorResponse},
+      403 => {"Forbidden — insufficient permissions", "application/json", Schemas.ErrorResponse},
       404 => {"Tag not found", "application/json", Schemas.ErrorResponse},
       422 =>
         {"Validation error — name must be unique within the company", "application/json",
@@ -168,6 +170,7 @@ defmodule KsefHubWeb.Api.TagController do
          Schemas.MessageResponse},
       401 =>
         {"Unauthorized — missing or invalid API token", "application/json", Schemas.ErrorResponse},
+      403 => {"Forbidden — insufficient permissions", "application/json", Schemas.ErrorResponse},
       404 => {"Tag not found", "application/json", Schemas.ErrorResponse}
     }
   )

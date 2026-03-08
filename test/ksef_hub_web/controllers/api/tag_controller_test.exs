@@ -184,5 +184,56 @@ defmodule KsefHubWeb.Api.TagControllerTest do
       conn = conn |> api_conn(token) |> post("/api/tags", body)
       assert conn.status == 201
     end
+
+    test "accountant cannot update tags", %{conn: conn} do
+      {:ok, %{company: company, token: token}} = create_accountant_with_token()
+      tag = insert(:tag, company: company, name: "original")
+
+      body = Jason.encode!(%{name: "updated"})
+      conn = conn |> api_conn(token) |> patch("/api/tags/#{tag.id}", body)
+      assert conn.status == 403
+    end
+
+    test "reviewer cannot update tags", %{conn: conn} do
+      {:ok, %{company: company, token: token}} = create_reviewer_with_token()
+      tag = insert(:tag, company: company, name: "original")
+
+      body = Jason.encode!(%{name: "updated"})
+      conn = conn |> api_conn(token) |> patch("/api/tags/#{tag.id}", body)
+      assert conn.status == 403
+    end
+
+    test "admin can update tags", %{conn: conn} do
+      {:ok, %{company: company, token: token}} = create_admin_with_token()
+      tag = insert(:tag, company: company, name: "original")
+
+      body = Jason.encode!(%{name: "updated"})
+      conn = conn |> api_conn(token) |> patch("/api/tags/#{tag.id}", body)
+      assert conn.status == 200
+    end
+
+    test "accountant cannot delete tags", %{conn: conn} do
+      {:ok, %{company: company, token: token}} = create_accountant_with_token()
+      tag = insert(:tag, company: company, name: "to-delete")
+
+      conn = conn |> api_conn(token) |> delete("/api/tags/#{tag.id}")
+      assert conn.status == 403
+    end
+
+    test "reviewer cannot delete tags", %{conn: conn} do
+      {:ok, %{company: company, token: token}} = create_reviewer_with_token()
+      tag = insert(:tag, company: company, name: "to-delete")
+
+      conn = conn |> api_conn(token) |> delete("/api/tags/#{tag.id}")
+      assert conn.status == 403
+    end
+
+    test "admin can delete tags", %{conn: conn} do
+      {:ok, %{company: company, token: token}} = create_admin_with_token()
+      tag = insert(:tag, company: company, name: "to-delete")
+
+      conn = conn |> api_conn(token) |> delete("/api/tags/#{tag.id}")
+      assert conn.status == 200
+    end
   end
 end

@@ -206,6 +206,24 @@ defmodule KsefHubWeb.Api.CategoryControllerTest do
       assert conn.status == 201
     end
 
+    test "accountant cannot update categories", %{conn: conn} do
+      {:ok, %{company: company, token: token}} = create_accountant_with_token()
+      category = insert(:category, company: company)
+
+      body = Jason.encode!(%{name: "ops:updated"})
+      conn = conn |> api_conn(token) |> patch("/api/categories/#{category.id}", body)
+      assert conn.status == 403
+    end
+
+    test "admin can update categories", %{conn: conn} do
+      {:ok, %{company: company, token: token}} = create_admin_with_token()
+      category = insert(:category, company: company)
+
+      body = Jason.encode!(%{name: "ops:updated"})
+      conn = conn |> api_conn(token) |> patch("/api/categories/#{category.id}", body)
+      assert conn.status == 200
+    end
+
     test "accountant cannot delete categories", %{conn: conn} do
       {:ok, %{company: company, token: token}} = create_accountant_with_token()
       category = insert(:category, company: company)

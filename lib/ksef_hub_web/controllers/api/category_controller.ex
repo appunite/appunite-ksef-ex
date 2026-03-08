@@ -85,6 +85,7 @@ defmodule KsefHubWeb.Api.CategoryController do
       201 => {"Created category", "application/json", Schemas.CategoryResponse},
       401 =>
         {"Unauthorized — missing or invalid API token", "application/json", Schemas.ErrorResponse},
+      403 => {"Forbidden — insufficient permissions", "application/json", Schemas.ErrorResponse},
       422 =>
         {"Validation error — name is required and must be unique within the company",
          "application/json", Schemas.ErrorResponse}
@@ -124,6 +125,7 @@ defmodule KsefHubWeb.Api.CategoryController do
       200 => {"Updated category", "application/json", Schemas.CategoryResponse},
       401 =>
         {"Unauthorized — missing or invalid API token", "application/json", Schemas.ErrorResponse},
+      403 => {"Forbidden — insufficient permissions", "application/json", Schemas.ErrorResponse},
       404 => {"Category not found", "application/json", Schemas.ErrorResponse},
       422 =>
         {"Validation error — name must be unique within the company", "application/json",
@@ -170,6 +172,7 @@ defmodule KsefHubWeb.Api.CategoryController do
          "application/json", Schemas.MessageResponse},
       401 =>
         {"Unauthorized — missing or invalid API token", "application/json", Schemas.ErrorResponse},
+      403 => {"Forbidden — insufficient permissions", "application/json", Schemas.ErrorResponse},
       404 => {"Category not found", "application/json", Schemas.ErrorResponse}
     }
   )
