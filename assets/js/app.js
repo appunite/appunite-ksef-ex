@@ -37,6 +37,13 @@ topbar.config({barColors: {0: "#29d"}, shadowColor: "rgba(0, 0, 0, .3)"})
 window.addEventListener("phx:page-loading-start", _info => topbar.show(300))
 window.addEventListener("phx:page-loading-stop", _info => topbar.hide())
 
+// Copy to clipboard via push_event from LiveView
+window.addEventListener("phx:copy_to_clipboard", (event) => {
+  if (navigator.clipboard && event.detail.text) {
+    navigator.clipboard.writeText(event.detail.text)
+  }
+})
+
 // connect if there are any LiveViews on the page
 liveSocket.connect()
 

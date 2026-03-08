@@ -139,6 +139,35 @@ defmodule KsefHub.Invoices do
     |> Repo.one()
   end
 
+  @doc "Fetches an invoice by its public sharing token, with details preloaded. Returns nil if not found."
+  @spec get_invoice_by_public_token(String.t()) :: Invoice.t() | nil
+  def get_invoice_by_public_token(token) when is_binary(token) do
+    Invoice
+    |> where([i], i.public_token == ^token)
+    |> preload([:company, :xml_file, :pdf_file, :category, :tags])
+    |> Repo.one()
+  end
+
+  def get_invoice_by_public_token(_), do: nil
+
+  @doc "Generates a public sharing token for an invoice. Fails if the invoice already has one."
+  @spec generate_public_token(Invoice.t()) :: {:ok, Invoice.t()} | {:error, Ecto.Changeset.t()}
+  def generate_public_token(%Invoice{} = invoice) do
+    invoice
+    |> Invoice.public_token_changeset()
+    |> Repo.update()
+  end
+
+  @doc "Ensures an invoice has a public token, generating one if absent. Idempotent."
+  @spec ensure_public_token(Invoice.t()) :: {:ok, Invoice.t()} | {:error, Ecto.Changeset.t()}
+  def ensure_public_token(%Invoice{public_token: token} = invoice) when is_binary(token) do
+    {:ok, invoice}
+  end
+
+  def ensure_public_token(%Invoice{} = invoice) do
+    generate_public_token(invoice)
+  end
+
   @doc "Fetches an invoice by its KSeF reference number within a company (excludes duplicates)."
   @spec get_invoice_by_ksef_number(Ecto.UUID.t(), String.t()) :: Invoice.t() | nil
   def get_invoice_by_ksef_number(company_id, ksef_number) do

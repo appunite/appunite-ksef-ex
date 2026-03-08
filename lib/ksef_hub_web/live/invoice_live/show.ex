@@ -375,6 +375,27 @@ defmodule KsefHubWeb.InvoiceLive.Show do
      )}
   end
 
+  # --- Events: Share ---
+
+  @impl true
+  def handle_event("copy_public_link", _params, socket) do
+    invoice = socket.assigns.invoice
+
+    case Invoices.ensure_public_token(invoice) do
+      {:ok, updated} ->
+        url = url(~p"/public/invoices/#{updated.id}?token=#{updated.public_token}")
+
+        {:noreply,
+         socket
+         |> assign(:invoice, %{invoice | public_token: updated.public_token})
+         |> push_event("copy_to_clipboard", %{text: url})
+         |> put_flash(:info, "Public link copied to clipboard.")}
+
+      {:error, _} ->
+        {:noreply, put_flash(socket, :error, "Failed to generate public link.")}
+    end
+  end
+
   # --- Events: Note ---
 
   @impl true
@@ -720,6 +741,14 @@ defmodule KsefHubWeb.InvoiceLive.Show do
               </li>
             </ul>
           </div>
+          <button
+            phx-click="copy_public_link"
+            class="btn btn-sm btn-outline"
+            data-testid="copy-public-link"
+            id="copy-link-btn"
+          >
+            <.icon name="hero-link" class="size-4" /> Share
+          </button>
           <button
             :if={@can_mutate && !@editing}
             phx-click="toggle_edit"

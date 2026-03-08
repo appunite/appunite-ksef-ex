@@ -63,6 +63,8 @@ defmodule KsefHub.Invoices.Invoice do
     many_to_many :tags, KsefHub.Invoices.Tag, join_through: KsefHub.Invoices.InvoiceTag
     has_many :comments, KsefHub.Invoices.InvoiceComment
 
+    field :public_token, :string
+
     timestamps()
   end
 
@@ -137,6 +139,16 @@ defmodule KsefHub.Invoices.Invoice do
     |> unique_constraint([:company_id, :ksef_number],
       name: :invoices_company_id_ksef_number_unique_non_duplicate
     )
+  end
+
+  @doc "Builds a changeset that generates a cryptographically random public sharing token."
+  @spec public_token_changeset(t()) :: Ecto.Changeset.t()
+  def public_token_changeset(invoice) do
+    token = :crypto.strong_rand_bytes(32) |> Base.url_encode64(padding: false)
+
+    invoice
+    |> change(%{public_token: token})
+    |> unique_constraint(:public_token)
   end
 
   @doc "Builds a changeset for updating duplicate fields only."
