@@ -5,6 +5,8 @@ defmodule KsefHubWeb.Layouts do
   """
   use KsefHubWeb, :html
 
+  alias KsefHub.Authorization
+
   embed_templates "layouts/*"
 
   attr :flash, :map, required: true, doc: "the map of flash messages"
@@ -120,7 +122,7 @@ defmodule KsefHubWeb.Layouts do
                   Dashboard
                 </.nav_link>
               </li>
-              <li :if={@current_company}>
+              <li :if={@current_company && Authorization.can?(@current_role, :manage_categories)}>
                 <.nav_link
                   path={~p"/c/#{@current_company.id}/categories"}
                   current={@current_path}
@@ -129,7 +131,7 @@ defmodule KsefHubWeb.Layouts do
                   Categories
                 </.nav_link>
               </li>
-              <li :if={@current_company}>
+              <li :if={@current_company && Authorization.can?(@current_role, :manage_tags)}>
                 <.nav_link
                   path={~p"/c/#{@current_company.id}/tags"}
                   current={@current_path}
@@ -138,7 +140,7 @@ defmodule KsefHubWeb.Layouts do
                   Tags
                 </.nav_link>
               </li>
-              <li :if={@current_company && @current_role in [:owner, :accountant]}>
+              <li :if={@current_company && Authorization.can?(@current_role, :view_exports)}>
                 <.nav_link
                   path={~p"/c/#{@current_company.id}/exports"}
                   current={@current_path}
@@ -147,7 +149,7 @@ defmodule KsefHubWeb.Layouts do
                   Exports
                 </.nav_link>
               </li>
-              <li :if={@current_company}>
+              <li :if={@current_company && Authorization.can?(@current_role, :view_syncs)}>
                 <.nav_link
                   path={~p"/c/#{@current_company.id}/syncs"}
                   current={@current_path}
@@ -156,7 +158,7 @@ defmodule KsefHubWeb.Layouts do
                   Syncs
                 </.nav_link>
               </li>
-              <li>
+              <li :if={@current_company && Authorization.can?(@current_role, :manage_company)}>
                 <.nav_link
                   path={~p"/companies"}
                   current={@current_path}
@@ -165,10 +167,13 @@ defmodule KsefHubWeb.Layouts do
                   Companies
                 </.nav_link>
               </li>
-              <li :if={@current_company && @current_role == :owner} class="menu-title text-xs pt-2">
+              <li
+                :if={@current_company && Authorization.can?(@current_role, :manage_team)}
+                class="menu-title text-xs pt-2"
+              >
                 Admin
               </li>
-              <li :if={@current_company && @current_role == :owner}>
+              <li :if={@current_company && Authorization.can?(@current_role, :manage_certificates)}>
                 <.nav_link
                   path={~p"/c/#{@current_company.id}/certificates"}
                   current={@current_path}
@@ -177,7 +182,7 @@ defmodule KsefHubWeb.Layouts do
                   Certificates
                 </.nav_link>
               </li>
-              <li :if={@current_company && @current_role == :owner}>
+              <li :if={@current_company && Authorization.can?(@current_role, :manage_tokens)}>
                 <.nav_link
                   path={~p"/c/#{@current_company.id}/tokens"}
                   current={@current_path}
@@ -186,7 +191,7 @@ defmodule KsefHubWeb.Layouts do
                   API Tokens
                 </.nav_link>
               </li>
-              <li :if={@current_company && @current_role == :owner}>
+              <li :if={@current_company && Authorization.can?(@current_role, :manage_team)}>
                 <.nav_link
                   path={~p"/c/#{@current_company.id}/team"}
                   current={@current_path}
