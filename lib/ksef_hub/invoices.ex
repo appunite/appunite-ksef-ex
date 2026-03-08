@@ -859,9 +859,15 @@ defmodule KsefHub.Invoices do
           {:ok, Invoice.t()} | {:error, Ecto.Changeset.t()}
   defp do_insert_invoice(company_id, attrs) do
     {file_ids, attrs} = pop_file_ids(attrs)
+    {created_by_id, attrs} = Map.pop(attrs, :created_by_id)
+
+    trusted_fields =
+      file_ids
+      |> Map.put(:company_id, company_id)
+      |> then(fn m -> if created_by_id, do: Map.put(m, :created_by_id, created_by_id), else: m end)
 
     %Invoice{}
-    |> Ecto.Changeset.change(Map.put(file_ids, :company_id, company_id))
+    |> Ecto.Changeset.change(trusted_fields)
     |> Invoice.changeset(attrs)
     |> Repo.insert()
   end
@@ -870,9 +876,15 @@ defmodule KsefHub.Invoices do
           {:ok, Invoice.t()} | {:error, Ecto.Changeset.t()}
   defp do_upsert_invoice(company_id, attrs) do
     {file_ids, attrs} = pop_file_ids(attrs)
+    {created_by_id, attrs} = Map.pop(attrs, :created_by_id)
+
+    trusted_fields =
+      file_ids
+      |> Map.put(:company_id, company_id)
+      |> then(fn m -> if created_by_id, do: Map.put(m, :created_by_id, created_by_id), else: m end)
 
     %Invoice{}
-    |> Ecto.Changeset.change(Map.put(file_ids, :company_id, company_id))
+    |> Ecto.Changeset.change(trusted_fields)
     |> Invoice.changeset(attrs)
     |> Repo.insert(
       on_conflict: {:replace, @upsert_replace_fields},

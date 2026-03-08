@@ -281,7 +281,7 @@ defmodule KsefHubWeb.InvoiceComponents do
             {format_datetime(@invoice.inserted_at)}
           </td>
         </tr>
-        <tr :if={@show_added_by} class="border-b border-base-300/50">
+        <tr :if={@show_added_by} id="added-by-row" class="border-b border-base-300/50">
           <td class="py-1.5 pr-3 text-base-content/60 whitespace-nowrap">Added by</td>
           <td class="py-1.5 text-right text-xs">{added_by_label(@invoice)}</td>
         </tr>

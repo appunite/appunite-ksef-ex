@@ -89,9 +89,9 @@ defmodule KsefHubWeb.InvoiceLive.ShowTest do
       invoice =
         insert(:pdf_upload_invoice, company: company, created_by: user)
 
-      {:ok, _view, html} = live(conn, ~p"/c/#{company.id}/invoices/#{invoice.id}")
-      assert html =~ "Added by"
-      assert html =~ user.name
+      {:ok, view, _html} = live(conn, ~p"/c/#{company.id}/invoices/#{invoice.id}")
+      assert has_element?(view, "#added-by-row")
+      assert has_element?(view, "#added-by-row", user.name)
     end
 
     test "shows 'Added by' row with KSeF label for ksef invoice", %{
@@ -102,9 +102,9 @@ defmodule KsefHubWeb.InvoiceLive.ShowTest do
 
       invoice = insert(:invoice, company: company, source: :ksef)
 
-      {:ok, _view, html} = live(conn, ~p"/c/#{company.id}/invoices/#{invoice.id}")
-      assert html =~ "Added by"
-      assert html =~ "KSeF (automatic sync)"
+      {:ok, view, _html} = live(conn, ~p"/c/#{company.id}/invoices/#{invoice.id}")
+      assert has_element?(view, "#added-by-row")
+      assert has_element?(view, "#added-by-row", "KSeF (automatic sync)")
     end
   end
 

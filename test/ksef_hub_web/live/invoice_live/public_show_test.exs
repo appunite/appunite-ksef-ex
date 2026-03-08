@@ -72,9 +72,9 @@ defmodule KsefHubWeb.InvoiceLive.PublicShowTest do
     end
 
     test "does not show 'Added by' row", %{conn: conn, invoice: invoice, token: token} do
-      {:ok, _view, html} = live(conn, ~p"/public/invoices/#{invoice.id}?token=#{token}")
+      {:ok, view, _html} = live(conn, ~p"/public/invoices/#{invoice.id}?token=#{token}")
 
-      refute html =~ "Added by"
+      refute has_element?(view, "#added-by-row")
     end
   end
 

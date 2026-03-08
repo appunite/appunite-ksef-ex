@@ -161,8 +161,7 @@ defmodule KsefHub.Invoices.Invoice do
       :due_date,
       :iban,
       :seller_address,
-      :buyer_address,
-      :created_by_id
+      :buyer_address
     ])
     |> validate_required([:type, :company_id])
     |> validate_nip_fields()
