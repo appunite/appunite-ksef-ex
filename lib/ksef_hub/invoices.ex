@@ -864,7 +864,9 @@ defmodule KsefHub.Invoices do
     trusted_fields =
       file_ids
       |> Map.put(:company_id, company_id)
-      |> then(fn m -> if created_by_id, do: Map.put(m, :created_by_id, created_by_id), else: m end)
+      |> then(fn m ->
+        if created_by_id, do: Map.put(m, :created_by_id, created_by_id), else: m
+      end)
 
     %Invoice{}
     |> Ecto.Changeset.change(trusted_fields)
@@ -881,7 +883,9 @@ defmodule KsefHub.Invoices do
     trusted_fields =
       file_ids
       |> Map.put(:company_id, company_id)
-      |> then(fn m -> if created_by_id, do: Map.put(m, :created_by_id, created_by_id), else: m end)
+      |> then(fn m ->
+        if created_by_id, do: Map.put(m, :created_by_id, created_by_id), else: m
+      end)
 
     %Invoice{}
     |> Ecto.Changeset.change(trusted_fields)
