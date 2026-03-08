@@ -100,8 +100,10 @@ defmodule KsefHubWeb.Api.InvoiceController do
       ]
     ],
     responses: %{
-      200 => {"Invoice list", "application/json", Schemas.InvoiceListResponse},
-      401 => {"Unauthorized", "application/json", Schemas.ErrorResponse}
+      200 =>
+        {"Paginated invoice list with metadata", "application/json", Schemas.InvoiceListResponse},
+      401 =>
+        {"Unauthorized — missing or invalid API token", "application/json", Schemas.ErrorResponse}
     }
   )
 
@@ -131,8 +133,11 @@ defmodule KsefHubWeb.Api.InvoiceController do
     request_body: {"Invoice to create", "application/json", Schemas.CreateInvoiceRequest},
     responses: %{
       201 => {"Created invoice", "application/json", Schemas.InvoiceResponse},
-      401 => {"Unauthorized", "application/json", Schemas.ErrorResponse},
-      422 => {"Validation error", "application/json", Schemas.ErrorResponse}
+      401 =>
+        {"Unauthorized — missing or invalid API token", "application/json", Schemas.ErrorResponse},
+      422 =>
+        {"Validation error — missing required fields or invalid values", "application/json",
+         Schemas.ErrorResponse}
     }
   )
 
@@ -160,12 +165,18 @@ defmodule KsefHubWeb.Api.InvoiceController do
       "Uploads a PDF invoice file for automatic data extraction via the au-ksef-unstructured service. If extraction is incomplete, the invoice is created with extraction_status 'partial' and can be completed via PATCH.",
     request_body: {"PDF invoice upload", "multipart/form-data", Schemas.UploadInvoiceRequest},
     responses: %{
-      201 => {"Created invoice", "application/json", Schemas.InvoiceResponse},
-      401 => {"Unauthorized", "application/json", Schemas.ErrorResponse},
-      413 => {"File too large", "application/json", Schemas.ErrorResponse},
-      415 => {"Unsupported media type", "application/json", Schemas.ErrorResponse},
-      422 => {"Validation error", "application/json", Schemas.ErrorResponse},
-      502 => {"Extraction service error", "application/json", Schemas.ErrorResponse}
+      201 =>
+        {"Created invoice — check extraction_status (complete, partial, or failed)",
+         "application/json", Schemas.InvoiceResponse},
+      401 =>
+        {"Unauthorized — missing or invalid API token", "application/json", Schemas.ErrorResponse},
+      413 => {"File too large — maximum 10 MB", "application/json", Schemas.ErrorResponse},
+      415 =>
+        {"Unsupported content type — only PDF files are accepted", "application/json",
+         Schemas.ErrorResponse},
+      422 =>
+        {"Validation error — missing file or type parameter, or invalid values",
+         "application/json", Schemas.ErrorResponse}
     }
   )
 
@@ -240,9 +251,12 @@ defmodule KsefHubWeb.Api.InvoiceController do
     request_body: {"Invoice fields to update", "application/json", Schemas.UpdateInvoiceRequest},
     responses: %{
       200 => {"Updated invoice", "application/json", Schemas.InvoiceResponse},
-      401 => {"Unauthorized", "application/json", Schemas.ErrorResponse},
-      404 => {"Not found", "application/json", Schemas.ErrorResponse},
-      422 => {"Validation error", "application/json", Schemas.ErrorResponse}
+      401 =>
+        {"Unauthorized — missing or invalid API token", "application/json", Schemas.ErrorResponse},
+      404 => {"Invoice not found", "application/json", Schemas.ErrorResponse},
+      422 =>
+        {"Validation error — only pdf_upload invoices can be updated, or invalid field values",
+         "application/json", Schemas.ErrorResponse}
     }
   )
 
@@ -291,9 +305,10 @@ defmodule KsefHubWeb.Api.InvoiceController do
       ]
     ],
     responses: %{
-      200 => {"Invoice", "application/json", Schemas.InvoiceResponse},
-      401 => {"Unauthorized", "application/json", Schemas.ErrorResponse},
-      404 => {"Not found", "application/json", Schemas.ErrorResponse}
+      200 => {"Invoice with category and tags", "application/json", Schemas.InvoiceResponse},
+      401 =>
+        {"Unauthorized — missing or invalid API token", "application/json", Schemas.ErrorResponse},
+      404 => {"Invoice not found", "application/json", Schemas.ErrorResponse}
     }
   )
 
@@ -320,9 +335,12 @@ defmodule KsefHubWeb.Api.InvoiceController do
     ],
     responses: %{
       200 => {"Approved invoice", "application/json", Schemas.InvoiceResponse},
-      401 => {"Unauthorized", "application/json", Schemas.ErrorResponse},
-      404 => {"Not found", "application/json", Schemas.ErrorResponse},
-      422 => {"Unprocessable entity", "application/json", Schemas.ErrorResponse}
+      401 =>
+        {"Unauthorized — missing or invalid API token", "application/json", Schemas.ErrorResponse},
+      404 => {"Invoice not found", "application/json", Schemas.ErrorResponse},
+      422 =>
+        {"Only expense invoices can be approved, or extraction is incomplete", "application/json",
+         Schemas.ErrorResponse}
     }
   )
 
@@ -368,9 +386,10 @@ defmodule KsefHubWeb.Api.InvoiceController do
     ],
     responses: %{
       200 => {"Rejected invoice", "application/json", Schemas.InvoiceResponse},
-      401 => {"Unauthorized", "application/json", Schemas.ErrorResponse},
-      404 => {"Not found", "application/json", Schemas.ErrorResponse},
-      422 => {"Unprocessable entity", "application/json", Schemas.ErrorResponse}
+      401 =>
+        {"Unauthorized — missing or invalid API token", "application/json", Schemas.ErrorResponse},
+      404 => {"Invoice not found", "application/json", Schemas.ErrorResponse},
+      422 => {"Only expense invoices can be rejected", "application/json", Schemas.ErrorResponse}
     }
   )
 
@@ -408,9 +427,12 @@ defmodule KsefHubWeb.Api.InvoiceController do
     ],
     responses: %{
       200 => {"Confirmed duplicate", "application/json", Schemas.InvoiceResponse},
-      401 => {"Unauthorized", "application/json", Schemas.ErrorResponse},
-      404 => {"Not found", "application/json", Schemas.ErrorResponse},
-      422 => {"Not a duplicate", "application/json", Schemas.ErrorResponse}
+      401 =>
+        {"Unauthorized — missing or invalid API token", "application/json", Schemas.ErrorResponse},
+      404 => {"Invoice not found", "application/json", Schemas.ErrorResponse},
+      422 =>
+        {"Invoice is not flagged as a suspected duplicate", "application/json",
+         Schemas.ErrorResponse}
     }
   )
 
@@ -453,9 +475,12 @@ defmodule KsefHubWeb.Api.InvoiceController do
     ],
     responses: %{
       200 => {"Dismissed duplicate", "application/json", Schemas.InvoiceResponse},
-      401 => {"Unauthorized", "application/json", Schemas.ErrorResponse},
-      404 => {"Not found", "application/json", Schemas.ErrorResponse},
-      422 => {"Not a duplicate", "application/json", Schemas.ErrorResponse}
+      401 =>
+        {"Unauthorized — missing or invalid API token", "application/json", Schemas.ErrorResponse},
+      404 => {"Invoice not found", "application/json", Schemas.ErrorResponse},
+      422 =>
+        {"Invoice is not a duplicate, or has already been dismissed", "application/json",
+         Schemas.ErrorResponse}
     }
   )
 
@@ -499,10 +524,15 @@ defmodule KsefHubWeb.Api.InvoiceController do
     ],
     responses: %{
       200 => {"HTML content", "text/html", %Schema{type: :string}},
-      401 => {"Unauthorized", "application/json", Schemas.ErrorResponse},
-      404 => {"Not found", "application/json", Schemas.ErrorResponse},
-      422 => {"No XML content", "application/json", Schemas.ErrorResponse},
-      500 => {"Generation failed", "application/json", Schemas.ErrorResponse}
+      401 =>
+        {"Unauthorized — missing or invalid API token", "application/json", Schemas.ErrorResponse},
+      404 => {"Invoice not found", "application/json", Schemas.ErrorResponse},
+      422 =>
+        {"Invoice has no XML content (e.g. pdf_upload without FA(3) XML)", "application/json",
+         Schemas.ErrorResponse},
+      500 =>
+        {"HTML generation failed — pdf-renderer sidecar error", "application/json",
+         Schemas.ErrorResponse}
     }
   )
 
@@ -556,9 +586,10 @@ defmodule KsefHubWeb.Api.InvoiceController do
     ],
     responses: %{
       200 => {"XML file", "application/xml", %Schema{type: :string}},
-      401 => {"Unauthorized", "application/json", Schemas.ErrorResponse},
-      404 => {"Not found", "application/json", Schemas.ErrorResponse},
-      422 => {"No XML content", "application/json", Schemas.ErrorResponse}
+      401 =>
+        {"Unauthorized — missing or invalid API token", "application/json", Schemas.ErrorResponse},
+      404 => {"Invoice not found", "application/json", Schemas.ErrorResponse},
+      422 => {"Invoice has no XML content", "application/json", Schemas.ErrorResponse}
     }
   )
 
@@ -596,10 +627,15 @@ defmodule KsefHubWeb.Api.InvoiceController do
     ],
     responses: %{
       200 => {"PDF file", "application/pdf", %Schema{type: :string, format: :binary}},
-      401 => {"Unauthorized", "application/json", Schemas.ErrorResponse},
-      404 => {"Not found", "application/json", Schemas.ErrorResponse},
-      422 => {"No XML content", "application/json", Schemas.ErrorResponse},
-      500 => {"Generation failed", "application/json", Schemas.ErrorResponse}
+      401 =>
+        {"Unauthorized — missing or invalid API token", "application/json", Schemas.ErrorResponse},
+      404 => {"Invoice not found", "application/json", Schemas.ErrorResponse},
+      422 =>
+        {"Invoice has no XML content and no uploaded PDF", "application/json",
+         Schemas.ErrorResponse},
+      500 =>
+        {"PDF generation failed — pdf-renderer sidecar error", "application/json",
+         Schemas.ErrorResponse}
     }
   )
 
@@ -662,10 +698,13 @@ defmodule KsefHubWeb.Api.InvoiceController do
     ],
     request_body: {"Category assignment", "application/json", Schemas.SetCategoryRequest},
     responses: %{
-      200 => {"Updated invoice", "application/json", Schemas.InvoiceResponse},
-      401 => {"Unauthorized", "application/json", Schemas.ErrorResponse},
-      404 => {"Not found", "application/json", Schemas.ErrorResponse},
-      422 => {"Validation error", "application/json", Schemas.ErrorResponse}
+      200 => {"Updated invoice with category", "application/json", Schemas.InvoiceResponse},
+      401 =>
+        {"Unauthorized — missing or invalid API token", "application/json", Schemas.ErrorResponse},
+      404 => {"Invoice not found", "application/json", Schemas.ErrorResponse},
+      422 =>
+        {"Category not found in this company, or invalid UUID format", "application/json",
+         Schemas.ErrorResponse}
     }
   )
 
@@ -700,45 +739,10 @@ defmodule KsefHubWeb.Api.InvoiceController do
     end
   end
 
-  operation(:add_tags,
-    summary: "Add tags to invoice",
-    description: "Adds one or more tags to an invoice without removing existing tags.",
-    parameters: [
-      id: [
-        in: :path,
-        description: "Invoice UUID.",
-        schema: %Schema{type: :string, format: :uuid}
-      ]
-    ],
-    request_body: {"Tags to add", "application/json", Schemas.InvoiceTagsRequest},
-    responses: %{
-      200 => {"Invoice tags", "application/json", Schemas.TagListResponse},
-      401 => {"Unauthorized", "application/json", Schemas.ErrorResponse},
-      404 => {"Not found", "application/json", Schemas.ErrorResponse},
-      422 => {"Validation error", "application/json", Schemas.ErrorResponse}
-    }
-  )
-
-  @doc "Adds tags to an invoice."
-  @spec add_tags(Plug.Conn.t(), map()) :: Plug.Conn.t()
-  def add_tags(conn, %{"id" => id} = params) do
-    company_id = conn.assigns.current_company.id
-    invoice = Invoices.get_invoice!(company_id, id, role: conn.assigns[:current_role])
-
-    with {:ok, tag_ids} <- validate_tag_ids(params["tag_ids"]),
-         true <- Invoices.tags_belong_to_company?(tag_ids, company_id),
-         :ok <- add_tags_sequentially(id, tag_ids, company_id),
-         {:ok, _} <- Invoices.mark_prediction_manual(invoice) do
-      tags = Invoices.list_invoice_tags(id)
-      json(conn, %{data: Enum.map(tags, &tag_json/1)})
-    else
-      error -> render_tag_error(conn, id, error)
-    end
-  end
-
   operation(:set_tags,
     summary: "Set invoice tags",
-    description: "Replaces all tags on an invoice with the given list.",
+    description:
+      "Replaces all tags on an invoice with the given list. Pass an empty list to clear all tags.",
     parameters: [
       id: [
         in: :path,
@@ -748,10 +752,13 @@ defmodule KsefHubWeb.Api.InvoiceController do
     ],
     request_body: {"Tags to set", "application/json", Schemas.InvoiceTagsRequest},
     responses: %{
-      200 => {"Invoice tags", "application/json", Schemas.TagListResponse},
-      401 => {"Unauthorized", "application/json", Schemas.ErrorResponse},
-      404 => {"Not found", "application/json", Schemas.ErrorResponse},
-      422 => {"Validation error", "application/json", Schemas.ErrorResponse}
+      200 => {"Updated list of tags on the invoice", "application/json", Schemas.TagListResponse},
+      401 =>
+        {"Unauthorized — missing or invalid API token", "application/json", Schemas.ErrorResponse},
+      404 => {"Invoice not found", "application/json", Schemas.ErrorResponse},
+      422 =>
+        {"One or more tags not found in this company, or invalid UUID format", "application/json",
+         Schemas.ErrorResponse}
     }
   )
 
@@ -768,51 +775,6 @@ defmodule KsefHubWeb.Api.InvoiceController do
       json(conn, %{data: Enum.map(tags, &tag_json/1)})
     else
       error -> render_tag_error(conn, id, error)
-    end
-  end
-
-  operation(:remove_tag,
-    summary: "Remove tag from invoice",
-    description: "Removes a single tag from an invoice.",
-    parameters: [
-      id: [
-        in: :path,
-        description: "Invoice UUID.",
-        schema: %Schema{type: :string, format: :uuid}
-      ],
-      tag_id: [
-        in: :path,
-        description: "Tag UUID to remove.",
-        schema: %Schema{type: :string, format: :uuid}
-      ]
-    ],
-    responses: %{
-      200 => {"Tag removed", "application/json", Schemas.MessageResponse},
-      401 => {"Unauthorized", "application/json", Schemas.ErrorResponse},
-      404 => {"Not found", "application/json", Schemas.ErrorResponse}
-    }
-  )
-
-  @doc "Removes a tag from an invoice."
-  @spec remove_tag(Plug.Conn.t(), map()) :: Plug.Conn.t()
-  def remove_tag(conn, %{"id" => id, "tag_id" => tag_id}) do
-    company_id = conn.assigns.current_company.id
-    _invoice = Invoices.get_invoice!(company_id, id, role: conn.assigns[:current_role])
-
-    if valid_uuid?(tag_id) do
-      case Invoices.remove_invoice_tag(id, tag_id) do
-        {:ok, _} ->
-          json(conn, %{message: "Tag removed"})
-
-        {:error, :not_found} ->
-          conn
-          |> put_status(:not_found)
-          |> json(%{error: "Tag not associated with this invoice"})
-      end
-    else
-      conn
-      |> put_status(:unprocessable_entity)
-      |> json(%{error: "Invalid UUID format"})
     end
   end
 
@@ -908,12 +870,6 @@ defmodule KsefHubWeb.Api.InvoiceController do
     |> json(%{error: "One or more tags not found in this company"})
   end
 
-  defp render_tag_error(conn, _id, {:error, :tag_not_in_company}) do
-    conn
-    |> put_status(:unprocessable_entity)
-    |> json(%{error: "One or more tags not found in this company"})
-  end
-
   defp render_tag_error(conn, _id, {:error, %Ecto.Changeset{} = changeset}) do
     conn
     |> put_status(:unprocessable_entity)
@@ -926,19 +882,6 @@ defmodule KsefHubWeb.Api.InvoiceController do
     conn
     |> put_status(:unprocessable_entity)
     |> json(%{error: "Tag operation failed"})
-  end
-
-  @spec add_tags_sequentially(Ecto.UUID.t(), [Ecto.UUID.t()], Ecto.UUID.t()) ::
-          :ok | {:error, term()}
-  defp add_tags_sequentially(_invoice_id, [], _company_id), do: :ok
-
-  defp add_tags_sequentially(invoice_id, tag_ids, company_id) do
-    Enum.reduce_while(tag_ids, :ok, fn tag_id, :ok ->
-      case Invoices.add_invoice_tag(invoice_id, tag_id, company_id) do
-        {:ok, _} -> {:cont, :ok}
-        {:error, reason} -> {:halt, {:error, reason}}
-      end
-    end)
   end
 
   @spec validate_category_company(String.t() | nil, Ecto.UUID.t()) ::

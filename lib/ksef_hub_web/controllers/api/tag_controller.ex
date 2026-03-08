@@ -25,8 +25,11 @@ defmodule KsefHubWeb.Api.TagController do
     description:
       "Returns all tags for the company with usage counts, ordered by popularity then name.",
     responses: %{
-      200 => {"Tag list", "application/json", Schemas.TagListResponse},
-      401 => {"Unauthorized", "application/json", Schemas.ErrorResponse}
+      200 =>
+        {"Tag list with usage counts, ordered by popularity then name", "application/json",
+         Schemas.TagListResponse},
+      401 =>
+        {"Unauthorized — missing or invalid API token", "application/json", Schemas.ErrorResponse}
     }
   )
 
@@ -50,8 +53,9 @@ defmodule KsefHubWeb.Api.TagController do
     ],
     responses: %{
       200 => {"Tag", "application/json", Schemas.TagResponse},
-      401 => {"Unauthorized", "application/json", Schemas.ErrorResponse},
-      404 => {"Not found", "application/json", Schemas.ErrorResponse}
+      401 =>
+        {"Unauthorized — missing or invalid API token", "application/json", Schemas.ErrorResponse},
+      404 => {"Tag not found", "application/json", Schemas.ErrorResponse}
     }
   )
 
@@ -77,8 +81,11 @@ defmodule KsefHubWeb.Api.TagController do
     request_body: {"Tag to create", "application/json", Schemas.CreateTagRequest},
     responses: %{
       201 => {"Created tag", "application/json", Schemas.TagResponse},
-      401 => {"Unauthorized", "application/json", Schemas.ErrorResponse},
-      422 => {"Validation error", "application/json", Schemas.ErrorResponse}
+      401 =>
+        {"Unauthorized — missing or invalid API token", "application/json", Schemas.ErrorResponse},
+      422 =>
+        {"Validation error — name is required and must be unique within the company",
+         "application/json", Schemas.ErrorResponse}
     }
   )
 
@@ -113,9 +120,12 @@ defmodule KsefHubWeb.Api.TagController do
     request_body: {"Tag updates", "application/json", Schemas.UpdateTagRequest},
     responses: %{
       200 => {"Updated tag", "application/json", Schemas.TagResponse},
-      401 => {"Unauthorized", "application/json", Schemas.ErrorResponse},
-      404 => {"Not found", "application/json", Schemas.ErrorResponse},
-      422 => {"Validation error", "application/json", Schemas.ErrorResponse}
+      401 =>
+        {"Unauthorized — missing or invalid API token", "application/json", Schemas.ErrorResponse},
+      404 => {"Tag not found", "application/json", Schemas.ErrorResponse},
+      422 =>
+        {"Validation error — name must be unique within the company", "application/json",
+         Schemas.ErrorResponse}
     }
   )
 
@@ -151,9 +161,12 @@ defmodule KsefHubWeb.Api.TagController do
       ]
     ],
     responses: %{
-      200 => {"Deleted", "application/json", Schemas.MessageResponse},
-      401 => {"Unauthorized", "application/json", Schemas.ErrorResponse},
-      404 => {"Not found", "application/json", Schemas.ErrorResponse}
+      200 =>
+        {"Tag deleted — all invoice-tag associations are removed", "application/json",
+         Schemas.MessageResponse},
+      401 =>
+        {"Unauthorized — missing or invalid API token", "application/json", Schemas.ErrorResponse},
+      404 => {"Tag not found", "application/json", Schemas.ErrorResponse}
     }
   )
 

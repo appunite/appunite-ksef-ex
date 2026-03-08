@@ -24,8 +24,11 @@ defmodule KsefHubWeb.Api.CategoryController do
     summary: "List categories",
     description: "Returns all categories for the company, ordered by sort_order then name.",
     responses: %{
-      200 => {"Category list", "application/json", Schemas.CategoryListResponse},
-      401 => {"Unauthorized", "application/json", Schemas.ErrorResponse}
+      200 =>
+        {"Category list ordered by sort_order then name", "application/json",
+         Schemas.CategoryListResponse},
+      401 =>
+        {"Unauthorized — missing or invalid API token", "application/json", Schemas.ErrorResponse}
     }
   )
 
@@ -49,8 +52,9 @@ defmodule KsefHubWeb.Api.CategoryController do
     ],
     responses: %{
       200 => {"Category", "application/json", Schemas.CategoryResponse},
-      401 => {"Unauthorized", "application/json", Schemas.ErrorResponse},
-      404 => {"Not found", "application/json", Schemas.ErrorResponse}
+      401 =>
+        {"Unauthorized — missing or invalid API token", "application/json", Schemas.ErrorResponse},
+      404 => {"Category not found", "application/json", Schemas.ErrorResponse}
     }
   )
 
@@ -76,8 +80,11 @@ defmodule KsefHubWeb.Api.CategoryController do
     request_body: {"Category to create", "application/json", Schemas.CreateCategoryRequest},
     responses: %{
       201 => {"Created category", "application/json", Schemas.CategoryResponse},
-      401 => {"Unauthorized", "application/json", Schemas.ErrorResponse},
-      422 => {"Validation error", "application/json", Schemas.ErrorResponse}
+      401 =>
+        {"Unauthorized — missing or invalid API token", "application/json", Schemas.ErrorResponse},
+      422 =>
+        {"Validation error — name is required and must be unique within the company",
+         "application/json", Schemas.ErrorResponse}
     }
   )
 
@@ -112,9 +119,12 @@ defmodule KsefHubWeb.Api.CategoryController do
     request_body: {"Category updates", "application/json", Schemas.UpdateCategoryRequest},
     responses: %{
       200 => {"Updated category", "application/json", Schemas.CategoryResponse},
-      401 => {"Unauthorized", "application/json", Schemas.ErrorResponse},
-      404 => {"Not found", "application/json", Schemas.ErrorResponse},
-      422 => {"Validation error", "application/json", Schemas.ErrorResponse}
+      401 =>
+        {"Unauthorized — missing or invalid API token", "application/json", Schemas.ErrorResponse},
+      404 => {"Category not found", "application/json", Schemas.ErrorResponse},
+      422 =>
+        {"Validation error — name must be unique within the company", "application/json",
+         Schemas.ErrorResponse}
     }
   )
 
@@ -152,9 +162,12 @@ defmodule KsefHubWeb.Api.CategoryController do
       ]
     ],
     responses: %{
-      200 => {"Deleted", "application/json", Schemas.MessageResponse},
-      401 => {"Unauthorized", "application/json", Schemas.ErrorResponse},
-      404 => {"Not found", "application/json", Schemas.ErrorResponse}
+      200 =>
+        {"Category deleted — invoices with this category will have it cleared",
+         "application/json", Schemas.MessageResponse},
+      401 =>
+        {"Unauthorized — missing or invalid API token", "application/json", Schemas.ErrorResponse},
+      404 => {"Category not found", "application/json", Schemas.ErrorResponse}
     }
   )
 

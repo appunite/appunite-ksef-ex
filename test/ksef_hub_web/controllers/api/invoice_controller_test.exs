@@ -918,37 +918,6 @@ defmodule KsefHubWeb.Api.InvoiceControllerTest do
     end
   end
 
-  describe "add_tags" do
-    test "adds tags to an invoice", %{conn: conn} do
-      %{company: company, token: token} = create_owner_with_token()
-      tag = insert(:tag, company: company, name: "urgent")
-      invoice = insert(:invoice, company: company)
-
-      body = Jason.encode!(%{tag_ids: [tag.id]})
-      conn = conn |> api_conn(token) |> post("/api/invoices/#{invoice.id}/tags", body)
-
-      assert conn.status == 200
-      data = Jason.decode!(conn.resp_body)["data"]
-      assert length(data) == 1
-      assert hd(data)["name"] == "urgent"
-    end
-
-    test "returns 422 for tags from different company", %{conn: conn} do
-      %{company: company, token: token} = create_owner_with_token()
-      other_company = insert(:company)
-      tag = insert(:tag, company: other_company)
-      invoice = insert(:invoice, company: company)
-
-      body = Jason.encode!(%{tag_ids: [tag.id]})
-      conn = conn |> api_conn(token) |> post("/api/invoices/#{invoice.id}/tags", body)
-
-      assert conn.status == 422
-
-      assert Jason.decode!(conn.resp_body)["error"] ==
-               "One or more tags not found in this company"
-    end
-  end
-
   describe "set_tags" do
     test "replaces all tags on an invoice", %{conn: conn} do
       %{company: company, token: token} = create_owner_with_token()
@@ -978,29 +947,42 @@ defmodule KsefHubWeb.Api.InvoiceControllerTest do
       assert conn.status == 200
       assert Jason.decode!(conn.resp_body)["data"] == []
     end
-  end
 
-  describe "remove_tag" do
-    test "removes a tag from an invoice", %{conn: conn} do
+    test "returns 422 for tags from different company", %{conn: conn} do
       %{company: company, token: token} = create_owner_with_token()
-      tag = insert(:tag, company: company)
+      other_company = insert(:company)
+      tag = insert(:tag, company: other_company)
       invoice = insert(:invoice, company: company)
-      insert(:invoice_tag, invoice: invoice, tag: tag)
 
-      conn = conn |> api_conn(token) |> delete("/api/invoices/#{invoice.id}/tags/#{tag.id}")
+      body = Jason.encode!(%{tag_ids: [tag.id]})
+      conn = conn |> api_conn(token) |> put("/api/invoices/#{invoice.id}/tags", body)
 
-      assert conn.status == 200
-      assert Jason.decode!(conn.resp_body)["message"] == "Tag removed"
+      assert conn.status == 422
+
+      assert Jason.decode!(conn.resp_body)["error"] ==
+               "One or more tags not found in this company"
     end
 
-    test "returns 404 when tag is not associated", %{conn: conn} do
+    test "returns 422 for non-list tag_ids", %{conn: conn} do
       %{company: company, token: token} = create_owner_with_token()
-      tag = insert(:tag, company: company)
       invoice = insert(:invoice, company: company)
 
-      conn = conn |> api_conn(token) |> delete("/api/invoices/#{invoice.id}/tags/#{tag.id}")
+      body = Jason.encode!(%{tag_ids: "not-a-list"})
+      conn = conn |> api_conn(token) |> put("/api/invoices/#{invoice.id}/tags", body)
 
-      assert conn.status == 404
+      assert conn.status == 422
+      assert Jason.decode!(conn.resp_body)["error"] == "Invalid tag_ids payload"
+    end
+
+    test "returns 422 for invalid UUIDs in tag_ids", %{conn: conn} do
+      %{company: company, token: token} = create_owner_with_token()
+      invoice = insert(:invoice, company: company)
+
+      body = Jason.encode!(%{tag_ids: ["not-a-uuid"]})
+      conn = conn |> api_conn(token) |> put("/api/invoices/#{invoice.id}/tags", body)
+
+      assert conn.status == 422
+      assert Jason.decode!(conn.resp_body)["error"] == "Invalid tag_ids payload"
     end
   end
 
