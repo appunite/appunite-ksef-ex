@@ -1018,7 +1018,7 @@ defmodule KsefHubWeb.InvoiceLive.Show do
             <div class="flex items-center justify-between mb-2">
               <h2 class="text-base font-semibold">Note</h2>
               <button
-                :if={!@editing_note}
+                :if={@can_mutate && !@editing_note}
                 phx-click="edit_note"
                 class="btn btn-xs btn-ghost"
                 aria-label="Edit note"
@@ -1046,10 +1046,11 @@ defmodule KsefHubWeb.InvoiceLive.Show do
             <% else %>
               <div
                 class={[
-                  "text-sm cursor-pointer hover:bg-base-200 rounded p-1 -m-1",
+                  "text-sm rounded p-1 -m-1",
+                  @can_mutate && "cursor-pointer hover:bg-base-200",
                   !@invoice.note && "text-base-content/40 italic"
                 ]}
-                phx-click="edit_note"
+                phx-click={if(@can_mutate, do: "edit_note")}
               >
                 <span :if={@invoice.note} class="whitespace-pre-line">{@invoice.note}</span>
                 <span :if={!@invoice.note}>No note</span>

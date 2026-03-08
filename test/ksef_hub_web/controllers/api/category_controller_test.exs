@@ -174,6 +174,22 @@ defmodule KsefHubWeb.Api.CategoryControllerTest do
       assert conn.status == 200
     end
 
+    test "accountant can read category (show)", %{conn: conn} do
+      {:ok, %{company: company, token: token}} = create_user_with_token(:accountant)
+      category = insert(:category, company: company, name: "ops:test")
+
+      conn = conn |> api_conn(token) |> get("/api/categories/#{category.id}")
+      assert conn.status == 200
+    end
+
+    test "reviewer can read category (show)", %{conn: conn} do
+      {:ok, %{company: company, token: token}} = create_user_with_token(:reviewer)
+      category = insert(:category, company: company, name: "ops:test")
+
+      conn = conn |> api_conn(token) |> get("/api/categories/#{category.id}")
+      assert conn.status == 200
+    end
+
     test "reviewer can read categories (index)", %{conn: conn} do
       {:ok, %{company: company, token: token}} = create_user_with_token(:reviewer)
       insert(:category, company: company, name: "ops:test")
