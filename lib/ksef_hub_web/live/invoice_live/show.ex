@@ -729,7 +729,7 @@ defmodule KsefHubWeb.InvoiceLive.Show do
           </button>
           <button
             :if={
-              @can_mutate && @invoice.type == :expense && @invoice.status == :pending &&
+              @can_approve && @invoice.type == :expense && @invoice.status == :pending &&
                 @invoice.duplicate_status != :confirmed
             }
             phx-click="approve"
@@ -739,7 +739,7 @@ defmodule KsefHubWeb.InvoiceLive.Show do
           </button>
           <button
             :if={
-              @can_mutate && @invoice.type == :expense && @invoice.status == :pending &&
+              @can_approve && @invoice.type == :expense && @invoice.status == :pending &&
                 @invoice.duplicate_status != :confirmed
             }
             phx-click="reject"
@@ -951,7 +951,7 @@ defmodule KsefHubWeb.InvoiceLive.Show do
             <!-- Category Select -->
             <.form
               for={@category_form}
-              phx-change={if(@can_mutate, do: "set_category")}
+              phx-change={if(@can_set_category, do: "set_category")}
               data-testid="category-form"
               class="mb-4"
             >
@@ -960,7 +960,7 @@ defmodule KsefHubWeb.InvoiceLive.Show do
                 name={@category_form[:category_id].name}
                 class="select select-sm select-bordered w-full"
                 data-testid="category-select"
-                disabled={not @can_mutate}
+                disabled={not @can_set_category}
               >
                 <option value="">No category</option>
                 <option
@@ -984,16 +984,16 @@ defmodule KsefHubWeb.InvoiceLive.Show do
                     type="checkbox"
                     class="checkbox checkbox-xs"
                     checked={tag_assigned?(@invoice, tag.id)}
-                    phx-click={if(@can_mutate, do: "toggle_tag")}
+                    phx-click={if(@can_set_tags, do: "toggle_tag")}
                     phx-value-tag-id={tag.id}
-                    disabled={not @can_mutate}
+                    disabled={not @can_set_tags}
                   />
                   <span class="text-sm">{tag.name}</span>
                 </label>
               </div>
               <!-- New Tag Inline -->
               <.form
-                :if={@can_mutate}
+                :if={@can_manage_tags}
                 for={@new_tag_form}
                 phx-submit="create_and_add_tag"
                 id={"new-tag-form-#{@tag_form_key}"}

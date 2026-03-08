@@ -224,6 +224,14 @@ defmodule KsefHubWeb.Api.CategoryControllerTest do
       assert conn.status == 200
     end
 
+    test "admin can delete categories", %{conn: conn} do
+      {:ok, %{company: company, token: token}} = create_user_with_token(:admin)
+      category = insert(:category, company: company)
+
+      conn = conn |> api_conn(token) |> delete("/api/categories/#{category.id}")
+      assert conn.status == 200
+    end
+
     test "accountant cannot delete categories", %{conn: conn} do
       {:ok, %{company: company, token: token}} = create_user_with_token(:accountant)
       category = insert(:category, company: company)
