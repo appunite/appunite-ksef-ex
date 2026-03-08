@@ -22,7 +22,7 @@ Added a `public_token` column to the `invoices` table — a base64url-encoded 32
 
 ### URL scheme
 
-```
+```text
 /public/invoices/:id?token=<base64url_token>
 ```
 

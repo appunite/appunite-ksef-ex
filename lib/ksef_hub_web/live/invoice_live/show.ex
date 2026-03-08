@@ -93,7 +93,7 @@ defmodule KsefHubWeb.InvoiceLive.Show do
   # Catch-all for mutation events when the user lacks permission.
 
   @mutation_events ~w(re_extract dismiss_duplicate confirm_duplicate
-    toggle_edit save_edit edit_note save_note)
+    toggle_edit save_edit edit_note save_note copy_public_link)
 
   @approve_events ~w(approve reject)
   @category_events ~w(set_category)
@@ -728,6 +728,7 @@ defmodule KsefHubWeb.InvoiceLive.Show do
             </ul>
           </div>
           <button
+            :if={@can_mutate}
             phx-click="copy_public_link"
             class="btn btn-sm btn-outline"
             data-testid="copy-public-link"

@@ -66,6 +66,7 @@ defmodule KsefHubWeb.InvoiceLive.PublicShow do
 
   @doc "Renders the public read-only invoice view with details and preview."
   @impl true
+  @spec render(map()) :: Phoenix.LiveView.Rendered.t()
   def render(assigns) do
     ~H"""
     <.header>
@@ -108,6 +109,7 @@ defmodule KsefHubWeb.InvoiceLive.PublicShow do
             <iframe
               src={~p"/public/invoices/#{@invoice.id}/pdf?token=#{@invoice.public_token}&inline=1"}
               class="w-full h-full bg-white"
+              sandbox="allow-same-origin"
               title="Invoice PDF preview"
             >
             </iframe>

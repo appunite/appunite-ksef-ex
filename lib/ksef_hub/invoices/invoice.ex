@@ -12,6 +12,8 @@ defmodule KsefHub.Invoices.Invoice do
   @type duplicate_status :: :suspected | :confirmed | :dismissed
   @type prediction_status :: :pending | :predicted | :needs_review | :manual
 
+  @derive {Inspect, except: [:public_token]}
+
   @primary_key {:id, :binary_id, autogenerate: true}
   @foreign_key_type :binary_id
 
