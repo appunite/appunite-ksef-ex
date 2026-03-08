@@ -7,6 +7,7 @@ defmodule KsefHubWeb.InvoiceLive.Show do
 
   require Logger
 
+  alias KsefHub.Authorization
   alias KsefHub.Invoices
   alias KsefHub.Invoices.Invoice
 
@@ -51,19 +52,21 @@ defmodule KsefHubWeb.InvoiceLive.Show do
 
       invoice ->
         auto_edit = invoice.extraction_status in [:partial, :failed]
+        can_mutate = Authorization.can?(role, :update_invoice)
 
         {:ok,
          socket
          |> assign(
            page_title: "Invoice #{invoice.invoice_number}",
            invoice: invoice,
+           can_mutate: can_mutate,
            html_preview: generate_preview(invoice),
            categories: Invoices.list_categories(company.id),
            all_tags: Invoices.list_tags(company.id),
            category_form: category_form(invoice),
            new_tag_form: new_tag_form(),
            tag_form_key: 0,
-           editing: auto_edit,
+           editing: auto_edit && can_mutate,
            edit_form: build_edit_form(invoice),
            editing_note: false,
            note_form: note_form(invoice),
@@ -673,7 +676,7 @@ defmodule KsefHubWeb.InvoiceLive.Show do
             </ul>
           </div>
           <button
-            :if={!@editing}
+            :if={@can_mutate && !@editing}
             phx-click="toggle_edit"
             class="btn btn-sm btn-outline"
           >
@@ -681,7 +684,7 @@ defmodule KsefHubWeb.InvoiceLive.Show do
           </button>
           <button
             :if={
-              @invoice.type == :expense && @invoice.status == :pending &&
+              @can_mutate && @invoice.type == :expense && @invoice.status == :pending &&
                 @invoice.duplicate_status != :confirmed
             }
             phx-click="approve"
@@ -691,7 +694,7 @@ defmodule KsefHubWeb.InvoiceLive.Show do
           </button>
           <button
             :if={
-              @invoice.type == :expense && @invoice.status == :pending &&
+              @can_mutate && @invoice.type == :expense && @invoice.status == :pending &&
                 @invoice.duplicate_status != :confirmed
             }
             phx-click="reject"
@@ -714,7 +717,7 @@ defmodule KsefHubWeb.InvoiceLive.Show do
         This invoice has missing data. Please review and fill in the missing fields below.
       </span>
       <button
-        :if={@invoice.source in [:pdf_upload, :email] and not @extracting}
+        :if={@can_mutate && @invoice.source in [:pdf_upload, :email] and not @extracting}
         phx-click="re_extract"
         class="btn btn-sm btn-warning"
       >
@@ -739,7 +742,7 @@ defmodule KsefHubWeb.InvoiceLive.Show do
           View original
         </.link>
       </span>
-      <div class="flex-none flex gap-2">
+      <div :if={@can_mutate} class="flex-none flex gap-2">
         <button phx-click="dismiss_duplicate" class="btn btn-sm btn-ghost">
           Not a duplicate
         </button>
@@ -903,7 +906,7 @@ defmodule KsefHubWeb.InvoiceLive.Show do
             <!-- Category Select -->
             <.form
               for={@category_form}
-              phx-change="set_category"
+              phx-change={if(@can_mutate, do: "set_category")}
               data-testid="category-form"
               class="mb-4"
             >
@@ -912,6 +915,7 @@ defmodule KsefHubWeb.InvoiceLive.Show do
                 name={@category_form[:category_id].name}
                 class="select select-sm select-bordered w-full"
                 data-testid="category-select"
+                disabled={not @can_mutate}
               >
                 <option value="">No category</option>
                 <option
@@ -935,14 +939,16 @@ defmodule KsefHubWeb.InvoiceLive.Show do
                     type="checkbox"
                     class="checkbox checkbox-xs"
                     checked={tag_assigned?(@invoice, tag.id)}
-                    phx-click="toggle_tag"
+                    phx-click={if(@can_mutate, do: "toggle_tag")}
                     phx-value-tag-id={tag.id}
+                    disabled={not @can_mutate}
                   />
                   <span class="text-sm">{tag.name}</span>
                 </label>
               </div>
               <!-- New Tag Inline -->
               <.form
+                :if={@can_mutate}
                 for={@new_tag_form}
                 phx-submit="create_and_add_tag"
                 id={"new-tag-form-#{@tag_form_key}"}

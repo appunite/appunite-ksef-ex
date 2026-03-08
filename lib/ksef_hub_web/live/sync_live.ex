@@ -8,11 +8,24 @@ defmodule KsefHubWeb.SyncLive do
 
   require Logger
 
+  alias KsefHub.Authorization
   alias KsefHub.Sync.History
 
   @doc "Subscribes to sync PubSub topic and loads sync job history."
   @impl true
   def mount(_params, _session, socket) do
+    if not Authorization.can?(socket.assigns[:current_role], :view_syncs) do
+      {:ok,
+       socket
+       |> put_flash(:error, "You don't have permission to view syncs.")
+       |> redirect(to: ~p"/c/#{socket.assigns.current_company.id}/invoices")}
+    else
+      do_mount_sync(socket)
+    end
+  end
+
+  @spec do_mount_sync(Phoenix.LiveView.Socket.t()) :: {:ok, Phoenix.LiveView.Socket.t()}
+  defp do_mount_sync(socket) do
     company = socket.assigns.current_company
 
     if connected?(socket) && company do

@@ -2,18 +2,19 @@ defmodule KsefHubWeb.TokenLive do
   @moduledoc """
   LiveView for managing API tokens — create, view, and revoke bearer tokens.
 
-  Tokens are scoped to the current company. Only company owners can access this page.
+  Tokens are scoped to the current company. Owners, admins, and accountants can access.
   """
   use KsefHubWeb, :live_view
 
   alias KsefHub.Accounts
+  alias KsefHub.Authorization
 
   @impl true
   def mount(_params, _session, socket) do
-    if socket.assigns.current_role != :owner do
+    if not Authorization.can?(socket.assigns.current_role, :manage_tokens) do
       {:ok,
        socket
-       |> put_flash(:error, "Only company owners can manage API tokens.")
+       |> put_flash(:error, "You don't have permission to manage API tokens.")
        |> redirect(to: ~p"/c/#{socket.assigns.current_company.id}/invoices")}
     else
       company_id = socket.assigns.current_company.id

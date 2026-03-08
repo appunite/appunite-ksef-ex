@@ -9,6 +9,7 @@ defmodule KsefHubWeb.InvoiceLive.Upload do
 
   require Logger
 
+  alias KsefHub.Authorization
   alias KsefHub.Companies.Company
   alias KsefHub.Invoices
 
@@ -32,7 +33,7 @@ defmodule KsefHubWeb.InvoiceLive.Upload do
          |> put_flash(:error, "No company selected.")
          |> redirect(to: ~p"/companies")}
 
-      socket.assigns[:current_role] == :reviewer ->
+      not Authorization.can?(socket.assigns[:current_role], :create_invoice) ->
         company = socket.assigns[:current_company]
 
         {:ok,

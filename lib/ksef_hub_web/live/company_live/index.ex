@@ -4,6 +4,7 @@ defmodule KsefHubWeb.CompanyLive.Index do
   """
   use KsefHubWeb, :live_view
 
+  alias KsefHub.Authorization
   alias KsefHub.Companies
   alias KsefHub.Companies.Company
 
@@ -24,28 +25,40 @@ defmodule KsefHubWeb.CompanyLive.Index do
 
   @spec apply_action(Phoenix.LiveView.Socket.t(), atom(), map()) :: Phoenix.LiveView.Socket.t()
   defp apply_action(socket, :new, _params) do
-    socket
-    |> assign(:page_title, "New Company")
-    |> assign(:company, %Company{})
-    |> assign(:form, to_form(Companies.Company.changeset(%Company{}, %{})))
-    |> assign(:inbound_settings_form, nil)
+    if Authorization.can?(socket.assigns[:current_role], :manage_company) do
+      socket
+      |> assign(:page_title, "New Company")
+      |> assign(:company, %Company{})
+      |> assign(:form, to_form(Companies.Company.changeset(%Company{}, %{})))
+      |> assign(:inbound_settings_form, nil)
+    else
+      socket
+      |> put_flash(:error, "You don't have permission to create companies.")
+      |> push_patch(to: ~p"/companies")
+    end
   end
 
   defp apply_action(socket, :edit, %{"id" => id}) do
-    company = Companies.get_company!(id)
+    if not Authorization.can?(socket.assigns[:current_role], :manage_company) do
+      socket
+      |> put_flash(:error, "You don't have permission to edit companies.")
+      |> push_patch(to: ~p"/companies")
+    else
+      company = Companies.get_company!(id)
 
-    socket
-    |> assign(:page_title, "Edit #{company.name}")
-    |> assign(:company, company)
-    |> assign(
-      :inbound_domain_configured,
-      Application.get_env(:ksef_hub, :inbound_email_domain) != nil
-    )
-    |> assign(:form, to_form(Companies.Company.changeset(company, %{})))
-    |> assign(
-      :inbound_settings_form,
-      to_form(Company.inbound_email_settings_changeset(company, %{}))
-    )
+      socket
+      |> assign(:page_title, "Edit #{company.name}")
+      |> assign(:company, company)
+      |> assign(
+        :inbound_domain_configured,
+        Application.get_env(:ksef_hub, :inbound_email_domain) != nil
+      )
+      |> assign(:form, to_form(Companies.Company.changeset(company, %{})))
+      |> assign(
+        :inbound_settings_form,
+        to_form(Company.inbound_email_settings_changeset(company, %{}))
+      )
+    end
   end
 
   defp apply_action(socket, _action, _params) do

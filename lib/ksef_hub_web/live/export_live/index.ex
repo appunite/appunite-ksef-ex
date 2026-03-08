@@ -6,6 +6,7 @@ defmodule KsefHubWeb.ExportLive.Index do
 
   use KsefHubWeb, :live_view
 
+  alias KsefHub.Authorization
   alias KsefHub.Exports
   alias KsefHub.Exports.ExportBatch
   alias KsefHub.Repo
@@ -13,7 +14,7 @@ defmodule KsefHubWeb.ExportLive.Index do
   @impl true
   @spec mount(map(), map(), Phoenix.LiveView.Socket.t()) :: {:ok, Phoenix.LiveView.Socket.t()}
   def mount(_params, _session, socket) do
-    if socket.assigns[:current_role] in [:owner, :accountant] do
+    if Authorization.can?(socket.assigns[:current_role], :view_exports) do
       do_mount(socket)
     else
       {:ok,
