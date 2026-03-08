@@ -3,8 +3,9 @@ defmodule KsefHub.Invitations.Invitation do
   Invitation schema. Represents an invitation for a user to join a company.
 
   Roles that can be invited:
-  - `accountant` — can view invoices, manage bookkeeping, and submit expense approvals
-  - `reviewer` — can view invoices and approve or reject individual expense items
+  - `admin` — same as owner except cannot delete company or transfer ownership
+  - `accountant` — read-only invoice access plus exports and API token management
+  - `reviewer` — can view and manage expense invoices, trigger syncs
 
   The `owner` role cannot be invited — ownership is assigned only at company creation.
 
@@ -18,7 +19,7 @@ defmodule KsefHub.Invitations.Invitation do
   import Ecto.Changeset
 
   @type t :: %__MODULE__{}
-  @type invitation_role :: :accountant | :reviewer
+  @type invitation_role :: :admin | :accountant | :reviewer
   @type invitation_status :: :pending | :accepted | :cancelled
 
   @primary_key {:id, :binary_id, autogenerate: true}
@@ -26,7 +27,7 @@ defmodule KsefHub.Invitations.Invitation do
 
   schema "invitations" do
     field :email, :string
-    field :role, Ecto.Enum, values: [:accountant, :reviewer]
+    field :role, Ecto.Enum, values: [:admin, :accountant, :reviewer]
     field :token_hash, :string
     field :status, Ecto.Enum, values: [:pending, :accepted, :cancelled], default: :pending
     field :expires_at, :utc_datetime

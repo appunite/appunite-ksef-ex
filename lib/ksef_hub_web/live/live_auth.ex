@@ -19,6 +19,7 @@ defmodule KsefHubWeb.LiveAuth do
   import KsefHubWeb.UrlHelpers, only: [default_path: 1]
 
   alias KsefHub.Accounts
+  alias KsefHub.Authorization
   alias KsefHub.Companies
 
   @doc """
@@ -43,7 +44,7 @@ defmodule KsefHubWeb.LiveAuth do
   end
 
   def on_mount(:require_owner, _params, _session, socket) do
-    if socket.assigns[:current_role] == :owner do
+    if Authorization.can?(socket.assigns[:current_role], :delete_company) do
       {:cont, socket}
     else
       {:halt,
@@ -54,7 +55,7 @@ defmodule KsefHubWeb.LiveAuth do
   end
 
   def on_mount(:require_admin, _params, _session, socket) do
-    if socket.assigns[:current_role] in [:owner, :admin] do
+    if Authorization.can?(socket.assigns[:current_role], :manage_team) do
       {:cont, socket}
     else
       {:halt,

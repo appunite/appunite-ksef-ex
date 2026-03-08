@@ -4,6 +4,7 @@ defmodule KsefHubWeb.DashboardLive do
   """
   use KsefHubWeb, :live_view
 
+  alias KsefHub.Authorization
   alias KsefHub.Credentials
   alias KsefHub.Invoices
 
@@ -35,7 +36,8 @@ defmodule KsefHubWeb.DashboardLive do
       nil ->
         assign(socket,
           page_title: "Dashboard",
-          is_reviewer: socket.assigns[:current_role] == :reviewer,
+          can_view_all_types:
+            Authorization.can?(socket.assigns[:current_role], :view_all_invoice_types),
           total_income: 0,
           total_expense: 0,
           total_invoices: 0,
@@ -52,9 +54,11 @@ defmodule KsefHubWeb.DashboardLive do
         counts = Invoices.count_by_type_and_status(company.id)
         credential = Credentials.get_active_credential(company.id)
         user_cert = Credentials.get_certificate_for_company(company.id)
-        is_reviewer = socket.assigns[:current_role] == :reviewer
 
-        total_income = if is_reviewer, do: 0, else: count_type(counts, :income)
+        can_view_all_types =
+          Authorization.can?(socket.assigns[:current_role], :view_all_invoice_types)
+
+        total_income = if can_view_all_types, do: count_type(counts, :income), else: 0
         total_expense = count_type(counts, :expense)
         pending_expense = Map.get(counts, {:expense, :pending}, 0)
         approved_expense = Map.get(counts, {:expense, :approved}, 0)
@@ -62,7 +66,7 @@ defmodule KsefHubWeb.DashboardLive do
 
         assign(socket,
           page_title: "Dashboard",
-          is_reviewer: is_reviewer,
+          can_view_all_types: can_view_all_types,
           total_income: total_income,
           total_expense: total_expense,
           total_invoices: total_income + total_expense,
@@ -96,7 +100,7 @@ defmodule KsefHubWeb.DashboardLive do
     <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mt-4">
       <.stat_card title="Total Invoices" value={@total_invoices} icon="hero-document-text" />
       <.stat_card
-        :if={!@is_reviewer}
+        :if={@can_view_all_types}
         title="Income"
         value={@total_income}
         icon="hero-arrow-down-tray"

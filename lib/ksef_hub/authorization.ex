@@ -18,6 +18,7 @@ defmodule KsefHub.Authorization do
   @type permission ::
           :view_dashboard
           | :view_invoices
+          | :view_all_invoice_types
           | :create_invoice
           | :update_invoice
           | :approve_invoice
@@ -50,7 +51,10 @@ defmodule KsefHub.Authorization do
       iex> KsefHub.Authorization.can?(:accountant, :view_exports)
       true
   """
-  @spec can?(Membership.role(), permission()) :: boolean()
+  @spec can?(Membership.role() | nil, permission()) :: boolean()
+  # nil role (no membership) has no permissions
+  def can?(nil, _permission), do: false
+
   # Owner can do everything
   def can?(:owner, _permission), do: true
 
@@ -62,6 +66,7 @@ defmodule KsefHub.Authorization do
   # Reviewer permissions
   def can?(:reviewer, :view_dashboard), do: true
   def can?(:reviewer, :view_invoices), do: true
+  def can?(:reviewer, :view_all_invoice_types), do: false
   def can?(:reviewer, :create_invoice), do: true
   def can?(:reviewer, :update_invoice), do: true
   def can?(:reviewer, :approve_invoice), do: true
@@ -74,6 +79,7 @@ defmodule KsefHub.Authorization do
   # Accountant permissions
   def can?(:accountant, :view_dashboard), do: true
   def can?(:accountant, :view_invoices), do: true
+  def can?(:accountant, :view_all_invoice_types), do: true
   def can?(:accountant, :view_exports), do: true
   def can?(:accountant, :create_export), do: true
   def can?(:accountant, :manage_tokens), do: true

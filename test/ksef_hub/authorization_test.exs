@@ -6,6 +6,7 @@ defmodule KsefHub.AuthorizationTest do
   @all_permissions [
     :view_dashboard,
     :view_invoices,
+    :view_all_invoice_types,
     :create_invoice,
     :update_invoice,
     :approve_invoice,
@@ -24,6 +25,15 @@ defmodule KsefHub.AuthorizationTest do
     :manage_tokens,
     :manage_team
   ]
+
+  describe "nil role" do
+    test "has no permissions" do
+      for perm <- @all_permissions do
+        refute Authorization.can?(nil, perm),
+               "expected nil role NOT to have #{perm}"
+      end
+    end
+  end
 
   describe "owner" do
     test "has all permissions" do
@@ -85,6 +95,7 @@ defmodule KsefHub.AuthorizationTest do
     @accountant_allowed [
       :view_dashboard,
       :view_invoices,
+      :view_all_invoice_types,
       :view_exports,
       :create_export,
       :manage_tokens

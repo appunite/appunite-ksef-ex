@@ -6,6 +6,7 @@ defmodule KsefHub.Accounts do
   import Ecto.Query
 
   alias KsefHub.Accounts.{ApiToken, User, UserNotifier, UserToken}
+  alias KsefHub.Authorization
   alias KsefHub.Companies
   alias KsefHub.Repo
 
@@ -337,7 +338,7 @@ defmodule KsefHub.Accounts do
           | {:error, :unauthorized}
           | {:error, Ecto.Changeset.t()}
   def create_api_token(user_id, company_id, attrs) do
-    if Companies.has_role?(user_id, company_id, [:owner, :admin, :accountant]) do
+    if authorized_for?(user_id, company_id, :manage_tokens) do
       do_create_api_token(user_id, company_id, attrs)
     else
       {:error, :unauthorized}
@@ -437,7 +438,7 @@ defmodule KsefHub.Accounts do
           | {:error, :not_found}
           | {:error, Ecto.Changeset.t()}
   def revoke_api_token(user_id, company_id, token_id) do
-    if Companies.has_role?(user_id, company_id, [:owner, :admin, :accountant]) do
+    if authorized_for?(user_id, company_id, :manage_tokens) do
       do_revoke_api_token(user_id, company_id, token_id)
     else
       {:error, :unauthorized}
@@ -517,5 +518,13 @@ defmodule KsefHub.Accounts do
   defp hash_token(token) do
     :crypto.hash(:sha256, token)
     |> Base.encode16(case: :lower)
+  end
+
+  @spec authorized_for?(Ecto.UUID.t(), Ecto.UUID.t(), Authorization.permission()) :: boolean()
+  defp authorized_for?(user_id, company_id, permission) do
+    case Companies.get_membership(user_id, company_id) do
+      %{role: role} -> Authorization.can?(role, permission)
+      nil -> false
+    end
   end
 end
