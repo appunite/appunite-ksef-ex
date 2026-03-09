@@ -150,19 +150,34 @@ defmodule KsefHub.Invoices do
 
   def get_invoice_by_public_token(_), do: nil
 
-  @doc "Generates a public sharing token for an invoice. Fails if the invoice already has one."
-  @spec generate_public_token(Invoice.t()) :: {:ok, Invoice.t()} | {:error, Ecto.Changeset.t()}
+  @doc """
+  Atomically generates a public sharing token for an invoice.
+
+  Uses `WHERE public_token IS NULL` so only the first write wins — concurrent
+  calls won't rotate an existing token. Returns `{:ok, invoice}` with the token
+  on success, or `{:error, :already_has_token}` if one already exists.
+  """
+  @spec generate_public_token(Invoice.t()) ::
+          {:ok, Invoice.t()} | {:error, :already_has_token | Ecto.Changeset.t()}
   def generate_public_token(%Invoice{} = invoice) do
-    invoice
-    |> Invoice.public_token_changeset()
-    |> Repo.update()
+    token = :crypto.strong_rand_bytes(32) |> Base.url_encode64(padding: false)
+
+    {count, _} =
+      Invoice
+      |> where([i], i.id == ^invoice.id and is_nil(i.public_token))
+      |> Repo.update_all(set: [public_token: token])
+
+    case count do
+      1 -> {:ok, %{invoice | public_token: token}}
+      0 -> {:error, :already_has_token}
+    end
   end
 
   @doc """
   Ensures an invoice has a public token, generating one if absent. Idempotent.
 
-  Handles the race condition where two concurrent callers both try to generate:
-  if the unique constraint fires, reloads the invoice to fetch the winning token.
+  Uses an atomic DB update so concurrent callers cannot race: only the first
+  write sets the token, subsequent calls reload and return the existing one.
   """
   @spec ensure_public_token(Invoice.t()) :: {:ok, Invoice.t()} | {:error, Ecto.Changeset.t()}
   def ensure_public_token(%Invoice{public_token: token} = invoice) when is_binary(token) do
@@ -171,24 +186,9 @@ defmodule KsefHub.Invoices do
 
   def ensure_public_token(%Invoice{} = invoice) do
     case generate_public_token(invoice) do
-      {:ok, _} = ok ->
-        ok
-
-      {:error, %Ecto.Changeset{} = changeset} ->
-        if unique_constraint_error?(changeset, :public_token) do
-          {:ok, Repo.reload!(invoice)}
-        else
-          {:error, changeset}
-        end
+      {:ok, _} = ok -> ok
+      {:error, :already_has_token} -> {:ok, Repo.reload!(invoice)}
     end
-  end
-
-  @spec unique_constraint_error?(Ecto.Changeset.t(), atom()) :: boolean()
-  defp unique_constraint_error?(changeset, field) do
-    Enum.any?(changeset.errors, fn
-      {^field, {_, opts}} when is_list(opts) -> Keyword.get(opts, :constraint) == :unique
-      _ -> false
-    end)
   end
 
   @doc "Fetches an invoice by its KSeF reference number within a company (excludes duplicates)."

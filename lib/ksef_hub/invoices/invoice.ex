@@ -182,16 +182,6 @@ defmodule KsefHub.Invoices.Invoice do
     )
   end
 
-  @doc "Builds a changeset that generates a cryptographically random public sharing token."
-  @spec public_token_changeset(t()) :: Ecto.Changeset.t()
-  def public_token_changeset(invoice) do
-    token = :crypto.strong_rand_bytes(32) |> Base.url_encode64(padding: false)
-
-    invoice
-    |> change(%{public_token: token})
-    |> unique_constraint(:public_token)
-  end
-
   @doc "Builds a changeset for updating duplicate fields only."
   @spec duplicate_changeset(t(), map()) :: Ecto.Changeset.t()
   def duplicate_changeset(invoice, attrs) do

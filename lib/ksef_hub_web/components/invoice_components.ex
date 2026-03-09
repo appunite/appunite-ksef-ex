@@ -5,6 +5,8 @@ defmodule KsefHubWeb.InvoiceComponents do
 
   use Phoenix.Component
 
+  require Logger
+
   alias KsefHub.Invoices.Invoice
 
   @doc "Renders a coloured badge for the invoice type (:income / :expense)."
@@ -171,11 +173,13 @@ defmodule KsefHubWeb.InvoiceComponents do
 
   def format_amount(_), do: "-"
 
-  @doc "Formats a datetime as YYYY-MM-DD HH:MM (with UTC suffix for timezone-aware datetimes), or returns \"-\" for nil."
+  @doc "Formats a datetime as YYYY-MM-DD HH:MM, or returns \"-\" for nil. DateTime values must be in UTC (as produced by Ecto's `:utc_datetime` types)."
   @spec format_datetime(DateTime.t() | NaiveDateTime.t() | nil) :: String.t()
   def format_datetime(nil), do: "-"
   def format_datetime(%NaiveDateTime{} = dt), do: Calendar.strftime(dt, "%Y-%m-%d %H:%M")
-  def format_datetime(%DateTime{} = dt), do: Calendar.strftime(dt, "%Y-%m-%d %H:%M UTC")
+
+  def format_datetime(%DateTime{utc_offset: 0, std_offset: 0} = dt),
+    do: Calendar.strftime(dt, "%Y-%m-%d %H:%M UTC")
 
   @doc "Returns a human-readable label for who added an invoice, combining source and creator info. Delegates to `Invoice.added_by_label/1`."
   @spec added_by_label(Invoice.t()) :: String.t()
@@ -309,8 +313,12 @@ defmodule KsefHubWeb.InvoiceComponents do
     metadata = %{ksef_number: invoice.ksef_number}
 
     case pdf_mod.generate_html(content, metadata) do
-      {:ok, html} -> html
-      {:error, _} -> nil
+      {:ok, html} ->
+        html
+
+      {:error, err} ->
+        Logger.warning("Preview generation failed for invoice #{invoice.id}: #{inspect(err)}")
+        nil
     end
   end
 

@@ -25,6 +25,13 @@ defmodule KsefHub.Invoices.PublicTokenTest do
 
       assert updated1.public_token != updated2.public_token
     end
+
+    test "returns error when invoice already has a token" do
+      invoice = insert(:invoice)
+
+      {:ok, _} = Invoices.generate_public_token(invoice)
+      assert {:error, :already_has_token} = Invoices.generate_public_token(invoice)
+    end
   end
 
   describe "get_invoice_by_public_token/1" do
@@ -64,6 +71,16 @@ defmodule KsefHub.Invoices.PublicTokenTest do
 
       assert {:ok, result} = Invoices.ensure_public_token(with_token)
       assert result.public_token == with_token.public_token
+    end
+
+    test "concurrent callers converge on the same token" do
+      invoice = insert(:invoice)
+
+      # Simulate race: first call wins, second call gets :already_has_token and reloads
+      {:ok, first} = Invoices.generate_public_token(invoice)
+      {:ok, second} = Invoices.ensure_public_token(invoice)
+
+      assert first.public_token == second.public_token
     end
   end
 end
