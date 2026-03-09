@@ -659,6 +659,44 @@ defmodule KsefHub.InvoicesTest do
       assert invoice.type == :income
       assert invoice.source == :manual
     end
+
+    test "stores created_by_id when provided", %{company: company} do
+      user = insert(:user)
+      insert(:membership, user: user, company: company, role: :owner)
+
+      attrs = %{
+        type: :expense,
+        seller_nip: "1234567890",
+        seller_name: "Seller Sp. z o.o.",
+        buyer_nip: "0987654321",
+        buyer_name: "Buyer S.A.",
+        invoice_number: "FV/2026/CB1",
+        issue_date: ~D[2026-02-20],
+        net_amount: Decimal.new("1000.00"),
+        gross_amount: Decimal.new("1230.00"),
+        created_by_id: user.id
+      }
+
+      assert {:ok, %Invoice{} = invoice} = Invoices.create_manual_invoice(company.id, attrs)
+      assert invoice.created_by_id == user.id
+    end
+
+    test "created_by_id defaults to nil when not provided", %{company: company} do
+      attrs = %{
+        type: :expense,
+        seller_nip: "1234567890",
+        seller_name: "Seller Sp. z o.o.",
+        buyer_nip: "0987654321",
+        buyer_name: "Buyer S.A.",
+        invoice_number: "FV/2026/CB2",
+        issue_date: ~D[2026-02-20],
+        net_amount: Decimal.new("1000.00"),
+        gross_amount: Decimal.new("1230.00")
+      }
+
+      assert {:ok, %Invoice{} = invoice} = Invoices.create_manual_invoice(company.id, attrs)
+      assert is_nil(invoice.created_by_id)
+    end
   end
 
   describe "create_pdf_upload_invoice/3" do
@@ -825,6 +863,53 @@ defmodule KsefHub.InvoicesTest do
       assert invoice.seller_address["postal_code"] == "00-001"
       assert invoice.buyer_address["city"] == "Kraków"
       assert invoice.buyer_address["country"] == "PL"
+    end
+
+    test "stores created_by_id when provided in opts", %{company: company} do
+      user = insert(:user)
+      insert(:membership, user: user, company: company, role: :owner)
+
+      Mox.expect(KsefHub.InvoiceExtractor.Mock, :extract, fn _pdf, _opts ->
+        {:ok,
+         %{
+           "seller_nip" => "1234567890",
+           "seller_name" => "Seller",
+           "buyer_nip" => "0987654321",
+           "buyer_name" => "Buyer",
+           "invoice_number" => "FV/PDF/CB",
+           "issue_date" => "2026-02-20",
+           "net_amount" => "1000.00",
+           "gross_amount" => "1230.00"
+         }}
+      end)
+
+      assert {:ok, %Invoice{} = invoice} =
+               Invoices.create_pdf_upload_invoice(company, "pdf-data", %{
+                 type: :expense,
+                 filename: "created_by.pdf",
+                 created_by_id: user.id
+               })
+
+      assert invoice.created_by_id == user.id
+    end
+
+    test "stores created_by_id even when extraction fails", %{company: company} do
+      user = insert(:user)
+      insert(:membership, user: user, company: company, role: :owner)
+
+      Mox.expect(KsefHub.InvoiceExtractor.Mock, :extract, fn _pdf, _opts ->
+        {:error, {:extractor_error, 500}}
+      end)
+
+      assert {:ok, %Invoice{} = invoice} =
+               Invoices.create_pdf_upload_invoice(company, "pdf-data", %{
+                 type: :expense,
+                 filename: "failed_cb.pdf",
+                 created_by_id: user.id
+               })
+
+      assert invoice.created_by_id == user.id
+      assert invoice.extraction_status == :failed
     end
   end
 

@@ -93,7 +93,7 @@ defmodule KsefHubWeb.InvoiceLive.Show do
   # Catch-all for mutation events when the user lacks permission.
 
   @mutation_events ~w(re_extract dismiss_duplicate confirm_duplicate
-    toggle_edit save_edit edit_note save_note)
+    toggle_edit save_edit edit_note save_note copy_public_link)
 
   @approve_events ~w(approve reject)
   @category_events ~w(set_category)
@@ -375,6 +375,27 @@ defmodule KsefHubWeb.InvoiceLive.Show do
      )}
   end
 
+  # --- Events: Share ---
+
+  @impl true
+  def handle_event("copy_public_link", _params, socket) do
+    invoice = socket.assigns.invoice
+
+    case Invoices.ensure_public_token(invoice) do
+      {:ok, updated} ->
+        url = url(~p"/public/invoices/#{updated.id}?token=#{updated.public_token}")
+
+        {:noreply,
+         socket
+         |> assign(:invoice, %{invoice | public_token: updated.public_token})
+         |> push_event("copy_to_clipboard", %{text: url})
+         |> put_flash(:info, "Public link copied to clipboard.")}
+
+      {:error, _} ->
+        {:noreply, put_flash(socket, :error, "Failed to generate public link.")}
+    end
+  end
+
   # --- Events: Note ---
 
   @impl true
@@ -638,20 +659,6 @@ defmodule KsefHubWeb.InvoiceLive.Show do
     |> to_form(as: :invoice)
   end
 
-  @spec generate_preview(Invoice.t()) :: String.t() | nil
-  defp generate_preview(invoice) do
-    if invoice.xml_file do
-      pdf_mod = Application.get_env(:ksef_hub, :pdf_renderer, KsefHub.PdfRenderer)
-
-      metadata = %{ksef_number: invoice.ksef_number}
-
-      case pdf_mod.generate_html(invoice.xml_file.content, metadata) do
-        {:ok, html} -> html
-        {:error, _} -> nil
-      end
-    end
-  end
-
   @spec tag_assigned?(Invoice.t(), String.t()) :: boolean()
   defp tag_assigned?(invoice, tag_id) do
     Enum.any?(invoice.tags, &(&1.id == tag_id))
@@ -720,6 +727,15 @@ defmodule KsefHubWeb.InvoiceLive.Show do
               </li>
             </ul>
           </div>
+          <button
+            :if={@can_mutate}
+            phx-click="copy_public_link"
+            class="btn btn-sm btn-outline"
+            data-testid="copy-public-link"
+            id="copy-link-btn"
+          >
+            <.icon name="hero-link" class="size-4" /> Share
+          </button>
           <button
             :if={@can_mutate && !@editing}
             phx-click="toggle_edit"
@@ -827,120 +843,7 @@ defmodule KsefHubWeb.InvoiceLive.Show do
                 company={@current_company}
               />
             <% else %>
-              <table class="text-sm w-full">
-                <tbody>
-                  <tr class="border-b border-base-300/50">
-                    <td class="py-1.5 pr-3 text-base-content/60">Buyer</td>
-                    <td class="py-1.5 text-right">
-                      <div>{@invoice.buyer_name}</div>
-                      <div class="text-xs text-base-content/50">{@invoice.buyer_nip}</div>
-                      <div
-                        :if={format_address(@invoice.buyer_address) != ""}
-                        class="text-xs text-base-content/50"
-                        data-testid="buyer-address"
-                      >
-                        {format_address(@invoice.buyer_address)}
-                      </div>
-                    </td>
-                  </tr>
-                  <tr class="border-b border-base-300/50">
-                    <td class="py-1.5 pr-3 text-base-content/60">Seller</td>
-                    <td class="py-1.5 text-right">
-                      <div>{@invoice.seller_name}</div>
-                      <div class="text-xs text-base-content/50">{@invoice.seller_nip}</div>
-                      <div
-                        :if={format_address(@invoice.seller_address) != ""}
-                        class="text-xs text-base-content/50"
-                        data-testid="seller-address"
-                      >
-                        {format_address(@invoice.seller_address)}
-                      </div>
-                    </td>
-                  </tr>
-                  <tr class="border-b border-base-300/50">
-                    <td class="py-1.5 pr-3 text-base-content/60 whitespace-nowrap">Number</td>
-                    <td class="py-1.5 text-right">{@invoice.invoice_number}</td>
-                  </tr>
-                  <tr class="border-b border-base-300/50">
-                    <td class="py-1.5 pr-3 text-base-content/60">Date</td>
-                    <td class="py-1.5 text-right">{format_date(@invoice.issue_date)}</td>
-                  </tr>
-                  <tr
-                    :if={@invoice.sales_date}
-                    class="border-b border-base-300/50"
-                    data-testid="sales-date"
-                  >
-                    <td class="py-1.5 pr-3 text-base-content/60 whitespace-nowrap">Sales Date</td>
-                    <td class="py-1.5 text-right">{format_date(@invoice.sales_date)}</td>
-                  </tr>
-                  <tr
-                    :if={@invoice.due_date}
-                    class="border-b border-base-300/50"
-                    data-testid="due-date"
-                  >
-                    <td class="py-1.5 pr-3 text-base-content/60 whitespace-nowrap">Due Date</td>
-                    <td class="py-1.5 text-right">{format_date(@invoice.due_date)}</td>
-                  </tr>
-                  <tr class={[
-                    "border-b border-base-300/50",
-                    is_nil(@invoice.net_amount) && "bg-warning/5"
-                  ]}>
-                    <td class="py-1.5 pr-3 text-base-content/60">Netto</td>
-                    <td class="py-1.5 text-right font-mono">
-                      {format_amount(@invoice.net_amount)} {@invoice.currency}
-                    </td>
-                  </tr>
-                  <tr class={[
-                    "border-b border-base-300/50",
-                    is_nil(@invoice.gross_amount) && "bg-warning/5"
-                  ]}>
-                    <td class="py-1.5 pr-3 text-base-content/60">Brutto</td>
-                    <td class="py-1.5 text-right font-mono font-bold">
-                      {format_amount(@invoice.gross_amount)} {@invoice.currency}
-                    </td>
-                  </tr>
-                  <tr :if={@invoice.ksef_number} class="border-b border-base-300/50">
-                    <td class="py-1.5 pr-3 text-base-content/60">KSeF</td>
-                    <td class="py-1.5 text-right font-mono text-xs break-all">
-                      {@invoice.ksef_number}
-                    </td>
-                  </tr>
-                  <tr :if={@invoice.purchase_order} class="border-b border-base-300/50">
-                    <td class="py-1.5 pr-3 text-base-content/60 whitespace-nowrap">PO</td>
-                    <td class="py-1.5 text-right font-mono text-sm break-all">
-                      {@invoice.purchase_order}
-                    </td>
-                  </tr>
-                  <tr
-                    :if={@invoice.iban}
-                    class="border-b border-base-300/50"
-                    data-testid="iban"
-                  >
-                    <td class="py-1.5 pr-3 text-base-content/60 whitespace-nowrap">IBAN</td>
-                    <td class="py-1.5 text-right font-mono text-xs break-all">
-                      {@invoice.iban}
-                    </td>
-                  </tr>
-                  <tr :if={@invoice.ksef_acquisition_date}>
-                    <td class="py-1.5 pr-3 text-base-content/60 whitespace-nowrap">Acquired</td>
-                    <td class="py-1.5 text-right text-xs">
-                      {format_datetime(@invoice.ksef_acquisition_date)}
-                    </td>
-                  </tr>
-                  <tr class="border-b border-base-300/50">
-                    <td class="py-1.5 pr-3 text-base-content/60 whitespace-nowrap">Created</td>
-                    <td class="py-1.5 text-right text-xs">
-                      {format_datetime(@invoice.inserted_at)}
-                    </td>
-                  </tr>
-                  <tr :if={NaiveDateTime.compare(@invoice.updated_at, @invoice.inserted_at) != :eq}>
-                    <td class="py-1.5 pr-3 text-base-content/60 whitespace-nowrap">Updated</td>
-                    <td class="py-1.5 text-right text-xs">
-                      {format_datetime(@invoice.updated_at)}
-                    </td>
-                  </tr>
-                </tbody>
-              </table>
+              <.invoice_details_table invoice={@invoice} show_added_by={true} />
             <% end %>
           </div>
         </div>

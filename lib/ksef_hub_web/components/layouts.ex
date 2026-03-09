@@ -194,6 +194,36 @@ defmodule KsefHubWeb.Layouts do
   defp initial(""), do: "?"
   defp initial(email), do: email |> String.first() |> String.upcase()
 
+  attr :flash, :map, required: true, doc: "the map of flash messages"
+
+  @doc "Renders a minimal public layout with just the logo — no auth UI, no company selector."
+  @spec public(map()) :: Phoenix.LiveView.Rendered.t()
+  def public(assigns) do
+    ~H"""
+    <div class="min-h-screen flex flex-col">
+      <div class="navbar bg-base-100 border-b border-base-300 px-4">
+        <div class="navbar-start">
+          <a href={~p"/"} class="btn btn-ghost gap-2 h-auto py-1">
+            <.icon name="hero-document-text" class="size-5 text-primary" />
+            <span class="flex flex-col items-start leading-tight">
+              <span class="text-lg font-bold">Invoi</span>
+              <span class="text-[10px] text-base-content/50 font-normal">by Appunite</span>
+            </span>
+          </a>
+        </div>
+      </div>
+
+      <main class="flex-1 p-4 sm:p-6 lg:p-8">
+        <div class="mx-auto max-w-7xl">
+          {@inner_content}
+        </div>
+      </main>
+    </div>
+
+    <.flash_group flash={@flash} />
+    """
+  end
+
   @doc """
   Shows the flash group with standard titles and content.
 

@@ -78,6 +78,62 @@ defmodule KsefHubWeb.InvoiceLive.ShowTest do
       {:ok, _view, html} = live(conn, ~p"/c/#{company.id}/invoices/#{invoice.id}")
       assert html =~ "preview"
     end
+
+    test "shows 'Added by' row with creator name for pdf_upload invoice", %{
+      conn: conn,
+      company: company,
+      user: user
+    } do
+      stub(KsefHub.PdfRenderer.Mock, :generate_html, fn _xml, _meta -> {:error, :no_xml} end)
+
+      invoice =
+        insert(:pdf_upload_invoice, company: company, created_by: user)
+
+      {:ok, view, _html} = live(conn, ~p"/c/#{company.id}/invoices/#{invoice.id}")
+      assert has_element?(view, "#added-by-row")
+      assert has_element?(view, "#added-by-row", user.name)
+    end
+
+    test "shows 'Added by' row with KSeF label for ksef invoice", %{
+      conn: conn,
+      company: company
+    } do
+      stub(KsefHub.PdfRenderer.Mock, :generate_html, fn _xml, _meta -> {:error, :no_xml} end)
+
+      invoice = insert(:invoice, company: company, source: :ksef)
+
+      {:ok, view, _html} = live(conn, ~p"/c/#{company.id}/invoices/#{invoice.id}")
+      assert has_element?(view, "#added-by-row")
+      assert has_element?(view, "#added-by-row", "KSeF (automatic sync)")
+    end
+  end
+
+  describe "copy_public_link" do
+    setup :stub_pdf
+
+    test "generates token and pushes clipboard event", %{conn: conn, company: company} do
+      invoice = insert(:invoice, company: company)
+
+      {:ok, view, _html} = live(conn, ~p"/c/#{company.id}/invoices/#{invoice.id}")
+      assert has_element?(view, ~s([data-testid="copy-public-link"]))
+
+      html = view |> element(~s([data-testid="copy-public-link"])) |> render_click()
+
+      assert html =~ "Public link copied to clipboard."
+      updated = KsefHub.Repo.get!(KsefHub.Invoices.Invoice, invoice.id)
+      assert updated.public_token != nil
+    end
+
+    test "is idempotent — reuses existing token", %{conn: conn, company: company} do
+      invoice = insert(:invoice, company: company)
+      {:ok, invoice} = Invoices.generate_public_token(invoice)
+
+      {:ok, view, _html} = live(conn, ~p"/c/#{company.id}/invoices/#{invoice.id}")
+      view |> element(~s([data-testid="copy-public-link"])) |> render_click()
+
+      updated = KsefHub.Repo.get!(KsefHub.Invoices.Invoice, invoice.id)
+      assert updated.public_token == invoice.public_token
+    end
   end
 
   describe "approve/reject" do

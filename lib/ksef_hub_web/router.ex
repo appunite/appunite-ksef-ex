@@ -40,6 +40,19 @@ defmodule KsefHubWeb.Router do
     post "/mailgun/inbound", WebhookController, :inbound
   end
 
+  # Public shareable invoice routes (no auth required)
+  scope "/public", KsefHubWeb do
+    pipe_through :browser
+
+    live_session :public_invoice,
+      on_mount: [{KsefHubWeb.LiveAuth, :mount_current_user}],
+      layout: {KsefHubWeb.Layouts, :public} do
+      live "/invoices/:id", InvoiceLive.PublicShow
+    end
+
+    get "/invoices/:id/pdf", PublicInvoicePdfController, :show
+  end
+
   # Public browser routes
   scope "/", KsefHubWeb do
     pipe_through :browser

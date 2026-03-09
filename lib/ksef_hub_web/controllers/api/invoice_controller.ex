@@ -156,7 +156,12 @@ defmodule KsefHubWeb.Api.InvoiceController do
   def create(conn, params) do
     company_id = conn.assigns.current_company.id
 
-    case Invoices.create_manual_invoice(company_id, atomize_keys(params, @create_allowed_keys)) do
+    attrs =
+      params
+      |> atomize_keys(@create_allowed_keys)
+      |> Map.put(:created_by_id, conn.assigns.api_token.created_by_id)
+
+    case Invoices.create_manual_invoice(company_id, attrs) do
       {:ok, invoice} ->
         conn
         |> put_status(:created)
@@ -206,7 +211,8 @@ defmodule KsefHubWeb.Api.InvoiceController do
 
       case Invoices.create_pdf_upload_invoice(company, pdf_binary, %{
              type: type,
-             filename: filename
+             filename: filename,
+             created_by_id: conn.assigns.api_token.created_by_id
            }) do
         {:ok, invoice} ->
           conn

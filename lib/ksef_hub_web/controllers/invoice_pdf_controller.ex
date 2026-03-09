@@ -7,7 +7,10 @@ defmodule KsefHubWeb.InvoicePdfController do
   require Logger
 
   import KsefHubWeb.ErrorHelpers, only: [sanitize_error: 1]
-  import KsefHubWeb.FilenameHelpers, only: [send_attachment: 4, send_inline: 4]
+
+  import KsefHubWeb.FilenameHelpers,
+    only: [send_attachment: 4, send_inline: 4, send_inline_error: 3]
+
   import KsefHubWeb.AuthHelpers, only: [resolve_role: 2]
 
   alias KsefHub.Invoices
@@ -142,18 +145,5 @@ defmodule KsefHubWeb.InvoicePdfController do
     conn
     |> put_flash(:error, message)
     |> redirect(to: ~p"/c/#{company_id}/invoices/#{invoice.id}")
-  end
-
-  @spec send_inline_error(Plug.Conn.t(), integer(), String.t()) :: Plug.Conn.t()
-  defp send_inline_error(conn, status, message) do
-    escaped = Plug.HTML.html_escape(message)
-
-    conn
-    |> put_resp_content_type("text/html")
-    |> send_resp(status, """
-    <html><body style="display:flex;align-items:center;justify-content:center;height:100%;margin:0;font-family:sans-serif;color:#666;">
-    <p>#{escaped}</p>
-    </body></html>
-    """)
   end
 end
