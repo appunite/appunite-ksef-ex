@@ -3,7 +3,7 @@ defmodule KsefHubWeb.Api.TokenController do
   REST API controller for token management.
 
   All actions are scoped to the company associated with the authenticated API token.
-  Owners, admins, and accountants can create and revoke tokens.
+  All company members can create and revoke their own tokens.
   """
 
   use KsefHubWeb, :controller

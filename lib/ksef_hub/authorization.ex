@@ -9,8 +9,8 @@ defmodule KsefHub.Authorization do
 
   - `:owner` — full access including destructive operations (delete company, transfer ownership)
   - `:admin` — same as owner except cannot delete company or transfer ownership
-  - `:reviewer` — can view and manage expense invoices, trigger syncs
-  - `:accountant` — read-only invoice access plus exports and API token management
+  - `:reviewer` — can view and manage expense invoices, trigger syncs, manage own API tokens
+  - `:accountant` — read-only invoice access plus exports
   """
 
   alias KsefHub.Companies
@@ -49,7 +49,8 @@ defmodule KsefHub.Authorization do
                           :set_invoice_category,
                           :set_invoice_tags,
                           :view_syncs,
-                          :trigger_sync
+                          :trigger_sync,
+                          :manage_tokens
                         ])
 
   @accountant_permissions MapSet.new([

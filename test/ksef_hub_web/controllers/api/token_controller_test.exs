@@ -80,15 +80,17 @@ defmodule KsefHubWeb.Api.TokenControllerTest do
       assert body["data"]["name"] == "Accountant Token"
     end
 
-    test "returns 403 when reviewer tries to create token", %{conn: conn} do
+    test "reviewer can create token", %{conn: conn} do
       {:ok, %{token: token}} = create_user_with_token(:reviewer)
 
       conn =
         conn
         |> api_conn(token)
-        |> post("/api/tokens", %{name: "Should Fail"})
+        |> post("/api/tokens", %{name: "Reviewer Token"})
 
-      assert conn.status == 403
+      assert conn.status == 201
+      body = Jason.decode!(conn.resp_body)
+      assert body["data"]["name"] == "Reviewer Token"
     end
   end
 
@@ -121,20 +123,23 @@ defmodule KsefHubWeb.Api.TokenControllerTest do
   end
 
   describe "role-based enforcement" do
-    test "reviewer cannot access token endpoints", %{conn: conn} do
+    test "reviewer can list tokens", %{conn: conn} do
       {:ok, %{token: token}} = create_user_with_token(:reviewer)
 
       conn = conn |> api_conn(token) |> get("/api/tokens")
 
-      assert conn.status == 403
+      assert conn.status == 200
     end
 
-    test "reviewer cannot revoke tokens via API", %{conn: conn} do
-      {:ok, %{token: token}} = create_user_with_token(:reviewer)
+    test "reviewer can revoke own tokens via API", %{conn: conn} do
+      {:ok, %{user: user, company: company, token: token}} = create_user_with_token(:reviewer)
 
-      conn = conn |> api_conn(token) |> delete("/api/tokens/#{Ecto.UUID.generate()}")
+      {:ok, %{api_token: target}} =
+        Accounts.create_api_token(user.id, company.id, %{name: "To Revoke"})
 
-      assert conn.status == 403
+      conn = conn |> api_conn(token) |> delete("/api/tokens/#{target.id}")
+
+      assert conn.status == 200
     end
   end
 end

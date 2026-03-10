@@ -71,7 +71,8 @@ defmodule KsefHub.AuthorizationTest do
       :set_invoice_category,
       :set_invoice_tags,
       :view_syncs,
-      :trigger_sync
+      :trigger_sync,
+      :manage_tokens
     ]
 
     @reviewer_denied @all_permissions -- @reviewer_allowed

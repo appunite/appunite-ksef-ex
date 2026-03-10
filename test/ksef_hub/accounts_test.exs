@@ -357,13 +357,15 @@ defmodule KsefHub.AccountsTest do
       assert api_token.name == "Company Token"
     end
 
-    test "create_api_token/3 rejects non-authorized role" do
+    test "create_api_token/3 allows reviewer role" do
       user = create_user()
       company = insert(:company)
       insert(:membership, user: user, company: company, role: :reviewer)
 
-      assert {:error, :unauthorized} =
-               Accounts.create_api_token(user.id, company.id, %{name: "Nope"})
+      assert {:ok, %{token: _, api_token: api_token}} =
+               Accounts.create_api_token(user.id, company.id, %{name: "Reviewer Token"})
+
+      assert api_token.name == "Reviewer Token"
     end
 
     test "create_api_token/3 rejects user with no membership" do
@@ -440,12 +442,21 @@ defmodule KsefHub.AccountsTest do
                Accounts.revoke_api_token(user2.id, company.id, api_token.id)
     end
 
-    test "revoke_api_token/3 rejects non-authorized role" do
+    test "revoke_api_token/3 allows reviewer role" do
       user = create_user()
       company = insert(:company)
       insert(:membership, user: user, company: company, role: :reviewer)
 
-      # Insert a token directly (bypassing authorization check) to test revoke guard
+      token = insert(:api_token, created_by: user, company: company)
+
+      assert {:ok, revoked} = Accounts.revoke_api_token(user.id, company.id, token.id)
+      assert revoked.is_active == false
+    end
+
+    test "revoke_api_token/3 rejects user with no membership" do
+      user = create_user()
+      company = insert(:company)
+
       token = insert(:api_token, created_by: user, company: company)
 
       assert {:error, :unauthorized} =

@@ -57,7 +57,7 @@ defmodule KsefHubWeb.RoleBasedNavTest do
       refute has_element?(view, "a[href='/c/#{company.id}/categories']")
       refute has_element?(view, "a[href='/c/#{company.id}/tags']")
       refute has_element?(view, "a[href='/c/#{company.id}/certificates']")
-      refute has_element?(view, "a[href='/c/#{company.id}/tokens']")
+      assert has_element?(view, "a[href='/c/#{company.id}/tokens']")
     end
   end
 end

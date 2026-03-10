@@ -319,7 +319,7 @@ defmodule KsefHub.Accounts do
 
   @doc """
   Creates a new API token scoped to a company.
-  Owners, admins, and accountants can create tokens.
+  All company members can create tokens.
   Returns the plaintext token exactly once.
 
   ## Parameters
@@ -423,7 +423,7 @@ defmodule KsefHub.Accounts do
 
   @doc """
   Revokes an API token by ID, scoped to the given user and company.
-  Owners, admins, and accountants can revoke tokens.
+  All company members can revoke their own tokens.
 
   ## Returns
     - `{:ok, ApiToken.t()}` on success
