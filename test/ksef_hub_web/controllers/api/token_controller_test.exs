@@ -140,6 +140,7 @@ defmodule KsefHubWeb.Api.TokenControllerTest do
       conn = conn |> api_conn(token) |> delete("/api/tokens/#{target.id}")
 
       assert conn.status == 200
+      refute KsefHub.Repo.get!(Accounts.ApiToken, target.id).is_active
     end
 
     test "reviewer cannot revoke another member's token", %{conn: conn} do
