@@ -56,26 +56,39 @@ defmodule KsefHubWeb.TokenLiveTest do
   end
 
   describe "access control" do
-    test "non-authorized role is redirected away", %{company: company} do
-      {:ok, non_authorized} =
+    test "reviewer can access tokens page", %{company: company} do
+      {:ok, reviewer} =
         Accounts.get_or_create_google_user(%{
-          uid: "g-tok-nonowner",
-          email: "nonowner@example.com",
-          name: "Non-Owner"
+          uid: "g-tok-reviewer",
+          email: "reviewer@example.com",
+          name: "Reviewer"
         })
 
-      insert(:membership, user: non_authorized, company: company, role: :reviewer)
+      insert(:membership, user: reviewer, company: company, role: :reviewer)
 
       conn =
         build_conn()
-        |> log_in_user(non_authorized, %{current_company_id: company.id})
+        |> log_in_user(reviewer, %{current_company_id: company.id})
 
-      expected_path = "/c/#{company.id}/invoices"
+      assert {:ok, _view, _html} = live(conn, ~p"/c/#{company.id}/tokens")
+    end
 
-      assert {:error, {:redirect, %{to: ^expected_path, flash: %{"error" => message}}}} =
+    test "non-member is redirected away", %{company: company} do
+      {:ok, non_member} =
+        Accounts.get_or_create_google_user(%{
+          uid: "g-tok-nonmember",
+          email: "nonmember@example.com",
+          name: "Non-Member"
+        })
+
+      conn =
+        build_conn()
+        |> log_in_user(non_member, %{current_company_id: company.id})
+
+      assert {:error, {:redirect, %{to: "/companies", flash: %{"error" => message}}}} =
                live(conn, ~p"/c/#{company.id}/tokens")
 
-      assert message =~ "permission"
+      assert message =~ "access"
     end
   end
 
