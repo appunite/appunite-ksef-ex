@@ -141,5 +141,20 @@ defmodule KsefHubWeb.Api.TokenControllerTest do
 
       assert conn.status == 200
     end
+
+    test "reviewer cannot revoke another member's token", %{conn: conn} do
+      {:ok, %{company: company, token: reviewer_token}} = create_user_with_token(:reviewer)
+
+      other_user = insert(:user, google_uid: "uid-#{System.unique_integer([:positive])}")
+      insert(:membership, user: other_user, company: company, role: :owner)
+
+      {:ok, %{api_token: other_token}} =
+        Accounts.create_api_token(other_user.id, company.id, %{name: "Other Token"})
+
+      conn = conn |> api_conn(reviewer_token) |> delete("/api/tokens/#{other_token.id}")
+
+      assert conn.status == 404
+      assert KsefHub.Repo.get!(Accounts.ApiToken, other_token.id).is_active
+    end
   end
 end
