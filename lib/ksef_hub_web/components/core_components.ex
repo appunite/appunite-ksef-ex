@@ -61,15 +61,15 @@ defmodule KsefHubWeb.CoreComponents do
       {@rest}
     >
       <div class={[
-        "w-80 sm:w-96 max-w-80 sm:max-w-96 text-wrap rounded-lg p-4 flex gap-3 items-start shadow-sm",
-        @kind == :info && "bg-base-100 border border-base-300",
-        @kind == :warning && "bg-warning/5 border border-warning/20",
-        @kind == :error && "bg-error/5 border border-error/20"
+        "w-80 sm:w-96 max-w-80 sm:max-w-96 text-wrap rounded-md p-4 flex gap-3 items-start shadow-sm border",
+        @kind == :info && "bg-background border-border",
+        @kind == :warning && "bg-warning/5 border-warning/20",
+        @kind == :error && "bg-shad-destructive/5 border-shad-destructive/20"
       ]}>
         <.icon
           :if={@kind == :info}
           name="hero-information-circle"
-          class="size-5 shrink-0 text-base-content/50"
+          class="size-5 shrink-0 text-muted-foreground"
         />
         <.icon
           :if={@kind == :warning}
@@ -81,7 +81,7 @@ defmodule KsefHubWeb.CoreComponents do
           name="hero-exclamation-circle"
           class="size-5 shrink-0 text-error/70"
         />
-        <div>
+        <div class="text-sm">
           <p :if={@title} class="font-semibold">{@title}</p>
           <p>{msg}</p>
         </div>
@@ -105,15 +105,27 @@ defmodule KsefHubWeb.CoreComponents do
   """
   attr :rest, :global, include: ~w(href navigate patch method download name value disabled)
   attr :class, :string
-  attr :variant, :string, values: ~w(primary)
+  attr :variant, :string, values: ~w(primary outline ghost destructive)
   slot :inner_block, required: true
 
   def button(%{rest: rest} = assigns) do
-    variants = %{"primary" => "btn-primary", nil => "btn-primary btn-soft"}
+    variants = %{
+      "primary" =>
+        "bg-shad-primary text-shad-primary-foreground hover:bg-shad-primary/90 shadow-xs",
+      "outline" =>
+        "border border-input bg-background hover:bg-shad-accent hover:text-shad-accent-foreground shadow-xs",
+      "ghost" => "hover:bg-shad-accent hover:text-shad-accent-foreground",
+      "destructive" =>
+        "bg-shad-destructive text-shad-destructive-foreground hover:bg-shad-destructive/90 shadow-xs",
+      nil => "bg-shad-primary text-shad-primary-foreground hover:bg-shad-primary/90 shadow-xs"
+    }
 
     assigns =
       assign_new(assigns, :class, fn ->
-        ["btn", Map.fetch!(variants, assigns[:variant])]
+        [
+          "inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-md text-sm font-medium h-9 px-4 py-2 transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50 cursor-pointer",
+          Map.fetch!(variants, assigns[:variant])
+        ]
       end)
 
     if rest[:href] || rest[:navigate] || rest[:patch] do
@@ -200,20 +212,19 @@ defmodule KsefHubWeb.CoreComponents do
       end)
 
     ~H"""
-    <div class="fieldset mb-2">
-      <label>
+    <div class="space-y-1.5 mb-2">
+      <label class="flex items-center gap-2">
         <input type="hidden" name={@name} value="false" disabled={@rest[:disabled]} />
-        <span class="label">
-          <input
-            type="checkbox"
-            id={@id}
-            name={@name}
-            value="true"
-            checked={@checked}
-            class={@class || "checkbox checkbox-sm"}
-            {@rest}
-          />{@label}
-        </span>
+        <input
+          type="checkbox"
+          id={@id}
+          name={@name}
+          value="true"
+          checked={@checked}
+          class={@class || "checkbox checkbox-sm"}
+          {@rest}
+        />
+        <span class="text-sm font-medium">{@label}</span>
       </label>
       <.error :for={msg <- @errors}>{msg}</.error>
     </div>
@@ -222,13 +233,17 @@ defmodule KsefHubWeb.CoreComponents do
 
   def input(%{type: "select"} = assigns) do
     ~H"""
-    <div class="fieldset mb-2">
+    <div class="space-y-1.5 mb-2">
       <label>
-        <span :if={@label} class="label mb-1">{@label}</span>
+        <span :if={@label} class="text-sm font-medium mb-1.5 block">{@label}</span>
         <select
           id={@id}
           name={@name}
-          class={[@class || "w-full select", @errors != [] && (@error_class || "select-error")]}
+          class={[
+            @class ||
+              "w-full h-9 rounded-md border border-input bg-background px-3 text-sm shadow-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring",
+            @errors != [] && (@error_class || "border-error")
+          ]}
           multiple={@multiple}
           {@rest}
         >
@@ -243,15 +258,16 @@ defmodule KsefHubWeb.CoreComponents do
 
   def input(%{type: "textarea"} = assigns) do
     ~H"""
-    <div class="fieldset mb-2">
+    <div class="space-y-1.5 mb-2">
       <label>
-        <span :if={@label} class="label mb-1">{@label}</span>
+        <span :if={@label} class="text-sm font-medium mb-1.5 block">{@label}</span>
         <textarea
           id={@id}
           name={@name}
           class={[
-            @class || "w-full textarea",
-            @errors != [] && (@error_class || "textarea-error")
+            @class ||
+              "w-full min-h-[80px] rounded-md border border-input bg-background px-3 py-2 text-sm shadow-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring",
+            @errors != [] && (@error_class || "border-error")
           ]}
           {@rest}
         >{HtmlForm.normalize_value("textarea", @value)}</textarea>
@@ -264,17 +280,18 @@ defmodule KsefHubWeb.CoreComponents do
   # All other inputs text, datetime-local, url, password, etc. are handled here...
   def input(assigns) do
     ~H"""
-    <div class="fieldset mb-2">
+    <div class="space-y-1.5 mb-2">
       <label>
-        <span :if={@label} class="label mb-1">{@label}</span>
+        <span :if={@label} class="text-sm font-medium mb-1.5 block">{@label}</span>
         <input
           type={@type}
           name={@name}
           id={@id}
           value={HtmlForm.normalize_value(@type, @value)}
           class={[
-            @class || "w-full input",
-            @errors != [] && (@error_class || "input-error")
+            @class ||
+              "w-full h-9 rounded-md border border-input bg-background px-3 text-sm shadow-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring",
+            @errors != [] && (@error_class || "border-error")
           ]}
           {@rest}
         />
@@ -332,7 +349,7 @@ defmodule KsefHubWeb.CoreComponents do
   @spec error(map()) :: Phoenix.LiveView.Rendered.t()
   def error(assigns) do
     ~H"""
-    <p class="mt-1.5 flex gap-2 items-center text-sm text-error/80">
+    <p class="mt-1.5 flex gap-2 items-center text-sm text-shad-destructive">
       <.icon name="hero-exclamation-circle" class="size-5" />
       {render_slot(@inner_block)}
     </p>
@@ -350,13 +367,13 @@ defmodule KsefHubWeb.CoreComponents do
     ~H"""
     <header class={[
       @actions != [] && "flex items-center justify-between gap-6",
-      "pb-4 border-b border-base-300"
+      "pb-4 border-b border-border"
     ]}>
       <div>
-        <h1 class="text-xl font-semibold leading-8">
+        <h1 class="text-lg font-semibold leading-7 tracking-tight">
           {render_slot(@inner_block)}
         </h1>
-        <p :if={@subtitle != []} class="text-sm text-base-content/70">
+        <p :if={@subtitle != []} class="text-sm text-muted-foreground mt-0.5">
           {render_slot(@subtitle)}
         </p>
       </div>
@@ -400,17 +417,17 @@ defmodule KsefHubWeb.CoreComponents do
     ~H"""
     <table class="w-full text-sm">
       <thead>
-        <tr class="border-b border-base-300">
+        <tr class="border-b border-border">
           <th
             :for={col <- @col}
             class={[
-              "text-left py-3 px-2 text-xs font-medium text-base-content/60 uppercase tracking-wide",
+              "text-left py-2 px-4 text-xs font-medium text-muted-foreground uppercase tracking-wide",
               col[:class]
             ]}
           >
             {col[:label]}
           </th>
-          <th :if={@action != []} class="py-3 px-2">
+          <th :if={@action != []} class="py-2 px-4">
             <span class="sr-only">{gettext("Actions")}</span>
           </th>
         </tr>
@@ -419,16 +436,16 @@ defmodule KsefHubWeb.CoreComponents do
         <tr
           :for={row <- @rows}
           id={@row_id && @row_id.(row)}
-          class="border-b border-base-300/50 hover:bg-base-200/50 transition-colors"
+          class="border-b border-border/50 hover:bg-muted/50 transition-colors"
         >
           <td
             :for={col <- @col}
             phx-click={@row_click && @row_click.(row)}
-            class={["py-3 px-2", @row_click && "hover:cursor-pointer", col[:class]]}
+            class={["py-2 px-4", @row_click && "hover:cursor-pointer", col[:class]]}
           >
             {render_slot(col, @row_item.(row))}
           </td>
-          <td :if={@action != []} class="w-0 py-3 px-2 font-semibold">
+          <td :if={@action != []} class="w-0 py-2 px-4 font-semibold">
             <div class="flex gap-4">
               <%= for action <- @action do %>
                 {render_slot(action, @row_item.(row))}
@@ -457,9 +474,9 @@ defmodule KsefHubWeb.CoreComponents do
 
   def list(assigns) do
     ~H"""
-    <dl class="space-y-0 divide-y divide-base-300">
+    <dl class="space-y-0 divide-y divide-border">
       <div :for={item <- @item} class="flex justify-between gap-4 py-2.5">
-        <dt class="text-sm font-medium text-base-content/60">{item.title}</dt>
+        <dt class="text-sm font-medium text-muted-foreground">{item.title}</dt>
         <dd class="text-sm text-right">{render_slot(item)}</dd>
       </div>
     </dl>

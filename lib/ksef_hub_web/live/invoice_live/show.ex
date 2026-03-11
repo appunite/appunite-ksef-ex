@@ -702,30 +702,39 @@ defmodule KsefHubWeb.InvoiceLive.Show do
       <:actions>
         <div class="flex gap-2">
           <div :if={@invoice.xml_file || @invoice.pdf_file} class="dropdown dropdown-end">
-            <div tabindex="0" role="button" class="btn btn-sm btn-outline">
+            <div
+              tabindex="0"
+              role="button"
+              class="inline-flex items-center justify-center gap-2 h-8 px-3 text-sm font-medium rounded-md border border-input bg-background hover:bg-shad-accent hover:text-shad-accent-foreground shadow-xs transition-colors"
+            >
               <.icon name="hero-arrow-down-tray" class="size-4" /> Download
               <.icon name="hero-chevron-down" class="size-3" />
             </div>
-            <ul
+            <div
               tabindex="0"
-              class="dropdown-content z-50 menu p-2 border border-base-300 bg-base-100 rounded-box w-44"
+              class="dropdown-content z-50 p-1 border border-border bg-popover text-popover-foreground rounded-md shadow-md w-44"
             >
-              <li>
-                <a href={~p"/c/#{@current_company.id}/invoices/#{@invoice.id}/pdf"} target="_blank">
-                  PDF
-                </a>
-              </li>
-              <li :if={@invoice.xml_file}>
-                <a href={~p"/c/#{@current_company.id}/invoices/#{@invoice.id}/xml"} target="_blank">
-                  XML
-                </a>
-              </li>
-            </ul>
+              <a
+                href={~p"/c/#{@current_company.id}/invoices/#{@invoice.id}/pdf"}
+                target="_blank"
+                class="flex items-center gap-2 px-2 py-1.5 text-sm rounded-sm text-muted-foreground hover:bg-shad-accent hover:text-shad-accent-foreground transition-colors"
+              >
+                PDF
+              </a>
+              <a
+                :if={@invoice.xml_file}
+                href={~p"/c/#{@current_company.id}/invoices/#{@invoice.id}/xml"}
+                target="_blank"
+                class="flex items-center gap-2 px-2 py-1.5 text-sm rounded-sm text-muted-foreground hover:bg-shad-accent hover:text-shad-accent-foreground transition-colors"
+              >
+                XML
+              </a>
+            </div>
           </div>
           <button
             :if={@can_mutate}
             phx-click="copy_public_link"
-            class="btn btn-sm btn-outline"
+            class="inline-flex items-center justify-center gap-2 h-8 px-3 text-sm font-medium rounded-md border border-input bg-background hover:bg-shad-accent hover:text-shad-accent-foreground shadow-xs transition-colors"
             data-testid="copy-public-link"
             id="copy-link-btn"
           >
@@ -734,7 +743,7 @@ defmodule KsefHubWeb.InvoiceLive.Show do
           <button
             :if={@can_mutate && !@editing}
             phx-click="toggle_edit"
-            class="btn btn-sm btn-outline"
+            class="inline-flex items-center justify-center gap-2 h-8 px-3 text-sm font-medium rounded-md border border-input bg-background hover:bg-shad-accent hover:text-shad-accent-foreground shadow-xs transition-colors"
           >
             <.icon name="hero-pencil-square" class="size-4" /> Edit
           </button>
@@ -744,7 +753,7 @@ defmodule KsefHubWeb.InvoiceLive.Show do
                 @invoice.duplicate_status != :confirmed
             }
             phx-click="approve"
-            class="btn btn-sm btn-success"
+            class="inline-flex items-center justify-center gap-2 h-8 px-3 text-sm font-medium rounded-md bg-emerald-600 text-white hover:bg-emerald-600/90 shadow-xs transition-colors"
           >
             Approve
           </button>
@@ -754,7 +763,7 @@ defmodule KsefHubWeb.InvoiceLive.Show do
                 @invoice.duplicate_status != :confirmed
             }
             phx-click="reject"
-            class="btn btn-sm btn-error"
+            class="inline-flex items-center justify-center gap-2 h-8 px-3 text-sm font-medium rounded-md bg-shad-destructive text-shad-destructive-foreground hover:bg-shad-destructive/90 shadow-xs transition-colors"
           >
             Reject
           </button>
@@ -775,7 +784,7 @@ defmodule KsefHubWeb.InvoiceLive.Show do
       <button
         :if={(@can_mutate && @invoice.source in [:pdf_upload, :email]) and not @extracting}
         phx-click="re_extract"
-        class="btn btn-sm btn-warning"
+        class="inline-flex items-center justify-center gap-2 h-8 px-3 text-sm font-medium rounded-md bg-amber-500 text-white hover:bg-amber-500/90 shadow-xs transition-colors"
       >
         <.icon name="hero-arrow-path" class="size-4" /> Re-extract
       </button>
@@ -793,16 +802,22 @@ defmodule KsefHubWeb.InvoiceLive.Show do
         This invoice may be a duplicate.
         <.link
           navigate={~p"/c/#{@current_company.id}/invoices/#{@invoice.duplicate_of_id}"}
-          class="link link-primary"
+          class="text-shad-primary underline-offset-4 hover:underline"
         >
           View original
         </.link>
       </span>
       <div :if={@can_mutate} class="flex-none flex gap-2">
-        <button phx-click="dismiss_duplicate" class="btn btn-sm btn-ghost">
+        <button
+          phx-click="dismiss_duplicate"
+          class="inline-flex items-center justify-center gap-2 h-8 px-3 text-sm font-medium rounded-md hover:bg-shad-accent hover:text-shad-accent-foreground transition-colors"
+        >
           Not a duplicate
         </button>
-        <button phx-click="confirm_duplicate" class="btn btn-sm btn-warning">
+        <button
+          phx-click="confirm_duplicate"
+          class="inline-flex items-center justify-center gap-2 h-8 px-3 text-sm font-medium rounded-md bg-amber-500 text-white hover:bg-amber-500/90 shadow-xs transition-colors"
+        >
           Confirm duplicate
         </button>
       </div>
@@ -817,7 +832,7 @@ defmodule KsefHubWeb.InvoiceLive.Show do
       <span>
         This invoice is a confirmed duplicate of <.link
           navigate={~p"/c/#{@current_company.id}/invoices/#{@invoice.duplicate_of_id}"}
-          class="link link-primary"
+          class="text-shad-primary underline-offset-4 hover:underline"
         >
           the original
         </.link>.
@@ -827,7 +842,7 @@ defmodule KsefHubWeb.InvoiceLive.Show do
     <div class="grid grid-cols-1 lg:grid-cols-[minmax(0,1fr)_minmax(0,2fr)] gap-6 mt-6">
       <!-- Invoice Metadata -->
       <div class="space-y-4">
-        <div class="card bg-base-100 border border-base-300">
+        <div class="rounded-xl border border-border bg-card text-card-foreground">
           <div class="p-4">
             <h2 class="text-base font-semibold mb-2">Details</h2>
 
@@ -843,7 +858,7 @@ defmodule KsefHubWeb.InvoiceLive.Show do
           </div>
         </div>
         <!-- Category & Tags Card -->
-        <div class="card bg-base-100 border border-base-300">
+        <div class="rounded-xl border border-border bg-card text-card-foreground">
           <div class="p-4">
             <h2 class="text-base font-semibold mb-3">Classification</h2>
             <!-- Category Select -->
@@ -853,10 +868,10 @@ defmodule KsefHubWeb.InvoiceLive.Show do
               data-testid="category-form"
               class="mb-4"
             >
-              <label class="label"><span class="label-text text-xs">Category</span></label>
+              <label class="label"><span class="text-sm font-medium text-xs">Category</span></label>
               <select
                 name={@category_form[:category_id].name}
-                class="select select-sm select-bordered w-full"
+                class="h-8 rounded-md border border-input bg-background px-2 text-sm shadow-sm w-full"
                 data-testid="category-select"
                 disabled={not @can_set_category}
               >
@@ -872,11 +887,11 @@ defmodule KsefHubWeb.InvoiceLive.Show do
             </.form>
             <!-- Tags -->
             <div>
-              <label class="label"><span class="label-text text-xs">Tags</span></label>
+              <label class="label"><span class="text-sm font-medium text-xs">Tags</span></label>
               <div class="space-y-1">
                 <label
                   :for={tag <- @all_tags}
-                  class="flex items-center gap-2 cursor-pointer hover:bg-base-200 rounded px-2 py-1"
+                  class="flex items-center gap-2 cursor-pointer hover:bg-muted rounded px-2 py-1"
                 >
                   <input
                     type="checkbox"
@@ -902,23 +917,28 @@ defmodule KsefHubWeb.InvoiceLive.Show do
                   name={@new_tag_form[:name].name}
                   value={@new_tag_form[:name].value}
                   placeholder="New tag..."
-                  class="input input-xs input-bordered flex-1"
+                  class="h-7 w-full rounded-md border border-input bg-background px-3 text-xs shadow-sm flex-1"
                   data-testid="new-tag-input"
                 />
-                <button type="submit" class="btn btn-xs btn-primary">Add</button>
+                <button
+                  type="submit"
+                  class="inline-flex items-center justify-center gap-2 h-7 px-2 text-xs font-medium rounded-md bg-shad-primary text-shad-primary-foreground hover:bg-shad-primary/90 shadow-xs transition-colors"
+                >
+                  Add
+                </button>
               </.form>
             </div>
           </div>
         </div>
         <!-- Note Card -->
-        <div class="card bg-base-100 border border-base-300">
+        <div class="rounded-xl border border-border bg-card text-card-foreground">
           <div class="p-4">
             <div class="flex items-center justify-between mb-2">
               <h2 class="text-base font-semibold">Note</h2>
               <button
                 :if={@can_mutate && !@editing_note}
                 phx-click="edit_note"
-                class="btn btn-xs btn-ghost"
+                class="inline-flex items-center justify-center gap-2 h-7 px-2 text-xs font-medium rounded-md hover:bg-shad-accent hover:text-shad-accent-foreground transition-colors"
                 aria-label="Edit note"
               >
                 <.icon name="hero-pencil-square" class="size-3.5" />
@@ -928,15 +948,24 @@ defmodule KsefHubWeb.InvoiceLive.Show do
               <.form for={@note_form} phx-submit="save_note" class="space-y-2">
                 <textarea
                   name={@note_form[:note].name}
-                  class="textarea textarea-bordered w-full text-sm"
+                  class="w-full rounded-md border border-input bg-background px-3 py-2 text-sm shadow-sm"
                   rows="8"
                   placeholder="Add a note..."
                   id="note-textarea"
                   autofocus
                 >{@note_form[:note].value}</textarea>
                 <div class="flex gap-2">
-                  <button type="submit" class="btn btn-xs btn-primary">Save</button>
-                  <button type="button" phx-click="cancel_note" class="btn btn-xs btn-ghost">
+                  <button
+                    type="submit"
+                    class="inline-flex items-center justify-center gap-2 h-7 px-2 text-xs font-medium rounded-md bg-shad-primary text-shad-primary-foreground hover:bg-shad-primary/90 shadow-xs transition-colors"
+                  >
+                    Save
+                  </button>
+                  <button
+                    type="button"
+                    phx-click="cancel_note"
+                    class="inline-flex items-center justify-center gap-2 h-7 px-2 text-xs font-medium rounded-md hover:bg-shad-accent hover:text-shad-accent-foreground transition-colors"
+                  >
                     Cancel
                   </button>
                 </div>
@@ -945,8 +974,8 @@ defmodule KsefHubWeb.InvoiceLive.Show do
               <div
                 class={[
                   "text-sm rounded p-1 -m-1",
-                  @can_mutate && "cursor-pointer hover:bg-base-200",
-                  !@invoice.note && "text-base-content/40 italic"
+                  @can_mutate && "cursor-pointer hover:bg-muted",
+                  !@invoice.note && "text-muted-foreground italic"
                 ]}
                 phx-click={if(@can_mutate, do: "edit_note")}
               >
@@ -958,12 +987,12 @@ defmodule KsefHubWeb.InvoiceLive.Show do
         </div>
       </div>
       <!-- Preview -->
-      <div class="card bg-base-100 border border-base-300 h-full">
+      <div class="rounded-xl border border-border bg-card text-card-foreground h-full">
         <div class="p-4 flex flex-col h-full">
           <h2 class="text-base font-semibold mb-2">Preview</h2>
           <div
             :if={@html_preview}
-            class="border border-base-300 rounded-lg overflow-hidden flex-1 min-h-[600px]"
+            class="border border-border rounded-lg overflow-hidden flex-1 min-h-[600px]"
           >
             <iframe
               srcdoc={@html_preview}
@@ -975,7 +1004,7 @@ defmodule KsefHubWeb.InvoiceLive.Show do
           </div>
           <div
             :if={!@html_preview && @invoice.pdf_file}
-            class="border border-base-300 rounded-lg overflow-hidden flex-1 min-h-[600px]"
+            class="border border-border rounded-lg overflow-hidden flex-1 min-h-[600px]"
           >
             <iframe
               src={~p"/c/#{@current_company.id}/invoices/#{@invoice.id}/pdf?inline=1"}
@@ -986,7 +1015,7 @@ defmodule KsefHubWeb.InvoiceLive.Show do
           </div>
           <p
             :if={!@html_preview && !@invoice.pdf_file}
-            class="text-base-content/60 text-sm"
+            class="text-muted-foreground text-sm"
           >
             No preview available. XML content may be missing.
           </p>
@@ -1017,11 +1046,11 @@ defmodule KsefHubWeb.InvoiceLive.Show do
   @spec comments_card(map()) :: Phoenix.LiveView.Rendered.t()
   defp comments_card(assigns) do
     ~H"""
-    <div class="card bg-base-100 border border-base-300">
+    <div class="rounded-xl border border-border bg-card text-card-foreground">
       <div class="p-4">
         <h2 class="text-base font-semibold mb-3">Comments</h2>
 
-        <div :if={@comments == []} class="text-sm text-base-content/40 italic mb-3">
+        <div :if={@comments == []} class="text-sm text-muted-foreground italic mb-3">
           No comments yet
         </div>
 
@@ -1042,7 +1071,7 @@ defmodule KsefHubWeb.InvoiceLive.Show do
               <div class="flex-1 min-w-0">
                 <div class="flex items-baseline gap-2">
                   <span class="text-sm font-medium">{comment.user.name || comment.user.email}</span>
-                  <span class="text-xs text-base-content/40">
+                  <span class="text-xs text-muted-foreground">
                     {relative_time(comment.inserted_at)}
                   </span>
                   <div
@@ -1052,7 +1081,7 @@ defmodule KsefHubWeb.InvoiceLive.Show do
                     <button
                       phx-click="edit_comment"
                       phx-value-id={comment.id}
-                      class="btn btn-xs btn-ghost"
+                      class="inline-flex items-center justify-center gap-2 h-7 px-2 text-xs font-medium rounded-md hover:bg-shad-accent hover:text-shad-accent-foreground transition-colors"
                       aria-label="Edit comment"
                     >
                       <.icon name="hero-pencil-square" class="size-3" />
@@ -1061,7 +1090,7 @@ defmodule KsefHubWeb.InvoiceLive.Show do
                       phx-click="delete_comment"
                       phx-value-id={comment.id}
                       data-confirm="Delete this comment?"
-                      class="btn btn-xs btn-ghost text-error"
+                      class="inline-flex items-center justify-center gap-2 h-7 px-2 text-xs font-medium rounded-md hover:bg-shad-accent hover:text-shad-accent-foreground transition-colors text-shad-destructive"
                       aria-label="Delete comment"
                     >
                       <.icon name="hero-trash" class="size-3" />
@@ -1073,15 +1102,20 @@ defmodule KsefHubWeb.InvoiceLive.Show do
                   <.form for={@edit_comment_form} phx-submit="save_comment_edit" class="mt-1">
                     <textarea
                       name={@edit_comment_form[:body].name}
-                      class="textarea textarea-bordered textarea-sm w-full"
+                      class="w-full rounded-md border border-input bg-background px-3 py-2 text-sm shadow-sm"
                       rows="2"
                     >{@edit_comment_form[:body].value}</textarea>
                     <div class="flex gap-2 mt-1">
-                      <button type="submit" class="btn btn-xs btn-primary">Save</button>
+                      <button
+                        type="submit"
+                        class="inline-flex items-center justify-center gap-2 h-7 px-2 text-xs font-medium rounded-md bg-shad-primary text-shad-primary-foreground hover:bg-shad-primary/90 shadow-xs transition-colors"
+                      >
+                        Save
+                      </button>
                       <button
                         type="button"
                         phx-click="cancel_comment_edit"
-                        class="btn btn-xs btn-ghost"
+                        class="inline-flex items-center justify-center gap-2 h-7 px-2 text-xs font-medium rounded-md hover:bg-shad-accent hover:text-shad-accent-foreground transition-colors"
                       >
                         Cancel
                       </button>
@@ -1106,9 +1140,14 @@ defmodule KsefHubWeb.InvoiceLive.Show do
             name={@comment_form[:body].name}
             value={@comment_form[:body].value}
             placeholder="Add a comment..."
-            class="input input-sm input-bordered flex-1"
+            class="h-8 w-full rounded-md border border-input bg-background px-3 text-sm shadow-sm flex-1"
           />
-          <button type="submit" class="btn btn-sm btn-primary">Post</button>
+          <button
+            type="submit"
+            class="inline-flex items-center justify-center gap-2 h-8 px-3 text-sm font-medium rounded-md bg-shad-primary text-shad-primary-foreground hover:bg-shad-primary/90 shadow-xs transition-colors"
+          >
+            Post
+          </button>
         </.form>
       </div>
     </div>
@@ -1140,94 +1179,94 @@ defmodule KsefHubWeb.InvoiceLive.Show do
         company={@company}
       />
 
-      <div class="divider text-xs my-1">Invoice</div>
+      <div class="border-t border-border my-4 text-xs my-1">Invoice</div>
 
       <div class="grid grid-cols-3 gap-3">
-        <div class="form-control">
+        <div class="space-y-1">
           <label for="edit-invoice-number" class="label">
-            <span class="label-text text-xs">Invoice Number</span>
+            <span class="text-sm font-medium text-xs">Invoice Number</span>
           </label>
           <input
             type="text"
             id="edit-invoice-number"
             name={@edit_form[:invoice_number].name}
             value={@edit_form[:invoice_number].value}
-            class="input input-sm input-bordered w-full"
+            class="h-8 w-full rounded-md border border-input bg-background px-3 text-sm shadow-sm"
           />
           <.field_error errors={@edit_form[:invoice_number].errors} />
         </div>
 
-        <div class="form-control">
+        <div class="space-y-1">
           <label for="edit-issue-date" class="label">
-            <span class="label-text text-xs">Issue Date</span>
+            <span class="text-sm font-medium text-xs">Issue Date</span>
           </label>
           <input
             type="date"
             id="edit-issue-date"
             name={@edit_form[:issue_date].name}
             value={@edit_form[:issue_date].value}
-            class="input input-sm input-bordered w-full"
+            class="h-8 w-full rounded-md border border-input bg-background px-3 text-sm shadow-sm"
           />
           <.field_error errors={@edit_form[:issue_date].errors} />
         </div>
 
-        <div class="form-control">
+        <div class="space-y-1">
           <label for="edit-sales-date" class="label">
-            <span class="label-text text-xs">Sales Date</span>
+            <span class="text-sm font-medium text-xs">Sales Date</span>
           </label>
           <input
             type="date"
             id="edit-sales-date"
             name={@edit_form[:sales_date].name}
             value={@edit_form[:sales_date].value}
-            class="input input-sm input-bordered w-full"
+            class="h-8 w-full rounded-md border border-input bg-background px-3 text-sm shadow-sm"
           />
           <.field_error errors={@edit_form[:sales_date].errors} />
         </div>
       </div>
 
-      <div class="form-control">
+      <div class="space-y-1">
         <label for="edit-due-date" class="label">
-          <span class="label-text text-xs">Due Date</span>
+          <span class="text-sm font-medium text-xs">Due Date</span>
         </label>
         <input
           type="date"
           id="edit-due-date"
           name={@edit_form[:due_date].name}
           value={@edit_form[:due_date].value}
-          class="input input-sm input-bordered w-full"
+          class="h-8 w-full rounded-md border border-input bg-background px-3 text-sm shadow-sm"
         />
         <.field_error errors={@edit_form[:due_date].errors} />
       </div>
 
       <.amount_fields edit_form={@edit_form} />
 
-      <div class="form-control mt-3">
+      <div class="space-y-1 mt-3">
         <label for="edit-purchase-order" class="label">
-          <span class="label-text text-xs">Purchase Order</span>
+          <span class="text-sm font-medium text-xs">Purchase Order</span>
         </label>
         <input
           type="text"
           id="edit-purchase-order"
           name={@edit_form[:purchase_order].name}
           value={@edit_form[:purchase_order].value}
-          class="input input-sm input-bordered w-full"
+          class="h-8 w-full rounded-md border border-input bg-background px-3 text-sm shadow-sm"
           maxlength="256"
           placeholder="e.g. PO-2025-001"
         />
         <.field_error errors={@edit_form[:purchase_order].errors} />
       </div>
 
-      <div class="form-control mt-3">
+      <div class="space-y-1 mt-3">
         <label for="edit-iban" class="label">
-          <span class="label-text text-xs">IBAN</span>
+          <span class="text-sm font-medium text-xs">IBAN</span>
         </label>
         <input
           type="text"
           id="edit-iban"
           name={@edit_form[:iban].name}
           value={@edit_form[:iban].value}
-          class="input input-sm input-bordered w-full font-mono"
+          class="h-8 w-full rounded-md border border-input bg-background px-3 text-sm shadow-sm font-mono"
           maxlength="34"
           placeholder="e.g. PL61109010140000071219812874"
         />
@@ -1238,8 +1277,17 @@ defmodule KsefHubWeb.InvoiceLive.Show do
       <.address_fields edit_form={@edit_form} field={:buyer_address} label="Buyer Address" />
 
       <div class="flex gap-2 pt-2">
-        <button type="submit" class="btn btn-sm btn-primary">Save</button>
-        <button type="button" phx-click="cancel_edit" class="btn btn-sm btn-ghost">
+        <button
+          type="submit"
+          class="inline-flex items-center justify-center gap-2 h-8 px-3 text-sm font-medium rounded-md bg-shad-primary text-shad-primary-foreground hover:bg-shad-primary/90 shadow-xs transition-colors"
+        >
+          Save
+        </button>
+        <button
+          type="button"
+          phx-click="cancel_edit"
+          class="inline-flex items-center justify-center gap-2 h-8 px-3 text-sm font-medium rounded-md hover:bg-shad-accent hover:text-shad-accent-foreground transition-colors"
+        >
           Cancel
         </button>
       </div>
@@ -1264,59 +1312,59 @@ defmodule KsefHubWeb.InvoiceLive.Show do
       )
 
     ~H"""
-    <div class="divider text-xs my-1">{@label}</div>
+    <div class="border-t border-border my-4 text-xs my-1">{@label}</div>
 
-    <div class="form-control">
+    <div class="space-y-1">
       <label for={"edit-#{@field_id}-street"} class="label">
-        <span class="label-text text-xs">Street</span>
+        <span class="text-sm font-medium text-xs">Street</span>
       </label>
       <input
         type="text"
         id={"edit-#{@field_id}-street"}
         name={"#{@prefix}[street]"}
         value={@addr["street"]}
-        class="input input-sm input-bordered w-full"
+        class="h-8 w-full rounded-md border border-input bg-background px-3 text-sm shadow-sm"
       />
     </div>
 
     <div class="grid grid-cols-2 gap-3">
-      <div class="form-control">
+      <div class="space-y-1">
         <label for={"edit-#{@field_id}-city"} class="label">
-          <span class="label-text text-xs">City</span>
+          <span class="text-sm font-medium text-xs">City</span>
         </label>
         <input
           type="text"
           id={"edit-#{@field_id}-city"}
           name={"#{@prefix}[city]"}
           value={@addr["city"]}
-          class="input input-sm input-bordered w-full"
+          class="h-8 w-full rounded-md border border-input bg-background px-3 text-sm shadow-sm"
         />
       </div>
 
-      <div class="form-control">
+      <div class="space-y-1">
         <label for={"edit-#{@field_id}-postal-code"} class="label">
-          <span class="label-text text-xs">Postal Code</span>
+          <span class="text-sm font-medium text-xs">Postal Code</span>
         </label>
         <input
           type="text"
           id={"edit-#{@field_id}-postal-code"}
           name={"#{@prefix}[postal_code]"}
           value={@addr["postal_code"]}
-          class="input input-sm input-bordered w-full"
+          class="h-8 w-full rounded-md border border-input bg-background px-3 text-sm shadow-sm"
         />
       </div>
     </div>
 
-    <div class="form-control">
+    <div class="space-y-1">
       <label for={"edit-#{@field_id}-country"} class="label">
-        <span class="label-text text-xs">Country</span>
+        <span class="text-sm font-medium text-xs">Country</span>
       </label>
       <input
         type="text"
         id={"edit-#{@field_id}-country"}
         name={"#{@prefix}[country]"}
         value={@addr["country"]}
-        class="input input-sm input-bordered w-full"
+        class="h-8 w-full rounded-md border border-input bg-background px-3 text-sm shadow-sm"
         maxlength="10"
       />
     </div>
@@ -1334,19 +1382,19 @@ defmodule KsefHubWeb.InvoiceLive.Show do
   @spec seller_fields(map()) :: Phoenix.LiveView.Rendered.t()
   defp seller_fields(assigns) do
     ~H"""
-    <div class="divider text-xs my-1">Seller</div>
+    <div class="border-t border-border my-4 text-xs my-1">Seller</div>
 
     <div class="grid grid-cols-2 gap-3">
-      <div class="form-control">
+      <div class="space-y-1">
         <label for="edit-seller-name" class="label">
-          <span class="label-text text-xs">Name</span>
+          <span class="text-sm font-medium text-xs">Name</span>
         </label>
         <input
           :if={@readonly}
           type="text"
           id="edit-seller-name"
           value={@company.name}
-          class="input input-sm input-bordered w-full bg-base-200 text-base-content/60"
+          class="h-8 w-full rounded-md border border-input bg-muted px-3 text-sm shadow-sm text-muted-foreground"
           disabled
         />
         <input
@@ -1355,21 +1403,21 @@ defmodule KsefHubWeb.InvoiceLive.Show do
           id="edit-seller-name"
           name={@edit_form[:seller_name].name}
           value={@edit_form[:seller_name].value}
-          class="input input-sm input-bordered w-full"
+          class="h-8 w-full rounded-md border border-input bg-background px-3 text-sm shadow-sm"
         />
         <.field_error :if={!@readonly} errors={@edit_form[:seller_name].errors} />
       </div>
 
-      <div class="form-control">
+      <div class="space-y-1">
         <label for="edit-seller-nip" class="label">
-          <span class="label-text text-xs">NIP</span>
+          <span class="text-sm font-medium text-xs">NIP</span>
         </label>
         <input
           :if={@readonly}
           type="text"
           id="edit-seller-nip"
           value={@company.nip}
-          class="input input-sm input-bordered w-full bg-base-200 text-base-content/60"
+          class="h-8 w-full rounded-md border border-input bg-muted px-3 text-sm shadow-sm text-muted-foreground"
           disabled
         />
         <input
@@ -1378,7 +1426,7 @@ defmodule KsefHubWeb.InvoiceLive.Show do
           id="edit-seller-nip"
           name={@edit_form[:seller_nip].name}
           value={@edit_form[:seller_nip].value}
-          class="input input-sm input-bordered w-full"
+          class="h-8 w-full rounded-md border border-input bg-background px-3 text-sm shadow-sm"
           maxlength="50"
         />
         <.field_error :if={!@readonly} errors={@edit_form[:seller_nip].errors} />
@@ -1394,19 +1442,19 @@ defmodule KsefHubWeb.InvoiceLive.Show do
   @spec buyer_fields(map()) :: Phoenix.LiveView.Rendered.t()
   defp buyer_fields(assigns) do
     ~H"""
-    <div class="divider text-xs my-1">Buyer</div>
+    <div class="border-t border-border my-4 text-xs my-1">Buyer</div>
 
     <div class="grid grid-cols-2 gap-3">
-      <div class="form-control">
+      <div class="space-y-1">
         <label for="edit-buyer-name" class="label">
-          <span class="label-text text-xs">Name</span>
+          <span class="text-sm font-medium text-xs">Name</span>
         </label>
         <input
           :if={@readonly}
           type="text"
           id="edit-buyer-name"
           value={@company.name}
-          class="input input-sm input-bordered w-full bg-base-200 text-base-content/60"
+          class="h-8 w-full rounded-md border border-input bg-muted px-3 text-sm shadow-sm text-muted-foreground"
           disabled
         />
         <input
@@ -1415,21 +1463,21 @@ defmodule KsefHubWeb.InvoiceLive.Show do
           id="edit-buyer-name"
           name={@edit_form[:buyer_name].name}
           value={@edit_form[:buyer_name].value}
-          class="input input-sm input-bordered w-full"
+          class="h-8 w-full rounded-md border border-input bg-background px-3 text-sm shadow-sm"
         />
         <.field_error :if={!@readonly} errors={@edit_form[:buyer_name].errors} />
       </div>
 
-      <div class="form-control">
+      <div class="space-y-1">
         <label for="edit-buyer-nip" class="label">
-          <span class="label-text text-xs">NIP</span>
+          <span class="text-sm font-medium text-xs">NIP</span>
         </label>
         <input
           :if={@readonly}
           type="text"
           id="edit-buyer-nip"
           value={@company.nip}
-          class="input input-sm input-bordered w-full bg-base-200 text-base-content/60"
+          class="h-8 w-full rounded-md border border-input bg-muted px-3 text-sm shadow-sm text-muted-foreground"
           disabled
         />
         <input
@@ -1438,7 +1486,7 @@ defmodule KsefHubWeb.InvoiceLive.Show do
           id="edit-buyer-nip"
           name={@edit_form[:buyer_nip].name}
           value={@edit_form[:buyer_nip].value}
-          class="input input-sm input-bordered w-full"
+          class="h-8 w-full rounded-md border border-input bg-background px-3 text-sm shadow-sm"
           maxlength="50"
         />
         <.field_error :if={!@readonly} errors={@edit_form[:buyer_nip].errors} />
@@ -1452,12 +1500,12 @@ defmodule KsefHubWeb.InvoiceLive.Show do
   @spec amount_fields(map()) :: Phoenix.LiveView.Rendered.t()
   defp amount_fields(assigns) do
     ~H"""
-    <div class="divider text-xs my-1">Amounts</div>
+    <div class="border-t border-border my-4 text-xs my-1">Amounts</div>
 
     <div class="grid grid-cols-3 gap-3">
-      <div class="form-control">
+      <div class="space-y-1">
         <label for="edit-net-amount" class="label">
-          <span class="label-text text-xs">Netto</span>
+          <span class="text-sm font-medium text-xs">Netto</span>
         </label>
         <input
           type="text"
@@ -1465,14 +1513,14 @@ defmodule KsefHubWeb.InvoiceLive.Show do
           id="edit-net-amount"
           name={@edit_form[:net_amount].name}
           value={@edit_form[:net_amount].value}
-          class="input input-sm input-bordered w-full font-mono"
+          class="h-8 w-full rounded-md border border-input bg-background px-3 text-sm shadow-sm font-mono"
         />
         <.field_error errors={@edit_form[:net_amount].errors} />
       </div>
 
-      <div class="form-control">
+      <div class="space-y-1">
         <label for="edit-gross-amount" class="label">
-          <span class="label-text text-xs">Brutto</span>
+          <span class="text-sm font-medium text-xs">Brutto</span>
         </label>
         <input
           type="text"
@@ -1480,19 +1528,19 @@ defmodule KsefHubWeb.InvoiceLive.Show do
           id="edit-gross-amount"
           name={@edit_form[:gross_amount].name}
           value={@edit_form[:gross_amount].value}
-          class="input input-sm input-bordered w-full font-mono"
+          class="h-8 w-full rounded-md border border-input bg-background px-3 text-sm shadow-sm font-mono"
         />
         <.field_error errors={@edit_form[:gross_amount].errors} />
       </div>
 
-      <div class="form-control">
+      <div class="space-y-1">
         <label for="edit-currency" class="label">
-          <span class="label-text text-xs">Currency</span>
+          <span class="text-sm font-medium text-xs">Currency</span>
         </label>
         <select
           id="edit-currency"
           name={@edit_form[:currency].name}
-          class="select select-sm select-bordered w-full"
+          class="h-8 rounded-md border border-input bg-background px-2 text-sm shadow-sm w-full"
         >
           <option
             :for={code <- currencies()}
@@ -1518,7 +1566,7 @@ defmodule KsefHubWeb.InvoiceLive.Show do
   @spec field_error(map()) :: Phoenix.LiveView.Rendered.t()
   defp field_error(assigns) do
     ~H"""
-    <p :for={{msg, _opts} <- @errors} class="text-xs text-error mt-0.5">{msg}</p>
+    <p :for={{msg, _opts} <- @errors} class="text-xs text-shad-destructive mt-0.5">{msg}</p>
     """
   end
 end

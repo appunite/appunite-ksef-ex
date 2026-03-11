@@ -261,15 +261,19 @@ defmodule KsefHubWeb.CompanyLive.Index do
       Companies
       <:subtitle>Manage your companies</:subtitle>
       <:actions>
-        <.link :if={@can_manage_company} navigate={~p"/companies/new"} class="btn btn-primary btn-sm">
+        <.link
+          :if={@can_manage_company}
+          navigate={~p"/companies/new"}
+          class="inline-flex items-center justify-center gap-2 h-8 px-3 text-sm font-medium rounded-md bg-shad-primary text-shad-primary-foreground hover:bg-shad-primary/90 shadow-xs transition-colors cursor-pointer"
+        >
           <.icon name="hero-plus" class="size-4" /> New Company
         </.link>
       </:actions>
     </.header>
 
     <!-- Company Form Modal -->
-    <div :if={@form} class="card bg-base-100 border border-base-300 mt-6">
-      <div class="p-5">
+    <div :if={@form} class="rounded-xl border border-border bg-card text-card-foreground mt-6">
+      <div class="p-6">
         <h2 class="text-base font-semibold">
           {if @live_action == :new, do: "Create New Company", else: "Edit Company"}
         </h2>
@@ -284,18 +288,29 @@ defmodule KsefHubWeb.CompanyLive.Index do
           />
           <.input field={@form[:address]} label="Address" placeholder="ul. Testowa 1, Warszawa" />
           <div class="flex gap-2">
-            <button type="submit" class="btn btn-primary btn-sm">
+            <button
+              type="submit"
+              class="inline-flex items-center justify-center gap-2 h-8 px-3 text-sm font-medium rounded-md bg-shad-primary text-shad-primary-foreground hover:bg-shad-primary/90 shadow-xs transition-colors cursor-pointer"
+            >
               {if @live_action == :new, do: "Create", else: "Save"}
             </button>
-            <.link navigate={~p"/companies"} class="btn btn-ghost btn-sm">Cancel</.link>
+            <.link
+              navigate={~p"/companies"}
+              class="inline-flex items-center justify-center gap-2 h-8 px-3 text-sm font-medium rounded-md hover:bg-shad-accent hover:text-shad-accent-foreground transition-colors cursor-pointer"
+            >
+              Cancel
+            </.link>
           </div>
         </form>
       </div>
     </div>
 
     <!-- Inbound Email Section (edit mode only) -->
-    <div :if={@live_action == :edit && @company} class="card bg-base-100 border border-base-300 mt-6">
-      <div class="p-5 space-y-4">
+    <div
+      :if={@live_action == :edit && @company}
+      class="rounded-xl border border-border bg-card text-card-foreground mt-6"
+    >
+      <div class="p-6 space-y-4">
         <div class="flex items-center justify-between">
           <h2 class="text-base font-semibold">Inbound Email</h2>
           <span
@@ -306,7 +321,7 @@ defmodule KsefHubWeb.CompanyLive.Index do
           </span>
           <span
             :if={!@company.inbound_email_token_hash}
-            class="inline-flex items-center px-2 py-0.5 rounded-md text-xs font-medium border bg-base-200 text-base-content/60 border-base-300"
+            class="inline-flex items-center px-2 py-0.5 rounded-md text-xs font-medium border bg-muted text-muted-foreground border-border"
           >
             Disabled
           </span>
@@ -316,9 +331,9 @@ defmodule KsefHubWeb.CompanyLive.Index do
         <div
           :if={@company.inbound_email_token}
           id="inbound-email-display"
-          class="bg-base-200 px-4 py-3 rounded-lg"
+          class="bg-muted px-4 py-3 rounded-lg"
         >
-          <p class="text-xs text-base-content/60 mb-1">Email address</p>
+          <p class="text-xs text-muted-foreground mb-1">Email address</p>
           <code data-testid="inbound-email-address" class="select-all text-sm font-mono break-all">
             {inbound_email_address(@company)}
           </code>
@@ -336,7 +351,7 @@ defmodule KsefHubWeb.CompanyLive.Index do
             :if={!@company.inbound_email_token_hash}
             type="button"
             phx-click="enable_inbound_email"
-            class="btn btn-primary btn-sm"
+            class="inline-flex items-center justify-center gap-2 h-8 px-3 text-sm font-medium rounded-md bg-shad-primary text-shad-primary-foreground hover:bg-shad-primary/90 shadow-xs transition-colors cursor-pointer"
           >
             Enable Inbound Email
           </button>
@@ -345,7 +360,7 @@ defmodule KsefHubWeb.CompanyLive.Index do
             type="button"
             phx-click="regenerate_inbound_email"
             data-confirm="This will invalidate the current inbound email address. Continue?"
-            class="btn btn-warning btn-sm"
+            class="inline-flex items-center justify-center gap-2 h-8 px-3 text-sm font-medium rounded-md bg-warning text-warning-foreground hover:bg-warning/90 shadow-xs transition-colors cursor-pointer"
           >
             Regenerate Address
           </button>
@@ -354,14 +369,14 @@ defmodule KsefHubWeb.CompanyLive.Index do
             type="button"
             phx-click="disable_inbound_email"
             data-confirm="This will disable inbound email processing for this company. Continue?"
-            class="btn btn-error btn-outline btn-sm"
+            class="inline-flex items-center justify-center gap-2 h-8 px-3 text-sm font-medium rounded-md border border-shad-destructive text-shad-destructive bg-background hover:bg-shad-destructive/10 shadow-xs transition-colors cursor-pointer"
           >
             Disable
           </button>
         </div>
         
     <!-- Inbound email settings form -->
-        <div :if={@inbound_settings_form} class="border-t border-base-300 pt-4">
+        <div :if={@inbound_settings_form} class="border-t border-border pt-4">
           <h3 class="text-sm font-medium mb-3">Settings</h3>
           <.form
             for={@inbound_settings_form}
@@ -375,7 +390,7 @@ defmodule KsefHubWeb.CompanyLive.Index do
               placeholder="appunite.com"
               phx-debounce="blur"
             />
-            <p class="text-xs text-base-content/60 -mt-2">
+            <p class="text-xs text-muted-foreground -mt-2">
               Only accept inbound emails from this domain. Leave empty to allow any sender.
             </p>
             <.input
@@ -384,10 +399,15 @@ defmodule KsefHubWeb.CompanyLive.Index do
               placeholder="invoices@appunite.com"
               phx-debounce="blur"
             />
-            <p class="text-xs text-base-content/60 -mt-2">
+            <p class="text-xs text-muted-foreground -mt-2">
               CC this address on all reply notifications. Leave empty for no CC.
             </p>
-            <button type="submit" class="btn btn-primary btn-sm">Save Settings</button>
+            <button
+              type="submit"
+              class="inline-flex items-center justify-center gap-2 h-8 px-3 text-sm font-medium rounded-md bg-shad-primary text-shad-primary-foreground hover:bg-shad-primary/90 shadow-xs transition-colors cursor-pointer"
+            >
+              Save Settings
+            </button>
           </.form>
         </div>
       </div>
@@ -415,7 +435,7 @@ defmodule KsefHubWeb.CompanyLive.Index do
           </span>
           <span
             :if={!company.has_active_credential}
-            class="inline-flex items-center px-2 py-0.5 rounded-md text-xs font-medium border bg-base-200 text-base-content/60 border-base-300"
+            class="inline-flex items-center px-2 py-0.5 rounded-md text-xs font-medium border bg-muted text-muted-foreground border-border"
           >
             Not configured
           </span>
@@ -429,7 +449,7 @@ defmodule KsefHubWeb.CompanyLive.Index do
           </span>
           <span
             :if={!company.is_active}
-            class="inline-flex items-center px-2 py-0.5 rounded-md text-xs font-medium border bg-base-200 text-base-content/60 border-base-300"
+            class="inline-flex items-center px-2 py-0.5 rounded-md text-xs font-medium border bg-muted text-muted-foreground border-border"
           >
             Inactive
           </span>
@@ -438,7 +458,7 @@ defmodule KsefHubWeb.CompanyLive.Index do
           <.link
             :if={@can_manage_company}
             navigate={~p"/companies/#{company.id}/edit"}
-            class="btn btn-ghost btn-xs"
+            class="inline-flex items-center justify-center gap-1 h-7 px-2 text-xs font-medium rounded-md hover:bg-shad-accent hover:text-shad-accent-foreground transition-colors cursor-pointer"
           >
             Edit
           </.link>
@@ -446,7 +466,7 @@ defmodule KsefHubWeb.CompanyLive.Index do
       </.table>
     </div>
 
-    <p :if={@companies_with_creds == []} class="text-center text-base-content/60 py-8">
+    <p :if={@companies_with_creds == []} class="text-center text-muted-foreground py-8">
       No companies yet. Create one to get started.
     </p>
     """

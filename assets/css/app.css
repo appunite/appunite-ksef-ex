@@ -100,6 +100,141 @@
 /* Use the data attribute for dark mode  */
 @custom-variant dark (&:where([data-theme=dark], [data-theme=dark] *));
 
+/* --- shadcn-style CSS custom properties (coexist with DaisyUI) --- */
+:root {
+  --background: oklch(100% 0 0);
+  --foreground: oklch(14.1% 0.005 285.823);
+  --card: oklch(100% 0 0);
+  --card-foreground: oklch(14.1% 0.005 285.823);
+  --popover: oklch(100% 0 0);
+  --popover-foreground: oklch(14.1% 0.005 285.823);
+  --primary: oklch(21% 0.006 285.885);
+  --primary-foreground: oklch(98.5% 0 0);
+  --secondary: oklch(96.7% 0.001 286.375);
+  --secondary-foreground: oklch(21% 0.006 285.885);
+  --muted: oklch(96.7% 0.001 286.375);
+  --muted-foreground: oklch(55.6% 0.01 286);
+  --accent: oklch(96.7% 0.001 286.375);
+  --accent-foreground: oklch(21% 0.006 285.885);
+  --destructive: oklch(63.7% 0.237 25.331);
+  --destructive-foreground: oklch(98.5% 0 0);
+  --border: oklch(92.2% 0.004 286.32);
+  --input: oklch(92.2% 0.004 286.32);
+  --ring: oklch(21% 0.006 285.885);
+  --radius: 0.5rem;
+}
+
+/* Explicit dark theme via data attribute */
+[data-theme="dark"] {
+  --background: oklch(14.1% 0.005 285.823);
+  --foreground: oklch(98.5% 0 0);
+  --card: oklch(14.1% 0.005 285.823);
+  --card-foreground: oklch(98.5% 0 0);
+  --popover: oklch(14.1% 0.005 285.823);
+  --popover-foreground: oklch(98.5% 0 0);
+  --primary: oklch(98.5% 0 0);
+  --primary-foreground: oklch(21% 0.006 285.885);
+  --secondary: oklch(27.4% 0.006 286.033);
+  --secondary-foreground: oklch(98.5% 0 0);
+  --muted: oklch(27.4% 0.006 286.033);
+  --muted-foreground: oklch(71.2% 0.01 286);
+  --accent: oklch(27.4% 0.006 286.033);
+  --accent-foreground: oklch(98.5% 0 0);
+  --destructive: oklch(63.7% 0.237 25.331);
+  --destructive-foreground: oklch(98.5% 0 0);
+  --border: oklch(27.4% 0.006 286.033);
+  --input: oklch(27.4% 0.006 286.033);
+  --ring: oklch(84.3% 0.003 286);
+  --radius: 0.5rem;
+}
+
+/* System preference: apply dark tokens when OS is dark and no explicit theme is set */
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme]) {
+    --background: oklch(14.1% 0.005 285.823);
+    --foreground: oklch(98.5% 0 0);
+    --card: oklch(14.1% 0.005 285.823);
+    --card-foreground: oklch(98.5% 0 0);
+    --popover: oklch(14.1% 0.005 285.823);
+    --popover-foreground: oklch(98.5% 0 0);
+    --primary: oklch(98.5% 0 0);
+    --primary-foreground: oklch(21% 0.006 285.885);
+    --secondary: oklch(27.4% 0.006 286.033);
+    --secondary-foreground: oklch(98.5% 0 0);
+    --muted: oklch(27.4% 0.006 286.033);
+    --muted-foreground: oklch(71.2% 0.01 286);
+    --accent: oklch(27.4% 0.006 286.033);
+    --accent-foreground: oklch(98.5% 0 0);
+    --destructive: oklch(63.7% 0.237 25.331);
+    --destructive-foreground: oklch(98.5% 0 0);
+    --border: oklch(27.4% 0.006 286.033);
+    --input: oklch(27.4% 0.006 286.033);
+    --ring: oklch(84.3% 0.003 286);
+    --radius: 0.5rem;
+  }
+}
+
+/* --- Tailwind v4 theme extension with shadcn tokens --- */
+@theme {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-shad-primary: var(--primary);
+  --color-shad-primary-foreground: var(--primary-foreground);
+  --color-shad-secondary: var(--secondary);
+  --color-shad-secondary-foreground: var(--secondary-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-shad-accent: var(--accent);
+  --color-shad-accent-foreground: var(--accent-foreground);
+  --color-shad-destructive: var(--destructive);
+  --color-shad-destructive-foreground: var(--destructive-foreground);
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
+  --radius-radius: var(--radius);
+}
+
+/* --- Global base styles --- */
+body {
+  font-family: 'Geist', ui-sans-serif, system-ui, -apple-system, sans-serif;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+code, pre, kbd, .font-mono {
+  font-family: 'Geist Mono', ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+}
+
+/* --- Neutralise DaisyUI shadow/radius so Tailwind utilities win --- */
+select,
+input:not([type="checkbox"]):not([type="radio"]),
+textarea,
+.dropdown-content,
+.dropdown [tabindex] {
+  box-shadow: none !important;
+}
+
+/* Fix DaisyUI select: remove duplicate chevron indicator */
+select:not(.select) {
+  background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 20 20'%3e%3cpath stroke='%236b7280' stroke-linecap='round' stroke-linejoin='round' stroke-width='1.5' d='M6 8l4 4 4-4'/%3e%3c/svg%3e");
+  background-position: right 0.5rem center;
+  background-repeat: no-repeat;
+  background-size: 1.5em 1.5em;
+  padding-right: 2.5rem;
+  -webkit-appearance: none;
+  -moz-appearance: none;
+  appearance: none;
+}
+
+/* Fix DaisyUI checkbox: ensure visible border in unchecked state */
+input[type="checkbox"].checkbox {
+  border: 1px solid var(--border);
+}
+
 /* Make LiveView wrapper divs transparent for layout */
 [data-phx-session], [data-phx-teleported-src] { display: contents }
 

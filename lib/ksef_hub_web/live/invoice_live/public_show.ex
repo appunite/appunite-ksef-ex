@@ -79,20 +79,20 @@ defmodule KsefHubWeb.InvoiceLive.PublicShow do
     <div class="grid grid-cols-1 lg:grid-cols-[minmax(0,1fr)_minmax(0,2fr)] gap-6 mt-6">
       <!-- Invoice Metadata (read-only) -->
       <div class="space-y-4">
-        <div class="card bg-base-100 border border-base-300">
-          <div class="p-4">
+        <div class="rounded-xl border border-border bg-card text-card-foreground">
+          <div class="p-6">
             <h2 class="text-base font-semibold mb-2">Details</h2>
             <.invoice_details_table invoice={@invoice} />
           </div>
         </div>
       </div>
       <!-- Preview -->
-      <div class="card bg-base-100 border border-base-300 h-full">
-        <div class="p-4 flex flex-col h-full">
+      <div class="rounded-xl border border-border bg-card text-card-foreground h-full">
+        <div class="p-6 flex flex-col h-full">
           <h2 class="text-base font-semibold mb-2">Preview</h2>
           <div
             :if={@html_preview}
-            class="border border-base-300 rounded-lg overflow-hidden flex-1 min-h-[600px]"
+            class="border border-border rounded-lg overflow-hidden flex-1 min-h-[600px]"
           >
             <iframe
               srcdoc={@html_preview}
@@ -104,7 +104,7 @@ defmodule KsefHubWeb.InvoiceLive.PublicShow do
           </div>
           <div
             :if={!@html_preview && @invoice.pdf_file}
-            class="border border-base-300 rounded-lg overflow-hidden flex-1 min-h-[600px]"
+            class="border border-border rounded-lg overflow-hidden flex-1 min-h-[600px]"
           >
             <iframe
               src={~p"/public/invoices/#{@invoice.id}/pdf?token=#{@invoice.public_token}&inline=1"}
@@ -116,7 +116,7 @@ defmodule KsefHubWeb.InvoiceLive.PublicShow do
           </div>
           <p
             :if={!@html_preview && !@invoice.pdf_file}
-            class="text-base-content/60 text-sm"
+            class="text-muted-foreground text-sm"
           >
             No preview available.
           </p>

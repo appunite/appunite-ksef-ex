@@ -36,9 +36,9 @@ defmodule KsefHubWeb.UserConfirmationLive do
   def render(assigns) do
     ~H"""
     <div class="min-h-screen flex items-center justify-center">
-      <div class="card bg-base-100 border border-base-300 w-full max-w-md">
-        <div class="card-body text-center">
-          <h2 data-testid="page-title" class="card-title text-2xl justify-center mb-4">
+      <div class="rounded-xl border border-border bg-card text-card-foreground w-full max-w-md">
+        <div class="p-6 text-center">
+          <h2 data-testid="page-title" class="text-base font-semibold text-2xl justify-center mb-4">
             Confirm Account
           </h2>
 
@@ -47,14 +47,19 @@ defmodule KsefHubWeb.UserConfirmationLive do
             <.simple_form for={%{}} id="confirmation_form" phx-submit="confirm_account">
               <input type="hidden" name="token" value={@token} />
               <:actions>
-                <.button class="btn btn-primary w-full">Confirm my account</.button>
+                <.button class="inline-flex items-center justify-center gap-2 w-full h-9 px-4 text-sm font-medium rounded-md bg-shad-primary text-shad-primary-foreground hover:bg-shad-primary/90 shadow-xs transition-colors cursor-pointer">
+                  Confirm my account
+                </.button>
               </:actions>
             </.simple_form>
           </div>
 
           <div :if={@confirmed} data-testid="confirmation-success">
             <p class="text-success mb-4">Your account has been confirmed!</p>
-            <.link navigate={~p"/users/log-in"} class="btn btn-primary w-full">
+            <.link
+              navigate={~p"/users/log-in"}
+              class="inline-flex items-center justify-center gap-2 w-full h-9 px-4 text-sm font-medium rounded-md bg-shad-primary text-shad-primary-foreground hover:bg-shad-primary/90 shadow-xs transition-colors cursor-pointer"
+            >
               Log in
             </.link>
           </div>

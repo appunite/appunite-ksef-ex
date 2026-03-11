@@ -19,7 +19,7 @@ defmodule KsefHubWeb.InvoiceComponents do
       "inline-flex items-center px-2 py-0.5 rounded-md text-xs font-medium border",
       @type == :income && "bg-success/10 text-success border-success/20",
       @type == :expense && "bg-warning/10 text-warning border-warning/20",
-      @type not in [:income, :expense] && "bg-base-200 text-base-content/60 border-base-300"
+      @type not in [:income, :expense] && "bg-muted text-muted-foreground border-border"
     ]}>
       {@type}
     </span>
@@ -42,7 +42,7 @@ defmodule KsefHubWeb.InvoiceComponents do
       @status == :approved && "bg-success/10 text-success border-success/20",
       @status in [:rejected, :duplicate] && "bg-error/10 text-error border-error/20",
       @status not in [:pending, :approved, :rejected, :duplicate] &&
-        "bg-base-200 text-base-content/60 border-base-300"
+        "bg-muted text-muted-foreground border-border"
     ]}>
       {@status}
     </span>
@@ -74,7 +74,7 @@ defmodule KsefHubWeb.InvoiceComponents do
       <span :if={@category.emoji}>{@category.emoji}</span>
       <span>{@category.name}</span>
     </span>
-    <span :if={!@category} class="text-base-content/40">-</span>
+    <span :if={!@category} class="text-muted-foreground">-</span>
     """
   end
 
@@ -87,12 +87,12 @@ defmodule KsefHubWeb.InvoiceComponents do
     <div :if={@tags != []} class="flex flex-wrap gap-1">
       <span
         :for={tag <- @tags}
-        class="inline-flex items-center px-1.5 py-0.5 rounded text-xs bg-base-200 text-base-content/70"
+        class="inline-flex items-center px-1.5 py-0.5 rounded text-xs bg-muted text-muted-foreground"
       >
         {tag.name}
       </span>
     </div>
-    <span :if={@tags == []} class="text-base-content/40">-</span>
+    <span :if={@tags == []} class="text-muted-foreground">-</span>
     """
   end
 
@@ -194,104 +194,104 @@ defmodule KsefHubWeb.InvoiceComponents do
     ~H"""
     <table class="text-sm w-full">
       <tbody>
-        <tr class="border-b border-base-300/50">
-          <td class="py-1.5 pr-3 text-base-content/60">Buyer</td>
+        <tr class="border-b border-border/50">
+          <td class="py-1.5 pr-3 text-muted-foreground">Buyer</td>
           <td class="py-1.5 text-right">
             <div>{@invoice.buyer_name}</div>
-            <div class="text-xs text-base-content/50">{@invoice.buyer_nip}</div>
+            <div class="text-xs text-muted-foreground">{@invoice.buyer_nip}</div>
             <div
               :if={format_address(@invoice.buyer_address) != ""}
-              class="text-xs text-base-content/50"
+              class="text-xs text-muted-foreground"
               data-testid="buyer-address"
             >
               {format_address(@invoice.buyer_address)}
             </div>
           </td>
         </tr>
-        <tr class="border-b border-base-300/50">
-          <td class="py-1.5 pr-3 text-base-content/60">Seller</td>
+        <tr class="border-b border-border/50">
+          <td class="py-1.5 pr-3 text-muted-foreground">Seller</td>
           <td class="py-1.5 text-right">
             <div>{@invoice.seller_name}</div>
-            <div class="text-xs text-base-content/50">{@invoice.seller_nip}</div>
+            <div class="text-xs text-muted-foreground">{@invoice.seller_nip}</div>
             <div
               :if={format_address(@invoice.seller_address) != ""}
-              class="text-xs text-base-content/50"
+              class="text-xs text-muted-foreground"
               data-testid="seller-address"
             >
               {format_address(@invoice.seller_address)}
             </div>
           </td>
         </tr>
-        <tr class="border-b border-base-300/50">
-          <td class="py-1.5 pr-3 text-base-content/60 whitespace-nowrap">Number</td>
+        <tr class="border-b border-border/50">
+          <td class="py-1.5 pr-3 text-muted-foreground whitespace-nowrap">Number</td>
           <td class="py-1.5 text-right">{@invoice.invoice_number}</td>
         </tr>
-        <tr class="border-b border-base-300/50">
-          <td class="py-1.5 pr-3 text-base-content/60">Date</td>
+        <tr class="border-b border-border/50">
+          <td class="py-1.5 pr-3 text-muted-foreground">Date</td>
           <td class="py-1.5 text-right">{format_date(@invoice.issue_date)}</td>
         </tr>
-        <tr :if={@invoice.sales_date} class="border-b border-base-300/50" data-testid="sales-date">
-          <td class="py-1.5 pr-3 text-base-content/60 whitespace-nowrap">Sales Date</td>
+        <tr :if={@invoice.sales_date} class="border-b border-border/50" data-testid="sales-date">
+          <td class="py-1.5 pr-3 text-muted-foreground whitespace-nowrap">Sales Date</td>
           <td class="py-1.5 text-right">{format_date(@invoice.sales_date)}</td>
         </tr>
-        <tr :if={@invoice.due_date} class="border-b border-base-300/50" data-testid="due-date">
-          <td class="py-1.5 pr-3 text-base-content/60 whitespace-nowrap">Due Date</td>
+        <tr :if={@invoice.due_date} class="border-b border-border/50" data-testid="due-date">
+          <td class="py-1.5 pr-3 text-muted-foreground whitespace-nowrap">Due Date</td>
           <td class="py-1.5 text-right">{format_date(@invoice.due_date)}</td>
         </tr>
         <tr class={[
-          "border-b border-base-300/50",
+          "border-b border-border/50",
           is_nil(@invoice.net_amount) && "bg-warning/5"
         ]}>
-          <td class="py-1.5 pr-3 text-base-content/60">Netto</td>
+          <td class="py-1.5 pr-3 text-muted-foreground">Netto</td>
           <td class="py-1.5 text-right font-mono">
             {format_amount(@invoice.net_amount)} {@invoice.currency}
           </td>
         </tr>
         <tr class={[
-          "border-b border-base-300/50",
+          "border-b border-border/50",
           is_nil(@invoice.gross_amount) && "bg-warning/5"
         ]}>
-          <td class="py-1.5 pr-3 text-base-content/60">Brutto</td>
+          <td class="py-1.5 pr-3 text-muted-foreground">Brutto</td>
           <td class="py-1.5 text-right font-mono font-bold">
             {format_amount(@invoice.gross_amount)} {@invoice.currency}
           </td>
         </tr>
-        <tr :if={@invoice.ksef_number} class="border-b border-base-300/50">
-          <td class="py-1.5 pr-3 text-base-content/60">KSeF</td>
+        <tr :if={@invoice.ksef_number} class="border-b border-border/50">
+          <td class="py-1.5 pr-3 text-muted-foreground">KSeF</td>
           <td class="py-1.5 text-right font-mono text-xs break-all">
             {@invoice.ksef_number}
           </td>
         </tr>
-        <tr :if={@invoice.purchase_order} class="border-b border-base-300/50">
-          <td class="py-1.5 pr-3 text-base-content/60 whitespace-nowrap">PO</td>
+        <tr :if={@invoice.purchase_order} class="border-b border-border/50">
+          <td class="py-1.5 pr-3 text-muted-foreground whitespace-nowrap">PO</td>
           <td class="py-1.5 text-right font-mono text-sm break-all">
             {@invoice.purchase_order}
           </td>
         </tr>
-        <tr :if={@invoice.iban} class="border-b border-base-300/50" data-testid="iban">
-          <td class="py-1.5 pr-3 text-base-content/60 whitespace-nowrap">IBAN</td>
+        <tr :if={@invoice.iban} class="border-b border-border/50" data-testid="iban">
+          <td class="py-1.5 pr-3 text-muted-foreground whitespace-nowrap">IBAN</td>
           <td class="py-1.5 text-right font-mono text-xs break-all">
             {@invoice.iban}
           </td>
         </tr>
         <tr :if={@invoice.ksef_acquisition_date}>
-          <td class="py-1.5 pr-3 text-base-content/60 whitespace-nowrap">Acquired</td>
+          <td class="py-1.5 pr-3 text-muted-foreground whitespace-nowrap">Acquired</td>
           <td class="py-1.5 text-right text-xs">
             {format_datetime(@invoice.ksef_acquisition_date)}
           </td>
         </tr>
-        <tr class="border-b border-base-300/50">
-          <td class="py-1.5 pr-3 text-base-content/60 whitespace-nowrap">Created</td>
+        <tr class="border-b border-border/50">
+          <td class="py-1.5 pr-3 text-muted-foreground whitespace-nowrap">Created</td>
           <td class="py-1.5 text-right text-xs">
             {format_datetime(@invoice.inserted_at)}
           </td>
         </tr>
-        <tr :if={@show_added_by} id="added-by-row" class="border-b border-base-300/50">
-          <td class="py-1.5 pr-3 text-base-content/60 whitespace-nowrap">Added by</td>
+        <tr :if={@show_added_by} id="added-by-row" class="border-b border-border/50">
+          <td class="py-1.5 pr-3 text-muted-foreground whitespace-nowrap">Added by</td>
           <td class="py-1.5 text-right text-xs">{added_by_label(@invoice)}</td>
         </tr>
         <tr :if={NaiveDateTime.compare(@invoice.updated_at, @invoice.inserted_at) != :eq}>
-          <td class="py-1.5 pr-3 text-base-content/60 whitespace-nowrap">Updated</td>
+          <td class="py-1.5 pr-3 text-muted-foreground whitespace-nowrap">Updated</td>
           <td class="py-1.5 text-right text-xs">
             {format_datetime(@invoice.updated_at)}
           </td>

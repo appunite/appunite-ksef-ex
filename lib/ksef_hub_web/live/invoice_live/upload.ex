@@ -194,10 +194,10 @@ defmodule KsefHubWeb.InvoiceLive.Upload do
     </.header>
 
     <div class="max-w-xl mt-6">
-      <div :if={@uploading} class="border-2 border-dashed border-base-300 rounded-lg p-12 text-center">
+      <div :if={@uploading} class="border-2 border-dashed border-border rounded-lg p-12 text-center">
         <span class="loading loading-spinner loading-lg text-primary"></span>
         <p class="mt-3 font-medium">Processing your invoice...</p>
-        <p class="text-sm text-base-content/60 mt-1">Extracting data from PDF</p>
+        <p class="text-sm text-muted-foreground mt-1">Extracting data from PDF</p>
       </div>
 
       <.form
@@ -208,33 +208,33 @@ defmodule KsefHubWeb.InvoiceLive.Upload do
         id="upload-form"
         class="space-y-6"
       >
-        <div class="form-control">
-          <label class="label"><span class="label-text">PDF File</span></label>
+        <div class="space-y-1">
+          <label class="label"><span class="text-sm font-medium">PDF File</span></label>
           <div
-            class="border-2 border-dashed border-base-300 rounded-lg p-8 text-center"
+            class="border-2 border-dashed border-border rounded-lg p-8 text-center"
             phx-drop-target={@uploads.invoice_pdf.ref}
           >
             <.live_file_input
               upload={@uploads.invoice_pdf}
-              class="file-input file-input-bordered file-input-sm"
+              class="h-8 w-full rounded-md border border-input bg-background text-sm shadow-sm file:border-0 file:bg-muted file:text-muted-foreground file:text-sm file:font-medium file:mr-3 file:px-3 file:h-full"
             />
             <p :for={entry <- @uploads.invoice_pdf.entries} class="mt-2 text-sm">
               {entry.client_name}
-              <span class="text-base-content/60">({format_bytes(entry.client_size)})</span>
+              <span class="text-muted-foreground">({format_bytes(entry.client_size)})</span>
             </p>
             <p
               :for={err <- upload_errors(@uploads.invoice_pdf)}
-              class="mt-1 text-error text-sm"
+              class="mt-1 text-shad-destructive text-sm"
             >
               {upload_error_to_string(err)}
             </p>
           </div>
-          <p class="text-xs text-base-content/50 mt-1">Max file size: 10 MB</p>
+          <p class="text-xs text-muted-foreground mt-1">Max file size: 10 MB</p>
         </div>
 
         <button
           type="submit"
-          class="btn btn-primary"
+          class="inline-flex items-center justify-center gap-2 h-9 px-4 text-sm font-medium rounded-md bg-shad-primary text-shad-primary-foreground hover:bg-shad-primary/90 shadow-xs transition-colors cursor-pointer"
           disabled={@uploads.invoice_pdf.entries == []}
         >
           Upload & Extract

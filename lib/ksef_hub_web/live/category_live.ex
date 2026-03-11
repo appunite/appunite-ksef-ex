@@ -168,8 +168,8 @@ defmodule KsefHubWeb.CategoryLive do
     </.header>
 
     <!-- Create / Edit Form -->
-    <div class="card bg-base-100 border border-base-300 mt-6">
-      <div class="p-5">
+    <div class="rounded-xl border border-border bg-card text-card-foreground mt-6">
+      <div class="p-6">
         <h2 class="text-base font-semibold">
           {if @editing, do: "Edit Category", else: "New Category"}
         </h2>
@@ -181,23 +181,23 @@ defmodule KsefHubWeb.CategoryLive do
           id="category-form"
         >
           <div>
-            <label class="block text-xs text-base-content/60 mb-1">Emoji</label>
+            <label class="block text-xs text-muted-foreground mb-1">Emoji</label>
             <input
               type="text"
               name={@form[:emoji].name}
               value={@form[:emoji].value}
               placeholder="📦"
-              class="input input-sm input-bordered w-16 text-center"
+              class="h-8 w-16 rounded-md border border-input bg-background px-3 text-sm shadow-sm text-center"
             />
           </div>
           <div class="flex-1 min-w-40">
-            <label class="block text-xs text-base-content/60 mb-1">Name (group:target)</label>
+            <label class="block text-xs text-muted-foreground mb-1">Name (group:target)</label>
             <input
               type="text"
               name={@form[:name].name}
               value={@form[:name].value}
               placeholder="finance:invoices"
-              class="input input-sm input-bordered w-full"
+              class="h-8 w-full rounded-md border border-input bg-background px-3 text-sm shadow-sm"
               required
             />
             <.error :for={msg <- Enum.map(@form[:name].errors, &translate_error/1)}>
@@ -205,33 +205,36 @@ defmodule KsefHubWeb.CategoryLive do
             </.error>
           </div>
           <div class="flex-1 min-w-40">
-            <label class="block text-xs text-base-content/60 mb-1">Description</label>
+            <label class="block text-xs text-muted-foreground mb-1">Description</label>
             <input
               type="text"
               name={@form[:description].name}
               value={@form[:description].value}
               placeholder="Optional description"
-              class="input input-sm input-bordered w-full"
+              class="h-8 w-full rounded-md border border-input bg-background px-3 text-sm shadow-sm"
             />
           </div>
           <div>
-            <label class="block text-xs text-base-content/60 mb-1">Order</label>
+            <label class="block text-xs text-muted-foreground mb-1">Order</label>
             <input
               type="number"
               name={@form[:sort_order].name}
               value={@form[:sort_order].value}
-              class="input input-sm input-bordered w-20"
+              class="h-8 w-20 rounded-md border border-input bg-background px-3 text-sm shadow-sm"
             />
           </div>
           <div class="flex gap-2 items-end mt-4">
-            <button type="submit" class="btn btn-primary btn-sm">
+            <button
+              type="submit"
+              class="inline-flex items-center justify-center gap-2 h-8 px-3 text-sm font-medium rounded-md bg-shad-primary text-shad-primary-foreground hover:bg-shad-primary/90 shadow-xs transition-colors cursor-pointer"
+            >
               {if @editing, do: "Update", else: "Create"}
             </button>
             <button
               :if={@editing}
               type="button"
               phx-click="cancel_edit"
-              class="btn btn-ghost btn-sm"
+              class="inline-flex items-center justify-center gap-2 h-8 px-3 text-sm font-medium rounded-md hover:bg-shad-accent hover:text-shad-accent-foreground transition-colors cursor-pointer"
             >
               Cancel
             </button>
@@ -255,20 +258,24 @@ defmodule KsefHubWeb.CategoryLive do
           <span data-testid={"category-name-#{cat.id}"}>{cat.name}</span>
         </:col>
         <:col :let={cat} label="Description">
-          <span class="text-base-content/60">{cat.description || "-"}</span>
+          <span class="text-muted-foreground">{cat.description || "-"}</span>
         </:col>
         <:col :let={cat} label="Order" class="w-20 text-center">
           {cat.sort_order}
         </:col>
         <:action :let={cat}>
-          <button phx-click="edit" phx-value-id={cat.id} class="btn btn-ghost btn-xs">
+          <button
+            phx-click="edit"
+            phx-value-id={cat.id}
+            class="inline-flex items-center justify-center gap-1 h-7 px-2 text-xs font-medium rounded-md hover:bg-shad-accent hover:text-shad-accent-foreground transition-colors cursor-pointer"
+          >
             Edit
           </button>
           <button
             phx-click="delete"
             phx-value-id={cat.id}
             data-confirm="Delete this category? Invoices with this category will become uncategorized."
-            class="btn btn-ghost btn-xs text-error"
+            class="inline-flex items-center justify-center gap-1 h-7 px-2 text-xs font-medium rounded-md hover:bg-shad-accent hover:text-shad-accent-foreground transition-colors cursor-pointer text-shad-destructive"
           >
             Delete
           </button>

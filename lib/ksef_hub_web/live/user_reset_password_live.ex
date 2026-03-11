@@ -73,9 +73,9 @@ defmodule KsefHubWeb.UserResetPasswordLive do
   def render(assigns) do
     ~H"""
     <div class="min-h-screen flex items-center justify-center">
-      <div class="card bg-base-100 border border-base-300 w-full max-w-md">
-        <div class="card-body">
-          <h2 data-testid="page-title" class="card-title text-2xl justify-center mb-4">
+      <div class="rounded-xl border border-border bg-card text-card-foreground w-full max-w-md">
+        <div class="p-6">
+          <h2 data-testid="page-title" class="text-base font-semibold text-2xl justify-center mb-4">
             Reset Password
           </h2>
 
@@ -92,15 +92,29 @@ defmodule KsefHubWeb.UserResetPasswordLive do
             <.input field={@form[:password]} type="password" label="New password" required />
 
             <:actions>
-              <.button phx-disable-with="Resetting..." class="btn btn-primary w-full">
+              <.button
+                phx-disable-with="Resetting..."
+                class="inline-flex items-center justify-center gap-2 w-full h-9 px-4 text-sm font-medium rounded-md bg-shad-primary text-shad-primary-foreground hover:bg-shad-primary/90 shadow-xs transition-colors cursor-pointer"
+              >
                 Reset password
               </.button>
             </:actions>
           </.simple_form>
 
           <p class="text-center text-sm mt-4">
-            <.link navigate={~p"/users/register"} class="link link-primary">Register</.link>
-            | <.link navigate={~p"/users/log-in"} class="link link-primary">Log in</.link>
+            <.link
+              navigate={~p"/users/register"}
+              class="text-shad-primary underline-offset-4 hover:underline"
+            >
+              Register
+            </.link>
+            |
+            <.link
+              navigate={~p"/users/log-in"}
+              class="text-shad-primary underline-offset-4 hover:underline"
+            >
+              Log in
+            </.link>
           </p>
         </div>
       </div>

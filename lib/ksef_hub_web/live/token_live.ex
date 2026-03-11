@@ -101,7 +101,10 @@ defmodule KsefHubWeb.TokenLive do
       API Tokens
       <:subtitle>Manage bearer tokens for API access</:subtitle>
       <:actions>
-        <button phx-click="toggle_form" class="btn btn-primary btn-sm">
+        <button
+          phx-click="toggle_form"
+          class="inline-flex items-center justify-center gap-2 h-8 px-3 text-sm font-medium rounded-md bg-shad-primary text-shad-primary-foreground hover:bg-shad-primary/90 shadow-xs transition-colors cursor-pointer"
+        >
           <.icon name="hero-plus" class="size-4" /> New Token
         </button>
       </:actions>
@@ -116,16 +119,24 @@ defmodule KsefHubWeb.TokenLive do
       <.icon name="hero-exclamation-triangle" class="size-5 text-warning/70 shrink-0 mt-0.5" />
       <div class="flex-1">
         <p class="font-semibold text-sm">Copy your API token now. It won't be shown again.</p>
-        <code class="block mt-2 p-2 bg-base-100 rounded text-sm font-mono break-all select-all text-base-content">
+        <code class="block mt-2 p-2 bg-card rounded text-sm font-mono break-all select-all text-card-foreground">
           {@show_token}
         </code>
       </div>
-      <button phx-click="dismiss_token" class="btn btn-ghost btn-sm">Dismiss</button>
+      <button
+        phx-click="dismiss_token"
+        class="inline-flex items-center justify-center gap-2 h-8 px-3 text-sm font-medium rounded-md hover:bg-shad-accent hover:text-shad-accent-foreground transition-colors cursor-pointer"
+      >
+        Dismiss
+      </button>
     </div>
 
     <!-- Create Form -->
-    <div :if={@show_create_form} class="card bg-base-100 border border-base-300 mt-6">
-      <div class="p-5">
+    <div
+      :if={@show_create_form}
+      class="rounded-xl border border-border bg-card text-card-foreground mt-6"
+    >
+      <div class="p-6">
         <h2 class="text-base font-semibold">Create New Token</h2>
         <.form
           for={@form}
@@ -142,8 +153,19 @@ defmodule KsefHubWeb.TokenLive do
             placeholder="What is this token used for?"
           />
           <div class="flex gap-2">
-            <button type="submit" class="btn btn-primary btn-sm">Create Token</button>
-            <button type="button" phx-click="toggle_form" class="btn btn-ghost btn-sm">Cancel</button>
+            <button
+              type="submit"
+              class="inline-flex items-center justify-center gap-2 h-8 px-3 text-sm font-medium rounded-md bg-shad-primary text-shad-primary-foreground hover:bg-shad-primary/90 shadow-xs transition-colors cursor-pointer"
+            >
+              Create Token
+            </button>
+            <button
+              type="button"
+              phx-click="toggle_form"
+              class="inline-flex items-center justify-center gap-2 h-8 px-3 text-sm font-medium rounded-md hover:bg-shad-accent hover:text-shad-accent-foreground transition-colors cursor-pointer"
+            >
+              Cancel
+            </button>
           </div>
         </.form>
       </div>
@@ -178,7 +200,7 @@ defmodule KsefHubWeb.TokenLive do
           </span>
           <span
             :if={!token.is_active}
-            class="inline-flex items-center px-2 py-0.5 rounded-md text-xs font-medium border bg-base-200 text-base-content/60 border-base-300"
+            class="inline-flex items-center px-2 py-0.5 rounded-md text-xs font-medium border bg-muted text-muted-foreground border-border"
           >
             Revoked
           </span>
@@ -189,7 +211,7 @@ defmodule KsefHubWeb.TokenLive do
             phx-click="revoke"
             phx-value-id={token.id}
             data-confirm="Are you sure? This will immediately revoke API access for this token."
-            class="btn btn-ghost btn-xs text-error"
+            class="inline-flex items-center justify-center gap-1 h-7 px-2 text-xs font-medium rounded-md hover:bg-shad-accent hover:text-shad-accent-foreground transition-colors cursor-pointer text-shad-destructive"
           >
             Revoke
           </button>
@@ -197,7 +219,7 @@ defmodule KsefHubWeb.TokenLive do
       </.table>
     </div>
 
-    <p :if={@tokens_count == 0} class="text-center text-base-content/60 py-8">
+    <p :if={@tokens_count == 0} class="text-center text-muted-foreground py-8">
       No API tokens yet. Create one to get started.
     </p>
     """

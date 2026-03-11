@@ -169,8 +169,8 @@ defmodule KsefHubWeb.TeamLive do
     </.header>
 
     <!-- Invite Form -->
-    <div class="card bg-base-100 border border-base-300 mt-6">
-      <div class="p-5">
+    <div class="rounded-xl border border-border bg-card text-card-foreground mt-6">
+      <div class="p-6">
         <h2 class="text-base font-semibold mb-3">Invite a new member</h2>
         <.form
           for={@invite_form}
@@ -197,8 +197,11 @@ defmodule KsefHubWeb.TeamLive do
             />
           </div>
           <div class="fieldset mb-2">
-            <span class="label mb-1 invisible">_</span>
-            <button type="submit" class="btn btn-primary">
+            <span class="mb-1 invisible">_</span>
+            <button
+              type="submit"
+              class="inline-flex items-center justify-center gap-2 h-9 px-4 text-sm font-medium rounded-md bg-shad-primary text-shad-primary-foreground hover:bg-shad-primary/90 shadow-xs transition-colors cursor-pointer"
+            >
               <.icon name="hero-paper-airplane" class="size-4" /> Invite
             </button>
           </div>
@@ -207,29 +210,29 @@ defmodule KsefHubWeb.TeamLive do
     </div>
 
     <!-- Team members & pending invitations -->
-    <div class="card bg-base-100 border border-base-300 mt-6">
-      <div class="p-5">
+    <div class="rounded-xl border border-border bg-card text-card-foreground mt-6">
+      <div class="p-6">
         <h2 class="text-base font-semibold mb-3">Members</h2>
         <div class="overflow-x-auto" data-testid="member-list">
           <table class="table table-sm" data-testid="team-table">
             <thead>
-              <tr class="border-b border-base-300">
-                <th class="text-left py-3 px-2 text-xs font-medium text-base-content/60 uppercase tracking-wide">
+              <tr class="border-b border-border">
+                <th class="text-left py-3 px-2 text-xs font-medium text-muted-foreground uppercase tracking-wide">
                   Email
                 </th>
-                <th class="text-left py-3 px-2 text-xs font-medium text-base-content/60 uppercase tracking-wide">
+                <th class="text-left py-3 px-2 text-xs font-medium text-muted-foreground uppercase tracking-wide">
                   Name
                 </th>
-                <th class="text-left py-3 px-2 text-xs font-medium text-base-content/60 uppercase tracking-wide">
+                <th class="text-left py-3 px-2 text-xs font-medium text-muted-foreground uppercase tracking-wide">
                   Role
                 </th>
-                <th class="text-left py-3 px-2 text-xs font-medium text-base-content/60 uppercase tracking-wide">
+                <th class="text-left py-3 px-2 text-xs font-medium text-muted-foreground uppercase tracking-wide">
                   Status
                 </th>
-                <th class="text-left py-3 px-2 text-xs font-medium text-base-content/60 uppercase tracking-wide">
+                <th class="text-left py-3 px-2 text-xs font-medium text-muted-foreground uppercase tracking-wide">
                   Expires
                 </th>
-                <th class="text-left py-3 px-2 text-xs font-medium text-base-content/60 uppercase tracking-wide">
+                <th class="text-left py-3 px-2 text-xs font-medium text-muted-foreground uppercase tracking-wide">
                   Action
                 </th>
               </tr>
@@ -238,7 +241,11 @@ defmodule KsefHubWeb.TeamLive do
               <tr :for={{dom_id, member} <- @streams.members} id={dom_id}>
                 <td>{member.user.email}</td>
                 <td>{member.user.name || "—"}</td>
-                <td><span class="badge badge-sm badge-outline">{member.role}</span></td>
+                <td>
+                  <span class="inline-flex items-center px-2 py-0.5 rounded-md text-xs font-medium border border-border">
+                    {member.role}
+                  </span>
+                </td>
                 <td></td>
                 <td>—</td>
                 <td>
@@ -248,7 +255,7 @@ defmodule KsefHubWeb.TeamLive do
                     phx-value-user-id={member.user.id}
                     data-confirm="Remove this member from the company?"
                     data-testid={"remove-member-#{member.user.id}"}
-                    class="btn btn-xs btn-ghost text-error"
+                    class="inline-flex items-center justify-center gap-1 h-7 px-2 text-xs font-medium rounded-md hover:bg-shad-accent hover:text-shad-accent-foreground transition-colors cursor-pointer text-shad-destructive"
                   >
                     Remove
                   </button>
@@ -263,9 +270,18 @@ defmodule KsefHubWeb.TeamLive do
                 <td>{inv.email}</td>
                 <td>—</td>
                 <td>
-                  <span class="badge badge-sm badge-outline" data-role={inv.role}>{inv.role}</span>
+                  <span
+                    class="inline-flex items-center px-2 py-0.5 rounded-md text-xs font-medium border border-border"
+                    data-role={inv.role}
+                  >
+                    {inv.role}
+                  </span>
                 </td>
-                <td><span class="badge badge-sm badge-warning">pending</span></td>
+                <td>
+                  <span class="inline-flex items-center px-2 py-0.5 rounded-md text-xs font-medium border border-warning/20 bg-warning/10 text-warning">
+                    pending
+                  </span>
+                </td>
                 <td>{Calendar.strftime(inv.expires_at, "%Y-%m-%d")}</td>
                 <td>
                   <button
@@ -273,7 +289,7 @@ defmodule KsefHubWeb.TeamLive do
                     phx-value-id={inv.id}
                     data-confirm="Cancel this invitation?"
                     data-testid={"cancel-invitation-#{inv.id}"}
-                    class="btn btn-xs btn-ghost text-error"
+                    class="inline-flex items-center justify-center gap-1 h-7 px-2 text-xs font-medium rounded-md hover:bg-shad-accent hover:text-shad-accent-foreground transition-colors cursor-pointer text-shad-destructive"
                   >
                     Cancel
                   </button>

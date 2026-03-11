@@ -81,7 +81,10 @@ defmodule KsefHubWeb.SyncLive do
       Syncs
       <:subtitle>KSeF invoice sync history</:subtitle>
       <:actions>
-        <button phx-click="trigger_sync" class="btn btn-primary btn-sm">
+        <button
+          phx-click="trigger_sync"
+          class="inline-flex items-center justify-center gap-2 h-8 px-3 text-sm font-medium rounded-md bg-shad-primary text-shad-primary-foreground hover:bg-shad-primary/90 shadow-xs transition-colors cursor-pointer"
+        >
           <.icon name="hero-arrow-path" class="size-4" /> Sync Now
         </button>
       </:actions>
@@ -112,7 +115,7 @@ defmodule KsefHubWeb.SyncLive do
         <:col :let={{_id, job}} label="Error">
           <span
             :if={job.error}
-            class="text-error/80 text-xs truncate max-w-xs inline-block"
+            class="text-shad-destructive/80 text-xs truncate max-w-xs inline-block"
             title={job.error}
           >
             {truncate(job.error, 80)}
@@ -122,8 +125,8 @@ defmodule KsefHubWeb.SyncLive do
     </div>
 
     <div :if={@jobs_count == 0} class="text-center py-12">
-      <.icon name="hero-arrow-path" class="size-8 text-base-content/20 mx-auto mb-2" />
-      <p class="text-base-content/60">No sync runs yet.</p>
+      <.icon name="hero-arrow-path" class="size-8 text-muted-foreground mx-auto mb-2" />
+      <p class="text-muted-foreground">No sync runs yet.</p>
     </div>
     """
   end
@@ -150,7 +153,7 @@ defmodule KsefHubWeb.SyncLive do
   defp status_classes("executing"), do: "bg-info/10 text-info border-info/20"
   defp status_classes("retryable"), do: "bg-warning/10 text-warning border-warning/20"
   defp status_classes("discarded"), do: "bg-error/10 text-error border-error/20"
-  defp status_classes(_), do: "bg-base-200 text-base-content/60 border-base-300"
+  defp status_classes(_), do: "bg-muted text-muted-foreground border-border"
 
   @spec truncate(String.t(), non_neg_integer()) :: String.t()
   defp truncate(str, max) when byte_size(str) > max do

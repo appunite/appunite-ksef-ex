@@ -323,9 +323,9 @@ defmodule KsefHubWeb.CertificateLive do
     <div
       :if={@user_certificate}
       id="current-certificate"
-      class="card bg-base-100 border border-base-300 mt-6"
+      class="rounded-xl border border-border bg-card text-card-foreground mt-6"
     >
-      <div class="p-5">
+      <div class="p-6">
         <h2 id="cert-heading" class="text-base font-semibold">Your Certificate</h2>
         <.list>
           <:item title="Issued To">
@@ -348,7 +348,7 @@ defmodule KsefHubWeb.CertificateLive do
         </.list>
         <p
           :if={is_nil(@user_certificate.certificate_subject)}
-          class="text-xs text-base-content/50 mt-2"
+          class="text-xs text-muted-foreground mt-2"
         >
           Certificate details incomplete — replace to refresh metadata.
         </p>
@@ -356,7 +356,7 @@ defmodule KsefHubWeb.CertificateLive do
           <button
             type="button"
             phx-click="toggle_upload_form"
-            class="btn btn-sm btn-outline"
+            class="inline-flex items-center justify-center gap-2 h-8 px-3 text-sm font-medium rounded-md border border-input bg-background hover:bg-shad-accent hover:text-shad-accent-foreground shadow-xs transition-colors cursor-pointer"
           >
             <.icon name="hero-arrow-path" class="size-4" />
             {if @show_upload_form, do: "Cancel", else: "Replace Certificate"}
@@ -365,7 +365,7 @@ defmodule KsefHubWeb.CertificateLive do
             type="button"
             phx-click="remove_certificate"
             data-confirm="Are you sure you want to remove this certificate? This will disable KSeF sync."
-            class="btn btn-sm btn-ghost text-error"
+            class="inline-flex items-center justify-center gap-2 h-8 px-3 text-sm font-medium rounded-md hover:bg-shad-accent hover:text-shad-accent-foreground transition-colors cursor-pointer text-shad-destructive"
           >
             <.icon name="hero-trash" class="size-4" /> Remove
           </button>
@@ -377,20 +377,24 @@ defmodule KsefHubWeb.CertificateLive do
     <div
       :if={!@user_certificate}
       id="no-certificate"
-      class="card bg-base-100 border border-base-300 mt-6"
+      class="rounded-xl border border-border bg-card text-card-foreground mt-6"
     >
       <div class="p-8 text-center">
-        <.icon name="hero-shield-exclamation" class="size-12 text-base-content/30 mx-auto" />
+        <.icon name="hero-shield-exclamation" class="size-12 text-muted-foreground mx-auto" />
         <h2 class="text-base font-semibold mt-3">No Certificate Configured</h2>
-        <p class="text-sm text-base-content/60 mt-1">
+        <p class="text-sm text-muted-foreground mt-1">
           Upload a certificate to enable KSeF synchronization.
         </p>
       </div>
     </div>
 
     <!-- Upload Form -->
-    <div :if={@show_upload_form} id="upload-form" class="card bg-base-100 border border-base-300 mt-6">
-      <div class="p-5">
+    <div
+      :if={@show_upload_form}
+      id="upload-form"
+      class="rounded-xl border border-border bg-card text-card-foreground mt-6"
+    >
+      <div class="p-6">
         <h2 class="text-base font-semibold">Upload Certificate</h2>
         
     <!-- Mode Toggle -->
@@ -399,7 +403,7 @@ defmodule KsefHubWeb.CertificateLive do
             type="button"
             phx-click="toggle_upload_mode"
             phx-value-mode="key_crt"
-            class={"btn btn-sm #{if @upload_mode == :key_crt, do: "btn-primary", else: "btn-ghost"}"}
+            class={"inline-flex items-center justify-center gap-2 h-8 px-3 text-sm font-medium rounded-md shadow-xs transition-colors cursor-pointer #{if @upload_mode == :key_crt, do: "bg-shad-primary text-shad-primary-foreground hover:bg-shad-primary/90", else: "hover:bg-shad-accent hover:text-shad-accent-foreground"}"}
           >
             .key + .crt
           </button>
@@ -407,7 +411,7 @@ defmodule KsefHubWeb.CertificateLive do
             type="button"
             phx-click="toggle_upload_mode"
             phx-value-mode="p12"
-            class={"btn btn-sm #{if @upload_mode == :p12, do: "btn-primary", else: "btn-ghost"}"}
+            class={"inline-flex items-center justify-center gap-2 h-8 px-3 text-sm font-medium rounded-md shadow-xs transition-colors cursor-pointer #{if @upload_mode == :p12, do: "bg-shad-primary text-shad-primary-foreground hover:bg-shad-primary/90", else: "hover:bg-shad-accent hover:text-shad-accent-foreground"}"}
           >
             .p12 / .pfx
           </button>
@@ -421,25 +425,25 @@ defmodule KsefHubWeb.CertificateLive do
           id="certificate-upload"
         >
           <!-- P12 upload -->
-          <div :if={@upload_mode == :p12} class="form-control">
+          <div :if={@upload_mode == :p12} class="space-y-1">
             <label class="label">
-              <span class="label-text">Certificate File (.p12 / .pfx)</span>
+              <span class="text-sm font-medium">Certificate File (.p12 / .pfx)</span>
             </label>
             <div
-              class="border-2 border-dashed border-base-300 rounded-lg p-6 text-center"
+              class="border-2 border-dashed border-border rounded-lg p-6 text-center"
               phx-drop-target={@uploads.certificate.ref}
             >
               <.live_file_input
                 upload={@uploads.certificate}
-                class="file-input file-input-bordered file-input-sm"
+                class="h-8 w-full rounded-md border border-input bg-background text-sm shadow-sm file:border-0 file:bg-muted file:text-muted-foreground file:text-sm file:font-medium file:mr-3 file:px-3 file:h-full"
               />
               <p :for={entry <- @uploads.certificate.entries} class="mt-2 text-sm">
                 {entry.client_name}
-                <span class="text-base-content/60">({format_bytes(entry.client_size)})</span>
+                <span class="text-muted-foreground">({format_bytes(entry.client_size)})</span>
               </p>
               <p
                 :for={err <- upload_errors(@uploads.certificate)}
-                class="mt-1 text-error text-sm"
+                class="mt-1 text-shad-destructive text-sm"
               >
                 {error_to_string(err)}
               </p>
@@ -448,50 +452,50 @@ defmodule KsefHubWeb.CertificateLive do
           
     <!-- Key + CRT upload -->
           <div :if={@upload_mode == :key_crt} class="space-y-4">
-            <div class="form-control">
+            <div class="space-y-1">
               <label class="label">
-                <span class="label-text">Private Key File (.key / .pem)</span>
+                <span class="text-sm font-medium">Private Key File (.key / .pem)</span>
               </label>
               <div
-                class="border-2 border-dashed border-base-300 rounded-lg p-6 text-center"
+                class="border-2 border-dashed border-border rounded-lg p-6 text-center"
                 phx-drop-target={@uploads.private_key.ref}
               >
                 <.live_file_input
                   upload={@uploads.private_key}
-                  class="file-input file-input-bordered file-input-sm"
+                  class="h-8 w-full rounded-md border border-input bg-background text-sm shadow-sm file:border-0 file:bg-muted file:text-muted-foreground file:text-sm file:font-medium file:mr-3 file:px-3 file:h-full"
                 />
                 <p :for={entry <- @uploads.private_key.entries} class="mt-2 text-sm">
                   {entry.client_name}
-                  <span class="text-base-content/60">({format_bytes(entry.client_size)})</span>
+                  <span class="text-muted-foreground">({format_bytes(entry.client_size)})</span>
                 </p>
                 <p
                   :for={err <- upload_errors(@uploads.private_key)}
-                  class="mt-1 text-error text-sm"
+                  class="mt-1 text-shad-destructive text-sm"
                 >
                   {error_to_string(err)}
                 </p>
               </div>
             </div>
 
-            <div class="form-control">
+            <div class="space-y-1">
               <label class="label">
-                <span class="label-text">Certificate File (.crt / .pem / .cer)</span>
+                <span class="text-sm font-medium">Certificate File (.crt / .pem / .cer)</span>
               </label>
               <div
-                class="border-2 border-dashed border-base-300 rounded-lg p-6 text-center"
+                class="border-2 border-dashed border-border rounded-lg p-6 text-center"
                 phx-drop-target={@uploads.certificate_crt.ref}
               >
                 <.live_file_input
                   upload={@uploads.certificate_crt}
-                  class="file-input file-input-bordered file-input-sm"
+                  class="h-8 w-full rounded-md border border-input bg-background text-sm shadow-sm file:border-0 file:bg-muted file:text-muted-foreground file:text-sm file:font-medium file:mr-3 file:px-3 file:h-full"
                 />
                 <p :for={entry <- @uploads.certificate_crt.entries} class="mt-2 text-sm">
                   {entry.client_name}
-                  <span class="text-base-content/60">({format_bytes(entry.client_size)})</span>
+                  <span class="text-muted-foreground">({format_bytes(entry.client_size)})</span>
                 </p>
                 <p
                   :for={err <- upload_errors(@uploads.certificate_crt)}
-                  class="mt-1 text-error text-sm"
+                  class="mt-1 text-shad-destructive text-sm"
                 >
                   {error_to_string(err)}
                 </p>
@@ -515,7 +519,10 @@ defmodule KsefHubWeb.CertificateLive do
             />
           </div>
 
-          <button type="submit" class="btn btn-primary">
+          <button
+            type="submit"
+            class="inline-flex items-center justify-center gap-2 h-9 px-4 text-sm font-medium rounded-md bg-shad-primary text-shad-primary-foreground hover:bg-shad-primary/90 shadow-xs transition-colors cursor-pointer"
+          >
             <.icon name="hero-arrow-up-tray" class="size-4" /> Upload Certificate
           </button>
         </.form>
@@ -539,7 +546,7 @@ defmodule KsefHubWeb.CertificateLive do
     days_left = Date.diff(date, Date.utc_today())
 
     cond do
-      days_left < 0 -> "text-error font-bold"
+      days_left < 0 -> "text-shad-destructive font-bold"
       days_left < 30 -> "text-warning font-semibold"
       true -> ""
     end

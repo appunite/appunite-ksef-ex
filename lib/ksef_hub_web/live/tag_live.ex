@@ -160,8 +160,8 @@ defmodule KsefHubWeb.TagLive do
     </.header>
 
     <!-- Create / Edit Form -->
-    <div class="card bg-base-100 border border-base-300 mt-6">
-      <div class="p-5">
+    <div class="rounded-xl border border-border bg-card text-card-foreground mt-6">
+      <div class="p-6">
         <h2 class="text-base font-semibold">
           {if @editing, do: "Edit Tag", else: "New Tag"}
         </h2>
@@ -173,13 +173,13 @@ defmodule KsefHubWeb.TagLive do
           id="tag-form"
         >
           <div class="flex-1 min-w-40">
-            <label class="block text-xs text-base-content/60 mb-1">Name</label>
+            <label class="block text-xs text-muted-foreground mb-1">Name</label>
             <input
               type="text"
               name={@form[:name].name}
               value={@form[:name].value}
               placeholder="e.g. monthly"
-              class="input input-sm input-bordered w-full"
+              class="h-8 w-full rounded-md border border-input bg-background px-3 text-sm shadow-sm"
               required
             />
             <.error :for={msg <- Enum.map(@form[:name].errors, &translate_error/1)}>
@@ -187,24 +187,27 @@ defmodule KsefHubWeb.TagLive do
             </.error>
           </div>
           <div class="flex-1 min-w-40">
-            <label class="block text-xs text-base-content/60 mb-1">Description</label>
+            <label class="block text-xs text-muted-foreground mb-1">Description</label>
             <input
               type="text"
               name={@form[:description].name}
               value={@form[:description].value}
               placeholder="Optional description"
-              class="input input-sm input-bordered w-full"
+              class="h-8 w-full rounded-md border border-input bg-background px-3 text-sm shadow-sm"
             />
           </div>
           <div class="flex gap-2 items-end">
-            <button type="submit" class="btn btn-primary btn-sm">
+            <button
+              type="submit"
+              class="inline-flex items-center justify-center gap-2 h-8 px-3 text-sm font-medium rounded-md bg-shad-primary text-shad-primary-foreground hover:bg-shad-primary/90 shadow-xs transition-colors cursor-pointer"
+            >
               {if @editing, do: "Update", else: "Create"}
             </button>
             <button
               :if={@editing}
               type="button"
               phx-click="cancel_edit"
-              class="btn btn-ghost btn-sm"
+              class="inline-flex items-center justify-center gap-2 h-8 px-3 text-sm font-medium rounded-md hover:bg-shad-accent hover:text-shad-accent-foreground transition-colors cursor-pointer"
             >
               Cancel
             </button>
@@ -225,20 +228,24 @@ defmodule KsefHubWeb.TagLive do
           <span data-testid={"tag-name-#{tag.id}"}>{tag.name}</span>
         </:col>
         <:col :let={tag} label="Description">
-          <span class="text-base-content/60">{tag.description || "-"}</span>
+          <span class="text-muted-foreground">{tag.description || "-"}</span>
         </:col>
         <:col :let={tag} label="Usage" class="w-20 text-center">
           <span class="font-mono">{tag.usage_count}</span>
         </:col>
         <:action :let={tag}>
-          <button phx-click="edit" phx-value-id={tag.id} class="btn btn-ghost btn-xs">
+          <button
+            phx-click="edit"
+            phx-value-id={tag.id}
+            class="inline-flex items-center justify-center gap-1 h-7 px-2 text-xs font-medium rounded-md hover:bg-shad-accent hover:text-shad-accent-foreground transition-colors cursor-pointer"
+          >
             Edit
           </button>
           <button
             phx-click="delete"
             phx-value-id={tag.id}
             data-confirm="Delete this tag? It will be removed from all invoices."
-            class="btn btn-ghost btn-xs text-error"
+            class="inline-flex items-center justify-center gap-1 h-7 px-2 text-xs font-medium rounded-md hover:bg-shad-accent hover:text-shad-accent-foreground transition-colors cursor-pointer text-shad-destructive"
           >
             Delete
           </button>

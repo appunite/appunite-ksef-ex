@@ -117,7 +117,7 @@ defmodule KsefHubWeb.DashboardLive do
 
     <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 mt-8">
       <!-- Expense Breakdown -->
-      <div class="card bg-base-100 border border-base-300">
+      <div class="rounded-xl border border-border bg-card text-card-foreground">
         <div class="p-5">
           <h2 class="text-base font-semibold mb-3">Expense Status</h2>
           <div class="space-y-2.5">
@@ -144,12 +144,12 @@ defmodule KsefHubWeb.DashboardLive do
       </div>
       
     <!-- Sync Status -->
-      <div class="card bg-base-100 border border-base-300">
+      <div class="rounded-xl border border-border bg-card text-card-foreground">
         <div class="p-5">
           <h2 class="text-base font-semibold mb-3">Sync Status</h2>
           <div class="space-y-3">
             <div class="flex justify-between items-center">
-              <span class="text-sm text-base-content/70">Certificate</span>
+              <span class="text-sm text-muted-foreground">Certificate</span>
               <span
                 :if={@cert_active}
                 class="inline-flex items-center px-2 py-0.5 rounded-md text-xs font-medium border bg-success/10 text-success border-success/20"
@@ -164,15 +164,15 @@ defmodule KsefHubWeb.DashboardLive do
               </span>
             </div>
             <div :if={@credential} class="flex justify-between items-center">
-              <span class="text-sm text-base-content/70">NIP</span>
+              <span class="text-sm text-muted-foreground">NIP</span>
               <span class="font-mono text-sm">{@credential.nip}</span>
             </div>
             <div class="flex justify-between items-center">
-              <span class="text-sm text-base-content/70">Last Sync</span>
+              <span class="text-sm text-muted-foreground">Last Sync</span>
               <span class="text-sm">{format_datetime(@last_sync_at)}</span>
             </div>
             <div :if={@cert_expires_at} class="flex justify-between items-center">
-              <span class="text-sm text-base-content/70">Cert Expires</span>
+              <span class="text-sm text-muted-foreground">Cert Expires</span>
               <span class={["text-sm", cert_expiry_class(@cert_expires_at)]}>
                 {format_date(@cert_expires_at)}
               </span>
@@ -186,12 +186,12 @@ defmodule KsefHubWeb.DashboardLive do
 
   @spec stat_card(map()) :: Phoenix.LiveView.Rendered.t()
   defp stat_card(assigns) do
-    assigns = assign_new(assigns, :color, fn -> "text-base-content" end)
+    assigns = assign_new(assigns, :color, fn -> "text-foreground" end)
 
     ~H"""
-    <div class="border border-base-300 rounded-box p-4 flex items-center justify-between">
+    <div class="border border-border rounded-xl p-4 flex items-center justify-between">
       <div>
-        <div class="text-sm text-base-content/50">{@title}</div>
+        <div class="text-sm text-muted-foreground">{@title}</div>
         <div class={"text-2xl font-bold #{@color}"}>{@value}</div>
       </div>
       <div class={@color}>

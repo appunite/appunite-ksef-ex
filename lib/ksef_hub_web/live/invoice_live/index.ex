@@ -220,7 +220,7 @@ defmodule KsefHubWeb.InvoiceLive.Index do
         <.link
           :if={@can_create}
           navigate={~p"/c/#{@current_company.id}/invoices/upload"}
-          class="btn btn-sm btn-primary"
+          class="inline-flex items-center justify-center gap-2 h-8 px-3 text-sm font-medium rounded-md bg-shad-primary text-shad-primary-foreground hover:bg-shad-primary/90 shadow-xs transition-colors"
         >
           <.icon name="hero-arrow-up-tray" class="size-4" /> Upload PDF
         </.link>
@@ -229,12 +229,12 @@ defmodule KsefHubWeb.InvoiceLive.Index do
 
     <!-- Filters -->
     <.form for={@form} phx-change="filter" class="flex flex-wrap gap-3 mt-4 mb-6 items-end">
-      <div class="form-control w-32">
-        <label class="label"><span class="label-text text-xs">Type</span></label>
+      <div class="space-y-1 w-32">
+        <label class="block text-xs font-medium text-muted-foreground">Type</label>
         <select
           :if={@can_view_all_types}
           name={@form[:type].name}
-          class="select select-sm select-bordered"
+          class="h-8 rounded-md border border-input bg-background px-2 text-sm shadow-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
         >
           <option value="">All</option>
           <option value="income" selected={@form[:type].value == "income"}>Income</option>
@@ -243,16 +243,19 @@ defmodule KsefHubWeb.InvoiceLive.Index do
         <select
           :if={!@can_view_all_types}
           name={@form[:type].name}
-          class="select select-sm select-bordered"
+          class="h-8 rounded-md border border-input bg-background px-2 text-sm shadow-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
           disabled
         >
           <option value="expense" selected>Expense</option>
         </select>
       </div>
 
-      <div class="form-control w-32">
-        <label class="label"><span class="label-text text-xs">Status</span></label>
-        <select name={@form[:status].name} class="select select-sm select-bordered">
+      <div class="space-y-1 w-32">
+        <label class="block text-xs font-medium text-muted-foreground">Status</label>
+        <select
+          name={@form[:status].name}
+          class="h-8 rounded-md border border-input bg-background px-2 text-sm shadow-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+        >
           <option value="">All</option>
           <option value="pending" selected={@form[:status].value == "pending"}>Pending</option>
           <option value="approved" selected={@form[:status].value == "approved"}>Approved</option>
@@ -260,9 +263,12 @@ defmodule KsefHubWeb.InvoiceLive.Index do
         </select>
       </div>
 
-      <div class="form-control w-40">
-        <label class="label"><span class="label-text text-xs">Category</span></label>
-        <select name={@form[:category_id].name} class="select select-sm select-bordered">
+      <div class="space-y-1 w-40">
+        <label class="block text-xs font-medium text-muted-foreground">Category</label>
+        <select
+          name={@form[:category_id].name}
+          class="h-8 rounded-md border border-input bg-background px-2 text-sm shadow-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+        >
           <option value="">All</option>
           <option
             :for={cat <- @categories}
@@ -274,9 +280,12 @@ defmodule KsefHubWeb.InvoiceLive.Index do
         </select>
       </div>
 
-      <div class="form-control w-36">
-        <label class="label"><span class="label-text text-xs">Tag</span></label>
-        <select name={@form[:tag_id].name} class="select select-sm select-bordered">
+      <div class="space-y-1 w-36">
+        <label class="block text-xs font-medium text-muted-foreground">Tag</label>
+        <select
+          name={@form[:tag_id].name}
+          class="h-8 rounded-md border border-input bg-background px-2 text-sm shadow-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+        >
           <option value="">All</option>
           <option
             :for={tag <- @all_tags}
@@ -288,35 +297,35 @@ defmodule KsefHubWeb.InvoiceLive.Index do
         </select>
       </div>
 
-      <div class="form-control w-36">
-        <label class="label"><span class="label-text text-xs">From</span></label>
+      <div class="space-y-1 w-36">
+        <label class="block text-xs font-medium text-muted-foreground">From</label>
         <input
           type="date"
           name={@form[:date_from].name}
           value={@form[:date_from].value}
-          class="input input-sm input-bordered"
+          class="h-8 rounded-md border border-input bg-background px-3 text-sm shadow-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
         />
       </div>
 
-      <div class="form-control w-36">
-        <label class="label"><span class="label-text text-xs">To</span></label>
+      <div class="space-y-1 w-36">
+        <label class="block text-xs font-medium text-muted-foreground">To</label>
         <input
           type="date"
           name={@form[:date_to].name}
           value={@form[:date_to].value}
-          class="input input-sm input-bordered"
+          class="h-8 rounded-md border border-input bg-background px-3 text-sm shadow-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
         />
       </div>
 
-      <div class="form-control flex-1 min-w-48">
-        <label class="label"><span class="label-text text-xs">Search</span></label>
+      <div class="space-y-1 flex-1 min-w-48">
+        <label class="block text-xs font-medium text-muted-foreground">Search</label>
         <input
           type="text"
           name={@form[:query].name}
           value={@form[:query].value}
           placeholder="Invoice number, seller, buyer..."
           phx-debounce="300"
-          class="input input-sm input-bordered"
+          class="h-8 rounded-md border border-input bg-background px-3 text-sm shadow-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
         />
       </div>
     </.form>
@@ -331,7 +340,10 @@ defmodule KsefHubWeb.InvoiceLive.Index do
           <.type_badge type={inv.type} />
         </:col>
         <:col :let={inv} label="Seller">
-          <.link navigate={~p"/c/#{@current_company.id}/invoices/#{inv.id}"} class="link link-primary">
+          <.link
+            navigate={~p"/c/#{@current_company.id}/invoices/#{inv.id}"}
+            class="text-shad-primary underline-offset-4 hover:underline"
+          >
             {cond do
               String.trim(inv.seller_name || "") != "" -> inv.seller_name
               String.trim(inv.invoice_number || "") != "" -> inv.invoice_number
@@ -341,7 +353,7 @@ defmodule KsefHubWeb.InvoiceLive.Index do
         </:col>
         <:col :let={inv} label="Gross" class="w-36 text-right">
           <span class="font-mono">{format_amount(inv.gross_amount)}</span>
-          <span class="text-xs text-base-content/60">{inv.currency}</span>
+          <span class="text-xs text-muted-foreground">{inv.currency}</span>
         </:col>
         <:col :let={inv} label="Status" class="w-28">
           <div class="flex flex-wrap gap-1">
@@ -364,7 +376,7 @@ defmodule KsefHubWeb.InvoiceLive.Index do
       </.table>
     </div>
 
-    <p :if={@invoices == [] && @total_count == 0} class="text-center text-base-content/60 py-8">
+    <p :if={@invoices == [] && @total_count == 0} class="text-center text-muted-foreground py-8">
       No invoices found matching your filters.
     </p>
 
@@ -374,24 +386,32 @@ defmodule KsefHubWeb.InvoiceLive.Index do
       class="flex items-center justify-between mt-6"
       data-testid="pagination"
     >
-      <p class="text-sm text-base-content/60">
+      <p class="text-sm text-muted-foreground">
         Showing {(@page - 1) * @per_page + 1}–{min(@page * @per_page, @total_count)} of {@total_count} invoices
       </p>
 
-      <div class="join">
+      <div class="flex">
         <.link
           :if={@page > 1}
           patch={~p"/c/#{@current_company.id}/invoices?#{pagination_params(@filters, @page - 1)}"}
-          class="join-item btn btn-sm"
+          class="inline-flex items-center justify-center h-8 px-3 text-sm border border-input bg-background hover:bg-shad-accent hover:text-shad-accent-foreground transition-colors first:rounded-l-md last:rounded-r-md"
         >
           Prev
         </.link>
-        <span :if={@page <= 1} class="join-item btn btn-sm btn-disabled">Prev</span>
+        <span
+          :if={@page <= 1}
+          class="inline-flex items-center justify-center h-8 px-3 text-sm border border-input bg-background transition-colors first:rounded-l-md last:rounded-r-md opacity-50 pointer-events-none"
+        >
+          Prev
+        </span>
 
         <.link
           :for={p <- visible_pages(@page, @total_pages)}
           patch={~p"/c/#{@current_company.id}/invoices?#{pagination_params(@filters, p)}"}
-          class={["join-item btn btn-sm", p == @page && "btn-active"]}
+          class={[
+            "inline-flex items-center justify-center h-8 px-3 text-sm border border-input bg-background hover:bg-shad-accent hover:text-shad-accent-foreground transition-colors first:rounded-l-md last:rounded-r-md",
+            p == @page && "bg-shad-accent text-shad-accent-foreground font-medium"
+          ]}
         >
           {p}
         </.link>
@@ -399,11 +419,16 @@ defmodule KsefHubWeb.InvoiceLive.Index do
         <.link
           :if={@page < @total_pages}
           patch={~p"/c/#{@current_company.id}/invoices?#{pagination_params(@filters, @page + 1)}"}
-          class="join-item btn btn-sm"
+          class="inline-flex items-center justify-center h-8 px-3 text-sm border border-input bg-background hover:bg-shad-accent hover:text-shad-accent-foreground transition-colors first:rounded-l-md last:rounded-r-md"
         >
           Next
         </.link>
-        <span :if={@page >= @total_pages} class="join-item btn btn-sm btn-disabled">Next</span>
+        <span
+          :if={@page >= @total_pages}
+          class="inline-flex items-center justify-center h-8 px-3 text-sm border border-input bg-background transition-colors first:rounded-l-md last:rounded-r-md opacity-50 pointer-events-none"
+        >
+          Next
+        </span>
       </div>
     </div>
     """
