@@ -234,6 +234,66 @@ defmodule KsefHubWeb.InvoiceLive.ShowTest do
       {:ok, _view, html} = live(conn, ~p"/c/#{company.id}/invoices/#{invoice.id}")
       assert html =~ "needs review"
     end
+
+    test "hides prediction hints when prediction_predicted_at is nil", %{
+      conn: conn,
+      company: company
+    } do
+      invoice = insert(:invoice, company: company, prediction_predicted_at: nil)
+
+      {:ok, _view, html} = live(conn, ~p"/c/#{company.id}/invoices/#{invoice.id}")
+      refute html =~ "Predicted with"
+      refute html =~ "Manually adjusted"
+      refute html =~ "Could not predict"
+    end
+
+    test "shows high-confidence prediction hint for category", %{conn: conn, company: company} do
+      invoice =
+        insert(:invoice,
+          company: company,
+          prediction_status: :predicted,
+          prediction_category_confidence: 0.92,
+          prediction_tag_confidence: 0.85,
+          prediction_predicted_at: ~U[2026-03-11 12:00:00Z]
+        )
+
+      {:ok, _view, html} = live(conn, ~p"/c/#{company.id}/invoices/#{invoice.id}")
+      assert html =~ "Predicted with 92.0% probability"
+      assert html =~ "Predicted with 85.0% probability"
+    end
+
+    test "shows low-confidence hint when below threshold", %{conn: conn, company: company} do
+      invoice =
+        insert(:invoice,
+          company: company,
+          prediction_status: :needs_review,
+          prediction_category_confidence: 0.30,
+          prediction_tag_confidence: 0.25,
+          prediction_predicted_at: ~U[2026-03-11 12:00:00Z]
+        )
+
+      {:ok, _view, html} = live(conn, ~p"/c/#{company.id}/invoices/#{invoice.id}")
+      assert html =~ "Could not predict category automatically"
+      assert html =~ "Could not predict tag automatically"
+    end
+
+    test "shows manually adjusted hint when prediction_status is manual", %{
+      conn: conn,
+      company: company
+    } do
+      invoice =
+        insert(:invoice,
+          company: company,
+          prediction_status: :manual,
+          prediction_category_confidence: 0.92,
+          prediction_tag_confidence: 0.85,
+          prediction_predicted_at: ~U[2026-03-11 12:00:00Z]
+        )
+
+      {:ok, _view, html} = live(conn, ~p"/c/#{company.id}/invoices/#{invoice.id}")
+      assert html =~ "Manually adjusted"
+      refute html =~ "Predicted with"
+    end
   end
 
   describe "category editing" do
@@ -251,6 +311,29 @@ defmodule KsefHubWeb.InvoiceLive.ShowTest do
 
       html = render(view)
       assert html =~ "ops:hosting"
+
+      updated = Invoices.get_invoice_with_details!(company.id, invoice.id)
+      assert updated.category_id == category.id
+    end
+
+    test "selecting a category marks predicted invoice as manual", %{
+      conn: conn,
+      company: company
+    } do
+      category = insert(:category, company: company, name: "ops:hosting", emoji: "🖥")
+
+      invoice =
+        insert(:invoice,
+          company: company,
+          prediction_status: :predicted,
+          prediction_predicted_at: ~U[2026-03-11 12:00:00Z]
+        )
+
+      {:ok, view, _html} = live(conn, ~p"/c/#{company.id}/invoices/#{invoice.id}")
+
+      view
+      |> form("[data-testid=category-form]", %{"category_id" => category.id})
+      |> render_change()
 
       updated = Invoices.get_invoice_with_details!(company.id, invoice.id)
       assert updated.category_id == category.id

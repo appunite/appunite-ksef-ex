@@ -1171,8 +1171,13 @@ defmodule KsefHub.Invoices do
   @doc """
   Marks an invoice's prediction status as `:manual`, indicating the user
   overrode or manually set the category/tags.
+
+  No-ops when prediction_status is nil (never classified) or already :manual.
   """
   @spec mark_prediction_manual(Invoice.t()) :: {:ok, Invoice.t()} | {:error, Ecto.Changeset.t()}
+  def mark_prediction_manual(%Invoice{prediction_status: nil} = invoice), do: {:ok, invoice}
+  def mark_prediction_manual(%Invoice{prediction_status: :manual} = invoice), do: {:ok, invoice}
+
   def mark_prediction_manual(%Invoice{} = invoice) do
     invoice
     |> Invoice.prediction_changeset(%{prediction_status: :manual})

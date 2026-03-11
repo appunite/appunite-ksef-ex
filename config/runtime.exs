@@ -72,6 +72,19 @@ if invoice_classifier_api_token = System.get_env("INVOICE_CLASSIFIER_API_TOKEN")
   config :ksef_hub, :invoice_classifier_api_token, invoice_classifier_api_token
 end
 
+if confidence_threshold_env = System.get_env("CONFIDENCE_THRESHOLD") do
+  case Float.parse(confidence_threshold_env) do
+    {val, ""} when val > 0.0 and val < 1.0 ->
+      config :ksef_hub, :confidence_threshold, val
+
+    _ ->
+      raise """
+      CONFIDENCE_THRESHOLD must be a float between 0.0 and 1.0 (exclusive).
+      Got: #{inspect(confidence_threshold_env)}
+      """
+  end
+end
+
 if sync_interval_env = System.get_env("SYNC_INTERVAL_MINUTES") do
   valid_intervals = [1, 2, 3, 4, 5, 6, 10, 12, 15, 20, 30, 60]
 

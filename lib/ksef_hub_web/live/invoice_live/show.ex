@@ -8,6 +8,7 @@ defmodule KsefHubWeb.InvoiceLive.Show do
   require Logger
 
   alias KsefHub.Authorization
+  alias KsefHub.InvoiceClassifier
   alias KsefHub.Invoices
   alias KsefHub.Invoices.Invoice
 
@@ -84,7 +85,8 @@ defmodule KsefHubWeb.InvoiceLive.Show do
            extract_ref: nil,
            comment_form_key: 0,
            editing_comment_id: nil,
-           edit_comment_form: nil
+           edit_comment_form: nil,
+           confidence_threshold: InvoiceClassifier.confidence_threshold()
          )}
     end
   end
@@ -268,18 +270,9 @@ defmodule KsefHubWeb.InvoiceLive.Show do
 
     with :ok <- validate_category_id(category_id),
          {:ok, updated} <- Invoices.set_invoice_category(socket.assigns.invoice, category_id) do
+      mark_prediction_manual_safely(updated)
       reloaded = reload_details(updated, socket)
-
-      case Invoices.mark_prediction_manual(updated) do
-        {:ok, _} ->
-          {:noreply, assign(socket, invoice: reloaded, category_form: category_form(reloaded))}
-
-        {:error, _} ->
-          {:noreply,
-           socket
-           |> assign(invoice: reloaded, category_form: category_form(reloaded))
-           |> put_flash(:warning, "Category saved but prediction status update failed.")}
-      end
+      {:noreply, assign(socket, invoice: reloaded, category_form: category_form(reloaded))}
     else
       {:error, :invalid_id} ->
         {:noreply, put_flash(socket, :error, "Invalid category.")}
@@ -307,7 +300,9 @@ defmodule KsefHubWeb.InvoiceLive.Show do
 
       case result do
         {:ok, _} ->
-          {:noreply, assign(socket, :invoice, reload_details(invoice, socket))}
+          mark_prediction_manual_safely(invoice)
+          reloaded = reload_details(invoice, socket)
+          {:noreply, assign(socket, :invoice, reloaded)}
 
         {:error, _} ->
           {:noreply, put_flash(socket, :error, "Failed to update tags.")}
@@ -584,6 +579,8 @@ defmodule KsefHubWeb.InvoiceLive.Show do
 
     case Invoices.create_and_add_tag(invoice.id, company_id, %{name: name}) do
       {:ok, _tag} ->
+        mark_prediction_manual_safely(invoice)
+
         {:noreply,
          socket
          |> assign(
@@ -638,6 +635,14 @@ defmodule KsefHubWeb.InvoiceLive.Show do
           Phoenix.LiveView.Socket.t()
   defp assign_new_edit_form(socket, invoice) do
     assign(socket, edit_form: build_edit_form(invoice))
+  end
+
+  @spec mark_prediction_manual_safely(Invoice.t()) :: :ok
+  defp mark_prediction_manual_safely(invoice) do
+    case Invoices.mark_prediction_manual(invoice) do
+      {:ok, _} -> :ok
+      {:error, reason} -> Logger.warning("Failed to mark prediction manual: #{inspect(reason)}")
+    end
   end
 
   @spec reload_details(Invoice.t(), Phoenix.LiveView.Socket.t()) :: Invoice.t()
@@ -877,6 +882,24 @@ defmodule KsefHubWeb.InvoiceLive.Show do
                 {if(cat.emoji, do: "#{cat.emoji} ", else: "")}{cat.name}
               </option>
             </select>
+            <p
+              :if={@invoice.prediction_predicted_at}
+              class="text-xs mt-1 opacity-60"
+              data-testid="prediction-category-hint"
+            >
+              <%= cond do %>
+                <% @invoice.prediction_status == :manual -> %>
+                  Manually adjusted
+                <% @invoice.prediction_category_confidence && @invoice.prediction_category_confidence >= @confidence_threshold -> %>
+                  Predicted with {Float.round(@invoice.prediction_category_confidence * 100, 1)}% probability, feel free to adjust
+                <% @invoice.prediction_category_confidence && @invoice.prediction_category_confidence < @confidence_threshold -> %>
+                  Could not predict category automatically ({Float.round(
+                    @invoice.prediction_category_confidence * 100,
+                    1
+                  )}% confidence)
+                <% true -> %>
+              <% end %>
+            </p>
           </.form>
           <!-- Tags -->
           <div>
@@ -897,6 +920,24 @@ defmodule KsefHubWeb.InvoiceLive.Show do
                 <span class="text-sm">{tag.name}</span>
               </label>
             </div>
+            <p
+              :if={@invoice.prediction_predicted_at}
+              class="text-xs mt-1 opacity-60"
+              data-testid="prediction-tag-hint"
+            >
+              <%= cond do %>
+                <% @invoice.prediction_status == :manual -> %>
+                  Manually adjusted
+                <% @invoice.prediction_tag_confidence && @invoice.prediction_tag_confidence >= @confidence_threshold -> %>
+                  Predicted with {Float.round(@invoice.prediction_tag_confidence * 100, 1)}% probability, feel free to adjust
+                <% @invoice.prediction_tag_confidence && @invoice.prediction_tag_confidence < @confidence_threshold -> %>
+                  Could not predict tag automatically ({Float.round(
+                    @invoice.prediction_tag_confidence * 100,
+                    1
+                  )}% confidence)
+                <% true -> %>
+              <% end %>
+            </p>
             <!-- New Tag Inline -->
             <.form
               :if={@can_manage_tags}

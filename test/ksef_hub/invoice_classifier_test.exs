@@ -18,7 +18,7 @@ defmodule KsefHub.InvoiceClassifierTest do
   end
 
   describe "predict_and_apply/1" do
-    test "auto-applies category and tag when confidence >= 80% and matches exist", %{
+    test "auto-applies category and tag when confidence >= 51% and matches exist", %{
       company: company
     } do
       {:ok, category} = Invoices.create_category(company.id, %{name: "finance:invoices"})
@@ -61,7 +61,7 @@ defmodule KsefHub.InvoiceClassifierTest do
       assert Enum.any?(updated.tags, &(&1.id == tag.id))
     end
 
-    test "stores predictions as needs_review when confidence < 80%", %{company: company} do
+    test "stores predictions as needs_review when confidence < 51%", %{company: company} do
       {:ok, _category} = Invoices.create_category(company.id, %{name: "finance:invoices"})
 
       invoice = insert(:manual_invoice, company: company, type: :expense)
@@ -69,9 +69,9 @@ defmodule KsefHub.InvoiceClassifierTest do
       expect_predictions(
         category: %{
           "predicted_label" => "finance:invoices",
-          "confidence" => 0.65,
+          "confidence" => 0.40,
           "model_version" => "v1.0",
-          "probabilities" => %{"finance:invoices" => 0.65}
+          "probabilities" => %{"finance:invoices" => 0.40}
         },
         tag: %{
           "predicted_label" => "monthly",
@@ -85,7 +85,7 @@ defmodule KsefHub.InvoiceClassifierTest do
 
       assert updated.prediction_status == :needs_review
       assert updated.prediction_category_name == "finance:invoices"
-      assert updated.prediction_category_confidence == 0.65
+      assert updated.prediction_category_confidence == 0.40
 
       # Category should NOT be applied
       assert updated.category_id == nil
@@ -225,7 +225,7 @@ defmodule KsefHub.InvoiceClassifierTest do
       assert reloaded.prediction_status == nil
     end
 
-    test "auto-applies at exact 80% confidence boundary", %{company: company} do
+    test "auto-applies at exact 51% confidence boundary", %{company: company} do
       {:ok, category} = Invoices.create_category(company.id, %{name: "finance:invoices"})
 
       invoice = insert(:manual_invoice, company: company, type: :expense)
@@ -233,21 +233,21 @@ defmodule KsefHub.InvoiceClassifierTest do
       expect_predictions(
         category: %{
           "predicted_label" => "finance:invoices",
-          "confidence" => 0.80,
+          "confidence" => 0.51,
           "model_version" => "v1.0",
-          "probabilities" => %{"finance:invoices" => 0.80}
+          "probabilities" => %{"finance:invoices" => 0.51}
         },
         tag: %{
           "predicted_label" => "some-tag",
-          "confidence" => 0.79,
+          "confidence" => 0.50,
           "model_version" => "v1.0",
-          "probabilities" => %{"some-tag" => 0.79}
+          "probabilities" => %{"some-tag" => 0.50}
         }
       )
 
       assert {:ok, updated} = InvoiceClassifier.predict_and_apply(invoice)
 
-      # 0.80 is >= threshold -> predicted; 0.79 is < threshold -> not applied
+      # 0.51 is >= threshold -> predicted; 0.50 is < threshold -> not applied
       assert updated.prediction_status == :predicted
       updated = Invoices.get_invoice_with_details!(company.id, updated.id)
       assert updated.category_id == category.id
@@ -276,6 +276,8 @@ defmodule KsefHub.InvoiceClassifierTest do
 
       assert {:ok, updated} = InvoiceClassifier.predict_and_apply(invoice)
 
+      # No matching company categories/tags exist -> needs_review despite above-threshold confidence
+      assert updated.prediction_status == :needs_review
       assert updated.prediction_category_probabilities == cat_probs
       assert updated.prediction_tag_probabilities == tag_probs
       assert updated.prediction_model_version == "v2.1"
@@ -295,12 +297,24 @@ defmodule KsefHub.InvoiceClassifierTest do
       assert updated.prediction_status == :manual
     end
 
-    test "works when prediction_status is nil", %{company: company} do
+    test "no-ops when prediction_status is nil", %{company: company} do
       invoice = insert(:manual_invoice, company: company, type: :expense)
       assert invoice.prediction_status == nil
 
-      assert {:ok, updated} = Invoices.mark_prediction_manual(invoice)
-      assert updated.prediction_status == :manual
+      assert {:ok, returned} = Invoices.mark_prediction_manual(invoice)
+      assert returned.prediction_status == nil
+    end
+
+    test "no-ops when prediction_status is already manual", %{company: company} do
+      invoice =
+        insert(:manual_invoice,
+          company: company,
+          type: :expense,
+          prediction_status: :manual
+        )
+
+      assert {:ok, returned} = Invoices.mark_prediction_manual(invoice)
+      assert returned.prediction_status == :manual
     end
 
     test "works when prediction_status is needs_review", %{company: company} do
