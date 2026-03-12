@@ -1,27 +1,39 @@
-<div class="min-h-screen flex items-center justify-center bg-base-100">
-  <div class="card bg-base-100 border border-base-300 w-full max-w-md">
+<div class="min-h-screen flex items-center justify-center bg-card">
+  <div class="rounded-xl border border-border bg-card text-card-foreground w-full max-w-md">
     <div class="p-8 items-center text-center flex flex-col">
       <div class="flex items-center gap-2 mb-2">
-        <span class="hero-document-text size-8 text-primary"></span>
+        <.icon name="hero-document-text" class="size-8 text-primary" />
         <div class="flex flex-col items-start leading-tight">
           <h1 class="text-3xl font-bold">Invoi</h1>
-          <span class="text-xs text-base-content/50">by Appunite</span>
+          <span class="text-xs text-muted-foreground">by Appunite</span>
         </div>
       </div>
-      <p class="text-base-content/70 mb-6">
+      <p class="text-muted-foreground mb-6">
         Invoice management portal.
         Sign in to manage invoices, expenses, and categories.
       </p>
 
       <%= if @conn.assigns[:current_user] do %>
-        <a id="primary-cta-companies" href={~p"/companies"} class="btn btn-primary w-full">
+        <a
+          id="primary-cta-companies"
+          href={~p"/companies"}
+          class="inline-flex items-center justify-center gap-2 h-9 px-4 text-sm font-medium rounded-md bg-shad-primary text-shad-primary-foreground hover:bg-shad-primary/90 transition-colors cursor-pointer w-full"
+        >
           Go to Companies
         </a>
       <% else %>
-        <a href={~p"/users/log-in"} class="btn btn-primary w-full mb-3">
+        <a
+          id="primary-cta-login"
+          href={~p"/users/log-in"}
+          class="inline-flex items-center justify-center gap-2 h-9 px-4 text-sm font-medium rounded-md bg-shad-primary text-shad-primary-foreground hover:bg-shad-primary/90 transition-colors cursor-pointer w-full mb-3"
+        >
           Log in
         </a>
-        <a href={~p"/users/register"} class="btn btn-outline w-full">
+        <a
+          id="primary-cta-register"
+          href={~p"/users/register"}
+          class="inline-flex items-center justify-center gap-2 h-9 px-4 text-sm font-medium rounded-md border border-input bg-background hover:bg-shad-accent hover:text-shad-accent-foreground transition-colors cursor-pointer w-full"
+        >
           Create an account
         </a>
       <% end %>

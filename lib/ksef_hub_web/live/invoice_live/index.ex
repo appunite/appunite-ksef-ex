@@ -41,22 +41,20 @@ defmodule KsefHubWeb.InvoiceLive.Index do
           %{entries: [], page: 1, per_page: 25, total_count: 0, total_pages: 1}
       end
 
-    {:noreply, assign(socket, filter_assigns(filters, result, role))}
+    {:noreply, assign(socket, filter_assigns(filters, result, role, socket.assigns))}
   end
 
-  @spec filter_assigns(map(), map(), atom() | nil) :: keyword()
-  defp filter_assigns(filters, result, role) do
-    form =
-      %{
-        "type" => to_string_or_empty(filters[:type]),
-        "status" => to_string_or_empty(filters[:status]),
-        "date_from" => (filters[:date_from] && Date.to_iso8601(filters[:date_from])) || "",
-        "date_to" => (filters[:date_to] && Date.to_iso8601(filters[:date_to])) || "",
-        "query" => filters[:query] || "",
-        "category_id" => filters[:category_id] || "",
-        "tag_id" => first_tag_id(filters) || ""
-      }
-      |> to_form(as: :filters)
+  @spec filter_assigns(map(), map(), atom() | nil, map()) :: keyword()
+  defp filter_assigns(filters, result, role, assigns) do
+    normalized = normalize_filters(filters, role)
+    form = build_filters_form(normalized)
+
+    active_filters =
+      build_active_filters(
+        normalized,
+        Map.get(assigns, :categories, []),
+        Map.get(assigns, :all_tags, [])
+      )
 
     [
       invoices: result.entries,
@@ -67,8 +65,33 @@ defmodule KsefHubWeb.InvoiceLive.Index do
       total_count: result.total_count,
       total_pages: result.total_pages,
       can_view_all_types: Authorization.can?(role, :view_all_invoice_types),
-      can_create: Authorization.can?(role, :create_invoice)
+      can_create: Authorization.can?(role, :create_invoice),
+      active_filters: active_filters,
+      filter_count: length(active_filters)
     ]
+  end
+
+  @spec normalize_filters(map(), atom() | nil) :: map()
+  defp normalize_filters(filters, role) do
+    if filters[:type] && !Authorization.can?(role, :view_all_invoice_types) do
+      Map.delete(filters, :type)
+    else
+      filters
+    end
+  end
+
+  @spec build_filters_form(map()) :: Phoenix.HTML.Form.t()
+  defp build_filters_form(filters) do
+    %{
+      "type" => to_string_or_empty(filters[:type]),
+      "status" => to_string_or_empty(filters[:status]),
+      "date_from" => (filters[:date_from] && Date.to_iso8601(filters[:date_from])) || "",
+      "date_to" => (filters[:date_to] && Date.to_iso8601(filters[:date_to])) || "",
+      "query" => filters[:query] || "",
+      "category_id" => filters[:category_id] || "",
+      "tag_id" => first_tag_id(filters) || ""
+    }
+    |> to_form(as: :filters)
   end
 
   @impl true
@@ -85,6 +108,72 @@ defmodule KsefHubWeb.InvoiceLive.Index do
 
     company_id = socket.assigns.current_company.id
     {:noreply, push_patch(socket, to: ~p"/c/#{company_id}/invoices?#{query_params}")}
+  end
+
+  def handle_event("clear_filters", _params, socket) do
+    company_id = socket.assigns.current_company.id
+    {:noreply, push_patch(socket, to: ~p"/c/#{company_id}/invoices")}
+  end
+
+  def handle_event("remove_filter", %{"key" => key}, socket) do
+    query_params =
+      filter_params_without_page(socket.assigns.filters)
+      |> Map.delete(key)
+
+    company_id = socket.assigns.current_company.id
+    {:noreply, push_patch(socket, to: ~p"/c/#{company_id}/invoices?#{query_params}")}
+  end
+
+  @spec build_active_filters(map(), list(), list()) :: [map()]
+  defp build_active_filters(filters, categories, tags) do
+    []
+    |> maybe_add_chip(filters[:type], "type", "Type", &type_display/1)
+    |> maybe_add_chip(filters[:status], "status", "Status", &status_display/1)
+    |> maybe_add_chip(filters[:category_id], "category_id", "Category", fn id ->
+      case Enum.find(categories, &(&1.id == id)) do
+        nil -> id
+        cat -> cat.name
+      end
+    end)
+    |> maybe_add_chip(first_tag_id(filters), "tag_id", "Tag", fn id ->
+      case Enum.find(tags, &(&1.id == id)) do
+        nil -> id
+        tag -> tag.name
+      end
+    end)
+    |> maybe_add_chip(filters[:date_from], "date_from", "From", &Date.to_iso8601/1)
+    |> maybe_add_chip(filters[:date_to], "date_to", "To", &Date.to_iso8601/1)
+    |> Enum.reverse()
+  end
+
+  @spec maybe_add_chip(list(), any(), String.t(), String.t(), (any() -> String.t())) :: list()
+  defp maybe_add_chip(acc, nil, _key, _label, _formatter), do: acc
+
+  defp maybe_add_chip(acc, value, key, label, formatter) do
+    [%{key: key, label: label, value: formatter.(value)} | acc]
+  end
+
+  @spec type_display(atom()) :: String.t()
+  defp type_display(:income), do: "Income"
+  defp type_display(:expense), do: "Expense"
+  defp type_display(other), do: to_string(other)
+
+  @spec status_display(atom()) :: String.t()
+  defp status_display(:pending), do: "Pending"
+  defp status_display(:approved), do: "Approved"
+  defp status_display(:rejected), do: "Rejected"
+  defp status_display(other), do: to_string(other)
+
+  @spec filter_params_without_page(map()) :: map()
+  defp filter_params_without_page(filters) do
+    %{}
+    |> maybe_put("type", to_string_or_empty(filters[:type]))
+    |> maybe_put("status", to_string_or_empty(filters[:status]))
+    |> maybe_put("date_from", filters[:date_from] && Date.to_iso8601(filters[:date_from]))
+    |> maybe_put("date_to", filters[:date_to] && Date.to_iso8601(filters[:date_to]))
+    |> maybe_put("query", filters[:query])
+    |> maybe_put("category_id", filters[:category_id])
+    |> maybe_put("tag_id", first_tag_id(filters))
   end
 
   @spec parse_filters(map()) :: map()
@@ -175,235 +264,187 @@ defmodule KsefHubWeb.InvoiceLive.Index do
   defp to_string_or_empty(value) when is_atom(value), do: Atom.to_string(value)
   defp to_string_or_empty(value) when is_binary(value), do: value
 
-  @spec pagination_params(map(), pos_integer()) :: map()
-  defp pagination_params(filters, target_page) do
-    %{}
-    |> maybe_put("type", to_string_or_empty(filters[:type]))
-    |> maybe_put("status", to_string_or_empty(filters[:status]))
-    |> maybe_put("date_from", filters[:date_from] && Date.to_iso8601(filters[:date_from]))
-    |> maybe_put("date_to", filters[:date_to] && Date.to_iso8601(filters[:date_to]))
-    |> maybe_put("query", filters[:query])
-    |> maybe_put("category_id", filters[:category_id])
-    |> maybe_put("tag_id", first_tag_id(filters))
-    |> maybe_put("page", if(target_page > 1, do: Integer.to_string(target_page)))
-  end
-
-  @spec visible_pages(pos_integer(), pos_integer()) :: [pos_integer()]
-  defp visible_pages(_current_page, total_pages) when total_pages <= 7 do
-    Enum.to_list(1..total_pages)
-  end
-
-  defp visible_pages(current_page, total_pages) do
-    # Show a window of 5 pages centered on the current page
-    half = 2
-    start = max(1, current_page - half)
-    finish = min(total_pages, current_page + half)
-
-    # Adjust if near the edges
-    {start, finish} =
-      cond do
-        finish - start < 4 && start == 1 -> {1, min(5, total_pages)}
-        finish - start < 4 && finish == total_pages -> {max(1, total_pages - 4), total_pages}
-        true -> {start, finish}
-      end
-
-    Enum.to_list(start..finish)
-  end
-
   @impl true
   def render(assigns) do
     ~H"""
     <.header>
       Invoices
-      <:subtitle>Browse and manage KSeF invoices</:subtitle>
+      <:subtitle>Invoices for {@current_company.name}</:subtitle>
       <:actions>
-        <.link
-          :if={@can_create}
-          navigate={~p"/c/#{@current_company.id}/invoices/upload"}
-          class="btn btn-sm btn-primary"
-        >
+        <.button :if={@can_create} navigate={~p"/c/#{@current_company.id}/invoices/upload"}>
           <.icon name="hero-arrow-up-tray" class="size-4" /> Upload PDF
-        </.link>
+        </.button>
       </:actions>
     </.header>
 
-    <!-- Filters -->
-    <.form for={@form} phx-change="filter" class="flex flex-wrap gap-3 mt-4 mb-6 items-end">
-      <div class="form-control w-32">
-        <label class="label"><span class="label-text text-xs">Type</span></label>
-        <select
-          :if={@can_view_all_types}
-          name={@form[:type].name}
-          class="select select-sm select-bordered"
-        >
-          <option value="">All</option>
-          <option value="income" selected={@form[:type].value == "income"}>Income</option>
-          <option value="expense" selected={@form[:type].value == "expense"}>Expense</option>
-        </select>
-        <select
-          :if={!@can_view_all_types}
-          name={@form[:type].name}
-          class="select select-sm select-bordered"
-          disabled
-        >
-          <option value="expense" selected>Expense</option>
-        </select>
-      </div>
+    <.form for={@form} phx-change="filter" class="contents">
+      <.filter_bar
+        active_filters={@active_filters}
+        filter_count={@filter_count}
+        search_name={@form[:query].name}
+        search_value={@form[:query].value}
+        search_placeholder="Invoice number, seller, buyer..."
+      >
+        <:filter_fields>
+          <div class="space-y-1">
+            <label class="block text-xs font-medium text-muted-foreground">Type</label>
+            <select
+              :if={@can_view_all_types}
+              name={@form[:type].name}
+              class="w-full h-9 rounded-md border border-input bg-background px-2 text-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+            >
+              <option value="">All</option>
+              <option value="income" selected={@form[:type].value == "income"}>Income</option>
+              <option value="expense" selected={@form[:type].value == "expense"}>Expense</option>
+            </select>
+            <select
+              :if={!@can_view_all_types}
+              name={@form[:type].name}
+              class="w-full h-9 rounded-md border border-input bg-background px-2 text-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+              disabled
+            >
+              <option value="expense" selected>Expense</option>
+            </select>
+          </div>
 
-      <div class="form-control w-32">
-        <label class="label"><span class="label-text text-xs">Status</span></label>
-        <select name={@form[:status].name} class="select select-sm select-bordered">
-          <option value="">All</option>
-          <option value="pending" selected={@form[:status].value == "pending"}>Pending</option>
-          <option value="approved" selected={@form[:status].value == "approved"}>Approved</option>
-          <option value="rejected" selected={@form[:status].value == "rejected"}>Rejected</option>
-        </select>
-      </div>
+          <div class="space-y-1">
+            <label class="block text-xs font-medium text-muted-foreground">Status</label>
+            <select
+              name={@form[:status].name}
+              class="w-full h-9 rounded-md border border-input bg-background px-2 text-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+            >
+              <option value="">All</option>
+              <option value="pending" selected={@form[:status].value == "pending"}>Pending</option>
+              <option value="approved" selected={@form[:status].value == "approved"}>
+                Approved
+              </option>
+              <option value="rejected" selected={@form[:status].value == "rejected"}>
+                Rejected
+              </option>
+            </select>
+          </div>
 
-      <div class="form-control w-40">
-        <label class="label"><span class="label-text text-xs">Category</span></label>
-        <select name={@form[:category_id].name} class="select select-sm select-bordered">
-          <option value="">All</option>
-          <option
-            :for={cat <- @categories}
-            value={cat.id}
-            selected={@form[:category_id].value == cat.id}
-          >
-            {if(cat.emoji, do: "#{cat.emoji} ", else: "")}{cat.name}
-          </option>
-        </select>
-      </div>
+          <div class="space-y-1">
+            <label class="block text-xs font-medium text-muted-foreground">Category</label>
+            <select
+              name={@form[:category_id].name}
+              class="w-full h-9 rounded-md border border-input bg-background px-2 text-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+            >
+              <option value="">All</option>
+              <option
+                :for={cat <- @categories}
+                value={cat.id}
+                selected={@form[:category_id].value == cat.id}
+              >
+                {if(cat.emoji, do: "#{cat.emoji} ", else: "")}{cat.name}
+              </option>
+            </select>
+          </div>
 
-      <div class="form-control w-36">
-        <label class="label"><span class="label-text text-xs">Tag</span></label>
-        <select name={@form[:tag_id].name} class="select select-sm select-bordered">
-          <option value="">All</option>
-          <option
-            :for={tag <- @all_tags}
-            value={tag.id}
-            selected={@form[:tag_id].value == tag.id}
-          >
-            {tag.name}
-          </option>
-        </select>
-      </div>
+          <div class="space-y-1">
+            <label class="block text-xs font-medium text-muted-foreground">Tag</label>
+            <select
+              name={@form[:tag_id].name}
+              class="w-full h-9 rounded-md border border-input bg-background px-2 text-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+            >
+              <option value="">All</option>
+              <option
+                :for={tag <- @all_tags}
+                value={tag.id}
+                selected={@form[:tag_id].value == tag.id}
+              >
+                {tag.name}
+              </option>
+            </select>
+          </div>
 
-      <div class="form-control w-36">
-        <label class="label"><span class="label-text text-xs">From</span></label>
-        <input
-          type="date"
-          name={@form[:date_from].name}
-          value={@form[:date_from].value}
-          class="input input-sm input-bordered"
-        />
-      </div>
+          <div class="space-y-1">
+            <label class="block text-xs font-medium text-muted-foreground">From</label>
+            <input
+              type="date"
+              name={@form[:date_from].name}
+              value={@form[:date_from].value}
+              class="w-full h-9 rounded-md border border-input bg-background px-3 text-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+            />
+          </div>
 
-      <div class="form-control w-36">
-        <label class="label"><span class="label-text text-xs">To</span></label>
-        <input
-          type="date"
-          name={@form[:date_to].name}
-          value={@form[:date_to].value}
-          class="input input-sm input-bordered"
-        />
-      </div>
-
-      <div class="form-control flex-1 min-w-48">
-        <label class="label"><span class="label-text text-xs">Search</span></label>
-        <input
-          type="text"
-          name={@form[:query].name}
-          value={@form[:query].value}
-          placeholder="Invoice number, seller, buyer..."
-          phx-debounce="300"
-          class="input input-sm input-bordered"
-        />
-      </div>
+          <div class="space-y-1">
+            <label class="block text-xs font-medium text-muted-foreground">To</label>
+            <input
+              type="date"
+              name={@form[:date_to].name}
+              value={@form[:date_to].value}
+              class="w-full h-9 rounded-md border border-input bg-background px-3 text-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+            />
+          </div>
+        </:filter_fields>
+      </.filter_bar>
     </.form>
 
     <!-- Invoice Table -->
-    <div class="overflow-x-auto">
-      <.table id="invoices" rows={@invoices} row_id={fn inv -> "inv-#{inv.id}" end}>
-        <:col :let={inv} label="Date" class="w-28">
-          <span class="whitespace-nowrap">{format_date(inv.issue_date)}</span>
-        </:col>
-        <:col :let={inv} label="Type" class="w-24">
-          <.type_badge type={inv.type} />
-        </:col>
-        <:col :let={inv} label="Seller">
-          <.link navigate={~p"/c/#{@current_company.id}/invoices/#{inv.id}"} class="link link-primary">
-            {cond do
-              String.trim(inv.seller_name || "") != "" -> inv.seller_name
-              String.trim(inv.invoice_number || "") != "" -> inv.invoice_number
-              true -> "Untitled invoice"
-            end}
-          </.link>
-        </:col>
-        <:col :let={inv} label="Gross" class="w-36 text-right">
-          <span class="font-mono">{format_amount(inv.gross_amount)}</span>
-          <span class="text-xs text-base-content/60">{inv.currency}</span>
-        </:col>
-        <:col :let={inv} label="Status" class="w-28">
-          <div class="flex flex-wrap gap-1">
-            <.status_badge status={display_status(inv)} />
-            <.needs_review_badge
-              prediction_status={inv.prediction_status}
-              duplicate_status={inv.duplicate_status}
-              extraction_status={inv.extraction_status}
-              status={inv.status}
-            />
-            <.extraction_badge status={inv.extraction_status} />
-          </div>
-        </:col>
-        <:col :let={inv} label="Category">
-          <.category_badge category={inv.category} />
-        </:col>
-        <:col :let={inv} label="Tags">
-          <.tag_list tags={inv.tags} />
-        </:col>
-      </.table>
-    </div>
+    <div class="rounded-lg border border-border overflow-hidden">
+      <div class="overflow-x-auto">
+        <.table id="invoices" rows={@invoices} row_id={fn inv -> "inv-#{inv.id}" end}>
+          <:col :let={inv} label="Date" class="w-28">
+            <span class="whitespace-nowrap">{format_date(inv.issue_date)}</span>
+          </:col>
+          <:col :let={inv} label="Type" class="w-24">
+            <.type_badge type={inv.type} />
+          </:col>
+          <:col :let={inv} label="Seller">
+            <.link
+              navigate={~p"/c/#{@current_company.id}/invoices/#{inv.id}"}
+              class="text-shad-primary underline-offset-4 hover:underline"
+            >
+              {cond do
+                String.trim(inv.seller_name || "") != "" -> inv.seller_name
+                String.trim(inv.invoice_number || "") != "" -> inv.invoice_number
+                true -> "Untitled invoice"
+              end}
+            </.link>
+          </:col>
+          <:col :let={inv} label="Gross" class="w-36 text-right">
+            <span class="font-mono">{format_amount(inv.gross_amount)}</span>
+            <span class="text-xs text-muted-foreground">{inv.currency}</span>
+          </:col>
+          <:col :let={inv} label="Status" class="w-28">
+            <div class="flex flex-wrap gap-1">
+              <.status_badge status={display_status(inv)} />
+              <.needs_review_badge
+                prediction_status={inv.prediction_status}
+                duplicate_status={inv.duplicate_status}
+                extraction_status={inv.extraction_status}
+                status={inv.status}
+              />
+              <.extraction_badge status={inv.extraction_status} />
+            </div>
+          </:col>
+          <:col :let={inv} label="Category">
+            <.category_badge category={inv.category} />
+          </:col>
+          <:col :let={inv} label="Tags">
+            <.tag_list tags={inv.tags} />
+          </:col>
+        </.table>
+      </div>
 
-    <p :if={@invoices == [] && @total_count == 0} class="text-center text-base-content/60 py-8">
-      No invoices found matching your filters.
-    </p>
-
-    <!-- Pagination -->
-    <div
-      :if={@total_pages > 1}
-      class="flex items-center justify-between mt-6"
-      data-testid="pagination"
-    >
-      <p class="text-sm text-base-content/60">
-        Showing {(@page - 1) * @per_page + 1}–{min(@page * @per_page, @total_count)} of {@total_count} invoices
+      <p
+        :if={@invoices == [] && @total_count == 0}
+        class="text-center text-muted-foreground py-8"
+      >
+        No invoices found matching your filters.
       </p>
 
-      <div class="join">
-        <.link
-          :if={@page > 1}
-          patch={~p"/c/#{@current_company.id}/invoices?#{pagination_params(@filters, @page - 1)}"}
-          class="join-item btn btn-sm"
-        >
-          Prev
-        </.link>
-        <span :if={@page <= 1} class="join-item btn btn-sm btn-disabled">Prev</span>
-
-        <.link
-          :for={p <- visible_pages(@page, @total_pages)}
-          patch={~p"/c/#{@current_company.id}/invoices?#{pagination_params(@filters, p)}"}
-          class={["join-item btn btn-sm", p == @page && "btn-active"]}
-        >
-          {p}
-        </.link>
-
-        <.link
-          :if={@page < @total_pages}
-          patch={~p"/c/#{@current_company.id}/invoices?#{pagination_params(@filters, @page + 1)}"}
-          class="join-item btn btn-sm"
-        >
-          Next
-        </.link>
-        <span :if={@page >= @total_pages} class="join-item btn btn-sm btn-disabled">Next</span>
+      <div class="border-t border-border px-4 py-3">
+        <.pagination
+          page={@page}
+          per_page={@per_page}
+          total_count={@total_count}
+          total_pages={@total_pages}
+          base_url={~p"/c/#{@current_company.id}/invoices"}
+          params={filter_params_without_page(@filters)}
+          noun="invoices"
+        />
       </div>
     </div>
     """

@@ -149,10 +149,20 @@ defmodule KsefHubWeb.CategoryLive do
 
     %{
       name: params["name"] || "",
-      emoji: params["emoji"] || "",
-      description: params["description"] || "",
+      emoji: blank_to_nil(params["emoji"]),
+      description: blank_to_nil(params["description"]),
       sort_order: sort_order
     }
+  end
+
+  @spec blank_to_nil(String.t() | nil) :: String.t() | nil
+  defp blank_to_nil(nil), do: nil
+
+  defp blank_to_nil(str) do
+    case String.trim(str) do
+      "" -> nil
+      trimmed -> trimmed
+    end
   end
 
   # --- Render ---
@@ -168,112 +178,97 @@ defmodule KsefHubWeb.CategoryLive do
     </.header>
 
     <!-- Create / Edit Form -->
-    <div class="card bg-base-100 border border-base-300 mt-6">
-      <div class="p-5">
-        <h2 class="text-base font-semibold">
-          {if @editing, do: "Edit Category", else: "New Category"}
-        </h2>
-        <.form
-          for={@form}
-          phx-submit="save"
-          phx-change="validate"
-          class="flex flex-wrap gap-3 mt-3 items-start"
-          id="category-form"
-        >
-          <div>
-            <label class="block text-xs text-base-content/60 mb-1">Emoji</label>
-            <input
-              type="text"
-              name={@form[:emoji].name}
-              value={@form[:emoji].value}
-              placeholder="📦"
-              class="input input-sm input-bordered w-16 text-center"
-            />
-          </div>
-          <div class="flex-1 min-w-40">
-            <label class="block text-xs text-base-content/60 mb-1">Name (group:target)</label>
-            <input
-              type="text"
-              name={@form[:name].name}
-              value={@form[:name].value}
-              placeholder="finance:invoices"
-              class="input input-sm input-bordered w-full"
-              required
-            />
-            <.error :for={msg <- Enum.map(@form[:name].errors, &translate_error/1)}>
-              {msg}
-            </.error>
-          </div>
-          <div class="flex-1 min-w-40">
-            <label class="block text-xs text-base-content/60 mb-1">Description</label>
-            <input
-              type="text"
-              name={@form[:description].name}
-              value={@form[:description].value}
-              placeholder="Optional description"
-              class="input input-sm input-bordered w-full"
-            />
-          </div>
-          <div>
-            <label class="block text-xs text-base-content/60 mb-1">Order</label>
-            <input
-              type="number"
-              name={@form[:sort_order].name}
-              value={@form[:sort_order].value}
-              class="input input-sm input-bordered w-20"
-            />
-          </div>
-          <div class="flex gap-2 items-end mt-4">
-            <button type="submit" class="btn btn-primary btn-sm">
-              {if @editing, do: "Update", else: "Create"}
-            </button>
-            <button
-              :if={@editing}
-              type="button"
-              phx-click="cancel_edit"
-              class="btn btn-ghost btn-sm"
-            >
-              Cancel
-            </button>
-          </div>
-        </.form>
-      </div>
-    </div>
+    <.card class="mt-6">
+      <h2 class="text-base font-semibold">
+        {if @editing, do: "Edit Category", else: "New Category"}
+      </h2>
+      <.form
+        for={@form}
+        phx-submit="save"
+        phx-change="validate"
+        class="flex flex-wrap gap-3 mt-3 items-start"
+        id="category-form"
+      >
+        <div>
+          <.input
+            field={@form[:emoji]}
+            label="Emoji"
+            placeholder="📦"
+            class="h-9 w-16 rounded-md border border-input bg-background px-3 text-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring text-center"
+          />
+        </div>
+        <div class="flex-1 min-w-40">
+          <.input
+            field={@form[:name]}
+            label="Name (group:target)"
+            placeholder="finance:invoices"
+            required
+          />
+        </div>
+        <div class="flex-1 min-w-40">
+          <.input
+            field={@form[:description]}
+            label="Description"
+            placeholder="Optional description"
+          />
+        </div>
+        <div>
+          <.input
+            field={@form[:sort_order]}
+            type="number"
+            label="Order"
+            class="h-9 w-20 rounded-md border border-input bg-background px-3 text-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+          />
+        </div>
+        <div class="flex gap-2 items-end mt-4">
+          <.button type="submit">
+            {if @editing, do: "Update", else: "Create"}
+          </.button>
+          <.button :if={@editing} variant="ghost" type="button" phx-click="cancel_edit">
+            Cancel
+          </.button>
+        </div>
+      </.form>
+    </.card>
 
     <!-- Category Table -->
-    <div class="mt-6 overflow-x-auto">
-      <.table
-        id="categories"
-        rows={@streams.categories}
-        row_id={fn {id, _} -> id end}
-        row_item={fn {_id, item} -> item end}
-      >
-        <:col :let={cat} label="Emoji" class="w-16 text-center">
-          {cat.emoji || "-"}
-        </:col>
-        <:col :let={cat} label="Name">
-          <span data-testid={"category-name-#{cat.id}"}>{cat.name}</span>
-        </:col>
-        <:col :let={cat} label="Description">
-          <span class="text-base-content/60">{cat.description || "-"}</span>
-        </:col>
-        <:col :let={cat} label="Order" class="w-20 text-center">
-          {cat.sort_order}
-        </:col>
-        <:action :let={cat}>
-          <button phx-click="edit" phx-value-id={cat.id} class="btn btn-ghost btn-xs">
-            Edit
-          </button>
-          <button
-            phx-click="delete"
-            phx-value-id={cat.id}
-            data-confirm="Delete this category? Invoices with this category will become uncategorized."
-            class="btn btn-ghost btn-xs text-error"
-          >
-            Delete
-          </button>
-        </:action>
-      </.table>
+    <div class="rounded-lg border border-border overflow-hidden mt-6">
+      <div class="overflow-x-auto">
+        <.table
+          id="categories"
+          rows={@streams.categories}
+          row_id={fn {id, _} -> id end}
+          row_item={fn {_id, item} -> item end}
+        >
+          <:col :let={cat} label="Emoji" class="w-16 text-center">
+            {cat.emoji || "-"}
+          </:col>
+          <:col :let={cat} label="Name">
+            <span data-testid={"category-name-#{cat.id}"}>{cat.name}</span>
+          </:col>
+          <:col :let={cat} label="Description">
+            <span class="text-muted-foreground">{cat.description || "-"}</span>
+          </:col>
+          <:col :let={cat} label="Order" class="w-20 text-center">
+            {cat.sort_order}
+          </:col>
+          <:action :let={cat}>
+            <.button variant="outline" size="sm" phx-click="edit" phx-value-id={cat.id}>
+              Edit
+            </.button>
+            <.button
+              variant="outline"
+              size="sm"
+              class="border-shad-destructive text-shad-destructive hover:bg-shad-destructive/10"
+              phx-click="delete"
+              phx-value-id={cat.id}
+              data-confirm="Delete this category? Invoices with this category will become uncategorized."
+            >
+              Delete
+            </.button>
+          </:action>
+        </.table>
+      </div>
     </div>
     """
   end

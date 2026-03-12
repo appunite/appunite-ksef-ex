@@ -38,29 +38,37 @@ defmodule KsefHubWeb.UserConfirmationInstructionsLive do
   @spec render(map()) :: Phoenix.LiveView.Rendered.t()
   def render(assigns) do
     ~H"""
-    <div class="min-h-screen flex items-center justify-center">
-      <div class="card bg-base-100 border border-base-300 w-full max-w-md">
-        <div class="card-body">
-          <h2 data-testid="page-title" class="card-title text-2xl justify-center mb-4">
+    <.auth_card title="Resend confirmation instructions">
+      <.simple_form for={@form} id="resend_confirmation_form" phx-submit="send_instructions">
+        <.input field={@form[:email]} type="email" label="Email" required />
+        <:actions>
+          <.button
+            phx-disable-with="Sending..."
+            class="inline-flex items-center justify-center gap-2 w-full h-9 px-4 text-sm font-medium rounded-md bg-shad-primary text-shad-primary-foreground hover:bg-shad-primary/90 transition-colors cursor-pointer"
+          >
             Resend confirmation instructions
-          </h2>
+          </.button>
+        </:actions>
+      </.simple_form>
 
-          <.simple_form for={@form} id="resend_confirmation_form" phx-submit="send_instructions">
-            <.input field={@form[:email]} type="email" label="Email" required />
-            <:actions>
-              <.button phx-disable-with="Sending..." class="btn btn-primary w-full">
-                Resend confirmation instructions
-              </.button>
-            </:actions>
-          </.simple_form>
-
-          <p class="text-center text-sm mt-4">
-            <.link navigate={~p"/users/register"} class="link link-primary">Register</.link>
-            | <.link navigate={~p"/users/log-in"} class="link link-primary">Log in</.link>
-          </p>
-        </div>
-      </div>
-    </div>
+      <:footer>
+        <p class="text-center text-sm mt-4">
+          <.link
+            navigate={~p"/users/register"}
+            class="text-shad-primary underline-offset-4 hover:underline"
+          >
+            Register
+          </.link>
+          |
+          <.link
+            navigate={~p"/users/log-in"}
+            class="text-shad-primary underline-offset-4 hover:underline"
+          >
+            Log in
+          </.link>
+        </p>
+      </:footer>
+    </.auth_card>
     """
   end
 end

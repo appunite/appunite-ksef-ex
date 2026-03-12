@@ -169,89 +169,95 @@ defmodule KsefHubWeb.TeamLive do
     </.header>
 
     <!-- Invite Form -->
-    <div class="card bg-base-100 border border-base-300 mt-6">
-      <div class="p-5">
-        <h2 class="text-base font-semibold mb-3">Invite a new member</h2>
-        <.form
-          for={@invite_form}
-          phx-submit="invite"
-          phx-change="validate_invite"
-          data-testid="invite-form"
-          class="flex gap-3 items-end"
-        >
-          <div class="flex-1">
-            <.input
-              field={@invite_form[:email]}
-              type="email"
-              label="Email"
-              placeholder="user@example.com"
-              required
-            />
-          </div>
-          <div class="w-48">
-            <.input
-              field={@invite_form[:role]}
-              type="select"
-              label="Role"
-              options={[{"Accountant", "accountant"}, {"Reviewer", "reviewer"}]}
-            />
-          </div>
-          <div class="fieldset mb-2">
-            <span class="label mb-1 invisible">_</span>
-            <button type="submit" class="btn btn-primary">
-              <.icon name="hero-paper-airplane" class="size-4" /> Invite
-            </button>
-          </div>
-        </.form>
-      </div>
-    </div>
+    <.card class="mt-6">
+      <h2 class="text-base font-semibold mb-3">Invite a new member</h2>
+      <.form
+        for={@invite_form}
+        phx-submit="invite"
+        phx-change="validate_invite"
+        data-testid="invite-form"
+        class="flex gap-3 items-end"
+      >
+        <div class="flex-1">
+          <.input
+            field={@invite_form[:email]}
+            type="email"
+            label="Email"
+            placeholder="user@example.com"
+            required
+          />
+        </div>
+        <div class="w-48">
+          <.input
+            field={@invite_form[:role]}
+            type="select"
+            label="Role"
+            options={[{"Accountant", "accountant"}, {"Reviewer", "reviewer"}]}
+          />
+        </div>
+        <div class="fieldset mb-2">
+          <span class="mb-1 invisible">_</span>
+          <.button type="submit">
+            <.icon name="hero-paper-airplane" class="size-4" /> Invite
+          </.button>
+        </div>
+      </.form>
+    </.card>
 
     <!-- Team members & pending invitations -->
-    <div class="card bg-base-100 border border-base-300 mt-6">
-      <div class="p-5">
-        <h2 class="text-base font-semibold mb-3">Members</h2>
+    <.card class="mt-6">
+      <h2 class="text-base font-semibold mb-3">Members</h2>
+      <div class="rounded-lg border border-border overflow-hidden">
         <div class="overflow-x-auto" data-testid="member-list">
-          <table class="table table-sm" data-testid="team-table">
+          <table class="w-full text-sm" data-testid="team-table">
             <thead>
-              <tr class="border-b border-base-300">
-                <th class="text-left py-3 px-2 text-xs font-medium text-base-content/60 uppercase tracking-wide">
+              <tr class="border-b border-border">
+                <th class="text-left py-3 px-4 text-xs font-medium text-muted-foreground uppercase tracking-wide">
                   Email
                 </th>
-                <th class="text-left py-3 px-2 text-xs font-medium text-base-content/60 uppercase tracking-wide">
+                <th class="text-left py-3 px-4 text-xs font-medium text-muted-foreground uppercase tracking-wide">
                   Name
                 </th>
-                <th class="text-left py-3 px-2 text-xs font-medium text-base-content/60 uppercase tracking-wide">
+                <th class="text-left py-3 px-4 text-xs font-medium text-muted-foreground uppercase tracking-wide">
                   Role
                 </th>
-                <th class="text-left py-3 px-2 text-xs font-medium text-base-content/60 uppercase tracking-wide">
+                <th class="text-left py-3 px-4 text-xs font-medium text-muted-foreground uppercase tracking-wide">
                   Status
                 </th>
-                <th class="text-left py-3 px-2 text-xs font-medium text-base-content/60 uppercase tracking-wide">
+                <th class="text-left py-3 px-4 text-xs font-medium text-muted-foreground uppercase tracking-wide">
                   Expires
                 </th>
-                <th class="text-left py-3 px-2 text-xs font-medium text-base-content/60 uppercase tracking-wide">
+                <th class="text-left py-3 px-4 text-xs font-medium text-muted-foreground uppercase tracking-wide">
                   Action
                 </th>
               </tr>
             </thead>
             <tbody id="members-list" phx-update="stream">
-              <tr :for={{dom_id, member} <- @streams.members} id={dom_id}>
-                <td>{member.user.email}</td>
-                <td>{member.user.name || "—"}</td>
-                <td><span class="badge badge-sm badge-outline">{member.role}</span></td>
-                <td></td>
-                <td>—</td>
-                <td>
-                  <button
+              <tr
+                :for={{dom_id, member} <- @streams.members}
+                id={dom_id}
+                class="border-b border-border/50 hover:bg-muted/50 transition-colors"
+              >
+                <td class="py-3.5 px-4">{member.user.email}</td>
+                <td class="py-3.5 px-4">{member.user.name || "-"}</td>
+                <td class="py-3.5 px-4">
+                  <.badge variant="default">{member.role}</.badge>
+                </td>
+                <td class="py-3.5 px-4"></td>
+                <td class="py-3.5 px-4">-</td>
+                <td class="py-3.5 px-4">
+                  <.button
                     :if={member.role != :owner}
+                    variant="outline"
+                    size="sm"
+                    class="border-shad-destructive text-shad-destructive hover:bg-shad-destructive/10"
                     phx-click="remove_member"
                     phx-value-user-id={member.user.id}
                     data-confirm="Remove this member from the company?"
                     data-testid={"remove-member-#{member.user.id}"}
-                    class="btn btn-xs btn-ghost text-error"
                   >
                     Remove
-                  </button>
+                  </.button>
                 </td>
               </tr>
             </tbody>
@@ -259,31 +265,36 @@ defmodule KsefHubWeb.TeamLive do
               <tr
                 :for={{dom_id, inv} <- @streams.pending_invitations}
                 id={dom_id}
+                class="border-b border-border/50 hover:bg-muted/50 transition-colors"
               >
-                <td>{inv.email}</td>
-                <td>—</td>
-                <td>
-                  <span class="badge badge-sm badge-outline" data-role={inv.role}>{inv.role}</span>
+                <td class="py-3.5 px-4">{inv.email}</td>
+                <td class="py-3.5 px-4">-</td>
+                <td class="py-3.5 px-4">
+                  <.badge variant="default" data-role={inv.role}>{inv.role}</.badge>
                 </td>
-                <td><span class="badge badge-sm badge-warning">pending</span></td>
-                <td>{Calendar.strftime(inv.expires_at, "%Y-%m-%d")}</td>
-                <td>
-                  <button
+                <td class="py-3.5 px-4">
+                  <.badge variant="warning">pending</.badge>
+                </td>
+                <td class="py-3.5 px-4">{Calendar.strftime(inv.expires_at, "%Y-%m-%d")}</td>
+                <td class="py-3.5 px-4">
+                  <.button
+                    variant="outline"
+                    size="sm"
+                    class="border-shad-destructive text-shad-destructive hover:bg-shad-destructive/10"
                     phx-click="cancel_invitation"
                     phx-value-id={inv.id}
                     data-confirm="Cancel this invitation?"
                     data-testid={"cancel-invitation-#{inv.id}"}
-                    class="btn btn-xs btn-ghost text-error"
                   >
                     Cancel
-                  </button>
+                  </.button>
                 </td>
               </tr>
             </tbody>
           </table>
         </div>
       </div>
-    </div>
+    </.card>
     """
   end
 end

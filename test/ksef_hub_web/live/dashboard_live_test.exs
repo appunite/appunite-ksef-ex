@@ -28,7 +28,7 @@ defmodule KsefHubWeb.DashboardLiveTest do
       assert html =~ "Dashboard"
       assert has_element?(view, "[class*='text-2xl font-bold']", "0")
       # Top navbar navigation rendered via app layout
-      assert html =~ "navbar"
+      assert html =~ "border-b border-border"
       assert html =~ "Invoices"
       assert html =~ "Certificates"
       assert html =~ "API Tokens"

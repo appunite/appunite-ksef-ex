@@ -12,6 +12,8 @@ defmodule KsefHubWeb.CertificateLive do
   """
   use KsefHubWeb, :live_view
 
+  import KsefHubWeb.InvoiceComponents, only: [format_date: 1]
+
   require Logger
 
   alias KsefHub.Credentials
@@ -320,217 +322,165 @@ defmodule KsefHubWeb.CertificateLive do
     </.header>
 
     <!-- Current Certificate -->
-    <div
-      :if={@user_certificate}
-      id="current-certificate"
-      class="card bg-base-100 border border-base-300 mt-6"
-    >
-      <div class="p-5">
-        <h2 id="cert-heading" class="text-base font-semibold">Your Certificate</h2>
-        <.list>
-          <:item title="Issued To">
-            <span id="cert-subject">{cert_display_subject(@user_certificate)}</span>
-          </:item>
-          <:item title="Valid From">
-            {format_cert_date(@user_certificate.not_before)}
-          </:item>
-          <:item title="Valid Until">
-            <span class={cert_expiry_class(@user_certificate.not_after)}>
-              {format_cert_date(@user_certificate.not_after)}
-            </span>
-          </:item>
-          <:item :if={@user_certificate.fingerprint} title="Fingerprint">
-            <span class="font-mono text-xs">{@user_certificate.fingerprint}</span>
-          </:item>
-          <:item title="Uploaded">
-            {Calendar.strftime(@user_certificate.inserted_at, "%Y-%m-%d %H:%M UTC")}
-          </:item>
-        </.list>
-        <p
-          :if={is_nil(@user_certificate.certificate_subject)}
-          class="text-xs text-base-content/50 mt-2"
+    <.card :if={@user_certificate} id="current-certificate" class="mt-6">
+      <h2 id="cert-heading" class="text-base font-semibold">Your Certificate</h2>
+      <.list>
+        <:item title="Issued To">
+          <span id="cert-subject">{cert_display_subject(@user_certificate)}</span>
+        </:item>
+        <:item title="Valid From">
+          {format_date(@user_certificate.not_before)}
+        </:item>
+        <:item title="Valid Until">
+          <span class={cert_expiry_class(@user_certificate.not_after)}>
+            {format_date(@user_certificate.not_after)}
+          </span>
+        </:item>
+        <:item :if={@user_certificate.fingerprint} title="Fingerprint">
+          <span class="font-mono text-xs">{@user_certificate.fingerprint}</span>
+        </:item>
+        <:item title="Uploaded">
+          {Calendar.strftime(@user_certificate.inserted_at, "%Y-%m-%d %H:%M UTC")}
+        </:item>
+      </.list>
+      <p
+        :if={is_nil(@user_certificate.certificate_subject)}
+        class="text-xs text-muted-foreground mt-2"
+      >
+        Certificate details incomplete — replace to refresh metadata.
+      </p>
+      <div class="flex gap-2 mt-4">
+        <.button variant="outline" type="button" phx-click="toggle_upload_form">
+          <.icon name="hero-arrow-path" class="size-4" />
+          {if @show_upload_form, do: "Cancel", else: "Replace Certificate"}
+        </.button>
+        <.button
+          variant="ghost"
+          class="text-shad-destructive"
+          type="button"
+          phx-click="remove_certificate"
+          data-confirm="Are you sure you want to remove this certificate? This will disable KSeF sync."
         >
-          Certificate details incomplete — replace to refresh metadata.
-        </p>
-        <div class="flex gap-2 mt-4">
-          <button
-            type="button"
-            phx-click="toggle_upload_form"
-            class="btn btn-sm btn-outline"
-          >
-            <.icon name="hero-arrow-path" class="size-4" />
-            {if @show_upload_form, do: "Cancel", else: "Replace Certificate"}
-          </button>
-          <button
-            type="button"
-            phx-click="remove_certificate"
-            data-confirm="Are you sure you want to remove this certificate? This will disable KSeF sync."
-            class="btn btn-sm btn-ghost text-error"
-          >
-            <.icon name="hero-trash" class="size-4" /> Remove
-          </button>
-        </div>
+          <.icon name="hero-trash" class="size-4" /> Remove
+        </.button>
       </div>
-    </div>
+    </.card>
 
     <!-- Empty State -->
-    <div
-      :if={!@user_certificate}
-      id="no-certificate"
-      class="card bg-base-100 border border-base-300 mt-6"
-    >
-      <div class="p-8 text-center">
-        <.icon name="hero-shield-exclamation" class="size-12 text-base-content/30 mx-auto" />
-        <h2 class="text-base font-semibold mt-3">No Certificate Configured</h2>
-        <p class="text-sm text-base-content/60 mt-1">
-          Upload a certificate to enable KSeF synchronization.
-        </p>
-      </div>
-    </div>
+    <.card :if={!@user_certificate} id="no-certificate" class="mt-6" padding="p-8 text-center">
+      <.icon name="hero-shield-exclamation" class="size-12 text-muted-foreground mx-auto" />
+      <h2 class="text-base font-semibold mt-3">No Certificate Configured</h2>
+      <p class="text-sm text-muted-foreground mt-1">
+        Upload a certificate to enable KSeF synchronization.
+      </p>
+    </.card>
 
     <!-- Upload Form -->
-    <div :if={@show_upload_form} id="upload-form" class="card bg-base-100 border border-base-300 mt-6">
-      <div class="p-5">
-        <h2 class="text-base font-semibold">Upload Certificate</h2>
-        
+    <.card :if={@show_upload_form} id="upload-form" class="mt-6">
+      <h2 class="text-base font-semibold">Upload Certificate</h2>
+      
     <!-- Mode Toggle -->
-        <div class="flex gap-2 mt-3 mb-4" id="upload-mode-toggle">
-          <button
-            type="button"
-            phx-click="toggle_upload_mode"
-            phx-value-mode="key_crt"
-            class={"btn btn-sm #{if @upload_mode == :key_crt, do: "btn-primary", else: "btn-ghost"}"}
+      <div class="flex gap-2 mt-3 mb-4" id="upload-mode-toggle">
+        <.button
+          type="button"
+          variant={if @upload_mode == :key_crt, do: "primary", else: "ghost"}
+          phx-click="toggle_upload_mode"
+          phx-value-mode="key_crt"
+        >
+          .key + .crt
+        </.button>
+        <.button
+          type="button"
+          variant={if @upload_mode == :p12, do: "primary", else: "ghost"}
+          phx-click="toggle_upload_mode"
+          phx-value-mode="p12"
+        >
+          .p12 / .pfx
+        </.button>
+      </div>
+
+      <.form
+        for={@form}
+        phx-submit="save"
+        phx-change="validate"
+        class="space-y-4"
+        id="certificate-upload"
+      >
+        <!-- P12 upload -->
+        <div :if={@upload_mode == :p12}>
+          <.file_upload_dropzone upload={@uploads.certificate} label="Certificate File (.p12 / .pfx)">
+            <p :for={entry <- @uploads.certificate.entries} class="mt-2 text-sm">
+              {entry.client_name}
+              <span class="text-muted-foreground">({format_bytes(entry.client_size)})</span>
+            </p>
+            <p
+              :for={err <- upload_errors(@uploads.certificate)}
+              class="mt-1 text-shad-destructive text-sm"
+            >
+              {error_to_string(err)}
+            </p>
+          </.file_upload_dropzone>
+        </div>
+        
+    <!-- Key + CRT upload -->
+        <div :if={@upload_mode == :key_crt} class="space-y-4">
+          <.file_upload_dropzone upload={@uploads.private_key} label="Private Key File (.key / .pem)">
+            <p :for={entry <- @uploads.private_key.entries} class="mt-2 text-sm">
+              {entry.client_name}
+              <span class="text-muted-foreground">({format_bytes(entry.client_size)})</span>
+            </p>
+            <p
+              :for={err <- upload_errors(@uploads.private_key)}
+              class="mt-1 text-shad-destructive text-sm"
+            >
+              {error_to_string(err)}
+            </p>
+          </.file_upload_dropzone>
+
+          <.file_upload_dropzone
+            upload={@uploads.certificate_crt}
+            label="Certificate File (.crt / .pem / .cer)"
           >
-            .key + .crt
-          </button>
-          <button
-            type="button"
-            phx-click="toggle_upload_mode"
-            phx-value-mode="p12"
-            class={"btn btn-sm #{if @upload_mode == :p12, do: "btn-primary", else: "btn-ghost"}"}
-          >
-            .p12 / .pfx
-          </button>
+            <p :for={entry <- @uploads.certificate_crt.entries} class="mt-2 text-sm">
+              {entry.client_name}
+              <span class="text-muted-foreground">({format_bytes(entry.client_size)})</span>
+            </p>
+            <p
+              :for={err <- upload_errors(@uploads.certificate_crt)}
+              class="mt-1 text-shad-destructive text-sm"
+            >
+              {error_to_string(err)}
+            </p>
+          </.file_upload_dropzone>
+
+          <.input
+            field={@form[:key_passphrase]}
+            type="password"
+            label="Key Passphrase (leave empty if unencrypted)"
+          />
+        </div>
+        
+    <!-- Password field for P12 mode -->
+        <div :if={@upload_mode == :p12}>
+          <.input
+            field={@form[:password]}
+            type="password"
+            label="Certificate Password"
+            required
+          />
         </div>
 
-        <.form
-          for={@form}
-          phx-submit="save"
-          phx-change="validate"
-          class="space-y-4"
-          id="certificate-upload"
-        >
-          <!-- P12 upload -->
-          <div :if={@upload_mode == :p12} class="form-control">
-            <label class="label">
-              <span class="label-text">Certificate File (.p12 / .pfx)</span>
-            </label>
-            <div
-              class="border-2 border-dashed border-base-300 rounded-lg p-6 text-center"
-              phx-drop-target={@uploads.certificate.ref}
-            >
-              <.live_file_input
-                upload={@uploads.certificate}
-                class="file-input file-input-bordered file-input-sm"
-              />
-              <p :for={entry <- @uploads.certificate.entries} class="mt-2 text-sm">
-                {entry.client_name}
-                <span class="text-base-content/60">({format_bytes(entry.client_size)})</span>
-              </p>
-              <p
-                :for={err <- upload_errors(@uploads.certificate)}
-                class="mt-1 text-error text-sm"
-              >
-                {error_to_string(err)}
-              </p>
-            </div>
-          </div>
-          
-    <!-- Key + CRT upload -->
-          <div :if={@upload_mode == :key_crt} class="space-y-4">
-            <div class="form-control">
-              <label class="label">
-                <span class="label-text">Private Key File (.key / .pem)</span>
-              </label>
-              <div
-                class="border-2 border-dashed border-base-300 rounded-lg p-6 text-center"
-                phx-drop-target={@uploads.private_key.ref}
-              >
-                <.live_file_input
-                  upload={@uploads.private_key}
-                  class="file-input file-input-bordered file-input-sm"
-                />
-                <p :for={entry <- @uploads.private_key.entries} class="mt-2 text-sm">
-                  {entry.client_name}
-                  <span class="text-base-content/60">({format_bytes(entry.client_size)})</span>
-                </p>
-                <p
-                  :for={err <- upload_errors(@uploads.private_key)}
-                  class="mt-1 text-error text-sm"
-                >
-                  {error_to_string(err)}
-                </p>
-              </div>
-            </div>
-
-            <div class="form-control">
-              <label class="label">
-                <span class="label-text">Certificate File (.crt / .pem / .cer)</span>
-              </label>
-              <div
-                class="border-2 border-dashed border-base-300 rounded-lg p-6 text-center"
-                phx-drop-target={@uploads.certificate_crt.ref}
-              >
-                <.live_file_input
-                  upload={@uploads.certificate_crt}
-                  class="file-input file-input-bordered file-input-sm"
-                />
-                <p :for={entry <- @uploads.certificate_crt.entries} class="mt-2 text-sm">
-                  {entry.client_name}
-                  <span class="text-base-content/60">({format_bytes(entry.client_size)})</span>
-                </p>
-                <p
-                  :for={err <- upload_errors(@uploads.certificate_crt)}
-                  class="mt-1 text-error text-sm"
-                >
-                  {error_to_string(err)}
-                </p>
-              </div>
-            </div>
-
-            <.input
-              field={@form[:key_passphrase]}
-              type="password"
-              label="Key Passphrase (leave empty if unencrypted)"
-            />
-          </div>
-          
-    <!-- Password field for P12 mode -->
-          <div :if={@upload_mode == :p12}>
-            <.input
-              field={@form[:password]}
-              type="password"
-              label="Certificate Password"
-              required
-            />
-          </div>
-
-          <button type="submit" class="btn btn-primary">
-            <.icon name="hero-arrow-up-tray" class="size-4" /> Upload Certificate
-          </button>
-        </.form>
-      </div>
-    </div>
+        <.button type="submit">
+          <.icon name="hero-arrow-up-tray" class="size-4" /> Upload Certificate
+        </.button>
+      </.form>
+    </.card>
     """
   end
 
   @spec cert_display_subject(UserCertificate.t()) :: String.t()
-  defp cert_display_subject(%{certificate_subject: nil}), do: "—"
+  defp cert_display_subject(%{certificate_subject: nil}), do: "-"
   defp cert_display_subject(%{certificate_subject: subject}), do: subject
-
-  @spec format_cert_date(Date.t() | nil) :: String.t()
-  defp format_cert_date(nil), do: "—"
-  defp format_cert_date(date), do: Calendar.strftime(date, "%Y-%m-%d")
 
   @spec cert_expiry_class(Date.t() | nil) :: String.t()
   defp cert_expiry_class(nil), do: ""
@@ -539,7 +489,7 @@ defmodule KsefHubWeb.CertificateLive do
     days_left = Date.diff(date, Date.utc_today())
 
     cond do
-      days_left < 0 -> "text-error font-bold"
+      days_left < 7 -> "text-shad-destructive font-bold"
       days_left < 30 -> "text-warning font-semibold"
       true -> ""
     end

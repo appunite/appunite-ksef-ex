@@ -114,6 +114,22 @@ defmodule KsefHubWeb.InvoiceLive.IndexTest do
 
       assert_patched(view, "/c/#{company.id}/invoices?type=income")
     end
+
+    test "remove_filter clears a single filter", %{conn: conn, company: company} do
+      {:ok, view, _html} = live(conn, ~p"/c/#{company.id}/invoices?type=income&status=pending")
+
+      # Verify both chips are rendered
+      html = render(view)
+      assert html =~ "Type: Income"
+      assert html =~ "Status: Pending"
+
+      # Remove the type filter via chip
+      view
+      |> element("button[phx-click=remove_filter][phx-value-key=type]")
+      |> render_click()
+
+      assert_patched(view, "/c/#{company.id}/invoices?status=pending")
+    end
   end
 
   describe "category and tag filters" do
@@ -195,11 +211,22 @@ defmodule KsefHubWeb.InvoiceLive.IndexTest do
       assert html =~ "of 30 invoices"
     end
 
-    test "does not render pagination controls for single page", %{conn: conn, company: company} do
+    test "shows pagination footer with disabled nav for single page", %{
+      conn: conn,
+      company: company
+    } do
       insert(:invoice, company: company)
 
       {:ok, _view, html} = live(conn, ~p"/c/#{company.id}/invoices")
-      refute html =~ "data-testid=\"pagination\""
+      assert html =~ "data-testid=\"pagination\""
+      assert html =~ "Showing 1"
+      assert html =~ "of 1 invoices"
+      assert html =~ "Page 1 of 1"
+
+      # Previous and Next should be rendered as disabled spans (not links)
+      assert html =~ "pointer-events-none"
+      refute html =~ ~r/<a[^>]*>Previous<\/a>/
+      refute html =~ ~r/<a[^>]*>Next<\/a>/
     end
 
     test "navigates to page 2", %{conn: conn, company: company} do

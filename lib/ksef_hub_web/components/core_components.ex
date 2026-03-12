@@ -61,15 +61,15 @@ defmodule KsefHubWeb.CoreComponents do
       {@rest}
     >
       <div class={[
-        "w-80 sm:w-96 max-w-80 sm:max-w-96 text-wrap rounded-lg p-4 flex gap-3 items-start shadow-sm",
-        @kind == :info && "bg-base-100 border border-base-300",
-        @kind == :warning && "bg-warning/5 border border-warning/20",
-        @kind == :error && "bg-error/5 border border-error/20"
+        "w-80 sm:w-96 max-w-80 sm:max-w-96 text-wrap rounded-md p-4 flex gap-3 items-start border",
+        @kind == :info && "bg-background border-border",
+        @kind == :warning && "bg-warning/5 border-warning/20",
+        @kind == :error && "bg-shad-destructive/5 border-shad-destructive/20"
       ]}>
         <.icon
           :if={@kind == :info}
           name="hero-information-circle"
-          class="size-5 shrink-0 text-base-content/50"
+          class="size-5 shrink-0 text-muted-foreground"
         />
         <.icon
           :if={@kind == :warning}
@@ -81,7 +81,7 @@ defmodule KsefHubWeb.CoreComponents do
           name="hero-exclamation-circle"
           class="size-5 shrink-0 text-error/70"
         />
-        <div>
+        <div class="text-sm">
           <p :if={@title} class="font-semibold">{@title}</p>
           <p>{msg}</p>
         </div>
@@ -95,6 +95,109 @@ defmodule KsefHubWeb.CoreComponents do
   end
 
   @doc """
+  Renders a badge with semantic colour variants.
+
+  ## Examples
+
+      <.badge>Default</.badge>
+      <.badge variant="success">Active</.badge>
+      <.badge variant="warning">Pending</.badge>
+  """
+  attr :variant, :string,
+    values: ~w(success warning error info muted default),
+    default: "default"
+
+  attr :class, :string, default: nil
+  attr :rest, :global
+  slot :inner_block, required: true
+
+  @spec badge(map()) :: Phoenix.LiveView.Rendered.t()
+  def badge(assigns) do
+    variant_classes = %{
+      "success" => "bg-success/10 text-success border-success/20",
+      "warning" => "bg-warning/10 text-warning border-warning/20",
+      "error" => "bg-error/10 text-error border-error/20",
+      "info" => "bg-info/10 text-info border-info/20",
+      "muted" => "bg-muted text-muted-foreground border-border",
+      "default" => "bg-muted text-muted-foreground border-border"
+    }
+
+    assigns = assign(assigns, :variant_class, Map.fetch!(variant_classes, assigns.variant))
+
+    ~H"""
+    <span
+      class={[
+        "inline-flex items-center px-2 py-0.5 rounded-md text-xs font-medium border",
+        @variant_class,
+        @class
+      ]}
+      {@rest}
+    >
+      {render_slot(@inner_block)}
+    </span>
+    """
+  end
+
+  @doc """
+  Renders a card container with rounded border and background.
+
+  ## Examples
+
+      <.card>Content</.card>
+      <.card padding="p-4">Compact content</.card>
+  """
+  attr :class, :string, default: nil
+  attr :padding, :string, default: "p-6"
+  attr :rest, :global
+  slot :inner_block, required: true
+
+  @spec card(map()) :: Phoenix.LiveView.Rendered.t()
+  def card(assigns) do
+    ~H"""
+    <div class={["rounded-xl border border-border bg-card text-card-foreground", @class]} {@rest}>
+      <div class={@padding}>
+        {render_slot(@inner_block)}
+      </div>
+    </div>
+    """
+  end
+
+  @doc """
+  Renders an authentication page card — centered container with heading and optional footer.
+
+  ## Examples
+
+      <.auth_card title="Log in">
+        <.simple_form ...>...</.simple_form>
+        <:footer>
+          <.link navigate={~p"/users/register"}>Sign up</.link>
+        </:footer>
+      </.auth_card>
+  """
+  attr :title, :string, required: true
+  slot :inner_block, required: true
+  slot :footer
+
+  @spec auth_card(map()) :: Phoenix.LiveView.Rendered.t()
+  def auth_card(assigns) do
+    ~H"""
+    <div class="min-h-screen flex items-center justify-center">
+      <div class="rounded-xl border border-border bg-card text-card-foreground w-full max-w-md">
+        <div class="p-6">
+          <h2 data-testid="page-title" class="text-2xl font-semibold text-center mb-4">
+            {@title}
+          </h2>
+          {render_slot(@inner_block)}
+          <div :for={footer <- @footer}>
+            {render_slot(footer)}
+          </div>
+        </div>
+      </div>
+    </div>
+    """
+  end
+
+  @doc """
   Renders a button with navigation support.
 
   ## Examples
@@ -102,33 +205,157 @@ defmodule KsefHubWeb.CoreComponents do
       <.button>Send!</.button>
       <.button phx-click="go" variant="primary">Send!</.button>
       <.button navigate={~p"/"}>Home</.button>
+      <.button size="sm" variant="ghost">Small</.button>
+      <.button size="icon" variant="ghost"><.icon name="hero-pencil" /></.button>
   """
   attr :rest, :global, include: ~w(href navigate patch method download name value disabled)
-  attr :class, :string
-  attr :variant, :string, values: ~w(primary)
+  attr :class, :string, default: nil
+  attr :variant, :string, values: ~w(primary outline ghost destructive success warning)
+  attr :size, :string, values: ~w(default sm icon), default: "default"
   slot :inner_block, required: true
 
   def button(%{rest: rest} = assigns) do
-    variants = %{"primary" => "btn-primary", nil => "btn-primary btn-soft"}
+    variants = %{
+      "primary" => "bg-shad-primary text-shad-primary-foreground hover:bg-shad-primary/90",
+      "outline" =>
+        "border border-input bg-background hover:bg-shad-accent hover:text-shad-accent-foreground",
+      "ghost" => "hover:bg-shad-accent hover:text-shad-accent-foreground",
+      "destructive" =>
+        "bg-shad-destructive text-shad-destructive-foreground hover:bg-shad-destructive/90",
+      "success" => "bg-emerald-600 text-white hover:bg-emerald-600/90",
+      "warning" => "bg-amber-500 text-white hover:bg-amber-500/90",
+      nil => "bg-shad-primary text-shad-primary-foreground hover:bg-shad-primary/90"
+    }
+
+    sizes = %{
+      "default" => "h-9 px-4 py-2 text-sm",
+      "sm" => "h-7 px-2 text-xs",
+      "icon" => "h-9 w-9 p-0"
+    }
 
     assigns =
-      assign_new(assigns, :class, fn ->
-        ["btn", Map.fetch!(variants, assigns[:variant])]
-      end)
+      assign(assigns, :computed_class, [
+        "inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-md font-medium transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50 cursor-pointer",
+        Map.fetch!(sizes, assigns.size),
+        Map.fetch!(variants, assigns[:variant]),
+        assigns.class
+      ])
 
     if rest[:href] || rest[:navigate] || rest[:patch] do
       ~H"""
-      <.link class={@class} {@rest}>
+      <.link class={@computed_class} {@rest}>
         {render_slot(@inner_block)}
       </.link>
       """
     else
       ~H"""
-      <button class={@class} {@rest}>
+      <button class={@computed_class} {@rest}>
         {render_slot(@inner_block)}
       </button>
       """
     end
+  end
+
+  @doc """
+  Renders the application logo with icon and text.
+
+  ## Examples
+
+      <.logo href={~p"/"} />
+  """
+  attr :href, :string, required: true
+  attr :class, :string, default: nil
+
+  @spec logo(map()) :: Phoenix.LiveView.Rendered.t()
+  def logo(assigns) do
+    ~H"""
+    <a href={@href} class={["flex items-center gap-2", @class]}>
+      <.icon name="hero-document-text" class="size-5 text-foreground" />
+      <span class="flex flex-col items-start leading-tight">
+        <span class="text-sm font-bold tracking-tight">Invoi</span>
+        <span class="text-[9px] text-muted-foreground font-normal -mt-0.5">by Appunite</span>
+      </span>
+    </a>
+    """
+  end
+
+  @doc """
+  Renders a navigation item list for the sidebar/dropdown menus.
+
+  ## Examples
+
+      <.nav_item_list items={nav_items(@company, @role)} current_path={@current_path} />
+  """
+  attr :items, :list, required: true
+  attr :current_path, :string, default: nil
+
+  @spec nav_item_list(map()) :: Phoenix.LiveView.Rendered.t()
+  def nav_item_list(assigns) do
+    ~H"""
+    <%= for item <- @items do %>
+      <div
+        :if={item.section}
+        class="px-2 pt-2 text-xs font-medium text-muted-foreground"
+      >
+        {item.section}
+      </div>
+      <a
+        href={item.path}
+        class={[
+          "flex items-center gap-2 px-2 py-1.5 text-sm rounded-sm transition-colors",
+          nav_active?(@current_path, item.path) &&
+            "font-medium text-foreground bg-shad-accent",
+          !nav_active?(@current_path, item.path) &&
+            "text-muted-foreground hover:bg-shad-accent hover:text-shad-accent-foreground"
+        ]}
+      >
+        <.icon name={item.icon} class="size-4" />
+        {item.label}
+      </a>
+    <% end %>
+    """
+  end
+
+  @spec nav_active?(String.t() | nil, String.t()) :: boolean()
+  defp nav_active?(nil, _path), do: false
+
+  defp nav_active?(current, path),
+    do: current == path || Regex.match?(~r/^#{Regex.escape(path)}(\/|$)/, current)
+
+  @doc """
+  Renders a file upload dropzone with drag-and-drop support.
+
+  ## Examples
+
+      <.file_upload_dropzone upload={@uploads.certificate} label="Certificate File (.p12 / .pfx)">
+        <p :for={entry <- @uploads.certificate.entries} class="mt-2 text-sm">
+          {entry.client_name}
+        </p>
+      </.file_upload_dropzone>
+  """
+  attr :upload, Phoenix.LiveView.UploadConfig, required: true
+  attr :label, :string, required: true
+  slot :inner_block
+
+  @spec file_upload_dropzone(map()) :: Phoenix.LiveView.Rendered.t()
+  def file_upload_dropzone(assigns) do
+    ~H"""
+    <div class="space-y-1">
+      <label class="label">
+        <span class="text-sm font-medium">{@label}</span>
+      </label>
+      <div
+        class="border-2 border-dashed border-border rounded-lg p-6 text-center"
+        phx-drop-target={@upload.ref}
+      >
+        <.live_file_input
+          upload={@upload}
+          class="h-9 w-full rounded-md border border-input bg-background text-sm file:border-0 file:bg-muted file:text-muted-foreground file:text-sm file:font-medium file:mr-3 file:px-3 file:h-full"
+        />
+        {render_slot(@inner_block)}
+      </div>
+    </div>
+    """
   end
 
   @doc """
@@ -200,20 +427,19 @@ defmodule KsefHubWeb.CoreComponents do
       end)
 
     ~H"""
-    <div class="fieldset mb-2">
-      <label>
+    <div class="space-y-1.5 mb-2">
+      <label class="flex items-center gap-2">
         <input type="hidden" name={@name} value="false" disabled={@rest[:disabled]} />
-        <span class="label">
-          <input
-            type="checkbox"
-            id={@id}
-            name={@name}
-            value="true"
-            checked={@checked}
-            class={@class || "checkbox checkbox-sm"}
-            {@rest}
-          />{@label}
-        </span>
+        <input
+          type="checkbox"
+          id={@id}
+          name={@name}
+          value="true"
+          checked={@checked}
+          class={@class || "size-4 rounded border border-input bg-background accent-shad-primary"}
+          {@rest}
+        />
+        <span class="text-sm font-medium">{@label}</span>
       </label>
       <.error :for={msg <- @errors}>{msg}</.error>
     </div>
@@ -222,13 +448,17 @@ defmodule KsefHubWeb.CoreComponents do
 
   def input(%{type: "select"} = assigns) do
     ~H"""
-    <div class="fieldset mb-2">
+    <div class="space-y-1.5 mb-2">
       <label>
-        <span :if={@label} class="label mb-1">{@label}</span>
+        <span :if={@label} class="text-sm font-medium mb-1.5 block">{@label}</span>
         <select
           id={@id}
           name={@name}
-          class={[@class || "w-full select", @errors != [] && (@error_class || "select-error")]}
+          class={[
+            @class ||
+              "w-full h-9 rounded-md border border-input bg-background px-3 text-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring",
+            @errors != [] && (@error_class || "border-error")
+          ]}
           multiple={@multiple}
           {@rest}
         >
@@ -243,15 +473,16 @@ defmodule KsefHubWeb.CoreComponents do
 
   def input(%{type: "textarea"} = assigns) do
     ~H"""
-    <div class="fieldset mb-2">
+    <div class="space-y-1.5 mb-2">
       <label>
-        <span :if={@label} class="label mb-1">{@label}</span>
+        <span :if={@label} class="text-sm font-medium mb-1.5 block">{@label}</span>
         <textarea
           id={@id}
           name={@name}
           class={[
-            @class || "w-full textarea",
-            @errors != [] && (@error_class || "textarea-error")
+            @class ||
+              "w-full min-h-[80px] rounded-md border border-input bg-background px-3 py-2 text-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring",
+            @errors != [] && (@error_class || "border-error")
           ]}
           {@rest}
         >{HtmlForm.normalize_value("textarea", @value)}</textarea>
@@ -264,17 +495,18 @@ defmodule KsefHubWeb.CoreComponents do
   # All other inputs text, datetime-local, url, password, etc. are handled here...
   def input(assigns) do
     ~H"""
-    <div class="fieldset mb-2">
+    <div class="space-y-1.5 mb-2">
       <label>
-        <span :if={@label} class="label mb-1">{@label}</span>
+        <span :if={@label} class="text-sm font-medium mb-1.5 block">{@label}</span>
         <input
           type={@type}
           name={@name}
           id={@id}
           value={HtmlForm.normalize_value(@type, @value)}
           class={[
-            @class || "w-full input",
-            @errors != [] && (@error_class || "input-error")
+            @class ||
+              "w-full h-9 rounded-md border border-input bg-background px-3 text-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring",
+            @errors != [] && (@error_class || "border-error")
           ]}
           {@rest}
         />
@@ -332,7 +564,7 @@ defmodule KsefHubWeb.CoreComponents do
   @spec error(map()) :: Phoenix.LiveView.Rendered.t()
   def error(assigns) do
     ~H"""
-    <p class="mt-1.5 flex gap-2 items-center text-sm text-error/80">
+    <p class="mt-1.5 flex gap-2 items-center text-sm text-shad-destructive">
       <.icon name="hero-exclamation-circle" class="size-5" />
       {render_slot(@inner_block)}
     </p>
@@ -350,13 +582,13 @@ defmodule KsefHubWeb.CoreComponents do
     ~H"""
     <header class={[
       @actions != [] && "flex items-center justify-between gap-6",
-      "pb-4 border-b border-base-300"
+      "pb-4 border-b border-border"
     ]}>
       <div>
-        <h1 class="text-xl font-semibold leading-8">
+        <h1 class="text-lg font-semibold leading-7 tracking-tight">
           {render_slot(@inner_block)}
         </h1>
-        <p :if={@subtitle != []} class="text-sm text-base-content/70">
+        <p :if={@subtitle != []} class="text-sm text-muted-foreground mt-0.5">
           {render_slot(@subtitle)}
         </p>
       </div>
@@ -400,17 +632,17 @@ defmodule KsefHubWeb.CoreComponents do
     ~H"""
     <table class="w-full text-sm">
       <thead>
-        <tr class="border-b border-base-300">
+        <tr class="border-b border-border">
           <th
             :for={col <- @col}
             class={[
-              "text-left py-3 px-2 text-xs font-medium text-base-content/60 uppercase tracking-wide",
+              "text-left py-3 px-4 text-xs font-medium text-muted-foreground uppercase tracking-wide",
               col[:class]
             ]}
           >
             {col[:label]}
           </th>
-          <th :if={@action != []} class="py-3 px-2">
+          <th :if={@action != []} class="py-3 px-4">
             <span class="sr-only">{gettext("Actions")}</span>
           </th>
         </tr>
@@ -419,16 +651,16 @@ defmodule KsefHubWeb.CoreComponents do
         <tr
           :for={row <- @rows}
           id={@row_id && @row_id.(row)}
-          class="border-b border-base-300/50 hover:bg-base-200/50 transition-colors"
+          class="border-b border-border/50 hover:bg-muted/50 transition-colors"
         >
           <td
             :for={col <- @col}
             phx-click={@row_click && @row_click.(row)}
-            class={["py-3 px-2", @row_click && "hover:cursor-pointer", col[:class]]}
+            class={["py-3.5 px-4", @row_click && "hover:cursor-pointer", col[:class]]}
           >
             {render_slot(col, @row_item.(row))}
           </td>
-          <td :if={@action != []} class="w-0 py-3 px-2 font-semibold">
+          <td :if={@action != []} class="w-0 py-3.5 px-4 font-semibold">
             <div class="flex gap-4">
               <%= for action <- @action do %>
                 {render_slot(action, @row_item.(row))}
@@ -457,9 +689,9 @@ defmodule KsefHubWeb.CoreComponents do
 
   def list(assigns) do
     ~H"""
-    <dl class="space-y-0 divide-y divide-base-300">
+    <dl class="space-y-0 divide-y divide-border">
       <div :for={item <- @item} class="flex justify-between gap-4 py-2.5">
-        <dt class="text-sm font-medium text-base-content/60">{item.title}</dt>
+        <dt class="text-sm font-medium text-muted-foreground">{item.title}</dt>
         <dd class="text-sm text-right">{render_slot(item)}</dd>
       </div>
     </dl>
@@ -490,6 +722,212 @@ defmodule KsefHubWeb.CoreComponents do
   def icon(%{name: "hero-" <> _} = assigns) do
     ~H"""
     <span class={[@name, @class]} />
+    """
+  end
+
+  @doc """
+  Renders a removable filter chip/pill showing an active filter.
+
+  ## Examples
+
+      <.filter_chip key="status" label="Status" value="Pending" />
+  """
+  attr :key, :string, required: true, doc: "phx-value-key for the remove event"
+  attr :label, :string, required: true, doc: "filter label, e.g. \"Status\""
+  attr :value, :string, required: true, doc: "filter value, e.g. \"Pending\""
+
+  @spec filter_chip(map()) :: Phoenix.LiveView.Rendered.t()
+  def filter_chip(assigns) do
+    ~H"""
+    <span class="inline-flex items-center gap-1 rounded-md bg-muted px-2 py-0.5 text-xs font-medium text-muted-foreground">
+      {@label}: {@value}
+      <button
+        type="button"
+        phx-click="remove_filter"
+        phx-value-key={@key}
+        class="ml-0.5 hover:text-foreground cursor-pointer"
+        aria-label={"Remove #{@label} filter"}
+      >
+        <.icon name="hero-x-mark" class="size-3" />
+      </button>
+    </span>
+    """
+  end
+
+  @doc """
+  Renders a filter toolbar with a "Filters N" popover button and optional search input.
+
+  Filter fields are rendered inside a JS-toggled popover via the `:filter_fields` slot.
+  The parent LiveView should wrap this component in a `<.form>` with `phx-change="filter"`.
+  The popover stays open across LiveView patches so users can tweak multiple filters
+  and see results update in real-time. Click away or use the toggle button to close.
+
+  ## Examples
+
+      <.form for={@form} phx-change="filter" class="contents">
+        <.filter_bar
+          active_filters={@active_filters}
+          filter_count={@filter_count}
+          search_name={@form[:query].name}
+          search_value={@form[:query].value}
+        >
+          <:filter_fields>
+            <!-- filter selects here -->
+          </:filter_fields>
+        </.filter_bar>
+      </.form>
+  """
+  attr :active_filters, :list,
+    default: [],
+    doc: "list of %{key, label, value} for active filter chips"
+
+  attr :filter_count, :integer, default: 0, doc: "number of active filters"
+  attr :search_name, :string, default: nil, doc: "form field name for search input; nil hides it"
+  attr :search_value, :string, default: "", doc: "current search value"
+  attr :search_placeholder, :string, default: "Search..."
+
+  slot :filter_fields, required: true, doc: "rendered inside the popover"
+
+  @spec filter_bar(map()) :: Phoenix.LiveView.Rendered.t()
+  def filter_bar(assigns) do
+    ~H"""
+    <div class="space-y-2 mt-4 mb-6">
+      <div class="flex items-center gap-3">
+        <%!-- Filters popover --%>
+        <div class="relative">
+          <button
+            type="button"
+            phx-click={JS.toggle(to: "#filter-popover")}
+            class="inline-flex items-center gap-2 h-9 px-4 text-sm font-medium rounded-md border border-input bg-background hover:bg-shad-accent hover:text-shad-accent-foreground transition-colors cursor-pointer"
+          >
+            <.icon name="hero-funnel" class="size-4" /> Filters
+            <span
+              :if={@filter_count > 0}
+              class="inline-flex items-center justify-center size-5 rounded-full bg-shad-primary text-shad-primary-foreground text-xs font-medium"
+            >
+              {@filter_count}
+            </span>
+          </button>
+          <div
+            id="filter-popover"
+            class="hidden absolute left-0 top-full z-10 mt-1 w-72 rounded-md border border-border bg-background p-4 shadow-md"
+            phx-click-away={JS.hide(to: "#filter-popover")}
+          >
+            <div class="space-y-3">
+              {render_slot(@filter_fields)}
+            </div>
+            <div class="mt-3 pt-3 border-t border-border">
+              <button
+                type="button"
+                phx-click={JS.push("clear_filters") |> JS.hide(to: "#filter-popover")}
+                class="inline-flex items-center justify-center h-9 px-3 text-sm font-medium rounded-md hover:bg-shad-accent hover:text-shad-accent-foreground transition-colors cursor-pointer w-full"
+              >
+                Clear all filters
+              </button>
+            </div>
+          </div>
+        </div>
+
+        <%!-- Search input --%>
+        <div :if={@search_name} class="ml-auto w-72">
+          <div class="relative">
+            <.icon
+              name="hero-magnifying-glass"
+              class="absolute left-2.5 top-2.5 size-4 text-muted-foreground"
+            />
+            <input
+              type="text"
+              name={@search_name}
+              value={@search_value}
+              placeholder={@search_placeholder}
+              phx-debounce="300"
+              class="w-full h-9 rounded-md border border-input bg-background pl-8 pr-3 text-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+            />
+          </div>
+        </div>
+      </div>
+
+      <%!-- Active filter chips --%>
+      <div :if={@active_filters != []} class="flex flex-wrap gap-1.5">
+        <.filter_chip
+          :for={filter <- @active_filters}
+          key={filter.key}
+          label={filter.label}
+          value={filter.value}
+        />
+      </div>
+    </div>
+    """
+  end
+
+  @doc """
+  Renders a standalone pagination footer with page info and navigation.
+
+  ## Examples
+
+      <.pagination
+        page={@page} per_page={@per_page}
+        total_count={@total_count} total_pages={@total_pages}
+        base_url={~p"/c/\#{id}/invoices"}
+        params={@filter_params}
+        noun="invoices"
+      />
+  """
+  attr :page, :integer, required: true
+  attr :per_page, :integer, required: true
+  attr :total_count, :integer, required: true
+  attr :total_pages, :integer, required: true
+  attr :base_url, :string, required: true, doc: "base path without query params"
+  attr :params, :map, default: %{}, doc: "filter params (without page)"
+  attr :noun, :string, default: "results"
+
+  @spec pagination(map()) :: Phoenix.LiveView.Rendered.t()
+  def pagination(assigns) do
+    ~H"""
+    <div class="flex items-center justify-between" data-testid="pagination">
+      <p class="text-sm text-muted-foreground">
+        <span :if={@total_count > 0}>
+          Showing {(@page - 1) * @per_page + 1}–{min(@page * @per_page, @total_count)} of {@total_count} {@noun}
+        </span>
+        <span :if={@total_count == 0}>
+          No {@noun}
+        </span>
+      </p>
+
+      <div class="flex items-center gap-1">
+        <.link
+          :if={@page > 1}
+          patch={"#{@base_url}?#{URI.encode_query(Map.put(@params, "page", @page - 1))}"}
+          class="inline-flex items-center justify-center h-9 px-3 text-sm rounded-md border border-input bg-background hover:bg-shad-accent hover:text-shad-accent-foreground transition-colors"
+        >
+          Previous
+        </.link>
+        <span
+          :if={@page <= 1}
+          class="inline-flex items-center justify-center h-9 px-3 text-sm rounded-md border border-input bg-background transition-colors opacity-50 pointer-events-none"
+        >
+          Previous
+        </span>
+
+        <span class="inline-flex items-center justify-center h-9 px-3 text-sm text-muted-foreground">
+          Page {@page} of {@total_pages}
+        </span>
+
+        <.link
+          :if={@page < @total_pages}
+          patch={"#{@base_url}?#{URI.encode_query(Map.put(@params, "page", @page + 1))}"}
+          class="inline-flex items-center justify-center h-9 px-3 text-sm rounded-md border border-input bg-background hover:bg-shad-accent hover:text-shad-accent-foreground transition-colors"
+        >
+          Next
+        </.link>
+        <span
+          :if={@page >= @total_pages}
+          class="inline-flex items-center justify-center h-9 px-3 text-sm rounded-md border border-input bg-background transition-colors opacity-50 pointer-events-none"
+        >
+          Next
+        </span>
+      </div>
+    </div>
     """
   end
 

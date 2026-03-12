@@ -77,51 +77,54 @@ defmodule KsefHubWeb.UserRegistrationLive do
   @spec render(map()) :: Phoenix.LiveView.Rendered.t()
   def render(assigns) do
     ~H"""
-    <div class="min-h-screen flex items-center justify-center">
-      <div class="card bg-base-100 border border-base-300 w-full max-w-md">
-        <div class="card-body">
-          <h2 data-testid="page-title" class="card-title text-2xl justify-center mb-4">
-            Create an account
-          </h2>
+    <.auth_card title="Create an account">
+      <.simple_form
+        for={@form}
+        id="registration_form"
+        phx-submit="save"
+        phx-change="validate"
+        phx-trigger-action={@trigger_submit}
+        action={~p"/users/log-in"}
+        method="post"
+      >
+        <.error :if={@check_errors}>
+          Oops, something went wrong! Please check the errors below.
+        </.error>
 
-          <.simple_form
-            for={@form}
-            id="registration_form"
-            phx-submit="save"
-            phx-change="validate"
-            phx-trigger-action={@trigger_submit}
-            action={~p"/users/log-in"}
-            method="post"
+        <.input field={@form[:email]} type="email" label="Email" required />
+        <.input field={@form[:password]} type="password" label="Password" required />
+
+        <:actions>
+          <.button
+            phx-disable-with="Creating account..."
+            class="inline-flex items-center justify-center gap-2 w-full h-9 px-4 text-sm font-medium rounded-md bg-shad-primary text-shad-primary-foreground hover:bg-shad-primary/90 transition-colors cursor-pointer"
           >
-            <.error :if={@check_errors}>
-              Oops, something went wrong! Please check the errors below.
-            </.error>
+            Create account
+          </.button>
+        </:actions>
+      </.simple_form>
 
-            <.input field={@form[:email]} type="email" label="Email" required />
-            <.input field={@form[:password]} type="password" label="Password" required />
+      <div class="border-t border-border my-4"></div>
 
-            <:actions>
-              <.button phx-disable-with="Creating account..." class="btn btn-primary w-full">
-                Create account
-              </.button>
-            </:actions>
-          </.simple_form>
+      <a
+        href={~p"/auth/google"}
+        class="inline-flex items-center justify-center gap-2 w-full h-9 px-4 text-sm font-medium rounded-md border border-input bg-background hover:bg-shad-accent hover:text-shad-accent-foreground transition-colors cursor-pointer"
+      >
+        Sign in with Google
+      </a>
 
-          <div class="divider">OR</div>
-
-          <a href={~p"/auth/google"} class="btn btn-outline w-full gap-2">
-            Sign in with Google
-          </a>
-
-          <p class="text-center text-sm mt-4">
-            Already registered?
-            <.link navigate={~p"/users/log-in"} class="link link-primary font-semibold">
-              Log in
-            </.link>
-          </p>
-        </div>
-      </div>
-    </div>
+      <:footer>
+        <p class="text-center text-sm mt-4">
+          Already registered?
+          <.link
+            navigate={~p"/users/log-in"}
+            class="text-shad-primary underline-offset-4 hover:underline font-semibold"
+          >
+            Log in
+          </.link>
+        </p>
+      </:footer>
+    </.auth_card>
     """
   end
 end

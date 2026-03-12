@@ -29,45 +29,45 @@ defmodule KsefHubWeb.Layouts do
   @spec app(map()) :: Phoenix.LiveView.Rendered.t()
   def app(assigns) do
     ~H"""
-    <div class="min-h-screen flex flex-col">
-      <div class="navbar bg-base-100 border-b border-base-300 px-4">
-        <!-- navbar-start: logo -->
-        <div class="navbar-start">
-          <a
+    <div class="min-h-screen flex flex-col bg-background text-foreground">
+      <header class="sticky top-0 z-50 w-full border-b border-border bg-background/95 backdrop-blur supports-backdrop-filter:bg-background/60">
+        <div class="flex h-14 items-center px-4 lg:px-6">
+          <!-- Logo -->
+          <.logo
             href={
               if @current_company, do: ~p"/c/#{@current_company.id}/invoices", else: ~p"/companies"
             }
-            class="btn btn-ghost gap-2 h-auto py-1"
-          >
-            <.icon name="hero-document-text" class="size-5 text-primary" />
-            <span class="flex flex-col items-start leading-tight">
-              <span class="text-lg font-bold">Invoi</span>
-              <span class="text-[10px] text-base-content/50 font-normal">by Appunite</span>
-            </span>
-          </a>
-        </div>
-        
-    <!-- navbar-end: company selector + avatar menu -->
-        <div class="navbar-end gap-1">
-          <div :if={@current_company} class="dropdown dropdown-end">
-            <div
-              tabindex="0"
-              role="button"
-              class="btn btn-ghost btn-sm gap-1"
-              data-testid="company-selector"
-            >
-              <.icon name="hero-building-office-2" class="size-4" />
-              <span class="hidden sm:inline truncate max-w-32" data-testid="current-company-name">
-                {@current_company.name}
-              </span>
-              <.icon name="hero-chevron-down" class="size-3" />
-            </div>
-            <ul
-              tabindex="0"
-              class="dropdown-content z-50 menu p-2 border border-base-300 bg-base-100 rounded-box w-56"
-            >
-              <li :for={company <- @companies}>
-                <form method="post" action={~p"/switch-company/#{company.id}"}>
+            class="mr-6"
+          />
+
+          <div class="flex-1" />
+          
+    <!-- Theme toggle + Company selector + avatar menu -->
+          <div class="flex items-center gap-2">
+            <.theme_toggle />
+
+            <div :if={@current_company} class="dropdown dropdown-end">
+              <div
+                tabindex="0"
+                role="button"
+                class="inline-flex items-center gap-1.5 h-9 px-3 text-sm rounded-md border border-border bg-background hover:bg-shad-accent hover:text-shad-accent-foreground transition-colors cursor-pointer"
+                data-testid="company-selector"
+              >
+                <.icon name="hero-building-office-2" class="size-3.5" />
+                <span class="hidden sm:inline truncate max-w-32" data-testid="current-company-name">
+                  {@current_company.name}
+                </span>
+                <.icon name="hero-chevron-down" class="size-3 opacity-50" />
+              </div>
+              <div
+                tabindex="0"
+                class="dropdown-content z-50 p-1 border border-border bg-popover text-popover-foreground rounded-md shadow-md w-56"
+              >
+                <form
+                  :for={company <- @companies}
+                  method="post"
+                  action={~p"/switch-company/#{company.id}"}
+                >
                   <input
                     type="hidden"
                     name="_csrf_token"
@@ -76,58 +76,78 @@ defmodule KsefHubWeb.Layouts do
                   <input
                     type="hidden"
                     name="return_to"
-                    value={@current_path || ~p"/c/#{company.id}/invoices"}
+                    value={rewrite_company_path(@current_path, company.id)}
                   />
                   <button
                     type="submit"
                     class={[
-                      "w-full text-left min-w-0",
-                      company.id == @current_company.id && "active"
+                      "w-full text-left px-2 py-1.5 rounded-sm transition-colors",
+                      company.id == @current_company.id &&
+                        "bg-shad-accent text-shad-accent-foreground",
+                      company.id != @current_company.id &&
+                        "hover:bg-shad-accent hover:text-shad-accent-foreground"
                     ]}
                   >
-                    <span class="block truncate">{company.name}</span>
-                    <span class="block text-xs text-base-content/50">{company.nip}</span>
+                    <span class="block truncate text-sm">{company.name}</span>
+                    <span class="block text-xs text-muted-foreground">{company.nip}</span>
                   </button>
                 </form>
-              </li>
-            </ul>
-          </div>
-
-          <div :if={@current_user} class="dropdown dropdown-end">
-            <div tabindex="0" role="button" class="btn btn-ghost btn-circle avatar placeholder">
-              <div class="bg-neutral text-neutral-content rounded-full w-8">
-                <span class="text-xs">{initial(@current_user.email)}</span>
               </div>
             </div>
-            <ul
-              tabindex="0"
-              class="dropdown-content z-50 menu p-2 border border-base-300 bg-base-100 rounded-box w-64"
-            >
-              <li class="menu-title text-xs truncate">{@current_user.email}</li>
-              <%= for item <- nav_items(@current_company, @current_role) do %>
-                <%= if item.section do %>
-                  <li class="menu-title text-xs pt-2">{item.section}</li>
-                <% end %>
-                <li>
-                  <.nav_link path={item.path} current={@current_path} icon={item.icon}>
-                    {item.label}
-                  </.nav_link>
-                </li>
-              <% end %>
-              <div class="divider my-1"></div>
-              <li class="flex flex-row items-center justify-center px-2 py-1">
-                <.theme_toggle />
-              </li>
-              <div class="divider my-1"></div>
-              <li>
-                <.link href={~p"/users/log-out"} method="delete">
+            
+    <!-- Mobile nav menu -->
+            <div :if={@current_company} class="dropdown dropdown-end md:hidden">
+              <div
+                tabindex="0"
+                role="button"
+                class="inline-flex items-center justify-center h-8 w-8 rounded-md hover:bg-shad-accent hover:text-shad-accent-foreground transition-colors cursor-pointer"
+              >
+                <.icon name="hero-bars-3" class="size-4" />
+              </div>
+              <div
+                tabindex="0"
+                class="dropdown-content z-50 p-1 border border-border bg-popover text-popover-foreground rounded-md shadow-md w-56"
+              >
+                <.nav_item_list
+                  items={nav_items(@current_company, @current_role)}
+                  current_path={@current_path}
+                />
+              </div>
+            </div>
+
+            <div :if={@current_user} class="dropdown dropdown-end">
+              <div
+                tabindex="0"
+                role="button"
+                class="flex items-center justify-center h-8 w-8 rounded-full bg-shad-primary text-shad-primary-foreground text-xs font-medium cursor-pointer hover:opacity-90 transition-opacity"
+              >
+                {initial(@current_user.email)}
+              </div>
+              <div
+                tabindex="0"
+                class="dropdown-content z-50 p-1 border border-border bg-popover text-popover-foreground rounded-md shadow-md w-56"
+              >
+                <div class="px-2 py-1.5 text-xs text-muted-foreground truncate">
+                  {@current_user.email}
+                </div>
+                <div class="border-t border-border my-1"></div>
+                <.nav_item_list
+                  items={nav_items(@current_company, @current_role)}
+                  current_path={@current_path}
+                />
+                <div class="border-t border-border my-1"></div>
+                <.link
+                  href={~p"/users/log-out"}
+                  method="delete"
+                  class="flex items-center gap-2 px-2 py-1.5 text-sm rounded-sm hover:bg-shad-accent hover:text-shad-accent-foreground transition-colors"
+                >
                   <.icon name="hero-arrow-right-on-rectangle" class="size-4" /> Log out
                 </.link>
-              </li>
-            </ul>
+              </div>
+            </div>
           </div>
         </div>
-      </div>
+      </header>
 
       <main class="flex-1 p-4 sm:p-6 lg:p-8">
         <div class="mx-auto max-w-7xl">
@@ -167,32 +187,21 @@ defmodule KsefHubWeb.Layouts do
     end)
   end
 
-  attr :path, :string, required: true
-  attr :current, :string, default: nil
-  attr :icon, :string, required: true
-  slot :inner_block, required: true
-
-  @spec nav_link(map()) :: Phoenix.LiveView.Rendered.t()
-  defp nav_link(assigns) do
-    active =
-      assigns.current &&
-        (assigns.current == assigns.path ||
-           String.starts_with?(assigns.current, assigns.path <> "/"))
-
-    assigns = assign(assigns, :active, active)
-
-    ~H"""
-    <a href={@path} class={[@active && "active"]}>
-      <.icon name={@icon} class="size-5" />
-      {render_slot(@inner_block)}
-    </a>
-    """
-  end
-
   @spec initial(String.t() | nil) :: String.t()
   defp initial(nil), do: "?"
   defp initial(""), do: "?"
   defp initial(email), do: email |> String.first() |> String.upcase()
+
+  @spec rewrite_company_path(String.t() | nil, Ecto.UUID.t()) :: String.t()
+  defp rewrite_company_path(nil, company_id), do: ~p"/c/#{company_id}/invoices"
+
+  defp rewrite_company_path(path, company_id) do
+    if String.match?(path, ~r"^/c/[^/]+") do
+      Regex.replace(~r"^/c/[^/]+", path, "/c/#{company_id}")
+    else
+      ~p"/c/#{company_id}/invoices"
+    end
+  end
 
   attr :flash, :map, required: true, doc: "the map of flash messages"
 
@@ -200,18 +209,12 @@ defmodule KsefHubWeb.Layouts do
   @spec public(map()) :: Phoenix.LiveView.Rendered.t()
   def public(assigns) do
     ~H"""
-    <div class="min-h-screen flex flex-col">
-      <div class="navbar bg-base-100 border-b border-base-300 px-4">
-        <div class="navbar-start">
-          <a href={~p"/"} class="btn btn-ghost gap-2 h-auto py-1">
-            <.icon name="hero-document-text" class="size-5 text-primary" />
-            <span class="flex flex-col items-start leading-tight">
-              <span class="text-lg font-bold">Invoi</span>
-              <span class="text-[10px] text-base-content/50 font-normal">by Appunite</span>
-            </span>
-          </a>
+    <div class="min-h-screen flex flex-col bg-background text-foreground">
+      <header class="border-b border-border bg-background px-4">
+        <div class="flex h-14 items-center">
+          <.logo href={~p"/"} />
         </div>
-      </div>
+      </header>
 
       <main class="flex-1 p-4 sm:p-6 lg:p-8">
         <div class="mx-auto max-w-7xl">
@@ -277,8 +280,8 @@ defmodule KsefHubWeb.Layouts do
   @spec theme_toggle(map()) :: Phoenix.LiveView.Rendered.t()
   def theme_toggle(assigns) do
     ~H"""
-    <div class="card relative flex flex-row items-center border-2 border-base-300 bg-base-300 rounded-full">
-      <div class="absolute w-1/3 h-full rounded-full border-1 border-base-200 bg-base-100 brightness-200 left-0 [[data-theme=light]_&]:left-1/3 [[data-theme=dark]_&]:left-2/3 transition-[left]" />
+    <div class="relative flex flex-row items-center border border-border bg-muted rounded-full">
+      <div class="absolute w-1/3 h-full rounded-full bg-background shadow-sm left-0 [[data-theme=light]_&]:left-1/3 [[data-theme=dark]_&]:left-2/3 transition-[left]" />
 
       <button
         class="flex p-2 cursor-pointer w-1/3"
