@@ -72,43 +72,27 @@ defmodule KsefHubWeb.InvitationAcceptLive do
   def render(assigns) do
     ~H"""
     <div class="mx-auto max-w-md mt-12">
-      <div
-        :if={@error == :expired}
-        class="rounded-xl border border-warning bg-card text-card-foreground"
-      >
-        <div class="p-8 text-center">
-          <.icon name="hero-clock" class="size-12 text-warning mx-auto" />
-          <h2 class="text-lg font-semibold mt-3">Invitation expired</h2>
-          <p class="text-sm text-muted-foreground mt-2">
-            This invitation has expired. Please ask the company owner to send a new one.
-          </p>
-          <.link
-            navigate="/invoices"
-            class="inline-flex items-center justify-center gap-2 h-9 px-4 text-sm font-medium rounded-md bg-shad-primary text-shad-primary-foreground hover:bg-shad-primary/90 shadow-xs transition-colors cursor-pointer mt-4"
-          >
-            Continue
-          </.link>
-        </div>
-      </div>
+      <.card :if={@error == :expired} class="border-warning" padding="p-8 text-center">
+        <.icon name="hero-clock" class="size-12 text-warning mx-auto" />
+        <h2 class="text-lg font-semibold mt-3">Invitation expired</h2>
+        <p class="text-sm text-muted-foreground mt-2">
+          This invitation has expired. Please ask the company owner to send a new one.
+        </p>
+        <.button navigate="/invoices" class="mt-4">
+          Continue
+        </.button>
+      </.card>
 
-      <div
-        :if={@error == :invalid}
-        class="rounded-xl border border-shad-destructive bg-card text-card-foreground"
-      >
-        <div class="p-8 text-center">
-          <.icon name="hero-exclamation-triangle" class="size-12 text-shad-destructive mx-auto" />
-          <h2 class="text-lg font-semibold mt-3">Invalid invitation</h2>
-          <p class="text-sm text-muted-foreground mt-2">
-            This invitation link is invalid or has already been used.
-          </p>
-          <.link
-            navigate="/invoices"
-            class="inline-flex items-center justify-center gap-2 h-9 px-4 text-sm font-medium rounded-md bg-shad-primary text-shad-primary-foreground hover:bg-shad-primary/90 shadow-xs transition-colors cursor-pointer mt-4"
-          >
-            Continue
-          </.link>
-        </div>
-      </div>
+      <.card :if={@error == :invalid} class="border-shad-destructive" padding="p-8 text-center">
+        <.icon name="hero-exclamation-triangle" class="size-12 text-shad-destructive mx-auto" />
+        <h2 class="text-lg font-semibold mt-3">Invalid invitation</h2>
+        <p class="text-sm text-muted-foreground mt-2">
+          This invitation link is invalid or has already been used.
+        </p>
+        <.button navigate="/invoices" class="mt-4">
+          Continue
+        </.button>
+      </.card>
     </div>
     """
   end

@@ -6,6 +6,8 @@ defmodule KsefHubWeb.ExportLive.Index do
 
   use KsefHubWeb, :live_view
 
+  import KsefHubWeb.InvoiceComponents, only: [format_datetime: 1]
+
   alias KsefHub.Authorization
   alias KsefHub.Exports
   alias KsefHub.Exports.ExportBatch
@@ -159,155 +161,130 @@ defmodule KsefHubWeb.ExportLive.Index do
 
     <div class="mt-6 grid grid-cols-1 lg:grid-cols-3 gap-6">
       <%!-- New Export Form --%>
-      <div class="rounded-xl border border-border bg-card text-card-foreground lg:col-span-1">
-        <div class="p-6">
-          <h2 class="text-base font-semibold">New Export</h2>
+      <.card class="lg:col-span-1">
+        <h2 class="text-base font-semibold">New Export</h2>
 
-          <form phx-change="update_form" phx-submit="export" class="space-y-4">
-            <div class="space-y-1">
-              <label class="label"><span class="text-sm font-medium">From</span></label>
-              <input
-                type="date"
-                name="date_from"
-                value={@date_from}
-                class="h-9 w-full rounded-md border border-input bg-background px-3 text-sm shadow-sm"
-              />
-            </div>
+        <form phx-change="update_form" phx-submit="export" class="space-y-4">
+          <div class="space-y-1">
+            <label class="label"><span class="text-sm font-medium">From</span></label>
+            <input
+              type="date"
+              name="date_from"
+              value={@date_from}
+              class="h-9 w-full rounded-md border border-input bg-background px-3 text-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+            />
+          </div>
 
-            <div class="space-y-1">
-              <label class="label"><span class="text-sm font-medium">To</span></label>
-              <input
-                type="date"
-                name="date_to"
-                value={@date_to}
-                class="h-9 w-full rounded-md border border-input bg-background px-3 text-sm shadow-sm"
-              />
-            </div>
+          <div class="space-y-1">
+            <label class="label"><span class="text-sm font-medium">To</span></label>
+            <input
+              type="date"
+              name="date_to"
+              value={@date_to}
+              class="h-9 w-full rounded-md border border-input bg-background px-3 text-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+            />
+          </div>
 
-            <div class="space-y-1">
-              <label class="label"><span class="text-sm font-medium">Invoice Type</span></label>
-              <select
-                name="invoice_type"
-                class="h-9 w-full rounded-md border border-input bg-background px-3 text-sm shadow-sm"
-              >
-                <option value="expense" selected={@invoice_type == "expense"}>Expenses</option>
-                <option value="income" selected={@invoice_type == "income"}>Income</option>
-                <option value="" selected={@invoice_type == ""}>All</option>
-              </select>
-            </div>
-
-            <div class="space-y-1">
-              <label class="label cursor-pointer justify-start gap-2">
-                <input type="hidden" name="only_new" value="false" />
-                <input
-                  type="checkbox"
-                  name="only_new"
-                  value="true"
-                  checked={@only_new}
-                  class="checkbox checkbox-sm"
-                />
-                <span class="text-sm font-medium">
-                  Only new invoices (not previously exported by me)
-                </span>
-              </label>
-            </div>
-
-            <div
-              :if={@preview_count != nil}
-              class="rounded-md border border-blue-200 bg-blue-50 dark:border-blue-900 dark:bg-blue-950 p-4 text-sm"
+          <div class="space-y-1">
+            <label class="label"><span class="text-sm font-medium">Invoice Type</span></label>
+            <select
+              name="invoice_type"
+              class="h-9 w-full rounded-md border border-input bg-background px-3 text-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
             >
-              <.icon name="hero-information-circle" class="size-5" />
-              <span>
-                {@preview_count} invoice{if @preview_count != 1, do: "s"} match{if @preview_count ==
-                                                                                     1,
-                                                                                   do: "es"} your filters.
-              </span>
-            </div>
+              <option value="expense" selected={@invoice_type == "expense"}>Expenses</option>
+              <option value="income" selected={@invoice_type == "income"}>Income</option>
+              <option value="" selected={@invoice_type == ""}>All</option>
+            </select>
+          </div>
 
-            <div class="flex gap-2">
-              <button
-                type="button"
-                phx-click="preview"
-                class="inline-flex items-center justify-center gap-2 h-9 px-3 text-sm font-medium rounded-md border border-input bg-background hover:bg-shad-accent hover:text-shad-accent-foreground shadow-xs transition-colors cursor-pointer flex-1"
-              >
-                <.icon name="hero-eye" class="size-4" /> Preview
-              </button>
-              <button
-                type="submit"
-                class="inline-flex items-center justify-center gap-2 h-9 px-3 text-sm font-medium rounded-md bg-shad-primary text-shad-primary-foreground hover:bg-shad-primary/90 shadow-xs transition-colors cursor-pointer flex-1"
-              >
-                <.icon name="hero-arrow-down-tray" class="size-4" /> Export
-              </button>
-            </div>
-          </form>
-        </div>
-      </div>
+          <div class="space-y-1">
+            <label class="label cursor-pointer justify-start gap-2">
+              <input type="hidden" name="only_new" value="false" />
+              <input
+                type="checkbox"
+                name="only_new"
+                value="true"
+                checked={@only_new}
+                class="size-4 rounded border border-input bg-background accent-shad-primary"
+              />
+              <span class="text-sm font-medium">
+                Only new invoices (not previously exported by me)
+              </span>
+            </label>
+          </div>
+
+          <div
+            :if={@preview_count != nil}
+            class="rounded-md border border-blue-200 bg-blue-50 dark:border-blue-900 dark:bg-blue-950 p-4 text-sm"
+          >
+            <.icon name="hero-information-circle" class="size-5" />
+            <span>
+              {@preview_count} invoice{if @preview_count != 1, do: "s"} match{if @preview_count ==
+                                                                                   1,
+                                                                                 do: "es"} your filters.
+            </span>
+          </div>
+
+          <div class="flex gap-2">
+            <.button type="button" variant="outline" class="flex-1" phx-click="preview">
+              <.icon name="hero-eye" class="size-4" /> Preview
+            </.button>
+            <.button type="submit" class="flex-1">
+              <.icon name="hero-arrow-down-tray" class="size-4" /> Export
+            </.button>
+          </div>
+        </form>
+      </.card>
 
       <%!-- Downloads List --%>
       <div class="lg:col-span-2">
         <h2 class="text-base font-semibold mb-4">Downloads</h2>
 
         <div id="batches" phx-update="stream" class="space-y-3">
-          <div
+          <.card
             :for={{dom_id, batch} <- @streams.batches}
             id={dom_id}
-            class="rounded-xl border border-border bg-card text-card-foreground"
+            padding="p-4 flex flex-row items-center justify-between gap-4"
           >
-            <div class="p-6 p-4 flex flex-row items-center justify-between gap-4">
-              <div class="flex-1 min-w-0">
-                <div class="font-medium text-sm">
-                  {batch.date_from} &mdash; {batch.date_to}
-                  <span
-                    :if={batch.invoice_type}
-                    class="inline-flex items-center px-2 py-0.5 rounded-md text-xs font-medium border ml-1"
-                  >
-                    {batch.invoice_type}
-                  </span>
-                  <span
-                    :if={batch.only_new}
-                    class="inline-flex items-center px-2 py-0.5 rounded-md text-xs font-medium border ml-1"
-                  >
-                    new only
-                  </span>
-                </div>
-                <div class="text-xs text-muted-foreground mt-0.5">
-                  {format_datetime(batch.inserted_at)}
-                  <span :if={batch.invoice_count}>
-                    &middot; {batch.invoice_count} invoices
-                  </span>
-                </div>
-                <div
-                  :if={batch.status == :failed && batch.error_message}
-                  class="text-xs text-shad-destructive mt-1 truncate"
-                >
-                  {batch.error_message}
-                </div>
+            <div class="flex-1 min-w-0">
+              <div class="font-medium text-sm">
+                {batch.date_from} &mdash; {batch.date_to}
+                <.badge :if={batch.invoice_type} variant="default" class="ml-1">
+                  {batch.invoice_type}
+                </.badge>
+                <.badge :if={batch.only_new} variant="default" class="ml-1">
+                  new only
+                </.badge>
               </div>
-
-              <div class="flex-shrink-0">
-                <span
-                  :if={batch.status in [:pending, :processing]}
-                  class="inline-flex items-center px-2 py-0.5 rounded-md text-xs font-medium border border-info/20 text-info gap-1"
-                >
-                  <span class="loading loading-spinner loading-xs"></span> Processing
+              <div class="text-xs text-muted-foreground mt-0.5">
+                {format_datetime(batch.inserted_at)}
+                <span :if={batch.invoice_count}>
+                  &middot; {batch.invoice_count} invoices
                 </span>
-                <.link
-                  :if={batch.status == :completed}
-                  href={~p"/c/#{@current_company.id}/exports/#{batch.id}/download"}
-                  target="_blank"
-                  class="inline-flex items-center justify-center gap-2 h-9 px-3 text-sm font-medium rounded-md bg-success text-success-content hover:bg-success/90 shadow-xs transition-colors cursor-pointer gap-1"
-                >
-                  <.icon name="hero-arrow-down-tray" class="size-4" /> Download ZIP
-                </.link>
-                <span
-                  :if={batch.status == :failed}
-                  class="inline-flex items-center px-2 py-0.5 rounded-md text-xs font-medium border border-error/20 text-error"
-                >
-                  Failed
-                </span>
+              </div>
+              <div
+                :if={batch.status == :failed && batch.error_message}
+                class="text-xs text-shad-destructive mt-1 truncate"
+              >
+                {batch.error_message}
               </div>
             </div>
-          </div>
+
+            <div class="flex-shrink-0">
+              <.badge :if={batch.status in [:pending, :processing]} variant="info" class="gap-1">
+                <span class="loading loading-spinner loading-xs"></span> Processing
+              </.badge>
+              <.button
+                :if={batch.status == :completed}
+                variant="success"
+                href={~p"/c/#{@current_company.id}/exports/#{batch.id}/download"}
+                target="_blank"
+              >
+                <.icon name="hero-arrow-down-tray" class="size-4" /> Download ZIP
+              </.button>
+              <.badge :if={batch.status == :failed} variant="error">Failed</.badge>
+            </div>
+          </.card>
         </div>
 
         <div :if={@batches_count == 0} class="text-center py-12">
@@ -327,8 +304,4 @@ defmodule KsefHubWeb.ExportLive.Index do
   @spec normalize_type(String.t()) :: String.t() | nil
   defp normalize_type(""), do: nil
   defp normalize_type(type), do: type
-
-  @spec format_datetime(DateTime.t() | NaiveDateTime.t() | nil) :: String.t()
-  defp format_datetime(nil), do: "-"
-  defp format_datetime(dt), do: Calendar.strftime(dt, "%Y-%m-%d %H:%M")
 end

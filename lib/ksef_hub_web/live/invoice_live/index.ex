@@ -256,13 +256,9 @@ defmodule KsefHubWeb.InvoiceLive.Index do
       Invoices
       <:subtitle>Invoices for {@current_company.name}</:subtitle>
       <:actions>
-        <.link
-          :if={@can_create}
-          navigate={~p"/c/#{@current_company.id}/invoices/upload"}
-          class="inline-flex items-center justify-center gap-2 h-9 px-4 text-sm font-medium rounded-md bg-shad-primary text-shad-primary-foreground hover:bg-shad-primary/90 shadow-xs transition-colors"
-        >
+        <.button :if={@can_create} navigate={~p"/c/#{@current_company.id}/invoices/upload"}>
           <.icon name="hero-arrow-up-tray" class="size-4" /> Upload PDF
-        </.link>
+        </.button>
       </:actions>
     </.header>
 
@@ -280,7 +276,7 @@ defmodule KsefHubWeb.InvoiceLive.Index do
             <select
               :if={@can_view_all_types}
               name={@form[:type].name}
-              class="w-full h-9 rounded-md border border-input bg-background px-2 text-sm shadow-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+              class="w-full h-9 rounded-md border border-input bg-background px-2 text-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
             >
               <option value="">All</option>
               <option value="income" selected={@form[:type].value == "income"}>Income</option>
@@ -289,7 +285,7 @@ defmodule KsefHubWeb.InvoiceLive.Index do
             <select
               :if={!@can_view_all_types}
               name={@form[:type].name}
-              class="w-full h-9 rounded-md border border-input bg-background px-2 text-sm shadow-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+              class="w-full h-9 rounded-md border border-input bg-background px-2 text-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
               disabled
             >
               <option value="expense" selected>Expense</option>
@@ -300,7 +296,7 @@ defmodule KsefHubWeb.InvoiceLive.Index do
             <label class="block text-xs font-medium text-muted-foreground">Status</label>
             <select
               name={@form[:status].name}
-              class="w-full h-9 rounded-md border border-input bg-background px-2 text-sm shadow-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+              class="w-full h-9 rounded-md border border-input bg-background px-2 text-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
             >
               <option value="">All</option>
               <option value="pending" selected={@form[:status].value == "pending"}>Pending</option>
@@ -317,7 +313,7 @@ defmodule KsefHubWeb.InvoiceLive.Index do
             <label class="block text-xs font-medium text-muted-foreground">Category</label>
             <select
               name={@form[:category_id].name}
-              class="w-full h-9 rounded-md border border-input bg-background px-2 text-sm shadow-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+              class="w-full h-9 rounded-md border border-input bg-background px-2 text-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
             >
               <option value="">All</option>
               <option
@@ -334,7 +330,7 @@ defmodule KsefHubWeb.InvoiceLive.Index do
             <label class="block text-xs font-medium text-muted-foreground">Tag</label>
             <select
               name={@form[:tag_id].name}
-              class="w-full h-9 rounded-md border border-input bg-background px-2 text-sm shadow-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+              class="w-full h-9 rounded-md border border-input bg-background px-2 text-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
             >
               <option value="">All</option>
               <option
@@ -353,7 +349,7 @@ defmodule KsefHubWeb.InvoiceLive.Index do
               type="date"
               name={@form[:date_from].name}
               value={@form[:date_from].value}
-              class="w-full h-9 rounded-md border border-input bg-background px-3 text-sm shadow-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+              class="w-full h-9 rounded-md border border-input bg-background px-3 text-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
             />
           </div>
 
@@ -363,7 +359,7 @@ defmodule KsefHubWeb.InvoiceLive.Index do
               type="date"
               name={@form[:date_to].name}
               value={@form[:date_to].value}
-              class="w-full h-9 rounded-md border border-input bg-background px-3 text-sm shadow-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+              class="w-full h-9 rounded-md border border-input bg-background px-3 text-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
             />
           </div>
         </:filter_fields>

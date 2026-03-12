@@ -216,7 +216,7 @@ defmodule KsefHubWeb.InvoiceLive.Upload do
           >
             <.live_file_input
               upload={@uploads.invoice_pdf}
-              class="h-9 w-full rounded-md border border-input bg-background text-sm shadow-sm file:border-0 file:bg-muted file:text-muted-foreground file:text-sm file:font-medium file:mr-3 file:px-3 file:h-full"
+              class="h-9 w-full rounded-md border border-input bg-background text-sm file:border-0 file:bg-muted file:text-muted-foreground file:text-sm file:font-medium file:mr-3 file:px-3 file:h-full"
             />
             <p :for={entry <- @uploads.invoice_pdf.entries} class="mt-2 text-sm">
               {entry.client_name}
@@ -234,7 +234,7 @@ defmodule KsefHubWeb.InvoiceLive.Upload do
 
         <button
           type="submit"
-          class="inline-flex items-center justify-center gap-2 h-9 px-4 text-sm font-medium rounded-md bg-shad-primary text-shad-primary-foreground hover:bg-shad-primary/90 shadow-xs transition-colors cursor-pointer"
+          class="inline-flex items-center justify-center gap-2 h-9 px-4 text-sm font-medium rounded-md bg-shad-primary text-shad-primary-foreground hover:bg-shad-primary/90 transition-colors cursor-pointer"
           disabled={@uploads.invoice_pdf.entries == []}
         >
           Upload & Extract

@@ -210,12 +210,15 @@ code, pre, kbd, .font-mono {
 }
 
 /* --- Neutralise DaisyUI shadow/radius so Tailwind utilities win --- */
-select,
-input:not([type="checkbox"]):not([type="radio"]),
-textarea,
-.dropdown-content,
-.dropdown [tabindex] {
-  box-shadow: none !important;
+@layer base {
+  select,
+  input:not([type="checkbox"]):not([type="radio"]),
+  textarea,
+  button,
+  .dropdown-content,
+  .dropdown [tabindex] {
+    box-shadow: none;
+  }
 }
 
 /* Fix DaisyUI select: remove duplicate chevron indicator */

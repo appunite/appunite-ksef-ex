@@ -35,37 +35,31 @@ defmodule KsefHubWeb.UserConfirmationLive do
   @spec render(map()) :: Phoenix.LiveView.Rendered.t()
   def render(assigns) do
     ~H"""
-    <div class="min-h-screen flex items-center justify-center">
-      <div class="rounded-xl border border-border bg-card text-card-foreground w-full max-w-md">
-        <div class="p-6 text-center">
-          <h2 data-testid="page-title" class="text-base font-semibold text-2xl justify-center mb-4">
-            Confirm Account
-          </h2>
+    <.auth_card title="Confirm Account">
+      <div class="text-center">
+        <div :if={!@confirmed}>
+          <p class="mb-4">Click the button below to confirm your account.</p>
+          <.simple_form for={%{}} id="confirmation_form" phx-submit="confirm_account">
+            <input type="hidden" name="token" value={@token} />
+            <:actions>
+              <.button class="inline-flex items-center justify-center gap-2 w-full h-9 px-4 text-sm font-medium rounded-md bg-shad-primary text-shad-primary-foreground hover:bg-shad-primary/90 transition-colors cursor-pointer">
+                Confirm my account
+              </.button>
+            </:actions>
+          </.simple_form>
+        </div>
 
-          <div :if={!@confirmed}>
-            <p class="mb-4">Click the button below to confirm your account.</p>
-            <.simple_form for={%{}} id="confirmation_form" phx-submit="confirm_account">
-              <input type="hidden" name="token" value={@token} />
-              <:actions>
-                <.button class="inline-flex items-center justify-center gap-2 w-full h-9 px-4 text-sm font-medium rounded-md bg-shad-primary text-shad-primary-foreground hover:bg-shad-primary/90 shadow-xs transition-colors cursor-pointer">
-                  Confirm my account
-                </.button>
-              </:actions>
-            </.simple_form>
-          </div>
-
-          <div :if={@confirmed} data-testid="confirmation-success">
-            <p class="text-success mb-4">Your account has been confirmed!</p>
-            <.link
-              navigate={~p"/users/log-in"}
-              class="inline-flex items-center justify-center gap-2 w-full h-9 px-4 text-sm font-medium rounded-md bg-shad-primary text-shad-primary-foreground hover:bg-shad-primary/90 shadow-xs transition-colors cursor-pointer"
-            >
-              Log in
-            </.link>
-          </div>
+        <div :if={@confirmed} data-testid="confirmation-success">
+          <p class="text-success mb-4">Your account has been confirmed!</p>
+          <.link
+            navigate={~p"/users/log-in"}
+            class="inline-flex items-center justify-center gap-2 w-full h-9 px-4 text-sm font-medium rounded-md bg-shad-primary text-shad-primary-foreground hover:bg-shad-primary/90 transition-colors cursor-pointer"
+          >
+            Log in
+          </.link>
         </div>
       </div>
-    </div>
+    </.auth_card>
     """
   end
 end

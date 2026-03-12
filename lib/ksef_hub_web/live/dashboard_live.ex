@@ -4,6 +4,8 @@ defmodule KsefHubWeb.DashboardLive do
   """
   use KsefHubWeb, :live_view
 
+  import KsefHubWeb.InvoiceComponents, only: [format_datetime: 1, format_date: 1]
+
   alias KsefHub.Authorization
   alias KsefHub.Credentials
   alias KsefHub.Invoices
@@ -94,7 +96,7 @@ defmodule KsefHubWeb.DashboardLive do
     ~H"""
     <.header>
       Dashboard
-      <:subtitle>Invoi overview</:subtitle>
+      <:subtitle>Invoice overview</:subtitle>
     </.header>
 
     <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mt-4">
@@ -117,69 +119,49 @@ defmodule KsefHubWeb.DashboardLive do
 
     <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 mt-8">
       <!-- Expense Breakdown -->
-      <div class="rounded-xl border border-border bg-card text-card-foreground">
-        <div class="p-5">
-          <h2 class="text-base font-semibold mb-3">Expense Status</h2>
-          <div class="space-y-2.5">
-            <div class="flex items-center justify-between">
-              <span class="inline-flex items-center px-2 py-0.5 rounded-md text-xs font-medium border bg-warning/10 text-warning border-warning/20">
-                Pending
-              </span>
-              <span class="font-mono text-sm">{@pending_expense}</span>
-            </div>
-            <div class="flex items-center justify-between">
-              <span class="inline-flex items-center px-2 py-0.5 rounded-md text-xs font-medium border bg-success/10 text-success border-success/20">
-                Approved
-              </span>
-              <span class="font-mono text-sm">{@approved_expense}</span>
-            </div>
-            <div class="flex items-center justify-between">
-              <span class="inline-flex items-center px-2 py-0.5 rounded-md text-xs font-medium border bg-error/10 text-error border-error/20">
-                Rejected
-              </span>
-              <span class="font-mono text-sm">{@rejected_expense}</span>
-            </div>
+      <.card padding="p-5">
+        <h2 class="text-base font-semibold mb-3">Expense Status</h2>
+        <div class="space-y-2.5">
+          <div class="flex items-center justify-between">
+            <.badge variant="warning">Pending</.badge>
+            <span class="font-mono text-sm">{@pending_expense}</span>
+          </div>
+          <div class="flex items-center justify-between">
+            <.badge variant="success">Approved</.badge>
+            <span class="font-mono text-sm">{@approved_expense}</span>
+          </div>
+          <div class="flex items-center justify-between">
+            <.badge variant="error">Rejected</.badge>
+            <span class="font-mono text-sm">{@rejected_expense}</span>
           </div>
         </div>
-      </div>
+      </.card>
       
     <!-- Sync Status -->
-      <div class="rounded-xl border border-border bg-card text-card-foreground">
-        <div class="p-5">
-          <h2 class="text-base font-semibold mb-3">Sync Status</h2>
-          <div class="space-y-3">
-            <div class="flex justify-between items-center">
-              <span class="text-sm text-muted-foreground">Certificate</span>
-              <span
-                :if={@cert_active}
-                class="inline-flex items-center px-2 py-0.5 rounded-md text-xs font-medium border bg-success/10 text-success border-success/20"
-              >
-                Active
-              </span>
-              <span
-                :if={!@cert_active}
-                class="inline-flex items-center px-2 py-0.5 rounded-md text-xs font-medium border bg-error/10 text-error border-error/20"
-              >
-                Not configured
-              </span>
-            </div>
-            <div :if={@credential} class="flex justify-between items-center">
-              <span class="text-sm text-muted-foreground">NIP</span>
-              <span class="font-mono text-sm">{@credential.nip}</span>
-            </div>
-            <div class="flex justify-between items-center">
-              <span class="text-sm text-muted-foreground">Last Sync</span>
-              <span class="text-sm">{format_datetime(@last_sync_at)}</span>
-            </div>
-            <div :if={@cert_expires_at} class="flex justify-between items-center">
-              <span class="text-sm text-muted-foreground">Cert Expires</span>
-              <span class={["text-sm", cert_expiry_class(@cert_expires_at)]}>
-                {format_date(@cert_expires_at)}
-              </span>
-            </div>
+      <.card padding="p-5">
+        <h2 class="text-base font-semibold mb-3">Sync Status</h2>
+        <div class="space-y-3">
+          <div class="flex justify-between items-center">
+            <span class="text-sm text-muted-foreground">Certificate</span>
+            <.badge :if={@cert_active} variant="success">Active</.badge>
+            <.badge :if={!@cert_active} variant="error">Not configured</.badge>
+          </div>
+          <div :if={@credential} class="flex justify-between items-center">
+            <span class="text-sm text-muted-foreground">NIP</span>
+            <span class="font-mono text-sm">{@credential.nip}</span>
+          </div>
+          <div class="flex justify-between items-center">
+            <span class="text-sm text-muted-foreground">Last Sync</span>
+            <span class="text-sm">{format_datetime(@last_sync_at)}</span>
+          </div>
+          <div :if={@cert_expires_at} class="flex justify-between items-center">
+            <span class="text-sm text-muted-foreground">Cert Expires</span>
+            <span class={["text-sm", cert_expiry_class(@cert_expires_at)]}>
+              {format_date(@cert_expires_at)}
+            </span>
           </div>
         </div>
-      </div>
+      </.card>
     </div>
     """
   end
@@ -200,14 +182,6 @@ defmodule KsefHubWeb.DashboardLive do
     </div>
     """
   end
-
-  @spec format_datetime(DateTime.t() | nil) :: String.t()
-  defp format_datetime(nil), do: "Never"
-  defp format_datetime(dt), do: Calendar.strftime(dt, "%Y-%m-%d %H:%M UTC")
-
-  @spec format_date(Date.t() | nil) :: String.t()
-  defp format_date(nil), do: "-"
-  defp format_date(date), do: Calendar.strftime(date, "%Y-%m-%d")
 
   @spec cert_expiry_class(Date.t() | nil) :: String.t()
   defp cert_expiry_class(nil), do: ""

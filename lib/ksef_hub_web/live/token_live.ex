@@ -6,6 +6,8 @@ defmodule KsefHubWeb.TokenLive do
   """
   use KsefHubWeb, :live_view
 
+  import KsefHubWeb.InvoiceComponents, only: [format_datetime: 1]
+
   alias KsefHub.Accounts
 
   @impl true
@@ -101,12 +103,9 @@ defmodule KsefHubWeb.TokenLive do
       API Tokens
       <:subtitle>Manage bearer tokens for API access</:subtitle>
       <:actions>
-        <button
-          phx-click="toggle_form"
-          class="inline-flex items-center justify-center gap-2 h-9 px-3 text-sm font-medium rounded-md bg-shad-primary text-shad-primary-foreground hover:bg-shad-primary/90 shadow-xs transition-colors cursor-pointer"
-        >
+        <.button phx-click="toggle_form">
           <.icon name="hero-plus" class="size-4" /> New Token
-        </button>
+        </.button>
       </:actions>
     </.header>
 
@@ -123,53 +122,34 @@ defmodule KsefHubWeb.TokenLive do
           {@show_token}
         </code>
       </div>
-      <button
-        phx-click="dismiss_token"
-        class="inline-flex items-center justify-center gap-2 h-9 px-3 text-sm font-medium rounded-md hover:bg-shad-accent hover:text-shad-accent-foreground transition-colors cursor-pointer"
-      >
+      <.button variant="ghost" phx-click="dismiss_token">
         Dismiss
-      </button>
+      </.button>
     </div>
 
     <!-- Create Form -->
-    <div
-      :if={@show_create_form}
-      class="rounded-xl border border-border bg-card text-card-foreground mt-6"
-    >
-      <div class="p-6">
-        <h2 class="text-base font-semibold">Create New Token</h2>
-        <.form
-          for={@form}
-          phx-submit="create"
-          phx-change="validate"
-          class="space-y-4 mt-2"
-          id="create-token-form"
-        >
-          <.input field={@form[:name]} label="Name" placeholder="e.g. CI/CD Pipeline" required />
-          <.input
-            field={@form[:description]}
-            type="textarea"
-            label="Description"
-            placeholder="What is this token used for?"
-          />
-          <div class="flex gap-2">
-            <button
-              type="submit"
-              class="inline-flex items-center justify-center gap-2 h-9 px-3 text-sm font-medium rounded-md bg-shad-primary text-shad-primary-foreground hover:bg-shad-primary/90 shadow-xs transition-colors cursor-pointer"
-            >
-              Create Token
-            </button>
-            <button
-              type="button"
-              phx-click="toggle_form"
-              class="inline-flex items-center justify-center gap-2 h-9 px-3 text-sm font-medium rounded-md hover:bg-shad-accent hover:text-shad-accent-foreground transition-colors cursor-pointer"
-            >
-              Cancel
-            </button>
-          </div>
-        </.form>
-      </div>
-    </div>
+    <.card :if={@show_create_form} class="mt-6">
+      <h2 class="text-base font-semibold">Create New Token</h2>
+      <.form
+        for={@form}
+        phx-submit="create"
+        phx-change="validate"
+        class="space-y-4 mt-2"
+        id="create-token-form"
+      >
+        <.input field={@form[:name]} label="Name" placeholder="e.g. CI/CD Pipeline" required />
+        <.input
+          field={@form[:description]}
+          type="textarea"
+          label="Description"
+          placeholder="What is this token used for?"
+        />
+        <div class="flex gap-2">
+          <.button type="submit">Create Token</.button>
+          <.button type="button" variant="ghost" phx-click="toggle_form">Cancel</.button>
+        </div>
+      </.form>
+    </.card>
 
     <!-- Token Table -->
     <div class="rounded-lg border border-border overflow-hidden mt-6">
@@ -193,29 +173,21 @@ defmodule KsefHubWeb.TokenLive do
             <span class="font-mono">{token.request_count}</span>
           </:col>
           <:col :let={token} label="Status">
-            <span
-              :if={token.is_active}
-              class="inline-flex items-center px-2 py-0.5 rounded-md text-xs font-medium border bg-success/10 text-success border-success/20"
-            >
-              Active
-            </span>
-            <span
-              :if={!token.is_active}
-              class="inline-flex items-center px-2 py-0.5 rounded-md text-xs font-medium border bg-muted text-muted-foreground border-border"
-            >
-              Revoked
-            </span>
+            <.badge :if={token.is_active} variant="success">Active</.badge>
+            <.badge :if={!token.is_active} variant="muted">Revoked</.badge>
           </:col>
           <:action :let={token}>
-            <button
+            <.button
               :if={token.is_active}
+              variant="outline"
+              size="sm"
+              class="border-shad-destructive text-shad-destructive hover:bg-shad-destructive/10"
               phx-click="revoke"
               phx-value-id={token.id}
               data-confirm="Are you sure? This will immediately revoke API access for this token."
-              class="inline-flex items-center justify-center gap-1 h-7 px-2 text-xs font-medium rounded-md hover:bg-shad-accent hover:text-shad-accent-foreground transition-colors cursor-pointer text-shad-destructive"
             >
               Revoke
-            </button>
+            </.button>
           </:action>
         </.table>
       </div>
@@ -226,8 +198,4 @@ defmodule KsefHubWeb.TokenLive do
     </p>
     """
   end
-
-  @spec format_datetime(DateTime.t() | NaiveDateTime.t() | nil) :: String.t()
-  defp format_datetime(nil), do: "Never"
-  defp format_datetime(dt), do: Calendar.strftime(dt, "%Y-%m-%d %H:%M")
 end

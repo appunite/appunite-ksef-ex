@@ -8,6 +8,8 @@ defmodule KsefHubWeb.SyncLive do
 
   require Logger
 
+  import KsefHubWeb.InvoiceComponents, only: [format_datetime: 1]
+
   alias KsefHub.Authorization
   alias KsefHub.Sync.History
 
@@ -81,12 +83,9 @@ defmodule KsefHubWeb.SyncLive do
       Syncs
       <:subtitle>KSeF invoice sync history</:subtitle>
       <:actions>
-        <button
-          phx-click="trigger_sync"
-          class="inline-flex items-center justify-center gap-2 h-9 px-3 text-sm font-medium rounded-md bg-shad-primary text-shad-primary-foreground hover:bg-shad-primary/90 shadow-xs transition-colors cursor-pointer"
-        >
+        <.button phx-click="trigger_sync">
           <.icon name="hero-arrow-path" class="size-4" /> Sync Now
-        </button>
+        </.button>
       </:actions>
     </.header>
 
@@ -100,12 +99,7 @@ defmodule KsefHubWeb.SyncLive do
             {format_duration(job.duration)}
           </:col>
           <:col :let={{_id, job}} label="Status">
-            <span class={[
-              "inline-flex items-center px-2 py-0.5 rounded-md text-xs font-medium border",
-              status_classes(job.state)
-            ]}>
-              {job.state}
-            </span>
+            <.badge variant={sync_badge_variant(job.state)}>{job.state}</.badge>
           </:col>
           <:col :let={{_id, job}} label="Income">
             <span class="font-mono">{job.income_count || "-"}</span>
@@ -133,10 +127,6 @@ defmodule KsefHubWeb.SyncLive do
     """
   end
 
-  @spec format_datetime(DateTime.t() | nil) :: String.t()
-  defp format_datetime(nil), do: "-"
-  defp format_datetime(dt), do: Calendar.strftime(dt, "%Y-%m-%d %H:%M")
-
   @spec format_duration(integer() | nil) :: String.t()
   defp format_duration(nil), do: "-"
 
@@ -150,12 +140,12 @@ defmodule KsefHubWeb.SyncLive do
     "#{minutes}m #{secs}s"
   end
 
-  @spec status_classes(String.t()) :: String.t()
-  defp status_classes("completed"), do: "bg-success/10 text-success border-success/20"
-  defp status_classes("executing"), do: "bg-info/10 text-info border-info/20"
-  defp status_classes("retryable"), do: "bg-warning/10 text-warning border-warning/20"
-  defp status_classes("discarded"), do: "bg-error/10 text-error border-error/20"
-  defp status_classes(_), do: "bg-muted text-muted-foreground border-border"
+  @spec sync_badge_variant(String.t()) :: String.t()
+  defp sync_badge_variant("completed"), do: "success"
+  defp sync_badge_variant("executing"), do: "info"
+  defp sync_badge_variant("retryable"), do: "warning"
+  defp sync_badge_variant("discarded"), do: "error"
+  defp sync_badge_variant(_), do: "muted"
 
   @spec truncate(String.t(), non_neg_integer()) :: String.t()
   defp truncate(str, max) when byte_size(str) > max do

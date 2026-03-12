@@ -169,144 +169,132 @@ defmodule KsefHubWeb.TeamLive do
     </.header>
 
     <!-- Invite Form -->
-    <div class="rounded-xl border border-border bg-card text-card-foreground mt-6">
-      <div class="p-6">
-        <h2 class="text-base font-semibold mb-3">Invite a new member</h2>
-        <.form
-          for={@invite_form}
-          phx-submit="invite"
-          phx-change="validate_invite"
-          data-testid="invite-form"
-          class="flex gap-3 items-end"
-        >
-          <div class="flex-1">
-            <.input
-              field={@invite_form[:email]}
-              type="email"
-              label="Email"
-              placeholder="user@example.com"
-              required
-            />
-          </div>
-          <div class="w-48">
-            <.input
-              field={@invite_form[:role]}
-              type="select"
-              label="Role"
-              options={[{"Accountant", "accountant"}, {"Reviewer", "reviewer"}]}
-            />
-          </div>
-          <div class="fieldset mb-2">
-            <span class="mb-1 invisible">_</span>
-            <button
-              type="submit"
-              class="inline-flex items-center justify-center gap-2 h-9 px-4 text-sm font-medium rounded-md bg-shad-primary text-shad-primary-foreground hover:bg-shad-primary/90 shadow-xs transition-colors cursor-pointer"
-            >
-              <.icon name="hero-paper-airplane" class="size-4" /> Invite
-            </button>
-          </div>
-        </.form>
-      </div>
-    </div>
+    <.card class="mt-6">
+      <h2 class="text-base font-semibold mb-3">Invite a new member</h2>
+      <.form
+        for={@invite_form}
+        phx-submit="invite"
+        phx-change="validate_invite"
+        data-testid="invite-form"
+        class="flex gap-3 items-end"
+      >
+        <div class="flex-1">
+          <.input
+            field={@invite_form[:email]}
+            type="email"
+            label="Email"
+            placeholder="user@example.com"
+            required
+          />
+        </div>
+        <div class="w-48">
+          <.input
+            field={@invite_form[:role]}
+            type="select"
+            label="Role"
+            options={[{"Accountant", "accountant"}, {"Reviewer", "reviewer"}]}
+          />
+        </div>
+        <div class="fieldset mb-2">
+          <span class="mb-1 invisible">_</span>
+          <.button type="submit">
+            <.icon name="hero-paper-airplane" class="size-4" /> Invite
+          </.button>
+        </div>
+      </.form>
+    </.card>
 
     <!-- Team members & pending invitations -->
-    <div class="rounded-xl border border-border bg-card text-card-foreground mt-6">
-      <div class="p-6">
-        <h2 class="text-base font-semibold mb-3">Members</h2>
-        <div class="rounded-lg border border-border overflow-hidden">
-          <div class="overflow-x-auto" data-testid="member-list">
-            <table class="w-full text-sm" data-testid="team-table">
-              <thead>
-                <tr class="border-b border-border">
-                  <th class="text-left py-3 px-4 text-xs font-medium text-muted-foreground uppercase tracking-wide">
-                    Email
-                  </th>
-                  <th class="text-left py-3 px-4 text-xs font-medium text-muted-foreground uppercase tracking-wide">
-                    Name
-                  </th>
-                  <th class="text-left py-3 px-4 text-xs font-medium text-muted-foreground uppercase tracking-wide">
-                    Role
-                  </th>
-                  <th class="text-left py-3 px-4 text-xs font-medium text-muted-foreground uppercase tracking-wide">
-                    Status
-                  </th>
-                  <th class="text-left py-3 px-4 text-xs font-medium text-muted-foreground uppercase tracking-wide">
-                    Expires
-                  </th>
-                  <th class="text-left py-3 px-4 text-xs font-medium text-muted-foreground uppercase tracking-wide">
-                    Action
-                  </th>
-                </tr>
-              </thead>
-              <tbody id="members-list" phx-update="stream">
-                <tr
-                  :for={{dom_id, member} <- @streams.members}
-                  id={dom_id}
-                  class="border-b border-border/50 hover:bg-muted/50 transition-colors"
-                >
-                  <td class="py-3.5 px-4">{member.user.email}</td>
-                  <td class="py-3.5 px-4">{member.user.name || "—"}</td>
-                  <td class="py-3.5 px-4">
-                    <span class="inline-flex items-center px-2 py-0.5 rounded-md text-xs font-medium border border-border">
-                      {member.role}
-                    </span>
-                  </td>
-                  <td class="py-3.5 px-4"></td>
-                  <td class="py-3.5 px-4">—</td>
-                  <td class="py-3.5 px-4">
-                    <button
-                      :if={member.role != :owner}
-                      phx-click="remove_member"
-                      phx-value-user-id={member.user.id}
-                      data-confirm="Remove this member from the company?"
-                      data-testid={"remove-member-#{member.user.id}"}
-                      class="inline-flex items-center justify-center gap-1 h-7 px-2 text-xs font-medium rounded-md hover:bg-shad-accent hover:text-shad-accent-foreground transition-colors cursor-pointer text-shad-destructive"
-                    >
-                      Remove
-                    </button>
-                  </td>
-                </tr>
-              </tbody>
-              <tbody id="pending-invitations-list" phx-update="stream">
-                <tr
-                  :for={{dom_id, inv} <- @streams.pending_invitations}
-                  id={dom_id}
-                  class="border-b border-border/50 hover:bg-muted/50 transition-colors"
-                >
-                  <td class="py-3.5 px-4">{inv.email}</td>
-                  <td class="py-3.5 px-4">—</td>
-                  <td class="py-3.5 px-4">
-                    <span
-                      class="inline-flex items-center px-2 py-0.5 rounded-md text-xs font-medium border border-border"
-                      data-role={inv.role}
-                    >
-                      {inv.role}
-                    </span>
-                  </td>
-                  <td class="py-3.5 px-4">
-                    <span class="inline-flex items-center px-2 py-0.5 rounded-md text-xs font-medium border border-warning/20 bg-warning/10 text-warning">
-                      pending
-                    </span>
-                  </td>
-                  <td class="py-3.5 px-4">{Calendar.strftime(inv.expires_at, "%Y-%m-%d")}</td>
-                  <td class="py-3.5 px-4">
-                    <button
-                      phx-click="cancel_invitation"
-                      phx-value-id={inv.id}
-                      data-confirm="Cancel this invitation?"
-                      data-testid={"cancel-invitation-#{inv.id}"}
-                      class="inline-flex items-center justify-center gap-1 h-7 px-2 text-xs font-medium rounded-md hover:bg-shad-accent hover:text-shad-accent-foreground transition-colors cursor-pointer text-shad-destructive"
-                    >
-                      Cancel
-                    </button>
-                  </td>
-                </tr>
-              </tbody>
-            </table>
-          </div>
+    <.card class="mt-6">
+      <h2 class="text-base font-semibold mb-3">Members</h2>
+      <div class="rounded-lg border border-border overflow-hidden">
+        <div class="overflow-x-auto" data-testid="member-list">
+          <table class="w-full text-sm" data-testid="team-table">
+            <thead>
+              <tr class="border-b border-border">
+                <th class="text-left py-3 px-4 text-xs font-medium text-muted-foreground uppercase tracking-wide">
+                  Email
+                </th>
+                <th class="text-left py-3 px-4 text-xs font-medium text-muted-foreground uppercase tracking-wide">
+                  Name
+                </th>
+                <th class="text-left py-3 px-4 text-xs font-medium text-muted-foreground uppercase tracking-wide">
+                  Role
+                </th>
+                <th class="text-left py-3 px-4 text-xs font-medium text-muted-foreground uppercase tracking-wide">
+                  Status
+                </th>
+                <th class="text-left py-3 px-4 text-xs font-medium text-muted-foreground uppercase tracking-wide">
+                  Expires
+                </th>
+                <th class="text-left py-3 px-4 text-xs font-medium text-muted-foreground uppercase tracking-wide">
+                  Action
+                </th>
+              </tr>
+            </thead>
+            <tbody id="members-list" phx-update="stream">
+              <tr
+                :for={{dom_id, member} <- @streams.members}
+                id={dom_id}
+                class="border-b border-border/50 hover:bg-muted/50 transition-colors"
+              >
+                <td class="py-3.5 px-4">{member.user.email}</td>
+                <td class="py-3.5 px-4">{member.user.name || "-"}</td>
+                <td class="py-3.5 px-4">
+                  <.badge variant="default">{member.role}</.badge>
+                </td>
+                <td class="py-3.5 px-4"></td>
+                <td class="py-3.5 px-4">-</td>
+                <td class="py-3.5 px-4">
+                  <.button
+                    :if={member.role != :owner}
+                    variant="outline"
+                    size="sm"
+                    class="border-shad-destructive text-shad-destructive hover:bg-shad-destructive/10"
+                    phx-click="remove_member"
+                    phx-value-user-id={member.user.id}
+                    data-confirm="Remove this member from the company?"
+                    data-testid={"remove-member-#{member.user.id}"}
+                  >
+                    Remove
+                  </.button>
+                </td>
+              </tr>
+            </tbody>
+            <tbody id="pending-invitations-list" phx-update="stream">
+              <tr
+                :for={{dom_id, inv} <- @streams.pending_invitations}
+                id={dom_id}
+                class="border-b border-border/50 hover:bg-muted/50 transition-colors"
+              >
+                <td class="py-3.5 px-4">{inv.email}</td>
+                <td class="py-3.5 px-4">-</td>
+                <td class="py-3.5 px-4">
+                  <.badge variant="default" data-role={inv.role}>{inv.role}</.badge>
+                </td>
+                <td class="py-3.5 px-4">
+                  <.badge variant="warning">pending</.badge>
+                </td>
+                <td class="py-3.5 px-4">{Calendar.strftime(inv.expires_at, "%Y-%m-%d")}</td>
+                <td class="py-3.5 px-4">
+                  <.button
+                    variant="outline"
+                    size="sm"
+                    class="border-shad-destructive text-shad-destructive hover:bg-shad-destructive/10"
+                    phx-click="cancel_invitation"
+                    phx-value-id={inv.id}
+                    data-confirm="Cancel this invitation?"
+                    data-testid={"cancel-invitation-#{inv.id}"}
+                  >
+                    Cancel
+                  </.button>
+                </td>
+              </tr>
+            </tbody>
+          </table>
         </div>
       </div>
-    </div>
+    </.card>
     """
   end
 end

@@ -160,61 +160,51 @@ defmodule KsefHubWeb.TagLive do
     </.header>
 
     <!-- Create / Edit Form -->
-    <div class="rounded-xl border border-border bg-card text-card-foreground mt-6">
-      <div class="p-6">
-        <h2 class="text-base font-semibold">
-          {if @editing, do: "Edit Tag", else: "New Tag"}
-        </h2>
-        <.form
-          for={@form}
-          phx-submit="save"
-          phx-change="validate"
-          class="flex flex-wrap gap-3 mt-3 items-end"
-          id="tag-form"
-        >
-          <div class="flex-1 min-w-40">
-            <label class="block text-xs text-muted-foreground mb-1">Name</label>
-            <input
-              type="text"
-              name={@form[:name].name}
-              value={@form[:name].value}
-              placeholder="e.g. monthly"
-              class="h-9 w-full rounded-md border border-input bg-background px-3 text-sm shadow-sm"
-              required
-            />
-            <.error :for={msg <- Enum.map(@form[:name].errors, &translate_error/1)}>
-              {msg}
-            </.error>
-          </div>
-          <div class="flex-1 min-w-40">
-            <label class="block text-xs text-muted-foreground mb-1">Description</label>
-            <input
-              type="text"
-              name={@form[:description].name}
-              value={@form[:description].value}
-              placeholder="Optional description"
-              class="h-9 w-full rounded-md border border-input bg-background px-3 text-sm shadow-sm"
-            />
-          </div>
-          <div class="flex gap-2 items-end">
-            <button
-              type="submit"
-              class="inline-flex items-center justify-center gap-2 h-9 px-3 text-sm font-medium rounded-md bg-shad-primary text-shad-primary-foreground hover:bg-shad-primary/90 shadow-xs transition-colors cursor-pointer"
-            >
-              {if @editing, do: "Update", else: "Create"}
-            </button>
-            <button
-              :if={@editing}
-              type="button"
-              phx-click="cancel_edit"
-              class="inline-flex items-center justify-center gap-2 h-9 px-3 text-sm font-medium rounded-md hover:bg-shad-accent hover:text-shad-accent-foreground transition-colors cursor-pointer"
-            >
-              Cancel
-            </button>
-          </div>
-        </.form>
-      </div>
-    </div>
+    <.card class="mt-6">
+      <h2 class="text-base font-semibold">
+        {if @editing, do: "Edit Tag", else: "New Tag"}
+      </h2>
+      <.form
+        for={@form}
+        phx-submit="save"
+        phx-change="validate"
+        class="flex flex-wrap gap-3 mt-3 items-end"
+        id="tag-form"
+      >
+        <div class="flex-1 min-w-40">
+          <label class="block text-xs text-muted-foreground mb-1">Name</label>
+          <input
+            type="text"
+            name={@form[:name].name}
+            value={@form[:name].value}
+            placeholder="e.g. monthly"
+            class="h-9 w-full rounded-md border border-input bg-background px-3 text-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+            required
+          />
+          <.error :for={msg <- Enum.map(@form[:name].errors, &translate_error/1)}>
+            {msg}
+          </.error>
+        </div>
+        <div class="flex-1 min-w-40">
+          <label class="block text-xs text-muted-foreground mb-1">Description</label>
+          <input
+            type="text"
+            name={@form[:description].name}
+            value={@form[:description].value}
+            placeholder="Optional description"
+            class="h-9 w-full rounded-md border border-input bg-background px-3 text-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+          />
+        </div>
+        <div class="flex gap-2 items-end">
+          <.button type="submit">
+            {if @editing, do: "Update", else: "Create"}
+          </.button>
+          <.button :if={@editing} variant="ghost" type="button" phx-click="cancel_edit">
+            Cancel
+          </.button>
+        </div>
+      </.form>
+    </.card>
 
     <!-- Tag Table -->
     <div class="rounded-lg border border-border overflow-hidden mt-6">
@@ -235,21 +225,19 @@ defmodule KsefHubWeb.TagLive do
             <span class="font-mono">{tag.usage_count}</span>
           </:col>
           <:action :let={tag}>
-            <button
-              phx-click="edit"
-              phx-value-id={tag.id}
-              class="inline-flex items-center justify-center gap-1 h-7 px-2 text-xs font-medium rounded-md hover:bg-shad-accent hover:text-shad-accent-foreground transition-colors cursor-pointer"
-            >
+            <.button variant="outline" size="sm" phx-click="edit" phx-value-id={tag.id}>
               Edit
-            </button>
-            <button
+            </.button>
+            <.button
+              variant="outline"
+              size="sm"
+              class="border-shad-destructive text-shad-destructive hover:bg-shad-destructive/10"
               phx-click="delete"
               phx-value-id={tag.id}
               data-confirm="Delete this tag? It will be removed from all invoices."
-              class="inline-flex items-center justify-center gap-1 h-7 px-2 text-xs font-medium rounded-md hover:bg-shad-accent hover:text-shad-accent-foreground transition-colors cursor-pointer text-shad-destructive"
             >
               Delete
-            </button>
+            </.button>
           </:action>
         </.table>
       </div>

@@ -186,11 +186,6 @@ defmodule KsefHubWeb.CompanyLive.Index do
     end
   end
 
-  def handle_event(event, _params, socket)
-      when event in ~w(enable_inbound_email disable_inbound_email regenerate_inbound_email validate_inbound_settings save_inbound_settings) do
-    {:noreply, socket}
-  end
-
   @spec save_company(Phoenix.LiveView.Socket.t(), atom(), map()) ::
           {:noreply, Phoenix.LiveView.Socket.t()}
   defp save_company(socket, :new, params) do
@@ -261,157 +256,125 @@ defmodule KsefHubWeb.CompanyLive.Index do
       Companies
       <:subtitle>Manage your companies</:subtitle>
       <:actions>
-        <.link
-          :if={@can_manage_company}
-          navigate={~p"/companies/new"}
-          class="inline-flex items-center justify-center gap-2 h-9 px-3 text-sm font-medium rounded-md bg-shad-primary text-shad-primary-foreground hover:bg-shad-primary/90 shadow-xs transition-colors cursor-pointer"
-        >
+        <.button :if={@can_manage_company} navigate={~p"/companies/new"}>
           <.icon name="hero-plus" class="size-4" /> New Company
-        </.link>
+        </.button>
       </:actions>
     </.header>
 
     <!-- Company Form Modal -->
-    <div :if={@form} class="rounded-xl border border-border bg-card text-card-foreground mt-6">
-      <div class="p-6">
-        <h2 class="text-base font-semibold">
-          {if @live_action == :new, do: "Create New Company", else: "Edit Company"}
-        </h2>
-        <form phx-submit="save" phx-change="validate" class="space-y-4 mt-2">
-          <.input field={@form[:name]} label="Company Name" placeholder="Acme Sp. z o.o." required />
-          <.input
-            field={@form[:nip]}
-            label="NIP (10 digits)"
-            placeholder="1234567890"
-            required
-            disabled={@live_action == :edit}
-          />
-          <.input field={@form[:address]} label="Address" placeholder="ul. Testowa 1, Warszawa" />
-          <div class="flex gap-2">
-            <button
-              type="submit"
-              class="inline-flex items-center justify-center gap-2 h-9 px-3 text-sm font-medium rounded-md bg-shad-primary text-shad-primary-foreground hover:bg-shad-primary/90 shadow-xs transition-colors cursor-pointer"
-            >
-              {if @live_action == :new, do: "Create", else: "Save"}
-            </button>
-            <.link
-              navigate={~p"/companies"}
-              class="inline-flex items-center justify-center gap-2 h-9 px-3 text-sm font-medium rounded-md hover:bg-shad-accent hover:text-shad-accent-foreground transition-colors cursor-pointer"
-            >
-              Cancel
-            </.link>
-          </div>
-        </form>
-      </div>
-    </div>
+    <.card :if={@form} class="mt-6">
+      <h2 class="text-base font-semibold">
+        {if @live_action == :new, do: "Create New Company", else: "Edit Company"}
+      </h2>
+      <form phx-submit="save" phx-change="validate" class="space-y-4 mt-2">
+        <.input field={@form[:name]} label="Company Name" placeholder="Acme Sp. z o.o." required />
+        <.input
+          field={@form[:nip]}
+          label="NIP (10 digits)"
+          placeholder="1234567890"
+          required
+          disabled={@live_action == :edit}
+        />
+        <.input field={@form[:address]} label="Address" placeholder="ul. Testowa 1, Warszawa" />
+        <div class="flex gap-2">
+          <.button type="submit">
+            {if @live_action == :new, do: "Create", else: "Save"}
+          </.button>
+          <.button variant="ghost" navigate={~p"/companies"}>
+            Cancel
+          </.button>
+        </div>
+      </form>
+    </.card>
 
     <!-- Inbound Email Section (edit mode only) -->
-    <div
-      :if={@live_action == :edit && @company}
-      class="rounded-xl border border-border bg-card text-card-foreground mt-6"
-    >
-      <div class="p-6 space-y-4">
-        <div class="flex items-center justify-between">
-          <h2 class="text-base font-semibold">Inbound Email</h2>
-          <span
-            :if={@company.inbound_email_token_hash}
-            class="inline-flex items-center px-2 py-0.5 rounded-md text-xs font-medium border bg-success/10 text-success border-success/20"
-          >
-            Enabled
-          </span>
-          <span
-            :if={!@company.inbound_email_token_hash}
-            class="inline-flex items-center px-2 py-0.5 rounded-md text-xs font-medium border bg-muted text-muted-foreground border-border"
-          >
-            Disabled
-          </span>
-        </div>
-        
-    <!-- Inbound email address display -->
-        <div
-          :if={@company.inbound_email_token}
-          id="inbound-email-display"
-          class="bg-muted px-4 py-3 rounded-lg"
-        >
-          <p class="text-xs text-muted-foreground mb-1">Email address</p>
-          <code data-testid="inbound-email-address" class="select-all text-sm font-mono break-all">
-            {inbound_email_address(@company)}
-          </code>
-          <p
-            :if={!@inbound_domain_configured}
-            class="text-xs text-warning mt-1"
-          >
-            INBOUND_EMAIL_DOMAIN not configured — set it to display the full address.
-          </p>
-        </div>
-        
-    <!-- Enable / Disable / Regenerate buttons -->
-        <div class="flex gap-2">
-          <button
-            :if={!@company.inbound_email_token_hash}
-            type="button"
-            phx-click="enable_inbound_email"
-            class="inline-flex items-center justify-center gap-2 h-9 px-3 text-sm font-medium rounded-md bg-shad-primary text-shad-primary-foreground hover:bg-shad-primary/90 shadow-xs transition-colors cursor-pointer"
-          >
-            Enable Inbound Email
-          </button>
-          <button
-            :if={@company.inbound_email_token_hash}
-            type="button"
-            phx-click="regenerate_inbound_email"
-            data-confirm="This will invalidate the current inbound email address. Continue?"
-            class="inline-flex items-center justify-center gap-2 h-9 px-3 text-sm font-medium rounded-md bg-warning text-warning-foreground hover:bg-warning/90 shadow-xs transition-colors cursor-pointer"
-          >
-            Regenerate Address
-          </button>
-          <button
-            :if={@company.inbound_email_token_hash}
-            type="button"
-            phx-click="disable_inbound_email"
-            data-confirm="This will disable inbound email processing for this company. Continue?"
-            class="inline-flex items-center justify-center gap-2 h-9 px-3 text-sm font-medium rounded-md border border-shad-destructive text-shad-destructive bg-background hover:bg-shad-destructive/10 shadow-xs transition-colors cursor-pointer"
-          >
-            Disable
-          </button>
-        </div>
-        
-    <!-- Inbound email settings form -->
-        <div :if={@inbound_settings_form} class="border-t border-border pt-4">
-          <h3 class="text-sm font-medium mb-3">Settings</h3>
-          <.form
-            for={@inbound_settings_form}
-            phx-submit="save_inbound_settings"
-            phx-change="validate_inbound_settings"
-            class="space-y-4"
-          >
-            <.input
-              field={@inbound_settings_form[:inbound_allowed_sender_domain]}
-              label="Allowed sender domain"
-              placeholder="appunite.com"
-              phx-debounce="blur"
-            />
-            <p class="text-xs text-muted-foreground -mt-2">
-              Only accept inbound emails from this domain. Leave empty to allow any sender.
-            </p>
-            <.input
-              field={@inbound_settings_form[:inbound_cc_email]}
-              label="CC email"
-              placeholder="invoices@appunite.com"
-              phx-debounce="blur"
-            />
-            <p class="text-xs text-muted-foreground -mt-2">
-              CC this address on all reply notifications. Leave empty for no CC.
-            </p>
-            <button
-              type="submit"
-              class="inline-flex items-center justify-center gap-2 h-9 px-3 text-sm font-medium rounded-md bg-shad-primary text-shad-primary-foreground hover:bg-shad-primary/90 shadow-xs transition-colors cursor-pointer"
-            >
-              Save Settings
-            </button>
-          </.form>
-        </div>
+    <.card :if={@live_action == :edit && @company} class="mt-6" padding="p-6 space-y-4">
+      <div class="flex items-center justify-between">
+        <h2 class="text-base font-semibold">Inbound Email</h2>
+        <.badge :if={@company.inbound_email_token_hash} variant="success">Enabled</.badge>
+        <.badge :if={!@company.inbound_email_token_hash} variant="muted">Disabled</.badge>
       </div>
-    </div>
+      
+    <!-- Inbound email address display -->
+      <div
+        :if={@company.inbound_email_token}
+        id="inbound-email-display"
+        class="bg-muted px-4 py-3 rounded-lg"
+      >
+        <p class="text-xs text-muted-foreground mb-1">Email address</p>
+        <code data-testid="inbound-email-address" class="select-all text-sm font-mono break-all">
+          {inbound_email_address(@company)}
+        </code>
+        <p
+          :if={!@inbound_domain_configured}
+          class="text-xs text-warning mt-1"
+        >
+          INBOUND_EMAIL_DOMAIN not configured — set it to display the full address.
+        </p>
+      </div>
+      
+    <!-- Enable / Disable / Regenerate buttons -->
+      <div class="flex gap-2">
+        <.button
+          :if={!@company.inbound_email_token_hash}
+          type="button"
+          phx-click="enable_inbound_email"
+        >
+          Enable Inbound Email
+        </.button>
+        <.button
+          :if={@company.inbound_email_token_hash}
+          variant="warning"
+          type="button"
+          phx-click="regenerate_inbound_email"
+          data-confirm="This will invalidate the current inbound email address. Continue?"
+        >
+          Regenerate Address
+        </.button>
+        <.button
+          :if={@company.inbound_email_token_hash}
+          variant="outline"
+          class="border-shad-destructive text-shad-destructive hover:bg-shad-destructive/10"
+          type="button"
+          phx-click="disable_inbound_email"
+          data-confirm="This will disable inbound email processing for this company. Continue?"
+        >
+          Disable
+        </.button>
+      </div>
+      
+    <!-- Inbound email settings form -->
+      <div :if={@inbound_settings_form} class="border-t border-border pt-4">
+        <h3 class="text-sm font-medium mb-3">Settings</h3>
+        <.form
+          for={@inbound_settings_form}
+          phx-submit="save_inbound_settings"
+          phx-change="validate_inbound_settings"
+          class="space-y-4"
+        >
+          <.input
+            field={@inbound_settings_form[:inbound_allowed_sender_domain]}
+            label="Allowed sender domain"
+            placeholder="appunite.com"
+            phx-debounce="blur"
+          />
+          <p class="text-xs text-muted-foreground -mt-2">
+            Only accept inbound emails from this domain. Leave empty to allow any sender.
+          </p>
+          <.input
+            field={@inbound_settings_form[:inbound_cc_email]}
+            label="CC email"
+            placeholder="invoices@appunite.com"
+            phx-debounce="blur"
+          />
+          <p class="text-xs text-muted-foreground -mt-2">
+            CC this address on all reply notifications. Leave empty for no CC.
+          </p>
+          <.button type="submit">Save Settings</.button>
+        </.form>
+      </div>
+    </.card>
 
     <!-- Company List -->
     <div class="rounded-lg border border-border overflow-hidden mt-6">
@@ -428,41 +391,22 @@ defmodule KsefHubWeb.CompanyLive.Index do
             <span class="font-mono">{company.nip}</span>
           </:col>
           <:col :let={company} label="KSeF Sync">
-            <span
-              :if={company.has_active_credential}
-              class="inline-flex items-center px-2 py-0.5 rounded-md text-xs font-medium border bg-success/10 text-success border-success/20"
-            >
-              Configured
-            </span>
-            <span
-              :if={!company.has_active_credential}
-              class="inline-flex items-center px-2 py-0.5 rounded-md text-xs font-medium border bg-muted text-muted-foreground border-border"
-            >
-              Not configured
-            </span>
+            <.badge :if={company.has_active_credential} variant="success">Configured</.badge>
+            <.badge :if={!company.has_active_credential} variant="muted">Not configured</.badge>
           </:col>
           <:col :let={company} label="Status">
-            <span
-              :if={company.is_active}
-              class="inline-flex items-center px-2 py-0.5 rounded-md text-xs font-medium border bg-success/10 text-success border-success/20"
-            >
-              Active
-            </span>
-            <span
-              :if={!company.is_active}
-              class="inline-flex items-center px-2 py-0.5 rounded-md text-xs font-medium border bg-muted text-muted-foreground border-border"
-            >
-              Inactive
-            </span>
+            <.badge :if={company.is_active} variant="success">Active</.badge>
+            <.badge :if={!company.is_active} variant="muted">Inactive</.badge>
           </:col>
           <:action :let={company}>
-            <.link
+            <.button
               :if={@can_manage_company}
+              variant="outline"
+              size="sm"
               navigate={~p"/companies/#{company.id}/edit"}
-              class="inline-flex items-center justify-center gap-1 h-7 px-2 text-xs font-medium rounded-md hover:bg-shad-accent hover:text-shad-accent-foreground transition-colors cursor-pointer"
             >
               Edit
-            </.link>
+            </.button>
           </:action>
         </.table>
       </div>

@@ -33,18 +33,12 @@ defmodule KsefHubWeb.Layouts do
       <header class="sticky top-0 z-50 w-full border-b border-border bg-background/95 backdrop-blur supports-backdrop-filter:bg-background/60">
         <div class="flex h-14 items-center px-4 lg:px-6">
           <!-- Logo -->
-          <a
+          <.logo
             href={
               if @current_company, do: ~p"/c/#{@current_company.id}/invoices", else: ~p"/companies"
             }
-            class="flex items-center gap-2 mr-6"
-          >
-            <.icon name="hero-document-text" class="size-5 text-foreground" />
-            <span class="flex flex-col items-start leading-tight">
-              <span class="text-sm font-bold tracking-tight">Invoi</span>
-              <span class="text-[9px] text-muted-foreground font-normal -mt-0.5">by Appunite</span>
-            </span>
-          </a>
+            class="mr-6"
+          />
 
           <div class="flex-1" />
           
@@ -114,27 +108,10 @@ defmodule KsefHubWeb.Layouts do
                 tabindex="0"
                 class="dropdown-content z-50 p-1 border border-border bg-popover text-popover-foreground rounded-md shadow-md w-56"
               >
-                <%= for item <- nav_items(@current_company, @current_role) do %>
-                  <div
-                    :if={item.section}
-                    class="px-2 pt-2 text-xs font-medium text-muted-foreground"
-                  >
-                    {item.section}
-                  </div>
-                  <a
-                    href={item.path}
-                    class={[
-                      "flex items-center gap-2 px-2 py-1.5 text-sm rounded-sm transition-colors",
-                      is_active?(@current_path, item.path) &&
-                        "font-medium text-foreground bg-shad-accent",
-                      !is_active?(@current_path, item.path) &&
-                        "text-muted-foreground hover:bg-shad-accent hover:text-shad-accent-foreground"
-                    ]}
-                  >
-                    <.icon name={item.icon} class="size-4" />
-                    {item.label}
-                  </a>
-                <% end %>
+                <.nav_item_list
+                  items={nav_items(@current_company, @current_role)}
+                  current_path={@current_path}
+                />
               </div>
             </div>
 
@@ -154,27 +131,10 @@ defmodule KsefHubWeb.Layouts do
                   {@current_user.email}
                 </div>
                 <div class="border-t border-border my-1"></div>
-                <%= for item <- nav_items(@current_company, @current_role) do %>
-                  <div
-                    :if={item.section}
-                    class="px-2 pt-2 text-xs font-medium text-muted-foreground"
-                  >
-                    {item.section}
-                  </div>
-                  <a
-                    href={item.path}
-                    class={[
-                      "flex items-center gap-2 px-2 py-1.5 text-sm rounded-sm transition-colors",
-                      is_active?(@current_path, item.path) &&
-                        "font-medium text-foreground bg-shad-accent",
-                      !is_active?(@current_path, item.path) &&
-                        "text-muted-foreground hover:bg-shad-accent hover:text-shad-accent-foreground"
-                    ]}
-                  >
-                    <.icon name={item.icon} class="size-4" />
-                    {item.label}
-                  </a>
-                <% end %>
+                <.nav_item_list
+                  items={nav_items(@current_company, @current_role)}
+                  current_path={@current_path}
+                />
                 <div class="border-t border-border my-1"></div>
                 <.link
                   href={~p"/users/log-out"}
@@ -227,13 +187,6 @@ defmodule KsefHubWeb.Layouts do
     end)
   end
 
-  @spec is_active?(String.t() | nil, String.t()) :: boolean()
-  defp is_active?(nil, _path), do: false
-
-  defp is_active?(current, path) do
-    current == path || String.starts_with?(current, path <> "/")
-  end
-
   @spec initial(String.t() | nil) :: String.t()
   defp initial(nil), do: "?"
   defp initial(""), do: "?"
@@ -248,13 +201,7 @@ defmodule KsefHubWeb.Layouts do
     <div class="min-h-screen flex flex-col bg-background text-foreground">
       <header class="border-b border-border bg-background px-4">
         <div class="flex h-14 items-center">
-          <a href={~p"/"} class="flex items-center gap-2">
-            <.icon name="hero-document-text" class="size-5 text-foreground" />
-            <span class="flex flex-col items-start leading-tight">
-              <span class="text-sm font-bold tracking-tight">Invoi</span>
-              <span class="text-[9px] text-muted-foreground font-normal -mt-0.5">by Appunite</span>
-            </span>
-          </a>
+          <.logo href={~p"/"} />
         </div>
       </header>
 

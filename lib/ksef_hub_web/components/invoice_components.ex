@@ -5,6 +5,8 @@ defmodule KsefHubWeb.InvoiceComponents do
 
   use Phoenix.Component
 
+  import KsefHubWeb.CoreComponents, only: [badge: 1]
+
   require Logger
 
   alias KsefHub.Invoices.Invoice
@@ -14,17 +16,17 @@ defmodule KsefHubWeb.InvoiceComponents do
   attr :type, :atom, required: true
 
   def type_badge(assigns) do
+    assigns = assign(assigns, :variant, type_variant(assigns.type))
+
     ~H"""
-    <span class={[
-      "inline-flex items-center px-2 py-0.5 rounded-md text-xs font-medium border",
-      @type == :income && "bg-success/10 text-success border-success/20",
-      @type == :expense && "bg-warning/10 text-warning border-warning/20",
-      @type not in [:income, :expense] && "bg-muted text-muted-foreground border-border"
-    ]}>
-      {@type}
-    </span>
+    <.badge variant={@variant}>{@type}</.badge>
     """
   end
+
+  @spec type_variant(atom()) :: String.t()
+  defp type_variant(:income), do: "success"
+  defp type_variant(:expense), do: "warning"
+  defp type_variant(_), do: "muted"
 
   @doc "Renders a coloured badge for the invoice status (:pending / :approved / :rejected / :duplicate). Renders nothing for nil."
   @spec status_badge(map()) :: Phoenix.LiveView.Rendered.t()
@@ -35,19 +37,19 @@ defmodule KsefHubWeb.InvoiceComponents do
   end
 
   def status_badge(assigns) do
+    assigns = assign(assigns, :variant, status_variant(assigns.status))
+
     ~H"""
-    <span class={[
-      "inline-flex items-center px-2 py-0.5 rounded-md text-xs font-medium border",
-      @status == :pending && "bg-warning/10 text-warning border-warning/20",
-      @status == :approved && "bg-success/10 text-success border-success/20",
-      @status in [:rejected, :duplicate] && "bg-error/10 text-error border-error/20",
-      @status not in [:pending, :approved, :rejected, :duplicate] &&
-        "bg-muted text-muted-foreground border-border"
-    ]}>
-      {@status}
-    </span>
+    <.badge variant={@variant}>{@status}</.badge>
     """
   end
+
+  @spec status_variant(atom()) :: String.t()
+  defp status_variant(:pending), do: "warning"
+  defp status_variant(:approved), do: "success"
+  defp status_variant(:rejected), do: "error"
+  defp status_variant(:duplicate), do: "error"
+  defp status_variant(_), do: "muted"
 
   @doc """
   Returns the display status for an invoice, accounting for confirmed duplicates
@@ -121,12 +123,7 @@ defmodule KsefHubWeb.InvoiceComponents do
     assigns = assign(assigns, :show, show?)
 
     ~H"""
-    <span
-      :if={@show}
-      class="inline-flex items-center px-2 py-0.5 rounded-md text-xs font-medium border bg-info/10 text-info border-info/20"
-    >
-      needs review
-    </span>
+    <.badge :if={@show} variant="info">needs review</.badge>
     """
   end
 
@@ -143,17 +140,13 @@ defmodule KsefHubWeb.InvoiceComponents do
 
   def extraction_badge(%{status: :partial} = assigns) do
     ~H"""
-    <span class="inline-flex items-center px-2 py-0.5 rounded-md text-xs font-medium border bg-warning/10 text-warning border-warning/20">
-      incomplete
-    </span>
+    <.badge variant="warning">incomplete</.badge>
     """
   end
 
   def extraction_badge(%{status: :failed} = assigns) do
     ~H"""
-    <span class="inline-flex items-center px-2 py-0.5 rounded-md text-xs font-medium border bg-error/10 text-error border-error/20">
-      failed
-    </span>
+    <.badge variant="error">failed</.badge>
     """
   end
 
