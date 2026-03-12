@@ -143,13 +143,14 @@ defmodule KsefHubWeb.InvoiceLive.Index do
     end)
     |> maybe_add_chip(filters[:date_from], "date_from", "From", &Date.to_iso8601/1)
     |> maybe_add_chip(filters[:date_to], "date_to", "To", &Date.to_iso8601/1)
+    |> Enum.reverse()
   end
 
   @spec maybe_add_chip(list(), any(), String.t(), String.t(), (any() -> String.t())) :: list()
   defp maybe_add_chip(acc, nil, _key, _label, _formatter), do: acc
 
   defp maybe_add_chip(acc, value, key, label, formatter) do
-    acc ++ [%{key: key, label: label, value: formatter.(value)}]
+    [%{key: key, label: label, value: formatter.(value)} | acc]
   end
 
   @spec type_display(atom()) :: String.t()
