@@ -119,7 +119,10 @@ defmodule KsefHubWeb.ExportLive.IndexTest do
       |> element("form[phx-submit=export]")
       |> render_change(%{date_from: "2026-01-01", date_to: "2026-01-31", invoice_type: "expense"})
 
-      html = view |> element("button", "Preview") |> render_click()
+      html =
+        view
+        |> element("form[phx-submit=export]")
+        |> render_submit(%{"_action" => "preview"})
 
       assert html =~ "2 invoices match"
     end
@@ -138,7 +141,10 @@ defmodule KsefHubWeb.ExportLive.IndexTest do
       |> element("form[phx-submit=export]")
       |> render_change(%{date_from: "2026-01-01", date_to: "2026-01-31", invoice_type: "expense"})
 
-      html = view |> element("button", "Preview") |> render_click()
+      html =
+        view
+        |> element("form[phx-submit=export]")
+        |> render_submit(%{"_action" => "preview"})
 
       assert html =~ "1 invoice matches"
     end
@@ -150,7 +156,10 @@ defmodule KsefHubWeb.ExportLive.IndexTest do
       |> element("form[phx-submit=export]")
       |> render_change(%{date_from: "2026-01-01", date_to: "2026-01-31", invoice_type: "expense"})
 
-      html = view |> element("button", "Preview") |> render_click()
+      html =
+        view
+        |> element("form[phx-submit=export]")
+        |> render_submit(%{"_action" => "preview"})
 
       assert html =~ "0 invoices match"
     end
@@ -239,7 +248,10 @@ defmodule KsefHubWeb.ExportLive.IndexTest do
       |> render_change(%{date_from: "2026-01-01", date_to: "2026-01-31", invoice_type: "expense"})
 
       # Show preview count
-      view |> element("button", "Preview") |> render_click()
+      view
+      |> element("form[phx-submit=export]")
+      |> render_submit(%{"_action" => "preview"})
+
       assert render(view) =~ "1 invoice matches"
 
       # Changing form should reset the preview

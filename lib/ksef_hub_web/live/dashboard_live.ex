@@ -143,7 +143,24 @@ defmodule KsefHubWeb.DashboardLive do
         <div class="space-y-3">
           <div class="flex justify-between items-center">
             <span class="text-sm text-muted-foreground">Certificate</span>
-            <.badge :if={@cert_active} variant="success">Active</.badge>
+            <.badge
+              :if={
+                @cert_active && @cert_expires_at &&
+                  Date.compare(@cert_expires_at, Date.utc_today()) == :lt
+              }
+              variant="warning"
+            >
+              Expired
+            </.badge>
+            <.badge
+              :if={
+                @cert_active &&
+                  (!@cert_expires_at || Date.compare(@cert_expires_at, Date.utc_today()) != :lt)
+              }
+              variant="success"
+            >
+              Active
+            </.badge>
             <.badge :if={!@cert_active} variant="error">Not configured</.badge>
           </div>
           <div :if={@credential} class="flex justify-between items-center">

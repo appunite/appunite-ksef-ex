@@ -216,8 +216,7 @@ defmodule KsefHubWeb.CoreComponents do
 
   def button(%{rest: rest} = assigns) do
     variants = %{
-      "primary" =>
-        "bg-shad-primary text-shad-primary-foreground hover:bg-shad-primary/90",
+      "primary" => "bg-shad-primary text-shad-primary-foreground hover:bg-shad-primary/90",
       "outline" =>
         "border border-input bg-background hover:bg-shad-accent hover:text-shad-accent-foreground",
       "ghost" => "hover:bg-shad-accent hover:text-shad-accent-foreground",
@@ -321,7 +320,7 @@ defmodule KsefHubWeb.CoreComponents do
   defp nav_active?(nil, _path), do: false
 
   defp nav_active?(current, path),
-    do: current == path || String.starts_with?(current, path <> "/")
+    do: current == path || Regex.match?(~r/^#{Regex.escape(path)}(\/|$)/, current)
 
   @doc """
   Renders a file upload dropzone with drag-and-drop support.

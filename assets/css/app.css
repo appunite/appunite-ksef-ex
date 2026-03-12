@@ -200,13 +200,13 @@
 
 /* --- Global base styles --- */
 body {
-  font-family: 'Geist', ui-sans-serif, system-ui, -apple-system, sans-serif;
+  font-family: Geist, ui-sans-serif, system-ui, -apple-system, sans-serif;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
 }
 
 code, pre, kbd, .font-mono {
-  font-family: 'Geist Mono', ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  font-family: "Geist Mono", ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
 }
 
 /* --- Neutralise DaisyUI shadow/radius so Tailwind utilities win --- */

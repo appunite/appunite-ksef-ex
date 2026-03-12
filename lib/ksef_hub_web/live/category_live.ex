@@ -149,10 +149,20 @@ defmodule KsefHubWeb.CategoryLive do
 
     %{
       name: params["name"] || "",
-      emoji: params["emoji"] || "",
-      description: params["description"] || "",
+      emoji: blank_to_nil(params["emoji"]),
+      description: blank_to_nil(params["description"]),
       sort_order: sort_order
     }
+  end
+
+  @spec blank_to_nil(String.t() | nil) :: String.t() | nil
+  defp blank_to_nil(nil), do: nil
+
+  defp blank_to_nil(str) do
+    case String.trim(str) do
+      "" -> nil
+      trimmed -> trimmed
+    end
   end
 
   # --- Render ---
@@ -180,9 +190,12 @@ defmodule KsefHubWeb.CategoryLive do
         id="category-form"
       >
         <div>
-          <label class="block text-xs text-muted-foreground mb-1">Emoji</label>
+          <label for={@form[:emoji].id} class="block text-xs text-muted-foreground mb-1">
+            Emoji
+          </label>
           <input
             type="text"
+            id={@form[:emoji].id}
             name={@form[:emoji].name}
             value={@form[:emoji].value}
             placeholder="📦"
@@ -190,9 +203,12 @@ defmodule KsefHubWeb.CategoryLive do
           />
         </div>
         <div class="flex-1 min-w-40">
-          <label class="block text-xs text-muted-foreground mb-1">Name (group:target)</label>
+          <label for={@form[:name].id} class="block text-xs text-muted-foreground mb-1">
+            Name (group:target)
+          </label>
           <input
             type="text"
+            id={@form[:name].id}
             name={@form[:name].name}
             value={@form[:name].value}
             placeholder="finance:invoices"
@@ -204,9 +220,12 @@ defmodule KsefHubWeb.CategoryLive do
           </.error>
         </div>
         <div class="flex-1 min-w-40">
-          <label class="block text-xs text-muted-foreground mb-1">Description</label>
+          <label for={@form[:description].id} class="block text-xs text-muted-foreground mb-1">
+            Description
+          </label>
           <input
             type="text"
+            id={@form[:description].id}
             name={@form[:description].name}
             value={@form[:description].value}
             placeholder="Optional description"
@@ -214,9 +233,12 @@ defmodule KsefHubWeb.CategoryLive do
           />
         </div>
         <div>
-          <label class="block text-xs text-muted-foreground mb-1">Order</label>
+          <label for={@form[:sort_order].id} class="block text-xs text-muted-foreground mb-1">
+            Order
+          </label>
           <input
             type="number"
+            id={@form[:sort_order].id}
             name={@form[:sort_order].name}
             value={@form[:sort_order].value}
             class="h-9 w-20 rounded-md border border-input bg-background px-3 text-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"

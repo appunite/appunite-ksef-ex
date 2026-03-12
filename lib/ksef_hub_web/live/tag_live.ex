@@ -172,28 +172,10 @@ defmodule KsefHubWeb.TagLive do
         id="tag-form"
       >
         <div class="flex-1 min-w-40">
-          <label class="block text-xs text-muted-foreground mb-1">Name</label>
-          <input
-            type="text"
-            name={@form[:name].name}
-            value={@form[:name].value}
-            placeholder="e.g. monthly"
-            class="h-9 w-full rounded-md border border-input bg-background px-3 text-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
-            required
-          />
-          <.error :for={msg <- Enum.map(@form[:name].errors, &translate_error/1)}>
-            {msg}
-          </.error>
+          <.input field={@form[:name]} label="Name" placeholder="e.g. monthly" required />
         </div>
         <div class="flex-1 min-w-40">
-          <label class="block text-xs text-muted-foreground mb-1">Description</label>
-          <input
-            type="text"
-            name={@form[:description].name}
-            value={@form[:description].value}
-            placeholder="Optional description"
-            class="h-9 w-full rounded-md border border-input bg-background px-3 text-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
-          />
+          <.input field={@form[:description]} label="Description" placeholder="Optional description" />
         </div>
         <div class="flex gap-2 items-end">
           <.button type="submit">

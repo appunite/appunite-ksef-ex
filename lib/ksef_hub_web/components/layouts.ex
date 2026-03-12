@@ -76,7 +76,7 @@ defmodule KsefHubWeb.Layouts do
                   <input
                     type="hidden"
                     name="return_to"
-                    value={@current_path || ~p"/c/#{company.id}/invoices"}
+                    value={rewrite_company_path(@current_path, company.id)}
                   />
                   <button
                     type="submit"
@@ -191,6 +191,17 @@ defmodule KsefHubWeb.Layouts do
   defp initial(nil), do: "?"
   defp initial(""), do: "?"
   defp initial(email), do: email |> String.first() |> String.upcase()
+
+  @spec rewrite_company_path(String.t() | nil, Ecto.UUID.t()) :: String.t()
+  defp rewrite_company_path(nil, company_id), do: ~p"/c/#{company_id}/invoices"
+
+  defp rewrite_company_path(path, company_id) do
+    if String.match?(path, ~r"^/c/[^/]+") do
+      Regex.replace(~r"^/c/[^/]+", path, "/c/#{company_id}")
+    else
+      ~p"/c/#{company_id}/invoices"
+    end
+  end
 
   attr :flash, :map, required: true, doc: "the map of flash messages"
 

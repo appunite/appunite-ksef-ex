@@ -29,7 +29,16 @@ defmodule KsefHubWeb.TokenLive do
 
   @impl true
   def handle_event("toggle_form", _params, socket) do
-    {:noreply, assign(socket, show_create_form: !socket.assigns.show_create_form)}
+    new_show = !socket.assigns.show_create_form
+
+    assigns =
+      if new_show do
+        [show_create_form: true]
+      else
+        [show_create_form: false, form: to_form(%{"name" => "", "description" => ""}, as: :token)]
+      end
+
+    {:noreply, assign(socket, assigns)}
   end
 
   @impl true

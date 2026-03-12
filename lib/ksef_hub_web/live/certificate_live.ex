@@ -489,7 +489,7 @@ defmodule KsefHubWeb.CertificateLive do
     days_left = Date.diff(date, Date.utc_today())
 
     cond do
-      days_left < 0 -> "text-shad-destructive font-bold"
+      days_left < 7 -> "text-shad-destructive font-bold"
       days_left < 30 -> "text-warning font-semibold"
       true -> ""
     end

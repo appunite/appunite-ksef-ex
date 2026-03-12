@@ -188,6 +188,10 @@ defmodule KsefHubWeb.InvoiceLive.ShowTest do
 
       # Status badge is hidden for income invoices, and status should not change to approved
       refute has_element?(view, "[class*=bg-success]", "approved")
+
+      # Verify the invoice was not mutated in the database
+      unchanged = Invoices.get_invoice!(company.id, invoice.id)
+      assert unchanged.status == invoice.status
     end
 
     test "already-approved invoice does not show action buttons", %{conn: conn, company: company} do

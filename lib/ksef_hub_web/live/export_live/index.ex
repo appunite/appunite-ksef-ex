@@ -59,7 +59,24 @@ defmodule KsefHubWeb.ExportLive.Index do
      |> assign(preview_count: nil)}
   end
 
-  def handle_event("preview", _params, socket) do
+  def handle_event("export", params, socket) do
+    socket =
+      socket
+      |> assign(
+        date_from: params["date_from"] || socket.assigns.date_from,
+        date_to: params["date_to"] || socket.assigns.date_to,
+        invoice_type: params["invoice_type"] || socket.assigns.invoice_type,
+        only_new: params["only_new"] == "true"
+      )
+
+    case params["_action"] do
+      "preview" -> do_preview(socket)
+      _ -> do_export_action(socket)
+    end
+  end
+
+  @spec do_preview(Phoenix.LiveView.Socket.t()) :: {:noreply, Phoenix.LiveView.Socket.t()}
+  defp do_preview(socket) do
     case socket.assigns.current_company do
       nil ->
         {:noreply, socket}
@@ -84,7 +101,8 @@ defmodule KsefHubWeb.ExportLive.Index do
     end
   end
 
-  def handle_event("export", _params, socket) do
+  @spec do_export_action(Phoenix.LiveView.Socket.t()) :: {:noreply, Phoenix.LiveView.Socket.t()}
+  defp do_export_action(socket) do
     cond do
       is_nil(socket.assigns.current_company) ->
         {:noreply, socket}
@@ -226,10 +244,10 @@ defmodule KsefHubWeb.ExportLive.Index do
           </div>
 
           <div class="flex gap-2">
-            <.button type="button" variant="outline" class="flex-1" phx-click="preview">
+            <.button type="submit" name="_action" value="preview" variant="outline" class="flex-1">
               <.icon name="hero-eye" class="size-4" /> Preview
             </.button>
-            <.button type="submit" class="flex-1">
+            <.button type="submit" name="_action" value="export" class="flex-1">
               <.icon name="hero-arrow-down-tray" class="size-4" /> Export
             </.button>
           </div>

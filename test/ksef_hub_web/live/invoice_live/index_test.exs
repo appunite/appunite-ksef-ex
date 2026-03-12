@@ -221,9 +221,12 @@ defmodule KsefHubWeb.InvoiceLive.IndexTest do
       assert html =~ "data-testid=\"pagination\""
       assert html =~ "Showing 1"
       assert html =~ "of 1 invoices"
-      assert html =~ "Previous"
       assert html =~ "Page 1 of 1"
-      assert html =~ "Next"
+
+      # Previous and Next should be rendered as disabled spans (not links)
+      assert html =~ "pointer-events-none"
+      refute html =~ ~r/<a[^>]*>Previous<\/a>/
+      refute html =~ ~r/<a[^>]*>Next<\/a>/
     end
 
     test "navigates to page 2", %{conn: conn, company: company} do

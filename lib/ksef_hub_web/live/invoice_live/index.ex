@@ -46,21 +46,32 @@ defmodule KsefHubWeb.InvoiceLive.Index do
 
   @spec filter_assigns(map(), map(), atom() | nil, map()) :: keyword()
   defp filter_assigns(filters, result, role, assigns) do
+    # Normalize type filter: clear if user lacks permission to view all types
+    normalized_filters =
+      if filters[:type] && !Authorization.can?(role, :view_all_invoice_types) do
+        Map.delete(filters, :type)
+      else
+        filters
+      end
+
     form =
       %{
-        "type" => to_string_or_empty(filters[:type]),
-        "status" => to_string_or_empty(filters[:status]),
-        "date_from" => (filters[:date_from] && Date.to_iso8601(filters[:date_from])) || "",
-        "date_to" => (filters[:date_to] && Date.to_iso8601(filters[:date_to])) || "",
-        "query" => filters[:query] || "",
-        "category_id" => filters[:category_id] || "",
-        "tag_id" => first_tag_id(filters) || ""
+        "type" => to_string_or_empty(normalized_filters[:type]),
+        "status" => to_string_or_empty(normalized_filters[:status]),
+        "date_from" =>
+          (normalized_filters[:date_from] && Date.to_iso8601(normalized_filters[:date_from])) ||
+            "",
+        "date_to" =>
+          (normalized_filters[:date_to] && Date.to_iso8601(normalized_filters[:date_to])) || "",
+        "query" => normalized_filters[:query] || "",
+        "category_id" => normalized_filters[:category_id] || "",
+        "tag_id" => first_tag_id(normalized_filters) || ""
       }
       |> to_form(as: :filters)
 
     active_filters =
       build_active_filters(
-        filters,
+        normalized_filters,
         Map.get(assigns, :categories, []),
         Map.get(assigns, :all_tags, [])
       )
