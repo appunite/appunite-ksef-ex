@@ -190,57 +190,33 @@ defmodule KsefHubWeb.CategoryLive do
         id="category-form"
       >
         <div>
-          <label for={@form[:emoji].id} class="block text-xs text-muted-foreground mb-1">
-            Emoji
-          </label>
-          <input
-            type="text"
-            id={@form[:emoji].id}
-            name={@form[:emoji].name}
-            value={@form[:emoji].value}
+          <.input
+            field={@form[:emoji]}
+            label="Emoji"
             placeholder="📦"
             class="h-9 w-16 rounded-md border border-input bg-background px-3 text-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring text-center"
           />
         </div>
         <div class="flex-1 min-w-40">
-          <label for={@form[:name].id} class="block text-xs text-muted-foreground mb-1">
-            Name (group:target)
-          </label>
-          <input
-            type="text"
-            id={@form[:name].id}
-            name={@form[:name].name}
-            value={@form[:name].value}
+          <.input
+            field={@form[:name]}
+            label="Name (group:target)"
             placeholder="finance:invoices"
-            class="h-9 w-full rounded-md border border-input bg-background px-3 text-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
             required
           />
-          <.error :for={msg <- Enum.map(@form[:name].errors, &translate_error/1)}>
-            {msg}
-          </.error>
         </div>
         <div class="flex-1 min-w-40">
-          <label for={@form[:description].id} class="block text-xs text-muted-foreground mb-1">
-            Description
-          </label>
-          <input
-            type="text"
-            id={@form[:description].id}
-            name={@form[:description].name}
-            value={@form[:description].value}
+          <.input
+            field={@form[:description]}
+            label="Description"
             placeholder="Optional description"
-            class="h-9 w-full rounded-md border border-input bg-background px-3 text-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
           />
         </div>
         <div>
-          <label for={@form[:sort_order].id} class="block text-xs text-muted-foreground mb-1">
-            Order
-          </label>
-          <input
+          <.input
+            field={@form[:sort_order]}
             type="number"
-            id={@form[:sort_order].id}
-            name={@form[:sort_order].name}
-            value={@form[:sort_order].value}
+            label="Order"
             class="h-9 w-20 rounded-md border border-input bg-background px-3 text-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
           />
         </div>
