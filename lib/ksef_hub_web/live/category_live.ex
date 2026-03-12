@@ -187,7 +187,7 @@ defmodule KsefHubWeb.CategoryLive do
               name={@form[:emoji].name}
               value={@form[:emoji].value}
               placeholder="📦"
-              class="h-8 w-16 rounded-md border border-input bg-background px-3 text-sm shadow-sm text-center"
+              class="h-9 w-16 rounded-md border border-input bg-background px-3 text-sm shadow-sm text-center"
             />
           </div>
           <div class="flex-1 min-w-40">
@@ -197,7 +197,7 @@ defmodule KsefHubWeb.CategoryLive do
               name={@form[:name].name}
               value={@form[:name].value}
               placeholder="finance:invoices"
-              class="h-8 w-full rounded-md border border-input bg-background px-3 text-sm shadow-sm"
+              class="h-9 w-full rounded-md border border-input bg-background px-3 text-sm shadow-sm"
               required
             />
             <.error :for={msg <- Enum.map(@form[:name].errors, &translate_error/1)}>
@@ -211,7 +211,7 @@ defmodule KsefHubWeb.CategoryLive do
               name={@form[:description].name}
               value={@form[:description].value}
               placeholder="Optional description"
-              class="h-8 w-full rounded-md border border-input bg-background px-3 text-sm shadow-sm"
+              class="h-9 w-full rounded-md border border-input bg-background px-3 text-sm shadow-sm"
             />
           </div>
           <div>
@@ -220,13 +220,13 @@ defmodule KsefHubWeb.CategoryLive do
               type="number"
               name={@form[:sort_order].name}
               value={@form[:sort_order].value}
-              class="h-8 w-20 rounded-md border border-input bg-background px-3 text-sm shadow-sm"
+              class="h-9 w-20 rounded-md border border-input bg-background px-3 text-sm shadow-sm"
             />
           </div>
           <div class="flex gap-2 items-end mt-4">
             <button
               type="submit"
-              class="inline-flex items-center justify-center gap-2 h-8 px-3 text-sm font-medium rounded-md bg-shad-primary text-shad-primary-foreground hover:bg-shad-primary/90 shadow-xs transition-colors cursor-pointer"
+              class="inline-flex items-center justify-center gap-2 h-9 px-3 text-sm font-medium rounded-md bg-shad-primary text-shad-primary-foreground hover:bg-shad-primary/90 shadow-xs transition-colors cursor-pointer"
             >
               {if @editing, do: "Update", else: "Create"}
             </button>
@@ -234,7 +234,7 @@ defmodule KsefHubWeb.CategoryLive do
               :if={@editing}
               type="button"
               phx-click="cancel_edit"
-              class="inline-flex items-center justify-center gap-2 h-8 px-3 text-sm font-medium rounded-md hover:bg-shad-accent hover:text-shad-accent-foreground transition-colors cursor-pointer"
+              class="inline-flex items-center justify-center gap-2 h-9 px-3 text-sm font-medium rounded-md hover:bg-shad-accent hover:text-shad-accent-foreground transition-colors cursor-pointer"
             >
               Cancel
             </button>
@@ -244,43 +244,45 @@ defmodule KsefHubWeb.CategoryLive do
     </div>
 
     <!-- Category Table -->
-    <div class="mt-6 overflow-x-auto">
-      <.table
-        id="categories"
-        rows={@streams.categories}
-        row_id={fn {id, _} -> id end}
-        row_item={fn {_id, item} -> item end}
-      >
-        <:col :let={cat} label="Emoji" class="w-16 text-center">
-          {cat.emoji || "-"}
-        </:col>
-        <:col :let={cat} label="Name">
-          <span data-testid={"category-name-#{cat.id}"}>{cat.name}</span>
-        </:col>
-        <:col :let={cat} label="Description">
-          <span class="text-muted-foreground">{cat.description || "-"}</span>
-        </:col>
-        <:col :let={cat} label="Order" class="w-20 text-center">
-          {cat.sort_order}
-        </:col>
-        <:action :let={cat}>
-          <button
-            phx-click="edit"
-            phx-value-id={cat.id}
-            class="inline-flex items-center justify-center gap-1 h-7 px-2 text-xs font-medium rounded-md hover:bg-shad-accent hover:text-shad-accent-foreground transition-colors cursor-pointer"
-          >
-            Edit
-          </button>
-          <button
-            phx-click="delete"
-            phx-value-id={cat.id}
-            data-confirm="Delete this category? Invoices with this category will become uncategorized."
-            class="inline-flex items-center justify-center gap-1 h-7 px-2 text-xs font-medium rounded-md hover:bg-shad-accent hover:text-shad-accent-foreground transition-colors cursor-pointer text-shad-destructive"
-          >
-            Delete
-          </button>
-        </:action>
-      </.table>
+    <div class="rounded-lg border border-border overflow-hidden mt-6">
+      <div class="overflow-x-auto">
+        <.table
+          id="categories"
+          rows={@streams.categories}
+          row_id={fn {id, _} -> id end}
+          row_item={fn {_id, item} -> item end}
+        >
+          <:col :let={cat} label="Emoji" class="w-16 text-center">
+            {cat.emoji || "-"}
+          </:col>
+          <:col :let={cat} label="Name">
+            <span data-testid={"category-name-#{cat.id}"}>{cat.name}</span>
+          </:col>
+          <:col :let={cat} label="Description">
+            <span class="text-muted-foreground">{cat.description || "-"}</span>
+          </:col>
+          <:col :let={cat} label="Order" class="w-20 text-center">
+            {cat.sort_order}
+          </:col>
+          <:action :let={cat}>
+            <button
+              phx-click="edit"
+              phx-value-id={cat.id}
+              class="inline-flex items-center justify-center gap-1 h-7 px-2 text-xs font-medium rounded-md hover:bg-shad-accent hover:text-shad-accent-foreground transition-colors cursor-pointer"
+            >
+              Edit
+            </button>
+            <button
+              phx-click="delete"
+              phx-value-id={cat.id}
+              data-confirm="Delete this category? Invoices with this category will become uncategorized."
+              class="inline-flex items-center justify-center gap-1 h-7 px-2 text-xs font-medium rounded-md hover:bg-shad-accent hover:text-shad-accent-foreground transition-colors cursor-pointer text-shad-destructive"
+            >
+              Delete
+            </button>
+          </:action>
+        </.table>
+      </div>
     </div>
     """
   end

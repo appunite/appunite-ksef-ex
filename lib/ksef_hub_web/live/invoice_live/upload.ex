@@ -216,7 +216,7 @@ defmodule KsefHubWeb.InvoiceLive.Upload do
           >
             <.live_file_input
               upload={@uploads.invoice_pdf}
-              class="h-8 w-full rounded-md border border-input bg-background text-sm shadow-sm file:border-0 file:bg-muted file:text-muted-foreground file:text-sm file:font-medium file:mr-3 file:px-3 file:h-full"
+              class="h-9 w-full rounded-md border border-input bg-background text-sm shadow-sm file:border-0 file:bg-muted file:text-muted-foreground file:text-sm file:font-medium file:mr-3 file:px-3 file:h-full"
             />
             <p :for={entry <- @uploads.invoice_pdf.entries} class="mt-2 text-sm">
               {entry.client_name}

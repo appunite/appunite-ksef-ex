@@ -45,10 +45,10 @@ defmodule KsefHubWeb.Layouts do
               <span class="text-[9px] text-muted-foreground font-normal -mt-0.5">by Appunite</span>
             </span>
           </a>
-          
-          <div class="flex-1" />
 
-          <!-- Theme toggle + Company selector + avatar menu -->
+          <div class="flex-1" />
+          
+    <!-- Theme toggle + Company selector + avatar menu -->
           <div class="flex items-center gap-2">
             <.theme_toggle />
 
@@ -56,7 +56,7 @@ defmodule KsefHubWeb.Layouts do
               <div
                 tabindex="0"
                 role="button"
-                class="inline-flex items-center gap-1.5 h-8 px-3 text-sm rounded-md border border-border bg-background hover:bg-shad-accent hover:text-shad-accent-foreground transition-colors cursor-pointer"
+                class="inline-flex items-center gap-1.5 h-9 px-3 text-sm rounded-md border border-border bg-background hover:bg-shad-accent hover:text-shad-accent-foreground transition-colors cursor-pointer"
                 data-testid="company-selector"
               >
                 <.icon name="hero-building-office-2" class="size-3.5" />
@@ -226,7 +226,6 @@ defmodule KsefHubWeb.Layouts do
       %{section: section, label: label, path: path, icon: icon}
     end)
   end
-
 
   @spec is_active?(String.t() | nil, String.t()) :: boolean()
   defp is_active?(nil, _path), do: false

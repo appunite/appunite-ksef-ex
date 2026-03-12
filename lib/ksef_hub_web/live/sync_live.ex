@@ -83,45 +83,47 @@ defmodule KsefHubWeb.SyncLive do
       <:actions>
         <button
           phx-click="trigger_sync"
-          class="inline-flex items-center justify-center gap-2 h-8 px-3 text-sm font-medium rounded-md bg-shad-primary text-shad-primary-foreground hover:bg-shad-primary/90 shadow-xs transition-colors cursor-pointer"
+          class="inline-flex items-center justify-center gap-2 h-9 px-3 text-sm font-medium rounded-md bg-shad-primary text-shad-primary-foreground hover:bg-shad-primary/90 shadow-xs transition-colors cursor-pointer"
         >
           <.icon name="hero-arrow-path" class="size-4" /> Sync Now
         </button>
       </:actions>
     </.header>
 
-    <div class="mt-6 overflow-x-auto">
-      <.table id="syncs" rows={@streams.jobs} row_id={fn {id, _} -> id end}>
-        <:col :let={{_id, job}} label="Time">
-          {format_datetime(job.inserted_at)}
-        </:col>
-        <:col :let={{_id, job}} label="Duration">
-          {format_duration(job.duration)}
-        </:col>
-        <:col :let={{_id, job}} label="Status">
-          <span class={[
-            "inline-flex items-center px-2 py-0.5 rounded-md text-xs font-medium border",
-            status_classes(job.state)
-          ]}>
-            {job.state}
-          </span>
-        </:col>
-        <:col :let={{_id, job}} label="Income">
-          <span class="font-mono">{job.income_count || "-"}</span>
-        </:col>
-        <:col :let={{_id, job}} label="Expense">
-          <span class="font-mono">{job.expense_count || "-"}</span>
-        </:col>
-        <:col :let={{_id, job}} label="Error">
-          <span
-            :if={job.error}
-            class="text-shad-destructive/80 text-xs truncate max-w-xs inline-block"
-            title={job.error}
-          >
-            {truncate(job.error, 80)}
-          </span>
-        </:col>
-      </.table>
+    <div class="mt-6 rounded-lg border border-border overflow-hidden">
+      <div class="overflow-x-auto">
+        <.table id="syncs" rows={@streams.jobs} row_id={fn {id, _} -> id end}>
+          <:col :let={{_id, job}} label="Time">
+            {format_datetime(job.inserted_at)}
+          </:col>
+          <:col :let={{_id, job}} label="Duration">
+            {format_duration(job.duration)}
+          </:col>
+          <:col :let={{_id, job}} label="Status">
+            <span class={[
+              "inline-flex items-center px-2 py-0.5 rounded-md text-xs font-medium border",
+              status_classes(job.state)
+            ]}>
+              {job.state}
+            </span>
+          </:col>
+          <:col :let={{_id, job}} label="Income">
+            <span class="font-mono">{job.income_count || "-"}</span>
+          </:col>
+          <:col :let={{_id, job}} label="Expense">
+            <span class="font-mono">{job.expense_count || "-"}</span>
+          </:col>
+          <:col :let={{_id, job}} label="Error">
+            <span
+              :if={job.error}
+              class="text-shad-destructive/80 text-xs truncate max-w-xs inline-block"
+              title={job.error}
+            >
+              {truncate(job.error, 80)}
+            </span>
+          </:col>
+        </.table>
+      </div>
     </div>
 
     <div :if={@jobs_count == 0} class="text-center py-12">

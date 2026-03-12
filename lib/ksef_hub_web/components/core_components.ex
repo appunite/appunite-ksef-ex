@@ -241,7 +241,7 @@ defmodule KsefHubWeb.CoreComponents do
           name={@name}
           class={[
             @class ||
-              "w-full h-9 rounded-md border border-input bg-background px-3 text-sm shadow-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring",
+              "w-full h-9 rounded-md border border-input bg-background px-3 text-sm shadow-xs focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring",
             @errors != [] && (@error_class || "border-error")
           ]}
           multiple={@multiple}
@@ -421,13 +421,13 @@ defmodule KsefHubWeb.CoreComponents do
           <th
             :for={col <- @col}
             class={[
-              "text-left py-2 px-4 text-xs font-medium text-muted-foreground uppercase tracking-wide",
+              "text-left py-3 px-4 text-xs font-medium text-muted-foreground uppercase tracking-wide",
               col[:class]
             ]}
           >
             {col[:label]}
           </th>
-          <th :if={@action != []} class="py-2 px-4">
+          <th :if={@action != []} class="py-3 px-4">
             <span class="sr-only">{gettext("Actions")}</span>
           </th>
         </tr>
@@ -441,11 +441,11 @@ defmodule KsefHubWeb.CoreComponents do
           <td
             :for={col <- @col}
             phx-click={@row_click && @row_click.(row)}
-            class={["py-2 px-4", @row_click && "hover:cursor-pointer", col[:class]]}
+            class={["py-3.5 px-4", @row_click && "hover:cursor-pointer", col[:class]]}
           >
             {render_slot(col, @row_item.(row))}
           </td>
-          <td :if={@action != []} class="w-0 py-2 px-4 font-semibold">
+          <td :if={@action != []} class="w-0 py-3.5 px-4 font-semibold">
             <div class="flex gap-4">
               <%= for action <- @action do %>
                 {render_slot(action, @row_item.(row))}
@@ -507,6 +507,212 @@ defmodule KsefHubWeb.CoreComponents do
   def icon(%{name: "hero-" <> _} = assigns) do
     ~H"""
     <span class={[@name, @class]} />
+    """
+  end
+
+  @doc """
+  Renders a removable filter chip/pill showing an active filter.
+
+  ## Examples
+
+      <.filter_chip key="status" label="Status" value="Pending" />
+  """
+  attr :key, :string, required: true, doc: "phx-value-key for the remove event"
+  attr :label, :string, required: true, doc: "filter label, e.g. \"Status\""
+  attr :value, :string, required: true, doc: "filter value, e.g. \"Pending\""
+
+  @spec filter_chip(map()) :: Phoenix.LiveView.Rendered.t()
+  def filter_chip(assigns) do
+    ~H"""
+    <span class="inline-flex items-center gap-1 rounded-md bg-muted px-2 py-0.5 text-xs font-medium text-muted-foreground">
+      {@label}: {@value}
+      <button
+        type="button"
+        phx-click="remove_filter"
+        phx-value-key={@key}
+        class="ml-0.5 hover:text-foreground cursor-pointer"
+        aria-label={"Remove #{@label} filter"}
+      >
+        <.icon name="hero-x-mark" class="size-3" />
+      </button>
+    </span>
+    """
+  end
+
+  @doc """
+  Renders a filter toolbar with a "Filters N" popover button and optional search input.
+
+  Filter fields are rendered inside a JS-toggled popover via the `:filter_fields` slot.
+  The parent LiveView should wrap this component in a `<.form>` with `phx-change="filter"`.
+  The popover stays open across LiveView patches so users can tweak multiple filters
+  and see results update in real-time. Click away or use the toggle button to close.
+
+  ## Examples
+
+      <.form for={@form} phx-change="filter" class="contents">
+        <.filter_bar
+          active_filters={@active_filters}
+          filter_count={@filter_count}
+          search_name={@form[:query].name}
+          search_value={@form[:query].value}
+        >
+          <:filter_fields>
+            <!-- filter selects here -->
+          </:filter_fields>
+        </.filter_bar>
+      </.form>
+  """
+  attr :active_filters, :list,
+    default: [],
+    doc: "list of %{key, label, value} for active filter chips"
+
+  attr :filter_count, :integer, default: 0, doc: "number of active filters"
+  attr :search_name, :string, default: nil, doc: "form field name for search input; nil hides it"
+  attr :search_value, :string, default: "", doc: "current search value"
+  attr :search_placeholder, :string, default: "Search..."
+
+  slot :filter_fields, required: true, doc: "rendered inside the popover"
+
+  @spec filter_bar(map()) :: Phoenix.LiveView.Rendered.t()
+  def filter_bar(assigns) do
+    ~H"""
+    <div class="space-y-2 mt-4 mb-6">
+      <div class="flex items-center gap-3">
+        <%!-- Filters popover --%>
+        <div class="relative">
+          <button
+            type="button"
+            phx-click={JS.toggle(to: "#filter-popover")}
+            class="inline-flex items-center gap-2 h-9 px-4 text-sm font-medium rounded-md border border-input bg-background hover:bg-shad-accent hover:text-shad-accent-foreground shadow-xs transition-colors cursor-pointer"
+          >
+            <.icon name="hero-funnel" class="size-4" /> Filters
+            <span
+              :if={@filter_count > 0}
+              class="inline-flex items-center justify-center size-5 rounded-full bg-shad-primary text-shad-primary-foreground text-xs font-medium"
+            >
+              {@filter_count}
+            </span>
+          </button>
+          <div
+            id="filter-popover"
+            class="hidden absolute left-0 top-full z-10 mt-1 w-72 rounded-md border border-border bg-background p-4 shadow-md"
+            phx-click-away={JS.hide(to: "#filter-popover")}
+          >
+            <div class="space-y-3">
+              {render_slot(@filter_fields)}
+            </div>
+            <div class="mt-3 pt-3 border-t border-border">
+              <button
+                type="button"
+                phx-click={JS.push("clear_filters") |> JS.hide(to: "#filter-popover")}
+                class="inline-flex items-center justify-center h-9 px-3 text-sm font-medium rounded-md hover:bg-shad-accent hover:text-shad-accent-foreground transition-colors cursor-pointer w-full"
+              >
+                Clear all filters
+              </button>
+            </div>
+          </div>
+        </div>
+
+        <%!-- Search input --%>
+        <div :if={@search_name} class="ml-auto w-72">
+          <div class="relative">
+            <.icon
+              name="hero-magnifying-glass"
+              class="absolute left-2.5 top-2.5 size-4 text-muted-foreground"
+            />
+            <input
+              type="text"
+              name={@search_name}
+              value={@search_value}
+              placeholder={@search_placeholder}
+              phx-debounce="300"
+              class="w-full h-9 rounded-md border border-input bg-background pl-8 pr-3 text-sm shadow-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+            />
+          </div>
+        </div>
+      </div>
+
+      <%!-- Active filter chips --%>
+      <div :if={@active_filters != []} class="flex flex-wrap gap-1.5">
+        <.filter_chip
+          :for={filter <- @active_filters}
+          key={filter.key}
+          label={filter.label}
+          value={filter.value}
+        />
+      </div>
+    </div>
+    """
+  end
+
+  @doc """
+  Renders a standalone pagination footer with page info and navigation.
+
+  ## Examples
+
+      <.pagination
+        page={@page} per_page={@per_page}
+        total_count={@total_count} total_pages={@total_pages}
+        base_url={~p"/c/\#{id}/invoices"}
+        params={@filter_params}
+        noun="invoices"
+      />
+  """
+  attr :page, :integer, required: true
+  attr :per_page, :integer, required: true
+  attr :total_count, :integer, required: true
+  attr :total_pages, :integer, required: true
+  attr :base_url, :string, required: true, doc: "base path without query params"
+  attr :params, :map, default: %{}, doc: "filter params (without page)"
+  attr :noun, :string, default: "results"
+
+  @spec pagination(map()) :: Phoenix.LiveView.Rendered.t()
+  def pagination(assigns) do
+    ~H"""
+    <div class="flex items-center justify-between" data-testid="pagination">
+      <p class="text-sm text-muted-foreground">
+        <span :if={@total_count > 0}>
+          Showing {(@page - 1) * @per_page + 1}–{min(@page * @per_page, @total_count)} of {@total_count} {@noun}
+        </span>
+        <span :if={@total_count == 0}>
+          No {@noun}
+        </span>
+      </p>
+
+      <div class="flex items-center gap-1">
+        <.link
+          :if={@page > 1}
+          patch={"#{@base_url}?#{URI.encode_query(Map.put(@params, "page", @page - 1))}"}
+          class="inline-flex items-center justify-center h-9 px-3 text-sm rounded-md border border-input bg-background hover:bg-shad-accent hover:text-shad-accent-foreground transition-colors"
+        >
+          Previous
+        </.link>
+        <span
+          :if={@page <= 1}
+          class="inline-flex items-center justify-center h-9 px-3 text-sm rounded-md border border-input bg-background transition-colors opacity-50 pointer-events-none"
+        >
+          Previous
+        </span>
+
+        <span class="inline-flex items-center justify-center h-9 px-3 text-sm text-muted-foreground">
+          Page {@page} of {@total_pages}
+        </span>
+
+        <.link
+          :if={@page < @total_pages}
+          patch={"#{@base_url}?#{URI.encode_query(Map.put(@params, "page", @page + 1))}"}
+          class="inline-flex items-center justify-center h-9 px-3 text-sm rounded-md border border-input bg-background hover:bg-shad-accent hover:text-shad-accent-foreground transition-colors"
+        >
+          Next
+        </.link>
+        <span
+          :if={@page >= @total_pages}
+          class="inline-flex items-center justify-center h-9 px-3 text-sm rounded-md border border-input bg-background transition-colors opacity-50 pointer-events-none"
+        >
+          Next
+        </span>
+      </div>
+    </div>
     """
   end
 

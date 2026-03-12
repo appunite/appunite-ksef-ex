@@ -103,7 +103,7 @@ defmodule KsefHubWeb.TokenLive do
       <:actions>
         <button
           phx-click="toggle_form"
-          class="inline-flex items-center justify-center gap-2 h-8 px-3 text-sm font-medium rounded-md bg-shad-primary text-shad-primary-foreground hover:bg-shad-primary/90 shadow-xs transition-colors cursor-pointer"
+          class="inline-flex items-center justify-center gap-2 h-9 px-3 text-sm font-medium rounded-md bg-shad-primary text-shad-primary-foreground hover:bg-shad-primary/90 shadow-xs transition-colors cursor-pointer"
         >
           <.icon name="hero-plus" class="size-4" /> New Token
         </button>
@@ -125,7 +125,7 @@ defmodule KsefHubWeb.TokenLive do
       </div>
       <button
         phx-click="dismiss_token"
-        class="inline-flex items-center justify-center gap-2 h-8 px-3 text-sm font-medium rounded-md hover:bg-shad-accent hover:text-shad-accent-foreground transition-colors cursor-pointer"
+        class="inline-flex items-center justify-center gap-2 h-9 px-3 text-sm font-medium rounded-md hover:bg-shad-accent hover:text-shad-accent-foreground transition-colors cursor-pointer"
       >
         Dismiss
       </button>
@@ -155,14 +155,14 @@ defmodule KsefHubWeb.TokenLive do
           <div class="flex gap-2">
             <button
               type="submit"
-              class="inline-flex items-center justify-center gap-2 h-8 px-3 text-sm font-medium rounded-md bg-shad-primary text-shad-primary-foreground hover:bg-shad-primary/90 shadow-xs transition-colors cursor-pointer"
+              class="inline-flex items-center justify-center gap-2 h-9 px-3 text-sm font-medium rounded-md bg-shad-primary text-shad-primary-foreground hover:bg-shad-primary/90 shadow-xs transition-colors cursor-pointer"
             >
               Create Token
             </button>
             <button
               type="button"
               phx-click="toggle_form"
-              class="inline-flex items-center justify-center gap-2 h-8 px-3 text-sm font-medium rounded-md hover:bg-shad-accent hover:text-shad-accent-foreground transition-colors cursor-pointer"
+              class="inline-flex items-center justify-center gap-2 h-9 px-3 text-sm font-medium rounded-md hover:bg-shad-accent hover:text-shad-accent-foreground transition-colors cursor-pointer"
             >
               Cancel
             </button>
@@ -172,51 +172,53 @@ defmodule KsefHubWeb.TokenLive do
     </div>
 
     <!-- Token Table -->
-    <div class="mt-6 overflow-x-auto">
-      <.table
-        id="tokens"
-        rows={@streams.tokens}
-        row_id={fn {id, _} -> id end}
-        row_item={fn {_id, item} -> item end}
-      >
-        <:col :let={token} label="Name">
-          <span data-testid={"token-name-#{token.id}"}>{token.name}</span>
-        </:col>
-        <:col :let={token} label="Prefix">
-          <code class="font-mono text-sm">{token.token_prefix}****</code>
-        </:col>
-        <:col :let={token} label="Last Used">
-          {format_datetime(token.last_used_at)}
-        </:col>
-        <:col :let={token} label="Requests">
-          <span class="font-mono">{token.request_count}</span>
-        </:col>
-        <:col :let={token} label="Status">
-          <span
-            :if={token.is_active}
-            class="inline-flex items-center px-2 py-0.5 rounded-md text-xs font-medium border bg-success/10 text-success border-success/20"
-          >
-            Active
-          </span>
-          <span
-            :if={!token.is_active}
-            class="inline-flex items-center px-2 py-0.5 rounded-md text-xs font-medium border bg-muted text-muted-foreground border-border"
-          >
-            Revoked
-          </span>
-        </:col>
-        <:action :let={token}>
-          <button
-            :if={token.is_active}
-            phx-click="revoke"
-            phx-value-id={token.id}
-            data-confirm="Are you sure? This will immediately revoke API access for this token."
-            class="inline-flex items-center justify-center gap-1 h-7 px-2 text-xs font-medium rounded-md hover:bg-shad-accent hover:text-shad-accent-foreground transition-colors cursor-pointer text-shad-destructive"
-          >
-            Revoke
-          </button>
-        </:action>
-      </.table>
+    <div class="rounded-lg border border-border overflow-hidden mt-6">
+      <div class="overflow-x-auto">
+        <.table
+          id="tokens"
+          rows={@streams.tokens}
+          row_id={fn {id, _} -> id end}
+          row_item={fn {_id, item} -> item end}
+        >
+          <:col :let={token} label="Name">
+            <span data-testid={"token-name-#{token.id}"}>{token.name}</span>
+          </:col>
+          <:col :let={token} label="Prefix">
+            <code class="font-mono text-sm">{token.token_prefix}****</code>
+          </:col>
+          <:col :let={token} label="Last Used">
+            {format_datetime(token.last_used_at)}
+          </:col>
+          <:col :let={token} label="Requests">
+            <span class="font-mono">{token.request_count}</span>
+          </:col>
+          <:col :let={token} label="Status">
+            <span
+              :if={token.is_active}
+              class="inline-flex items-center px-2 py-0.5 rounded-md text-xs font-medium border bg-success/10 text-success border-success/20"
+            >
+              Active
+            </span>
+            <span
+              :if={!token.is_active}
+              class="inline-flex items-center px-2 py-0.5 rounded-md text-xs font-medium border bg-muted text-muted-foreground border-border"
+            >
+              Revoked
+            </span>
+          </:col>
+          <:action :let={token}>
+            <button
+              :if={token.is_active}
+              phx-click="revoke"
+              phx-value-id={token.id}
+              data-confirm="Are you sure? This will immediately revoke API access for this token."
+              class="inline-flex items-center justify-center gap-1 h-7 px-2 text-xs font-medium rounded-md hover:bg-shad-accent hover:text-shad-accent-foreground transition-colors cursor-pointer text-shad-destructive"
+            >
+              Revoke
+            </button>
+          </:action>
+        </.table>
+      </div>
     </div>
 
     <p :if={@tokens_count == 0} class="text-center text-muted-foreground py-8">

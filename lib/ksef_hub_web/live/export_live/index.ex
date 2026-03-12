@@ -228,13 +228,13 @@ defmodule KsefHubWeb.ExportLive.Index do
               <button
                 type="button"
                 phx-click="preview"
-                class="inline-flex items-center justify-center gap-2 h-8 px-3 text-sm font-medium rounded-md border border-input bg-background hover:bg-shad-accent hover:text-shad-accent-foreground shadow-xs transition-colors cursor-pointer flex-1"
+                class="inline-flex items-center justify-center gap-2 h-9 px-3 text-sm font-medium rounded-md border border-input bg-background hover:bg-shad-accent hover:text-shad-accent-foreground shadow-xs transition-colors cursor-pointer flex-1"
               >
                 <.icon name="hero-eye" class="size-4" /> Preview
               </button>
               <button
                 type="submit"
-                class="inline-flex items-center justify-center gap-2 h-8 px-3 text-sm font-medium rounded-md bg-shad-primary text-shad-primary-foreground hover:bg-shad-primary/90 shadow-xs transition-colors cursor-pointer flex-1"
+                class="inline-flex items-center justify-center gap-2 h-9 px-3 text-sm font-medium rounded-md bg-shad-primary text-shad-primary-foreground hover:bg-shad-primary/90 shadow-xs transition-colors cursor-pointer flex-1"
               >
                 <.icon name="hero-arrow-down-tray" class="size-4" /> Export
               </button>
@@ -295,7 +295,7 @@ defmodule KsefHubWeb.ExportLive.Index do
                   :if={batch.status == :completed}
                   href={~p"/c/#{@current_company.id}/exports/#{batch.id}/download"}
                   target="_blank"
-                  class="inline-flex items-center justify-center gap-2 h-8 px-3 text-sm font-medium rounded-md bg-success text-success-content hover:bg-success/90 shadow-xs transition-colors cursor-pointer gap-1"
+                  class="inline-flex items-center justify-center gap-2 h-9 px-3 text-sm font-medium rounded-md bg-success text-success-content hover:bg-success/90 shadow-xs transition-colors cursor-pointer gap-1"
                 >
                   <.icon name="hero-arrow-down-tray" class="size-4" /> Download ZIP
                 </.link>

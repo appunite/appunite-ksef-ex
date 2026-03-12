@@ -213,90 +213,97 @@ defmodule KsefHubWeb.TeamLive do
     <div class="rounded-xl border border-border bg-card text-card-foreground mt-6">
       <div class="p-6">
         <h2 class="text-base font-semibold mb-3">Members</h2>
-        <div class="overflow-x-auto" data-testid="member-list">
-          <table class="table table-sm" data-testid="team-table">
-            <thead>
-              <tr class="border-b border-border">
-                <th class="text-left py-3 px-2 text-xs font-medium text-muted-foreground uppercase tracking-wide">
-                  Email
-                </th>
-                <th class="text-left py-3 px-2 text-xs font-medium text-muted-foreground uppercase tracking-wide">
-                  Name
-                </th>
-                <th class="text-left py-3 px-2 text-xs font-medium text-muted-foreground uppercase tracking-wide">
-                  Role
-                </th>
-                <th class="text-left py-3 px-2 text-xs font-medium text-muted-foreground uppercase tracking-wide">
-                  Status
-                </th>
-                <th class="text-left py-3 px-2 text-xs font-medium text-muted-foreground uppercase tracking-wide">
-                  Expires
-                </th>
-                <th class="text-left py-3 px-2 text-xs font-medium text-muted-foreground uppercase tracking-wide">
-                  Action
-                </th>
-              </tr>
-            </thead>
-            <tbody id="members-list" phx-update="stream">
-              <tr :for={{dom_id, member} <- @streams.members} id={dom_id}>
-                <td>{member.user.email}</td>
-                <td>{member.user.name || "—"}</td>
-                <td>
-                  <span class="inline-flex items-center px-2 py-0.5 rounded-md text-xs font-medium border border-border">
-                    {member.role}
-                  </span>
-                </td>
-                <td></td>
-                <td>—</td>
-                <td>
-                  <button
-                    :if={member.role != :owner}
-                    phx-click="remove_member"
-                    phx-value-user-id={member.user.id}
-                    data-confirm="Remove this member from the company?"
-                    data-testid={"remove-member-#{member.user.id}"}
-                    class="inline-flex items-center justify-center gap-1 h-7 px-2 text-xs font-medium rounded-md hover:bg-shad-accent hover:text-shad-accent-foreground transition-colors cursor-pointer text-shad-destructive"
-                  >
-                    Remove
-                  </button>
-                </td>
-              </tr>
-            </tbody>
-            <tbody id="pending-invitations-list" phx-update="stream">
-              <tr
-                :for={{dom_id, inv} <- @streams.pending_invitations}
-                id={dom_id}
-              >
-                <td>{inv.email}</td>
-                <td>—</td>
-                <td>
-                  <span
-                    class="inline-flex items-center px-2 py-0.5 rounded-md text-xs font-medium border border-border"
-                    data-role={inv.role}
-                  >
-                    {inv.role}
-                  </span>
-                </td>
-                <td>
-                  <span class="inline-flex items-center px-2 py-0.5 rounded-md text-xs font-medium border border-warning/20 bg-warning/10 text-warning">
-                    pending
-                  </span>
-                </td>
-                <td>{Calendar.strftime(inv.expires_at, "%Y-%m-%d")}</td>
-                <td>
-                  <button
-                    phx-click="cancel_invitation"
-                    phx-value-id={inv.id}
-                    data-confirm="Cancel this invitation?"
-                    data-testid={"cancel-invitation-#{inv.id}"}
-                    class="inline-flex items-center justify-center gap-1 h-7 px-2 text-xs font-medium rounded-md hover:bg-shad-accent hover:text-shad-accent-foreground transition-colors cursor-pointer text-shad-destructive"
-                  >
-                    Cancel
-                  </button>
-                </td>
-              </tr>
-            </tbody>
-          </table>
+        <div class="rounded-lg border border-border overflow-hidden">
+          <div class="overflow-x-auto" data-testid="member-list">
+            <table class="w-full text-sm" data-testid="team-table">
+              <thead>
+                <tr class="border-b border-border">
+                  <th class="text-left py-3 px-4 text-xs font-medium text-muted-foreground uppercase tracking-wide">
+                    Email
+                  </th>
+                  <th class="text-left py-3 px-4 text-xs font-medium text-muted-foreground uppercase tracking-wide">
+                    Name
+                  </th>
+                  <th class="text-left py-3 px-4 text-xs font-medium text-muted-foreground uppercase tracking-wide">
+                    Role
+                  </th>
+                  <th class="text-left py-3 px-4 text-xs font-medium text-muted-foreground uppercase tracking-wide">
+                    Status
+                  </th>
+                  <th class="text-left py-3 px-4 text-xs font-medium text-muted-foreground uppercase tracking-wide">
+                    Expires
+                  </th>
+                  <th class="text-left py-3 px-4 text-xs font-medium text-muted-foreground uppercase tracking-wide">
+                    Action
+                  </th>
+                </tr>
+              </thead>
+              <tbody id="members-list" phx-update="stream">
+                <tr
+                  :for={{dom_id, member} <- @streams.members}
+                  id={dom_id}
+                  class="border-b border-border/50 hover:bg-muted/50 transition-colors"
+                >
+                  <td class="py-3.5 px-4">{member.user.email}</td>
+                  <td class="py-3.5 px-4">{member.user.name || "—"}</td>
+                  <td class="py-3.5 px-4">
+                    <span class="inline-flex items-center px-2 py-0.5 rounded-md text-xs font-medium border border-border">
+                      {member.role}
+                    </span>
+                  </td>
+                  <td class="py-3.5 px-4"></td>
+                  <td class="py-3.5 px-4">—</td>
+                  <td class="py-3.5 px-4">
+                    <button
+                      :if={member.role != :owner}
+                      phx-click="remove_member"
+                      phx-value-user-id={member.user.id}
+                      data-confirm="Remove this member from the company?"
+                      data-testid={"remove-member-#{member.user.id}"}
+                      class="inline-flex items-center justify-center gap-1 h-7 px-2 text-xs font-medium rounded-md hover:bg-shad-accent hover:text-shad-accent-foreground transition-colors cursor-pointer text-shad-destructive"
+                    >
+                      Remove
+                    </button>
+                  </td>
+                </tr>
+              </tbody>
+              <tbody id="pending-invitations-list" phx-update="stream">
+                <tr
+                  :for={{dom_id, inv} <- @streams.pending_invitations}
+                  id={dom_id}
+                  class="border-b border-border/50 hover:bg-muted/50 transition-colors"
+                >
+                  <td class="py-3.5 px-4">{inv.email}</td>
+                  <td class="py-3.5 px-4">—</td>
+                  <td class="py-3.5 px-4">
+                    <span
+                      class="inline-flex items-center px-2 py-0.5 rounded-md text-xs font-medium border border-border"
+                      data-role={inv.role}
+                    >
+                      {inv.role}
+                    </span>
+                  </td>
+                  <td class="py-3.5 px-4">
+                    <span class="inline-flex items-center px-2 py-0.5 rounded-md text-xs font-medium border border-warning/20 bg-warning/10 text-warning">
+                      pending
+                    </span>
+                  </td>
+                  <td class="py-3.5 px-4">{Calendar.strftime(inv.expires_at, "%Y-%m-%d")}</td>
+                  <td class="py-3.5 px-4">
+                    <button
+                      phx-click="cancel_invitation"
+                      phx-value-id={inv.id}
+                      data-confirm="Cancel this invitation?"
+                      data-testid={"cancel-invitation-#{inv.id}"}
+                      class="inline-flex items-center justify-center gap-1 h-7 px-2 text-xs font-medium rounded-md hover:bg-shad-accent hover:text-shad-accent-foreground transition-colors cursor-pointer text-shad-destructive"
+                    >
+                      Cancel
+                    </button>
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
         </div>
       </div>
     </div>

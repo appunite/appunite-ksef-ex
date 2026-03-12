@@ -264,7 +264,7 @@ defmodule KsefHubWeb.CompanyLive.Index do
         <.link
           :if={@can_manage_company}
           navigate={~p"/companies/new"}
-          class="inline-flex items-center justify-center gap-2 h-8 px-3 text-sm font-medium rounded-md bg-shad-primary text-shad-primary-foreground hover:bg-shad-primary/90 shadow-xs transition-colors cursor-pointer"
+          class="inline-flex items-center justify-center gap-2 h-9 px-3 text-sm font-medium rounded-md bg-shad-primary text-shad-primary-foreground hover:bg-shad-primary/90 shadow-xs transition-colors cursor-pointer"
         >
           <.icon name="hero-plus" class="size-4" /> New Company
         </.link>
@@ -290,13 +290,13 @@ defmodule KsefHubWeb.CompanyLive.Index do
           <div class="flex gap-2">
             <button
               type="submit"
-              class="inline-flex items-center justify-center gap-2 h-8 px-3 text-sm font-medium rounded-md bg-shad-primary text-shad-primary-foreground hover:bg-shad-primary/90 shadow-xs transition-colors cursor-pointer"
+              class="inline-flex items-center justify-center gap-2 h-9 px-3 text-sm font-medium rounded-md bg-shad-primary text-shad-primary-foreground hover:bg-shad-primary/90 shadow-xs transition-colors cursor-pointer"
             >
               {if @live_action == :new, do: "Create", else: "Save"}
             </button>
             <.link
               navigate={~p"/companies"}
-              class="inline-flex items-center justify-center gap-2 h-8 px-3 text-sm font-medium rounded-md hover:bg-shad-accent hover:text-shad-accent-foreground transition-colors cursor-pointer"
+              class="inline-flex items-center justify-center gap-2 h-9 px-3 text-sm font-medium rounded-md hover:bg-shad-accent hover:text-shad-accent-foreground transition-colors cursor-pointer"
             >
               Cancel
             </.link>
@@ -351,7 +351,7 @@ defmodule KsefHubWeb.CompanyLive.Index do
             :if={!@company.inbound_email_token_hash}
             type="button"
             phx-click="enable_inbound_email"
-            class="inline-flex items-center justify-center gap-2 h-8 px-3 text-sm font-medium rounded-md bg-shad-primary text-shad-primary-foreground hover:bg-shad-primary/90 shadow-xs transition-colors cursor-pointer"
+            class="inline-flex items-center justify-center gap-2 h-9 px-3 text-sm font-medium rounded-md bg-shad-primary text-shad-primary-foreground hover:bg-shad-primary/90 shadow-xs transition-colors cursor-pointer"
           >
             Enable Inbound Email
           </button>
@@ -360,7 +360,7 @@ defmodule KsefHubWeb.CompanyLive.Index do
             type="button"
             phx-click="regenerate_inbound_email"
             data-confirm="This will invalidate the current inbound email address. Continue?"
-            class="inline-flex items-center justify-center gap-2 h-8 px-3 text-sm font-medium rounded-md bg-warning text-warning-foreground hover:bg-warning/90 shadow-xs transition-colors cursor-pointer"
+            class="inline-flex items-center justify-center gap-2 h-9 px-3 text-sm font-medium rounded-md bg-warning text-warning-foreground hover:bg-warning/90 shadow-xs transition-colors cursor-pointer"
           >
             Regenerate Address
           </button>
@@ -369,7 +369,7 @@ defmodule KsefHubWeb.CompanyLive.Index do
             type="button"
             phx-click="disable_inbound_email"
             data-confirm="This will disable inbound email processing for this company. Continue?"
-            class="inline-flex items-center justify-center gap-2 h-8 px-3 text-sm font-medium rounded-md border border-shad-destructive text-shad-destructive bg-background hover:bg-shad-destructive/10 shadow-xs transition-colors cursor-pointer"
+            class="inline-flex items-center justify-center gap-2 h-9 px-3 text-sm font-medium rounded-md border border-shad-destructive text-shad-destructive bg-background hover:bg-shad-destructive/10 shadow-xs transition-colors cursor-pointer"
           >
             Disable
           </button>
@@ -404,7 +404,7 @@ defmodule KsefHubWeb.CompanyLive.Index do
             </p>
             <button
               type="submit"
-              class="inline-flex items-center justify-center gap-2 h-8 px-3 text-sm font-medium rounded-md bg-shad-primary text-shad-primary-foreground hover:bg-shad-primary/90 shadow-xs transition-colors cursor-pointer"
+              class="inline-flex items-center justify-center gap-2 h-9 px-3 text-sm font-medium rounded-md bg-shad-primary text-shad-primary-foreground hover:bg-shad-primary/90 shadow-xs transition-colors cursor-pointer"
             >
               Save Settings
             </button>
@@ -414,56 +414,58 @@ defmodule KsefHubWeb.CompanyLive.Index do
     </div>
 
     <!-- Company List -->
-    <div class="mt-6 overflow-x-auto">
-      <.table
-        id="companies"
-        rows={@companies_with_creds}
-        row_id={fn c -> "company-#{c.id}" end}
-      >
-        <:col :let={company} label="Name">
-          <span data-testid="company-name">{company.name}</span>
-        </:col>
-        <:col :let={company} label="NIP">
-          <span class="font-mono">{company.nip}</span>
-        </:col>
-        <:col :let={company} label="KSeF Sync">
-          <span
-            :if={company.has_active_credential}
-            class="inline-flex items-center px-2 py-0.5 rounded-md text-xs font-medium border bg-success/10 text-success border-success/20"
-          >
-            Configured
-          </span>
-          <span
-            :if={!company.has_active_credential}
-            class="inline-flex items-center px-2 py-0.5 rounded-md text-xs font-medium border bg-muted text-muted-foreground border-border"
-          >
-            Not configured
-          </span>
-        </:col>
-        <:col :let={company} label="Status">
-          <span
-            :if={company.is_active}
-            class="inline-flex items-center px-2 py-0.5 rounded-md text-xs font-medium border bg-success/10 text-success border-success/20"
-          >
-            Active
-          </span>
-          <span
-            :if={!company.is_active}
-            class="inline-flex items-center px-2 py-0.5 rounded-md text-xs font-medium border bg-muted text-muted-foreground border-border"
-          >
-            Inactive
-          </span>
-        </:col>
-        <:action :let={company}>
-          <.link
-            :if={@can_manage_company}
-            navigate={~p"/companies/#{company.id}/edit"}
-            class="inline-flex items-center justify-center gap-1 h-7 px-2 text-xs font-medium rounded-md hover:bg-shad-accent hover:text-shad-accent-foreground transition-colors cursor-pointer"
-          >
-            Edit
-          </.link>
-        </:action>
-      </.table>
+    <div class="rounded-lg border border-border overflow-hidden mt-6">
+      <div class="overflow-x-auto">
+        <.table
+          id="companies"
+          rows={@companies_with_creds}
+          row_id={fn c -> "company-#{c.id}" end}
+        >
+          <:col :let={company} label="Name">
+            <span data-testid="company-name">{company.name}</span>
+          </:col>
+          <:col :let={company} label="NIP">
+            <span class="font-mono">{company.nip}</span>
+          </:col>
+          <:col :let={company} label="KSeF Sync">
+            <span
+              :if={company.has_active_credential}
+              class="inline-flex items-center px-2 py-0.5 rounded-md text-xs font-medium border bg-success/10 text-success border-success/20"
+            >
+              Configured
+            </span>
+            <span
+              :if={!company.has_active_credential}
+              class="inline-flex items-center px-2 py-0.5 rounded-md text-xs font-medium border bg-muted text-muted-foreground border-border"
+            >
+              Not configured
+            </span>
+          </:col>
+          <:col :let={company} label="Status">
+            <span
+              :if={company.is_active}
+              class="inline-flex items-center px-2 py-0.5 rounded-md text-xs font-medium border bg-success/10 text-success border-success/20"
+            >
+              Active
+            </span>
+            <span
+              :if={!company.is_active}
+              class="inline-flex items-center px-2 py-0.5 rounded-md text-xs font-medium border bg-muted text-muted-foreground border-border"
+            >
+              Inactive
+            </span>
+          </:col>
+          <:action :let={company}>
+            <.link
+              :if={@can_manage_company}
+              navigate={~p"/companies/#{company.id}/edit"}
+              class="inline-flex items-center justify-center gap-1 h-7 px-2 text-xs font-medium rounded-md hover:bg-shad-accent hover:text-shad-accent-foreground transition-colors cursor-pointer"
+            >
+              Edit
+            </.link>
+          </:action>
+        </.table>
+      </div>
     </div>
 
     <p :if={@companies_with_creds == []} class="text-center text-muted-foreground py-8">

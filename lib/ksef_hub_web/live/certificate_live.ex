@@ -356,7 +356,7 @@ defmodule KsefHubWeb.CertificateLive do
           <button
             type="button"
             phx-click="toggle_upload_form"
-            class="inline-flex items-center justify-center gap-2 h-8 px-3 text-sm font-medium rounded-md border border-input bg-background hover:bg-shad-accent hover:text-shad-accent-foreground shadow-xs transition-colors cursor-pointer"
+            class="inline-flex items-center justify-center gap-2 h-9 px-3 text-sm font-medium rounded-md border border-input bg-background hover:bg-shad-accent hover:text-shad-accent-foreground shadow-xs transition-colors cursor-pointer"
           >
             <.icon name="hero-arrow-path" class="size-4" />
             {if @show_upload_form, do: "Cancel", else: "Replace Certificate"}
@@ -365,7 +365,7 @@ defmodule KsefHubWeb.CertificateLive do
             type="button"
             phx-click="remove_certificate"
             data-confirm="Are you sure you want to remove this certificate? This will disable KSeF sync."
-            class="inline-flex items-center justify-center gap-2 h-8 px-3 text-sm font-medium rounded-md hover:bg-shad-accent hover:text-shad-accent-foreground transition-colors cursor-pointer text-shad-destructive"
+            class="inline-flex items-center justify-center gap-2 h-9 px-3 text-sm font-medium rounded-md hover:bg-shad-accent hover:text-shad-accent-foreground transition-colors cursor-pointer text-shad-destructive"
           >
             <.icon name="hero-trash" class="size-4" /> Remove
           </button>
@@ -403,7 +403,7 @@ defmodule KsefHubWeb.CertificateLive do
             type="button"
             phx-click="toggle_upload_mode"
             phx-value-mode="key_crt"
-            class={"inline-flex items-center justify-center gap-2 h-8 px-3 text-sm font-medium rounded-md shadow-xs transition-colors cursor-pointer #{if @upload_mode == :key_crt, do: "bg-shad-primary text-shad-primary-foreground hover:bg-shad-primary/90", else: "hover:bg-shad-accent hover:text-shad-accent-foreground"}"}
+            class={"inline-flex items-center justify-center gap-2 h-9 px-3 text-sm font-medium rounded-md shadow-xs transition-colors cursor-pointer #{if @upload_mode == :key_crt, do: "bg-shad-primary text-shad-primary-foreground hover:bg-shad-primary/90", else: "hover:bg-shad-accent hover:text-shad-accent-foreground"}"}
           >
             .key + .crt
           </button>
@@ -411,7 +411,7 @@ defmodule KsefHubWeb.CertificateLive do
             type="button"
             phx-click="toggle_upload_mode"
             phx-value-mode="p12"
-            class={"inline-flex items-center justify-center gap-2 h-8 px-3 text-sm font-medium rounded-md shadow-xs transition-colors cursor-pointer #{if @upload_mode == :p12, do: "bg-shad-primary text-shad-primary-foreground hover:bg-shad-primary/90", else: "hover:bg-shad-accent hover:text-shad-accent-foreground"}"}
+            class={"inline-flex items-center justify-center gap-2 h-9 px-3 text-sm font-medium rounded-md shadow-xs transition-colors cursor-pointer #{if @upload_mode == :p12, do: "bg-shad-primary text-shad-primary-foreground hover:bg-shad-primary/90", else: "hover:bg-shad-accent hover:text-shad-accent-foreground"}"}
           >
             .p12 / .pfx
           </button>
@@ -435,7 +435,7 @@ defmodule KsefHubWeb.CertificateLive do
             >
               <.live_file_input
                 upload={@uploads.certificate}
-                class="h-8 w-full rounded-md border border-input bg-background text-sm shadow-sm file:border-0 file:bg-muted file:text-muted-foreground file:text-sm file:font-medium file:mr-3 file:px-3 file:h-full"
+                class="h-9 w-full rounded-md border border-input bg-background text-sm shadow-sm file:border-0 file:bg-muted file:text-muted-foreground file:text-sm file:font-medium file:mr-3 file:px-3 file:h-full"
               />
               <p :for={entry <- @uploads.certificate.entries} class="mt-2 text-sm">
                 {entry.client_name}
@@ -462,7 +462,7 @@ defmodule KsefHubWeb.CertificateLive do
               >
                 <.live_file_input
                   upload={@uploads.private_key}
-                  class="h-8 w-full rounded-md border border-input bg-background text-sm shadow-sm file:border-0 file:bg-muted file:text-muted-foreground file:text-sm file:font-medium file:mr-3 file:px-3 file:h-full"
+                  class="h-9 w-full rounded-md border border-input bg-background text-sm shadow-sm file:border-0 file:bg-muted file:text-muted-foreground file:text-sm file:font-medium file:mr-3 file:px-3 file:h-full"
                 />
                 <p :for={entry <- @uploads.private_key.entries} class="mt-2 text-sm">
                   {entry.client_name}
@@ -487,7 +487,7 @@ defmodule KsefHubWeb.CertificateLive do
               >
                 <.live_file_input
                   upload={@uploads.certificate_crt}
-                  class="h-8 w-full rounded-md border border-input bg-background text-sm shadow-sm file:border-0 file:bg-muted file:text-muted-foreground file:text-sm file:font-medium file:mr-3 file:px-3 file:h-full"
+                  class="h-9 w-full rounded-md border border-input bg-background text-sm shadow-sm file:border-0 file:bg-muted file:text-muted-foreground file:text-sm file:font-medium file:mr-3 file:px-3 file:h-full"
                 />
                 <p :for={entry <- @uploads.certificate_crt.entries} class="mt-2 text-sm">
                   {entry.client_name}

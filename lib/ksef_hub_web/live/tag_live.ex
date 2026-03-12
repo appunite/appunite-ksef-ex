@@ -179,7 +179,7 @@ defmodule KsefHubWeb.TagLive do
               name={@form[:name].name}
               value={@form[:name].value}
               placeholder="e.g. monthly"
-              class="h-8 w-full rounded-md border border-input bg-background px-3 text-sm shadow-sm"
+              class="h-9 w-full rounded-md border border-input bg-background px-3 text-sm shadow-sm"
               required
             />
             <.error :for={msg <- Enum.map(@form[:name].errors, &translate_error/1)}>
@@ -193,13 +193,13 @@ defmodule KsefHubWeb.TagLive do
               name={@form[:description].name}
               value={@form[:description].value}
               placeholder="Optional description"
-              class="h-8 w-full rounded-md border border-input bg-background px-3 text-sm shadow-sm"
+              class="h-9 w-full rounded-md border border-input bg-background px-3 text-sm shadow-sm"
             />
           </div>
           <div class="flex gap-2 items-end">
             <button
               type="submit"
-              class="inline-flex items-center justify-center gap-2 h-8 px-3 text-sm font-medium rounded-md bg-shad-primary text-shad-primary-foreground hover:bg-shad-primary/90 shadow-xs transition-colors cursor-pointer"
+              class="inline-flex items-center justify-center gap-2 h-9 px-3 text-sm font-medium rounded-md bg-shad-primary text-shad-primary-foreground hover:bg-shad-primary/90 shadow-xs transition-colors cursor-pointer"
             >
               {if @editing, do: "Update", else: "Create"}
             </button>
@@ -207,7 +207,7 @@ defmodule KsefHubWeb.TagLive do
               :if={@editing}
               type="button"
               phx-click="cancel_edit"
-              class="inline-flex items-center justify-center gap-2 h-8 px-3 text-sm font-medium rounded-md hover:bg-shad-accent hover:text-shad-accent-foreground transition-colors cursor-pointer"
+              class="inline-flex items-center justify-center gap-2 h-9 px-3 text-sm font-medium rounded-md hover:bg-shad-accent hover:text-shad-accent-foreground transition-colors cursor-pointer"
             >
               Cancel
             </button>
@@ -217,40 +217,42 @@ defmodule KsefHubWeb.TagLive do
     </div>
 
     <!-- Tag Table -->
-    <div class="mt-6 overflow-x-auto">
-      <.table
-        id="tags"
-        rows={@streams.tags}
-        row_id={fn {id, _} -> id end}
-        row_item={fn {_id, item} -> item end}
-      >
-        <:col :let={tag} label="Name">
-          <span data-testid={"tag-name-#{tag.id}"}>{tag.name}</span>
-        </:col>
-        <:col :let={tag} label="Description">
-          <span class="text-muted-foreground">{tag.description || "-"}</span>
-        </:col>
-        <:col :let={tag} label="Usage" class="w-20 text-center">
-          <span class="font-mono">{tag.usage_count}</span>
-        </:col>
-        <:action :let={tag}>
-          <button
-            phx-click="edit"
-            phx-value-id={tag.id}
-            class="inline-flex items-center justify-center gap-1 h-7 px-2 text-xs font-medium rounded-md hover:bg-shad-accent hover:text-shad-accent-foreground transition-colors cursor-pointer"
-          >
-            Edit
-          </button>
-          <button
-            phx-click="delete"
-            phx-value-id={tag.id}
-            data-confirm="Delete this tag? It will be removed from all invoices."
-            class="inline-flex items-center justify-center gap-1 h-7 px-2 text-xs font-medium rounded-md hover:bg-shad-accent hover:text-shad-accent-foreground transition-colors cursor-pointer text-shad-destructive"
-          >
-            Delete
-          </button>
-        </:action>
-      </.table>
+    <div class="rounded-lg border border-border overflow-hidden mt-6">
+      <div class="overflow-x-auto">
+        <.table
+          id="tags"
+          rows={@streams.tags}
+          row_id={fn {id, _} -> id end}
+          row_item={fn {_id, item} -> item end}
+        >
+          <:col :let={tag} label="Name">
+            <span data-testid={"tag-name-#{tag.id}"}>{tag.name}</span>
+          </:col>
+          <:col :let={tag} label="Description">
+            <span class="text-muted-foreground">{tag.description || "-"}</span>
+          </:col>
+          <:col :let={tag} label="Usage" class="w-20 text-center">
+            <span class="font-mono">{tag.usage_count}</span>
+          </:col>
+          <:action :let={tag}>
+            <button
+              phx-click="edit"
+              phx-value-id={tag.id}
+              class="inline-flex items-center justify-center gap-1 h-7 px-2 text-xs font-medium rounded-md hover:bg-shad-accent hover:text-shad-accent-foreground transition-colors cursor-pointer"
+            >
+              Edit
+            </button>
+            <button
+              phx-click="delete"
+              phx-value-id={tag.id}
+              data-confirm="Delete this tag? It will be removed from all invoices."
+              class="inline-flex items-center justify-center gap-1 h-7 px-2 text-xs font-medium rounded-md hover:bg-shad-accent hover:text-shad-accent-foreground transition-colors cursor-pointer text-shad-destructive"
+            >
+              Delete
+            </button>
+          </:action>
+        </.table>
+      </div>
     </div>
     """
   end
