@@ -64,12 +64,23 @@ defmodule KsefHubWeb.AuthController do
 
   @spec auto_accept_invitations(KsefHub.Accounts.User.t()) :: :ok
   defp auto_accept_invitations(user) do
-    {:ok, memberships} = Invitations.accept_pending_invitations_for_email(user)
+    case Invitations.accept_pending_invitations_for_email(user) do
+      {:ok, [_ | _] = memberships} ->
+        Logger.info("Auto-accepted #{length(memberships)} invitation(s) for user #{user.id}")
 
-    if memberships != [] do
-      Logger.info("Auto-accepted #{length(memberships)} invitation(s) for user #{user.id}")
+      {:ok, []} ->
+        :ok
+
+      {:error, reason} ->
+        Logger.error(
+          "Failed to auto-accept invitations for user #{user.id}: #{inspect(reason)}"
+        )
     end
 
     :ok
+  rescue
+    error ->
+      Logger.error(Exception.format(:error, error, __STACKTRACE__))
+      :ok
   end
 end
