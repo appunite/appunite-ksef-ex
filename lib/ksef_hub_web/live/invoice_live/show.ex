@@ -568,8 +568,10 @@ defmodule KsefHubWeb.InvoiceLive.Show do
 
   @spec prediction_hint(map()) :: Phoenix.LiveView.Rendered.t()
   defp prediction_hint(assigns) do
+    assigns = assign(assigns, :show_hint, show_prediction_hint?(assigns))
+
     ~H"""
-    <p :if={@predicted_at} class="text-xs mt-1 opacity-60" data-testid={@testid}>
+    <p :if={@show_hint} class="text-xs mt-1 opacity-60" data-testid={@testid}>
       <%= cond do %>
         <% @status == :manual -> %>
           Manually adjusted
@@ -577,11 +579,19 @@ defmodule KsefHubWeb.InvoiceLive.Show do
           Predicted with {Float.round(@confidence * 100, 1)}% probability, feel free to adjust
         <% @confidence && @confidence < @threshold -> %>
           Could not predict {@label} automatically ({Float.round(@confidence * 100, 1)}% confidence)
-        <% true -> %>
       <% end %>
     </p>
     """
   end
+
+  @spec show_prediction_hint?(map()) :: boolean()
+  defp show_prediction_hint?(%{predicted_at: nil}), do: false
+
+  defp show_prediction_hint?(%{status: :manual}), do: true
+
+  defp show_prediction_hint?(%{confidence: confidence}) when is_number(confidence), do: true
+
+  defp show_prediction_hint?(_assigns), do: false
 
   # --- Private ---
 
