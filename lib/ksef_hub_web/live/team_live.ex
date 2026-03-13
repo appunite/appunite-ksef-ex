@@ -1,13 +1,14 @@
 defmodule KsefHubWeb.TeamLive do
   @moduledoc """
-  LiveView for team management — owner-only page to view members,
-  send invitations, cancel pending invitations, and remove members.
+  LiveView for team management — page for owners and admins to view members,
+  send invitations, cancel pending invitations, change roles, and remove members.
   """
 
   use KsefHubWeb, :live_view
 
   require Logger
 
+  alias KsefHub.Authorization
   alias KsefHub.Companies
   alias KsefHub.Companies.Company
   alias KsefHub.Invitations
@@ -26,7 +27,7 @@ defmodule KsefHubWeb.TeamLive do
      |> load_team_data()}
   end
 
-  @doc "Handles invite, cancel, remove, and validate events."
+  @doc "Handles invite, cancel, remove, change_role, and validate events."
   @spec handle_event(String.t(), map(), Phoenix.LiveView.Socket.t()) ::
           {:noreply, Phoenix.LiveView.Socket.t()}
   @impl true
@@ -89,6 +90,31 @@ defmodule KsefHubWeb.TeamLive do
   end
 
   @impl true
+  def handle_event("change_role", %{"user-id" => member_user_id, "role" => role}, socket) do
+    current_role = socket.assigns.current_role
+    company = socket.assigns.current_company
+    allowed_roles = assignable_roles(current_role)
+
+    with {:ok, role_atom} <- parse_role(role),
+         :ok <- check_permission(current_role),
+         :ok <- check_role_allowed(role_atom, allowed_roles),
+         :ok <- check_not_self(member_user_id, socket.assigns.current_user.id),
+         {:ok, membership} <- fetch_non_owner_membership(member_user_id, company.id),
+         {:ok, _} <- Companies.update_membership_role(membership, role_atom) do
+      {:noreply,
+       socket
+       |> put_flash(:info, "Role updated.")
+       |> load_team_data()}
+    else
+      {:error, message} when is_binary(message) ->
+        {:noreply, put_flash(socket, :error, message)}
+
+      {:error, %Ecto.Changeset{}} ->
+        {:noreply, put_flash(socket, :error, "Failed to update role.")}
+    end
+  end
+
+  @impl true
   def handle_event("remove_member", %{"user-id" => member_user_id}, socket) do
     company = socket.assigns.current_company
 
@@ -122,6 +148,7 @@ defmodule KsefHubWeb.TeamLive do
     pending_invitations = Invitations.list_pending_invitations(company.id)
 
     socket
+    |> assign(assignable_roles: assignable_roles(socket.assigns.current_role))
     |> stream(:members, members, reset: true)
     |> stream(:pending_invitations, pending_invitations, reset: true)
   end
@@ -147,6 +174,54 @@ defmodule KsefHubWeb.TeamLive do
         :email_failed
     end
   end
+
+  @valid_roles ~w(owner admin accountant reviewer)a
+
+  @spec parse_role(String.t()) :: {:ok, atom()} | {:error, String.t()}
+  defp parse_role(role) when is_binary(role) do
+    role_atom = String.to_existing_atom(role)
+
+    if role_atom in @valid_roles do
+      {:ok, role_atom}
+    else
+      {:error, "Invalid role."}
+    end
+  rescue
+    ArgumentError -> {:error, "Invalid role."}
+  end
+
+  @spec check_not_self(Ecto.UUID.t(), Ecto.UUID.t()) :: :ok | {:error, String.t()}
+  defp check_not_self(target_id, current_id) when target_id == current_id,
+    do: {:error, "You cannot change your own role."}
+
+  defp check_not_self(_, _), do: :ok
+
+  @spec check_permission(atom()) :: :ok | {:error, String.t()}
+  defp check_permission(role) do
+    if Authorization.can?(role, :manage_team),
+      do: :ok,
+      else: {:error, "You don't have permission to change roles."}
+  end
+
+  @spec check_role_allowed(atom(), [atom()]) :: :ok | {:error, String.t()}
+  defp check_role_allowed(role, allowed) do
+    if role in allowed, do: :ok, else: {:error, "Invalid role."}
+  end
+
+  @spec fetch_non_owner_membership(Ecto.UUID.t(), Ecto.UUID.t()) ::
+          {:ok, Companies.Membership.t()} | {:error, String.t()}
+  defp fetch_non_owner_membership(user_id, company_id) do
+    case Companies.get_membership(user_id, company_id) do
+      nil -> {:error, "Member not found."}
+      %{role: :owner} -> {:error, "Cannot change owner's role."}
+      membership -> {:ok, membership}
+    end
+  end
+
+  @spec assignable_roles(atom()) :: [atom()]
+  defp assignable_roles(:owner), do: [:admin, :accountant, :reviewer]
+  defp assignable_roles(:admin), do: [:admin, :accountant, :reviewer]
+  defp assignable_roles(_), do: []
 
   @spec format_changeset_errors(Ecto.Changeset.t()) :: String.t()
   defp format_changeset_errors(changeset) do
@@ -192,7 +267,7 @@ defmodule KsefHubWeb.TeamLive do
             field={@invite_form[:role]}
             type="select"
             label="Role"
-            options={[{"Accountant", "accountant"}, {"Reviewer", "reviewer"}]}
+            options={[{"Admin", "admin"}, {"Accountant", "accountant"}, {"Reviewer", "reviewer"}]}
           />
         </div>
         <div class="fieldset mb-2">
@@ -241,7 +316,33 @@ defmodule KsefHubWeb.TeamLive do
                 <td class="py-3.5 px-4">{member.user.email}</td>
                 <td class="py-3.5 px-4">{member.user.name || "-"}</td>
                 <td class="py-3.5 px-4">
-                  <.badge variant="default">{member.role}</.badge>
+                  <.badge :if={member.role == :owner} variant="default">{member.role}</.badge>
+                  <form
+                    :if={member.role != :owner && @assignable_roles != []}
+                    phx-change="change_role"
+                    phx-value-user-id={member.user.id}
+                    data-testid={"role-form-#{member.user.id}"}
+                  >
+                    <select
+                      name="role"
+                      class="select select-sm select-bordered"
+                      data-testid={"role-select-#{member.user.id}"}
+                    >
+                      <option
+                        :for={role <- @assignable_roles}
+                        value={role}
+                        selected={role == member.role}
+                      >
+                        {role |> Atom.to_string() |> String.capitalize()}
+                      </option>
+                    </select>
+                  </form>
+                  <.badge
+                    :if={member.role != :owner && @assignable_roles == []}
+                    variant="default"
+                  >
+                    {member.role}
+                  </.badge>
                 </td>
                 <td class="py-3.5 px-4"></td>
                 <td class="py-3.5 px-4">-</td>
