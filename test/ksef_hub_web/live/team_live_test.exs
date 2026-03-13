@@ -150,12 +150,30 @@ defmodule KsefHubWeb.TeamLiveTest do
       refute has_element?(view, "[data-testid='role-select-#{owner.id}']")
     end
 
+    test "cannot change own role", %{conn: conn, company: company, owner: owner} do
+      {:ok, view, _html} = live(conn, ~p"/c/#{company.id}/team")
+
+      render_change(view, "change_role", %{"user-id" => owner.id, "role" => "accountant"})
+
+      assert has_element?(view, "#flash-error", "You cannot change your own role")
+    end
+
     test "cannot change owner's role via server-side event", %{
       conn: conn,
       company: company,
       owner: owner
     } do
-      {:ok, view, _html} = live(conn, ~p"/c/#{company.id}/team")
+      {:ok, admin} =
+        Accounts.get_or_create_google_user(%{
+          uid: "g-team-admin-owner-guard",
+          email: "admin-guard@example.com",
+          name: "AdminGuard"
+        })
+
+      insert(:membership, user: admin, company: company, role: :admin)
+      admin_conn = log_in_user(conn, admin, %{current_company_id: company.id})
+
+      {:ok, view, _html} = live(admin_conn, ~p"/c/#{company.id}/team")
 
       render_change(view, "change_role", %{"user-id" => owner.id, "role" => "accountant"})
 
@@ -184,6 +202,42 @@ defmodule KsefHubWeb.TeamLiveTest do
 
       membership = Companies.get_membership(member.id, company.id)
       assert membership.role == :reviewer
+    end
+
+    test "rejects invalid role string", %{conn: conn, company: company} do
+      member = insert(:user, email: "invalid-role-target@example.com")
+      insert(:membership, user: member, company: company, role: :accountant)
+
+      {:ok, view, _html} = live(conn, ~p"/c/#{company.id}/team")
+
+      render_change(view, "change_role", %{"user-id" => member.id, "role" => "superadmin"})
+
+      assert has_element?(view, "#flash-error", "Invalid role")
+    end
+
+    test "returns error for non-existent member", %{conn: conn, company: company} do
+      {:ok, view, _html} = live(conn, ~p"/c/#{company.id}/team")
+
+      render_change(view, "change_role", %{
+        "user-id" => Ecto.UUID.generate(),
+        "role" => "reviewer"
+      })
+
+      assert has_element?(view, "#flash-error", "Member not found")
+    end
+
+    test "select reflects new role after change", %{conn: conn, company: company} do
+      member = insert(:user, email: "reflect@example.com")
+      insert(:membership, user: member, company: company, role: :accountant)
+
+      {:ok, view, _html} = live(conn, ~p"/c/#{company.id}/team")
+
+      render_change(view, "change_role", %{"user-id" => member.id, "role" => "reviewer"})
+
+      assert has_element?(
+               view,
+               "[data-testid='role-select-#{member.id}'] option[selected][value='reviewer']"
+             )
     end
 
     test "admin cannot promote to owner", %{conn: conn, company: company} do
