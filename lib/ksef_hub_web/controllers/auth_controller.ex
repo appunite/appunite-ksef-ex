@@ -59,5 +59,4 @@ defmodule KsefHubWeb.AuthController do
     |> put_flash(:error, "Authentication failed.")
     |> redirect(to: ~p"/")
   end
-
 end
