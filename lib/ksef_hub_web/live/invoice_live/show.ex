@@ -294,24 +294,7 @@ defmodule KsefHubWeb.InvoiceLive.Show do
   @impl true
   def handle_event("toggle_tag", %{"tag-id" => tag_id}, socket) do
     if Enum.any?(socket.assigns.all_tags, &(&1.id == tag_id)) do
-      invoice = socket.assigns.invoice
-      currently_assigned = tag_assigned?(invoice, tag_id)
-
-      result =
-        Invoices.with_manual_prediction(invoice, fn ->
-          if currently_assigned,
-            do: Invoices.remove_invoice_tag(invoice.id, tag_id),
-            else: Invoices.add_invoice_tag(invoice.id, tag_id, invoice.company_id)
-        end)
-
-      case result do
-        {:ok, _} ->
-          reloaded = reload_details(invoice, socket)
-          {:noreply, assign(socket, :invoice, reloaded)}
-
-        {:error, _} ->
-          {:noreply, put_flash(socket, :error, "Failed to update tags.")}
-      end
+      do_toggle_tag(socket, tag_id)
     else
       {:noreply, put_flash(socket, :error, "Invalid tag.")}
     end
@@ -575,6 +558,29 @@ defmodule KsefHubWeb.InvoiceLive.Show do
   end
 
   # --- Private ---
+
+  @spec do_toggle_tag(Phoenix.LiveView.Socket.t(), String.t()) ::
+          {:noreply, Phoenix.LiveView.Socket.t()}
+  defp do_toggle_tag(socket, tag_id) do
+    invoice = socket.assigns.invoice
+    currently_assigned = tag_assigned?(invoice, tag_id)
+
+    result =
+      Invoices.with_manual_prediction(invoice, fn ->
+        if currently_assigned,
+          do: Invoices.remove_invoice_tag(invoice.id, tag_id),
+          else: Invoices.add_invoice_tag(invoice.id, tag_id, invoice.company_id)
+      end)
+
+    case result do
+      {:ok, _} ->
+        reloaded = reload_details(invoice, socket)
+        {:noreply, assign(socket, :invoice, reloaded)}
+
+      {:error, _} ->
+        {:noreply, put_flash(socket, :error, "Failed to update tags.")}
+    end
+  end
 
   @spec do_create_and_add_tag(Phoenix.LiveView.Socket.t(), String.t()) ::
           {:noreply, Phoenix.LiveView.Socket.t()}
