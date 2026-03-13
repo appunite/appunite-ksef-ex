@@ -8,6 +8,7 @@ defmodule KsefHubWeb.TeamLive do
 
   require Logger
 
+  alias KsefHub.Authorization
   alias KsefHub.Companies
   alias KsefHub.Companies.Company
   alias KsefHub.Invitations
@@ -89,6 +90,30 @@ defmodule KsefHubWeb.TeamLive do
   end
 
   @impl true
+  def handle_event("change_role", %{"user-id" => member_user_id, "role" => role}, socket) do
+    current_role = socket.assigns.current_role
+    company = socket.assigns.current_company
+    allowed_roles = assignable_roles(current_role)
+
+    with true <- Authorization.can?(current_role, :manage_team),
+         role_atom when role_atom in allowed_roles <- String.to_existing_atom(role),
+         %{role: existing_role} = membership
+         when existing_role != :owner <-
+           Companies.get_membership(member_user_id, company.id),
+         {:ok, _} <- Companies.update_membership_role(membership, role_atom) do
+      {:noreply,
+       socket
+       |> put_flash(:info, "Role updated.")
+       |> load_team_data()}
+    else
+      false -> {:noreply, put_flash(socket, :error, "You don't have permission to change roles.")}
+      nil -> {:noreply, put_flash(socket, :error, "Member not found.")}
+      %{role: :owner} -> {:noreply, put_flash(socket, :error, "Cannot change owner's role.")}
+      _ -> {:noreply, put_flash(socket, :error, "Invalid role.")}
+    end
+  end
+
+  @impl true
   def handle_event("remove_member", %{"user-id" => member_user_id}, socket) do
     company = socket.assigns.current_company
 
@@ -148,6 +173,11 @@ defmodule KsefHubWeb.TeamLive do
     end
   end
 
+  @spec assignable_roles(atom()) :: [atom()]
+  defp assignable_roles(:owner), do: [:admin, :accountant, :reviewer]
+  defp assignable_roles(:admin), do: [:admin, :accountant, :reviewer]
+  defp assignable_roles(_), do: []
+
   @spec format_changeset_errors(Ecto.Changeset.t()) :: String.t()
   defp format_changeset_errors(changeset) do
     Ecto.Changeset.traverse_errors(changeset, fn {msg, opts} ->
@@ -192,7 +222,7 @@ defmodule KsefHubWeb.TeamLive do
             field={@invite_form[:role]}
             type="select"
             label="Role"
-            options={[{"Accountant", "accountant"}, {"Reviewer", "reviewer"}]}
+            options={[{"Admin", "admin"}, {"Accountant", "accountant"}, {"Reviewer", "reviewer"}]}
           />
         </div>
         <div class="fieldset mb-2">
@@ -241,7 +271,33 @@ defmodule KsefHubWeb.TeamLive do
                 <td class="py-3.5 px-4">{member.user.email}</td>
                 <td class="py-3.5 px-4">{member.user.name || "-"}</td>
                 <td class="py-3.5 px-4">
-                  <.badge variant="default">{member.role}</.badge>
+                  <.badge :if={member.role == :owner} variant="default">{member.role}</.badge>
+                  <form
+                    :if={member.role != :owner && assignable_roles(@current_role) != []}
+                    phx-change="change_role"
+                    phx-value-user-id={member.user.id}
+                    data-testid={"role-form-#{member.user.id}"}
+                  >
+                    <select
+                      name="role"
+                      class="select select-sm select-bordered"
+                      data-testid={"role-select-#{member.user.id}"}
+                    >
+                      <option
+                        :for={role <- assignable_roles(@current_role)}
+                        value={role}
+                        selected={role == member.role}
+                      >
+                        {role |> Atom.to_string() |> String.capitalize()}
+                      </option>
+                    </select>
+                  </form>
+                  <.badge
+                    :if={member.role != :owner && assignable_roles(@current_role) == []}
+                    variant="default"
+                  >
+                    {member.role}
+                  </.badge>
                 </td>
                 <td class="py-3.5 px-4"></td>
                 <td class="py-3.5 px-4">-</td>
