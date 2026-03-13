@@ -567,9 +567,7 @@ defmodule KsefHubWeb.InvoiceLive.Show do
 
     result =
       Invoices.with_manual_prediction(invoice, fn ->
-        if currently_assigned,
-          do: Invoices.remove_invoice_tag(invoice.id, tag_id),
-          else: Invoices.add_invoice_tag(invoice.id, tag_id, invoice.company_id)
+        toggle_tag_operation(invoice, tag_id, currently_assigned)
       end)
 
     case result do
@@ -581,6 +579,14 @@ defmodule KsefHubWeb.InvoiceLive.Show do
         {:noreply, put_flash(socket, :error, "Failed to update tags.")}
     end
   end
+
+  @spec toggle_tag_operation(Invoice.t(), String.t(), boolean()) ::
+          {:ok, term()} | {:error, term()}
+  defp toggle_tag_operation(invoice, tag_id, true = _assigned),
+    do: Invoices.remove_invoice_tag(invoice.id, tag_id)
+
+  defp toggle_tag_operation(invoice, tag_id, false = _assigned),
+    do: Invoices.add_invoice_tag(invoice.id, tag_id, invoice.company_id)
 
   @spec do_create_and_add_tag(Phoenix.LiveView.Socket.t(), String.t()) ::
           {:noreply, Phoenix.LiveView.Socket.t()}
