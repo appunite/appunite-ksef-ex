@@ -557,6 +557,31 @@ defmodule KsefHubWeb.InvoiceLive.Show do
     {:noreply, socket}
   end
 
+  # --- Function Components ---
+
+  attr :predicted_at, :any, required: true
+  attr :status, :atom, required: true
+  attr :confidence, :any, required: true
+  attr :threshold, :float, required: true
+  attr :label, :string, required: true
+  attr :testid, :string, required: true
+
+  defp prediction_hint(assigns) do
+    ~H"""
+    <p :if={@predicted_at} class="text-xs mt-1 opacity-60" data-testid={@testid}>
+      <%= cond do %>
+        <% @status == :manual -> %>
+          Manually adjusted
+        <% @confidence && @confidence >= @threshold -> %>
+          Predicted with {Float.round(@confidence * 100, 1)}% probability, feel free to adjust
+        <% @confidence && @confidence < @threshold -> %>
+          Could not predict {@label} automatically ({Float.round(@confidence * 100, 1)}% confidence)
+        <% true -> %>
+      <% end %>
+    </p>
+    """
+  end
+
   # --- Private ---
 
   @spec do_toggle_tag(Phoenix.LiveView.Socket.t(), String.t()) ::
@@ -894,24 +919,14 @@ defmodule KsefHubWeb.InvoiceLive.Show do
                 {if(cat.emoji, do: "#{cat.emoji} ", else: "")}{cat.name}
               </option>
             </select>
-            <p
-              :if={@invoice.prediction_predicted_at}
-              class="text-xs mt-1 opacity-60"
-              data-testid="prediction-category-hint"
-            >
-              <%= cond do %>
-                <% @invoice.prediction_status == :manual -> %>
-                  Manually adjusted
-                <% @invoice.prediction_category_confidence && @invoice.prediction_category_confidence >= @confidence_threshold -> %>
-                  Predicted with {Float.round(@invoice.prediction_category_confidence * 100, 1)}% probability, feel free to adjust
-                <% @invoice.prediction_category_confidence && @invoice.prediction_category_confidence < @confidence_threshold -> %>
-                  Could not predict category automatically ({Float.round(
-                    @invoice.prediction_category_confidence * 100,
-                    1
-                  )}% confidence)
-                <% true -> %>
-              <% end %>
-            </p>
+            <.prediction_hint
+              predicted_at={@invoice.prediction_predicted_at}
+              status={@invoice.prediction_status}
+              confidence={@invoice.prediction_category_confidence}
+              threshold={@confidence_threshold}
+              label="category"
+              testid="prediction-category-hint"
+            />
           </.form>
           <!-- Tags -->
           <div>
@@ -932,24 +947,14 @@ defmodule KsefHubWeb.InvoiceLive.Show do
                 <span class="text-sm">{tag.name}</span>
               </label>
             </div>
-            <p
-              :if={@invoice.prediction_predicted_at}
-              class="text-xs mt-1 opacity-60"
-              data-testid="prediction-tag-hint"
-            >
-              <%= cond do %>
-                <% @invoice.prediction_status == :manual -> %>
-                  Manually adjusted
-                <% @invoice.prediction_tag_confidence && @invoice.prediction_tag_confidence >= @confidence_threshold -> %>
-                  Predicted with {Float.round(@invoice.prediction_tag_confidence * 100, 1)}% probability, feel free to adjust
-                <% @invoice.prediction_tag_confidence && @invoice.prediction_tag_confidence < @confidence_threshold -> %>
-                  Could not predict tag automatically ({Float.round(
-                    @invoice.prediction_tag_confidence * 100,
-                    1
-                  )}% confidence)
-                <% true -> %>
-              <% end %>
-            </p>
+            <.prediction_hint
+              predicted_at={@invoice.prediction_predicted_at}
+              status={@invoice.prediction_status}
+              confidence={@invoice.prediction_tag_confidence}
+              threshold={@confidence_threshold}
+              label="tag"
+              testid="prediction-tag-hint"
+            />
             <!-- New Tag Inline -->
             <.form
               :if={@can_manage_tags}
