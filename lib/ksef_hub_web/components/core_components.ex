@@ -532,7 +532,8 @@ defmodule KsefHubWeb.CoreComponents do
   attr :as, :any, default: nil, doc: "the server side parameter to collect all input under"
 
   attr :rest, :global,
-    include: ~w(autocomplete name rel action enctype method novalidate target multipart phx-submit phx-change phx-update phx-trigger-action),
+    include:
+      ~w(autocomplete name rel action enctype method novalidate target multipart phx-submit phx-change phx-update phx-trigger-action),
     doc: "the arbitrary HTML attributes to apply to the form tag"
 
   slot :inner_block, required: true
