@@ -18,8 +18,7 @@ defmodule KsefHubWeb.UserLoginLive do
     return_to = UrlHelpers.sanitize_return_to(params["return_to"])
     form = to_form(%{"email" => email}, as: "user")
 
-    {:ok, assign(socket, form: form, return_to: return_to),
-     temporary_assigns: [form: nil]}
+    {:ok, assign(socket, form: form, return_to: return_to), temporary_assigns: [form: nil]}
   end
 
   @doc false
