@@ -2,8 +2,8 @@ defmodule KsefHubWeb.UserLoginLive do
   @moduledoc """
   LiveView for user login with email and password.
 
-  Uses the `phx-trigger-action` pattern: validates the form in LiveView,
-  then triggers a real HTTP POST to `UserSessionController.create/2`.
+  Renders a form with `phx-update="ignore"` and a plain HTML `action`,
+  so the browser POSTs directly to `UserSessionController.create/2`.
   """
 
   use KsefHubWeb, :live_view
@@ -18,7 +18,7 @@ defmodule KsefHubWeb.UserLoginLive do
     return_to = UrlHelpers.sanitize_return_to(params["return_to"])
     form = to_form(%{"email" => email}, as: "user")
 
-    {:ok, assign(socket, form: form, trigger_submit: false, return_to: return_to),
+    {:ok, assign(socket, form: form, return_to: return_to),
      temporary_assigns: [form: nil]}
   end
 
@@ -28,12 +28,6 @@ defmodule KsefHubWeb.UserLoginLive do
   def handle_event("validate", %{"user" => user_params}, socket) do
     form = to_form(user_params, as: "user")
     {:noreply, assign(socket, form: form)}
-  end
-
-  def handle_event("save", %{"user" => user_params}, socket) do
-    # The form will POST to the session controller via phx-trigger-action
-    form = to_form(user_params, as: "user")
-    {:noreply, assign(socket, form: form, trigger_submit: true)}
   end
 
   @doc false
@@ -46,8 +40,6 @@ defmodule KsefHubWeb.UserLoginLive do
         id="login_form"
         action={~p"/users/log-in"}
         phx-update="ignore"
-        phx-submit="save"
-        phx-trigger-action={@trigger_submit}
       >
         <input :if={@return_to} type="hidden" name="user[return_to]" value={@return_to} />
         <.input field={@form[:email]} type="email" label="Email" required />
