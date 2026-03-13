@@ -566,6 +566,7 @@ defmodule KsefHubWeb.InvoiceLive.Show do
   attr :label, :string, required: true
   attr :testid, :string, required: true
 
+  @spec prediction_hint(map()) :: Phoenix.LiveView.Rendered.t()
   defp prediction_hint(assigns) do
     ~H"""
     <p :if={@predicted_at} class="text-xs mt-1 opacity-60" data-testid={@testid}>
