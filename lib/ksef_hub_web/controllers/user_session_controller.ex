@@ -9,6 +9,7 @@ defmodule KsefHubWeb.UserSessionController do
   use KsefHubWeb, :controller
 
   alias KsefHub.Accounts
+  alias KsefHub.Invitations
   alias KsefHubWeb.UserAuth
 
   @doc """
@@ -21,6 +22,8 @@ defmodule KsefHubWeb.UserSessionController do
     %{"email" => email, "password" => password} = user_params
 
     if user = Accounts.get_user_by_email_and_password(email, password) do
+      Invitations.auto_accept_invitations(user)
+
       conn
       |> put_flash(:info, "Welcome back!")
       |> UserAuth.log_in_user(user, %{return_to: user_params["return_to"]})
