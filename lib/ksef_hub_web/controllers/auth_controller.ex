@@ -72,9 +72,7 @@ defmodule KsefHubWeb.AuthController do
         :ok
 
       {:error, reason} ->
-        Logger.error(
-          "Failed to auto-accept invitations for user #{user.id}: #{inspect(reason)}"
-        )
+        Logger.error("Failed to auto-accept invitations for user #{user.id}: #{inspect(reason)}")
     end
 
     :ok
