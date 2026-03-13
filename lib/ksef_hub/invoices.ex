@@ -1171,12 +1171,51 @@ defmodule KsefHub.Invoices do
   @doc """
   Marks an invoice's prediction status as `:manual`, indicating the user
   overrode or manually set the category/tags.
+
+  No-ops when prediction_status is nil (never classified) or already :manual.
   """
   @spec mark_prediction_manual(Invoice.t()) :: {:ok, Invoice.t()} | {:error, Ecto.Changeset.t()}
+  def mark_prediction_manual(%Invoice{prediction_status: nil} = invoice), do: {:ok, invoice}
+  def mark_prediction_manual(%Invoice{prediction_status: :manual} = invoice), do: {:ok, invoice}
+
   def mark_prediction_manual(%Invoice{} = invoice) do
     invoice
     |> Invoice.prediction_changeset(%{prediction_status: :manual})
     |> Repo.update()
+  end
+
+  @doc """
+  Executes `fun` inside a transaction, then marks the invoice's prediction
+  status as `:manual`. Both operations succeed atomically or neither does.
+
+  Use this from UI handlers that modify category/tags to ensure the prediction
+  status update cannot silently fail while the primary change succeeds.
+  """
+  @spec with_manual_prediction(Invoice.t(), (-> {:ok, term()} | {:error, term()})) ::
+          {:ok, term()} | {:error, term()}
+  def with_manual_prediction(%Invoice{} = invoice, fun) do
+    Repo.transaction(fn ->
+      case fun.() do
+        {:ok, result} ->
+          do_mark_prediction_manual_in_txn!(invoice)
+          result
+
+        {:error, reason} ->
+          Repo.rollback(reason)
+      end
+    end)
+  end
+
+  @spec do_mark_prediction_manual_in_txn!(Invoice.t()) :: :ok
+  defp do_mark_prediction_manual_in_txn!(%Invoice{prediction_status: nil}), do: :ok
+  defp do_mark_prediction_manual_in_txn!(%Invoice{prediction_status: :manual}), do: :ok
+
+  defp do_mark_prediction_manual_in_txn!(%Invoice{} = invoice) do
+    invoice
+    |> Invoice.prediction_changeset(%{prediction_status: :manual})
+    |> Repo.update!()
+
+    :ok
   end
 
   # --- Invoice-Tag Associations ---

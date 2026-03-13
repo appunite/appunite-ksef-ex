@@ -3,7 +3,8 @@ defmodule KsefHub.InvoiceClassifier do
   Invoice classification context. Orchestrates ML-based category and tag
   prediction for expense invoices using the au-payroll-model-categories sidecar.
 
-  Auto-applies predictions at >= 80% confidence when a matching category/tag
+  Auto-applies predictions when confidence meets the configurable threshold
+  (default 51%, set via `CONFIDENCE_THRESHOLD` env var) and a matching category/tag
   exists in the company. Below threshold, predictions are stored for human review.
   """
 
@@ -15,7 +16,9 @@ defmodule KsefHub.InvoiceClassifier do
   alias KsefHub.Invoices.{Category, Invoice, Tag}
   alias KsefHub.Repo
 
-  @confidence_threshold 0.80
+  @doc "Returns the current confidence threshold (0.0–1.0) from application config."
+  @spec confidence_threshold() :: float()
+  def confidence_threshold, do: Application.get_env(:ksef_hub, :confidence_threshold, 0.51)
 
   @doc """
   Runs category and tag prediction for an expense invoice, then applies
@@ -94,8 +97,9 @@ defmodule KsefHub.InvoiceClassifier do
     matching_category = find_category_by_name(company_id, cat_name)
     matching_tag = find_tag_by_name(company_id, tag_name)
 
-    apply_category? = cat_confidence >= @confidence_threshold and matching_category != nil
-    apply_tag? = tag_confidence >= @confidence_threshold and matching_tag != nil
+    threshold = confidence_threshold()
+    apply_category? = cat_confidence >= threshold and matching_category != nil
+    apply_tag? = tag_confidence >= threshold and matching_tag != nil
 
     %{
       attrs: build_prediction_attrs(cat_result, tag_result, apply_category?, apply_tag?),

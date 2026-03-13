@@ -8,6 +8,7 @@ defmodule KsefHubWeb.InvoiceLive.Show do
   require Logger
 
   alias KsefHub.Authorization
+  alias KsefHub.InvoiceClassifier
   alias KsefHub.Invoices
   alias KsefHub.Invoices.Invoice
 
@@ -84,7 +85,8 @@ defmodule KsefHubWeb.InvoiceLive.Show do
            extract_ref: nil,
            comment_form_key: 0,
            editing_comment_id: nil,
-           edit_comment_form: nil
+           edit_comment_form: nil,
+           confidence_threshold: InvoiceClassifier.confidence_threshold()
          )}
     end
   end
@@ -266,20 +268,15 @@ defmodule KsefHubWeb.InvoiceLive.Show do
   def handle_event("set_category", %{"category_id" => raw_id}, socket) do
     category_id = if raw_id == "", do: nil, else: raw_id
 
+    invoice = socket.assigns.invoice
+
     with :ok <- validate_category_id(category_id),
-         {:ok, updated} <- Invoices.set_invoice_category(socket.assigns.invoice, category_id) do
+         {:ok, updated} <-
+           Invoices.with_manual_prediction(invoice, fn ->
+             Invoices.set_invoice_category(invoice, category_id)
+           end) do
       reloaded = reload_details(updated, socket)
-
-      case Invoices.mark_prediction_manual(updated) do
-        {:ok, _} ->
-          {:noreply, assign(socket, invoice: reloaded, category_form: category_form(reloaded))}
-
-        {:error, _} ->
-          {:noreply,
-           socket
-           |> assign(invoice: reloaded, category_form: category_form(reloaded))
-           |> put_flash(:warning, "Category saved but prediction status update failed.")}
-      end
+      {:noreply, assign(socket, invoice: reloaded, category_form: category_form(reloaded))}
     else
       {:error, :invalid_id} ->
         {:noreply, put_flash(socket, :error, "Invalid category.")}
@@ -297,21 +294,7 @@ defmodule KsefHubWeb.InvoiceLive.Show do
   @impl true
   def handle_event("toggle_tag", %{"tag-id" => tag_id}, socket) do
     if Enum.any?(socket.assigns.all_tags, &(&1.id == tag_id)) do
-      invoice = socket.assigns.invoice
-      currently_assigned = tag_assigned?(invoice, tag_id)
-
-      result =
-        if currently_assigned,
-          do: Invoices.remove_invoice_tag(invoice.id, tag_id),
-          else: Invoices.add_invoice_tag(invoice.id, tag_id, invoice.company_id)
-
-      case result do
-        {:ok, _} ->
-          {:noreply, assign(socket, :invoice, reload_details(invoice, socket))}
-
-        {:error, _} ->
-          {:noreply, put_flash(socket, :error, "Failed to update tags.")}
-      end
+      do_toggle_tag(socket, tag_id)
     else
       {:noreply, put_flash(socket, :error, "Invalid tag.")}
     end
@@ -574,7 +557,72 @@ defmodule KsefHubWeb.InvoiceLive.Show do
     {:noreply, socket}
   end
 
+  # --- Function Components ---
+
+  attr :predicted_at, :any, required: true
+  attr :status, :atom, required: true
+  attr :confidence, :any, required: true
+  attr :threshold, :float, required: true
+  attr :label, :string, required: true
+  attr :testid, :string, required: true
+
+  @spec prediction_hint(map()) :: Phoenix.LiveView.Rendered.t()
+  defp prediction_hint(assigns) do
+    assigns = assign(assigns, :show_hint, show_prediction_hint?(assigns))
+
+    ~H"""
+    <p :if={@show_hint} class="text-xs mt-1 opacity-60" data-testid={@testid}>
+      <%= cond do %>
+        <% @status == :manual -> %>
+          Manually adjusted
+        <% @confidence && @confidence >= @threshold -> %>
+          Predicted with {Float.round(@confidence * 100, 1)}% probability, feel free to adjust
+        <% @confidence && @confidence < @threshold -> %>
+          Could not predict {@label} automatically ({Float.round(@confidence * 100, 1)}% confidence)
+      <% end %>
+    </p>
+    """
+  end
+
+  @spec show_prediction_hint?(map()) :: boolean()
+  defp show_prediction_hint?(%{predicted_at: nil}), do: false
+
+  defp show_prediction_hint?(%{status: :manual}), do: true
+
+  defp show_prediction_hint?(%{confidence: confidence}) when is_number(confidence), do: true
+
+  defp show_prediction_hint?(_assigns), do: false
+
   # --- Private ---
+
+  @spec do_toggle_tag(Phoenix.LiveView.Socket.t(), String.t()) ::
+          {:noreply, Phoenix.LiveView.Socket.t()}
+  defp do_toggle_tag(socket, tag_id) do
+    invoice = socket.assigns.invoice
+    currently_assigned = tag_assigned?(invoice, tag_id)
+
+    result =
+      Invoices.with_manual_prediction(invoice, fn ->
+        toggle_tag_operation(invoice, tag_id, currently_assigned)
+      end)
+
+    case result do
+      {:ok, _} ->
+        reloaded = reload_details(invoice, socket)
+        {:noreply, assign(socket, :invoice, reloaded)}
+
+      {:error, _} ->
+        {:noreply, put_flash(socket, :error, "Failed to update tags.")}
+    end
+  end
+
+  @spec toggle_tag_operation(Invoice.t(), String.t(), boolean()) ::
+          {:ok, term()} | {:error, term()}
+  defp toggle_tag_operation(invoice, tag_id, true = _assigned),
+    do: Invoices.remove_invoice_tag(invoice.id, tag_id)
+
+  defp toggle_tag_operation(invoice, tag_id, false = _assigned),
+    do: Invoices.add_invoice_tag(invoice.id, tag_id, invoice.company_id)
 
   @spec do_create_and_add_tag(Phoenix.LiveView.Socket.t(), String.t()) ::
           {:noreply, Phoenix.LiveView.Socket.t()}
@@ -582,7 +630,12 @@ defmodule KsefHubWeb.InvoiceLive.Show do
     company_id = socket.assigns.current_company.id
     invoice = socket.assigns.invoice
 
-    case Invoices.create_and_add_tag(invoice.id, company_id, %{name: name}) do
+    result =
+      Invoices.with_manual_prediction(invoice, fn ->
+        Invoices.create_and_add_tag(invoice.id, company_id, %{name: name})
+      end)
+
+    case result do
       {:ok, _tag} ->
         {:noreply,
          socket
@@ -877,6 +930,14 @@ defmodule KsefHubWeb.InvoiceLive.Show do
                 {if(cat.emoji, do: "#{cat.emoji} ", else: "")}{cat.name}
               </option>
             </select>
+            <.prediction_hint
+              predicted_at={@invoice.prediction_predicted_at}
+              status={@invoice.prediction_status}
+              confidence={@invoice.prediction_category_confidence}
+              threshold={@confidence_threshold}
+              label="category"
+              testid="prediction-category-hint"
+            />
           </.form>
           <!-- Tags -->
           <div>
@@ -897,6 +958,14 @@ defmodule KsefHubWeb.InvoiceLive.Show do
                 <span class="text-sm">{tag.name}</span>
               </label>
             </div>
+            <.prediction_hint
+              predicted_at={@invoice.prediction_predicted_at}
+              status={@invoice.prediction_status}
+              confidence={@invoice.prediction_tag_confidence}
+              threshold={@confidence_threshold}
+              label="tag"
+              testid="prediction-tag-hint"
+            />
             <!-- New Tag Inline -->
             <.form
               :if={@can_manage_tags}
