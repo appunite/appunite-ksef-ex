@@ -95,21 +95,18 @@ defmodule KsefHubWeb.TeamLive do
     company = socket.assigns.current_company
     allowed_roles = assignable_roles(current_role)
 
-    with true <- Authorization.can?(current_role, :manage_team),
-         role_atom when role_atom in allowed_roles <- String.to_existing_atom(role),
-         %{role: existing_role} = membership
-         when existing_role != :owner <-
-           Companies.get_membership(member_user_id, company.id),
+    role_atom = String.to_existing_atom(role)
+
+    with :ok <- check_permission(current_role),
+         :ok <- check_role_allowed(role_atom, allowed_roles),
+         {:ok, membership} <- fetch_non_owner_membership(member_user_id, company.id),
          {:ok, _} <- Companies.update_membership_role(membership, role_atom) do
       {:noreply,
        socket
        |> put_flash(:info, "Role updated.")
        |> load_team_data()}
     else
-      false -> {:noreply, put_flash(socket, :error, "You don't have permission to change roles.")}
-      nil -> {:noreply, put_flash(socket, :error, "Member not found.")}
-      %{role: :owner} -> {:noreply, put_flash(socket, :error, "Cannot change owner's role.")}
-      _ -> {:noreply, put_flash(socket, :error, "Invalid role.")}
+      {:error, message} -> {:noreply, put_flash(socket, :error, message)}
     end
   end
 
@@ -170,6 +167,28 @@ defmodule KsefHubWeb.TeamLive do
         )
 
         :email_failed
+    end
+  end
+
+  @spec check_permission(atom()) :: :ok | {:error, String.t()}
+  defp check_permission(role) do
+    if Authorization.can?(role, :manage_team),
+      do: :ok,
+      else: {:error, "You don't have permission to change roles."}
+  end
+
+  @spec check_role_allowed(atom(), [atom()]) :: :ok | {:error, String.t()}
+  defp check_role_allowed(role, allowed) do
+    if role in allowed, do: :ok, else: {:error, "Invalid role."}
+  end
+
+  @spec fetch_non_owner_membership(Ecto.UUID.t(), Ecto.UUID.t()) ::
+          {:ok, Companies.Membership.t()} | {:error, String.t()}
+  defp fetch_non_owner_membership(user_id, company_id) do
+    case Companies.get_membership(user_id, company_id) do
+      nil -> {:error, "Member not found."}
+      %{role: :owner} -> {:error, "Cannot change owner's role."}
+      membership -> {:ok, membership}
     end
   end
 
