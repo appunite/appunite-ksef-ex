@@ -8,8 +8,6 @@ defmodule KsefHubWeb.AuthController do
 
   use KsefHubWeb, :controller
 
-  require Logger
-
   plug Ueberauth
 
   alias KsefHub.Accounts
@@ -38,7 +36,7 @@ defmodule KsefHubWeb.AuthController do
 
       case Accounts.get_or_create_google_user(user_info) do
         {:ok, user} ->
-          auto_accept_invitations(user)
+          Invitations.auto_accept_invitations(user)
 
           conn
           |> put_flash(:info, "Welcome, #{user.name || user.email}!")
@@ -62,23 +60,4 @@ defmodule KsefHubWeb.AuthController do
     |> redirect(to: ~p"/")
   end
 
-  @spec auto_accept_invitations(KsefHub.Accounts.User.t()) :: :ok
-  defp auto_accept_invitations(user) do
-    case Invitations.accept_pending_invitations_for_email(user) do
-      {:ok, [_ | _] = memberships} ->
-        Logger.info("Auto-accepted #{length(memberships)} invitation(s) for user #{user.id}")
-
-      {:ok, []} ->
-        :ok
-
-      {:error, reason} ->
-        Logger.error("Failed to auto-accept invitations for user #{user.id}: #{inspect(reason)}")
-    end
-
-    :ok
-  rescue
-    error ->
-      Logger.error(Exception.format(:error, error, __STACKTRACE__))
-      :ok
-  end
 end

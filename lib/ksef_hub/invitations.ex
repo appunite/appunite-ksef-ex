@@ -287,6 +287,33 @@ defmodule KsefHub.Invitations do
   end
 
   # ---------------------------------------------------------------------------
+  # Auto-accept wrapper (used by controllers on login)
+  # ---------------------------------------------------------------------------
+
+  @doc """
+  Accepts pending invitations for the user's email with logging.
+
+  Wraps `accept_pending_invitations_for_email/1`, logs the outcome, and always
+  returns `:ok` — login must never fail due to invitation processing.
+  """
+  @spec auto_accept_invitations(User.t()) :: :ok
+  def auto_accept_invitations(%User{} = user) do
+    case accept_pending_invitations_for_email(user) do
+      {:ok, [_ | _] = memberships} ->
+        Logger.info("Auto-accepted #{length(memberships)} invitation(s) for user #{user.id}")
+
+      {:ok, []} ->
+        :ok
+    end
+
+    :ok
+  rescue
+    error ->
+      Logger.error(Exception.format(:error, error, __STACKTRACE__))
+      :ok
+  end
+
+  # ---------------------------------------------------------------------------
   # Private helpers
   # ---------------------------------------------------------------------------
 

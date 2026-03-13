@@ -8,8 +8,6 @@ defmodule KsefHubWeb.UserSessionController do
 
   use KsefHubWeb, :controller
 
-  require Logger
-
   alias KsefHub.Accounts
   alias KsefHub.Invitations
   alias KsefHubWeb.UserAuth
@@ -24,7 +22,7 @@ defmodule KsefHubWeb.UserSessionController do
     %{"email" => email, "password" => password} = user_params
 
     if user = Accounts.get_user_by_email_and_password(email, password) do
-      auto_accept_invitations(user)
+      Invitations.auto_accept_invitations(user)
 
       conn
       |> put_flash(:info, "Welcome back!")
@@ -34,26 +32,6 @@ defmodule KsefHubWeb.UserSessionController do
       |> put_flash(:error, "Invalid email or password.")
       |> redirect(to: ~p"/users/log-in")
     end
-  end
-
-  @spec auto_accept_invitations(Accounts.User.t()) :: :ok
-  defp auto_accept_invitations(user) do
-    case Invitations.accept_pending_invitations_for_email(user) do
-      {:ok, [_ | _] = memberships} ->
-        Logger.info("Auto-accepted #{length(memberships)} invitation(s) for user #{user.id}")
-
-      {:ok, []} ->
-        :ok
-
-      {:error, reason} ->
-        Logger.error("Failed to auto-accept invitations for user #{user.id}: #{inspect(reason)}")
-    end
-
-    :ok
-  rescue
-    error ->
-      Logger.error(Exception.format(:error, error, __STACKTRACE__))
-      :ok
   end
 
   @doc """
