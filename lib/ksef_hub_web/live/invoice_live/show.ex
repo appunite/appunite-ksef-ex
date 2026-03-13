@@ -268,9 +268,13 @@ defmodule KsefHubWeb.InvoiceLive.Show do
   def handle_event("set_category", %{"category_id" => raw_id}, socket) do
     category_id = if raw_id == "", do: nil, else: raw_id
 
+    invoice = socket.assigns.invoice
+
     with :ok <- validate_category_id(category_id),
-         {:ok, updated} <- Invoices.set_invoice_category(socket.assigns.invoice, category_id) do
-      mark_prediction_manual_safely(updated)
+         {:ok, updated} <-
+           Invoices.with_manual_prediction(invoice, fn ->
+             Invoices.set_invoice_category(invoice, category_id)
+           end) do
       reloaded = reload_details(updated, socket)
       {:noreply, assign(socket, invoice: reloaded, category_form: category_form(reloaded))}
     else
@@ -294,13 +298,14 @@ defmodule KsefHubWeb.InvoiceLive.Show do
       currently_assigned = tag_assigned?(invoice, tag_id)
 
       result =
-        if currently_assigned,
-          do: Invoices.remove_invoice_tag(invoice.id, tag_id),
-          else: Invoices.add_invoice_tag(invoice.id, tag_id, invoice.company_id)
+        Invoices.with_manual_prediction(invoice, fn ->
+          if currently_assigned,
+            do: Invoices.remove_invoice_tag(invoice.id, tag_id),
+            else: Invoices.add_invoice_tag(invoice.id, tag_id, invoice.company_id)
+        end)
 
       case result do
         {:ok, _} ->
-          mark_prediction_manual_safely(invoice)
           reloaded = reload_details(invoice, socket)
           {:noreply, assign(socket, :invoice, reloaded)}
 
@@ -577,10 +582,13 @@ defmodule KsefHubWeb.InvoiceLive.Show do
     company_id = socket.assigns.current_company.id
     invoice = socket.assigns.invoice
 
-    case Invoices.create_and_add_tag(invoice.id, company_id, %{name: name}) do
-      {:ok, _tag} ->
-        mark_prediction_manual_safely(invoice)
+    result =
+      Invoices.with_manual_prediction(invoice, fn ->
+        Invoices.create_and_add_tag(invoice.id, company_id, %{name: name})
+      end)
 
+    case result do
+      {:ok, _tag} ->
         {:noreply,
          socket
          |> assign(
@@ -635,14 +643,6 @@ defmodule KsefHubWeb.InvoiceLive.Show do
           Phoenix.LiveView.Socket.t()
   defp assign_new_edit_form(socket, invoice) do
     assign(socket, edit_form: build_edit_form(invoice))
-  end
-
-  @spec mark_prediction_manual_safely(Invoice.t()) :: :ok
-  defp mark_prediction_manual_safely(invoice) do
-    case Invoices.mark_prediction_manual(invoice) do
-      {:ok, _} -> :ok
-      {:error, reason} -> Logger.warning("Failed to mark prediction manual: #{inspect(reason)}")
-    end
   end
 
   @spec reload_details(Invoice.t(), Phoenix.LiveView.Socket.t()) :: Invoice.t()

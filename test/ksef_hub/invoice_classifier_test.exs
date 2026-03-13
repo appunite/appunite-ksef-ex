@@ -12,7 +12,13 @@ defmodule KsefHub.InvoiceClassifierTest do
   setup :set_mox_from_context
   setup :verify_on_exit!
 
+  @test_threshold 0.51
+
   setup do
+    prev = Application.get_env(:ksef_hub, :confidence_threshold)
+    Application.put_env(:ksef_hub, :confidence_threshold, @test_threshold)
+    on_exit(fn -> Application.put_env(:ksef_hub, :confidence_threshold, prev) end)
+
     company = insert(:company)
     %{company: company}
   end

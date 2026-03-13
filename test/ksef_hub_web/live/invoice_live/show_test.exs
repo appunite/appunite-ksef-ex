@@ -241,10 +241,9 @@ defmodule KsefHubWeb.InvoiceLive.ShowTest do
     } do
       invoice = insert(:invoice, company: company, prediction_predicted_at: nil)
 
-      {:ok, _view, html} = live(conn, ~p"/c/#{company.id}/invoices/#{invoice.id}")
-      refute html =~ "Predicted with"
-      refute html =~ "Manually adjusted"
-      refute html =~ "Could not predict"
+      {:ok, view, _html} = live(conn, ~p"/c/#{company.id}/invoices/#{invoice.id}")
+      refute has_element?(view, ~s([data-testid="prediction-category-hint"]))
+      refute has_element?(view, ~s([data-testid="prediction-tag-hint"]))
     end
 
     test "shows high-confidence prediction hint for category", %{conn: conn, company: company} do
@@ -257,9 +256,11 @@ defmodule KsefHubWeb.InvoiceLive.ShowTest do
           prediction_predicted_at: ~U[2026-03-11 12:00:00Z]
         )
 
-      {:ok, _view, html} = live(conn, ~p"/c/#{company.id}/invoices/#{invoice.id}")
-      assert html =~ "Predicted with 92.0% probability"
-      assert html =~ "Predicted with 85.0% probability"
+      {:ok, view, _html} = live(conn, ~p"/c/#{company.id}/invoices/#{invoice.id}")
+      assert has_element?(view, ~s([data-testid="prediction-category-hint"]))
+      assert has_element?(view, ~s([data-testid="prediction-tag-hint"]))
+      assert render(view) =~ "Predicted with 92.0% probability"
+      assert render(view) =~ "Predicted with 85.0% probability"
     end
 
     test "shows low-confidence hint when below threshold", %{conn: conn, company: company} do
@@ -272,9 +273,11 @@ defmodule KsefHubWeb.InvoiceLive.ShowTest do
           prediction_predicted_at: ~U[2026-03-11 12:00:00Z]
         )
 
-      {:ok, _view, html} = live(conn, ~p"/c/#{company.id}/invoices/#{invoice.id}")
-      assert html =~ "Could not predict category automatically"
-      assert html =~ "Could not predict tag automatically"
+      {:ok, view, _html} = live(conn, ~p"/c/#{company.id}/invoices/#{invoice.id}")
+      assert has_element?(view, ~s([data-testid="prediction-category-hint"]))
+      assert has_element?(view, ~s([data-testid="prediction-tag-hint"]))
+      assert render(view) =~ "Could not predict category automatically"
+      assert render(view) =~ "Could not predict tag automatically"
     end
 
     test "shows manually adjusted hint when prediction_status is manual", %{
@@ -290,9 +293,10 @@ defmodule KsefHubWeb.InvoiceLive.ShowTest do
           prediction_predicted_at: ~U[2026-03-11 12:00:00Z]
         )
 
-      {:ok, _view, html} = live(conn, ~p"/c/#{company.id}/invoices/#{invoice.id}")
-      assert html =~ "Manually adjusted"
-      refute html =~ "Predicted with"
+      {:ok, view, _html} = live(conn, ~p"/c/#{company.id}/invoices/#{invoice.id}")
+      assert has_element?(view, ~s([data-testid="prediction-category-hint"]))
+      assert render(view) =~ "Manually adjusted"
+      refute render(view) =~ "Predicted with"
     end
   end
 
