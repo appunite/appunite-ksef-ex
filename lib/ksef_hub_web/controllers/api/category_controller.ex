@@ -25,7 +25,8 @@ defmodule KsefHubWeb.Api.CategoryController do
 
   operation(:index,
     summary: "List expense categories",
-    description: "Returns all expense categories for the company, ordered by sort_order then name.",
+    description:
+      "Returns all expense categories for the company, ordered by sort_order then name.",
     responses: %{
       200 =>
         {"Category list ordered by sort_order then name", "application/json",

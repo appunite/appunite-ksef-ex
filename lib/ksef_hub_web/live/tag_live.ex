@@ -48,7 +48,12 @@ defmodule KsefHubWeb.TagLive do
   @impl true
   def handle_event("validate", %{"tag" => params}, socket) do
     changeset = %{
-      changeset_for(socket.assigns.editing, params, socket.assigns.company_id, socket.assigns.active_type)
+      changeset_for(
+        socket.assigns.editing,
+        params,
+        socket.assigns.company_id,
+        socket.assigns.active_type
+      )
       | action: :validate
     }
 
@@ -128,7 +133,9 @@ defmodule KsefHubWeb.TagLive do
         {:noreply,
          socket
          |> stream_insert(:tags, with_usage_count(tag, 0))
-         |> assign(form: new_changeset_form(socket.assigns.company_id, socket.assigns.active_type))
+         |> assign(
+           form: new_changeset_form(socket.assigns.company_id, socket.assigns.active_type)
+         )
          |> put_flash(:info, "Tag created.")}
 
       {:error, %Ecto.Changeset{} = changeset} ->

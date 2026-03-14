@@ -88,7 +88,8 @@ defmodule KsefHubWeb.Api.TagController do
 
   operation(:create,
     summary: "Create tag",
-    description: "Creates a new tag for the company. Accepts an optional `type` (default: `expense`).",
+    description:
+      "Creates a new tag for the company. Accepts an optional `type` (default: `expense`).",
     request_body: {"Tag to create", "application/json", Schemas.CreateTagRequest},
     responses: %{
       201 => {"Created tag", "application/json", Schemas.TagResponse},

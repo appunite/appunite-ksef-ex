@@ -114,7 +114,9 @@ defmodule KsefHub.Invoices.TagsTest do
       company = insert(:company)
       insert(:tag, company: company, name: "duplicate", type: :expense)
 
-      assert {:error, changeset} = Invoices.create_tag(company.id, %{name: "duplicate", type: :expense})
+      assert {:error, changeset} =
+               Invoices.create_tag(company.id, %{name: "duplicate", type: :expense})
+
       assert "has already been taken" in errors_on(changeset).name
     end
 

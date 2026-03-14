@@ -301,7 +301,8 @@ defmodule KsefHubWeb.InvoiceLive.ShowTest do
     end
 
     test "shows needs_review prediction indicator", %{conn: conn, company: company} do
-      invoice = insert(:invoice, type: :expense, company: company, prediction_status: :needs_review)
+      invoice =
+        insert(:invoice, type: :expense, company: company, prediction_status: :needs_review)
 
       {:ok, _view, html} = live(conn, ~p"/c/#{company.id}/invoices/#{invoice.id}")
       assert html =~ "needs review"
