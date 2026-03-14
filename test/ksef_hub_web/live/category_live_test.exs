@@ -22,9 +22,9 @@ defmodule KsefHubWeb.CategoryLiveTest do
   end
 
   describe "mount" do
-    test "renders categories page", %{conn: conn, company: company} do
+    test "renders expense categories page", %{conn: conn, company: company} do
       {:ok, _view, html} = live(conn, ~p"/c/#{company.id}/categories")
-      assert html =~ "Categories"
+      assert html =~ "Expense Categories"
       assert html =~ "New Category"
     end
 
