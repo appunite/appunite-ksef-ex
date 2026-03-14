@@ -1159,6 +1159,8 @@ defmodule KsefHub.Invoices do
   @spec set_invoice_category(Invoice.t(), Ecto.UUID.t() | nil) ::
           {:ok, Invoice.t()}
           | {:error, Ecto.Changeset.t() | :category_not_in_company | :expense_only}
+  def set_invoice_category(%Invoice{type: :income} = invoice, nil), do: {:ok, invoice}
+
   def set_invoice_category(%Invoice{type: :income}, _category_id), do: {:error, :expense_only}
 
   def set_invoice_category(%Invoice{} = invoice, nil) do

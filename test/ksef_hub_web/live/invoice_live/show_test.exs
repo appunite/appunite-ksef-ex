@@ -300,6 +300,15 @@ defmodule KsefHubWeb.InvoiceLive.ShowTest do
       assert html =~ "quarterly-report"
     end
 
+    test "hides category section for income invoices", %{conn: conn, company: company} do
+      insert(:category, company: company, name: "some-category")
+      invoice = insert(:invoice, type: :income, company: company)
+
+      {:ok, view, _html} = live(conn, ~p"/c/#{company.id}/invoices/#{invoice.id}")
+      refute has_element?(view, "[data-testid=category-form]")
+      refute has_element?(view, "[data-testid=category-select]")
+    end
+
     test "shows needs_review prediction indicator", %{conn: conn, company: company} do
       invoice =
         insert(:invoice, type: :expense, company: company, prediction_status: :needs_review)

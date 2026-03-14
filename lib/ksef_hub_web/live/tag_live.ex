@@ -183,14 +183,6 @@ defmodule KsefHubWeb.TagLive do
   @spec with_usage_count(Tag.t(), non_neg_integer() | nil) :: Tag.t()
   defp with_usage_count(tag, count), do: %{tag | usage_count: count || 0}
 
-  @spec tab_class(boolean()) :: String.t()
-  defp tab_class(true),
-    do: "px-4 py-2 text-sm font-medium border-b-2 -mb-px border-shad-primary text-shad-primary"
-
-  defp tab_class(false),
-    do:
-      "px-4 py-2 text-sm font-medium border-b-2 -mb-px transition-colors border-transparent text-muted-foreground hover:text-foreground hover:border-border"
-
   # --- Render ---
 
   @doc "Renders the tag management page with form and table."
@@ -208,14 +200,14 @@ defmodule KsefHubWeb.TagLive do
       <.link
         patch={~p"/c/#{@current_company.id}/tags?type=expense"}
         class={tab_class(@active_type == :expense)}
-        aria-current={@active_type == :expense && "page"}
+        aria-current={if @active_type == :expense, do: "page"}
       >
         Expense
       </.link>
       <.link
         patch={~p"/c/#{@current_company.id}/tags?type=income"}
         class={tab_class(@active_type == :income)}
-        aria-current={@active_type == :income && "page"}
+        aria-current={if @active_type == :income, do: "page"}
       >
         Income
       </.link>

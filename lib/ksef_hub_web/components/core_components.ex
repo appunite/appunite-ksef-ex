@@ -982,4 +982,15 @@ defmodule KsefHubWeb.CoreComponents do
   def translate_errors(errors, field) when is_list(errors) do
     for {^field, {msg, opts}} <- errors, do: translate_error({msg, opts})
   end
+
+  @doc """
+  Returns CSS classes for an active/inactive tab in a tab bar.
+  """
+  @spec tab_class(boolean()) :: String.t()
+  def tab_class(true),
+    do: "px-4 py-2 text-sm font-medium border-b-2 -mb-px border-shad-primary text-shad-primary"
+
+  def tab_class(false),
+    do:
+      "px-4 py-2 text-sm font-medium border-b-2 -mb-px transition-colors border-transparent text-muted-foreground hover:text-foreground hover:border-border"
 end

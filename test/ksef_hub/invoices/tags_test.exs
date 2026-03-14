@@ -202,6 +202,14 @@ defmodule KsefHub.Invoices.TagsTest do
 
       assert {:error, :expense_only} = Invoices.set_invoice_category(invoice, category.id)
     end
+
+    test "allows clearing category on income invoice (no-op)" do
+      company = insert(:company)
+      invoice = insert(:invoice, company: company, type: :income)
+
+      assert {:ok, returned} = Invoices.set_invoice_category(invoice, nil)
+      assert returned.id == invoice.id
+    end
   end
 
   describe "add_invoice_tag/2" do

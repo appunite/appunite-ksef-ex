@@ -293,6 +293,10 @@ defmodule KsefHubWeb.InvoiceLive.Show do
       {:error, :category_not_in_company} ->
         {:noreply, put_flash(socket, :error, "Category not found.")}
 
+      {:error, :expense_only} ->
+        {:noreply,
+         put_flash(socket, :error, "Categories can only be assigned to expense invoices.")}
+
       {:error, _} ->
         {:noreply, put_flash(socket, :error, "Failed to update category.")}
     end
