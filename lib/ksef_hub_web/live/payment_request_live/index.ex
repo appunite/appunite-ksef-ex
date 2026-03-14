@@ -12,12 +12,14 @@ defmodule KsefHubWeb.PaymentRequestLive.Index do
     only: [format_amount: 1, format_datetime: 1]
 
   @impl true
+  @doc "Assigns page title on mount."
   @spec mount(map(), map(), Phoenix.LiveView.Socket.t()) :: {:ok, Phoenix.LiveView.Socket.t()}
   def mount(_params, _session, socket) do
     {:ok, assign(socket, page_title: "Payment Requests")}
   end
 
   @impl true
+  @doc "Loads payment requests with filters and pagination from URL params."
   @spec handle_params(map(), String.t(), Phoenix.LiveView.Socket.t()) ::
           {:noreply, Phoenix.LiveView.Socket.t()}
   def handle_params(params, _uri, socket) do
@@ -51,6 +53,7 @@ defmodule KsefHubWeb.PaymentRequestLive.Index do
   end
 
   @impl true
+  @doc "Handles UI events: filtering, selection, bulk actions, and CSV export."
   @spec handle_event(String.t(), map(), Phoenix.LiveView.Socket.t()) ::
           {:noreply, Phoenix.LiveView.Socket.t()}
   def handle_event("filter", %{"filters" => params}, socket) do
@@ -71,31 +74,39 @@ defmodule KsefHubWeb.PaymentRequestLive.Index do
   end
 
   def handle_event("toggle_select", %{"id" => id}, socket) do
-    selected =
-      if MapSet.member?(socket.assigns.selected_ids, id) do
-        MapSet.delete(socket.assigns.selected_ids, id)
-      else
-        MapSet.put(socket.assigns.selected_ids, id)
-      end
+    if socket.assigns.can_manage do
+      selected =
+        if MapSet.member?(socket.assigns.selected_ids, id) do
+          MapSet.delete(socket.assigns.selected_ids, id)
+        else
+          MapSet.put(socket.assigns.selected_ids, id)
+        end
 
-    {:noreply, assign(socket, selected_ids: selected)}
+      {:noreply, assign(socket, selected_ids: selected)}
+    else
+      {:noreply, socket}
+    end
   end
 
   def handle_event("toggle_select_all", _params, socket) do
-    all_ids = MapSet.new(socket.assigns.payment_requests, & &1.id)
+    if socket.assigns.can_manage do
+      all_ids = MapSet.new(socket.assigns.payment_requests, & &1.id)
 
-    selected =
-      if MapSet.equal?(socket.assigns.selected_ids, all_ids) do
-        MapSet.new()
-      else
-        all_ids
-      end
+      selected =
+        if MapSet.equal?(socket.assigns.selected_ids, all_ids) do
+          MapSet.new()
+        else
+          all_ids
+        end
 
-    {:noreply, assign(socket, selected_ids: selected)}
+      {:noreply, assign(socket, selected_ids: selected)}
+    else
+      {:noreply, socket}
+    end
   end
 
   def handle_event("mark_paid", _params, socket) do
-    if Authorization.can?(socket.assigns[:current_role], :manage_payment_requests) do
+    if socket.assigns.can_manage do
       company_id = socket.assigns.current_company.id
       ids = MapSet.to_list(socket.assigns.selected_ids)
 
@@ -115,11 +126,15 @@ defmodule KsefHubWeb.PaymentRequestLive.Index do
   end
 
   def handle_event("download_csv", _params, socket) do
-    company_id = socket.assigns.current_company.id
-    ids = socket.assigns.selected_ids |> MapSet.to_list() |> Enum.join(",")
-    url = ~p"/c/#{company_id}/payment-requests/csv?ids=#{ids}"
+    if socket.assigns.can_manage do
+      company_id = socket.assigns.current_company.id
+      ids = socket.assigns.selected_ids |> MapSet.to_list() |> Enum.join(",")
+      url = ~p"/c/#{company_id}/payment-requests/csv?ids=#{ids}"
 
-    {:noreply, push_event(socket, "download", %{url: url})}
+      {:noreply, push_event(socket, "download", %{url: url})}
+    else
+      {:noreply, socket}
+    end
   end
 
   # --- Filter helpers ---
@@ -222,6 +237,7 @@ defmodule KsefHubWeb.PaymentRequestLive.Index do
   defp status_variant(_), do: "muted"
 
   @impl true
+  @spec render(map()) :: Phoenix.LiveView.Rendered.t()
   def render(assigns) do
     ~H"""
     <.header>
