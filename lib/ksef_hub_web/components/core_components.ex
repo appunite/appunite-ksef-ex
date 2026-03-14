@@ -740,7 +740,7 @@ defmodule KsefHubWeb.CoreComponents do
   @spec filter_chip(map()) :: Phoenix.LiveView.Rendered.t()
   def filter_chip(assigns) do
     ~H"""
-    <span class="inline-flex items-center gap-1 rounded-md bg-muted px-2 py-0.5 text-xs font-medium text-muted-foreground">
+    <span class="inline-flex items-center gap-1 rounded-md border border-border bg-muted px-2 py-0.5 text-xs font-medium text-muted-foreground">
       {@label}: {@value}
       <button
         type="button"

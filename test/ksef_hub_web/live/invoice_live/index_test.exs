@@ -28,12 +28,12 @@ defmodule KsefHubWeb.InvoiceLive.IndexTest do
       assert html =~ "Invoices"
     end
 
-    test "shows invoices in table", %{conn: conn, company: company} do
+    test "defaults to expense tab", %{conn: conn, company: company} do
       insert(:invoice, type: :income, seller_name: "Alpha Sp. z o.o.", company: company)
       insert(:invoice, type: :expense, seller_name: "Beta Sp. z o.o.", company: company)
 
       {:ok, _view, html} = live(conn, ~p"/c/#{company.id}/invoices")
-      assert html =~ "Alpha Sp. z o.o."
+      refute html =~ "Alpha Sp. z o.o."
       assert html =~ "Beta Sp. z o.o."
     end
 
@@ -46,7 +46,7 @@ defmodule KsefHubWeb.InvoiceLive.IndexTest do
   describe "category and tag columns" do
     test "shows category name in table", %{conn: conn, company: company} do
       category = insert(:category, company: company, name: "finance:invoices", emoji: "💰")
-      insert(:invoice, company: company, category: category)
+      insert(:invoice, company: company, type: :expense, category: category)
 
       {:ok, _view, html} = live(conn, ~p"/c/#{company.id}/invoices")
       assert html =~ "finance:invoices"
@@ -55,7 +55,7 @@ defmodule KsefHubWeb.InvoiceLive.IndexTest do
 
     test "shows tag names in table", %{conn: conn, company: company} do
       tag = insert(:tag, company: company, name: "monthly")
-      invoice = insert(:invoice, company: company)
+      invoice = insert(:invoice, company: company, type: :expense)
       insert(:invoice_tag, invoice: invoice, tag: tag)
 
       {:ok, _view, html} = live(conn, ~p"/c/#{company.id}/invoices")
@@ -66,14 +66,14 @@ defmodule KsefHubWeb.InvoiceLive.IndexTest do
       conn: conn,
       company: company
     } do
-      insert(:invoice, company: company, prediction_status: :needs_review)
+      insert(:invoice, company: company, type: :expense, prediction_status: :needs_review)
 
       {:ok, _view, html} = live(conn, ~p"/c/#{company.id}/invoices")
       assert html =~ "needs review"
     end
 
     test "does not show needs review badge for predicted status", %{conn: conn, company: company} do
-      insert(:invoice, company: company, prediction_status: :predicted)
+      insert(:invoice, company: company, type: :expense, prediction_status: :predicted)
 
       {:ok, _view, html} = live(conn, ~p"/c/#{company.id}/invoices")
       refute html =~ "needs review"
@@ -99,36 +99,87 @@ defmodule KsefHubWeb.InvoiceLive.IndexTest do
     end
 
     test "filters by status", %{conn: conn, company: company} do
-      {:ok, view, _html} = live(conn, ~p"/c/#{company.id}/invoices?status=pending")
+      {:ok, view, _html} = live(conn, ~p"/c/#{company.id}/invoices?type=expense&status=pending")
       html = render(view)
-      assert html =~ "Income Seller"
+      refute html =~ "Income Seller"
       assert html =~ "Expense Seller"
     end
 
     test "filter change updates URL via push_patch", %{conn: conn, company: company} do
-      {:ok, view, _html} = live(conn, ~p"/c/#{company.id}/invoices")
+      {:ok, view, _html} = live(conn, ~p"/c/#{company.id}/invoices?type=expense")
 
       view
       |> element("form[phx-change=filter]")
-      |> render_change(%{"filters" => %{"type" => "income"}})
+      |> render_change(%{"filters" => %{"status" => "pending"}})
+
+      assert_patched(view, "/c/#{company.id}/invoices?status=pending&type=expense")
+    end
+
+    test "clear_filters preserves type param", %{conn: conn, company: company} do
+      {:ok, view, _html} =
+        live(
+          conn,
+          ~p"/c/#{company.id}/invoices?type=income&status=pending"
+        )
+
+      html = render(view)
+      assert html =~ "Status: Pending"
+
+      view
+      |> element("button", "Clear all filters")
+      |> render_click()
 
       assert_patched(view, "/c/#{company.id}/invoices?type=income")
     end
 
     test "remove_filter clears a single filter", %{conn: conn, company: company} do
-      {:ok, view, _html} = live(conn, ~p"/c/#{company.id}/invoices?type=income&status=pending")
+      {:ok, view, _html} =
+        live(
+          conn,
+          ~p"/c/#{company.id}/invoices?type=expense&status=pending&category_id=00000000-0000-0000-0000-000000000000"
+        )
 
-      # Verify both chips are rendered
+      # Verify chip is rendered
       html = render(view)
-      assert html =~ "Type: Income"
       assert html =~ "Status: Pending"
 
-      # Remove the type filter via chip
+      # Remove the status filter via chip
       view
-      |> element("button[phx-click=remove_filter][phx-value-key=type]")
+      |> element("button[phx-click=remove_filter][phx-value-key=status]")
       |> render_click()
 
-      assert_patched(view, "/c/#{company.id}/invoices?status=pending")
+      assert_patched(
+        view,
+        "/c/#{company.id}/invoices?category_id=00000000-0000-0000-0000-000000000000&type=expense"
+      )
+    end
+  end
+
+  describe "type tabs" do
+    test "renders type tabs for owner", %{conn: conn, company: company} do
+      {:ok, _view, html} = live(conn, ~p"/c/#{company.id}/invoices")
+      assert html =~ ~r/>\s*Income\s*<\/a>/
+      assert html =~ ~r/>\s*Expense\s*<\/a>/
+    end
+
+    test "expense tab is active by default", %{conn: conn, company: company} do
+      {:ok, view, _html} = live(conn, ~p"/c/#{company.id}/invoices")
+      assert has_element?(view, ~s{a.border-shad-primary}, "Expense")
+    end
+
+    test "clicking Income tab filters to income invoices", %{conn: conn, company: company} do
+      insert(:invoice, type: :income, seller_name: "Alpha Vendor", company: company)
+      insert(:invoice, type: :expense, seller_name: "Beta Vendor", company: company)
+
+      {:ok, view, _html} = live(conn, ~p"/c/#{company.id}/invoices")
+
+      view
+      |> element(~s{a[href*="type=income"]}, "Income")
+      |> render_click()
+
+      html = render(view)
+      assert html =~ "Alpha Vendor"
+      refute html =~ "Beta Vendor"
     end
   end
 
@@ -138,13 +189,16 @@ defmodule KsefHubWeb.InvoiceLive.IndexTest do
 
       insert(:invoice,
         company: company,
+        type: :expense,
         seller_name: "Categorized Seller",
         category: category
       )
 
-      insert(:invoice, company: company, seller_name: "Uncategorized Seller")
+      insert(:invoice, company: company, type: :expense, seller_name: "Uncategorized Seller")
 
-      {:ok, view, _html} = live(conn, ~p"/c/#{company.id}/invoices?category_id=#{category.id}")
+      {:ok, view, _html} =
+        live(conn, ~p"/c/#{company.id}/invoices?category_id=#{category.id}")
+
       html = render(view)
       assert html =~ "Categorized Seller"
       refute html =~ "Uncategorized Seller"
@@ -152,11 +206,13 @@ defmodule KsefHubWeb.InvoiceLive.IndexTest do
 
     test "filters by tag", %{conn: conn, company: company} do
       tag = insert(:tag, company: company, name: "quarterly")
-      tagged = insert(:invoice, company: company, seller_name: "Tagged Seller")
+      tagged = insert(:invoice, company: company, type: :expense, seller_name: "Tagged Seller")
       insert(:invoice_tag, invoice: tagged, tag: tag)
-      insert(:invoice, company: company, seller_name: "Untagged Seller")
+      insert(:invoice, company: company, type: :expense, seller_name: "Untagged Seller")
 
-      {:ok, view, _html} = live(conn, ~p"/c/#{company.id}/invoices?tag_id=#{tag.id}")
+      {:ok, view, _html} =
+        live(conn, ~p"/c/#{company.id}/invoices?type=expense&tag_id=#{tag.id}")
+
       html = render(view)
       assert html =~ "Tagged Seller"
       refute html =~ "Untagged Seller"
@@ -165,25 +221,25 @@ defmodule KsefHubWeb.InvoiceLive.IndexTest do
     test "category filter change updates URL", %{conn: conn, company: company} do
       category = insert(:category, company: company, name: "ops:filter-test")
 
-      {:ok, view, _html} = live(conn, ~p"/c/#{company.id}/invoices")
+      {:ok, view, _html} = live(conn, ~p"/c/#{company.id}/invoices?type=expense")
 
       view
       |> element("form[phx-change=filter]")
       |> render_change(%{"filters" => %{"category_id" => category.id}})
 
-      assert_patched(view, "/c/#{company.id}/invoices?category_id=#{category.id}")
+      assert_patched(view, "/c/#{company.id}/invoices?category_id=#{category.id}&type=expense")
     end
 
     test "tag filter change updates URL", %{conn: conn, company: company} do
       tag = insert(:tag, company: company, name: "filter-tag")
 
-      {:ok, view, _html} = live(conn, ~p"/c/#{company.id}/invoices")
+      {:ok, view, _html} = live(conn, ~p"/c/#{company.id}/invoices?type=expense")
 
       view
       |> element("form[phx-change=filter]")
       |> render_change(%{"filters" => %{"tag_id" => tag.id}})
 
-      assert_patched(view, "/c/#{company.id}/invoices?tag_id=#{tag.id}")
+      assert_patched(view, "/c/#{company.id}/invoices?tag_id=#{tag.id}&type=expense")
     end
 
     test "renders category and tag filter dropdowns", %{conn: conn, company: company} do
@@ -201,6 +257,7 @@ defmodule KsefHubWeb.InvoiceLive.IndexTest do
       for i <- 1..30 do
         insert(:invoice,
           company: company,
+          type: :expense,
           invoice_number: "FV/#{String.pad_leading("#{i}", 3, "0")}"
         )
       end
@@ -215,7 +272,7 @@ defmodule KsefHubWeb.InvoiceLive.IndexTest do
       conn: conn,
       company: company
     } do
-      insert(:invoice, company: company)
+      insert(:invoice, company: company, type: :expense)
 
       {:ok, _view, html} = live(conn, ~p"/c/#{company.id}/invoices")
       assert html =~ "data-testid=\"pagination\""
@@ -233,6 +290,7 @@ defmodule KsefHubWeb.InvoiceLive.IndexTest do
       for i <- 1..30 do
         insert(:invoice,
           company: company,
+          type: :expense,
           invoice_number: "FV/#{String.pad_leading("#{i}", 3, "0")}"
         )
       end
@@ -247,19 +305,19 @@ defmodule KsefHubWeb.InvoiceLive.IndexTest do
       for i <- 1..30 do
         insert(:invoice,
           company: company,
-          type: :income,
+          type: :expense,
           invoice_number: "FV/#{String.pad_leading("#{i}", 3, "0")}"
         )
       end
 
-      {:ok, view, _html} = live(conn, ~p"/c/#{company.id}/invoices?page=2")
+      {:ok, view, _html} = live(conn, ~p"/c/#{company.id}/invoices?type=expense&page=2")
 
       view
       |> element("form[phx-change=filter]")
-      |> render_change(%{"filters" => %{"type" => "income"}})
+      |> render_change(%{"filters" => %{"status" => "pending"}})
 
       # Should not include page param (defaults to page 1)
-      assert_patched(view, "/c/#{company.id}/invoices?type=income")
+      assert_patched(view, "/c/#{company.id}/invoices?status=pending&type=expense")
     end
   end
 
@@ -318,11 +376,15 @@ defmodule KsefHubWeb.InvoiceLive.IndexTest do
       assert html =~ "Allowed Expense Seller"
     end
 
-    test "reviewer sees locked type filter", %{conn: conn, company: company} do
+    test "reviewer sees only static Expense tab", %{conn: conn, company: company} do
       insert(:invoice, type: :expense, company: company)
 
-      {:ok, view, _html} = live(conn, ~p"/c/#{company.id}/invoices")
-      assert has_element?(view, "select[disabled]")
+      {:ok, view, html} = live(conn, ~p"/c/#{company.id}/invoices")
+      # No clickable tab links
+      refute html =~ ~r/>\s*Income\s*<\/a>/
+      refute html =~ ~r/>\s*Expense\s*<\/a>/
+      # Static Expense label is shown
+      assert has_element?(view, "span", "Expense")
     end
   end
 end
