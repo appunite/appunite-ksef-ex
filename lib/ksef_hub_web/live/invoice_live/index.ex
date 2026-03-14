@@ -137,7 +137,8 @@ defmodule KsefHubWeb.InvoiceLive.Index do
   end
 
   @spec tab_class(boolean()) :: String.t()
-  defp tab_class(true), do: "px-4 py-2 text-sm font-medium border-b-2 -mb-px border-shad-primary text-shad-primary"
+  defp tab_class(true),
+    do: "px-4 py-2 text-sm font-medium border-b-2 -mb-px border-shad-primary text-shad-primary"
 
   defp tab_class(false),
     do:
