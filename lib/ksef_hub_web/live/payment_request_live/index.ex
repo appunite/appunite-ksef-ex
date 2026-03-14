@@ -291,6 +291,27 @@ defmodule KsefHubWeb.PaymentRequestLive.Index do
       </.filter_bar>
     </.form>
 
+    <!-- Bulk actions bar -->
+    <div
+      :if={MapSet.size(@selected_ids) > 0}
+      class="flex items-center gap-3 mb-4 p-3 rounded-md border border-border bg-muted/50"
+      data-testid="bulk-actions-bar"
+    >
+      <span class="text-sm font-medium">
+        {MapSet.size(@selected_ids)} selected
+      </span>
+      <span class="text-sm text-muted-foreground font-mono">
+        {selected_totals_text(@payment_requests, @selected_ids)}
+      </span>
+      <div class="flex-1" />
+      <.button :if={@can_manage} size="sm" variant="success" phx-click="mark_paid">
+        <.icon name="hero-check-circle" class="size-4" /> Mark as paid
+      </.button>
+      <.button size="sm" variant="outline" phx-click="download_csv">
+        <.icon name="hero-arrow-down-tray" class="size-4" /> Download CSV
+      </.button>
+    </div>
+
     <!-- Payment Requests Table -->
     <div class="rounded-lg border border-border overflow-hidden">
       <div class="overflow-x-auto">
@@ -397,29 +418,6 @@ defmodule KsefHubWeb.PaymentRequestLive.Index do
       </div>
     </div>
 
-    <!-- Bulk actions footer -->
-    <div
-      :if={MapSet.size(@selected_ids) > 0}
-      class="sticky bottom-0 z-10 mt-3 flex items-center justify-between gap-3 p-3 rounded-md border border-border bg-background shadow-lg"
-      data-testid="bulk-actions-footer"
-    >
-      <div class="flex items-center gap-4">
-        <span class="text-sm font-medium">
-          {MapSet.size(@selected_ids)} selected
-        </span>
-        <span class="text-sm text-muted-foreground font-mono">
-          {selected_totals_text(@payment_requests, @selected_ids)}
-        </span>
-      </div>
-      <div class="flex items-center gap-2">
-        <.button :if={@can_manage} size="sm" variant="success" phx-click="mark_paid">
-          <.icon name="hero-check-circle" class="size-4" /> Mark as paid
-        </.button>
-        <.button size="sm" variant="outline" phx-click="download_csv">
-          <.icon name="hero-arrow-down-tray" class="size-4" /> Download CSV
-        </.button>
-      </div>
-    </div>
     """
   end
 end
