@@ -335,9 +335,6 @@ defmodule KsefHubWeb.PaymentRequestLive.Index do
               <th class="text-left py-3 px-4 text-xs font-medium text-muted-foreground uppercase tracking-wide w-28">
                 Paid
               </th>
-              <th class="text-left py-3 px-4 text-xs font-medium text-muted-foreground uppercase tracking-wide w-28">
-                Invoice
-              </th>
             </tr>
           </thead>
           <tbody id="payment-requests">
@@ -381,16 +378,6 @@ defmodule KsefHubWeb.PaymentRequestLive.Index do
                   {format_datetime(pr.paid_at)}
                 </span>
                 <span :if={!pr.paid_at} class="text-muted-foreground">-</span>
-              </td>
-              <td class="py-3.5 px-4">
-                <.link
-                  :if={pr.invoice_id}
-                  navigate={~p"/c/#{@current_company.id}/invoices/#{pr.invoice_id}"}
-                  class="text-shad-primary underline-offset-4 hover:underline text-xs"
-                >
-                  View invoice
-                </.link>
-                <span :if={!pr.invoice_id} class="text-muted-foreground">-</span>
               </td>
             </tr>
           </tbody>

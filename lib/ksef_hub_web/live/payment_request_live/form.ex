@@ -9,7 +9,8 @@ defmodule KsefHubWeb.PaymentRequestLive.Form do
   alias KsefHub.PaymentRequests
   alias KsefHub.PaymentRequests.PaymentRequest
 
-  import KsefHubWeb.InvoiceComponents, only: [format_amount: 1, format_date: 1]
+  import KsefHubWeb.InvoiceComponents,
+    only: [format_amount: 1, format_date: 1, format_datetime: 1]
 
   @currencies ~w(PLN EUR USD GBP CHF CZK SEK NOK DKK HUF RON BGN HRK TRY UAH RUB JPY CNY CAD AUD NZD BRL MXN INR KRW SGD HKD THB ZAR ILS AED SAR)
 
@@ -178,8 +179,11 @@ defmodule KsefHubWeb.PaymentRequestLive.Form do
 
   @spec address_field(Phoenix.HTML.Form.t(), atom()) :: String.t()
   defp address_field(form, field) do
+    str_field = Atom.to_string(field)
+
     case form[:recipient_address].value do
       %{^field => value} when is_binary(value) -> value
+      %{^str_field => value} when is_binary(value) -> value
       _ -> ""
     end
   end
@@ -194,7 +198,13 @@ defmodule KsefHubWeb.PaymentRequestLive.Form do
       {if editing?(@live_action), do: "Edit Payment Request", else: "New Payment Request"}
       <:subtitle>
         <span :if={@invoice}>
-          {if editing?(@live_action), do: "Linked to", else: "Pre-filled from"} invoice {@invoice.invoice_number}
+          {if editing?(@live_action), do: "Linked to", else: "Pre-filled from"} invoice
+          <.link
+            navigate={~p"/c/#{@current_company.id}/invoices/#{@invoice.id}"}
+            class="text-shad-primary underline-offset-4 hover:underline"
+          >
+            {@invoice.invoice_number}
+          </.link>
         </span>
         <span :if={!@invoice && !editing?(@live_action)}>
           Create a standalone payment request for {@current_company.name}
@@ -208,17 +218,17 @@ defmodule KsefHubWeb.PaymentRequestLive.Form do
       class="mt-4 text-xs text-muted-foreground flex flex-wrap gap-x-4 gap-y-1"
     >
       <span>
-        Created by {(@payment_request.created_by && @payment_request.created_by.name) || "unknown"} on {format_date(
+        Created by {(@payment_request.created_by && @payment_request.created_by.name) || "unknown"} on {format_datetime(
           @payment_request.inserted_at
         )}
       </span>
       <span :if={@payment_request.updated_at != @payment_request.inserted_at}>
         &middot; Last edited
         <span :if={@payment_request.updated_by}>by {@payment_request.updated_by.name}</span>
-        on {format_date(@payment_request.updated_at)}
+        on {format_datetime(@payment_request.updated_at)}
       </span>
       <span :if={@payment_request.paid_at}>
-        &middot; Paid on {format_date(@payment_request.paid_at)}
+        &middot; Paid on {format_datetime(@payment_request.paid_at)}
       </span>
     </div>
 
@@ -233,7 +243,14 @@ defmodule KsefHubWeb.PaymentRequestLive.Form do
         <tbody>
           <tr class="border-b border-border/50">
             <td class="py-1.5 pr-3 text-muted-foreground">Number</td>
-            <td class="py-1.5 text-right">{@invoice.invoice_number}</td>
+            <td class="py-1.5 text-right">
+              <.link
+                navigate={~p"/c/#{@current_company.id}/invoices/#{@invoice.id}"}
+                class="text-shad-primary underline-offset-4 hover:underline"
+              >
+                {@invoice.invoice_number}
+              </.link>
+            </td>
           </tr>
           <tr class="border-b border-border/50">
             <td class="py-1.5 pr-3 text-muted-foreground">Seller</td>
