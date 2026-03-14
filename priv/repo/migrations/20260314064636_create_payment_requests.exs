@@ -12,8 +12,12 @@ defmodule KsefHub.Repo.Migrations.CreatePaymentRequests do
       add :iban, :string, null: false
       add :status, :string, null: false, default: "pending"
       add :invoice_id, references(:invoices, type: :binary_id, on_delete: :nilify_all)
-      add :company_id, references(:companies, type: :binary_id, on_delete: :delete_all), null: false
-      add :created_by_id, references(:users, type: :binary_id, on_delete: :nilify_all), null: false
+
+      add :company_id, references(:companies, type: :binary_id, on_delete: :delete_all),
+        null: false
+
+      add :created_by_id, references(:users, type: :binary_id, on_delete: :nilify_all),
+        null: false
 
       timestamps()
     end

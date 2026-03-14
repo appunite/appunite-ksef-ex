@@ -20,7 +20,12 @@ defmodule KsefHub.PaymentRequests.CsvBuilderTest do
     test "includes payment request data" do
       pr = %PaymentRequest{
         recipient_name: "Dostawca Sp. z o.o.",
-        recipient_address: %{street: "ul. Testowa 1", city: "Warszawa", postal_code: "00-001", country: "PL"},
+        recipient_address: %{
+          street: "ul. Testowa 1",
+          city: "Warszawa",
+          postal_code: "00-001",
+          country: "PL"
+        },
         iban: "PL61109010140000071219812874",
         amount: Decimal.new("1230.00"),
         currency: "PLN",

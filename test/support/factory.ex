@@ -296,7 +296,12 @@ defmodule KsefHub.Factory do
   def payment_request_factory do
     %PaymentRequest{
       recipient_name: "Dostawca Sp. z o.o.",
-      recipient_address: %{street: "ul. Testowa 1", city: "Warszawa", postal_code: "00-001", country: "PL"},
+      recipient_address: %{
+        street: "ul. Testowa 1",
+        city: "Warszawa",
+        postal_code: "00-001",
+        country: "PL"
+      },
       amount: Decimal.new("1230.00"),
       currency: "PLN",
       title: "Invoice FV/2026/001",

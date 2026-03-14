@@ -2,7 +2,6 @@ defmodule KsefHub.PaymentRequestsTest do
   use KsefHub.DataCase, async: true
 
   alias KsefHub.PaymentRequests
-  alias KsefHub.PaymentRequests.PaymentRequest
 
   import KsefHub.Factory
 
@@ -93,7 +92,12 @@ defmodule KsefHub.PaymentRequestsTest do
         iban: "PL61109010140000071219812874",
         amount: Decimal.new("100.00"),
         currency: "PLN",
-        recipient_address: %{"street" => " ul. Testowa 1 ", "city" => "Warszawa", "postal_code" => "", "country" => "PL"}
+        recipient_address: %{
+          "street" => " ul. Testowa 1 ",
+          "city" => "Warszawa",
+          "postal_code" => "",
+          "country" => "PL"
+        }
       }
 
       assert {:ok, pr} = PaymentRequests.create_payment_request(company.id, user.id, attrs)
@@ -271,7 +275,13 @@ defmodule KsefHub.PaymentRequestsTest do
       inv3 = insert(:invoice, company: company)
 
       insert(:payment_request, company: company, created_by: user, invoice: inv1, status: :paid)
-      insert(:payment_request, company: company, created_by: user, invoice: inv2, status: :pending)
+
+      insert(:payment_request,
+        company: company,
+        created_by: user,
+        invoice: inv2,
+        status: :pending
+      )
 
       result = PaymentRequests.payment_statuses_for_invoices([inv1.id, inv2.id, inv3.id])
 

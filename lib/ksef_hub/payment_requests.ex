@@ -7,7 +7,7 @@ defmodule KsefHub.PaymentRequests do
   import Ecto.Query
 
   alias KsefHub.Invoices.Invoice
-  alias KsefHub.PaymentRequests.{CsvDownload, PaymentRequest}
+  alias KsefHub.PaymentRequests.{CsvBuilder, CsvDownload, PaymentRequest}
   alias KsefHub.Repo
 
   @max_per_page 100
@@ -165,7 +165,7 @@ defmodule KsefHub.PaymentRequests do
   @doc "Builds CSV binary from a list of payment requests. Delegates to CsvBuilder."
   @spec build_csv([PaymentRequest.t()]) :: binary()
   def build_csv(payment_requests) do
-    KsefHub.PaymentRequests.CsvBuilder.build(payment_requests)
+    CsvBuilder.build(payment_requests)
   end
 
   @doc "Records a CSV download event."
@@ -238,7 +238,10 @@ defmodule KsefHub.PaymentRequests do
   @spec extract_pagination(map()) :: {pos_integer(), pos_integer()}
   defp extract_pagination(filters) do
     page = max((filters[:page] || 1) |> to_integer(), 1)
-    per_page = min(max((filters[:per_page] || @default_per_page) |> to_integer(), 1), @max_per_page)
+
+    per_page =
+      min(max((filters[:per_page] || @default_per_page) |> to_integer(), 1), @max_per_page)
+
     {page, per_page}
   end
 

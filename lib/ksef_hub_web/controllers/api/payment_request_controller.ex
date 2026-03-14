@@ -88,8 +88,7 @@ defmodule KsefHubWeb.Api.PaymentRequestController do
     summary: "Create payment request",
     description: "Creates a new payment request.",
     request_body:
-      {"Payment request attrs", "application/json",
-       Schemas.CreatePaymentRequestRequest},
+      {"Payment request attrs", "application/json", Schemas.CreatePaymentRequestRequest},
     responses: %{
       201 => {"Created", "application/json", Schemas.PaymentRequestResponse},
       401 => {"Unauthorized", "application/json", Schemas.ErrorResponse},
