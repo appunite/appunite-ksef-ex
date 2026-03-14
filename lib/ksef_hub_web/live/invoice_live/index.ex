@@ -317,6 +317,7 @@ defmodule KsefHubWeb.InvoiceLive.Index do
         :if={@can_view_all_types}
         patch={tab_url(@current_company.id, @filters, :expense)}
         class={tab_class(@filters[:type] == :expense)}
+        aria-current={@filters[:type] == :expense && "page"}
       >
         Expense
       </.link>
@@ -324,10 +325,11 @@ defmodule KsefHubWeb.InvoiceLive.Index do
         :if={@can_view_all_types}
         patch={tab_url(@current_company.id, @filters, :income)}
         class={tab_class(@filters[:type] == :income)}
+        aria-current={@filters[:type] == :income && "page"}
       >
         Income
       </.link>
-      <span :if={!@can_view_all_types} class={tab_class(true)}>
+      <span :if={!@can_view_all_types} class={tab_class(true)} aria-current="page">
         Expense
       </span>
     </div>
