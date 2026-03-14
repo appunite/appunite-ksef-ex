@@ -29,7 +29,10 @@ defmodule KsefHubWeb.InvoiceLive.Index do
 
   @impl true
   def handle_params(params, _uri, socket) do
-    filters = parse_filters(params)
+    filters =
+      params
+      |> parse_filters()
+      |> Map.put_new(:type, :expense)
 
     role = socket.assigns[:current_role]
 
@@ -101,9 +104,11 @@ defmodule KsefHubWeb.InvoiceLive.Index do
 
   @impl true
   def handle_event("filter", %{"filters" => params}, socket) do
+    current_type = to_string_or_empty(socket.assigns.filters[:type])
+
     query_params =
       %{}
-      |> maybe_put("type", params["type"])
+      |> maybe_put("type", current_type)
       |> maybe_put("status", params["status"])
       |> maybe_put("date_from", params["date_from"])
       |> maybe_put("date_to", params["date_to"])
@@ -117,7 +122,9 @@ defmodule KsefHubWeb.InvoiceLive.Index do
 
   def handle_event("clear_filters", _params, socket) do
     company_id = socket.assigns.current_company.id
-    {:noreply, push_patch(socket, to: ~p"/c/#{company_id}/invoices")}
+    current_type = to_string_or_empty(socket.assigns.filters[:type])
+    params = maybe_put(%{}, "type", current_type)
+    {:noreply, push_patch(socket, to: ~p"/c/#{company_id}/invoices?#{params}")}
   end
 
   def handle_event("remove_filter", %{"key" => key}, socket) do
@@ -129,10 +136,26 @@ defmodule KsefHubWeb.InvoiceLive.Index do
     {:noreply, push_patch(socket, to: ~p"/c/#{company_id}/invoices?#{query_params}")}
   end
 
+  @spec tab_class(boolean()) :: String.t()
+  defp tab_class(true), do: "px-4 py-2 text-sm font-medium border-b-2 -mb-px border-shad-primary text-shad-primary"
+
+  defp tab_class(false),
+    do:
+      "px-4 py-2 text-sm font-medium border-b-2 -mb-px transition-colors border-transparent text-muted-foreground hover:text-foreground hover:border-border"
+
+  @spec tab_url(String.t(), map(), atom() | nil) :: String.t()
+  defp tab_url(company_id, filters, type) do
+    params =
+      filter_params_without_page(filters)
+      |> Map.delete("type")
+      |> then(fn p -> if type, do: Map.put(p, "type", to_string(type)), else: p end)
+
+    ~p"/c/#{company_id}/invoices?#{params}"
+  end
+
   @spec build_active_filters(map(), list(), list()) :: [map()]
   defp build_active_filters(filters, categories, tags) do
     []
-    |> maybe_add_chip(filters[:type], "type", "Type", &type_display/1)
     |> maybe_add_chip(filters[:status], "status", "Status", &status_display/1)
     |> maybe_add_chip(filters[:category_id], "category_id", "Category", fn id ->
       case Enum.find(categories, &(&1.id == id)) do
@@ -157,11 +180,6 @@ defmodule KsefHubWeb.InvoiceLive.Index do
   defp maybe_add_chip(acc, value, key, label, formatter) do
     [%{key: key, label: label, value: formatter.(value)} | acc]
   end
-
-  @spec type_display(atom()) :: String.t()
-  defp type_display(:income), do: "Income"
-  defp type_display(:expense), do: "Expense"
-  defp type_display(other), do: to_string(other)
 
   @spec status_display(atom()) :: String.t()
   defp status_display(:pending), do: "Pending"
@@ -282,6 +300,27 @@ defmodule KsefHubWeb.InvoiceLive.Index do
       </:actions>
     </.header>
 
+    <!-- Type Tabs -->
+    <div class="flex border-b border-border mb-4">
+      <.link
+        :if={@can_view_all_types}
+        patch={tab_url(@current_company.id, @filters, :expense)}
+        class={tab_class(@filters[:type] == :expense)}
+      >
+        Expense
+      </.link>
+      <.link
+        :if={@can_view_all_types}
+        patch={tab_url(@current_company.id, @filters, :income)}
+        class={tab_class(@filters[:type] == :income)}
+      >
+        Income
+      </.link>
+      <span :if={!@can_view_all_types} class={tab_class(true)}>
+        Expense
+      </span>
+    </div>
+
     <.form for={@form} phx-change="filter" class="contents">
       <.filter_bar
         active_filters={@active_filters}
@@ -291,27 +330,6 @@ defmodule KsefHubWeb.InvoiceLive.Index do
         search_placeholder="Invoice number, seller, buyer..."
       >
         <:filter_fields>
-          <div class="space-y-1">
-            <label class="block text-xs font-medium text-muted-foreground">Type</label>
-            <select
-              :if={@can_view_all_types}
-              name={@form[:type].name}
-              class="w-full h-9 rounded-md border border-input bg-background px-2 text-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
-            >
-              <option value="">All</option>
-              <option value="income" selected={@form[:type].value == "income"}>Income</option>
-              <option value="expense" selected={@form[:type].value == "expense"}>Expense</option>
-            </select>
-            <select
-              :if={!@can_view_all_types}
-              name={@form[:type].name}
-              class="w-full h-9 rounded-md border border-input bg-background px-2 text-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
-              disabled
-            >
-              <option value="expense" selected>Expense</option>
-            </select>
-          </div>
-
           <div class="space-y-1">
             <label class="block text-xs font-medium text-muted-foreground">Status</label>
             <select
@@ -392,9 +410,6 @@ defmodule KsefHubWeb.InvoiceLive.Index do
         <.table id="invoices" rows={@invoices} row_id={fn inv -> "inv-#{inv.id}" end}>
           <:col :let={inv} label="Date" class="w-28">
             <span class="whitespace-nowrap">{format_date(inv.issue_date)}</span>
-          </:col>
-          <:col :let={inv} label="Type" class="w-24">
-            <.type_badge type={inv.type} />
           </:col>
           <:col :let={inv} label="Seller">
             <.link

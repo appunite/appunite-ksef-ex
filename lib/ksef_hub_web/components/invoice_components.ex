@@ -87,12 +87,7 @@ defmodule KsefHubWeb.InvoiceComponents do
   def tag_list(assigns) do
     ~H"""
     <div :if={@tags != []} class="flex flex-wrap gap-1">
-      <span
-        :for={tag <- @tags}
-        class="inline-flex items-center px-1.5 py-0.5 rounded text-xs bg-muted text-muted-foreground"
-      >
-        {tag.name}
-      </span>
+      <.badge :for={tag <- @tags} variant="info">{tag.name}</.badge>
     </div>
     <span :if={@tags == []} class="text-muted-foreground">-</span>
     """
@@ -150,7 +145,7 @@ defmodule KsefHubWeb.InvoiceComponents do
     """
   end
 
-  @doc "Renders a payment status badge: 'paid' (success), 'payment pending' (warning), or nothing for nil."
+  @doc "Renders a payment status badge: 'paid' (success), 'pending' (warning), or nothing for nil."
   @spec payment_badge(map()) :: Phoenix.LiveView.Rendered.t()
   attr :status, :atom, required: true
 
@@ -164,7 +159,7 @@ defmodule KsefHubWeb.InvoiceComponents do
 
   def payment_badge(%{status: :pending} = assigns) do
     ~H"""
-    <.badge variant="warning">payment pending</.badge>
+    <.badge variant="warning">pending</.badge>
     """
   end
 
