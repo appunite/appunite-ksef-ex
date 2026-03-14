@@ -206,7 +206,7 @@ defmodule KsefHub.PaymentRequestsTest do
       assert attrs.recipient_name == "Seller Co"
       assert attrs.amount == Decimal.new("1230.00")
       assert attrs.iban == "PL12345678901234567890123456"
-      assert attrs.title == "Invoice FV/2026/001"
+      assert attrs.title == "FV/2026/001"
       assert attrs.invoice_id == invoice.id
     end
 

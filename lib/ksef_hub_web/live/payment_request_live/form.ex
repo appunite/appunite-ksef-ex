@@ -99,6 +99,7 @@ defmodule KsefHubWeb.PaymentRequestLive.Form do
     "currency" => :currency,
     "title" => :title,
     "iban" => :iban,
+    "note" => :note,
     "invoice_id" => :invoice_id
   }
 
@@ -312,6 +313,19 @@ defmodule KsefHubWeb.PaymentRequestLive.Form do
         <.error :for={msg <- Enum.map(@form[:iban].errors, &translate_error/1)}>
           {msg}
         </.error>
+      </div>
+
+      <div class="space-y-1">
+        <label for={@form[:note].id} class="block text-sm font-medium">
+          Note <span class="text-muted-foreground font-normal">(optional)</span>
+        </label>
+        <textarea
+          id={@form[:note].id}
+          name={@form[:note].name}
+          rows="3"
+          class="w-full rounded-md border border-input bg-background px-3 py-2 text-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+          placeholder="Internal note..."
+        >{@form[:note].value}</textarea>
       </div>
 
       <div class="flex items-center gap-3 pt-2">

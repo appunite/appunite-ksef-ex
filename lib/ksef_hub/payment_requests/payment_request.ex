@@ -20,6 +20,7 @@ defmodule KsefHub.PaymentRequests.PaymentRequest do
     field :currency, :string, default: "PLN"
     field :title, :string
     field :iban, :string
+    field :note, :string
     field :status, Ecto.Enum, values: [:pending, :paid], default: :pending
 
     belongs_to :invoice, KsefHub.Invoices.Invoice
@@ -44,6 +45,7 @@ defmodule KsefHub.PaymentRequests.PaymentRequest do
       :currency,
       :title,
       :iban,
+      :note,
       :invoice_id,
       :company_id,
       :created_by_id

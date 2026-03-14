@@ -322,7 +322,7 @@ defmodule KsefHubWeb.PaymentRequestLive.Index do
                 />
               </th>
               <th class="text-left py-3 px-4 text-xs font-medium text-muted-foreground uppercase tracking-wide w-28">
-                Date
+                Created
               </th>
               <th class="text-left py-3 px-4 text-xs font-medium text-muted-foreground uppercase tracking-wide">
                 Recipient

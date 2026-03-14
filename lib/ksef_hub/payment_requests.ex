@@ -120,7 +120,7 @@ defmodule KsefHub.PaymentRequests do
       recipient_address: invoice.seller_address,
       amount: invoice.gross_amount,
       currency: invoice.currency || "PLN",
-      title: "Invoice #{invoice.invoice_number}",
+      title: invoice.invoice_number,
       iban: invoice.iban || "",
       invoice_id: invoice.id
     }
@@ -132,7 +132,7 @@ defmodule KsefHub.PaymentRequests do
       recipient_address: invoice.buyer_address,
       amount: invoice.gross_amount,
       currency: invoice.currency || "PLN",
-      title: "Invoice #{invoice.invoice_number}",
+      title: invoice.invoice_number,
       iban: "",
       invoice_id: invoice.id
     }
