@@ -317,22 +317,22 @@ defmodule KsefHubWeb.PaymentRequestLive.Index do
                   }
                 />
               </th>
-              <th class="text-left py-3 px-4 text-xs font-medium text-muted-foreground uppercase tracking-wide w-28">
+              <th class="hidden lg:table-cell text-left py-3 px-4 text-xs font-medium text-muted-foreground uppercase tracking-wide w-36">
                 Created
               </th>
               <th class="text-left py-3 px-4 text-xs font-medium text-muted-foreground uppercase tracking-wide">
                 Recipient
               </th>
-              <th class="text-left py-3 px-4 text-xs font-medium text-muted-foreground uppercase tracking-wide">
+              <th class="hidden md:table-cell text-left py-3 px-4 text-xs font-medium text-muted-foreground uppercase tracking-wide">
                 Title
               </th>
-              <th class="text-left py-3 px-4 text-xs font-medium text-muted-foreground uppercase tracking-wide w-36 text-right">
+              <th class="text-right py-3 px-4 text-xs font-medium text-muted-foreground uppercase tracking-wide w-32">
                 Amount
               </th>
-              <th class="text-left py-3 px-4 text-xs font-medium text-muted-foreground uppercase tracking-wide w-28">
+              <th class="text-left py-3 px-4 text-xs font-medium text-muted-foreground uppercase tracking-wide w-20">
                 Status
               </th>
-              <th class="text-left py-3 px-4 text-xs font-medium text-muted-foreground uppercase tracking-wide w-28">
+              <th class="hidden lg:table-cell text-left py-3 px-4 text-xs font-medium text-muted-foreground uppercase tracking-wide w-36">
                 Paid
               </th>
             </tr>
@@ -352,7 +352,7 @@ defmodule KsefHubWeb.PaymentRequestLive.Index do
                   checked={MapSet.member?(@selected_ids, pr.id)}
                 />
               </td>
-              <td class="py-3.5 px-4">
+              <td class="hidden lg:table-cell py-3.5 px-4">
                 <span class="whitespace-nowrap">{format_datetime(pr.inserted_at)}</span>
               </td>
               <td class="py-3.5 px-4">
@@ -364,8 +364,9 @@ defmodule KsefHubWeb.PaymentRequestLive.Index do
                   {pr.recipient_name}
                 </.link>
                 <span :if={!@can_manage}>{pr.recipient_name}</span>
+                <div class="text-xs text-muted-foreground md:hidden">{pr.title}</div>
               </td>
-              <td class="py-3.5 px-4">{pr.title}</td>
+              <td class="hidden md:table-cell py-3.5 px-4">{pr.title}</td>
               <td class="py-3.5 px-4 text-right">
                 <span class="font-mono">{format_amount(pr.amount)}</span>
                 <span class="text-xs text-muted-foreground">{pr.currency}</span>
@@ -373,7 +374,7 @@ defmodule KsefHubWeb.PaymentRequestLive.Index do
               <td class="py-3.5 px-4">
                 <.badge variant={status_variant(pr.status)}>{pr.status}</.badge>
               </td>
-              <td class="py-3.5 px-4">
+              <td class="hidden lg:table-cell py-3.5 px-4">
                 <span :if={pr.paid_at} class="whitespace-nowrap text-xs">
                   {format_datetime(pr.paid_at)}
                 </span>
