@@ -142,5 +142,34 @@ defmodule KsefHubWeb.Api.PaymentRequestControllerTest do
       conn = conn |> api_conn(token) |> post("/api/payment-requests/#{pr.id}/mark-paid")
       assert conn.status == 403
     end
+
+    test "cannot mark another company's payment request as paid", %{conn: conn} do
+      %{token: token} = create_user_with_token(:owner)
+      other_company = insert(:company)
+      pr = insert(:payment_request, company: other_company, status: :pending)
+
+      conn = conn |> api_conn(token) |> post("/api/payment-requests/#{pr.id}/mark-paid")
+      assert conn.status == 404
+    end
+  end
+
+  describe "response fields" do
+    test "includes note and paid_at in response", %{conn: conn} do
+      %{company: company, token: token, user: user} = create_user_with_token(:owner)
+
+      insert(:payment_request,
+        company: company,
+        created_by: user,
+        note: "Internal memo",
+        status: :paid,
+        paid_at: ~U[2026-03-10 12:00:00.000000Z]
+      )
+
+      conn = conn |> api_conn(token) |> get("/api/payment-requests")
+      body = Jason.decode!(conn.resp_body)
+      pr = hd(body["data"])
+      assert pr["note"] == "Internal memo"
+      assert pr["paid_at"] != nil
+    end
   end
 end

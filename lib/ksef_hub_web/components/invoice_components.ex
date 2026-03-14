@@ -150,7 +150,7 @@ defmodule KsefHubWeb.InvoiceComponents do
     """
   end
 
-  @doc "Renders a payment status badge: 'Paid' (success), 'Payment pending' (warning), or nothing for nil."
+  @doc "Renders a payment status badge: 'paid' (success), 'payment pending' (warning), or nothing for nil."
   @spec payment_badge(map()) :: Phoenix.LiveView.Rendered.t()
   attr :status, :atom, required: true
 
@@ -158,13 +158,13 @@ defmodule KsefHubWeb.InvoiceComponents do
 
   def payment_badge(%{status: :paid} = assigns) do
     ~H"""
-    <.badge variant="success">Paid</.badge>
+    <.badge variant="success">paid</.badge>
     """
   end
 
   def payment_badge(%{status: :pending} = assigns) do
     ~H"""
-    <.badge variant="warning">Payment pending</.badge>
+    <.badge variant="warning">payment pending</.badge>
     """
   end
 

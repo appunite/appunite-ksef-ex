@@ -24,7 +24,12 @@ defmodule KsefHubWeb.PaymentRequestCsvController do
       |> redirect(to: ~p"/c/#{company_id}/payment-requests")
     else
       csv = PaymentRequests.build_csv(payment_requests)
-      PaymentRequests.record_csv_download(company_id, user_id, ids)
+
+      PaymentRequests.record_csv_download(
+        company_id,
+        user_id,
+        Enum.map(payment_requests, & &1.id)
+      )
 
       filename = "payment_requests_#{Date.to_iso8601(Date.utc_today())}.csv"
 

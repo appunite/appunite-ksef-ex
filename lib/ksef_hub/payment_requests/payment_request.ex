@@ -62,6 +62,7 @@ defmodule KsefHub.PaymentRequests.PaymentRequest do
     |> foreign_key_constraint(:invoice_id)
     |> foreign_key_constraint(:company_id)
     |> foreign_key_constraint(:created_by_id)
+    |> foreign_key_constraint(:updated_by_id)
   end
 
   @doc "Builds a changeset that marks a payment request as paid."
@@ -70,16 +71,9 @@ defmodule KsefHub.PaymentRequests.PaymentRequest do
     change(payment_request, status: :paid, paid_at: DateTime.utc_now())
   end
 
-  @doc "Formats an address map as a comma-separated string."
+  @doc "Formats an address map as a comma-separated string. Delegates to Invoice.format_address/1."
   @spec format_address(map() | nil) :: String.t()
-  def format_address(nil), do: ""
-
-  def format_address(addr) when is_map(addr) do
-    Enum.zip(@address_field_atoms, @address_field_strings)
-    |> Enum.map(fn {atom_key, str_key} -> addr[atom_key] || addr[str_key] end)
-    |> Enum.reject(&blank_value?/1)
-    |> Enum.map_join(", ", &String.trim/1)
-  end
+  defdelegate format_address(addr), to: KsefHub.Invoices.Invoice
 
   @spec normalize_address(Ecto.Changeset.t()) :: Ecto.Changeset.t()
   defp normalize_address(changeset) do

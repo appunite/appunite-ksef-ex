@@ -176,6 +176,14 @@ defmodule KsefHub.PaymentRequestsTest do
       assert {:error, :not_found} =
                PaymentRequests.mark_as_paid(company.id, Ecto.UUID.generate())
     end
+
+    test "is idempotent for already-paid requests", %{company: company, user: user} do
+      pr = insert(:payment_request, company: company, created_by: user, status: :paid)
+
+      assert {:ok, returned} = PaymentRequests.mark_as_paid(company.id, pr.id)
+      assert returned.id == pr.id
+      assert returned.status == :paid
+    end
   end
 
   describe "mark_many_as_paid/2" do

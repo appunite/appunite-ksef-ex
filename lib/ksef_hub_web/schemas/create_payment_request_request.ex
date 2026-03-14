@@ -40,7 +40,8 @@ defmodule KsefHubWeb.Schemas.CreatePaymentRequestRequest do
         format: :uuid,
         nullable: true,
         description: "Optional linked invoice UUID."
-      }
+      },
+      note: %Schema{type: :string, nullable: true, description: "Optional internal note."}
     },
     required: [:recipient_name, :amount, :title, :iban],
     example: %{

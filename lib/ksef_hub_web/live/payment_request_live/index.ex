@@ -14,11 +14,7 @@ defmodule KsefHubWeb.PaymentRequestLive.Index do
   @impl true
   @spec mount(map(), map(), Phoenix.LiveView.Socket.t()) :: {:ok, Phoenix.LiveView.Socket.t()}
   def mount(_params, _session, socket) do
-    {:ok,
-     assign(socket,
-       page_title: "Payment Requests",
-       selected_ids: MapSet.new()
-     )}
+    {:ok, assign(socket, page_title: "Payment Requests")}
   end
 
   @impl true

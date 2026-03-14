@@ -33,6 +33,13 @@ defmodule KsefHubWeb.Schemas.PaymentRequest do
         maxLength: 34
       },
       status: %Schema{type: :string, enum: ["pending", "paid"]},
+      note: %Schema{type: :string, nullable: true, description: "Optional internal note."},
+      paid_at: %Schema{
+        type: :string,
+        format: :"date-time",
+        nullable: true,
+        description: "When the payment was marked as paid."
+      },
       invoice_id: %Schema{
         type: :string,
         format: :uuid,

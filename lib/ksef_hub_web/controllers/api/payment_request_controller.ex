@@ -9,7 +9,7 @@ defmodule KsefHubWeb.Api.PaymentRequestController do
   use OpenApiSpex.ControllerSpecs
 
   import KsefHubWeb.ChangesetHelpers
-  import KsefHubWeb.JsonHelpers, only: [atomize_keys: 2]
+  import KsefHubWeb.JsonHelpers, only: [atomize_keys: 2, payment_request_json: 1]
 
   alias KsefHub.PaymentRequests
   alias KsefHub.PaymentRequests.PaymentRequest
@@ -212,23 +212,4 @@ defmodule KsefHubWeb.Api.PaymentRequestController do
   end
 
   defp maybe_put_integer(map, _key, _value), do: map
-
-  @spec payment_request_json(PaymentRequest.t()) :: map()
-  defp payment_request_json(pr) do
-    %{
-      id: pr.id,
-      recipient_name: pr.recipient_name,
-      recipient_address: pr.recipient_address,
-      amount: pr.amount && Decimal.to_string(pr.amount),
-      currency: pr.currency,
-      title: pr.title,
-      iban: pr.iban,
-      note: pr.note,
-      status: pr.status,
-      paid_at: pr.paid_at,
-      invoice_id: pr.invoice_id,
-      inserted_at: pr.inserted_at,
-      updated_at: pr.updated_at
-    }
-  end
 end
