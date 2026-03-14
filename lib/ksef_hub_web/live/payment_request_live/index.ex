@@ -75,11 +75,17 @@ defmodule KsefHubWeb.PaymentRequestLive.Index do
 
   def handle_event("toggle_select", %{"id" => id}, socket) do
     if socket.assigns.can_manage do
+      normalized_id =
+        case Ecto.UUID.cast(id) do
+          {:ok, uuid} -> uuid
+          :error -> id
+        end
+
       selected =
-        if MapSet.member?(socket.assigns.selected_ids, id) do
-          MapSet.delete(socket.assigns.selected_ids, id)
+        if MapSet.member?(socket.assigns.selected_ids, normalized_id) do
+          MapSet.delete(socket.assigns.selected_ids, normalized_id)
         else
-          MapSet.put(socket.assigns.selected_ids, id)
+          MapSet.put(socket.assigns.selected_ids, normalized_id)
         end
 
       {:noreply, assign(socket, selected_ids: selected)}
@@ -310,7 +316,7 @@ defmodule KsefHubWeb.PaymentRequestLive.Index do
       <.button :if={@can_manage} size="sm" variant="success" phx-click="mark_paid">
         <.icon name="hero-check-circle" class="size-4" /> Mark as paid
       </.button>
-      <.button size="sm" variant="outline" phx-click="download_csv">
+      <.button :if={@can_manage} size="sm" variant="outline" phx-click="download_csv">
         <.icon name="hero-arrow-down-tray" class="size-4" /> Download CSV
       </.button>
     </div>
