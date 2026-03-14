@@ -29,6 +29,7 @@ defmodule KsefHubWeb.JsonHelpers do
     %{
       id: tag.id,
       name: tag.name,
+      type: to_string(tag.type),
       description: tag.description,
       usage_count: Map.get(tag, :usage_count, 0),
       inserted_at: tag.inserted_at,

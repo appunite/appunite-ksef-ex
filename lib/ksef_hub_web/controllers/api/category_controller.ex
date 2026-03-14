@@ -20,12 +20,12 @@ defmodule KsefHubWeb.Api.CategoryController do
 
   @category_allowed_keys ~w(name emoji description sort_order)
 
-  tags(["Categories"])
+  tags(["Expense Categories"])
   security([%{"bearer" => []}])
 
   operation(:index,
-    summary: "List categories",
-    description: "Returns all categories for the company, ordered by sort_order then name.",
+    summary: "List expense categories",
+    description: "Returns all expense categories for the company, ordered by sort_order then name.",
     responses: %{
       200 =>
         {"Category list ordered by sort_order then name", "application/json",
@@ -78,8 +78,8 @@ defmodule KsefHubWeb.Api.CategoryController do
   end
 
   operation(:create,
-    summary: "Create category",
-    description: "Creates a new category for the company.",
+    summary: "Create expense category",
+    description: "Creates a new expense category for the company.",
     request_body: {"Category to create", "application/json", Schemas.CreateCategoryRequest},
     responses: %{
       201 => {"Created category", "application/json", Schemas.CategoryResponse},

@@ -750,6 +750,11 @@ defmodule KsefHubWeb.Api.InvoiceController do
         |> put_status(:unprocessable_entity)
         |> json(%{error: "Invalid UUID format"})
 
+      {:error, :expense_only} ->
+        conn
+        |> put_status(:unprocessable_entity)
+        |> json(%{error: "Categories can only be assigned to expense invoices"})
+
       {:error, reason} when reason in [:category_not_found, :category_not_in_company] ->
         conn
         |> put_status(:unprocessable_entity)

@@ -17,7 +17,7 @@ defmodule KsefHubWeb.Api.TagController do
 
   plug KsefHubWeb.Plugs.RequirePermission, :manage_tags when action in [:create, :update, :delete]
 
-  @tag_allowed_keys ~w(name description)
+  @tag_allowed_keys ~w(name description type)
 
   tags(["Tags"])
   security([%{"bearer" => []}])
@@ -25,7 +25,15 @@ defmodule KsefHubWeb.Api.TagController do
   operation(:index,
     summary: "List tags",
     description:
-      "Returns all tags for the company with usage counts, ordered by popularity then name.",
+      "Returns all tags for the company with usage counts, ordered by popularity then name. Optionally filter by type.",
+    parameters: [
+      type: [
+        in: :query,
+        description: "Filter by tag type: `expense` or `income`. Omit for all.",
+        required: false,
+        schema: %Schema{type: :string, enum: ["expense", "income"]}
+      ]
+    ],
     responses: %{
       200 =>
         {"Tag list with usage counts, ordered by popularity then name", "application/json",
@@ -35,11 +43,12 @@ defmodule KsefHubWeb.Api.TagController do
     }
   )
 
-  @doc "Lists all tags for the token's company."
+  @doc "Lists all tags for the token's company, optionally filtered by type."
   @spec index(Plug.Conn.t(), map()) :: Plug.Conn.t()
-  def index(conn, _params) do
+  def index(conn, params) do
     company_id = conn.assigns.current_company.id
-    tags = Invoices.list_tags(company_id)
+    type = parse_tag_type(params["type"])
+    tags = Invoices.list_tags(company_id, type)
     json(conn, %{data: Enum.map(tags, &tag_json/1)})
   end
 
@@ -79,7 +88,7 @@ defmodule KsefHubWeb.Api.TagController do
 
   operation(:create,
     summary: "Create tag",
-    description: "Creates a new tag for the company.",
+    description: "Creates a new tag for the company. Accepts an optional `type` (default: `expense`).",
     request_body: {"Tag to create", "application/json", Schemas.CreateTagRequest},
     responses: %{
       201 => {"Created tag", "application/json", Schemas.TagResponse},
@@ -195,4 +204,9 @@ defmodule KsefHubWeb.Api.TagController do
         |> json(%{error: "Failed to delete tag"})
     end
   end
+
+  @spec parse_tag_type(String.t() | nil) :: atom() | nil
+  defp parse_tag_type("expense"), do: :expense
+  defp parse_tag_type("income"), do: :income
+  defp parse_tag_type(_), do: nil
 end
