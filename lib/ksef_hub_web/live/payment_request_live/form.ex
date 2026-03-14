@@ -11,13 +11,15 @@ defmodule KsefHubWeb.PaymentRequestLive.Form do
 
   import KsefHubWeb.InvoiceComponents, only: [format_amount: 1, format_date: 1]
 
+  @currencies ~w(PLN EUR USD GBP CHF CZK SEK NOK DKK HUF RON BGN HRK TRY UAH RUB JPY CNY CAD AUD NZD BRL MXN INR KRW SGD HKD THB ZAR ILS AED SAR)
+
   @impl true
   @spec mount(map(), map(), Phoenix.LiveView.Socket.t()) :: {:ok, Phoenix.LiveView.Socket.t()}
   def mount(_params, _session, socket) do
     role = socket.assigns[:current_role]
     can_manage = Authorization.can?(role, :manage_payment_requests)
 
-    {:ok, assign(socket, can_manage: can_manage)}
+    {:ok, assign(socket, can_manage: can_manage, currencies: @currencies)}
   end
 
   @impl true
@@ -210,10 +212,10 @@ defmodule KsefHubWeb.PaymentRequestLive.Form do
           @payment_request.inserted_at
         )}
       </span>
-      <span :if={@payment_request.updated_by}>
-        &middot; Last edited by {@payment_request.updated_by.name} on {format_date(
-          @payment_request.updated_at
-        )}
+      <span :if={@payment_request.updated_at != @payment_request.inserted_at}>
+        &middot; Last edited
+        <span :if={@payment_request.updated_by}>by {@payment_request.updated_by.name}</span>
+        on {format_date(@payment_request.updated_at)}
       </span>
       <span :if={@payment_request.paid_at}>
         &middot; Paid on {format_date(@payment_request.paid_at)}
@@ -342,15 +344,20 @@ defmodule KsefHubWeb.PaymentRequestLive.Form do
         </div>
         <div class="space-y-1">
           <label for={@form[:currency].id} class="block text-sm font-medium">Currency</label>
-          <input
-            type="text"
+          <select
             id={@form[:currency].id}
             name={@form[:currency].name}
-            value={@form[:currency].value || "PLN"}
-            maxlength="3"
-            class="w-full h-9 rounded-md border border-input bg-background px-3 text-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+            class="w-full h-9 rounded-md border border-input bg-background px-2 text-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
             required
-          />
+          >
+            <option
+              :for={code <- @currencies}
+              value={code}
+              selected={(@form[:currency].value || "PLN") == code}
+            >
+              {code}
+            </option>
+          </select>
           <.error :for={msg <- Enum.map(@form[:currency].errors, &translate_error/1)}>
             {msg}
           </.error>

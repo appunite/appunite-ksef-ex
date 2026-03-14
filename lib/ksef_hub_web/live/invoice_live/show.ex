@@ -60,7 +60,9 @@ defmodule KsefHubWeb.InvoiceLive.Show do
         can_set_tags = Authorization.can?(role, :set_invoice_tags)
         can_manage_tags = Authorization.can?(role, :manage_tags)
         can_manage_payment_requests = Authorization.can?(role, :manage_payment_requests)
+        can_view_payment_requests = Authorization.can?(role, :view_payment_requests)
         payment_status = PaymentRequests.payment_status_for_invoice(invoice.id)
+        invoice_payment_requests = PaymentRequests.list_for_invoice(invoice.id)
 
         {:ok,
          socket
@@ -73,7 +75,9 @@ defmodule KsefHubWeb.InvoiceLive.Show do
            can_set_tags: can_set_tags,
            can_manage_tags: can_manage_tags,
            can_manage_payment_requests: can_manage_payment_requests,
+           can_view_payment_requests: can_view_payment_requests,
            payment_status: payment_status,
+           invoice_payment_requests: invoice_payment_requests,
            html_preview: generate_preview(invoice),
            categories: Invoices.list_categories(company.id),
            all_tags: Invoices.list_tags(company.id),
@@ -1083,6 +1087,72 @@ defmodule KsefHubWeb.InvoiceLive.Show do
         </p>
       </.card>
     </div>
+    <!-- Payment Requests Section -->
+    <div :if={@can_view_payment_requests && @invoice_payment_requests != []} class="mt-6">
+      <div class="rounded-lg border border-border p-4">
+        <div class="flex items-center justify-between mb-3">
+          <h2 class="text-base font-semibold">Payment Requests</h2>
+          <.button
+            :if={@can_manage_payment_requests && @invoice.type == :expense}
+            size="sm"
+            variant="outline"
+            navigate={~p"/c/#{@current_company.id}/payment-requests/new?invoice_id=#{@invoice.id}"}
+          >
+            <.icon name="hero-plus" class="size-3.5" /> Add
+          </.button>
+        </div>
+        <table class="w-full text-sm">
+          <thead>
+            <tr class="border-b border-border">
+              <th class="text-left py-2 px-2 text-xs font-medium text-muted-foreground uppercase">
+                Recipient
+              </th>
+              <th class="text-left py-2 px-2 text-xs font-medium text-muted-foreground uppercase">
+                Title
+              </th>
+              <th class="text-right py-2 px-2 text-xs font-medium text-muted-foreground uppercase">
+                Amount
+              </th>
+              <th class="text-left py-2 px-2 text-xs font-medium text-muted-foreground uppercase">
+                Status
+              </th>
+              <th class="text-left py-2 px-2 text-xs font-medium text-muted-foreground uppercase">
+                Paid
+              </th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr
+              :for={pr <- @invoice_payment_requests}
+              class="border-b border-border/50 last:border-0"
+            >
+              <td class="py-2 px-2">
+                <.link
+                  :if={@can_manage_payment_requests}
+                  navigate={~p"/c/#{@current_company.id}/payment-requests/#{pr.id}/edit"}
+                  class="text-shad-primary underline-offset-4 hover:underline"
+                >
+                  {pr.recipient_name}
+                </.link>
+                <span :if={!@can_manage_payment_requests}>{pr.recipient_name}</span>
+              </td>
+              <td class="py-2 px-2">{pr.title}</td>
+              <td class="py-2 px-2 text-right font-mono">
+                {format_amount(pr.amount)}
+                <span class="text-xs text-muted-foreground">{pr.currency}</span>
+              </td>
+              <td class="py-2 px-2">
+                <.payment_badge status={pr.status} />
+              </td>
+              <td class="py-2 px-2 text-xs">
+                {if pr.paid_at, do: format_date(pr.paid_at), else: "-"}
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
     <!-- Comments Section (below grid) -->
     <div class="mt-6">
       <.comments_card

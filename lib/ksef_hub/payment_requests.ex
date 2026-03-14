@@ -193,6 +193,17 @@ defmodule KsefHub.PaymentRequests do
     |> Repo.insert()
   end
 
+  # --- List for invoice ---
+
+  @doc "Returns all payment requests linked to a given invoice."
+  @spec list_for_invoice(Ecto.UUID.t()) :: [PaymentRequest.t()]
+  def list_for_invoice(invoice_id) do
+    PaymentRequest
+    |> where([p], p.invoice_id == ^invoice_id)
+    |> order_by([p], desc: p.inserted_at)
+    |> Repo.all()
+  end
+
   # --- Payment status for invoices ---
 
   @doc """
