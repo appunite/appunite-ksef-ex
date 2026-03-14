@@ -7,6 +7,7 @@ defmodule KsefHubWeb.InvoiceLive.Index do
   alias KsefHub.Authorization
   alias KsefHub.Invoices
   alias KsefHub.Invoices.Invoice
+  alias KsefHub.PaymentRequests
 
   import KsefHubWeb.InvoiceComponents
 
@@ -56,10 +57,14 @@ defmodule KsefHubWeb.InvoiceLive.Index do
         Map.get(assigns, :all_tags, [])
       )
 
+    invoice_ids = Enum.map(result.entries, & &1.id)
+    payment_statuses = PaymentRequests.payment_statuses_for_invoices(invoice_ids)
+
     [
       invoices: result.entries,
       filters: filters,
       form: form,
+      payment_statuses: payment_statuses,
       page: result.page,
       per_page: result.per_page,
       total_count: result.total_count,
@@ -424,6 +429,9 @@ defmodule KsefHubWeb.InvoiceLive.Index do
           </:col>
           <:col :let={inv} label="Tags">
             <.tag_list tags={inv.tags} />
+          </:col>
+          <:col :let={inv} label="Payment" class="w-28">
+            <.payment_badge status={@payment_statuses[inv.id]} />
           </:col>
         </.table>
       </div>

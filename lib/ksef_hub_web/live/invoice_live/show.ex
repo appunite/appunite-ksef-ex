@@ -11,6 +11,7 @@ defmodule KsefHubWeb.InvoiceLive.Show do
   alias KsefHub.InvoiceClassifier
   alias KsefHub.Invoices
   alias KsefHub.Invoices.Invoice
+  alias KsefHub.PaymentRequests
 
   import KsefHubWeb.InvoiceComponents
 
@@ -58,6 +59,8 @@ defmodule KsefHubWeb.InvoiceLive.Show do
         can_set_category = Authorization.can?(role, :set_invoice_category)
         can_set_tags = Authorization.can?(role, :set_invoice_tags)
         can_manage_tags = Authorization.can?(role, :manage_tags)
+        can_manage_payment_requests = Authorization.can?(role, :manage_payment_requests)
+        payment_status = PaymentRequests.payment_status_for_invoice(invoice.id)
 
         {:ok,
          socket
@@ -69,6 +72,8 @@ defmodule KsefHubWeb.InvoiceLive.Show do
            can_set_category: can_set_category,
            can_set_tags: can_set_tags,
            can_manage_tags: can_manage_tags,
+           can_manage_payment_requests: can_manage_payment_requests,
+           payment_status: payment_status,
            html_preview: generate_preview(invoice),
            categories: Invoices.list_categories(company.id),
            all_tags: Invoices.list_tags(company.id),
@@ -751,6 +756,7 @@ defmodule KsefHubWeb.InvoiceLive.Show do
           status={@invoice.status}
         />
         <.extraction_badge status={@invoice.extraction_status} />
+        <.payment_badge status={@payment_status} />
       </:subtitle>
       <:actions>
         <div class="flex gap-2">
@@ -793,6 +799,13 @@ defmodule KsefHubWeb.InvoiceLive.Show do
             id="copy-link-btn"
           >
             <.icon name="hero-link" class="size-4" /> Share
+          </.button>
+          <.button
+            :if={@can_manage_payment_requests}
+            variant="outline"
+            navigate={~p"/c/#{@current_company.id}/payment-requests/new?invoice_id=#{@invoice.id}"}
+          >
+            <.icon name="hero-banknotes" class="size-4" /> Add payment
           </.button>
           <.button
             :if={@can_mutate && !@editing}
