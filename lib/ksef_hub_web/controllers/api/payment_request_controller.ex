@@ -17,6 +17,9 @@ defmodule KsefHubWeb.Api.PaymentRequestController do
   alias OpenApiSpex.Schema
 
   plug KsefHubWeb.Plugs.RequirePermission,
+       :view_payment_requests when action in [:index]
+
+  plug KsefHubWeb.Plugs.RequirePermission,
        :manage_payment_requests when action in [:create, :mark_paid]
 
   @create_allowed_keys ~w(recipient_name amount currency title iban invoice_id

@@ -3,12 +3,16 @@ defmodule KsefHubWeb.PaymentRequestCsvController do
 
   use KsefHubWeb, :controller
 
+  alias KsefHub.Authorization
   alias KsefHub.PaymentRequests
+  alias KsefHubWeb.AuthHelpers
+
+  plug :check_permission
 
   @doc "Downloads a CSV file of selected payment requests."
   @spec download(Plug.Conn.t(), map()) :: Plug.Conn.t()
-  def download(conn, %{"ids" => ids_param} = _params) do
-    company_id = conn.assigns.current_company.id
+  def download(conn, %{"ids" => ids_param}) do
+    company_id = conn.assigns.company_id
     user_id = conn.assigns.current_user.id
     ids = ids_param |> String.split(",") |> Enum.reject(&(&1 == ""))
 
@@ -32,10 +36,26 @@ defmodule KsefHubWeb.PaymentRequestCsvController do
   end
 
   def download(conn, _params) do
-    company_id = conn.assigns.current_company.id
+    company_id = conn.assigns.company_id
 
     conn
     |> put_flash(:error, "No payment requests selected.")
     |> redirect(to: ~p"/c/#{company_id}/payment-requests")
+  end
+
+  @spec check_permission(Plug.Conn.t(), keyword()) :: Plug.Conn.t()
+  defp check_permission(conn, _opts) do
+    company_id = conn.params["company_id"]
+    user_id = conn.assigns.current_user.id
+    role = AuthHelpers.resolve_role(user_id, company_id)
+
+    if Authorization.can?(role, :view_payment_requests) do
+      assign(conn, :company_id, company_id)
+    else
+      conn
+      |> put_flash(:error, "You do not have permission to download payment requests.")
+      |> redirect(to: ~p"/c/#{company_id}/payment-requests")
+      |> halt()
+    end
   end
 end

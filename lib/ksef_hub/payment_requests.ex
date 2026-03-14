@@ -144,10 +144,11 @@ defmodule KsefHub.PaymentRequests do
 
   @doc "Marks a single payment request as paid."
   @spec mark_as_paid(Ecto.UUID.t(), Ecto.UUID.t()) ::
-          {:ok, PaymentRequest.t()} | {:error, :not_found}
+          {:ok, PaymentRequest.t()} | {:error, :not_found | :already_paid}
   def mark_as_paid(company_id, id) do
     case get_payment_request(company_id, id) do
       nil -> {:error, :not_found}
+      %{status: :paid} = pr -> {:ok, pr}
       pr -> pr |> PaymentRequest.mark_paid_changeset() |> Repo.update()
     end
   end

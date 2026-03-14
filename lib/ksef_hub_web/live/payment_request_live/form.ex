@@ -80,7 +80,7 @@ defmodule KsefHubWeb.PaymentRequestLive.Form do
   @spec load_invoice_and_attrs(map(), map() | nil) :: {map() | nil, map()}
   defp load_invoice_and_attrs(%{"invoice_id" => invoice_id}, %{id: company_id})
        when is_binary(invoice_id) and invoice_id != "" do
-    case Invoices.get_invoice!(company_id, invoice_id) do
+    case Invoices.get_invoice(company_id, invoice_id) do
       nil ->
         {nil, %{}}
 
@@ -88,11 +88,19 @@ defmodule KsefHubWeb.PaymentRequestLive.Form do
         attrs = PaymentRequests.prefill_attrs_from_invoice(invoice)
         {invoice, attrs}
     end
-  rescue
-    Ecto.NoResultsError -> {nil, %{}}
   end
 
   defp load_invoice_and_attrs(_params, _company), do: {nil, %{}}
+
+  @allowed_keys %{
+    "recipient_name" => :recipient_name,
+    "recipient_address" => :recipient_address,
+    "amount" => :amount,
+    "currency" => :currency,
+    "title" => :title,
+    "iban" => :iban,
+    "invoice_id" => :invoice_id
+  }
 
   @spec merge_address_fields(map()) :: map()
   defp merge_address_fields(params) do
@@ -111,11 +119,9 @@ defmodule KsefHubWeb.PaymentRequestLive.Form do
       end
 
     params
-    |> Map.delete("recipient_address")
     |> Map.put("recipient_address", address)
-    |> Map.new(fn {k, v} -> {String.to_existing_atom(k), v} end)
-  rescue
-    ArgumentError -> params
+    |> Map.filter(fn {k, _v} -> Map.has_key?(@allowed_keys, k) end)
+    |> Map.new(fn {k, v} -> {Map.fetch!(@allowed_keys, k), v} end)
   end
 
   @spec address_field(Phoenix.HTML.Form.t(), atom()) :: String.t()
