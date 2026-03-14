@@ -29,12 +29,13 @@ defmodule KsefHubWeb.InvoiceLive.Index do
 
   @impl true
   def handle_params(params, _uri, socket) do
+    role = socket.assigns[:current_role]
+
     filters =
       params
       |> parse_filters()
       |> Map.put_new(:type, :expense)
-
-    role = socket.assigns[:current_role]
+      |> sanitize_type(role)
 
     result =
       case socket.assigns[:current_company] do
@@ -77,6 +78,15 @@ defmodule KsefHubWeb.InvoiceLive.Index do
       active_filters: active_filters,
       filter_count: length(active_filters)
     ]
+  end
+
+  @spec sanitize_type(map(), atom() | nil) :: map()
+  defp sanitize_type(filters, role) do
+    if Authorization.can?(role, :view_all_invoice_types) do
+      filters
+    else
+      Map.put(filters, :type, :expense)
+    end
   end
 
   @spec normalize_filters(map(), atom() | nil) :: map()

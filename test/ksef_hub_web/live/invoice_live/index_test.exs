@@ -115,6 +115,23 @@ defmodule KsefHubWeb.InvoiceLive.IndexTest do
       assert_patched(view, "/c/#{company.id}/invoices?status=pending&type=expense")
     end
 
+    test "clear_filters preserves type param", %{conn: conn, company: company} do
+      {:ok, view, _html} =
+        live(
+          conn,
+          ~p"/c/#{company.id}/invoices?type=income&status=pending"
+        )
+
+      html = render(view)
+      assert html =~ "Status: Pending"
+
+      view
+      |> element("button", "Clear all filters")
+      |> render_click()
+
+      assert_patched(view, "/c/#{company.id}/invoices?type=income")
+    end
+
     test "remove_filter clears a single filter", %{conn: conn, company: company} do
       {:ok, view, _html} =
         live(
