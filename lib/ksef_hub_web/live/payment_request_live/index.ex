@@ -121,8 +121,9 @@ defmodule KsefHubWeb.PaymentRequestLive.Index do
   def handle_event("download_csv", _params, socket) do
     company_id = socket.assigns.current_company.id
     ids = socket.assigns.selected_ids |> MapSet.to_list() |> Enum.join(",")
+    url = ~p"/c/#{company_id}/payment-requests/csv?ids=#{ids}"
 
-    {:noreply, redirect(socket, to: ~p"/c/#{company_id}/payment-requests/csv?ids=#{ids}")}
+    {:noreply, push_event(socket, "download", %{url: url})}
   end
 
   # --- Filter helpers ---
