@@ -108,6 +108,78 @@ defmodule KsefHubWeb.InvoiceLive.ShowTest do
     end
   end
 
+  describe "Add payment button" do
+    setup :stub_pdf
+
+    test "shows Add payment button for expense invoices", %{conn: conn, company: company} do
+      invoice = insert(:invoice, type: :expense, company: company)
+
+      {:ok, view, _html} = live(conn, ~p"/c/#{company.id}/invoices/#{invoice.id}")
+      assert has_element?(view, "a", "Add payment")
+    end
+
+    test "does not show Add payment button for income invoices", %{conn: conn, company: company} do
+      invoice = insert(:invoice, type: :income, company: company)
+
+      {:ok, view, _html} = live(conn, ~p"/c/#{company.id}/invoices/#{invoice.id}")
+      refute has_element?(view, "a", "Add payment")
+    end
+  end
+
+  describe "Payment Requests section" do
+    setup :stub_pdf
+
+    test "shows payment requests linked to an expense invoice", %{
+      conn: conn,
+      company: company,
+      user: user
+    } do
+      invoice = insert(:invoice, type: :expense, company: company)
+
+      insert(:payment_request,
+        company: company,
+        created_by: user,
+        invoice: invoice,
+        recipient_name: "PR Vendor",
+        amount: Decimal.new("500.00"),
+        status: :pending
+      )
+
+      {:ok, _view, html} = live(conn, ~p"/c/#{company.id}/invoices/#{invoice.id}")
+      assert html =~ "Payment Requests"
+      assert html =~ "PR Vendor"
+      assert html =~ "500.00"
+    end
+
+    test "hides payment requests section when none exist", %{conn: conn, company: company} do
+      invoice = insert(:invoice, type: :expense, company: company)
+
+      {:ok, _view, html} = live(conn, ~p"/c/#{company.id}/invoices/#{invoice.id}")
+      refute html =~ "Payment Requests</h2>"
+    end
+
+    test "shows paid badge and paid date for paid payment request", %{
+      conn: conn,
+      company: company,
+      user: user
+    } do
+      invoice = insert(:invoice, type: :expense, company: company)
+
+      insert(:payment_request,
+        company: company,
+        created_by: user,
+        invoice: invoice,
+        recipient_name: "Paid Vendor",
+        status: :paid,
+        paid_at: ~U[2026-03-10 12:00:00.000000Z]
+      )
+
+      {:ok, _view, html} = live(conn, ~p"/c/#{company.id}/invoices/#{invoice.id}")
+      assert html =~ "paid"
+      assert html =~ "2026-03-10"
+    end
+  end
+
   describe "copy_public_link" do
     setup :stub_pdf
 

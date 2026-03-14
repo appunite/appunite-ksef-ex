@@ -150,6 +150,24 @@ defmodule KsefHubWeb.InvoiceComponents do
     """
   end
 
+  @doc "Renders a payment status badge: 'paid' (success), 'payment pending' (warning), or nothing for nil."
+  @spec payment_badge(map()) :: Phoenix.LiveView.Rendered.t()
+  attr :status, :atom, required: true
+
+  def payment_badge(%{status: nil} = assigns), do: ~H""
+
+  def payment_badge(%{status: :paid} = assigns) do
+    ~H"""
+    <.badge variant="success">paid</.badge>
+    """
+  end
+
+  def payment_badge(%{status: :pending} = assigns) do
+    ~H"""
+    <.badge variant="warning">payment pending</.badge>
+    """
+  end
+
   @doc "Formats a date as YYYY-MM-DD, or returns \"-\" for nil."
   @spec format_date(Date.t() | nil) :: String.t()
   def format_date(nil), do: "-"

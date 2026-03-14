@@ -44,6 +44,13 @@ window.addEventListener("phx:copy_to_clipboard", (event) => {
   }
 })
 
+// Download file via push_event from LiveView (keeps LiveView alive)
+window.addEventListener("phx:download", (event) => {
+  if (event.detail.url) {
+    window.open(event.detail.url, "_blank")
+  }
+})
+
 // connect if there are any LiveViews on the page
 liveSocket.connect()
 

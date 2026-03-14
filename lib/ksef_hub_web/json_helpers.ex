@@ -7,6 +7,7 @@ defmodule KsefHubWeb.JsonHelpers do
   """
 
   alias KsefHub.Invoices.{Category, Tag}
+  alias KsefHub.PaymentRequests.PaymentRequest
 
   @doc "Serializes a category struct to a JSON-safe map."
   @spec category_json(Category.t()) :: map()
@@ -32,6 +33,26 @@ defmodule KsefHubWeb.JsonHelpers do
       usage_count: Map.get(tag, :usage_count, 0),
       inserted_at: tag.inserted_at,
       updated_at: tag.updated_at
+    }
+  end
+
+  @doc "Serializes a payment request struct to a JSON-safe map."
+  @spec payment_request_json(PaymentRequest.t()) :: map()
+  def payment_request_json(pr) do
+    %{
+      id: pr.id,
+      recipient_name: pr.recipient_name,
+      recipient_address: pr.recipient_address,
+      amount: pr.amount && Decimal.to_string(pr.amount),
+      currency: pr.currency,
+      title: pr.title,
+      iban: pr.iban,
+      note: pr.note,
+      status: pr.status,
+      paid_at: pr.paid_at,
+      invoice_id: pr.invoice_id,
+      inserted_at: pr.inserted_at,
+      updated_at: pr.updated_at
     }
   end
 

@@ -37,6 +37,8 @@ defmodule KsefHub.Authorization do
           | :manage_certificates
           | :manage_tokens
           | :manage_team
+          | :view_payment_requests
+          | :manage_payment_requests
 
   @admin_denied MapSet.new([:delete_company, :transfer_ownership])
 
@@ -50,7 +52,9 @@ defmodule KsefHub.Authorization do
                           :set_invoice_tags,
                           :view_syncs,
                           :trigger_sync,
-                          :manage_tokens
+                          :manage_tokens,
+                          :view_payment_requests,
+                          :manage_payment_requests
                         ])
 
   @accountant_permissions MapSet.new([
@@ -59,7 +63,8 @@ defmodule KsefHub.Authorization do
                             :view_all_invoice_types,
                             :view_exports,
                             :create_export,
-                            :manage_tokens
+                            :manage_tokens,
+                            :view_payment_requests
                           ])
 
   @doc """

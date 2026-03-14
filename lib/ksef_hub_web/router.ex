@@ -179,6 +179,24 @@ defmodule KsefHubWeb.Router do
       live "/team", TeamLive
     end
 
+    live_session :require_view_payment_requests,
+      on_mount: [
+        {KsefHubWeb.LiveAuth, :default},
+        {KsefHubWeb.LiveAuth, {:require_permission, :view_payment_requests}}
+      ] do
+      live "/payment-requests", PaymentRequestLive.Index
+    end
+
+    live_session :require_manage_payment_requests,
+      on_mount: [
+        {KsefHubWeb.LiveAuth, :default},
+        {KsefHubWeb.LiveAuth, {:require_permission, :manage_payment_requests}}
+      ] do
+      live "/payment-requests/new", PaymentRequestLive.Form, :new
+      live "/payment-requests/:id/edit", PaymentRequestLive.Form, :edit
+    end
+
+    get "/payment-requests/csv", PaymentRequestCsvController, :download
     get "/invoices/:id/pdf", InvoicePdfController, :show
     get "/invoices/:id/xml", InvoicePdfController, :xml
     get "/exports/:id/download", ExportController, :download
@@ -212,6 +230,9 @@ defmodule KsefHubWeb.Router do
     resources "/tags", TagController, except: [:new, :edit]
 
     resources "/tokens", TokenController, only: [:index, :create, :delete]
+
+    resources "/payment-requests", PaymentRequestController, only: [:index, :create]
+    post "/payment-requests/:id/mark-paid", PaymentRequestController, :mark_paid
   end
 
   # Enable LiveDashboard, Swoosh mailbox, and SwaggerUI in development
