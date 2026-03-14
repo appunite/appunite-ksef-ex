@@ -220,16 +220,6 @@ defmodule KsefHubWeb.PaymentRequestLive.Index do
     end)
   end
 
-  @spec truncate_iban(String.t() | nil) :: String.t()
-  defp truncate_iban(nil), do: "-"
-  defp truncate_iban(""), do: "-"
-
-  defp truncate_iban(iban) when byte_size(iban) > 10 do
-    String.slice(iban, 0, 10) <> "..."
-  end
-
-  defp truncate_iban(iban), do: iban
-
   @spec status_variant(atom()) :: String.t()
   defp status_variant(:pending), do: "warning"
   defp status_variant(:paid), do: "success"
@@ -343,9 +333,6 @@ defmodule KsefHubWeb.PaymentRequestLive.Index do
               <th class="text-left py-3 px-4 text-xs font-medium text-muted-foreground uppercase tracking-wide w-36 text-right">
                 Amount
               </th>
-              <th class="text-left py-3 px-4 text-xs font-medium text-muted-foreground uppercase tracking-wide w-36">
-                IBAN
-              </th>
               <th class="text-left py-3 px-4 text-xs font-medium text-muted-foreground uppercase tracking-wide w-28">
                 Status
               </th>
@@ -377,9 +364,6 @@ defmodule KsefHubWeb.PaymentRequestLive.Index do
               <td class="py-3.5 px-4 text-right">
                 <span class="font-mono">{format_amount(pr.amount)}</span>
                 <span class="text-xs text-muted-foreground">{pr.currency}</span>
-              </td>
-              <td class="py-3.5 px-4">
-                <span class="font-mono text-xs">{truncate_iban(pr.iban)}</span>
               </td>
               <td class="py-3.5 px-4">
                 <.badge variant={status_variant(pr.status)}>{pr.status}</.badge>

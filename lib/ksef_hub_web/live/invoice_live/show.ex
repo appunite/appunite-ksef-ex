@@ -801,7 +801,7 @@ defmodule KsefHubWeb.InvoiceLive.Show do
             <.icon name="hero-link" class="size-4" /> Share
           </.button>
           <.button
-            :if={@can_manage_payment_requests}
+            :if={@can_manage_payment_requests && @invoice.type == :expense}
             variant="outline"
             navigate={~p"/c/#{@current_company.id}/payment-requests/new?invoice_id=#{@invoice.id}"}
           >
