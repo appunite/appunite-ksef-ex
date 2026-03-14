@@ -18,7 +18,7 @@ defmodule KsefHubWeb.CategoryLive do
     {:ok,
      socket
      |> assign(
-       page_title: "Categories",
+       page_title: "Expense Categories",
        company_id: company_id,
        editing: nil,
        form: new_changeset_form(company_id)
@@ -173,8 +173,8 @@ defmodule KsefHubWeb.CategoryLive do
   def render(assigns) do
     ~H"""
     <.header>
-      Categories
-      <:subtitle>Manage invoice classification categories</:subtitle>
+      Expense Categories
+      <:subtitle>Manage expense invoice classification categories</:subtitle>
     </.header>
 
     <!-- Create / Edit Form -->

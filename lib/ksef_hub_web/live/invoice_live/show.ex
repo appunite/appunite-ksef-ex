@@ -80,7 +80,7 @@ defmodule KsefHubWeb.InvoiceLive.Show do
            invoice_payment_requests: invoice_payment_requests,
            html_preview: generate_preview(invoice),
            categories: Invoices.list_categories(company.id),
-           all_tags: Invoices.list_tags(company.id),
+           all_tags: Invoices.list_tags(company.id, invoice.type),
            category_form: category_form(invoice),
            new_tag_form: new_tag_form(),
            tag_form_key: 0,
@@ -641,7 +641,7 @@ defmodule KsefHubWeb.InvoiceLive.Show do
 
     result =
       Invoices.with_manual_prediction(invoice, fn ->
-        Invoices.create_and_add_tag(invoice.id, company_id, %{name: name})
+        Invoices.create_and_add_tag(invoice.id, company_id, %{name: name, type: invoice.type})
       end)
 
     case result do
@@ -650,7 +650,7 @@ defmodule KsefHubWeb.InvoiceLive.Show do
          socket
          |> assign(
            invoice: reload_details(invoice, socket),
-           all_tags: Invoices.list_tags(company_id),
+           all_tags: Invoices.list_tags(company_id, invoice.type),
            new_tag_form: new_tag_form(),
            tag_form_key: socket.assigns.tag_form_key + 1
          )}
@@ -924,8 +924,9 @@ defmodule KsefHubWeb.InvoiceLive.Show do
         <!-- Category & Tags Card -->
         <.card padding="p-4">
           <h2 class="text-base font-semibold mb-3">Classification</h2>
-          <!-- Category Select -->
+          <!-- Category Select (expense only) -->
           <.form
+            :if={@invoice.type == :expense}
             for={@category_form}
             phx-change={if(@can_set_category, do: "set_category")}
             data-testid="category-form"

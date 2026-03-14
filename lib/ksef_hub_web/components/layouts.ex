@@ -170,7 +170,7 @@ defmodule KsefHubWeb.Layouts do
       {nil, nil, "Invoices", ~p"/c/#{id}/invoices", "hero-document-text"},
       {nil, :view_payment_requests, "Payments", ~p"/c/#{id}/payment-requests", "hero-banknotes"},
       {nil, nil, "Dashboard", ~p"/c/#{id}/dashboard", "hero-home"},
-      {nil, :manage_categories, "Categories", ~p"/c/#{id}/categories", "hero-squares-2x2"},
+      {nil, :manage_categories, "Expense Categories", ~p"/c/#{id}/categories", "hero-squares-2x2"},
       {nil, :manage_tags, "Tags", ~p"/c/#{id}/tags", "hero-tag"},
       {nil, :view_exports, "Exports", ~p"/c/#{id}/exports", "hero-arrow-down-tray"},
       {nil, :view_syncs, "Syncs", ~p"/c/#{id}/syncs", "hero-arrow-path"},

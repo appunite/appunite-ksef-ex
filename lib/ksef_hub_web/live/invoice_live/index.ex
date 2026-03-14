@@ -23,7 +23,7 @@ defmodule KsefHubWeb.InvoiceLive.Index do
      assign(socket,
        page_title: "Invoices",
        categories: if(company_id, do: Invoices.list_categories(company_id), else: []),
-       all_tags: if(company_id, do: Invoices.list_tags(company_id), else: [])
+       all_tags: []
      )}
   end
 
@@ -37,16 +37,30 @@ defmodule KsefHubWeb.InvoiceLive.Index do
       |> Map.put_new(:type, :expense)
       |> sanitize_type(role)
 
-    result =
+    company_id =
       case socket.assigns[:current_company] do
-        %{id: company_id} ->
-          Invoices.list_invoices_paginated(company_id, filters, role: role)
-
-        _ ->
-          %{entries: [], page: 1, per_page: 25, total_count: 0, total_pages: 1}
+        %{id: id} -> id
+        _ -> nil
       end
 
-    {:noreply, assign(socket, filter_assigns(filters, result, role, socket.assigns))}
+    all_tags =
+      if company_id do
+        Invoices.list_tags(company_id, filters[:type])
+      else
+        []
+      end
+
+    result =
+      if company_id do
+        Invoices.list_invoices_paginated(company_id, filters, role: role)
+      else
+        %{entries: [], page: 1, per_page: 25, total_count: 0, total_pages: 1}
+      end
+
+    {:noreply,
+     socket
+     |> assign(all_tags: all_tags)
+     |> assign(filter_assigns(filters, result, role, socket.assigns))}
   end
 
   @spec filter_assigns(map(), map(), atom() | nil, map()) :: keyword()
@@ -360,7 +374,7 @@ defmodule KsefHubWeb.InvoiceLive.Index do
             </select>
           </div>
 
-          <div class="space-y-1">
+          <div :if={@filters[:type] == :expense} class="space-y-1">
             <label class="block text-xs font-medium text-muted-foreground">Category</label>
             <select
               name={@form[:category_id].name}
