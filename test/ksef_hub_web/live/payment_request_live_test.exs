@@ -223,6 +223,48 @@ defmodule KsefHubWeb.PaymentRequestLiveTest do
       assert html =~ "blank"
     end
 
+    test "edits an existing payment request", %{conn: conn, company: company, owner: owner} do
+      pr =
+        insert(:payment_request,
+          company: company,
+          created_by: owner,
+          recipient_name: "Old Name",
+          title: "Old Title"
+        )
+
+      {:ok, view, _html} = live(conn, ~p"/c/#{company.id}/payment-requests/#{pr.id}/edit")
+      assert has_element?(view, "h1", "Edit Payment Request")
+
+      view
+      |> form("form[phx-submit='save']", %{
+        "payment_request" => %{
+          "recipient_name" => "Updated Name",
+          "title" => "Updated Title"
+        }
+      })
+      |> render_submit()
+
+      assert_redirect(view, ~p"/c/#{company.id}/payment-requests")
+
+      updated = KsefHub.PaymentRequests.get_payment_request!(company.id, pr.id)
+      assert updated.recipient_name == "Updated Name"
+      assert updated.title == "Updated Title"
+      assert updated.updated_by_id == owner.id
+    end
+
+    test "shows audit info on edit page", %{conn: conn, company: company, owner: owner} do
+      pr =
+        insert(:payment_request,
+          company: company,
+          created_by: owner,
+          recipient_name: "Audit Test"
+        )
+
+      {:ok, _view, html} = live(conn, ~p"/c/#{company.id}/payment-requests/#{pr.id}/edit")
+      assert html =~ "Created by"
+      assert html =~ owner.name
+    end
+
     test "handles invalid invoice_id gracefully", %{conn: conn, company: company} do
       {:ok, view, _html} =
         live(conn, ~p"/c/#{company.id}/payment-requests/new?invoice_id=#{Ecto.UUID.generate()}")

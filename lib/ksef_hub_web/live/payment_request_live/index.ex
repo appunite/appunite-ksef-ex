@@ -337,6 +337,9 @@ defmodule KsefHubWeb.PaymentRequestLive.Index do
                 Status
               </th>
               <th class="text-left py-3 px-4 text-xs font-medium text-muted-foreground uppercase tracking-wide w-28">
+                Paid
+              </th>
+              <th class="text-left py-3 px-4 text-xs font-medium text-muted-foreground uppercase tracking-wide w-28">
                 Invoice
               </th>
             </tr>
@@ -359,7 +362,16 @@ defmodule KsefHubWeb.PaymentRequestLive.Index do
               <td class="py-3.5 px-4">
                 <span class="whitespace-nowrap">{format_datetime(pr.inserted_at)}</span>
               </td>
-              <td class="py-3.5 px-4">{pr.recipient_name}</td>
+              <td class="py-3.5 px-4">
+                <.link
+                  :if={@can_manage}
+                  navigate={~p"/c/#{@current_company.id}/payment-requests/#{pr.id}/edit"}
+                  class="text-shad-primary underline-offset-4 hover:underline"
+                >
+                  {pr.recipient_name}
+                </.link>
+                <span :if={!@can_manage}>{pr.recipient_name}</span>
+              </td>
               <td class="py-3.5 px-4">{pr.title}</td>
               <td class="py-3.5 px-4 text-right">
                 <span class="font-mono">{format_amount(pr.amount)}</span>
@@ -367,6 +379,12 @@ defmodule KsefHubWeb.PaymentRequestLive.Index do
               </td>
               <td class="py-3.5 px-4">
                 <.badge variant={status_variant(pr.status)}>{pr.status}</.badge>
+              </td>
+              <td class="py-3.5 px-4">
+                <span :if={pr.paid_at} class="whitespace-nowrap text-xs">
+                  {format_datetime(pr.paid_at)}
+                </span>
+                <span :if={!pr.paid_at} class="text-muted-foreground">-</span>
               </td>
               <td class="py-3.5 px-4">
                 <.link
@@ -402,7 +420,6 @@ defmodule KsefHubWeb.PaymentRequestLive.Index do
         />
       </div>
     </div>
-
     """
   end
 end

@@ -192,7 +192,8 @@ defmodule KsefHubWeb.Router do
         {KsefHubWeb.LiveAuth, :default},
         {KsefHubWeb.LiveAuth, {:require_permission, :manage_payment_requests}}
       ] do
-      live "/payment-requests/new", PaymentRequestLive.Form
+      live "/payment-requests/new", PaymentRequestLive.Form, :new
+      live "/payment-requests/:id/edit", PaymentRequestLive.Form, :edit
     end
 
     get "/payment-requests/csv", PaymentRequestCsvController, :download

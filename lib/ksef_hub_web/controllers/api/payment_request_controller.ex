@@ -225,6 +225,7 @@ defmodule KsefHubWeb.Api.PaymentRequestController do
       iban: pr.iban,
       note: pr.note,
       status: pr.status,
+      paid_at: pr.paid_at,
       invoice_id: pr.invoice_id,
       inserted_at: pr.inserted_at,
       updated_at: pr.updated_at

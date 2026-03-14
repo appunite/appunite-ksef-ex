@@ -1,6 +1,6 @@
 defmodule KsefHubWeb.PaymentRequestLive.Form do
   @moduledoc """
-  LiveView for creating a new payment request, optionally pre-filled from an invoice.
+  LiveView for creating or editing a payment request, optionally pre-filled from an invoice.
   """
   use KsefHubWeb, :live_view
 
@@ -13,27 +13,57 @@ defmodule KsefHubWeb.PaymentRequestLive.Form do
 
   @impl true
   @spec mount(map(), map(), Phoenix.LiveView.Socket.t()) :: {:ok, Phoenix.LiveView.Socket.t()}
-  def mount(params, _session, socket) do
-    company = socket.assigns[:current_company]
-    user = socket.assigns[:current_user]
+  def mount(_params, _session, socket) do
     role = socket.assigns[:current_role]
-
     can_manage = Authorization.can?(role, :manage_payment_requests)
 
+    {:ok, assign(socket, can_manage: can_manage)}
+  end
+
+  @impl true
+  @spec handle_params(map(), String.t(), Phoenix.LiveView.Socket.t()) ::
+          {:noreply, Phoenix.LiveView.Socket.t()}
+  def handle_params(params, _uri, socket) do
+    {:noreply, apply_action(socket, socket.assigns.live_action, params)}
+  end
+
+  @spec apply_action(Phoenix.LiveView.Socket.t(), atom(), map()) :: Phoenix.LiveView.Socket.t()
+  defp apply_action(socket, :new, params) do
+    company = socket.assigns[:current_company]
     {invoice, attrs} = load_invoice_and_attrs(params, company)
 
     changeset = PaymentRequest.changeset(%PaymentRequest{}, attrs)
-    form = to_form(changeset, as: :payment_request)
 
-    {:ok,
-     assign(socket,
-       page_title: "New Payment Request",
-       form: form,
-       invoice: invoice,
-       can_manage: can_manage,
-       company_id: company && company.id,
-       user_id: user && user.id
-     )}
+    socket
+    |> assign(
+      page_title: "New Payment Request",
+      payment_request: %PaymentRequest{},
+      invoice: invoice
+    )
+    |> assign(form: to_form(changeset, as: :payment_request))
+  end
+
+  defp apply_action(socket, :edit, %{"id" => id}) do
+    company = socket.assigns[:current_company]
+
+    case PaymentRequests.get_payment_request(company.id, id) do
+      nil ->
+        socket
+        |> put_flash(:error, "Payment request not found.")
+        |> push_navigate(to: ~p"/c/#{company.id}/payment-requests")
+
+      pr ->
+        pr = KsefHub.Repo.preload(pr, [:invoice, :created_by, :updated_by])
+        changeset = PaymentRequest.changeset(pr, %{})
+
+        socket
+        |> assign(
+          page_title: "Edit Payment Request",
+          payment_request: pr,
+          invoice: pr.invoice
+        )
+        |> assign(form: to_form(changeset, as: :payment_request))
+    end
   end
 
   @impl true
@@ -43,7 +73,7 @@ defmodule KsefHubWeb.PaymentRequestLive.Form do
     attrs = merge_address_fields(params)
 
     changeset =
-      %PaymentRequest{}
+      socket.assigns.payment_request
       |> PaymentRequest.changeset(attrs)
       |> Map.put(:action, :validate)
 
@@ -52,17 +82,18 @@ defmodule KsefHubWeb.PaymentRequestLive.Form do
 
   def handle_event("save", %{"payment_request" => params}, socket) do
     if socket.assigns.can_manage do
-      do_save(socket, params)
+      do_save(socket, socket.assigns.live_action, params)
     else
       {:noreply,
-       put_flash(socket, :error, "You do not have permission to create payment requests.")}
+       put_flash(socket, :error, "You do not have permission to manage payment requests.")}
     end
   end
 
-  @spec do_save(Phoenix.LiveView.Socket.t(), map()) :: {:noreply, Phoenix.LiveView.Socket.t()}
-  defp do_save(socket, params) do
-    company_id = socket.assigns.company_id
-    user_id = socket.assigns.user_id
+  @spec do_save(Phoenix.LiveView.Socket.t(), atom(), map()) ::
+          {:noreply, Phoenix.LiveView.Socket.t()}
+  defp do_save(socket, :new, params) do
+    company_id = socket.assigns.current_company.id
+    user_id = socket.assigns.current_user.id
     attrs = merge_address_fields(params)
 
     case PaymentRequests.create_payment_request(company_id, user_id, attrs) do
@@ -70,6 +101,24 @@ defmodule KsefHubWeb.PaymentRequestLive.Form do
         {:noreply,
          socket
          |> put_flash(:info, "Payment request created successfully.")
+         |> push_navigate(to: ~p"/c/#{company_id}/payment-requests")}
+
+      {:error, %Ecto.Changeset{} = changeset} ->
+        {:noreply, assign(socket, form: to_form(changeset, as: :payment_request))}
+    end
+  end
+
+  defp do_save(socket, :edit, params) do
+    company_id = socket.assigns.current_company.id
+    attrs = merge_address_fields(params)
+
+    user_id = socket.assigns.current_user.id
+
+    case PaymentRequests.update_payment_request(socket.assigns.payment_request, user_id, attrs) do
+      {:ok, _payment_request} ->
+        {:noreply,
+         socket
+         |> put_flash(:info, "Payment request updated successfully.")
          |> push_navigate(to: ~p"/c/#{company_id}/payment-requests")}
 
       {:error, %Ecto.Changeset{} = changeset} ->
@@ -133,20 +182,43 @@ defmodule KsefHubWeb.PaymentRequestLive.Form do
     end
   end
 
+  @spec editing?(atom()) :: boolean()
+  defp editing?(live_action), do: live_action == :edit
+
   @impl true
   def render(assigns) do
     ~H"""
     <.header>
-      New Payment Request
+      {if editing?(@live_action), do: "Edit Payment Request", else: "New Payment Request"}
       <:subtitle>
         <span :if={@invoice}>
-          Pre-filled from invoice {@invoice.invoice_number}
+          {if editing?(@live_action), do: "Linked to", else: "Pre-filled from"} invoice {@invoice.invoice_number}
         </span>
-        <span :if={!@invoice}>
+        <span :if={!@invoice && !editing?(@live_action)}>
           Create a standalone payment request for {@current_company.name}
         </span>
       </:subtitle>
     </.header>
+
+    <!-- Audit info (edit only) -->
+    <div
+      :if={editing?(@live_action)}
+      class="mt-4 text-xs text-muted-foreground flex flex-wrap gap-x-4 gap-y-1"
+    >
+      <span>
+        Created by {(@payment_request.created_by && @payment_request.created_by.name) || "unknown"} on {format_date(
+          @payment_request.inserted_at
+        )}
+      </span>
+      <span :if={@payment_request.updated_by}>
+        &middot; Last edited by {@payment_request.updated_by.name} on {format_date(
+          @payment_request.updated_at
+        )}
+      </span>
+      <span :if={@payment_request.paid_at}>
+        &middot; Paid on {format_date(@payment_request.paid_at)}
+      </span>
+    </div>
 
     <!-- Linked invoice info -->
     <div
@@ -330,7 +402,8 @@ defmodule KsefHubWeb.PaymentRequestLive.Form do
 
       <div class="flex items-center gap-3 pt-2">
         <.button type="submit" disabled={!@can_manage}>
-          <.icon name="hero-check" class="size-4" /> Create payment request
+          <.icon name="hero-check" class="size-4" />
+          {if editing?(@live_action), do: "Save changes", else: "Create payment request"}
         </.button>
         <.button
           variant="outline"

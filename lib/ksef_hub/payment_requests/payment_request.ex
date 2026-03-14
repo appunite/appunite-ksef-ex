@@ -21,11 +21,13 @@ defmodule KsefHub.PaymentRequests.PaymentRequest do
     field :title, :string
     field :iban, :string
     field :note, :string
+    field :paid_at, :utc_datetime_usec
     field :status, Ecto.Enum, values: [:pending, :paid], default: :pending
 
     belongs_to :invoice, KsefHub.Invoices.Invoice
     belongs_to :company, KsefHub.Companies.Company
     belongs_to :created_by, KsefHub.Accounts.User
+    belongs_to :updated_by, KsefHub.Accounts.User
 
     timestamps()
   end
@@ -48,7 +50,8 @@ defmodule KsefHub.PaymentRequests.PaymentRequest do
       :note,
       :invoice_id,
       :company_id,
-      :created_by_id
+      :created_by_id,
+      :updated_by_id
     ])
     |> validate_required([:recipient_name, :title, :iban, :amount, :currency])
     |> validate_number(:amount, greater_than: 0)
@@ -64,7 +67,7 @@ defmodule KsefHub.PaymentRequests.PaymentRequest do
   @doc "Builds a changeset that marks a payment request as paid."
   @spec mark_paid_changeset(t()) :: Ecto.Changeset.t()
   def mark_paid_changeset(payment_request) do
-    change(payment_request, status: :paid)
+    change(payment_request, status: :paid, paid_at: DateTime.utc_now())
   end
 
   @doc "Formats an address map as a comma-separated string."

@@ -106,6 +106,15 @@ defmodule KsefHub.PaymentRequests do
     |> Repo.insert()
   end
 
+  @doc "Updates an existing payment request."
+  @spec update_payment_request(PaymentRequest.t(), Ecto.UUID.t(), map()) ::
+          {:ok, PaymentRequest.t()} | {:error, Ecto.Changeset.t()}
+  def update_payment_request(%PaymentRequest{} = pr, user_id, attrs) do
+    pr
+    |> PaymentRequest.changeset(Map.put(attrs, :updated_by_id, user_id))
+    |> Repo.update()
+  end
+
   # --- Pre-fill from invoice ---
 
   @doc """
@@ -156,9 +165,11 @@ defmodule KsefHub.PaymentRequests do
   @doc "Marks multiple payment requests as paid. Returns the number of updated records."
   @spec mark_many_as_paid(Ecto.UUID.t(), [Ecto.UUID.t()]) :: {non_neg_integer(), nil}
   def mark_many_as_paid(company_id, ids) when is_list(ids) do
+    now = DateTime.utc_now()
+
     PaymentRequest
     |> where([p], p.company_id == ^company_id and p.id in ^ids and p.status == :pending)
-    |> Repo.update_all(set: [status: :paid, updated_at: DateTime.utc_now()])
+    |> Repo.update_all(set: [status: :paid, paid_at: now, updated_at: now])
   end
 
   # --- CSV ---
