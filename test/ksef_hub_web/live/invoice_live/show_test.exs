@@ -108,6 +108,24 @@ defmodule KsefHubWeb.InvoiceLive.ShowTest do
     end
   end
 
+  describe "Add payment button" do
+    setup :stub_pdf
+
+    test "shows Add payment button for expense invoices", %{conn: conn, company: company} do
+      invoice = insert(:invoice, type: :expense, company: company)
+
+      {:ok, view, _html} = live(conn, ~p"/c/#{company.id}/invoices/#{invoice.id}")
+      assert has_element?(view, "a", "Add payment")
+    end
+
+    test "does not show Add payment button for income invoices", %{conn: conn, company: company} do
+      invoice = insert(:invoice, type: :income, company: company)
+
+      {:ok, view, _html} = live(conn, ~p"/c/#{company.id}/invoices/#{invoice.id}")
+      refute has_element?(view, "a", "Add payment")
+    end
+  end
+
   describe "copy_public_link" do
     setup :stub_pdf
 
