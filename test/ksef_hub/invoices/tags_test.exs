@@ -175,10 +175,10 @@ defmodule KsefHub.Invoices.TagsTest do
   end
 
   describe "set_invoice_category/2" do
-    test "assigns a category to an invoice" do
+    test "assigns a category to an expense invoice" do
       company = insert(:company)
       category = insert(:category, company: company)
-      invoice = insert(:invoice, company: company)
+      invoice = insert(:invoice, company: company, type: :expense)
 
       assert {:ok, updated} = Invoices.set_invoice_category(invoice, category.id)
       assert updated.category_id == category.id
@@ -187,7 +187,7 @@ defmodule KsefHub.Invoices.TagsTest do
     test "clears category when nil" do
       company = insert(:company)
       category = insert(:category, company: company)
-      invoice = insert(:invoice, company: company, category_id: category.id)
+      invoice = insert(:invoice, company: company, type: :expense, category_id: category.id)
 
       assert {:ok, updated} = Invoices.set_invoice_category(invoice, nil)
       assert is_nil(updated.category_id)
