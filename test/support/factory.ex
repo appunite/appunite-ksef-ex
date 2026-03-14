@@ -16,6 +16,7 @@ defmodule KsefHub.Factory do
   alias KsefHub.InboundEmail.InboundEmail, as: InboundEmailRecord
   alias KsefHub.Invitations.Invitation
   alias KsefHub.Invoices.{Category, Invoice, InvoiceComment, InvoiceTag, Tag}
+  alias KsefHub.PaymentRequests.PaymentRequest
   alias KsefHub.Sync.Checkpoint
 
   @doc "Builds a `User` with sequenced email and google_uid."
@@ -287,6 +288,22 @@ defmodule KsefHub.Factory do
       invoice: build(:invoice),
       export_batch: build(:export_batch),
       user: build(:user)
+    }
+  end
+
+  @doc "Builds a `PaymentRequest` with default pending status and sample data."
+  @spec payment_request_factory() :: PaymentRequest.t()
+  def payment_request_factory do
+    %PaymentRequest{
+      recipient_name: "Dostawca Sp. z o.o.",
+      recipient_address: %{street: "ul. Testowa 1", city: "Warszawa", postal_code: "00-001", country: "PL"},
+      amount: Decimal.new("1230.00"),
+      currency: "PLN",
+      title: "Invoice FV/2026/001",
+      iban: "PL61109010140000071219812874",
+      status: :pending,
+      company: build(:company),
+      created_by: build(:user)
     }
   end
 
