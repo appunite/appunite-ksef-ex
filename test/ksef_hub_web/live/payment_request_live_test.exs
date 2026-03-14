@@ -92,6 +92,50 @@ defmodule KsefHubWeb.PaymentRequestLiveTest do
       assert render(view) =~ "marked as paid"
     end
 
+    test "shows selected totals grouped by currency", %{
+      conn: conn,
+      company: company,
+      owner: owner
+    } do
+      pr1 =
+        insert(:payment_request,
+          company: company,
+          created_by: owner,
+          amount: Decimal.new("100.50"),
+          currency: "PLN"
+        )
+
+      pr2 =
+        insert(:payment_request,
+          company: company,
+          created_by: owner,
+          amount: Decimal.new("200.00"),
+          currency: "PLN"
+        )
+
+      pr3 =
+        insert(:payment_request,
+          company: company,
+          created_by: owner,
+          amount: Decimal.new("340.00"),
+          currency: "EUR"
+        )
+
+      {:ok, view, _html} = live(conn, ~p"/c/#{company.id}/payment-requests")
+
+      # Select all three
+      render_click(view, "toggle_select", %{"id" => pr1.id})
+      render_click(view, "toggle_select", %{"id" => pr2.id})
+      render_click(view, "toggle_select", %{"id" => pr3.id})
+
+      html = render(view)
+      assert html =~ "3 selected"
+      assert html =~ "340.00"
+      assert html =~ "EUR"
+      assert html =~ "300.50"
+      assert html =~ "PLN"
+    end
+
     test "shows empty state", %{conn: conn, company: company} do
       {:ok, _view, html} = live(conn, ~p"/c/#{company.id}/payment-requests")
       assert html =~ "No payment requests found"
