@@ -895,15 +895,6 @@ defmodule KsefHubWeb.InvoiceLive.Show do
             <span :if={!@invoice.note}>No note</span>
           </div>
         </.card>
-        <!-- Comments Section -->
-        <.comments_card
-          comments={@comments}
-          comment_form={@comment_form}
-          comment_form_key={@comment_form_key}
-          editing_comment_id={@editing_comment_id}
-          edit_comment_form={@edit_comment_form}
-          current_user_id={@current_user.id}
-        />
       </div>
       <!-- Preview -->
       <.card class="h-full" padding="p-4 flex flex-col h-full">
@@ -1005,6 +996,17 @@ defmodule KsefHubWeb.InvoiceLive.Show do
       </div>
     </div>
 
+    <!-- Comments Section (below grid) -->
+    <div class="mt-6">
+      <.comments_card
+        comments={@comments}
+        comment_form={@comment_form}
+        comment_form_key={@comment_form_key}
+        editing_comment_id={@editing_comment_id}
+        edit_comment_form={@edit_comment_form}
+        current_user_id={@current_user.id}
+      />
+    </div>
     """
   end
 
@@ -1019,7 +1021,7 @@ defmodule KsefHubWeb.InvoiceLive.Show do
   defp comments_card(assigns) do
     ~H"""
     <.card padding="p-4">
-      <h2 class="text-base font-semibold mb-2">Comments</h2>
+      <h2 class="text-base font-semibold mb-3">Comments</h2>
 
       <div :if={@comments == []} class="text-sm text-muted-foreground italic mb-3">
         No comments yet
