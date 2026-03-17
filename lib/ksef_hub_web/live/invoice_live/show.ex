@@ -806,7 +806,7 @@ defmodule KsefHubWeb.InvoiceLive.Show do
         </.card>
         <!-- Category & Tags Card (read-only) -->
         <.card padding="p-4">
-          <div class="flex items-center justify-between mb-3">
+          <div class="flex items-center justify-between mb-2">
             <h2 class="text-base font-semibold">Classification</h2>
             <.link
               :if={@can_set_category || @can_set_tags}
@@ -820,7 +820,7 @@ defmodule KsefHubWeb.InvoiceLive.Show do
           </div>
 
           <div class="mb-3">
-            <label class="label"><span class="text-sm font-medium text-xs">Category</span></label>
+            <label class="text-sm text-muted-foreground">Category</label>
             <div class="mt-1" data-testid="category-display">
               <.category_badge category={find_category(@invoice.category_id, @categories)} />
             </div>
@@ -835,7 +835,7 @@ defmodule KsefHubWeb.InvoiceLive.Show do
           </div>
 
           <div>
-            <label class="label"><span class="text-sm font-medium text-xs">Tags</span></label>
+            <label class="text-sm text-muted-foreground">Tags</label>
             <div class="mt-1" data-testid="tags-display">
               <.tag_list tags={@invoice.tags} />
             </div>
