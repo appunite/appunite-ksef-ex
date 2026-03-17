@@ -67,8 +67,9 @@ defmodule KsefHub.InvoiceClassifierTest do
       assert Enum.any?(updated.tags, &(&1.id == tag.id))
     end
 
-    test "stores predictions as needs_review when confidence < 51%", %{company: company} do
-      {:ok, _category} = Invoices.create_category(company.id, %{name: "finance:invoices"})
+    test "stores predictions as needs_review when confidence < 51% but still applies matching category",
+         %{company: company} do
+      {:ok, category} = Invoices.create_category(company.id, %{name: "finance:invoices"})
 
       invoice = insert(:manual_invoice, company: company, type: :expense)
 
@@ -93,8 +94,37 @@ defmodule KsefHub.InvoiceClassifierTest do
       assert updated.prediction_category_name == "finance:invoices"
       assert updated.prediction_category_confidence == 0.40
 
-      # Category should NOT be applied
-      assert updated.category_id == nil
+      # Category IS applied (best prediction), but status is needs_review
+      updated = Invoices.get_invoice_with_details!(company.id, updated.id)
+      assert updated.category_id == category.id
+    end
+
+    test "below-threshold with matching tag applies tag as needs_review", %{company: company} do
+      {:ok, tag} = Invoices.create_tag(company.id, %{name: "monthly"})
+
+      invoice = insert(:manual_invoice, company: company, type: :expense)
+
+      expect_predictions(
+        category: %{
+          "predicted_label" => "nonexistent:cat",
+          "confidence" => 0.30,
+          "model_version" => "v1.0",
+          "probabilities" => %{"nonexistent:cat" => 0.30}
+        },
+        tag: %{
+          "predicted_label" => "monthly",
+          "confidence" => 0.40,
+          "model_version" => "v1.0",
+          "probabilities" => %{"monthly" => 0.40}
+        }
+      )
+
+      assert {:ok, updated} = InvoiceClassifier.predict_and_apply(invoice)
+
+      assert updated.prediction_status == :needs_review
+
+      updated = Invoices.get_invoice_with_details!(company.id, updated.id)
+      assert Enum.any?(updated.tags, &(&1.id == tag.id))
     end
 
     test "skips non-expense invoices", %{company: company} do

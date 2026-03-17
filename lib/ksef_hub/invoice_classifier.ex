@@ -98,13 +98,13 @@ defmodule KsefHub.InvoiceClassifier do
     matching_tag = find_tag_by_name(company_id, tag_name)
 
     threshold = confidence_threshold()
-    apply_category? = cat_confidence >= threshold and matching_category != nil
-    apply_tag? = tag_confidence >= threshold and matching_tag != nil
+    confident_category? = cat_confidence >= threshold and matching_category != nil
+    confident_tag? = tag_confidence >= threshold and matching_tag != nil
 
     %{
-      attrs: build_prediction_attrs(cat_result, tag_result, apply_category?, apply_tag?),
-      category: if(apply_category?, do: matching_category),
-      tag: if(apply_tag?, do: matching_tag)
+      attrs: build_prediction_attrs(cat_result, tag_result, confident_category?, confident_tag?),
+      category: matching_category,
+      tag: matching_tag
     }
   end
 
