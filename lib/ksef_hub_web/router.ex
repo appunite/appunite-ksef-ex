@@ -121,6 +121,7 @@ defmodule KsefHubWeb.Router do
       live "/dashboard", DashboardLive
       live "/invoices", InvoiceLive.Index
       live "/invoices/:id", InvoiceLive.Show
+      live "/invoices/:id/classify", InvoiceLive.Classify
     end
 
     live_session :require_manage_tokens,
