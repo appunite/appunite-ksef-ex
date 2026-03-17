@@ -1030,7 +1030,7 @@ defmodule KsefHubWeb.InvoiceLive.Show do
       <div class="divide-y divide-border/50">
         <div
           :for={comment <- @comments}
-          class="group py-2 first:pt-0"
+          class="group py-1.5 first:pt-0"
           id={"comment-#{comment.id}"}
         >
           <div class="flex items-center gap-2">
@@ -1096,12 +1096,12 @@ defmodule KsefHubWeb.InvoiceLive.Show do
               </div>
             </.form>
           </div>
-          <p
+          <div
             :if={@editing_comment_id != comment.id}
             class="text-sm whitespace-pre-wrap ml-7"
           >
             {comment.body}
-          </p>
+          </div>
         </div>
       </div>
 
