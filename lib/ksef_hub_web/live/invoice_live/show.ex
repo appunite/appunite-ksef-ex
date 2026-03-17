@@ -1027,11 +1027,11 @@ defmodule KsefHubWeb.InvoiceLive.Show do
         No comments yet
       </div>
 
-      <div class="space-y-4 mb-3">
+      <div class="space-y-2 mb-3">
         <div :for={comment <- @comments} class="group" id={"comment-#{comment.id}"}>
-          <div class="flex items-center gap-3">
-            <div class="flex-shrink-0 w-8 h-8 rounded-full bg-muted-foreground text-background flex items-center justify-center">
-              <span class="text-xs font-medium">
+          <div class="flex items-start gap-2">
+            <div class="flex-shrink-0 w-6 h-6 rounded-full bg-muted-foreground text-background flex items-center justify-center mt-0.5">
+              <span class="text-[10px] font-medium">
                 {comment.user.name
                 |> to_string()
                 |> String.first()
@@ -1039,66 +1039,66 @@ defmodule KsefHubWeb.InvoiceLive.Show do
                 |> String.upcase()}
               </span>
             </div>
-            <span class="text-sm font-medium">{comment.user.name || comment.user.email}</span>
-            <span class="text-xs text-muted-foreground">
-              {relative_time(comment.inserted_at)}
-            </span>
-            <div
-              :if={comment.user_id == @current_user_id}
-              class="opacity-0 group-hover:opacity-100 focus-within:opacity-100 transition-opacity flex gap-0.5"
-            >
-              <.button
-                variant="ghost"
-                size="icon"
-                class="h-6 w-6"
-                phx-click="edit_comment"
-                phx-value-id={comment.id}
-                aria-label="Edit comment"
-              >
-                <.icon name="hero-pencil-square" class="size-3" />
-              </.button>
-              <.button
-                variant="ghost"
-                size="icon"
-                class="h-6 w-6 text-shad-destructive"
-                phx-click="delete_comment"
-                phx-value-id={comment.id}
-                data-confirm="Delete this comment?"
-                aria-label="Delete comment"
-              >
-                <.icon name="hero-trash" class="size-3" />
-              </.button>
-            </div>
-          </div>
-          <div class="pl-11">
-            <div :if={@editing_comment_id == comment.id}>
-              <.form for={@edit_comment_form} phx-submit="save_comment_edit" class="mt-1">
-                <textarea
-                  name={@edit_comment_form[:body].name}
-                  class="w-full rounded-md border border-input bg-background px-3 py-2 text-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
-                  rows="2"
-                >{@edit_comment_form[:body].value}</textarea>
-                <div class="flex gap-2 mt-1">
-                  <.button type="submit" size="sm">
-                    Save
+            <div class="flex-1 min-w-0">
+              <div class="flex items-center gap-2">
+                <span class="text-sm font-medium">{comment.user.name || comment.user.email}</span>
+                <span class="text-xs text-muted-foreground">
+                  {relative_time(comment.inserted_at)}
+                </span>
+                <div
+                  :if={comment.user_id == @current_user_id}
+                  class="opacity-0 group-hover:opacity-100 focus-within:opacity-100 transition-opacity flex gap-0.5"
+                >
+                  <.button
+                    variant="ghost"
+                    size="icon"
+                    class="h-5 w-5"
+                    phx-click="edit_comment"
+                    phx-value-id={comment.id}
+                    aria-label="Edit comment"
+                  >
+                    <.icon name="hero-pencil-square" class="size-3" />
                   </.button>
                   <.button
-                    type="button"
                     variant="ghost"
-                    size="sm"
-                    phx-click="cancel_comment_edit"
+                    size="icon"
+                    class="h-5 w-5 text-shad-destructive"
+                    phx-click="delete_comment"
+                    phx-value-id={comment.id}
+                    data-confirm="Delete this comment?"
+                    aria-label="Delete comment"
                   >
-                    Cancel
+                    <.icon name="hero-trash" class="size-3" />
                   </.button>
                 </div>
-              </.form>
+              </div>
+              <div :if={@editing_comment_id == comment.id}>
+                <.form for={@edit_comment_form} phx-submit="save_comment_edit" class="mt-1">
+                  <textarea
+                    name={@edit_comment_form[:body].name}
+                    class="w-full rounded-md border border-input bg-background px-3 py-1.5 text-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+                    rows="1"
+                  >{@edit_comment_form[:body].value}</textarea>
+                  <div class="flex gap-2 mt-1">
+                    <.button type="submit" size="sm">Save</.button>
+                    <.button
+                      type="button"
+                      variant="ghost"
+                      size="sm"
+                      phx-click="cancel_comment_edit"
+                    >
+                      Cancel
+                    </.button>
+                  </div>
+                </.form>
+              </div>
+              <p
+                :if={@editing_comment_id != comment.id}
+                class="text-sm whitespace-pre-wrap"
+              >
+                {comment.body}
+              </p>
             </div>
-            <p
-              :if={@editing_comment_id != comment.id}
-              class="text-sm whitespace-pre-wrap mt-1"
-            >
-              {comment.body}
-            </p>
           </div>
         </div>
       </div>
@@ -1107,15 +1107,15 @@ defmodule KsefHubWeb.InvoiceLive.Show do
         for={@comment_form}
         phx-submit="submit_comment"
         id={"comment-form-#{@comment_form_key}"}
-        class="flex gap-2"
+        class="flex items-end gap-2"
       >
         <textarea
           name={@comment_form[:body].name}
           placeholder="Add a comment..."
-          rows="2"
-          class="w-full rounded-md border border-input bg-background px-3 py-2 text-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring flex-1"
+          rows="1"
+          class="w-full rounded-md border border-input bg-background px-3 py-1.5 text-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring flex-1 resize-none"
         >{@comment_form[:body].value}</textarea>
-        <.button type="submit">Post</.button>
+        <.button type="submit" size="sm">Post</.button>
       </.form>
     </.card>
     """
