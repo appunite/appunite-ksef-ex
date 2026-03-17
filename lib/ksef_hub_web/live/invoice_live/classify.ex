@@ -86,8 +86,7 @@ defmodule KsefHubWeb.InvoiceLive.Classify do
       {:noreply,
        assign(socket,
          selected_category_id: category_id,
-         expanded_group:
-           expanded_group_for(category_id, socket.assigns.categories)
+         expanded_group: expanded_group_for(category_id, socket.assigns.categories)
        )}
     else
       {:noreply, put_flash(socket, :error, "You don't have permission to set categories.")}
@@ -97,8 +96,7 @@ defmodule KsefHubWeb.InvoiceLive.Classify do
   def handle_event("toggle_group", %{"group" => group}, socket) do
     current = socket.assigns.expanded_group
 
-    {:noreply,
-     assign(socket, :expanded_group, if(current == group, do: nil, else: group))}
+    {:noreply, assign(socket, :expanded_group, if(current == group, do: nil, else: group))}
   end
 
   def handle_event("toggle_tag", %{"tag-id" => tag_id}, socket) do

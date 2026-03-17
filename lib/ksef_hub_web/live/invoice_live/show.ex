@@ -555,7 +555,6 @@ defmodule KsefHubWeb.InvoiceLive.Show do
 
   # --- Private ---
 
-
   @spec note_form(Invoice.t()) :: Phoenix.HTML.Form.t()
   defp note_form(invoice) do
     to_form(%{"note" => invoice.note || ""})
@@ -563,7 +562,6 @@ defmodule KsefHubWeb.InvoiceLive.Show do
 
   @spec comment_form() :: Phoenix.HTML.Form.t()
   defp comment_form, do: to_form(%{"body" => ""})
-
 
   @spec assign_new_edit_form(Phoenix.LiveView.Socket.t(), Invoice.t()) ::
           Phoenix.LiveView.Socket.t()
@@ -588,7 +586,6 @@ defmodule KsefHubWeb.InvoiceLive.Show do
     |> Invoice.edit_changeset(%{})
     |> to_form(as: :invoice)
   end
-
 
   @spec relative_time(NaiveDateTime.t()) :: String.t()
   defp relative_time(naive_dt) do
