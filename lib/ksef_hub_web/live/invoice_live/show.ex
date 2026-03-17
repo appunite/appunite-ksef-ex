@@ -855,12 +855,11 @@ defmodule KsefHubWeb.InvoiceLive.Show do
             <h2 class="text-base font-semibold">Note</h2>
             <.button
               :if={@can_mutate && !@editing_note}
-              variant="ghost"
+              variant="outline"
               size="sm"
               phx-click="edit_note"
-              aria-label="Edit note"
             >
-              <.icon name="hero-pencil-square" class="size-3.5" />
+              <.icon name="hero-pencil-square" class="size-4" /> Edit
             </.button>
           </div>
           <div :if={@editing_note}>
