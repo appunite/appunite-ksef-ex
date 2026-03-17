@@ -726,8 +726,8 @@ defmodule KsefHubWeb.Api.InvoiceController do
       403 => {"Forbidden — insufficient permissions", "application/json", Schemas.ErrorResponse},
       404 => {"Invoice not found", "application/json", Schemas.ErrorResponse},
       422 =>
-        {"Category not found in this company, or invalid UUID format", "application/json",
-         Schemas.ErrorResponse}
+        {"Validation error — invalid UUID, category not in company, or invoice is not an expense",
+         "application/json", Schemas.ErrorResponse}
     }
   )
 

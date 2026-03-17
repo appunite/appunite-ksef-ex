@@ -1,6 +1,6 @@
 defmodule KsefHubWeb.Api.CategoryController do
   @moduledoc """
-  REST API controller for category operations.
+  REST API controller for expense category operations.
 
   All actions are scoped to the company associated with the authenticated API token.
   """
@@ -45,8 +45,8 @@ defmodule KsefHubWeb.Api.CategoryController do
   end
 
   operation(:show,
-    summary: "Get category",
-    description: "Returns a single category by ID.",
+    summary: "Get expense category",
+    description: "Returns a single expense category by ID.",
     parameters: [
       id: [
         in: :path,
@@ -112,8 +112,8 @@ defmodule KsefHubWeb.Api.CategoryController do
   end
 
   operation(:update,
-    summary: "Update category",
-    description: "Updates an existing category.",
+    summary: "Update expense category",
+    description: "Updates an existing expense category.",
     parameters: [
       id: [
         in: :path,
@@ -157,9 +157,9 @@ defmodule KsefHubWeb.Api.CategoryController do
   end
 
   operation(:delete,
-    summary: "Delete category",
+    summary: "Delete expense category",
     description:
-      "Deletes a category. Invoices assigned to this category will have their category cleared.",
+      "Deletes an expense category. Invoices assigned to this category will have their category cleared.",
     parameters: [
       id: [
         in: :path,
