@@ -1021,85 +1021,60 @@ defmodule KsefHubWeb.InvoiceLive.Show do
   defp comments_card(assigns) do
     ~H"""
     <.card padding="p-4">
-      <h2 class="text-base font-semibold mb-3">Comments</h2>
+      <h2 class="text-base font-semibold mb-2">Comments</h2>
 
-      <div :if={@comments == []} class="text-sm text-muted-foreground italic mb-3">
+      <div :if={@comments == []} class="text-sm text-muted-foreground italic">
         No comments yet
       </div>
 
-      <div class="divide-y divide-border/50">
-        <div
-          :for={comment <- @comments}
-          class="group py-1.5 first:pt-0"
-          id={"comment-#{comment.id}"}
-        >
-          <div class="flex items-center gap-2">
-            <div class="flex-shrink-0 w-5 h-5 rounded-full bg-muted-foreground text-background flex items-center justify-center">
-              <span class="text-[9px] font-medium">
-                {comment.user.name
-                |> to_string()
-                |> String.first()
-                |> to_string()
-                |> String.upcase()}
-              </span>
-            </div>
-            <span class="text-sm font-medium">{comment.user.name || comment.user.email}</span>
-            <span class="text-xs text-muted-foreground">
-              {relative_time(comment.inserted_at)}
-            </span>
+      <div :if={@comments != []} class="text-sm space-y-0.5 mb-3">
+        <div :for={comment <- @comments} class="group" id={"comment-#{comment.id}"}>
+          <%!-- Header: name · time · actions --%>
+          <div class="flex items-baseline gap-1.5 leading-snug">
+            <span class="font-medium">{comment.user.name || comment.user.email}</span>
+            <span class="text-xs text-muted-foreground">{relative_time(comment.inserted_at)}</span>
             <div
               :if={comment.user_id == @current_user_id}
-              class="opacity-0 group-hover:opacity-100 focus-within:opacity-100 transition-opacity flex gap-0.5"
+              class="opacity-0 group-hover:opacity-100 focus-within:opacity-100 transition-opacity inline-flex gap-0.5 ml-0.5"
             >
-              <.button
-                variant="ghost"
-                size="icon"
-                class="h-5 w-5"
+              <button
                 phx-click="edit_comment"
                 phx-value-id={comment.id}
+                class="text-muted-foreground hover:text-foreground"
                 aria-label="Edit comment"
               >
                 <.icon name="hero-pencil-square" class="size-3" />
-              </.button>
-              <.button
-                variant="ghost"
-                size="icon"
-                class="h-5 w-5 text-shad-destructive"
+              </button>
+              <button
                 phx-click="delete_comment"
                 phx-value-id={comment.id}
                 data-confirm="Delete this comment?"
+                class="text-shad-destructive/60 hover:text-shad-destructive"
                 aria-label="Delete comment"
               >
                 <.icon name="hero-trash" class="size-3" />
-              </.button>
+              </button>
             </div>
           </div>
-          <div :if={@editing_comment_id == comment.id} class="mt-1 ml-7">
+          <%!-- Body or edit form --%>
+          <div :if={@editing_comment_id == comment.id} class="mt-1">
             <.form for={@edit_comment_form} phx-submit="save_comment_edit">
               <textarea
                 name={@edit_comment_form[:body].name}
-                class="w-full rounded-md border border-input bg-background px-3 py-1.5 text-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring resize-none"
+                class="w-full rounded-md border border-input bg-background px-2 py-1 text-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring resize-none"
                 style="field-sizing: content"
                 rows="1"
                 oninput="this.style.height='auto';this.style.height=this.scrollHeight+'px'"
               >{@edit_comment_form[:body].value}</textarea>
               <div class="flex gap-2 mt-1">
                 <.button type="submit" size="sm">Save</.button>
-                <.button
-                  type="button"
-                  variant="ghost"
-                  size="sm"
-                  phx-click="cancel_comment_edit"
-                >
+                <.button type="button" variant="ghost" size="sm" phx-click="cancel_comment_edit">
                   Cancel
                 </.button>
               </div>
             </.form>
           </div>
-          <div
-            :if={@editing_comment_id != comment.id}
-            class="text-sm whitespace-pre-wrap ml-7"
-          >
+          <div :if={@editing_comment_id != comment.id} class="whitespace-pre-wrap text-muted-foreground">
             {comment.body}
           </div>
         </div>
@@ -1109,13 +1084,13 @@ defmodule KsefHubWeb.InvoiceLive.Show do
         for={@comment_form}
         phx-submit="submit_comment"
         id={"comment-form-#{@comment_form_key}"}
-        class="flex items-end gap-2 mt-3"
+        class="flex items-end gap-2 mt-2"
       >
         <textarea
           name={@comment_form[:body].name}
           placeholder="Add a comment..."
           rows="1"
-          class="w-full rounded-md border border-input bg-background px-3 py-1.5 text-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring flex-1 resize-none"
+          class="w-full rounded-md border border-input bg-background px-2 py-1 text-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring flex-1 resize-none"
           style="field-sizing: content"
           oninput="this.style.height='auto';this.style.height=this.scrollHeight+'px'"
         >{@comment_form[:body].value}</textarea>
