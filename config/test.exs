@@ -51,6 +51,12 @@ config :ksef_hub,
     retry: false
   ]
 
+config :ksef_hub,
+  emoji_generator_req_options: [
+    plug: {Req.Test, KsefHub.EmojiGenerator.Client},
+    retry: false
+  ]
+
 # Print only warnings and errors during test
 config :logger, level: :warning
 

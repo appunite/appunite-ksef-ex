@@ -197,7 +197,7 @@ defmodule KsefHubWeb.CategoryLive.Form do
 
     Map.new(fields, fn field ->
       value = form[field].value
-      {Atom.to_string(field), if(is_binary(value), do: value, else: to_string(value || ""))}
+      {Atom.to_string(field), if(is_binary(value), do: value, else: to_string(value))}
     end)
   end
 
@@ -229,17 +229,14 @@ defmodule KsefHubWeb.CategoryLive.Form do
     end
   end
 
-  @spec editing?(atom()) :: boolean()
-  defp editing?(live_action), do: live_action == :edit
-
   @impl true
   @spec render(map()) :: Phoenix.LiveView.Rendered.t()
   def render(assigns) do
     ~H"""
     <.header>
-      {if editing?(@live_action), do: "Edit Category", else: "New Category"}
+      {if @live_action == :edit, do: "Edit Category", else: "New Category"}
       <:subtitle>
-        {if editing?(@live_action),
+        {if @live_action == :edit,
           do: "Update category details",
           else: "Create a new invoice classification category"}
       </:subtitle>
@@ -309,7 +306,7 @@ defmodule KsefHubWeb.CategoryLive.Form do
 
       <div class="flex items-center gap-3 pt-2">
         <.button type="submit">
-          {if editing?(@live_action), do: "Update Category", else: "Create Category"}
+          {if @live_action == :edit, do: "Update Category", else: "Create Category"}
         </.button>
         <.button
           variant="outline"

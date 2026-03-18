@@ -126,17 +126,14 @@ defmodule KsefHubWeb.TagLive.Form do
     end
   end
 
-  @spec editing?(atom()) :: boolean()
-  defp editing?(live_action), do: live_action == :edit
-
   @impl true
   @spec render(map()) :: Phoenix.LiveView.Rendered.t()
   def render(assigns) do
     ~H"""
     <.header>
-      {if editing?(@live_action), do: "Edit Tag", else: "New Tag"}
+      {if @live_action == :edit, do: "Edit Tag", else: "New Tag"}
       <:subtitle>
-        {if editing?(@live_action),
+        {if @live_action == :edit,
           do: "Update tag details",
           else: "Create a new tag for invoice annotation"}
       </:subtitle>
@@ -155,7 +152,7 @@ defmodule KsefHubWeb.TagLive.Form do
 
       <div class="flex items-center gap-3 pt-2">
         <.button type="submit">
-          {if editing?(@live_action), do: "Update Tag", else: "Create Tag"}
+          {if @live_action == :edit, do: "Update Tag", else: "Create Tag"}
         </.button>
         <.button
           variant="outline"

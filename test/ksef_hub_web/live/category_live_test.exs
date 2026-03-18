@@ -1,10 +1,13 @@
 defmodule KsefHubWeb.CategoryLiveTest do
   use KsefHubWeb.ConnCase, async: true
 
+  import Mox
   import Phoenix.LiveViewTest
   import KsefHub.Factory
 
   alias KsefHub.Accounts
+
+  setup :verify_on_exit!
 
   setup %{conn: conn} do
     {:ok, user} =
@@ -138,6 +141,70 @@ defmodule KsefHubWeb.CategoryLiveTest do
 
       assert to == "/c/#{company.id}/categories"
       assert flash["error"] == "Category not found."
+    end
+  end
+
+  describe "Form - emoji generation" do
+    test "generate_emoji updates form with emoji on success",
+         %{conn: conn, company: company} do
+      KsefHub.EmojiGenerator.Mock
+      |> expect(:generate_emoji, fn context ->
+        assert context.identifier == "finance:invoices"
+        {:ok, "💰"}
+      end)
+
+      {:ok, view, _html} = live(conn, ~p"/c/#{company.id}/categories/new")
+
+      # Type identifier first (trigger validate so form has params)
+      view
+      |> element("form#category-form")
+      |> render_change(%{category: %{identifier: "finance:invoices", sort_order: "5"}})
+
+      # Click auto-generate — task completes synchronously in test
+      view |> element("button", "Auto") |> render_click()
+
+      # Emoji should be in the form
+      html = render(view)
+      assert html =~ "💰"
+      # sort_order should be preserved
+      assert html =~ "5"
+    end
+
+    test "shows flash on emoji generation failure", %{conn: conn, company: company} do
+      KsefHub.EmojiGenerator.Mock
+      |> expect(:generate_emoji, fn _context ->
+        {:error, :api_error}
+      end)
+
+      {:ok, view, _html} = live(conn, ~p"/c/#{company.id}/categories/new")
+
+      view
+      |> element("form#category-form")
+      |> render_change(%{category: %{identifier: "finance:invoices"}})
+
+      view |> element("button", "Auto") |> render_click()
+
+      html = render(view)
+      assert html =~ "Failed to generate emoji"
+    end
+
+    test "handles task crash gracefully via DOWN message", %{conn: conn, company: company} do
+      {:ok, view, _html} = live(conn, ~p"/c/#{company.id}/categories/new")
+
+      # Simulate a DOWN message arriving (e.g. task supervisor crash)
+      send(view.pid, {:DOWN, make_ref(), :process, self(), :normal})
+
+      # Should not crash the LiveView
+      html = render(view)
+      refute html =~ "Generating"
+    end
+
+    test "shows error when identifier is empty", %{conn: conn, company: company} do
+      {:ok, view, _html} = live(conn, ~p"/c/#{company.id}/categories/new")
+
+      view |> element("button", "Auto") |> render_click()
+
+      assert render(view) =~ "Enter an identifier first"
     end
   end
 end
