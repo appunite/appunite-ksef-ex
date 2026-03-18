@@ -268,6 +268,8 @@ defmodule KsefHubWeb.InvoiceLive.Show do
 
   @impl true
   def handle_event("validate_edit", %{"invoice" => params}, socket) do
+    params = normalize_billing_date_param(params)
+
     changeset =
       socket.assigns.invoice
       |> Invoice.edit_changeset(params)
@@ -278,6 +280,7 @@ defmodule KsefHubWeb.InvoiceLive.Show do
 
   @impl true
   def handle_event("save_edit", %{"invoice" => params}, socket) do
+    params = normalize_billing_date_param(params)
     case Invoices.update_invoice_fields(socket.assigns.invoice, params) do
       {:ok, updated} ->
         reloaded = reload_details(updated, socket)
@@ -1131,18 +1134,34 @@ defmodule KsefHubWeb.InvoiceLive.Show do
         </div>
       </div>
 
-      <div class="space-y-1">
-        <label for="edit-due-date" class="label">
-          <span class="text-sm font-medium text-xs">Due Date</span>
-        </label>
-        <input
-          type="date"
-          id="edit-due-date"
-          name={@edit_form[:due_date].name}
-          value={@edit_form[:due_date].value}
-          class="h-9 w-full rounded-md border border-input bg-background px-3 text-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
-        />
-        <.field_error errors={@edit_form[:due_date].errors} />
+      <div class="grid grid-cols-2 gap-3">
+        <div class="space-y-1">
+          <label for="edit-due-date" class="label">
+            <span class="text-sm font-medium text-xs">Due Date</span>
+          </label>
+          <input
+            type="date"
+            id="edit-due-date"
+            name={@edit_form[:due_date].name}
+            value={@edit_form[:due_date].value}
+            class="h-9 w-full rounded-md border border-input bg-background px-3 text-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+          />
+          <.field_error errors={@edit_form[:due_date].errors} />
+        </div>
+
+        <div class="space-y-1">
+          <label for="edit-billing-date" class="label">
+            <span class="text-sm font-medium text-xs">Billing Period</span>
+          </label>
+          <input
+            type="month"
+            id="edit-billing-date"
+            name={@edit_form[:billing_date].name}
+            value={format_month_value(@edit_form[:billing_date].value)}
+            class="h-9 w-full rounded-md border border-input bg-background px-3 text-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+          />
+          <.field_error errors={@edit_form[:billing_date].errors} />
+        </div>
       </div>
 
       <.amount_fields edit_form={@edit_form} />
@@ -1455,6 +1474,29 @@ defmodule KsefHubWeb.InvoiceLive.Show do
 
   @spec currencies() :: [String.t()]
   defp currencies, do: @common_currencies
+
+  @spec format_month_value(term()) :: String.t() | nil
+  defp format_month_value(%Date{year: y, month: m}),
+    do: "#{y}-#{String.pad_leading(Integer.to_string(m), 2, "0")}"
+
+  defp format_month_value(value) when is_binary(value) do
+    case Date.from_iso8601(value) do
+      {:ok, date} -> format_month_value(date)
+      _ -> value
+    end
+  end
+
+  defp format_month_value(_), do: nil
+
+  @spec normalize_billing_date_param(map()) :: map()
+  defp normalize_billing_date_param(%{"billing_date" => val} = params) when is_binary(val) do
+    case Regex.run(~r/^(\d{4})-(\d{2})$/, val) do
+      [_, year, month] -> Map.put(params, "billing_date", "#{year}-#{month}-01")
+      _ -> params
+    end
+  end
+
+  defp normalize_billing_date_param(params), do: params
 
   attr :errors, :list, default: []
 
