@@ -37,7 +37,7 @@ defmodule KsefHubWeb.InvoiceLive.ClassifyTest do
       insert(:tag, company: company, name: "monthly")
       insert(:tag, company: company, name: "quarterly")
 
-      invoice = insert(:invoice, company: company)
+      invoice = insert(:invoice, type: :expense, company: company)
 
       {:ok, view, html} = live(conn, ~p"/c/#{company.id}/invoices/#{invoice.id}/classify")
 
@@ -59,7 +59,7 @@ defmodule KsefHubWeb.InvoiceLive.ClassifyTest do
   describe "category selection" do
     test "selecting a category updates local state", %{conn: conn, company: company} do
       cat = insert(:category, company: company, identifier: "finance:invoices")
-      invoice = insert(:invoice, company: company)
+      invoice = insert(:invoice, type: :expense, company: company)
 
       {:ok, view, _html} = live(conn, ~p"/c/#{company.id}/invoices/#{invoice.id}/classify")
 
@@ -76,7 +76,7 @@ defmodule KsefHubWeb.InvoiceLive.ClassifyTest do
 
     test "clearing category removes selection", %{conn: conn, company: company} do
       cat = insert(:category, company: company, identifier: "finance:invoices")
-      invoice = insert(:invoice, company: company, category: cat)
+      invoice = insert(:invoice, type: :expense, company: company, category: cat)
 
       {:ok, view, _html} = live(conn, ~p"/c/#{company.id}/invoices/#{invoice.id}/classify")
 
@@ -90,7 +90,7 @@ defmodule KsefHubWeb.InvoiceLive.ClassifyTest do
   describe "tag toggling" do
     test "toggling a tag updates local state", %{conn: conn, company: company} do
       tag = insert(:tag, company: company, name: "monthly")
-      invoice = insert(:invoice, company: company)
+      invoice = insert(:invoice, type: :expense, company: company)
 
       {:ok, view, _html} = live(conn, ~p"/c/#{company.id}/invoices/#{invoice.id}/classify")
 
@@ -108,7 +108,7 @@ defmodule KsefHubWeb.InvoiceLive.ClassifyTest do
     test "persists category and tags, redirects to show", %{conn: conn, company: company} do
       cat = insert(:category, company: company, identifier: "finance:invoices")
       tag = insert(:tag, company: company, name: "monthly")
-      invoice = insert(:invoice, company: company)
+      invoice = insert(:invoice, type: :expense, company: company)
 
       {:ok, view, _html} = live(conn, ~p"/c/#{company.id}/invoices/#{invoice.id}/classify")
 
@@ -135,6 +135,7 @@ defmodule KsefHubWeb.InvoiceLive.ClassifyTest do
 
       invoice =
         insert(:invoice,
+          type: :expense,
           company: company,
           prediction_status: :predicted,
           prediction_predicted_at: ~U[2026-03-11 12:00:00Z]
@@ -154,7 +155,7 @@ defmodule KsefHubWeb.InvoiceLive.ClassifyTest do
   describe "cancel" do
     test "navigates back without saving", %{conn: conn, company: company} do
       cat = insert(:category, company: company, identifier: "finance:invoices")
-      invoice = insert(:invoice, company: company)
+      invoice = insert(:invoice, type: :expense, company: company)
 
       {:ok, view, _html} = live(conn, ~p"/c/#{company.id}/invoices/#{invoice.id}/classify")
 
@@ -173,7 +174,7 @@ defmodule KsefHubWeb.InvoiceLive.ClassifyTest do
 
   describe "create tag" do
     test "creates tag inline and adds to selection", %{conn: conn, company: company} do
-      invoice = insert(:invoice, company: company)
+      invoice = insert(:invoice, type: :expense, company: company)
 
       {:ok, view, _html} = live(conn, ~p"/c/#{company.id}/invoices/#{invoice.id}/classify")
 

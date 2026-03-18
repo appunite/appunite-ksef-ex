@@ -16,7 +16,7 @@ defmodule KsefHubWeb.CategoryLive.Index do
 
     {:ok,
      socket
-     |> assign(page_title: "Categories", company_id: company_id)
+     |> assign(page_title: "Expense Categories", company_id: company_id)
      |> stream(:categories, Invoices.list_categories(company_id))}
   end
 
@@ -51,8 +51,8 @@ defmodule KsefHubWeb.CategoryLive.Index do
   def render(assigns) do
     ~H"""
     <.header>
-      Categories
-      <:subtitle>Manage invoice classification categories</:subtitle>
+      Expense Categories
+      <:subtitle>Manage expense invoice classification categories</:subtitle>
       <:actions>
         <.button navigate={~p"/c/#{@current_company.id}/categories/new"}>
           New Category

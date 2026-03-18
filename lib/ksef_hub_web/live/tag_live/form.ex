@@ -21,15 +21,17 @@ defmodule KsefHubWeb.TagLive.Form do
   end
 
   @spec apply_action(Phoenix.LiveView.Socket.t(), atom(), map()) :: Phoenix.LiveView.Socket.t()
-  defp apply_action(socket, :new, _params) do
+  defp apply_action(socket, :new, params) do
     company_id = socket.assigns.current_company.id
-    changeset = Tag.changeset(%Tag{company_id: company_id}, %{})
+    type = parse_tag_type(params["type"])
+    changeset = Tag.changeset(%Tag{company_id: company_id, type: type}, %{})
 
     socket
     |> assign(
       page_title: "New Tag",
       tag: nil,
-      company_id: company_id
+      company_id: company_id,
+      tag_type: type
     )
     |> assign(form: to_form(changeset, as: :tag))
   end
@@ -45,7 +47,8 @@ defmodule KsefHubWeb.TagLive.Form do
         |> assign(
           page_title: "Edit Tag",
           tag: tag,
-          company_id: company_id
+          company_id: company_id,
+          tag_type: tag.type
         )
         |> assign(form: to_form(changeset, as: :tag))
 
@@ -81,7 +84,11 @@ defmodule KsefHubWeb.TagLive.Form do
   @spec create_tag(Phoenix.LiveView.Socket.t(), map()) ::
           {:noreply, Phoenix.LiveView.Socket.t()}
   defp create_tag(socket, params) do
-    attrs = %{name: params["name"], description: params["description"]}
+    attrs = %{
+      name: params["name"],
+      description: params["description"],
+      type: socket.assigns.tag_type
+    }
 
     case Invoices.create_tag(socket.assigns.company_id, attrs) do
       {:ok, _tag} ->
@@ -112,13 +119,17 @@ defmodule KsefHubWeb.TagLive.Form do
     end
   end
 
+  @spec parse_tag_type(String.t() | nil) :: :expense | :income
+  defp parse_tag_type("income"), do: :income
+  defp parse_tag_type(_), do: :expense
+
   @spec changeset_for(Phoenix.LiveView.Socket.t(), map()) :: Ecto.Changeset.t()
   defp changeset_for(socket, params) do
     attrs = %{name: params["name"], description: params["description"]}
 
     case socket.assigns.tag do
       nil ->
-        %Tag{company_id: socket.assigns.company_id}
+        %Tag{company_id: socket.assigns.company_id, type: socket.assigns.tag_type}
         |> Tag.changeset(attrs)
 
       tag ->
@@ -131,11 +142,13 @@ defmodule KsefHubWeb.TagLive.Form do
   def render(assigns) do
     ~H"""
     <.header>
-      {if @live_action == :edit, do: "Edit Tag", else: "New Tag"}
+      {if @live_action == :edit,
+        do: "Edit Tag",
+        else: "New #{String.capitalize(to_string(@tag_type))} Tag"}
       <:subtitle>
         {if @live_action == :edit,
           do: "Update tag details",
-          else: "Create a new tag for invoice annotation"}
+          else: "Create a new #{@tag_type} tag for invoice annotation"}
       </:subtitle>
     </.header>
 

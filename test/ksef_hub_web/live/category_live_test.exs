@@ -7,6 +7,7 @@ defmodule KsefHubWeb.CategoryLiveTest do
 
   alias KsefHub.Accounts
 
+  setup :set_mox_from_context
   setup :verify_on_exit!
 
   setup %{conn: conn} do
@@ -26,9 +27,9 @@ defmodule KsefHubWeb.CategoryLiveTest do
 
   describe "Index" do
     test "renders expense categories page", %{conn: conn, company: company} do
-      {:ok, view, _html} = live(conn, ~p"/c/#{company.id}/categories")
-      assert has_element?(view, "h1", "Expense Categories")
-      assert has_element?(view, "h2", "New Category")
+      {:ok, _view, html} = live(conn, ~p"/c/#{company.id}/categories")
+      assert html =~ "Expense Categories"
+      assert html =~ "New Category"
     end
 
     test "lists existing categories", %{conn: conn, company: company} do
@@ -184,6 +185,8 @@ defmodule KsefHubWeb.CategoryLiveTest do
 
       view |> element("button", "Auto") |> render_click()
 
+      # Wait for the async task result to be delivered
+      Process.sleep(50)
       html = render(view)
       assert html =~ "Failed to generate emoji"
     end

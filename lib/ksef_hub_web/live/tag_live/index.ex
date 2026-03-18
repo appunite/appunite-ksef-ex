@@ -3,6 +3,7 @@ defmodule KsefHubWeb.TagLive.Index do
   LiveView for listing and deleting invoice tags.
 
   Tags are scoped to the current company and visible to all roles.
+  Supports Expense/Income tabs via `?type=` query param.
   Usage counts are shown from the many-to-many invoice_tags association.
   """
   use KsefHubWeb, :live_view
@@ -15,10 +16,19 @@ defmodule KsefHubWeb.TagLive.Index do
   def mount(_params, _session, socket) do
     company_id = socket.assigns.current_company.id
 
-    {:ok,
+    {:ok, assign(socket, page_title: "Tags", company_id: company_id)}
+  end
+
+  @impl true
+  @spec handle_params(map(), String.t(), Phoenix.LiveView.Socket.t()) ::
+          {:noreply, Phoenix.LiveView.Socket.t()}
+  def handle_params(params, _uri, socket) do
+    type = parse_tag_type(params["type"])
+
+    {:noreply,
      socket
-     |> assign(page_title: "Tags", company_id: company_id)
-     |> stream(:tags, Invoices.list_tags(company_id))}
+     |> assign(active_type: type)
+     |> stream(:tags, Invoices.list_tags(socket.assigns.company_id, type), reset: true)}
   end
 
   @impl true
@@ -47,6 +57,12 @@ defmodule KsefHubWeb.TagLive.Index do
     end
   end
 
+  # --- Private ---
+
+  @spec parse_tag_type(String.t() | nil) :: :expense | :income
+  defp parse_tag_type("income"), do: :income
+  defp parse_tag_type(_), do: :expense
+
   @impl true
   @spec render(map()) :: Phoenix.LiveView.Rendered.t()
   def render(assigns) do
@@ -55,13 +71,31 @@ defmodule KsefHubWeb.TagLive.Index do
       Tags
       <:subtitle>Manage invoice tags for flexible multi-label annotation</:subtitle>
       <:actions>
-        <.button navigate={~p"/c/#{@current_company.id}/tags/new"}>
+        <.button navigate={~p"/c/#{@current_company.id}/tags/new?type=#{@active_type}"}>
           New Tag
         </.button>
       </:actions>
     </.header>
 
-    <div class="rounded-lg border border-border overflow-hidden mt-6">
+    <%!-- Type Tabs --%>
+    <div class="flex border-b border-border mt-4 mb-4">
+      <.link
+        patch={~p"/c/#{@current_company.id}/tags?type=expense"}
+        class={tab_class(@active_type == :expense)}
+        aria-current={if @active_type == :expense, do: "page"}
+      >
+        Expense
+      </.link>
+      <.link
+        patch={~p"/c/#{@current_company.id}/tags?type=income"}
+        class={tab_class(@active_type == :income)}
+        aria-current={if @active_type == :income, do: "page"}
+      >
+        Income
+      </.link>
+    </div>
+
+    <div class="rounded-lg border border-border overflow-hidden">
       <div class="overflow-x-auto">
         <.table
           id="tags"

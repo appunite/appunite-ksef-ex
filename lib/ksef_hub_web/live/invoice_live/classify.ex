@@ -51,7 +51,7 @@ defmodule KsefHubWeb.InvoiceLive.Classify do
 
             categories = Invoices.list_categories(company.id)
             grouped = group_categories(categories)
-            all_tags = Invoices.list_tags(company.id)
+            all_tags = Invoices.list_tags(company.id, invoice.type)
             current_tag_ids = MapSet.new(invoice.tags, & &1.id)
 
             {:ok,
@@ -149,14 +149,15 @@ defmodule KsefHubWeb.InvoiceLive.Classify do
         {:noreply, socket}
 
       trimmed ->
-        company_id = socket.assigns.invoice.company_id
+        invoice = socket.assigns.invoice
+        company_id = invoice.company_id
 
-        case Invoices.create_tag(company_id, %{name: trimmed}) do
+        case Invoices.create_tag(company_id, %{name: trimmed, type: invoice.type}) do
           {:ok, tag} ->
             {:noreply,
              socket
              |> assign(
-               all_tags: Invoices.list_tags(company_id),
+               all_tags: Invoices.list_tags(company_id, invoice.type),
                selected_tag_ids: MapSet.put(socket.assigns.selected_tag_ids, tag.id),
                new_tag_form: to_form(%{"name" => ""}),
                tag_form_key: socket.assigns.tag_form_key + 1
