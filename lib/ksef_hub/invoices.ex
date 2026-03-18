@@ -331,9 +331,16 @@ defmodule KsefHub.Invoices do
 
     changeset =
       if old_status do
-        merged = invoice |> Map.from_struct() |> Map.merge(allowed_attrs)
-        new_status = determine_extraction_status_from_attrs(merged)
-        Ecto.Changeset.put_change(changeset, :extraction_status, new_status)
+        critical_changed? =
+          Enum.any?(@critical_extraction_fields, &Map.has_key?(changeset.changes, &1))
+
+        if critical_changed? do
+          merged = invoice |> Map.from_struct() |> Map.merge(allowed_attrs)
+          new_status = determine_extraction_status_from_attrs(merged)
+          Ecto.Changeset.put_change(changeset, :extraction_status, new_status)
+        else
+          changeset
+        end
       else
         changeset
       end
