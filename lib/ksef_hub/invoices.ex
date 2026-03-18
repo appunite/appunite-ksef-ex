@@ -1675,10 +1675,14 @@ defmodule KsefHub.Invoices do
         where(q, [i], i.category_id == ^category_id)
 
       {:tag_ids, tag_ids}, q when is_list(tag_ids) and tag_ids != [] ->
-        q
-        |> join(:inner, [i], it in InvoiceTag, on: it.invoice_id == i.id)
-        |> where([..., it], it.tag_id in ^tag_ids)
-        |> distinct(true)
+        tag_subquery =
+          from(it in InvoiceTag,
+            where: it.tag_id in ^tag_ids,
+            select: it.invoice_id,
+            distinct: true
+          )
+
+        where(q, [i], i.id in subquery(tag_subquery))
 
       _, q ->
         q

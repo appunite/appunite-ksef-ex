@@ -60,6 +60,8 @@ defmodule KsefHubWeb.DashboardLive do
   end
 
   @impl true
+  @spec handle_event(String.t(), map(), Phoenix.LiveView.Socket.t()) ::
+          {:noreply, Phoenix.LiveView.Socket.t()}
   def handle_event("filter", %{"filters" => params}, socket) do
     query_params =
       %{}
@@ -69,12 +71,14 @@ defmodule KsefHubWeb.DashboardLive do
       |> put_non_empty("tag_id", params["tag_id"])
 
     company_id = socket.assigns.current_company.id
-    {:noreply, push_patch(socket, to: ~p"/c/#{company_id}/dashboard?#{query_params}")}
+
+    {:noreply,
+     push_patch(socket, to: ~p"/c/#{company_id}/dashboard?#{query_params}", replace: true)}
   end
 
   def handle_event("clear_filters", _params, socket) do
     company_id = socket.assigns.current_company.id
-    {:noreply, push_patch(socket, to: ~p"/c/#{company_id}/dashboard")}
+    {:noreply, push_patch(socket, to: ~p"/c/#{company_id}/dashboard", replace: true)}
   end
 
   def handle_event("remove_filter", %{"key" => key}, socket) do
@@ -83,7 +87,9 @@ defmodule KsefHubWeb.DashboardLive do
       |> Map.delete(key)
 
     company_id = socket.assigns.current_company.id
-    {:noreply, push_patch(socket, to: ~p"/c/#{company_id}/dashboard?#{query_params}")}
+
+    {:noreply,
+     push_patch(socket, to: ~p"/c/#{company_id}/dashboard?#{query_params}", replace: true)}
   end
 
   @spec assign_defaults(Phoenix.LiveView.Socket.t()) :: Phoenix.LiveView.Socket.t()
