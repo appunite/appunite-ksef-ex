@@ -726,8 +726,8 @@ defmodule KsefHubWeb.Api.InvoiceController do
       403 => {"Forbidden — insufficient permissions", "application/json", Schemas.ErrorResponse},
       404 => {"Invoice not found", "application/json", Schemas.ErrorResponse},
       422 =>
-        {"Category not found in this company, or invalid UUID format", "application/json",
-         Schemas.ErrorResponse}
+        {"Validation error — invalid UUID, category not in company, or invoice is not an expense",
+         "application/json", Schemas.ErrorResponse}
     }
   )
 
@@ -749,6 +749,11 @@ defmodule KsefHubWeb.Api.InvoiceController do
         conn
         |> put_status(:unprocessable_entity)
         |> json(%{error: "Invalid UUID format"})
+
+      {:error, :expense_only} ->
+        conn
+        |> put_status(:unprocessable_entity)
+        |> json(%{error: "Categories can only be assigned to expense invoices"})
 
       {:error, reason} when reason in [:category_not_found, :category_not_in_company] ->
         conn

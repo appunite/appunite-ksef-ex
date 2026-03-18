@@ -5,7 +5,7 @@ defmodule KsefHub.Invoices.TagsTest do
 
   alias KsefHub.Invoices
 
-  describe "list_tags/1" do
+  describe "list_tags/2" do
     test "returns tags ordered by usage_count desc then name" do
       company = insert(:company)
       tag_a = insert(:tag, company: company, name: "alpha")
@@ -39,6 +39,23 @@ defmodule KsefHub.Invoices.TagsTest do
 
       assert length(tags) == 1
       assert hd(tags).name == "mine"
+    end
+
+    test "filters by type when provided" do
+      company = insert(:company)
+      insert(:tag, company: company, name: "expense-tag", type: :expense)
+      insert(:tag, company: company, name: "income-tag", type: :income)
+
+      expense_tags = Invoices.list_tags(company.id, :expense)
+      assert length(expense_tags) == 1
+      assert hd(expense_tags).name == "expense-tag"
+
+      income_tags = Invoices.list_tags(company.id, :income)
+      assert length(income_tags) == 1
+      assert hd(income_tags).name == "income-tag"
+
+      all_tags = Invoices.list_tags(company.id)
+      assert length(all_tags) == 2
     end
   end
 
@@ -93,11 +110,13 @@ defmodule KsefHub.Invoices.TagsTest do
       assert errors_on(changeset).name
     end
 
-    test "returns error for duplicate name within company" do
+    test "returns error for duplicate name within company and type" do
       company = insert(:company)
-      insert(:tag, company: company, name: "duplicate")
+      insert(:tag, company: company, name: "duplicate", type: :expense)
 
-      assert {:error, changeset} = Invoices.create_tag(company.id, %{name: "duplicate"})
+      assert {:error, changeset} =
+               Invoices.create_tag(company.id, %{name: "duplicate", type: :expense})
+
       assert "has already been taken" in errors_on(changeset).name
     end
 
@@ -107,6 +126,28 @@ defmodule KsefHub.Invoices.TagsTest do
       insert(:tag, company: company1, name: "shared")
 
       assert {:ok, _} = Invoices.create_tag(company2.id, %{name: "shared"})
+    end
+
+    test "allows same name with different types in same company" do
+      company = insert(:company)
+      insert(:tag, company: company, name: "shared", type: :expense)
+
+      assert {:ok, tag} = Invoices.create_tag(company.id, %{name: "shared", type: :income})
+      assert tag.type == :income
+    end
+
+    test "creates tag with type" do
+      company = insert(:company)
+
+      assert {:ok, tag} = Invoices.create_tag(company.id, %{name: "income-tag", type: :income})
+      assert tag.type == :income
+    end
+
+    test "defaults to expense type" do
+      company = insert(:company)
+
+      assert {:ok, tag} = Invoices.create_tag(company.id, %{name: "default-tag"})
+      assert tag.type == :expense
     end
   end
 
@@ -136,10 +177,10 @@ defmodule KsefHub.Invoices.TagsTest do
   end
 
   describe "set_invoice_category/2" do
-    test "assigns a category to an invoice" do
+    test "assigns a category to an expense invoice" do
       company = insert(:company)
       category = insert(:category, company: company)
-      invoice = insert(:invoice, company: company)
+      invoice = insert(:invoice, company: company, type: :expense)
 
       assert {:ok, updated} = Invoices.set_invoice_category(invoice, category.id)
       assert updated.category_id == category.id
@@ -148,10 +189,26 @@ defmodule KsefHub.Invoices.TagsTest do
     test "clears category when nil" do
       company = insert(:company)
       category = insert(:category, company: company)
-      invoice = insert(:invoice, company: company, category_id: category.id)
+      invoice = insert(:invoice, company: company, type: :expense, category_id: category.id)
 
       assert {:ok, updated} = Invoices.set_invoice_category(invoice, nil)
       assert is_nil(updated.category_id)
+    end
+
+    test "returns error when invoice is income type" do
+      company = insert(:company)
+      category = insert(:category, company: company)
+      invoice = insert(:invoice, company: company, type: :income)
+
+      assert {:error, :expense_only} = Invoices.set_invoice_category(invoice, category.id)
+    end
+
+    test "allows clearing category on income invoice (no-op)" do
+      company = insert(:company)
+      invoice = insert(:invoice, company: company, type: :income)
+
+      assert {:ok, returned} = Invoices.set_invoice_category(invoice, nil)
+      assert returned.id == invoice.id
     end
   end
 

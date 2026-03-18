@@ -13,11 +13,17 @@ defmodule KsefHubWeb.Schemas.CreateTagRequest do
     type: :object,
     properties: %{
       name: %Schema{type: :string, description: "Tag name."},
+      type: %Schema{
+        type: :string,
+        enum: ["expense", "income"],
+        description: "Tag type (default: `expense`)."
+      },
       description: %Schema{type: :string, nullable: true, description: "Optional description."}
     },
     required: [:name],
     example: %{
       name: "urgent",
+      type: "expense",
       description: "Requires immediate attention"
     }
   })

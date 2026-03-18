@@ -21,6 +21,7 @@ defmodule KsefHubWeb.Api.TagControllerTest do
       assert length(body["data"]) == 1
       assert hd(body["data"])["name"] == "urgent"
       assert hd(body["data"])["usage_count"] == 1
+      assert hd(body["data"])["type"] == "expense"
     end
 
     test "returns empty list when no tags exist", %{conn: conn} do
@@ -30,6 +31,22 @@ defmodule KsefHubWeb.Api.TagControllerTest do
 
       assert conn.status == 200
       assert Jason.decode!(conn.resp_body)["data"] == []
+    end
+
+    test "filters tags by type query param", %{conn: conn} do
+      %{company: company, token: token} = create_user_with_token(:owner)
+      insert(:tag, company: company, name: "expense-tag", type: :expense)
+      insert(:tag, company: company, name: "income-tag", type: :income)
+
+      conn_expense = conn |> api_conn(token) |> get("/api/tags?type=expense")
+      body = Jason.decode!(conn_expense.resp_body)
+      assert length(body["data"]) == 1
+      assert hd(body["data"])["name"] == "expense-tag"
+
+      conn_income = conn |> api_conn(token) |> get("/api/tags?type=income")
+      body = Jason.decode!(conn_income.resp_body)
+      assert length(body["data"]) == 1
+      assert hd(body["data"])["name"] == "income-tag"
     end
   end
 
@@ -66,6 +83,19 @@ defmodule KsefHubWeb.Api.TagControllerTest do
       data = Jason.decode!(conn.resp_body)["data"]
       assert data["name"] == "urgent"
       assert data["description"] == "Needs attention"
+      assert data["type"] == "expense"
+    end
+
+    test "creates an income tag when type is specified", %{conn: conn} do
+      %{token: token} = create_user_with_token(:owner)
+
+      body = Jason.encode!(%{name: "revenue", type: "income"})
+      conn = conn |> api_conn(token) |> post("/api/tags", body)
+
+      assert conn.status == 201
+      data = Jason.decode!(conn.resp_body)["data"]
+      assert data["name"] == "revenue"
+      assert data["type"] == "income"
     end
 
     test "returns 422 for missing name", %{conn: conn} do
@@ -77,14 +107,24 @@ defmodule KsefHubWeb.Api.TagControllerTest do
       assert conn.status == 422
     end
 
-    test "returns 422 for duplicate name in same company", %{conn: conn} do
+    test "returns 422 for duplicate name in same company and type", %{conn: conn} do
       %{company: company, token: token} = create_user_with_token(:owner)
-      insert(:tag, company: company, name: "dup")
+      insert(:tag, company: company, name: "dup", type: :expense)
 
       body = Jason.encode!(%{name: "dup"})
       conn = conn |> api_conn(token) |> post("/api/tags", body)
 
       assert conn.status == 422
+    end
+
+    test "allows duplicate name across different types", %{conn: conn} do
+      %{company: company, token: token} = create_user_with_token(:owner)
+      insert(:tag, company: company, name: "shared", type: :expense)
+
+      body = Jason.encode!(%{name: "shared", type: "income"})
+      conn = conn |> api_conn(token) |> post("/api/tags", body)
+
+      assert conn.status == 201
     end
   end
 

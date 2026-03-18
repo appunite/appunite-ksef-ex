@@ -172,7 +172,7 @@ defmodule KsefHub.InvoiceClassifier do
 
   defp find_tag_by_name(company_id, name) do
     Tag
-    |> where([t], t.company_id == ^company_id and t.name == ^name)
+    |> where([t], t.company_id == ^company_id and t.name == ^name and t.type == :expense)
     |> Repo.one()
   end
 

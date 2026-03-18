@@ -1,6 +1,6 @@
 defmodule KsefHubWeb.Api.CategoryController do
   @moduledoc """
-  REST API controller for category operations.
+  REST API controller for expense category operations.
 
   All actions are scoped to the company associated with the authenticated API token.
   """
@@ -20,12 +20,13 @@ defmodule KsefHubWeb.Api.CategoryController do
 
   @category_allowed_keys ~w(name emoji description sort_order)
 
-  tags(["Categories"])
+  tags(["Expense Categories"])
   security([%{"bearer" => []}])
 
   operation(:index,
-    summary: "List categories",
-    description: "Returns all categories for the company, ordered by sort_order then name.",
+    summary: "List expense categories",
+    description:
+      "Returns all expense categories for the company, ordered by sort_order then name.",
     responses: %{
       200 =>
         {"Category list ordered by sort_order then name", "application/json",
@@ -44,8 +45,8 @@ defmodule KsefHubWeb.Api.CategoryController do
   end
 
   operation(:show,
-    summary: "Get category",
-    description: "Returns a single category by ID.",
+    summary: "Get expense category",
+    description: "Returns a single expense category by ID.",
     parameters: [
       id: [
         in: :path,
@@ -78,8 +79,8 @@ defmodule KsefHubWeb.Api.CategoryController do
   end
 
   operation(:create,
-    summary: "Create category",
-    description: "Creates a new category for the company.",
+    summary: "Create expense category",
+    description: "Creates a new expense category for the company.",
     request_body: {"Category to create", "application/json", Schemas.CreateCategoryRequest},
     responses: %{
       201 => {"Created category", "application/json", Schemas.CategoryResponse},
@@ -111,8 +112,8 @@ defmodule KsefHubWeb.Api.CategoryController do
   end
 
   operation(:update,
-    summary: "Update category",
-    description: "Updates an existing category.",
+    summary: "Update expense category",
+    description: "Updates an existing expense category.",
     parameters: [
       id: [
         in: :path,
@@ -156,9 +157,9 @@ defmodule KsefHubWeb.Api.CategoryController do
   end
 
   operation(:delete,
-    summary: "Delete category",
+    summary: "Delete expense category",
     description:
-      "Deletes a category. Invoices assigned to this category will have their category cleared.",
+      "Deletes an expense category. Invoices assigned to this category will have their category cleared.",
     parameters: [
       id: [
         in: :path,

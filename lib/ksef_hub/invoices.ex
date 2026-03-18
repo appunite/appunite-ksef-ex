@@ -1055,17 +1055,27 @@ defmodule KsefHub.Invoices do
 
   # --- Tags ---
 
-  @doc "Returns all tags for a company with usage counts, ordered by count desc then name."
-  @spec list_tags(Ecto.UUID.t()) :: [Tag.t()]
-  def list_tags(company_id) do
+  @doc """
+  Returns all tags for a company with usage counts, ordered by count desc then name.
+
+  Accepts an optional `type` filter (`:expense` or `:income`). When omitted,
+  returns tags of all types.
+  """
+  @spec list_tags(Ecto.UUID.t(), atom() | nil) :: [Tag.t()]
+  def list_tags(company_id, type \\ nil) do
     Tag
     |> where([t], t.company_id == ^company_id)
+    |> maybe_filter_tag_type(type)
     |> join(:left, [t], it in InvoiceTag, on: it.tag_id == t.id)
     |> group_by([t, _it], t.id)
     |> select_merge([t, it], %{usage_count: count(it.id)})
     |> order_by([t, it], desc: count(it.id), asc: t.name)
     |> Repo.all()
   end
+
+  @spec maybe_filter_tag_type(Ecto.Queryable.t(), atom() | nil) :: Ecto.Queryable.t()
+  defp maybe_filter_tag_type(query, nil), do: query
+  defp maybe_filter_tag_type(query, type), do: where(query, [t], t.type == ^type)
 
   @doc "Fetches a tag by ID scoped to a company, with usage count from invoice_tags join."
   @spec get_tag_with_usage_count(Ecto.UUID.t(), Ecto.UUID.t()) ::
@@ -1142,11 +1152,17 @@ defmodule KsefHub.Invoices do
   @doc """
   Assigns or clears a category on an invoice.
 
+  Categories are expense-only — returns `{:error, :expense_only}` for income invoices.
   When `category_id` is not nil, verifies the category belongs to the same
   company as the invoice before updating.
   """
   @spec set_invoice_category(Invoice.t(), Ecto.UUID.t() | nil) ::
-          {:ok, Invoice.t()} | {:error, Ecto.Changeset.t() | :category_not_in_company}
+          {:ok, Invoice.t()}
+          | {:error, Ecto.Changeset.t() | :category_not_in_company | :expense_only}
+  def set_invoice_category(%Invoice{type: :income} = invoice, nil), do: {:ok, invoice}
+
+  def set_invoice_category(%Invoice{type: :income}, _category_id), do: {:error, :expense_only}
+
   def set_invoice_category(%Invoice{} = invoice, nil) do
     invoice
     |> Invoice.category_changeset(%{category_id: nil})

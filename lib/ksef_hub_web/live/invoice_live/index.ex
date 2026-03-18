@@ -23,7 +23,7 @@ defmodule KsefHubWeb.InvoiceLive.Index do
      assign(socket,
        page_title: "Invoices",
        categories: if(company_id, do: Invoices.list_categories(company_id), else: []),
-       all_tags: if(company_id, do: Invoices.list_tags(company_id), else: [])
+       all_tags: []
      )}
   end
 
@@ -37,16 +37,30 @@ defmodule KsefHubWeb.InvoiceLive.Index do
       |> Map.put_new(:type, :expense)
       |> sanitize_type(role)
 
-    result =
+    company_id =
       case socket.assigns[:current_company] do
-        %{id: company_id} ->
-          Invoices.list_invoices_paginated(company_id, filters, role: role)
-
-        _ ->
-          %{entries: [], page: 1, per_page: 25, total_count: 0, total_pages: 1}
+        %{id: id} -> id
+        _ -> nil
       end
 
-    {:noreply, assign(socket, filter_assigns(filters, result, role, socket.assigns))}
+    all_tags =
+      if company_id do
+        Invoices.list_tags(company_id, filters[:type])
+      else
+        []
+      end
+
+    result =
+      if company_id do
+        Invoices.list_invoices_paginated(company_id, filters, role: role)
+      else
+        %{entries: [], page: 1, per_page: 25, total_count: 0, total_pages: 1}
+      end
+
+    {:noreply,
+     socket
+     |> assign(all_tags: all_tags)
+     |> assign(filter_assigns(filters, result, role, socket.assigns))}
   end
 
   @spec filter_assigns(map(), map(), atom() | nil, map()) :: keyword()
@@ -145,14 +159,6 @@ defmodule KsefHubWeb.InvoiceLive.Index do
     company_id = socket.assigns.current_company.id
     {:noreply, push_patch(socket, to: ~p"/c/#{company_id}/invoices?#{query_params}")}
   end
-
-  @spec tab_class(boolean()) :: String.t()
-  defp tab_class(true),
-    do: "px-4 py-2 text-sm font-medium border-b-2 -mb-px border-shad-primary text-shad-primary"
-
-  defp tab_class(false),
-    do:
-      "px-4 py-2 text-sm font-medium border-b-2 -mb-px transition-colors border-transparent text-muted-foreground hover:text-foreground hover:border-border"
 
   @spec tab_url(String.t(), map(), atom() | nil) :: String.t()
   defp tab_url(company_id, filters, type) do
@@ -317,7 +323,7 @@ defmodule KsefHubWeb.InvoiceLive.Index do
         :if={@can_view_all_types}
         patch={tab_url(@current_company.id, @filters, :expense)}
         class={tab_class(@filters[:type] == :expense)}
-        aria-current={@filters[:type] == :expense && "page"}
+        aria-current={if @filters[:type] == :expense, do: "page"}
       >
         Expense
       </.link>
@@ -325,7 +331,7 @@ defmodule KsefHubWeb.InvoiceLive.Index do
         :if={@can_view_all_types}
         patch={tab_url(@current_company.id, @filters, :income)}
         class={tab_class(@filters[:type] == :income)}
-        aria-current={@filters[:type] == :income && "page"}
+        aria-current={if @filters[:type] == :income, do: "page"}
       >
         Income
       </.link>
@@ -360,7 +366,7 @@ defmodule KsefHubWeb.InvoiceLive.Index do
             </select>
           </div>
 
-          <div class="space-y-1">
+          <div :if={@filters[:type] == :expense} class="space-y-1">
             <label class="block text-xs font-medium text-muted-foreground">Category</label>
             <select
               name={@form[:category_id].name}

@@ -12,6 +12,7 @@ defmodule KsefHub.Invoices.Tag do
   schema "tags" do
     field :name, :string
     field :description, :string
+    field :type, Ecto.Enum, values: [:expense, :income], default: :expense
     field :usage_count, :integer, virtual: true, default: 0
 
     belongs_to :company, KsefHub.Companies.Company
@@ -24,9 +25,9 @@ defmodule KsefHub.Invoices.Tag do
   @spec changeset(t() | Ecto.Changeset.t(), map()) :: Ecto.Changeset.t()
   def changeset(tag, attrs) do
     tag
-    |> cast(attrs, [:name, :description])
+    |> cast(attrs, [:name, :description, :type])
     |> validate_required([:name, :company_id])
-    |> unique_constraint([:company_id, :name], error_key: :name)
+    |> unique_constraint([:company_id, :name, :type], error_key: :name)
     |> foreign_key_constraint(:company_id)
   end
 end

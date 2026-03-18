@@ -22,17 +22,30 @@ defmodule KsefHubWeb.TagLiveTest do
   end
 
   describe "mount" do
-    test "renders tags page", %{conn: conn, company: company} do
+    test "renders tags page with expense tab active by default", %{conn: conn, company: company} do
       {:ok, _view, html} = live(conn, ~p"/c/#{company.id}/tags")
       assert html =~ "Tags"
       assert html =~ "New Tag"
+      assert html =~ "Expense"
+      assert html =~ "Income"
     end
 
-    test "lists existing tags", %{conn: conn, company: company} do
-      insert(:tag, company: company, name: "monthly")
+    test "lists existing expense tags on default tab", %{conn: conn, company: company} do
+      insert(:tag, company: company, name: "monthly", type: :expense)
+      insert(:tag, company: company, name: "income-only", type: :income)
 
       {:ok, _view, html} = live(conn, ~p"/c/#{company.id}/tags")
       assert html =~ "monthly"
+      refute html =~ "income-only"
+    end
+
+    test "lists income tags on income tab", %{conn: conn, company: company} do
+      insert(:tag, company: company, name: "expense-only", type: :expense)
+      insert(:tag, company: company, name: "income-only", type: :income)
+
+      {:ok, _view, html} = live(conn, ~p"/c/#{company.id}/tags?type=income")
+      assert html =~ "income-only"
+      refute html =~ "expense-only"
     end
 
     test "shows usage count", %{conn: conn, company: company} do
@@ -48,7 +61,7 @@ defmodule KsefHubWeb.TagLiveTest do
   end
 
   describe "create" do
-    test "creates a tag with valid data", %{conn: conn, company: company} do
+    test "creates an expense tag on expense tab", %{conn: conn, company: company} do
       {:ok, view, _html} = live(conn, ~p"/c/#{company.id}/tags")
 
       view
@@ -60,8 +73,20 @@ defmodule KsefHubWeb.TagLiveTest do
       assert html =~ "Tag created."
     end
 
-    test "shows error for duplicate name", %{conn: conn, company: company} do
-      insert(:tag, company: company, name: "duplicate")
+    test "creates an income tag on income tab", %{conn: conn, company: company} do
+      {:ok, view, _html} = live(conn, ~p"/c/#{company.id}/tags?type=income")
+
+      view
+      |> element("form#tag-form")
+      |> render_submit(%{tag: %{name: "revenue-tag", description: "Revenue"}})
+
+      html = render(view)
+      assert html =~ "revenue-tag"
+      assert html =~ "Tag created."
+    end
+
+    test "shows error for duplicate name within same type", %{conn: conn, company: company} do
+      insert(:tag, company: company, name: "duplicate", type: :expense)
 
       {:ok, view, _html} = live(conn, ~p"/c/#{company.id}/tags")
 
@@ -71,6 +96,20 @@ defmodule KsefHubWeb.TagLiveTest do
 
       html = render(view)
       assert html =~ "already been taken"
+    end
+
+    test "allows same name on different type tabs", %{conn: conn, company: company} do
+      insert(:tag, company: company, name: "shared", type: :expense)
+
+      {:ok, view, _html} = live(conn, ~p"/c/#{company.id}/tags?type=income")
+
+      view
+      |> element("form#tag-form")
+      |> render_submit(%{tag: %{name: "shared", description: ""}})
+
+      html = render(view)
+      assert html =~ "shared"
+      assert html =~ "Tag created."
     end
   end
 

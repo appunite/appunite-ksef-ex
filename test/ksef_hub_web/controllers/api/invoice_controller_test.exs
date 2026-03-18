@@ -883,7 +883,7 @@ defmodule KsefHubWeb.Api.InvoiceControllerTest do
     test "assigns a category to an invoice", %{conn: conn} do
       %{company: company, token: token} = create_user_with_token(:owner)
       category = insert(:category, company: company)
-      invoice = insert(:invoice, company: company)
+      invoice = insert(:invoice, type: :expense, company: company)
 
       body = Jason.encode!(%{category_id: category.id})
       conn = conn |> api_conn(token) |> put("/api/invoices/#{invoice.id}/category", body)
@@ -895,7 +895,7 @@ defmodule KsefHubWeb.Api.InvoiceControllerTest do
     test "clears category with null", %{conn: conn} do
       %{company: company, token: token} = create_user_with_token(:owner)
       category = insert(:category, company: company)
-      invoice = insert(:invoice, company: company, category_id: category.id)
+      invoice = insert(:invoice, type: :expense, company: company, category_id: category.id)
 
       body = Jason.encode!(%{category_id: nil})
       conn = conn |> api_conn(token) |> put("/api/invoices/#{invoice.id}/category", body)
@@ -904,11 +904,23 @@ defmodule KsefHubWeb.Api.InvoiceControllerTest do
       assert is_nil(Jason.decode!(conn.resp_body)["data"]["category_id"])
     end
 
+    test "returns 422 when assigning category to income invoice", %{conn: conn} do
+      %{company: company, token: token} = create_user_with_token(:owner)
+      category = insert(:category, company: company)
+      invoice = insert(:invoice, type: :income, company: company)
+
+      body = Jason.encode!(%{category_id: category.id})
+      conn = conn |> api_conn(token) |> put("/api/invoices/#{invoice.id}/category", body)
+
+      assert conn.status == 422
+      assert Jason.decode!(conn.resp_body)["error"] =~ "expense"
+    end
+
     test "returns 422 for category from different company", %{conn: conn} do
       %{company: company, token: token} = create_user_with_token(:owner)
       other_company = insert(:company)
       category = insert(:category, company: other_company)
-      invoice = insert(:invoice, company: company)
+      invoice = insert(:invoice, type: :expense, company: company)
 
       body = Jason.encode!(%{category_id: category.id})
       conn = conn |> api_conn(token) |> put("/api/invoices/#{invoice.id}/category", body)

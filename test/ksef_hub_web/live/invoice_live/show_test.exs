@@ -282,7 +282,7 @@ defmodule KsefHubWeb.InvoiceLive.ShowTest do
 
     test "displays category name and emoji", %{conn: conn, company: company} do
       category = insert(:category, company: company, name: "finance:invoices", emoji: "💰")
-      invoice = insert(:invoice, company: company, category: category)
+      invoice = insert(:invoice, type: :expense, company: company, category: category)
 
       {:ok, view, _html} = live(conn, ~p"/c/#{company.id}/invoices/#{invoice.id}")
       assert has_element?(view, "[data-testid=category-select]")
@@ -293,15 +293,25 @@ defmodule KsefHubWeb.InvoiceLive.ShowTest do
 
     test "displays assigned tags", %{conn: conn, company: company} do
       tag = insert(:tag, company: company, name: "quarterly-report")
-      invoice = insert(:invoice, company: company)
+      invoice = insert(:invoice, type: :expense, company: company)
       insert(:invoice_tag, invoice: invoice, tag: tag)
 
       {:ok, _view, html} = live(conn, ~p"/c/#{company.id}/invoices/#{invoice.id}")
       assert html =~ "quarterly-report"
     end
 
+    test "hides category section for income invoices", %{conn: conn, company: company} do
+      insert(:category, company: company, name: "some-category")
+      invoice = insert(:invoice, type: :income, company: company)
+
+      {:ok, view, _html} = live(conn, ~p"/c/#{company.id}/invoices/#{invoice.id}")
+      refute has_element?(view, "[data-testid=category-form]")
+      refute has_element?(view, "[data-testid=category-select]")
+    end
+
     test "shows needs_review prediction indicator", %{conn: conn, company: company} do
-      invoice = insert(:invoice, company: company, prediction_status: :needs_review)
+      invoice =
+        insert(:invoice, type: :expense, company: company, prediction_status: :needs_review)
 
       {:ok, _view, html} = live(conn, ~p"/c/#{company.id}/invoices/#{invoice.id}")
       assert html =~ "needs review"
@@ -311,7 +321,7 @@ defmodule KsefHubWeb.InvoiceLive.ShowTest do
       conn: conn,
       company: company
     } do
-      invoice = insert(:invoice, company: company, prediction_predicted_at: nil)
+      invoice = insert(:invoice, type: :expense, company: company, prediction_predicted_at: nil)
 
       {:ok, view, _html} = live(conn, ~p"/c/#{company.id}/invoices/#{invoice.id}")
       refute has_element?(view, ~s([data-testid="prediction-category-hint"]))
@@ -321,6 +331,7 @@ defmodule KsefHubWeb.InvoiceLive.ShowTest do
     test "shows high-confidence prediction hint for category", %{conn: conn, company: company} do
       invoice =
         insert(:invoice,
+          type: :expense,
           company: company,
           prediction_status: :predicted,
           prediction_category_confidence: 0.92,
@@ -338,6 +349,7 @@ defmodule KsefHubWeb.InvoiceLive.ShowTest do
     test "shows low-confidence hint when below threshold", %{conn: conn, company: company} do
       invoice =
         insert(:invoice,
+          type: :expense,
           company: company,
           prediction_status: :needs_review,
           prediction_category_confidence: 0.30,
@@ -358,6 +370,7 @@ defmodule KsefHubWeb.InvoiceLive.ShowTest do
     } do
       invoice =
         insert(:invoice,
+          type: :expense,
           company: company,
           prediction_status: :manual,
           prediction_category_confidence: 0.92,
@@ -377,7 +390,7 @@ defmodule KsefHubWeb.InvoiceLive.ShowTest do
 
     test "selecting a category updates the invoice", %{conn: conn, company: company} do
       category = insert(:category, company: company, name: "ops:hosting", emoji: "🖥")
-      invoice = insert(:invoice, company: company)
+      invoice = insert(:invoice, type: :expense, company: company)
 
       {:ok, view, _html} = live(conn, ~p"/c/#{company.id}/invoices/#{invoice.id}")
 
@@ -400,6 +413,7 @@ defmodule KsefHubWeb.InvoiceLive.ShowTest do
 
       invoice =
         insert(:invoice,
+          type: :expense,
           company: company,
           prediction_status: :predicted,
           prediction_predicted_at: ~U[2026-03-11 12:00:00Z]
@@ -418,7 +432,7 @@ defmodule KsefHubWeb.InvoiceLive.ShowTest do
 
     test "clearing category sets it to nil", %{conn: conn, company: company} do
       category = insert(:category, company: company, name: "ops:clear-test")
-      invoice = insert(:invoice, company: company, category: category)
+      invoice = insert(:invoice, type: :expense, company: company, category: category)
 
       {:ok, view, _html} = live(conn, ~p"/c/#{company.id}/invoices/#{invoice.id}")
 
@@ -436,7 +450,7 @@ defmodule KsefHubWeb.InvoiceLive.ShowTest do
 
     test "toggling a tag on adds it to the invoice", %{conn: conn, company: company} do
       tag = insert(:tag, company: company, name: "toggle-on")
-      invoice = insert(:invoice, company: company)
+      invoice = insert(:invoice, type: :expense, company: company)
 
       {:ok, view, _html} = live(conn, ~p"/c/#{company.id}/invoices/#{invoice.id}")
 
@@ -450,7 +464,7 @@ defmodule KsefHubWeb.InvoiceLive.ShowTest do
 
     test "toggling a tag off removes it from the invoice", %{conn: conn, company: company} do
       tag = insert(:tag, company: company, name: "toggle-off")
-      invoice = insert(:invoice, company: company)
+      invoice = insert(:invoice, type: :expense, company: company)
       insert(:invoice_tag, invoice: invoice, tag: tag)
 
       {:ok, view, _html} = live(conn, ~p"/c/#{company.id}/invoices/#{invoice.id}")
@@ -464,7 +478,7 @@ defmodule KsefHubWeb.InvoiceLive.ShowTest do
     end
 
     test "creating a new tag inline adds it to the invoice", %{conn: conn, company: company} do
-      invoice = insert(:invoice, company: company)
+      invoice = insert(:invoice, type: :expense, company: company)
 
       {:ok, view, _html} = live(conn, ~p"/c/#{company.id}/invoices/#{invoice.id}")
 

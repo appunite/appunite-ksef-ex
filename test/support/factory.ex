@@ -207,6 +207,7 @@ defmodule KsefHub.Factory do
     %Tag{
       name: sequence(:tag_name, &"tag-#{&1}"),
       description: "Test tag",
+      type: :expense,
       company: build(:company)
     }
   end
