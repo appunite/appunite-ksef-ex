@@ -95,7 +95,7 @@ defmodule KsefHubWeb.TagLive.Form do
         {:noreply,
          socket
          |> put_flash(:info, "Tag created.")
-         |> push_navigate(to: ~p"/c/#{socket.assigns.current_company.id}/tags")}
+         |> push_navigate(to: ~p"/c/#{socket.assigns.current_company.id}/tags?type=#{socket.assigns.tag_type}")}
 
       {:error, %Ecto.Changeset{} = changeset} ->
         {:noreply, assign(socket, form: to_form(changeset, as: :tag))}
@@ -112,7 +112,7 @@ defmodule KsefHubWeb.TagLive.Form do
         {:noreply,
          socket
          |> put_flash(:info, "Tag updated.")
-         |> push_navigate(to: ~p"/c/#{socket.assigns.current_company.id}/tags")}
+         |> push_navigate(to: ~p"/c/#{socket.assigns.current_company.id}/tags?type=#{socket.assigns.tag_type}")}
 
       {:error, %Ecto.Changeset{} = changeset} ->
         {:noreply, assign(socket, form: to_form(changeset, as: :tag))}
@@ -169,7 +169,7 @@ defmodule KsefHubWeb.TagLive.Form do
         </.button>
         <.button
           variant="outline"
-          navigate={~p"/c/#{@current_company.id}/tags"}
+          navigate={~p"/c/#{@current_company.id}/tags?type=#{@tag_type}"}
         >
           Cancel
         </.button>

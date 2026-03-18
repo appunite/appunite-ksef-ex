@@ -776,10 +776,9 @@ defmodule KsefHubWeb.InvoiceLive.Show do
               :if={@can_set_category || @can_set_tags}
               navigate={~p"/c/#{@current_company.id}/invoices/#{@invoice.id}/classify"}
               data-testid="edit-classification"
+              class="inline-flex items-center gap-1.5 rounded-md border border-input bg-background px-3 py-1.5 text-sm font-medium hover:bg-accent hover:text-accent-foreground"
             >
-              <.button size="sm" variant="outline">
-                <.icon name="hero-pencil-square" class="size-4" /> Edit
-              </.button>
+              <.icon name="hero-pencil-square" class="size-4" /> Edit
             </.link>
           </div>
 

@@ -96,7 +96,7 @@ defmodule KsefHubWeb.TagLiveTest do
       |> element("form#tag-form")
       |> render_submit(%{tag: %{name: "quarterly", description: "Quarterly reports"}})
 
-      flash = assert_redirect(view, ~p"/c/#{company.id}/tags")
+      flash = assert_redirect(view, ~p"/c/#{company.id}/tags?type=expense")
       assert flash["info"] == "Tag created."
     end
 
@@ -132,7 +132,7 @@ defmodule KsefHubWeb.TagLiveTest do
       |> element("form#tag-form")
       |> render_submit(%{tag: %{name: "new-name", description: "Updated"}})
 
-      flash = assert_redirect(view, ~p"/c/#{company.id}/tags")
+      flash = assert_redirect(view, ~p"/c/#{company.id}/tags?type=expense")
       assert flash["info"] == "Tag updated."
     end
 

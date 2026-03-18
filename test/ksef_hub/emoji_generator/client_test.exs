@@ -6,20 +6,20 @@ defmodule KsefHub.EmojiGenerator.ClientTest do
   @context %{identifier: "finance:invoices", name: nil, description: nil, examples: nil}
 
   describe "generate_emoji/1" do
+    setup do
+      on_exit(fn -> Application.delete_env(:ksef_hub, :anthropic_api_key) end)
+    end
+
     test "returns error when API key is not configured" do
       Application.put_env(:ksef_hub, :anthropic_api_key, nil)
 
       assert {:error, :missing_api_key} = Client.generate_emoji(@context)
-    after
-      Application.delete_env(:ksef_hub, :anthropic_api_key)
     end
 
     test "returns error when API key is empty string" do
       Application.put_env(:ksef_hub, :anthropic_api_key, "")
 
       assert {:error, :missing_api_key} = Client.generate_emoji(@context)
-    after
-      Application.delete_env(:ksef_hub, :anthropic_api_key)
     end
 
     test "returns emoji on successful API response" do
@@ -32,8 +32,6 @@ defmodule KsefHub.EmojiGenerator.ClientTest do
       end)
 
       assert {:ok, "💰"} = Client.generate_emoji(@context)
-    after
-      Application.delete_env(:ksef_hub, :anthropic_api_key)
     end
 
     test "extracts emoji from response with surrounding text" do
@@ -46,8 +44,6 @@ defmodule KsefHub.EmojiGenerator.ClientTest do
       end)
 
       assert {:ok, "📦"} = Client.generate_emoji(@context)
-    after
-      Application.delete_env(:ksef_hub, :anthropic_api_key)
     end
 
     test "returns error when response contains no emoji" do
@@ -60,8 +56,6 @@ defmodule KsefHub.EmojiGenerator.ClientTest do
       end)
 
       assert {:error, :no_emoji_in_response} = Client.generate_emoji(@context)
-    after
-      Application.delete_env(:ksef_hub, :anthropic_api_key)
     end
 
     test "returns error on non-200 API response" do
@@ -74,8 +68,6 @@ defmodule KsefHub.EmojiGenerator.ClientTest do
       end)
 
       assert {:error, {:api_error, 429}} = Client.generate_emoji(@context)
-    after
-      Application.delete_env(:ksef_hub, :anthropic_api_key)
     end
 
     test "returns error on request failure" do
@@ -86,8 +78,6 @@ defmodule KsefHub.EmojiGenerator.ClientTest do
       end)
 
       assert {:error, {:request_failed, _}} = Client.generate_emoji(@context)
-    after
-      Application.delete_env(:ksef_hub, :anthropic_api_key)
     end
 
     test "includes all context fields in prompt" do
@@ -116,8 +106,6 @@ defmodule KsefHub.EmojiGenerator.ClientTest do
       }
 
       assert {:ok, "💰"} = Client.generate_emoji(context)
-    after
-      Application.delete_env(:ksef_hub, :anthropic_api_key)
     end
 
     test "omits nil/empty context fields from prompt" do
@@ -139,8 +127,6 @@ defmodule KsefHub.EmojiGenerator.ClientTest do
       end)
 
       assert {:ok, "💰"} = Client.generate_emoji(@context)
-    after
-      Application.delete_env(:ksef_hub, :anthropic_api_key)
     end
   end
 

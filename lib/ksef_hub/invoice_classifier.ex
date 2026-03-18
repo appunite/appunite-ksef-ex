@@ -103,8 +103,8 @@ defmodule KsefHub.InvoiceClassifier do
 
     %{
       attrs: build_prediction_attrs(cat_result, tag_result, confident_category?, confident_tag?),
-      category: matching_category,
-      tag: matching_tag
+      category: if(confident_category?, do: matching_category),
+      tag: if(confident_tag?, do: matching_tag)
     }
   end
 

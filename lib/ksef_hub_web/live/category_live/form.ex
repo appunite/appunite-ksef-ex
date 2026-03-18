@@ -8,12 +8,14 @@ defmodule KsefHubWeb.CategoryLive.Form do
   alias KsefHub.Invoices
   alias KsefHub.Invoices.Category
 
+  @doc "Initialises emoji_loading assign for the async emoji generator."
   @impl true
   @spec mount(map(), map(), Phoenix.LiveView.Socket.t()) :: {:ok, Phoenix.LiveView.Socket.t()}
   def mount(_params, _session, socket) do
     {:ok, assign(socket, emoji_loading: false)}
   end
 
+  @doc "Routes to :new or :edit action based on live_action and URL params."
   @impl true
   @spec handle_params(map(), String.t(), Phoenix.LiveView.Socket.t()) ::
           {:noreply, Phoenix.LiveView.Socket.t()}
@@ -59,6 +61,7 @@ defmodule KsefHubWeb.CategoryLive.Form do
 
   # --- Events ---
 
+  @doc "Handles form validation, save, and emoji generation events."
   @impl true
   @spec handle_event(String.t(), map(), Phoenix.LiveView.Socket.t()) ::
           {:noreply, Phoenix.LiveView.Socket.t()}
@@ -105,6 +108,7 @@ defmodule KsefHubWeb.CategoryLive.Form do
 
   # --- Info handlers ---
 
+  @doc "Receives async emoji generation results and task DOWN messages."
   @impl true
   @spec handle_info(term(), Phoenix.LiveView.Socket.t()) ::
           {:noreply, Phoenix.LiveView.Socket.t()}
@@ -229,6 +233,7 @@ defmodule KsefHubWeb.CategoryLive.Form do
     end
   end
 
+  @doc "Renders the category create/edit form with emoji generation button."
   @impl true
   @spec render(map()) :: Phoenix.LiveView.Rendered.t()
   def render(assigns) do
