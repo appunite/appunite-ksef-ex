@@ -793,35 +793,7 @@ defmodule KsefHubWeb.InvoiceLive.Show do
             <.invoice_details_table invoice={@invoice} show_added_by={true} />
           </div>
         </.card>
-        <!-- Billing Period Card -->
-        <.card padding="p-4">
-          <div class="flex items-center justify-between mb-2">
-            <h2 class="text-base font-semibold">Billing Period</h2>
-          </div>
-          <div :if={!@can_mutate}>
-            <span class="text-sm">
-              {if @invoice.billing_date, do: format_month(@invoice.billing_date), else: "Not set"}
-            </span>
-          </div>
-          <div :if={@can_mutate}>
-            <.form
-              for={@billing_date_form}
-              phx-submit="save_billing_date"
-              class="flex items-center gap-2"
-            >
-              <input
-                type="month"
-                name="billing_date"
-                value={format_month_value(@billing_date_form[:billing_date].value)}
-                class="h-9 w-full rounded-md border border-input bg-background px-3 text-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
-              />
-              <.button type="submit" size="sm" variant="outline" class="shrink-0">
-                Save
-              </.button>
-            </.form>
-          </div>
-        </.card>
-        <!-- Category & Tags Card (read-only) -->
+        <!-- Category & Tags Card -->
         <.card padding="p-4">
           <div class="flex items-center justify-between mb-2">
             <h2 class="text-base font-semibold">Classification</h2>
@@ -863,6 +835,34 @@ defmodule KsefHubWeb.InvoiceLive.Show do
               label="tag"
               testid="prediction-tag-hint"
             />
+          </div>
+        </.card>
+        <!-- Billing Period Card -->
+        <.card padding="p-4">
+          <div class="flex items-center justify-between mb-2">
+            <h2 class="text-base font-semibold">Billing Period</h2>
+          </div>
+          <div :if={!@can_mutate}>
+            <span class="text-sm">
+              {if @invoice.billing_date, do: format_month(@invoice.billing_date), else: "Not set"}
+            </span>
+          </div>
+          <div :if={@can_mutate}>
+            <.form
+              for={@billing_date_form}
+              phx-submit="save_billing_date"
+              class="flex items-center gap-2"
+            >
+              <input
+                type="month"
+                name="billing_date"
+                value={format_month_value(@billing_date_form[:billing_date].value)}
+                class="h-9 w-full rounded-md border border-input bg-background px-3 text-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+              />
+              <.button type="submit" size="sm" variant="outline" class="shrink-0">
+                Save
+              </.button>
+            </.form>
           </div>
         </.card>
         <!-- Note Card -->
