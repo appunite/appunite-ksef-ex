@@ -9,21 +9,32 @@ defmodule KsefHubWeb.Schemas.Category do
 
   OpenApiSpex.schema(%{
     title: "Category",
-    description: "A category for classifying invoices. Name uses group:target format.",
+    description: "A category for classifying invoices. Identifier uses group:target format.",
     type: :object,
     properties: %{
       id: %Schema{type: :string, format: :uuid, description: "Category UUID."},
-      name: %Schema{
+      identifier: %Schema{
         type: :string,
-        description: "Category name in group:target format.",
+        description: "Category identifier in group:target format (ML model key).",
         pattern: "^[^:]+:.+$",
         example: "operations:utilities"
+      },
+      name: %Schema{
+        type: :string,
+        nullable: true,
+        description: "Human-readable display name.",
+        example: "Utilities"
       },
       emoji: %Schema{type: :string, nullable: true, description: "Optional emoji icon."},
       description: %Schema{
         type: :string,
         nullable: true,
         description: "Optional description."
+      },
+      examples: %Schema{
+        type: :string,
+        nullable: true,
+        description: "Example descriptions for this category."
       },
       sort_order: %Schema{
         type: :integer,
@@ -33,12 +44,14 @@ defmodule KsefHubWeb.Schemas.Category do
       inserted_at: %Schema{type: :string, format: :"date-time"},
       updated_at: %Schema{type: :string, format: :"date-time"}
     },
-    required: [:id, :name, :sort_order],
+    required: [:id, :identifier, :sort_order],
     example: %{
       id: "a1b2c3d4-e5f6-7890-abcd-ef1234567890",
-      name: "operations:utilities",
+      identifier: "operations:utilities",
+      name: "Utilities",
       emoji: "⚡",
       description: "Utility bills and related invoices",
+      examples: "Electricity, water, gas bills",
       sort_order: 0,
       inserted_at: "2024-01-15T10:35:00Z",
       updated_at: "2024-01-15T10:35:00Z"

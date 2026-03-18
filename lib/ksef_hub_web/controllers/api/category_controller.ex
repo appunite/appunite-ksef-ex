@@ -18,7 +18,7 @@ defmodule KsefHubWeb.Api.CategoryController do
   plug KsefHubWeb.Plugs.RequirePermission,
        :manage_categories when action in [:create, :update, :delete]
 
-  @category_allowed_keys ~w(name emoji description sort_order)
+  @category_allowed_keys ~w(identifier name emoji description examples sort_order)
 
   tags(["Expense Categories"])
   security([%{"bearer" => []}])

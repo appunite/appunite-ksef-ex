@@ -21,7 +21,7 @@ defmodule KsefHubWeb.TagLiveTest do
     %{conn: conn, user: user, company: company}
   end
 
-  describe "mount" do
+  describe "Index" do
     test "renders tags page with expense tab active by default", %{conn: conn, company: company} do
       {:ok, _view, html} = live(conn, ~p"/c/#{company.id}/tags")
       assert html =~ "Tags"
@@ -55,103 +55,7 @@ defmodule KsefHubWeb.TagLiveTest do
 
       {:ok, _view, html} = live(conn, ~p"/c/#{company.id}/tags")
       assert html =~ "counted"
-      # The usage count should show "1"
       assert html =~ ">1</span>"
-    end
-  end
-
-  describe "create" do
-    test "creates an expense tag on expense tab", %{conn: conn, company: company} do
-      {:ok, view, _html} = live(conn, ~p"/c/#{company.id}/tags")
-
-      view
-      |> element("form#tag-form")
-      |> render_submit(%{tag: %{name: "quarterly", description: "Quarterly reports"}})
-
-      html = render(view)
-      assert html =~ "quarterly"
-      assert html =~ "Tag created."
-    end
-
-    test "creates an income tag on income tab", %{conn: conn, company: company} do
-      {:ok, view, _html} = live(conn, ~p"/c/#{company.id}/tags?type=income")
-
-      view
-      |> element("form#tag-form")
-      |> render_submit(%{tag: %{name: "revenue-tag", description: "Revenue"}})
-
-      html = render(view)
-      assert html =~ "revenue-tag"
-      assert html =~ "Tag created."
-    end
-
-    test "shows error for duplicate name within same type", %{conn: conn, company: company} do
-      insert(:tag, company: company, name: "duplicate", type: :expense)
-
-      {:ok, view, _html} = live(conn, ~p"/c/#{company.id}/tags")
-
-      view
-      |> element("form#tag-form")
-      |> render_submit(%{tag: %{name: "duplicate", description: ""}})
-
-      html = render(view)
-      assert html =~ "already been taken"
-    end
-
-    test "allows same name on different type tabs", %{conn: conn, company: company} do
-      insert(:tag, company: company, name: "shared", type: :expense)
-
-      {:ok, view, _html} = live(conn, ~p"/c/#{company.id}/tags?type=income")
-
-      view
-      |> element("form#tag-form")
-      |> render_submit(%{tag: %{name: "shared", description: ""}})
-
-      html = render(view)
-      assert html =~ "shared"
-      assert html =~ "Tag created."
-    end
-  end
-
-  describe "edit" do
-    test "populates form for editing", %{conn: conn, company: company} do
-      tag = insert(:tag, company: company, name: "edit-me")
-
-      {:ok, view, _html} = live(conn, ~p"/c/#{company.id}/tags")
-
-      view |> element("button", "Edit") |> render_click(%{"id" => tag.id})
-
-      html = render(view)
-      assert html =~ "Edit Tag"
-      assert html =~ "edit-me"
-    end
-
-    test "updates tag", %{conn: conn, company: company} do
-      tag = insert(:tag, company: company, name: "old-name")
-
-      {:ok, view, _html} = live(conn, ~p"/c/#{company.id}/tags")
-
-      view |> element("button", "Edit") |> render_click(%{"id" => tag.id})
-
-      view
-      |> element("form#tag-form")
-      |> render_submit(%{tag: %{name: "new-name", description: "Updated"}})
-
-      html = render(view)
-      assert html =~ "new-name"
-      assert html =~ "Tag updated."
-    end
-
-    test "cancel edit resets form", %{conn: conn, company: company} do
-      tag = insert(:tag, company: company, name: "cancel-test")
-
-      {:ok, view, _html} = live(conn, ~p"/c/#{company.id}/tags")
-
-      view |> element("button", "Edit") |> render_click(%{"id" => tag.id})
-      assert render(view) =~ "Edit Tag"
-
-      view |> element("button", "Cancel") |> render_click()
-      assert render(view) =~ "New Tag"
     end
   end
 
@@ -168,15 +72,76 @@ defmodule KsefHubWeb.TagLiveTest do
       assert html =~ "Tag deleted."
       refute html =~ "delete-me"
     end
-  end
 
-  describe "company scoping" do
     test "does not show tags from other companies", %{conn: conn, company: company} do
       other_company = insert(:company)
       insert(:tag, company: other_company, name: "other-secret")
 
       {:ok, _view, html} = live(conn, ~p"/c/#{company.id}/tags")
       refute html =~ "other-secret"
+    end
+  end
+
+  describe "Form - new" do
+    test "renders new tag form", %{conn: conn, company: company} do
+      {:ok, _view, html} = live(conn, ~p"/c/#{company.id}/tags/new")
+      assert html =~ "New Tag"
+      assert html =~ "Create Tag"
+    end
+
+    test "creates a tag with valid data", %{conn: conn, company: company} do
+      {:ok, view, _html} = live(conn, ~p"/c/#{company.id}/tags/new")
+
+      view
+      |> element("form#tag-form")
+      |> render_submit(%{tag: %{name: "quarterly", description: "Quarterly reports"}})
+
+      flash = assert_redirect(view, ~p"/c/#{company.id}/tags?type=expense")
+      assert flash["info"] == "Tag created."
+    end
+
+    test "shows error for duplicate name", %{conn: conn, company: company} do
+      insert(:tag, company: company, name: "duplicate")
+
+      {:ok, view, _html} = live(conn, ~p"/c/#{company.id}/tags/new")
+
+      view
+      |> element("form#tag-form")
+      |> render_submit(%{tag: %{name: "duplicate", description: ""}})
+
+      html = render(view)
+      assert html =~ "already been taken"
+    end
+  end
+
+  describe "Form - edit" do
+    test "renders edit form with tag data", %{conn: conn, company: company} do
+      tag = insert(:tag, company: company, name: "edit-me")
+
+      {:ok, _view, html} = live(conn, ~p"/c/#{company.id}/tags/#{tag.id}/edit")
+      assert html =~ "Edit Tag"
+      assert html =~ "edit-me"
+    end
+
+    test "updates tag", %{conn: conn, company: company} do
+      tag = insert(:tag, company: company, name: "old-name")
+
+      {:ok, view, _html} = live(conn, ~p"/c/#{company.id}/tags/#{tag.id}/edit")
+
+      view
+      |> element("form#tag-form")
+      |> render_submit(%{tag: %{name: "new-name", description: "Updated"}})
+
+      flash = assert_redirect(view, ~p"/c/#{company.id}/tags?type=expense")
+      assert flash["info"] == "Tag updated."
+    end
+
+    test "redirects for non-existent tag", %{conn: conn, company: company} do
+      assert {:error, {:live_redirect, %{to: to, flash: flash}}} =
+               live(conn, ~p"/c/#{company.id}/tags/#{Ecto.UUID.generate()}/edit")
+
+      assert to == "/c/#{company.id}/tags?type=expense"
+      assert flash["error"] == "Tag not found."
     end
   end
 end

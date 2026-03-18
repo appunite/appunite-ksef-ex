@@ -118,6 +118,7 @@ defmodule KsefHub.Exports.CsvBuilder do
 
   @spec format_category(Invoice.t()) :: String.t()
   defp format_category(%{category: %{name: name}}) when is_binary(name), do: name
+  defp format_category(%{category: %{identifier: id}}) when is_binary(id), do: id
   defp format_category(_), do: ""
 
   @spec format_address(map() | nil) :: String.t()

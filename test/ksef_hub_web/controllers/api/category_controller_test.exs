@@ -7,17 +7,17 @@ defmodule KsefHubWeb.Api.CategoryControllerTest do
   describe "index" do
     test "returns categories for the token's company", %{conn: conn} do
       %{company: company, token: token} = create_user_with_token(:owner)
-      insert(:category, company: company, name: "ops:mine")
+      insert(:category, company: company, identifier: "ops:mine")
 
       other_company = insert(:company)
-      insert(:category, company: other_company, name: "ops:other")
+      insert(:category, company: other_company, identifier: "ops:other")
 
       conn = conn |> api_conn(token) |> get("/api/categories")
 
       assert conn.status == 200
       body = Jason.decode!(conn.resp_body)
       assert length(body["data"]) == 1
-      assert hd(body["data"])["name"] == "ops:mine"
+      assert hd(body["data"])["identifier"] == "ops:mine"
     end
 
     test "returns empty list when no categories exist", %{conn: conn} do
@@ -29,23 +29,23 @@ defmodule KsefHubWeb.Api.CategoryControllerTest do
       assert Jason.decode!(conn.resp_body)["data"] == []
     end
 
-    test "returns categories ordered by sort_order then name", %{conn: conn} do
+    test "returns categories ordered by sort_order then identifier", %{conn: conn} do
       %{company: company, token: token} = create_user_with_token(:owner)
-      insert(:category, company: company, name: "b:beta", sort_order: 1)
-      insert(:category, company: company, name: "a:alpha", sort_order: 0)
+      insert(:category, company: company, identifier: "b:beta", sort_order: 1)
+      insert(:category, company: company, identifier: "a:alpha", sort_order: 0)
 
       conn = conn |> api_conn(token) |> get("/api/categories")
 
       body = Jason.decode!(conn.resp_body)
-      names = Enum.map(body["data"], & &1["name"])
-      assert names == ["a:alpha", "b:beta"]
+      identifiers = Enum.map(body["data"], & &1["identifier"])
+      assert identifiers == ["a:alpha", "b:beta"]
     end
   end
 
   describe "show" do
     test "returns a category", %{conn: conn} do
       %{company: company, token: token} = create_user_with_token(:owner)
-      category = insert(:category, company: company, name: "ops:test")
+      category = insert(:category, company: company, identifier: "ops:test")
 
       conn = conn |> api_conn(token) |> get("/api/categories/#{category.id}")
 
@@ -68,26 +68,26 @@ defmodule KsefHubWeb.Api.CategoryControllerTest do
     test "creates a category with valid attrs", %{conn: conn} do
       %{token: token} = create_user_with_token(:owner)
 
-      body = Jason.encode!(%{name: "finance:invoices", emoji: "💰", sort_order: 5})
+      body = Jason.encode!(%{identifier: "finance:invoices", emoji: "💰", sort_order: 5})
       conn = conn |> api_conn(token) |> post("/api/categories", body)
 
       assert conn.status == 201
       data = Jason.decode!(conn.resp_body)["data"]
-      assert data["name"] == "finance:invoices"
+      assert data["identifier"] == "finance:invoices"
       assert data["emoji"] == "💰"
       assert data["sort_order"] == 5
     end
 
-    test "returns 422 for invalid name format", %{conn: conn} do
+    test "returns 422 for invalid identifier format", %{conn: conn} do
       %{token: token} = create_user_with_token(:owner)
 
-      body = Jason.encode!(%{name: "no-colon"})
+      body = Jason.encode!(%{identifier: "no-colon"})
       conn = conn |> api_conn(token) |> post("/api/categories", body)
 
       assert conn.status == 422
     end
 
-    test "returns 422 for missing name", %{conn: conn} do
+    test "returns 422 for missing identifier", %{conn: conn} do
       %{token: token} = create_user_with_token(:owner)
 
       body = Jason.encode!(%{emoji: "📦"})
@@ -96,11 +96,11 @@ defmodule KsefHubWeb.Api.CategoryControllerTest do
       assert conn.status == 422
     end
 
-    test "returns 422 for duplicate name in same company", %{conn: conn} do
+    test "returns 422 for duplicate identifier in same company", %{conn: conn} do
       %{company: company, token: token} = create_user_with_token(:owner)
-      insert(:category, company: company, name: "ops:dup")
+      insert(:category, company: company, identifier: "ops:dup")
 
-      body = Jason.encode!(%{name: "ops:dup"})
+      body = Jason.encode!(%{identifier: "ops:dup"})
       conn = conn |> api_conn(token) |> post("/api/categories", body)
 
       assert conn.status == 422
@@ -110,14 +110,14 @@ defmodule KsefHubWeb.Api.CategoryControllerTest do
   describe "update" do
     test "updates a category", %{conn: conn} do
       %{company: company, token: token} = create_user_with_token(:owner)
-      category = insert(:category, company: company, name: "ops:old")
+      category = insert(:category, company: company, identifier: "ops:old")
 
-      body = Jason.encode!(%{name: "ops:new", emoji: "🔥"})
+      body = Jason.encode!(%{identifier: "ops:new", emoji: "🔥"})
       conn = conn |> api_conn(token) |> put("/api/categories/#{category.id}", body)
 
       assert conn.status == 200
       data = Jason.decode!(conn.resp_body)["data"]
-      assert data["name"] == "ops:new"
+      assert data["identifier"] == "ops:new"
       assert data["emoji"] == "🔥"
     end
 
@@ -126,7 +126,7 @@ defmodule KsefHubWeb.Api.CategoryControllerTest do
       other_company = insert(:company)
       category = insert(:category, company: other_company)
 
-      body = Jason.encode!(%{name: "ops:hacked"})
+      body = Jason.encode!(%{identifier: "ops:hacked"})
       conn = conn |> api_conn(token) |> put("/api/categories/#{category.id}", body)
 
       assert conn.status == 404
@@ -136,7 +136,7 @@ defmodule KsefHubWeb.Api.CategoryControllerTest do
       %{company: company, token: token} = create_user_with_token(:owner)
       category = insert(:category, company: company)
 
-      body = Jason.encode!(%{name: "bad-format"})
+      body = Jason.encode!(%{identifier: "bad-format"})
       conn = conn |> api_conn(token) |> put("/api/categories/#{category.id}", body)
 
       assert conn.status == 422
@@ -168,7 +168,7 @@ defmodule KsefHubWeb.Api.CategoryControllerTest do
   describe "permission enforcement" do
     test "accountant can read categories (index)", %{conn: conn} do
       {:ok, %{company: company, token: token}} = create_user_with_token(:accountant)
-      insert(:category, company: company, name: "ops:test")
+      insert(:category, company: company, identifier: "ops:test")
 
       conn = conn |> api_conn(token) |> get("/api/categories")
       assert conn.status == 200
@@ -176,7 +176,7 @@ defmodule KsefHubWeb.Api.CategoryControllerTest do
 
     test "accountant can read category (show)", %{conn: conn} do
       {:ok, %{company: company, token: token}} = create_user_with_token(:accountant)
-      category = insert(:category, company: company, name: "ops:test")
+      category = insert(:category, company: company, identifier: "ops:test")
 
       conn = conn |> api_conn(token) |> get("/api/categories/#{category.id}")
       assert conn.status == 200
@@ -184,7 +184,7 @@ defmodule KsefHubWeb.Api.CategoryControllerTest do
 
     test "reviewer can read category (show)", %{conn: conn} do
       {:ok, %{company: company, token: token}} = create_user_with_token(:reviewer)
-      category = insert(:category, company: company, name: "ops:test")
+      category = insert(:category, company: company, identifier: "ops:test")
 
       conn = conn |> api_conn(token) |> get("/api/categories/#{category.id}")
       assert conn.status == 200
@@ -192,7 +192,7 @@ defmodule KsefHubWeb.Api.CategoryControllerTest do
 
     test "reviewer can read categories (index)", %{conn: conn} do
       {:ok, %{company: company, token: token}} = create_user_with_token(:reviewer)
-      insert(:category, company: company, name: "ops:test")
+      insert(:category, company: company, identifier: "ops:test")
 
       conn = conn |> api_conn(token) |> get("/api/categories")
       assert conn.status == 200
@@ -201,7 +201,7 @@ defmodule KsefHubWeb.Api.CategoryControllerTest do
     test "accountant cannot create categories", %{conn: conn} do
       {:ok, %{token: token}} = create_user_with_token(:accountant)
 
-      body = Jason.encode!(%{name: "ops:test"})
+      body = Jason.encode!(%{identifier: "ops:test"})
       conn = conn |> api_conn(token) |> post("/api/categories", body)
       assert conn.status == 403
     end
@@ -209,7 +209,7 @@ defmodule KsefHubWeb.Api.CategoryControllerTest do
     test "reviewer cannot create categories", %{conn: conn} do
       {:ok, %{token: token}} = create_user_with_token(:reviewer)
 
-      body = Jason.encode!(%{name: "ops:test"})
+      body = Jason.encode!(%{identifier: "ops:test"})
       conn = conn |> api_conn(token) |> post("/api/categories", body)
       assert conn.status == 403
     end
@@ -217,7 +217,7 @@ defmodule KsefHubWeb.Api.CategoryControllerTest do
     test "admin can create categories", %{conn: conn} do
       {:ok, %{token: token}} = create_user_with_token(:admin)
 
-      body = Jason.encode!(%{name: "ops:test"})
+      body = Jason.encode!(%{identifier: "ops:test"})
       conn = conn |> api_conn(token) |> post("/api/categories", body)
       assert conn.status == 201
     end
@@ -226,7 +226,7 @@ defmodule KsefHubWeb.Api.CategoryControllerTest do
       {:ok, %{company: company, token: token}} = create_user_with_token(:accountant)
       category = insert(:category, company: company)
 
-      body = Jason.encode!(%{name: "ops:updated"})
+      body = Jason.encode!(%{identifier: "ops:updated"})
       conn = conn |> api_conn(token) |> patch("/api/categories/#{category.id}", body)
       assert conn.status == 403
     end
@@ -235,7 +235,7 @@ defmodule KsefHubWeb.Api.CategoryControllerTest do
       {:ok, %{company: company, token: token}} = create_user_with_token(:admin)
       category = insert(:category, company: company)
 
-      body = Jason.encode!(%{name: "ops:updated"})
+      body = Jason.encode!(%{identifier: "ops:updated"})
       conn = conn |> api_conn(token) |> patch("/api/categories/#{category.id}", body)
       assert conn.status == 200
     end
@@ -260,7 +260,7 @@ defmodule KsefHubWeb.Api.CategoryControllerTest do
       {:ok, %{company: company, token: token}} = create_user_with_token(:reviewer)
       category = insert(:category, company: company)
 
-      body = Jason.encode!(%{name: "ops:updated"})
+      body = Jason.encode!(%{identifier: "ops:updated"})
       conn = conn |> api_conn(token) |> patch("/api/categories/#{category.id}", body)
       assert conn.status == 403
     end

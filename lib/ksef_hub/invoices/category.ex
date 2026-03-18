@@ -10,9 +10,11 @@ defmodule KsefHub.Invoices.Category do
   @foreign_key_type :binary_id
 
   schema "categories" do
+    field :identifier, :string
     field :name, :string
     field :emoji, :string
     field :description, :string
+    field :examples, :string
     field :sort_order, :integer, default: 0
 
     belongs_to :company, KsefHub.Companies.Company
@@ -25,10 +27,10 @@ defmodule KsefHub.Invoices.Category do
   @spec changeset(t() | Ecto.Changeset.t(), map()) :: Ecto.Changeset.t()
   def changeset(category, attrs) do
     category
-    |> cast(attrs, [:name, :emoji, :description, :sort_order])
-    |> validate_required([:name, :company_id])
-    |> validate_format(:name, ~r/^[^:]+:.+$/, message: "must be in group:target format")
-    |> unique_constraint([:company_id, :name], error_key: :name)
+    |> cast(attrs, [:identifier, :name, :emoji, :description, :examples, :sort_order])
+    |> validate_required([:identifier, :company_id])
+    |> validate_format(:identifier, ~r/^[^:]+:.+$/, message: "must be in group:target format")
+    |> unique_constraint([:company_id, :identifier], error_key: :identifier)
     |> foreign_key_constraint(:company_id)
   end
 end

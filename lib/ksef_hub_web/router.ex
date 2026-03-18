@@ -121,6 +121,7 @@ defmodule KsefHubWeb.Router do
       live "/dashboard", DashboardLive
       live "/invoices", InvoiceLive.Index
       live "/invoices/:id", InvoiceLive.Show
+      live "/invoices/:id/classify", InvoiceLive.Classify
     end
 
     live_session :require_manage_tokens,
@@ -160,7 +161,9 @@ defmodule KsefHubWeb.Router do
         {KsefHubWeb.LiveAuth, :default},
         {KsefHubWeb.LiveAuth, {:require_permission, :manage_categories}}
       ] do
-      live "/categories", CategoryLive
+      live "/categories", CategoryLive.Index, :index
+      live "/categories/new", CategoryLive.Form, :new
+      live "/categories/:id/edit", CategoryLive.Form, :edit
     end
 
     live_session :require_manage_tags,
@@ -168,7 +171,9 @@ defmodule KsefHubWeb.Router do
         {KsefHubWeb.LiveAuth, :default},
         {KsefHubWeb.LiveAuth, {:require_permission, :manage_tags}}
       ] do
-      live "/tags", TagLive
+      live "/tags", TagLive.Index, :index
+      live "/tags/new", TagLive.Form, :new
+      live "/tags/:id/edit", TagLive.Form, :edit
     end
 
     live_session :require_manage_team,

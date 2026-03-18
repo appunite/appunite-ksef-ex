@@ -89,22 +89,22 @@ defmodule KsefHub.InvoiceClassifier do
 
   @spec resolve_predictions(Ecto.UUID.t(), map(), map()) :: map()
   defp resolve_predictions(company_id, cat_result, tag_result) do
-    cat_name = cat_result["predicted_label"]
+    cat_identifier = cat_result["predicted_label"]
     cat_confidence = cat_result["confidence"] || 0.0
     tag_name = tag_result["predicted_label"]
     tag_confidence = tag_result["confidence"] || 0.0
 
-    matching_category = find_category_by_name(company_id, cat_name)
+    matching_category = find_category_by_identifier(company_id, cat_identifier)
     matching_tag = find_tag_by_name(company_id, tag_name)
 
     threshold = confidence_threshold()
-    apply_category? = cat_confidence >= threshold and matching_category != nil
-    apply_tag? = tag_confidence >= threshold and matching_tag != nil
+    confident_category? = cat_confidence >= threshold and matching_category != nil
+    confident_tag? = tag_confidence >= threshold and matching_tag != nil
 
     %{
-      attrs: build_prediction_attrs(cat_result, tag_result, apply_category?, apply_tag?),
-      category: if(apply_category?, do: matching_category),
-      tag: if(apply_tag?, do: matching_tag)
+      attrs: build_prediction_attrs(cat_result, tag_result, confident_category?, confident_tag?),
+      category: if(confident_category?, do: matching_category),
+      tag: if(confident_tag?, do: matching_tag)
     }
   end
 
@@ -158,12 +158,12 @@ defmodule KsefHub.InvoiceClassifier do
     end
   end
 
-  @spec find_category_by_name(Ecto.UUID.t(), String.t() | nil) :: Category.t() | nil
-  defp find_category_by_name(_company_id, nil), do: nil
+  @spec find_category_by_identifier(Ecto.UUID.t(), String.t() | nil) :: Category.t() | nil
+  defp find_category_by_identifier(_company_id, nil), do: nil
 
-  defp find_category_by_name(company_id, name) do
+  defp find_category_by_identifier(company_id, identifier) do
     Category
-    |> where([c], c.company_id == ^company_id and c.name == ^name)
+    |> where([c], c.company_id == ^company_id and c.identifier == ^identifier)
     |> Repo.one()
   end
 

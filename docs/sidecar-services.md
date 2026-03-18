@@ -159,8 +159,7 @@ Or use `make models.train` to see these instructions at any time.
 |----------|-------------|
 | `PORT` | Listen port (set to `3002`) |
 | `API_TOKEN` | Token for authenticating incoming requests |
-| `ANTHROPIC_API_KEY` | Anthropic API key for Claude (used for PDF extraction) |
-| `ANTHROPIC_MODEL` | Claude model to use (e.g., `claude-sonnet-4-5-20250929`) |
+| `ANTHROPIC_API_KEY` | Anthropic API key for Claude (used for PDF extraction). Model defaults are set in the container image. |
 
 ### Invoice classifier sidecar
 

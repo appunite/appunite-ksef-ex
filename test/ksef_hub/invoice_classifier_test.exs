@@ -27,7 +27,7 @@ defmodule KsefHub.InvoiceClassifierTest do
     test "auto-applies category and tag when confidence >= 51% and matches exist", %{
       company: company
     } do
-      {:ok, category} = Invoices.create_category(company.id, %{name: "finance:invoices"})
+      {:ok, category} = Invoices.create_category(company.id, %{identifier: "finance:invoices"})
       {:ok, tag} = Invoices.create_tag(company.id, %{name: "monthly"})
 
       invoice =
@@ -67,8 +67,9 @@ defmodule KsefHub.InvoiceClassifierTest do
       assert Enum.any?(updated.tags, &(&1.id == tag.id))
     end
 
-    test "stores predictions as needs_review when confidence < 51%", %{company: company} do
-      {:ok, _category} = Invoices.create_category(company.id, %{name: "finance:invoices"})
+    test "stores predictions as needs_review when confidence < 51% without applying category or tag",
+         %{company: company} do
+      {:ok, _category} = Invoices.create_category(company.id, %{identifier: "finance:invoices"})
 
       invoice = insert(:manual_invoice, company: company, type: :expense)
 
@@ -93,8 +94,38 @@ defmodule KsefHub.InvoiceClassifierTest do
       assert updated.prediction_category_name == "finance:invoices"
       assert updated.prediction_category_confidence == 0.40
 
-      # Category should NOT be applied
+      # Category is NOT applied when confidence is below threshold
+      updated = Invoices.get_invoice_with_details!(company.id, updated.id)
       assert updated.category_id == nil
+    end
+
+    test "below-threshold with matching tag does not apply tag", %{company: company} do
+      {:ok, _tag} = Invoices.create_tag(company.id, %{name: "monthly"})
+
+      invoice = insert(:manual_invoice, company: company, type: :expense)
+
+      expect_predictions(
+        category: %{
+          "predicted_label" => "nonexistent:cat",
+          "confidence" => 0.30,
+          "model_version" => "v1.0",
+          "probabilities" => %{"nonexistent:cat" => 0.30}
+        },
+        tag: %{
+          "predicted_label" => "monthly",
+          "confidence" => 0.40,
+          "model_version" => "v1.0",
+          "probabilities" => %{"monthly" => 0.40}
+        }
+      )
+
+      assert {:ok, updated} = InvoiceClassifier.predict_and_apply(invoice)
+
+      assert updated.prediction_status == :needs_review
+
+      # Tag is NOT applied when confidence is below threshold
+      updated = Invoices.get_invoice_with_details!(company.id, updated.id)
+      assert updated.tags == []
     end
 
     test "skips non-expense invoices", %{company: company} do
@@ -181,7 +212,7 @@ defmodule KsefHub.InvoiceClassifierTest do
     end
 
     test "sets predicted when only category matches above threshold", %{company: company} do
-      {:ok, category} = Invoices.create_category(company.id, %{name: "finance:invoices"})
+      {:ok, category} = Invoices.create_category(company.id, %{identifier: "finance:invoices"})
 
       invoice = insert(:manual_invoice, company: company, type: :expense)
 
@@ -232,7 +263,7 @@ defmodule KsefHub.InvoiceClassifierTest do
     end
 
     test "auto-applies at exact 51% confidence boundary", %{company: company} do
-      {:ok, category} = Invoices.create_category(company.id, %{name: "finance:invoices"})
+      {:ok, category} = Invoices.create_category(company.id, %{identifier: "finance:invoices"})
 
       invoice = insert(:manual_invoice, company: company, type: :expense)
 

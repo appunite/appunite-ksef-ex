@@ -193,7 +193,8 @@ defmodule KsefHub.Factory do
   @spec category_factory() :: Category.t()
   def category_factory do
     %Category{
-      name: sequence(:category_name, &"operations:category-#{&1}"),
+      identifier: sequence(:category_identifier, &"operations:category-#{&1}"),
+      name: "Test Category",
       emoji: "📦",
       description: "Test category",
       sort_order: 0,

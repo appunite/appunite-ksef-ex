@@ -37,6 +37,7 @@ config :ksef_hub, :pkcs12_converter, KsefHub.Credentials.Pkcs12Converter.Mock
 config :ksef_hub, :certificate_info, KsefHub.Credentials.CertificateInfo.Mock
 config :ksef_hub, :invoice_classifier, KsefHub.InvoiceClassifier.Mock
 config :ksef_hub, :invoice_extractor, KsefHub.InvoiceExtractor.Mock
+config :ksef_hub, :emoji_generator, KsefHub.EmojiGenerator.Mock
 
 config :ksef_hub,
   invoice_extractor_req_options: [
@@ -47,6 +48,12 @@ config :ksef_hub,
 config :ksef_hub,
   invoice_classifier_req_options: [
     plug: {Req.Test, KsefHub.InvoiceClassifier.Client},
+    retry: false
+  ]
+
+config :ksef_hub,
+  emoji_generator_req_options: [
+    plug: {Req.Test, KsefHub.EmojiGenerator.Client},
     retry: false
   ]
 

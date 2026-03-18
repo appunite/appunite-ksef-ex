@@ -123,8 +123,6 @@ spec:
                 secretKeyRef:
                   key: latest
                   name: anthropic-api-key
-            - name: ANTHROPIC_MODEL
-              value: "claude-sonnet-4-5-20250929"
           resources:
             limits:
               memory: 2Gi

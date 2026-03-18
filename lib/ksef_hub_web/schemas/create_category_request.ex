@@ -12,22 +12,33 @@ defmodule KsefHubWeb.Schemas.CreateCategoryRequest do
     description: "Request body for creating a category.",
     type: :object,
     properties: %{
+      identifier: %Schema{
+        type: :string,
+        description: "Category identifier in group:target format.",
+        pattern: "^[^:]+:.+$"
+      },
       name: %Schema{
         type: :string,
-        description: "Category name in group:target format.",
-        pattern: "^[^:]+:.+$"
+        nullable: true,
+        description: "Human-readable display name."
       },
       emoji: %Schema{type: :string, nullable: true, description: "Optional emoji icon."},
       description: %Schema{type: :string, nullable: true, description: "Optional description."},
+      examples: %Schema{
+        type: :string,
+        nullable: true,
+        description: "Example descriptions for this category."
+      },
       sort_order: %Schema{
         type: :integer,
         description: "Sort order for display.",
         default: 0
       }
     },
-    required: [:name],
+    required: [:identifier],
     example: %{
-      name: "operations:utilities",
+      identifier: "operations:utilities",
+      name: "Utilities",
       emoji: "⚡",
       description: "Utility bills and related invoices",
       sort_order: 0

@@ -82,10 +82,6 @@ defmodule KsefHubWeb.InvoiceLive.Show do
            invoice_payment_requests: invoice_payment_requests,
            html_preview: generate_preview(invoice),
            categories: Invoices.list_categories(company.id),
-           all_tags: Invoices.list_tags(company.id, invoice.type),
-           category_form: category_form(invoice),
-           new_tag_form: new_tag_form(),
-           tag_form_key: 0,
            editing: auto_edit && can_mutate,
            edit_form: build_edit_form(invoice),
            editing_note: false,
@@ -109,9 +105,6 @@ defmodule KsefHubWeb.InvoiceLive.Show do
     toggle_edit save_edit edit_note save_note copy_public_link)
 
   @approve_events ~w(approve reject)
-  @category_events ~w(set_category)
-  @tag_events ~w(toggle_tag)
-  @create_tag_events ~w(create_and_add_tag)
 
   @impl true
   @spec handle_event(String.t(), map(), Phoenix.LiveView.Socket.t()) ::
@@ -125,21 +118,6 @@ defmodule KsefHubWeb.InvoiceLive.Show do
       when event in @approve_events do
     {:noreply,
      put_flash(socket, :error, "You don't have permission to approve or reject invoices.")}
-  end
-
-  def handle_event(event, _params, %{assigns: %{can_set_category: false}} = socket)
-      when event in @category_events do
-    {:noreply, put_flash(socket, :error, "You don't have permission to set invoice categories.")}
-  end
-
-  def handle_event(event, _params, %{assigns: %{can_set_tags: false}} = socket)
-      when event in @tag_events do
-    {:noreply, put_flash(socket, :error, "You don't have permission to manage invoice tags.")}
-  end
-
-  def handle_event(event, _params, %{assigns: %{can_manage_tags: false}} = socket)
-      when event in @create_tag_events do
-    {:noreply, put_flash(socket, :error, "You don't have permission to create tags.")}
   end
 
   # --- Events: Re-extract ---
@@ -270,56 +248,6 @@ defmodule KsefHubWeb.InvoiceLive.Show do
       end
     else
       {:noreply, put_flash(socket, :error, "Stale or invalid duplicate state.")}
-    end
-  end
-
-  # --- Events: Category ---
-
-  @impl true
-  def handle_event("set_category", %{"category_id" => raw_id}, socket) do
-    category_id = if raw_id == "", do: nil, else: raw_id
-
-    invoice = socket.assigns.invoice
-
-    with :ok <- validate_category_id(category_id),
-         {:ok, updated} <-
-           Invoices.with_manual_prediction(invoice, fn ->
-             Invoices.set_invoice_category(invoice, category_id)
-           end) do
-      reloaded = reload_details(updated, socket)
-      {:noreply, assign(socket, invoice: reloaded, category_form: category_form(reloaded))}
-    else
-      {:error, :invalid_id} ->
-        {:noreply, put_flash(socket, :error, "Invalid category.")}
-
-      {:error, :category_not_in_company} ->
-        {:noreply, put_flash(socket, :error, "Category not found.")}
-
-      {:error, :expense_only} ->
-        {:noreply,
-         put_flash(socket, :error, "Categories can only be assigned to expense invoices.")}
-
-      {:error, _} ->
-        {:noreply, put_flash(socket, :error, "Failed to update category.")}
-    end
-  end
-
-  # --- Events: Tags ---
-
-  @impl true
-  def handle_event("toggle_tag", %{"tag-id" => tag_id}, socket) do
-    if Enum.any?(socket.assigns.all_tags, &(&1.id == tag_id)) do
-      do_toggle_tag(socket, tag_id)
-    else
-      {:noreply, put_flash(socket, :error, "Invalid tag.")}
-    end
-  end
-
-  @impl true
-  def handle_event("create_and_add_tag", %{"name" => name}, socket) do
-    case String.trim(name) do
-      "" -> {:noreply, socket}
-      trimmed -> do_create_and_add_tag(socket, trimmed)
     end
   end
 
@@ -589,114 +517,7 @@ defmodule KsefHubWeb.InvoiceLive.Show do
     {:noreply, socket}
   end
 
-  # --- Function Components ---
-
-  attr :predicted_at, :any, required: true
-  attr :status, :atom, required: true
-  attr :confidence, :any, required: true
-  attr :threshold, :float, required: true
-  attr :label, :string, required: true
-  attr :testid, :string, required: true
-
-  @spec prediction_hint(map()) :: Phoenix.LiveView.Rendered.t()
-  defp prediction_hint(assigns) do
-    assigns = assign(assigns, :show_hint, show_prediction_hint?(assigns))
-
-    ~H"""
-    <p :if={@show_hint} class="text-xs mt-1 opacity-60" data-testid={@testid}>
-      <%= cond do %>
-        <% @status == :manual -> %>
-          Manually adjusted
-        <% @confidence && @confidence >= @threshold -> %>
-          Predicted with {Float.round(@confidence * 100, 1)}% probability, feel free to adjust
-        <% @confidence && @confidence < @threshold -> %>
-          Could not predict {@label} automatically ({Float.round(@confidence * 100, 1)}% confidence)
-      <% end %>
-    </p>
-    """
-  end
-
-  @spec show_prediction_hint?(map()) :: boolean()
-  defp show_prediction_hint?(%{predicted_at: nil}), do: false
-
-  defp show_prediction_hint?(%{status: :manual}), do: true
-
-  defp show_prediction_hint?(%{confidence: confidence}) when is_number(confidence), do: true
-
-  defp show_prediction_hint?(_assigns), do: false
-
   # --- Private ---
-
-  @spec do_toggle_tag(Phoenix.LiveView.Socket.t(), String.t()) ::
-          {:noreply, Phoenix.LiveView.Socket.t()}
-  defp do_toggle_tag(socket, tag_id) do
-    invoice = socket.assigns.invoice
-    currently_assigned = tag_assigned?(invoice, tag_id)
-
-    result =
-      Invoices.with_manual_prediction(invoice, fn ->
-        toggle_tag_operation(invoice, tag_id, currently_assigned)
-      end)
-
-    case result do
-      {:ok, _} ->
-        reloaded = reload_details(invoice, socket)
-        {:noreply, assign(socket, :invoice, reloaded)}
-
-      {:error, _} ->
-        {:noreply, put_flash(socket, :error, "Failed to update tags.")}
-    end
-  end
-
-  @spec toggle_tag_operation(Invoice.t(), String.t(), boolean()) ::
-          {:ok, term()} | {:error, term()}
-  defp toggle_tag_operation(invoice, tag_id, true = _assigned),
-    do: Invoices.remove_invoice_tag(invoice.id, tag_id)
-
-  defp toggle_tag_operation(invoice, tag_id, false = _assigned),
-    do: Invoices.add_invoice_tag(invoice.id, tag_id, invoice.company_id)
-
-  @spec do_create_and_add_tag(Phoenix.LiveView.Socket.t(), String.t()) ::
-          {:noreply, Phoenix.LiveView.Socket.t()}
-  defp do_create_and_add_tag(socket, name) do
-    company_id = socket.assigns.current_company.id
-    invoice = socket.assigns.invoice
-
-    result =
-      Invoices.with_manual_prediction(invoice, fn ->
-        Invoices.create_and_add_tag(invoice.id, company_id, %{name: name, type: invoice.type})
-      end)
-
-    case result do
-      {:ok, _tag} ->
-        {:noreply,
-         socket
-         |> assign(
-           invoice: reload_details(invoice, socket),
-           all_tags: Invoices.list_tags(company_id, invoice.type),
-           new_tag_form: new_tag_form(),
-           tag_form_key: socket.assigns.tag_form_key + 1
-         )}
-
-      {:error, %Ecto.Changeset{} = cs} ->
-        {:noreply, put_flash(socket, :error, "Failed to create tag: #{changeset_message(cs)}")}
-
-      {:error, _} ->
-        {:noreply, put_flash(socket, :error, "Failed to create tag.")}
-    end
-  end
-
-  @spec changeset_message(Ecto.Changeset.t()) :: String.t()
-  defp changeset_message(changeset) do
-    changeset
-    |> Ecto.Changeset.traverse_errors(&translate_error/1)
-    |> Enum.map_join(", ", fn {k, v} -> "#{k} #{Enum.join(v, ", ")}" end)
-  end
-
-  @spec category_form(Invoice.t()) :: Phoenix.HTML.Form.t()
-  defp category_form(invoice) do
-    to_form(%{"category_id" => invoice.category_id || ""})
-  end
 
   @spec note_form(Invoice.t()) :: Phoenix.HTML.Form.t()
   defp note_form(invoice) do
@@ -706,24 +527,15 @@ defmodule KsefHubWeb.InvoiceLive.Show do
   @spec comment_form() :: Phoenix.HTML.Form.t()
   defp comment_form, do: to_form(%{"body" => ""})
 
-  @spec new_tag_form() :: Phoenix.HTML.Form.t()
-  defp new_tag_form, do: to_form(%{"name" => ""})
-
-  @spec validate_category_id(String.t() | nil) :: :ok | {:error, :invalid_id}
-  defp validate_category_id(nil), do: :ok
-
-  defp validate_category_id(id) do
-    case Ecto.UUID.cast(id) do
-      {:ok, _} -> :ok
-      :error -> {:error, :invalid_id}
-    end
-  end
-
   @spec assign_new_edit_form(Phoenix.LiveView.Socket.t(), Invoice.t()) ::
           Phoenix.LiveView.Socket.t()
   defp assign_new_edit_form(socket, invoice) do
     assign(socket, edit_form: build_edit_form(invoice))
   end
+
+  @spec find_category(String.t() | nil, [map()]) :: map() | nil
+  defp find_category(nil, _categories), do: nil
+  defp find_category(id, categories), do: Enum.find(categories, &(&1.id == id))
 
   @spec reload_details(Invoice.t(), Phoenix.LiveView.Socket.t()) :: Invoice.t()
   defp reload_details(invoice, socket) do
@@ -737,11 +549,6 @@ defmodule KsefHubWeb.InvoiceLive.Show do
     invoice
     |> Invoice.edit_changeset(%{})
     |> to_form(as: :invoice)
-  end
-
-  @spec tag_assigned?(Invoice.t(), String.t()) :: boolean()
-  defp tag_assigned?(invoice, tag_id) do
-    Enum.any?(invoice.tags, &(&1.id == tag_id))
   end
 
   @spec relative_time(NaiveDateTime.t()) :: String.t()
@@ -826,20 +633,6 @@ defmodule KsefHubWeb.InvoiceLive.Show do
             id="copy-link-btn"
           >
             <.icon name="hero-link" class="size-4" /> Share
-          </.button>
-          <.button
-            :if={@can_manage_payment_requests && @invoice.type == :expense}
-            variant="outline"
-            navigate={~p"/c/#{@current_company.id}/payment-requests/new?invoice_id=#{@invoice.id}"}
-          >
-            <.icon name="hero-banknotes" class="size-4" /> Add payment
-          </.button>
-          <.button
-            :if={@can_mutate && !@editing && @data_editable}
-            variant="outline"
-            phx-click="toggle_edit"
-          >
-            <.icon name="hero-pencil-square" class="size-4" /> Edit
           </.button>
           <.button
             :if={
@@ -936,15 +729,26 @@ defmodule KsefHubWeb.InvoiceLive.Show do
       <!-- Invoice Metadata -->
       <div class="space-y-4">
         <.card padding="p-4">
-          <div class="flex items-center gap-2 mb-2">
-            <h2 class="text-base font-semibold">Details</h2>
-            <span
-              :if={!@data_editable}
-              class="inline-flex items-center gap-1 rounded-md bg-muted px-2 py-0.5 text-xs text-muted-foreground"
-              data-testid="ksef-locked-badge"
+          <div class="flex items-center justify-between mb-2">
+            <div class="flex items-center gap-2">
+              <h2 class="text-base font-semibold">Details</h2>
+              <span
+                :if={!@data_editable}
+                class="inline-flex items-center gap-1 rounded-md bg-muted px-2 py-0.5 text-xs text-muted-foreground"
+                data-testid="ksef-locked-badge"
+              >
+                <.icon name="hero-lock-closed" class="size-3" /> Data fields locked — KSeF invoice
+              </span>
+            </div>
+            <.button
+              :if={@can_mutate && @data_editable && !@editing}
+              size="sm"
+              variant="outline"
+              phx-click="toggle_edit"
+              data-testid="edit-details-btn"
             >
-              <.icon name="hero-lock-closed" class="size-3" /> Data fields locked — KSeF invoice
-            </span>
+              <.icon name="hero-pencil-square" class="size-4" /> Edit
+            </.button>
           </div>
 
           <div :if={@editing}>
@@ -958,33 +762,25 @@ defmodule KsefHubWeb.InvoiceLive.Show do
             <.invoice_details_table invoice={@invoice} show_added_by={true} />
           </div>
         </.card>
-        <!-- Category & Tags Card -->
+        <!-- Category & Tags Card (read-only) -->
         <.card padding="p-4">
-          <h2 class="text-base font-semibold mb-3">Classification</h2>
-          <!-- Category Select (expense only) -->
-          <.form
-            :if={@invoice.type == :expense}
-            for={@category_form}
-            phx-change={if(@can_set_category, do: "set_category")}
-            data-testid="category-form"
-            class="mb-4"
-          >
-            <label class="label"><span class="text-sm font-medium text-xs">Category</span></label>
-            <select
-              name={@category_form[:category_id].name}
-              class="h-9 rounded-md border border-input bg-background px-2 text-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring w-full"
-              data-testid="category-select"
-              disabled={not @can_set_category}
+          <div class="flex items-center justify-between mb-2">
+            <h2 class="text-base font-semibold">Classification</h2>
+            <.link
+              :if={@can_set_category || @can_set_tags}
+              navigate={~p"/c/#{@current_company.id}/invoices/#{@invoice.id}/classify"}
+              data-testid="edit-classification"
+              class="inline-flex items-center gap-1.5 rounded-md border border-input bg-background px-3 py-1.5 text-sm font-medium hover:bg-accent hover:text-accent-foreground"
             >
-              <option value="">No category</option>
-              <option
-                :for={cat <- @categories}
-                value={cat.id}
-                selected={@invoice.category_id == cat.id}
-              >
-                {if(cat.emoji, do: "#{cat.emoji} ", else: "")}{cat.name}
-              </option>
-            </select>
+              <.icon name="hero-pencil-square" class="size-4" /> Edit
+            </.link>
+          </div>
+
+          <div class="mb-3">
+            <label class="text-sm text-muted-foreground">Category</label>
+            <div class="mt-1" data-testid="category-display">
+              <.category_badge category={find_category(@invoice.category_id, @categories)} />
+            </div>
             <.prediction_hint
               predicted_at={@invoice.prediction_predicted_at}
               status={@invoice.prediction_status}
@@ -993,25 +789,12 @@ defmodule KsefHubWeb.InvoiceLive.Show do
               label="category"
               testid="prediction-category-hint"
             />
-          </.form>
-          <!-- Tags -->
+          </div>
+
           <div>
-            <label class="label"><span class="text-sm font-medium text-xs">Tags</span></label>
-            <div class="space-y-1">
-              <label
-                :for={tag <- @all_tags}
-                class="flex items-center gap-2 cursor-pointer hover:bg-muted rounded px-2 py-1"
-              >
-                <input
-                  type="checkbox"
-                  class="size-3.5 rounded border border-input bg-background accent-shad-primary"
-                  checked={tag_assigned?(@invoice, tag.id)}
-                  phx-click={if(@can_set_tags, do: "toggle_tag")}
-                  phx-value-tag-id={tag.id}
-                  disabled={not @can_set_tags}
-                />
-                <span class="text-sm">{tag.name}</span>
-              </label>
+            <label class="text-sm text-muted-foreground">Tags</label>
+            <div class="mt-1" data-testid="tags-display">
+              <.tag_list tags={@invoice.tags} />
             </div>
             <.prediction_hint
               predicted_at={@invoice.prediction_predicted_at}
@@ -1021,26 +804,6 @@ defmodule KsefHubWeb.InvoiceLive.Show do
               label="tag"
               testid="prediction-tag-hint"
             />
-            <!-- New Tag Inline -->
-            <.form
-              :if={@can_manage_tags}
-              for={@new_tag_form}
-              phx-submit="create_and_add_tag"
-              id={"new-tag-form-#{@tag_form_key}"}
-              class="flex gap-2 mt-2"
-            >
-              <input
-                type="text"
-                name={@new_tag_form[:name].name}
-                value={@new_tag_form[:name].value}
-                placeholder="New tag..."
-                class="h-7 w-full rounded-md border border-input bg-background px-3 text-xs focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring flex-1"
-                data-testid="new-tag-input"
-              />
-              <.button type="submit" size="sm">
-                Add
-              </.button>
-            </.form>
           </div>
         </.card>
         <!-- Note Card -->
@@ -1049,12 +812,11 @@ defmodule KsefHubWeb.InvoiceLive.Show do
             <h2 class="text-base font-semibold">Note</h2>
             <.button
               :if={@can_mutate && !@editing_note}
-              variant="ghost"
+              variant="outline"
               size="sm"
               phx-click="edit_note"
-              aria-label="Edit note"
             >
-              <.icon name="hero-pencil-square" class="size-3.5" />
+              <.icon name="hero-pencil-square" class="size-4" /> Edit
             </.button>
           </div>
           <div :if={@editing_note}>
@@ -1216,84 +978,64 @@ defmodule KsefHubWeb.InvoiceLive.Show do
   defp comments_card(assigns) do
     ~H"""
     <.card padding="p-4">
-      <h2 class="text-base font-semibold mb-3">Comments</h2>
+      <h2 class="text-base font-semibold mb-2">Comments</h2>
 
-      <div :if={@comments == []} class="text-sm text-muted-foreground italic mb-3">
+      <div :if={@comments == []} class="text-sm text-muted-foreground italic">
         No comments yet
       </div>
 
-      <div class="space-y-4 mb-3">
+      <div :if={@comments != []} class="text-sm space-y-0.5 mb-3">
         <div :for={comment <- @comments} class="group" id={"comment-#{comment.id}"}>
-          <div class="flex items-center gap-3">
-            <div class="flex-shrink-0 w-8 h-8 rounded-full bg-muted-foreground text-background flex items-center justify-center">
-              <span class="text-xs font-medium">
-                {comment.user.name
-                |> to_string()
-                |> String.first()
-                |> to_string()
-                |> String.upcase()}
-              </span>
-            </div>
-            <span class="text-sm font-medium">{comment.user.name || comment.user.email}</span>
-            <span class="text-xs text-muted-foreground">
-              {relative_time(comment.inserted_at)}
-            </span>
+          <%!-- Header: name · time · actions --%>
+          <div class="flex items-baseline gap-1.5 leading-snug">
+            <span class="font-medium">{comment.user.name || comment.user.email}</span>
+            <span class="text-xs text-muted-foreground">{relative_time(comment.inserted_at)}</span>
             <div
               :if={comment.user_id == @current_user_id}
-              class="opacity-0 group-hover:opacity-100 focus-within:opacity-100 transition-opacity flex gap-0.5"
+              class="opacity-0 group-hover:opacity-100 focus-within:opacity-100 transition-opacity inline-flex gap-0.5 ml-0.5"
             >
-              <.button
-                variant="ghost"
-                size="icon"
-                class="h-6 w-6"
+              <button
                 phx-click="edit_comment"
                 phx-value-id={comment.id}
+                class="text-muted-foreground hover:text-foreground"
                 aria-label="Edit comment"
               >
                 <.icon name="hero-pencil-square" class="size-3" />
-              </.button>
-              <.button
-                variant="ghost"
-                size="icon"
-                class="h-6 w-6 text-shad-destructive"
+              </button>
+              <button
                 phx-click="delete_comment"
                 phx-value-id={comment.id}
                 data-confirm="Delete this comment?"
+                class="text-shad-destructive/60 hover:text-shad-destructive"
                 aria-label="Delete comment"
               >
                 <.icon name="hero-trash" class="size-3" />
-              </.button>
+              </button>
             </div>
           </div>
-          <div class="pl-11">
-            <div :if={@editing_comment_id == comment.id}>
-              <.form for={@edit_comment_form} phx-submit="save_comment_edit" class="mt-1">
-                <textarea
-                  name={@edit_comment_form[:body].name}
-                  class="w-full rounded-md border border-input bg-background px-3 py-2 text-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
-                  rows="2"
-                >{@edit_comment_form[:body].value}</textarea>
-                <div class="flex gap-2 mt-1">
-                  <.button type="submit" size="sm">
-                    Save
-                  </.button>
-                  <.button
-                    type="button"
-                    variant="ghost"
-                    size="sm"
-                    phx-click="cancel_comment_edit"
-                  >
-                    Cancel
-                  </.button>
-                </div>
-              </.form>
-            </div>
-            <p
-              :if={@editing_comment_id != comment.id}
-              class="text-sm whitespace-pre-wrap mt-1"
-            >
-              {comment.body}
-            </p>
+          <%!-- Body or edit form --%>
+          <div :if={@editing_comment_id == comment.id} class="mt-1">
+            <.form for={@edit_comment_form} phx-submit="save_comment_edit">
+              <textarea
+                name={@edit_comment_form[:body].name}
+                class="w-full rounded-md border border-input bg-background px-2 py-1 text-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring resize-none"
+                style="field-sizing: content"
+                rows="1"
+                oninput="this.style.height='auto';this.style.height=this.scrollHeight+'px'"
+              >{@edit_comment_form[:body].value}</textarea>
+              <div class="flex gap-2 mt-1">
+                <.button type="submit" size="sm">Save</.button>
+                <.button type="button" variant="ghost" size="sm" phx-click="cancel_comment_edit">
+                  Cancel
+                </.button>
+              </div>
+            </.form>
+          </div>
+          <div
+            :if={@editing_comment_id != comment.id}
+            class="whitespace-pre-wrap text-muted-foreground"
+          >
+            {comment.body}
           </div>
         </div>
       </div>
@@ -1302,15 +1044,17 @@ defmodule KsefHubWeb.InvoiceLive.Show do
         for={@comment_form}
         phx-submit="submit_comment"
         id={"comment-form-#{@comment_form_key}"}
-        class="flex gap-2"
+        class="flex items-end gap-2 mt-2"
       >
         <textarea
           name={@comment_form[:body].name}
           placeholder="Add a comment..."
-          rows="2"
-          class="w-full rounded-md border border-input bg-background px-3 py-2 text-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring flex-1"
+          rows="1"
+          class="w-full rounded-md border border-input bg-background px-2 py-1 text-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring flex-1 resize-none"
+          style="field-sizing: content"
+          oninput="this.style.height='auto';this.style.height=this.scrollHeight+'px'"
         >{@comment_form[:body].value}</textarea>
-        <.button type="submit">Post</.button>
+        <.button type="submit" size="sm">Post</.button>
       </.form>
     </.card>
     """

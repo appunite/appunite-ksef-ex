@@ -867,7 +867,7 @@ defmodule KsefHubWeb.Api.InvoiceControllerTest do
   describe "show with category and tags" do
     test "includes category and tags in show response", %{conn: conn} do
       %{company: company, token: token} = create_user_with_token(:owner)
-      category = insert(:category, company: company, name: "ops:test")
+      category = insert(:category, company: company, identifier: "ops:test")
       tag = insert(:tag, company: company, name: "urgent")
       invoice = insert(:invoice, company: company, category_id: category.id)
       insert(:invoice_tag, invoice: invoice, tag: tag)
@@ -876,7 +876,7 @@ defmodule KsefHubWeb.Api.InvoiceControllerTest do
 
       data = Jason.decode!(conn.resp_body)["data"]
       assert data["category_id"] == category.id
-      assert data["category"]["name"] == "ops:test"
+      assert data["category"]["identifier"] == "ops:test"
       assert length(data["tags"]) == 1
       assert hd(data["tags"])["name"] == "urgent"
     end
