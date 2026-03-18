@@ -795,15 +795,15 @@ defmodule KsefHubWeb.InvoiceLive.Show do
         </.card>
         <!-- Billing Period Card -->
         <.card padding="p-4">
-          <div class="flex items-center justify-between">
+          <div class="flex items-center justify-between mb-2">
             <h2 class="text-base font-semibold">Billing Period</h2>
           </div>
-          <div :if={!@can_mutate} class="mt-2">
+          <div :if={!@can_mutate}>
             <span class="text-sm">
               {if @invoice.billing_date, do: format_month(@invoice.billing_date), else: "Not set"}
             </span>
           </div>
-          <div :if={@can_mutate} class="mt-2">
+          <div :if={@can_mutate}>
             <.form
               for={@billing_date_form}
               phx-submit="save_billing_date"
@@ -813,9 +813,9 @@ defmodule KsefHubWeb.InvoiceLive.Show do
                 type="month"
                 name="billing_date"
                 value={format_month_value(@billing_date_form[:billing_date].value)}
-                class="h-9 rounded-md border border-input bg-background px-3 text-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+                class="h-9 w-full rounded-md border border-input bg-background px-3 text-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
               />
-              <.button type="submit" size="sm" variant="outline">
+              <.button type="submit" size="sm" variant="outline" class="shrink-0">
                 Save
               </.button>
             </.form>
