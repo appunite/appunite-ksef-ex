@@ -51,6 +51,7 @@ defmodule KsefHub.Invoices.Invoice do
     field :purchase_order, :string
     field :sales_date, :date
     field :due_date, :date
+    field :billing_date, :date
     field :iban, :string
     field :seller_address, :map
     field :buyer_address, :map
@@ -168,6 +169,7 @@ defmodule KsefHub.Invoices.Invoice do
       :purchase_order,
       :sales_date,
       :due_date,
+      :billing_date,
       :iban,
       :seller_address,
       :buyer_address
@@ -210,6 +212,7 @@ defmodule KsefHub.Invoices.Invoice do
     :issue_date,
     :sales_date,
     :due_date,
+    :billing_date,
     :seller_nip,
     :seller_name,
     :buyer_nip,
