@@ -307,13 +307,11 @@ defmodule KsefHub.Invoices do
         |> lock("FOR UPDATE")
         |> Repo.one!()
 
-      if Invoice.data_editable?(fresh_invoice) do
-        case do_update_invoice_fields(fresh_invoice, attrs) do
-          {:ok, updated} -> updated
-          {:error, changeset} -> Repo.rollback(changeset)
-        end
-      else
-        Repo.rollback(:ksef_not_editable)
+      unless Invoice.data_editable?(fresh_invoice), do: Repo.rollback(:ksef_not_editable)
+
+      case do_update_invoice_fields(fresh_invoice, attrs) do
+        {:ok, updated} -> updated
+        {:error, changeset} -> Repo.rollback(changeset)
       end
     end)
   end
