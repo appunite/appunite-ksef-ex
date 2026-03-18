@@ -1889,7 +1889,7 @@ defmodule KsefHub.InvoicesTest do
       invoice = %Invoice{source: :ksef, type: :expense}
       changeset = Invoice.edit_changeset(invoice, %{seller_name: "New Name"})
       refute changeset.valid?
-      assert {"KSeF invoices cannot be edited", _} = changeset.errors[:source]
+      assert {"ksef invoices cannot be edited", _} = changeset.errors[:source]
     end
   end
 

@@ -360,10 +360,16 @@ defmodule KsefHubWeb.InvoiceLive.Show do
          )}
 
       {:error, :ksef_not_editable} ->
+        reloaded = reload_details(socket.assigns.invoice, socket)
+
         {:noreply,
          socket
          |> put_flash(:error, "KSeF invoice data cannot be edited.")
-         |> assign(editing: false)}
+         |> assign(
+           invoice: reloaded,
+           data_editable: Invoice.data_editable?(reloaded),
+           editing: false
+         )}
 
       {:error, changeset} ->
         {:noreply, assign(socket, edit_form: to_form(changeset, as: :invoice))}
@@ -862,11 +868,16 @@ defmodule KsefHubWeb.InvoiceLive.Show do
       data-testid="extraction-warning"
     >
       <.icon name="hero-exclamation-triangle" class="size-5" />
-      <span>
+      <span :if={@data_editable}>
         This invoice has missing data. Please review and fill in the missing fields below.
       </span>
+      <span :if={!@data_editable}>
+        This invoice has missing data but cannot be edited because it originates from KSeF.
+      </span>
       <.button
-        :if={(@can_mutate && @invoice.source in [:pdf_upload, :email]) and not @extracting}
+        :if={
+          @data_editable && @can_mutate && @invoice.source in [:pdf_upload, :email] && !@extracting
+        }
         variant="warning"
         phx-click="re_extract"
       >

@@ -33,10 +33,6 @@ defmodule KsefHubWeb.Api.InvoiceController do
     invoice_number issue_date net_amount gross_amount currency purchase_order
     sales_date due_date iban)
 
-  @update_allowed_keys ~w(seller_nip seller_name buyer_nip buyer_name invoice_number
-    issue_date net_amount gross_amount currency ksef_number purchase_order
-    sales_date due_date iban)
-
   @max_pdf_size 10_000_000
 
   tags(["Invoices"])
@@ -287,28 +283,15 @@ defmodule KsefHubWeb.Api.InvoiceController do
   end
 
   @spec do_update(Plug.Conn.t(), Invoice.t(), map()) :: Plug.Conn.t()
-  defp do_update(conn, %Invoice{source: :ksef}, _params) do
-    conn
-    |> put_status(:unprocessable_entity)
-    |> json(%{error: "KSeF invoices cannot be updated"})
-  end
-
   defp do_update(conn, %Invoice{} = invoice, params) do
-    update_attrs =
-      params
-      |> atomize_keys(@update_allowed_keys)
-      |> Map.drop(Invoice.company_fields(invoice.type))
-
-    update_attrs =
-      if invoice.extraction_status do
-        Invoices.recalculate_extraction_status(invoice, update_attrs)
-      else
-        update_attrs
-      end
-
-    case Invoices.update_invoice(invoice, update_attrs) do
+    case Invoices.update_invoice_fields(invoice, params) do
       {:ok, updated} ->
         json(conn, %{data: invoice_json(updated)})
+
+      {:error, :ksef_not_editable} ->
+        conn
+        |> put_status(:unprocessable_entity)
+        |> json(%{error: "KSeF invoices cannot be updated"})
 
       {:error, changeset} ->
         conn

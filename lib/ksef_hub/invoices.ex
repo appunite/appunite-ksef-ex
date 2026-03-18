@@ -293,16 +293,23 @@ defmodule KsefHub.Invoices do
   end
 
   @doc """
-  Updates invoice fields from a manual edit, recalculates extraction_status,
-  and enqueues prediction if status changed from :partial or :failed to :complete.
+  Updates invoice fields from a manual edit, recalculates extraction_status
+  (when the invoice has one), and enqueues prediction if status changed from
+  :partial or :failed to :complete.
   """
   @spec update_invoice_fields(Invoice.t(), map()) ::
           {:ok, Invoice.t()} | {:error, Ecto.Changeset.t() | :ksef_not_editable}
-  def update_invoice_fields(%Invoice{source: :ksef}, _attrs) do
-    {:error, :ksef_not_editable}
+  def update_invoice_fields(%Invoice{} = invoice, attrs) do
+    if Invoice.data_editable?(invoice) do
+      do_update_invoice_fields(invoice, attrs)
+    else
+      {:error, :ksef_not_editable}
+    end
   end
 
-  def update_invoice_fields(%Invoice{} = invoice, attrs) do
+  @spec do_update_invoice_fields(Invoice.t(), map()) ::
+          {:ok, Invoice.t()} | {:error, Ecto.Changeset.t()}
+  defp do_update_invoice_fields(%Invoice{} = invoice, attrs) do
     old_status = invoice.extraction_status
 
     # Only consider fields that edit_changeset will actually apply (excludes company-side fields)
@@ -311,13 +318,16 @@ defmodule KsefHub.Invoices do
       |> atomize_known_keys()
       |> Map.take(Invoice.editable_fields(invoice.type))
 
-    merged = invoice |> Map.from_struct() |> Map.merge(allowed_attrs)
-    new_status = determine_extraction_status_from_attrs(merged)
+    changeset = Invoice.edit_changeset(invoice, attrs)
 
     changeset =
-      invoice
-      |> Invoice.edit_changeset(attrs)
-      |> Ecto.Changeset.put_change(:extraction_status, new_status)
+      if old_status do
+        merged = invoice |> Map.from_struct() |> Map.merge(allowed_attrs)
+        new_status = determine_extraction_status_from_attrs(merged)
+        Ecto.Changeset.put_change(changeset, :extraction_status, new_status)
+      else
+        changeset
+      end
 
     with {:ok, updated} <- Repo.update(changeset) do
       if old_status in [:partial, :failed] and updated.extraction_status == :complete,
