@@ -429,6 +429,7 @@ defmodule KsefHubWeb.DashboardLive do
               type="date"
               name={@form[:billing_date_from].name}
               value={@form[:billing_date_from].value}
+              phx-debounce="blur"
               class="w-full h-9 rounded-md border border-input bg-background px-3 text-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
             />
           </div>
@@ -439,6 +440,7 @@ defmodule KsefHubWeb.DashboardLive do
               type="date"
               name={@form[:billing_date_to].name}
               value={@form[:billing_date_to].value}
+              phx-debounce="blur"
               class="w-full h-9 rounded-md border border-input bg-background px-3 text-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
             />
           </div>
