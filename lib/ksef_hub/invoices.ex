@@ -35,6 +35,8 @@ defmodule KsefHub.Invoices do
     * `:buyer_nip` - filter by buyer NIP
     * `:source` - `:ksef`, `:manual`, or `:pdf_upload`
     * `:query` - search across invoice_number, seller_name, buyer_name, purchase_order, iban
+    * `:billing_date_from` - earliest billing_date (inclusive)
+    * `:billing_date_to` - latest billing_date (inclusive)
     * `:page` - page number (1-based, default 1)
     * `:per_page` - results per page (default 25, max 100)
   """
@@ -201,6 +203,39 @@ defmodule KsefHub.Invoices do
   end
 
   @doc """
+  Computes a default billing_date from the given attrs map.
+
+  Returns the first day of the month of `sales_date` (falling back to
+  `issue_date`), or `nil` if neither is present.
+  """
+  @spec compute_billing_date(map()) :: Date.t() | nil
+  def compute_billing_date(attrs) do
+    date = get_attr(attrs, :sales_date) || get_attr(attrs, :issue_date)
+
+    case date do
+      %Date{year: y, month: m} -> Date.new!(y, m, 1)
+      _ -> nil
+    end
+  end
+
+  @spec get_attr(map(), atom()) :: term()
+  defp get_attr(attrs, key) do
+    attrs[key] || attrs[Atom.to_string(key)]
+  end
+
+  @spec maybe_default_billing_date(map()) :: map()
+  defp maybe_default_billing_date(attrs) do
+    if get_attr(attrs, :billing_date) do
+      attrs
+    else
+      case compute_billing_date(attrs) do
+        nil -> attrs
+        date -> Map.put(attrs, :billing_date, date)
+      end
+    end
+  end
+
+  @doc """
   Creates an invoice.
   """
   @spec create_invoice(map()) :: {:ok, Invoice.t()} | {:error, Ecto.Changeset.t() | term()}
@@ -208,6 +243,7 @@ defmodule KsefHub.Invoices do
     company_id = attrs[:company_id] || attrs["company_id"]
     {pdf_content, attrs} = Map.pop(attrs, :pdf_content)
     {xml_content, attrs} = Map.pop(attrs, :xml_content)
+    attrs = maybe_default_billing_date(attrs)
 
     Repo.transaction(fn ->
       with {:ok, attrs} <- maybe_create_xml_file(attrs, xml_content),
@@ -230,6 +266,7 @@ defmodule KsefHub.Invoices do
           {:ok, Invoice.t(), :inserted | :updated} | {:error, Ecto.Changeset.t()}
   def upsert_invoice(attrs) do
     company_id = attrs[:company_id] || attrs["company_id"]
+    attrs = maybe_default_billing_date(attrs)
 
     case do_upsert(company_id, attrs) do
       {:ok, invoice} ->
@@ -260,6 +297,7 @@ defmodule KsefHub.Invoices do
     :purchase_order,
     :sales_date,
     :due_date,
+    :billing_date,
     :iban,
     :seller_address,
     :buyer_address,
@@ -1513,6 +1551,12 @@ defmodule KsefHub.Invoices do
 
       {:date_to, %Date{} = date}, q ->
         where(q, [i], i.issue_date <= ^date)
+
+      {:billing_date_from, %Date{} = date}, q ->
+        where(q, [i], i.billing_date >= ^date)
+
+      {:billing_date_to, %Date{} = date}, q ->
+        where(q, [i], i.billing_date <= ^date)
 
       {:seller_nip, nip}, q when is_binary(nip) and nip != "" ->
         where(q, [i], i.seller_nip == ^nip)
