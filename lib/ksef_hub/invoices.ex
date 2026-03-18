@@ -297,7 +297,11 @@ defmodule KsefHub.Invoices do
   and enqueues prediction if status changed from :partial or :failed to :complete.
   """
   @spec update_invoice_fields(Invoice.t(), map()) ::
-          {:ok, Invoice.t()} | {:error, Ecto.Changeset.t()}
+          {:ok, Invoice.t()} | {:error, Ecto.Changeset.t() | :ksef_not_editable}
+  def update_invoice_fields(%Invoice{source: :ksef}, _attrs) do
+    {:error, :ksef_not_editable}
+  end
+
   def update_invoice_fields(%Invoice{} = invoice, attrs) do
     old_status = invoice.extraction_status
 
