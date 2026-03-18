@@ -281,6 +281,7 @@ defmodule KsefHubWeb.InvoiceLive.Show do
   @impl true
   def handle_event("save_edit", %{"invoice" => params}, socket) do
     params = normalize_billing_date_param(params)
+
     case Invoices.update_invoice_fields(socket.assigns.invoice, params) do
       {:ok, updated} ->
         reloaded = reload_details(updated, socket)

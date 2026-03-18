@@ -211,12 +211,20 @@ defmodule KsefHub.Invoices do
   @spec compute_billing_date(map()) :: Date.t() | nil
   def compute_billing_date(attrs) do
     date = get_attr(attrs, :sales_date) || get_attr(attrs, :issue_date)
+    first_of_month(date)
+  end
 
-    case date do
-      %Date{year: y, month: m} -> Date.new!(y, m, 1)
+  @spec first_of_month(term()) :: Date.t() | nil
+  defp first_of_month(%Date{year: y, month: m}), do: Date.new!(y, m, 1)
+
+  defp first_of_month(str) when is_binary(str) do
+    case Date.from_iso8601(str) do
+      {:ok, date} -> first_of_month(date)
       _ -> nil
     end
   end
+
+  defp first_of_month(_), do: nil
 
   @spec get_attr(map(), atom()) :: term()
   defp get_attr(attrs, key) do
