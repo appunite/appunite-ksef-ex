@@ -133,6 +133,7 @@ defmodule KsefHubWeb.InvoiceLive.ShowTest do
         company: company,
         created_by: user,
         invoice: invoice,
+        title: "PR Vendor Payment",
         recipient_name: "PR Vendor",
         amount: Decimal.new("500.00"),
         status: :pending
@@ -140,7 +141,7 @@ defmodule KsefHubWeb.InvoiceLive.ShowTest do
 
       {:ok, _view, html} = live(conn, ~p"/c/#{company.id}/invoices/#{invoice.id}")
       assert html =~ "Payment Requests"
-      assert html =~ "PR Vendor"
+      assert html =~ "PR Vendor Payment"
       assert html =~ "500.00"
     end
 
