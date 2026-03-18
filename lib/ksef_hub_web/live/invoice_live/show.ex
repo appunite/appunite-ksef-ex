@@ -53,7 +53,8 @@ defmodule KsefHubWeb.InvoiceLive.Show do
          |> redirect(to: ~p"/c/#{company.id}/invoices")}
 
       invoice ->
-        auto_edit = invoice.extraction_status in [:partial, :failed]
+        data_editable = Invoice.data_editable?(invoice)
+        auto_edit = data_editable and invoice.extraction_status in [:partial, :failed]
         can_mutate = Authorization.can?(role, :update_invoice)
         can_approve = Authorization.can?(role, :approve_invoice)
         can_set_category = Authorization.can?(role, :set_invoice_category)
@@ -69,6 +70,7 @@ defmodule KsefHubWeb.InvoiceLive.Show do
          |> assign(
            page_title: "Invoice #{invoice.invoice_number}",
            invoice: invoice,
+           data_editable: data_editable,
            can_mutate: can_mutate,
            can_approve: can_approve,
            can_set_category: can_set_category,
@@ -320,6 +322,10 @@ defmodule KsefHubWeb.InvoiceLive.Show do
   # --- Events: Edit ---
 
   @impl true
+  def handle_event("toggle_edit", _params, %{assigns: %{data_editable: false}} = socket) do
+    {:noreply, put_flash(socket, :error, "KSeF invoice data cannot be edited.")}
+  end
+
   def handle_event("toggle_edit", _params, socket) do
     {:noreply,
      assign(socket,
@@ -352,6 +358,12 @@ defmodule KsefHubWeb.InvoiceLive.Show do
            editing: false,
            edit_form: build_edit_form(reloaded)
          )}
+
+      {:error, :ksef_not_editable} ->
+        {:noreply,
+         socket
+         |> put_flash(:error, "KSeF invoice data cannot be edited.")
+         |> assign(editing: false)}
 
       {:error, changeset} ->
         {:noreply, assign(socket, edit_form: to_form(changeset, as: :invoice))}
@@ -534,7 +546,7 @@ defmodule KsefHubWeb.InvoiceLive.Show do
            extracting: false,
            extract_ref: nil,
            invoice: reload_details(updated, socket),
-           editing: updated.extraction_status in [:partial, :failed]
+           editing: Invoice.data_editable?(updated) and updated.extraction_status in [:partial, :failed]
          )
          |> assign_new_edit_form(updated)
          |> put_flash(:info, "Invoice data re-extracted successfully.")}
@@ -812,7 +824,7 @@ defmodule KsefHubWeb.InvoiceLive.Show do
             <.icon name="hero-banknotes" class="size-4" /> Add payment
           </.button>
           <.button
-            :if={@can_mutate && !@editing}
+            :if={@can_mutate && !@editing && @data_editable}
             variant="outline"
             phx-click="toggle_edit"
           >
@@ -908,7 +920,16 @@ defmodule KsefHubWeb.InvoiceLive.Show do
       <!-- Invoice Metadata -->
       <div class="space-y-4">
         <.card padding="p-4">
-          <h2 class="text-base font-semibold mb-2">Details</h2>
+          <div class="flex items-center gap-2 mb-2">
+            <h2 class="text-base font-semibold">Details</h2>
+            <span
+              :if={!@data_editable}
+              class="inline-flex items-center gap-1 rounded-md bg-muted px-2 py-0.5 text-xs text-muted-foreground"
+              data-testid="ksef-locked-badge"
+            >
+              <.icon name="hero-lock-closed" class="size-3" /> Data fields locked — KSeF invoice
+            </span>
+          </div>
 
           <div :if={@editing}>
             <.invoice_edit_form
