@@ -12,17 +12,28 @@ defmodule KsefHubWeb.Schemas.UpdateCategoryRequest do
     description: "Request body for updating a category.",
     type: :object,
     properties: %{
+      identifier: %Schema{
+        type: :string,
+        description: "Category identifier in group:target format.",
+        pattern: "^[^:]+:.+$"
+      },
       name: %Schema{
         type: :string,
-        description: "Category name in group:target format.",
-        pattern: "^[^:]+:.+$"
+        nullable: true,
+        description: "Human-readable display name."
       },
       emoji: %Schema{type: :string, nullable: true, description: "Optional emoji icon."},
       description: %Schema{type: :string, nullable: true, description: "Optional description."},
+      examples: %Schema{
+        type: :string,
+        nullable: true,
+        description: "Example descriptions for this category."
+      },
       sort_order: %Schema{type: :integer, description: "Sort order for display."}
     },
     example: %{
-      name: "operations:utilities",
+      identifier: "operations:utilities",
+      name: "Utilities",
       emoji: "⚡"
     }
   })

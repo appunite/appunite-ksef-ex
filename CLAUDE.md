@@ -473,6 +473,7 @@ end
 | `KSEF_API_URL` | KSeF v2 API URL (`https://api-test.ksef.mf.gov.pl` for test, `https://api.ksef.mf.gov.pl` for production) |
 | `INVOICE_CLASSIFIER_URL` | Invoice classifier service URL (e.g., `http://localhost:3003` locally, `https://invoice-classifier-*.run.app` in prod) |
 | `INVOICE_CLASSIFIER_API_TOKEN` | Bearer token for invoice-classifier authentication |
+| `ANTHROPIC_API_KEY` | Anthropic API key for emoji generation and invoice-extractor sidecar |
 | `SYNC_INTERVAL_MINUTES` | KSeF sync cron interval in minutes (default: `60`) |
 | `INBOUND_EMAIL_DOMAIN` | Domain for inbound email addresses (e.g., `mg.payroll.appunite.co`) |
 | `MAILGUN_SIGNING_KEY` | Mailgun webhook signing key for verifying inbound emails |

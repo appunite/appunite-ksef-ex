@@ -27,7 +27,7 @@ defmodule KsefHub.InvoiceClassifierTest do
     test "auto-applies category and tag when confidence >= 51% and matches exist", %{
       company: company
     } do
-      {:ok, category} = Invoices.create_category(company.id, %{name: "finance:invoices"})
+      {:ok, category} = Invoices.create_category(company.id, %{identifier: "finance:invoices"})
       {:ok, tag} = Invoices.create_tag(company.id, %{name: "monthly"})
 
       invoice =
@@ -69,7 +69,7 @@ defmodule KsefHub.InvoiceClassifierTest do
 
     test "stores predictions as needs_review when confidence < 51% but still applies matching category",
          %{company: company} do
-      {:ok, category} = Invoices.create_category(company.id, %{name: "finance:invoices"})
+      {:ok, category} = Invoices.create_category(company.id, %{identifier: "finance:invoices"})
 
       invoice = insert(:manual_invoice, company: company, type: :expense)
 
@@ -211,7 +211,7 @@ defmodule KsefHub.InvoiceClassifierTest do
     end
 
     test "sets predicted when only category matches above threshold", %{company: company} do
-      {:ok, category} = Invoices.create_category(company.id, %{name: "finance:invoices"})
+      {:ok, category} = Invoices.create_category(company.id, %{identifier: "finance:invoices"})
 
       invoice = insert(:manual_invoice, company: company, type: :expense)
 
@@ -262,7 +262,7 @@ defmodule KsefHub.InvoiceClassifierTest do
     end
 
     test "auto-applies at exact 51% confidence boundary", %{company: company} do
-      {:ok, category} = Invoices.create_category(company.id, %{name: "finance:invoices"})
+      {:ok, category} = Invoices.create_category(company.id, %{identifier: "finance:invoices"})
 
       invoice = insert(:manual_invoice, company: company, type: :expense)
 

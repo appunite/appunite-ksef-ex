@@ -74,7 +74,7 @@ defmodule KsefHubWeb.InvoiceComponents do
     ~H"""
     <span :if={@category} class="inline-flex items-center gap-1 text-xs">
       <span :if={@category.emoji}>{@category.emoji}</span>
-      <span>{@category.name}</span>
+      <span>{@category.name || @category.identifier}</span>
     </span>
     <span :if={!@category} class="text-muted-foreground">-</span>
     """

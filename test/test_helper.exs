@@ -16,3 +16,4 @@ Mox.defmock(KsefHub.Credentials.CertificateInfo.Mock,
 
 Mox.defmock(KsefHub.InvoiceClassifier.Mock, for: KsefHub.InvoiceClassifier.Behaviour)
 Mox.defmock(KsefHub.InvoiceExtractor.Mock, for: KsefHub.InvoiceExtractor.Behaviour)
+Mox.defmock(KsefHub.EmojiGenerator.Mock, for: KsefHub.EmojiGenerator.Behaviour)

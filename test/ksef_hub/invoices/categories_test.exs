@@ -6,27 +6,28 @@ defmodule KsefHub.Invoices.CategoriesTest do
   alias KsefHub.Invoices
 
   describe "list_categories/1" do
-    test "returns categories ordered by sort_order then name" do
+    test "returns categories ordered by sort_order then identifier" do
       company = insert(:company)
-      insert(:category, company: company, name: "b:second", sort_order: 1)
-      insert(:category, company: company, name: "a:first", sort_order: 0)
-      insert(:category, company: company, name: "c:third", sort_order: 1)
+      insert(:category, company: company, identifier: "b:second", sort_order: 1)
+      insert(:category, company: company, identifier: "a:first", sort_order: 0)
+      insert(:category, company: company, identifier: "c:third", sort_order: 1)
 
       categories = Invoices.list_categories(company.id)
 
-      assert [%{name: "a:first"}, %{name: "b:second"}, %{name: "c:third"}] = categories
+      assert [%{identifier: "a:first"}, %{identifier: "b:second"}, %{identifier: "c:third"}] =
+               categories
     end
 
     test "returns only categories for the given company" do
       company = insert(:company)
       other = insert(:company)
-      insert(:category, company: company, name: "ops:mine")
-      insert(:category, company: other, name: "ops:other")
+      insert(:category, company: company, identifier: "ops:mine")
+      insert(:category, company: other, identifier: "ops:other")
 
       categories = Invoices.list_categories(company.id)
 
       assert length(categories) == 1
-      assert hd(categories).name == "ops:mine"
+      assert hd(categories).identifier == "ops:mine"
     end
 
     test "returns empty list when no categories exist" do
@@ -39,7 +40,7 @@ defmodule KsefHub.Invoices.CategoriesTest do
   describe "get_category/2" do
     test "returns category by id scoped to company" do
       company = insert(:company)
-      category = insert(:category, company: company, name: "ops:test")
+      category = insert(:category, company: company, identifier: "ops:test")
 
       assert {:ok, found} = Invoices.get_category(company.id, category.id)
       assert found.id == category.id
@@ -82,60 +83,86 @@ defmodule KsefHub.Invoices.CategoriesTest do
       company = insert(:company)
 
       assert {:ok, category} =
-               Invoices.create_category(company.id, %{name: "finance:invoices", emoji: "💰"})
+               Invoices.create_category(company.id, %{
+                 identifier: "finance:invoices",
+                 name: "Invoices",
+                 emoji: "💰"
+               })
 
-      assert category.name == "finance:invoices"
+      assert category.identifier == "finance:invoices"
+      assert category.name == "Invoices"
       assert category.emoji == "💰"
       assert category.company_id == company.id
     end
 
-    test "returns error for invalid name format" do
+    test "returns error for invalid identifier format" do
       company = insert(:company)
 
-      assert {:error, changeset} = Invoices.create_category(company.id, %{name: "no-colon"})
-      assert errors_on(changeset).name
+      assert {:error, changeset} =
+               Invoices.create_category(company.id, %{identifier: "no-colon"})
+
+      assert errors_on(changeset).identifier
     end
 
-    test "returns error for missing name" do
+    test "returns error for missing identifier" do
       company = insert(:company)
 
       assert {:error, changeset} = Invoices.create_category(company.id, %{emoji: "📦"})
-      assert errors_on(changeset).name
+      assert errors_on(changeset).identifier
     end
 
-    test "returns error for duplicate name within company" do
+    test "returns error for duplicate identifier within company" do
       company = insert(:company)
-      insert(:category, company: company, name: "ops:duplicate")
+      insert(:category, company: company, identifier: "ops:duplicate")
 
-      assert {:error, changeset} = Invoices.create_category(company.id, %{name: "ops:duplicate"})
-      assert "has already been taken" in errors_on(changeset).name
+      assert {:error, changeset} =
+               Invoices.create_category(company.id, %{identifier: "ops:duplicate"})
+
+      assert "has already been taken" in errors_on(changeset).identifier
     end
 
-    test "allows same name in different companies" do
+    test "allows same identifier in different companies" do
       company1 = insert(:company)
       company2 = insert(:company)
-      insert(:category, company: company1, name: "ops:shared")
+      insert(:category, company: company1, identifier: "ops:shared")
 
-      assert {:ok, _} = Invoices.create_category(company2.id, %{name: "ops:shared"})
+      assert {:ok, _} = Invoices.create_category(company2.id, %{identifier: "ops:shared"})
     end
 
     test "defaults sort_order to 0" do
       company = insert(:company)
 
-      {:ok, category} = Invoices.create_category(company.id, %{name: "ops:default"})
+      {:ok, category} = Invoices.create_category(company.id, %{identifier: "ops:default"})
       assert category.sort_order == 0
+    end
+
+    test "accepts examples field" do
+      company = insert(:company)
+
+      {:ok, category} =
+        Invoices.create_category(company.id, %{
+          identifier: "ops:test",
+          examples: "Electric bills, water bills"
+        })
+
+      assert category.examples == "Electric bills, water bills"
     end
   end
 
   describe "update_category/2" do
     test "updates category attributes" do
       company = insert(:company)
-      category = insert(:category, company: company, name: "ops:old")
+      category = insert(:category, company: company, identifier: "ops:old")
 
       assert {:ok, updated} =
-               Invoices.update_category(category, %{name: "ops:new", emoji: "🔥"})
+               Invoices.update_category(category, %{
+                 identifier: "ops:new",
+                 name: "New Name",
+                 emoji: "🔥"
+               })
 
-      assert updated.name == "ops:new"
+      assert updated.identifier == "ops:new"
+      assert updated.name == "New Name"
       assert updated.emoji == "🔥"
     end
 
@@ -143,8 +170,10 @@ defmodule KsefHub.Invoices.CategoriesTest do
       company = insert(:company)
       category = insert(:category, company: company)
 
-      assert {:error, changeset} = Invoices.update_category(category, %{name: "bad-format"})
-      assert errors_on(changeset).name
+      assert {:error, changeset} =
+               Invoices.update_category(category, %{identifier: "bad-format"})
+
+      assert errors_on(changeset).identifier
     end
   end
 

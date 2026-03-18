@@ -72,6 +72,10 @@ if invoice_classifier_api_token = System.get_env("INVOICE_CLASSIFIER_API_TOKEN")
   config :ksef_hub, :invoice_classifier_api_token, invoice_classifier_api_token
 end
 
+if anthropic_api_key = System.get_env("ANTHROPIC_API_KEY") do
+  config :ksef_hub, :anthropic_api_key, anthropic_api_key
+end
+
 if confidence_threshold_env = System.get_env("CONFIDENCE_THRESHOLD") do
   case Float.parse(confidence_threshold_env) do
     {val, ""} when val > 0.0 and val < 1.0 ->

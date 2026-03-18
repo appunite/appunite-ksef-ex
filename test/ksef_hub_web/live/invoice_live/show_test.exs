@@ -275,13 +275,20 @@ defmodule KsefHubWeb.InvoiceLive.ShowTest do
     setup :stub_pdf
 
     test "displays category name and emoji", %{conn: conn, company: company} do
-      category = insert(:category, company: company, name: "finance:invoices", emoji: "💰")
+      category =
+        insert(:category,
+          company: company,
+          identifier: "finance:invoices",
+          name: "Invoices",
+          emoji: "💰"
+        )
+
       invoice = insert(:invoice, type: :expense, company: company, category: category)
 
       {:ok, view, _html} = live(conn, ~p"/c/#{company.id}/invoices/#{invoice.id}")
       assert has_element?(view, "[data-testid=category-display]")
       html = render(view)
-      assert html =~ "finance:invoices"
+      assert html =~ "Invoices"
       assert html =~ "💰"
     end
 

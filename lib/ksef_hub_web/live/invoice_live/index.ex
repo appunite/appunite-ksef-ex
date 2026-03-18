@@ -177,7 +177,7 @@ defmodule KsefHubWeb.InvoiceLive.Index do
     |> maybe_add_chip(filters[:category_id], "category_id", "Category", fn id ->
       case Enum.find(categories, &(&1.id == id)) do
         nil -> id
-        cat -> cat.name
+        cat -> cat.name || cat.identifier
       end
     end)
     |> maybe_add_chip(first_tag_id(filters), "tag_id", "Tag", fn id ->
@@ -378,7 +378,7 @@ defmodule KsefHubWeb.InvoiceLive.Index do
                 value={cat.id}
                 selected={@form[:category_id].value == cat.id}
               >
-                {if(cat.emoji, do: "#{cat.emoji} ", else: "")}{cat.name}
+                {if(cat.emoji, do: "#{cat.emoji} ", else: "")}{cat.name || cat.identifier}
               </option>
             </select>
           </div>

@@ -45,11 +45,18 @@ defmodule KsefHubWeb.InvoiceLive.IndexTest do
 
   describe "category and tag columns" do
     test "shows category name in table", %{conn: conn, company: company} do
-      category = insert(:category, company: company, name: "finance:invoices", emoji: "💰")
+      category =
+        insert(:category,
+          company: company,
+          identifier: "finance:invoices",
+          name: "Invoices",
+          emoji: "💰"
+        )
+
       insert(:invoice, company: company, type: :expense, category: category)
 
       {:ok, _view, html} = live(conn, ~p"/c/#{company.id}/invoices")
-      assert html =~ "finance:invoices"
+      assert html =~ "Invoices"
       assert html =~ "💰"
     end
 
@@ -185,7 +192,7 @@ defmodule KsefHubWeb.InvoiceLive.IndexTest do
 
   describe "category and tag filters" do
     test "filters by category", %{conn: conn, company: company} do
-      category = insert(:category, company: company, name: "ops:hosting")
+      category = insert(:category, company: company, identifier: "ops:hosting")
 
       insert(:invoice,
         company: company,
@@ -219,7 +226,7 @@ defmodule KsefHubWeb.InvoiceLive.IndexTest do
     end
 
     test "category filter change updates URL", %{conn: conn, company: company} do
-      category = insert(:category, company: company, name: "ops:filter-test")
+      category = insert(:category, company: company, identifier: "ops:filter-test")
 
       {:ok, view, _html} = live(conn, ~p"/c/#{company.id}/invoices?type=expense")
 
@@ -243,7 +250,7 @@ defmodule KsefHubWeb.InvoiceLive.IndexTest do
     end
 
     test "renders category and tag filter dropdowns", %{conn: conn, company: company} do
-      insert(:category, company: company, name: "ops:dropdown-test")
+      insert(:category, company: company, identifier: "ops:dropdown-test", name: nil)
       insert(:tag, company: company, name: "dropdown-tag")
 
       {:ok, _view, html} = live(conn, ~p"/c/#{company.id}/invoices")

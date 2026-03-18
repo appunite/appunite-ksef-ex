@@ -14,9 +14,11 @@ defmodule KsefHubWeb.JsonHelpers do
   def category_json(category) do
     %{
       id: category.id,
+      identifier: category.identifier,
       name: category.name,
       emoji: category.emoji,
       description: category.description,
+      examples: category.examples,
       sort_order: category.sort_order,
       inserted_at: category.inserted_at,
       updated_at: category.updated_at

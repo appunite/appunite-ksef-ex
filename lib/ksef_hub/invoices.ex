@@ -1031,12 +1031,12 @@ defmodule KsefHub.Invoices do
 
   # --- Categories ---
 
-  @doc "Returns all categories for a company, ordered by sort_order then name."
+  @doc "Returns all categories for a company, ordered by sort_order then identifier."
   @spec list_categories(Ecto.UUID.t()) :: [Category.t()]
   def list_categories(company_id) do
     Category
     |> where([c], c.company_id == ^company_id)
-    |> order_by([c], asc: c.sort_order, asc: c.name)
+    |> order_by([c], asc: c.sort_order, asc: c.identifier)
     |> Repo.all()
   end
 

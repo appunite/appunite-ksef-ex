@@ -1074,7 +1074,10 @@ defmodule KsefHubWeb.InvoiceLive.Show do
               </div>
             </.form>
           </div>
-          <div :if={@editing_comment_id != comment.id} class="whitespace-pre-wrap text-muted-foreground">
+          <div
+            :if={@editing_comment_id != comment.id}
+            class="whitespace-pre-wrap text-muted-foreground"
+          >
             {comment.body}
           </div>
         </div>

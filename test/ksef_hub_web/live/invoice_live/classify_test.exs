@@ -31,9 +31,9 @@ defmodule KsefHubWeb.InvoiceLive.ClassifyTest do
 
   describe "mount" do
     test "renders grouped categories and tags", %{conn: conn, company: company} do
-      insert(:category, company: company, name: "finance:invoices", emoji: "💰")
-      insert(:category, company: company, name: "finance:payroll", emoji: "💵")
-      insert(:category, company: company, name: "ops:hosting", emoji: "🖥")
+      insert(:category, company: company, identifier: "finance:invoices", emoji: "💰")
+      insert(:category, company: company, identifier: "finance:payroll", emoji: "💵")
+      insert(:category, company: company, identifier: "ops:hosting", emoji: "🖥")
       insert(:tag, company: company, name: "monthly")
       insert(:tag, company: company, name: "quarterly")
 
@@ -58,7 +58,7 @@ defmodule KsefHubWeb.InvoiceLive.ClassifyTest do
 
   describe "category selection" do
     test "selecting a category updates local state", %{conn: conn, company: company} do
-      cat = insert(:category, company: company, name: "finance:invoices")
+      cat = insert(:category, company: company, identifier: "finance:invoices")
       invoice = insert(:invoice, company: company)
 
       {:ok, view, _html} = live(conn, ~p"/c/#{company.id}/invoices/#{invoice.id}/classify")
@@ -75,7 +75,7 @@ defmodule KsefHubWeb.InvoiceLive.ClassifyTest do
     end
 
     test "clearing category removes selection", %{conn: conn, company: company} do
-      cat = insert(:category, company: company, name: "finance:invoices")
+      cat = insert(:category, company: company, identifier: "finance:invoices")
       invoice = insert(:invoice, company: company, category: cat)
 
       {:ok, view, _html} = live(conn, ~p"/c/#{company.id}/invoices/#{invoice.id}/classify")
@@ -106,7 +106,7 @@ defmodule KsefHubWeb.InvoiceLive.ClassifyTest do
 
   describe "save" do
     test "persists category and tags, redirects to show", %{conn: conn, company: company} do
-      cat = insert(:category, company: company, name: "finance:invoices")
+      cat = insert(:category, company: company, identifier: "finance:invoices")
       tag = insert(:tag, company: company, name: "monthly")
       invoice = insert(:invoice, company: company)
 
@@ -131,7 +131,7 @@ defmodule KsefHubWeb.InvoiceLive.ClassifyTest do
     end
 
     test "marks predicted invoice as manual on save", %{conn: conn, company: company} do
-      cat = insert(:category, company: company, name: "ops:hosting")
+      cat = insert(:category, company: company, identifier: "ops:hosting")
 
       invoice =
         insert(:invoice,
@@ -153,7 +153,7 @@ defmodule KsefHubWeb.InvoiceLive.ClassifyTest do
 
   describe "cancel" do
     test "navigates back without saving", %{conn: conn, company: company} do
-      cat = insert(:category, company: company, name: "finance:invoices")
+      cat = insert(:category, company: company, identifier: "finance:invoices")
       invoice = insert(:invoice, company: company)
 
       {:ok, view, _html} = live(conn, ~p"/c/#{company.id}/invoices/#{invoice.id}/classify")

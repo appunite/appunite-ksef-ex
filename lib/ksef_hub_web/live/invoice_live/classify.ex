@@ -253,9 +253,12 @@ defmodule KsefHubWeb.InvoiceLive.Classify do
               >
                 <span :if={cat.emoji}>{cat.emoji}</span>
                 <div>
-                  <div>{category_target(cat.name)}</div>
+                  <div>{cat.name || category_target(cat.identifier)}</div>
                   <div :if={cat.description} class="text-xs text-muted-foreground">
                     {cat.description}
+                  </div>
+                  <div :if={cat.examples} class="text-xs text-muted-foreground/70 mt-0.5">
+                    {cat.examples}
                   </div>
                 </div>
               </button>
@@ -374,18 +377,18 @@ defmodule KsefHubWeb.InvoiceLive.Classify do
   end
 
   @spec category_group(map()) :: String.t()
-  defp category_group(%{name: name}) do
-    case String.split(name, ":", parts: 2) do
+  defp category_group(%{identifier: identifier}) do
+    case String.split(identifier, ":", parts: 2) do
       [group, _target] -> group
-      [name] -> name
+      [identifier] -> identifier
     end
   end
 
   @spec category_target(String.t()) :: String.t()
-  defp category_target(name) do
-    case String.split(name, ":", parts: 2) do
+  defp category_target(identifier) do
+    case String.split(identifier, ":", parts: 2) do
       [_group, target] -> target
-      [name] -> name
+      [identifier] -> identifier
     end
   end
 
