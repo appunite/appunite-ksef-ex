@@ -1476,16 +1476,9 @@ defmodule KsefHubWeb.InvoiceLive.Show do
   @spec currencies() :: [String.t()]
   defp currencies, do: @common_currencies
 
-  @spec format_month_value(term()) :: String.t() | nil
+  @spec format_month_value(Date.t() | nil) :: String.t() | nil
   defp format_month_value(%Date{year: y, month: m}),
     do: "#{y}-#{String.pad_leading(Integer.to_string(m), 2, "0")}"
-
-  defp format_month_value(value) when is_binary(value) do
-    case Date.from_iso8601(value) do
-      {:ok, date} -> format_month_value(date)
-      _ -> value
-    end
-  end
 
   defp format_month_value(_), do: nil
 
