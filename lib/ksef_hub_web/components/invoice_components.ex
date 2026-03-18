@@ -249,14 +249,6 @@ defmodule KsefHubWeb.InvoiceComponents do
           <td class="py-1.5 pr-3 text-muted-foreground whitespace-nowrap">Due Date</td>
           <td class="py-1.5 text-right">{format_date(@invoice.due_date)}</td>
         </tr>
-        <tr
-          :if={@invoice.billing_date}
-          class="border-b border-border/50"
-          data-testid="billing-date"
-        >
-          <td class="py-1.5 pr-3 text-muted-foreground whitespace-nowrap">Billing Period</td>
-          <td class="py-1.5 text-right">{format_month(@invoice.billing_date)}</td>
-        </tr>
         <tr class={[
           "border-b border-border/50",
           is_nil(@invoice.net_amount) && "bg-warning/5"
