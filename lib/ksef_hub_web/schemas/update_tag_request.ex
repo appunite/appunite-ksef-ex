@@ -13,6 +13,11 @@ defmodule KsefHubWeb.Schemas.UpdateTagRequest do
     type: :object,
     properties: %{
       name: %Schema{type: :string, description: "Tag name."},
+      type: %Schema{
+        type: :string,
+        enum: ["expense", "income"],
+        description: "Tag type (expense or income)."
+      },
       description: %Schema{type: :string, nullable: true, description: "Optional description."}
     },
     example: %{

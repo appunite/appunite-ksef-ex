@@ -45,7 +45,9 @@ defmodule KsefHubWeb.InvoiceLive.Classify do
              |> redirect(to: ~p"/c/#{company.id}/invoices")}
 
           invoice ->
-            can_set_category = Authorization.can?(role, :set_invoice_category)
+            can_set_category =
+              invoice.type == :expense && Authorization.can?(role, :set_invoice_category)
+
             can_set_tags = Authorization.can?(role, :set_invoice_tags)
             can_manage_tags = Authorization.can?(role, :manage_tags)
 
@@ -195,6 +197,10 @@ defmodule KsefHubWeb.InvoiceLive.Classify do
          socket
          |> put_flash(:info, "Classification saved.")
          |> push_navigate(to: ~p"/c/#{company.id}/invoices/#{invoice.id}")}
+
+      {:error, :expense_only} ->
+        {:noreply,
+         put_flash(socket, :error, "Categories can only be assigned to expense invoices.")}
 
       {:error, _} ->
         {:noreply, put_flash(socket, :error, "Failed to save classification.")}
