@@ -104,10 +104,16 @@ defmodule KsefHubWeb.InvoiceLive.Classify do
   end
 
   def handle_event("toggle_tag", %{"tag-id" => tag_id}, socket) do
-    if socket.assigns.can_set_tags do
-      allowed_ids = MapSet.new(socket.assigns.all_tags, & &1.id)
+    allowed_ids = MapSet.new(socket.assigns.all_tags, & &1.id)
 
-      if MapSet.member?(allowed_ids, tag_id) do
+    cond do
+      not socket.assigns.can_set_tags ->
+        {:noreply, put_flash(socket, :error, "You don't have permission to manage tags.")}
+
+      not MapSet.member?(allowed_ids, tag_id) ->
+        {:noreply, socket}
+
+      true ->
         current = socket.assigns.selected_tag_ids
 
         updated =
@@ -116,11 +122,6 @@ defmodule KsefHubWeb.InvoiceLive.Classify do
             else: MapSet.put(current, tag_id)
 
         {:noreply, assign(socket, :selected_tag_ids, updated)}
-      else
-        {:noreply, socket}
-      end
-    else
-      {:noreply, put_flash(socket, :error, "You don't have permission to manage tags.")}
     end
   end
 
@@ -187,7 +188,10 @@ defmodule KsefHubWeb.InvoiceLive.Classify do
     invoice = socket.assigns.invoice
     category_id = socket.assigns.selected_category_id
     allowed_tag_ids = MapSet.new(socket.assigns.all_tags, & &1.id)
-    tag_ids = socket.assigns.selected_tag_ids |> MapSet.intersection(allowed_tag_ids) |> MapSet.to_list()
+
+    tag_ids =
+      socket.assigns.selected_tag_ids |> MapSet.intersection(allowed_tag_ids) |> MapSet.to_list()
+
     company = socket.assigns.current_company
 
     result =
