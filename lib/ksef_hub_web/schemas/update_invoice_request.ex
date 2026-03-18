@@ -48,6 +48,13 @@ defmodule KsefHubWeb.Schemas.UpdateInvoiceRequest do
         nullable: true,
         description: "Payment due date."
       },
+      billing_date: %Schema{
+        type: :string,
+        format: :date,
+        nullable: true,
+        description:
+          "Accounting period date (first day of month). Overrides auto-computed value."
+      },
       iban: %Schema{
         type: :string,
         nullable: true,

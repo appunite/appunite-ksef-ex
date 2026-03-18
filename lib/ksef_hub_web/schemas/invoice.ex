@@ -84,6 +84,13 @@ defmodule KsefHubWeb.Schemas.Invoice do
         nullable: true,
         description: "Payment due date. PDF-only (not in FA(3) spec)."
       },
+      billing_date: %Schema{
+        type: :string,
+        format: :date,
+        nullable: true,
+        description:
+          "Accounting period date (first day of month). Auto-computed from sales_date or issue_date, but user-overridable. Used for grouping invoices into billing periods."
+      },
       iban: %Schema{
         type: :string,
         nullable: true,
