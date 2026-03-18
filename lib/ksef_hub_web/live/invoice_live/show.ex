@@ -1005,19 +1005,19 @@ defmodule KsefHubWeb.InvoiceLive.Show do
           <thead>
             <tr class="border-b border-border">
               <th class="text-left py-2 px-2 text-xs font-medium text-muted-foreground uppercase">
-                Recipient
-              </th>
-              <th class="text-left py-2 px-2 text-xs font-medium text-muted-foreground uppercase">
                 Title
               </th>
               <th class="text-right py-2 px-2 text-xs font-medium text-muted-foreground uppercase">
                 Amount
               </th>
-              <th class="text-left py-2 px-2 text-xs font-medium text-muted-foreground uppercase">
+              <th class="text-center py-2 px-2 text-xs font-medium text-muted-foreground uppercase">
                 Status
               </th>
               <th class="text-left py-2 px-2 text-xs font-medium text-muted-foreground uppercase">
                 Paid
+              </th>
+              <th class="text-left py-2 px-2 text-xs font-medium text-muted-foreground uppercase">
+                IBAN
               </th>
             </tr>
           </thead>
@@ -1032,20 +1032,22 @@ defmodule KsefHubWeb.InvoiceLive.Show do
                   navigate={~p"/c/#{@current_company.id}/payment-requests/#{pr.id}/edit"}
                   class="text-shad-primary underline-offset-4 hover:underline"
                 >
-                  {pr.recipient_name}
+                  {pr.title}
                 </.link>
-                <span :if={!@can_manage_payment_requests}>{pr.recipient_name}</span>
+                <span :if={!@can_manage_payment_requests}>{pr.title}</span>
               </td>
-              <td class="py-2 px-2">{pr.title}</td>
               <td class="py-2 px-2 text-right font-mono">
                 {format_amount(pr.amount)}
                 <span class="text-xs text-muted-foreground">{pr.currency}</span>
               </td>
-              <td class="py-2 px-2">
+              <td class="py-2 px-2 text-center">
                 <.payment_badge status={pr.status} />
               </td>
-              <td class="py-2 px-2 text-xs">
+              <td class="py-2 px-2">
                 {if pr.paid_at, do: format_date(pr.paid_at), else: "-"}
+              </td>
+              <td class="py-2 px-2 font-mono break-all">
+                {pr.iban || "-"}
               </td>
             </tr>
           </tbody>

@@ -269,41 +269,41 @@ defmodule KsefHubWeb.InvoiceComponents do
         </tr>
         <tr :if={@invoice.ksef_number} class="border-b border-border/50">
           <td class="py-1.5 pr-3 text-muted-foreground">KSeF</td>
-          <td class="py-1.5 text-right font-mono text-xs break-all">
+          <td class="py-1.5 text-right font-mono break-all">
             {@invoice.ksef_number}
           </td>
         </tr>
         <tr :if={@invoice.purchase_order} class="border-b border-border/50">
           <td class="py-1.5 pr-3 text-muted-foreground whitespace-nowrap">PO</td>
-          <td class="py-1.5 text-right font-mono text-sm break-all">
+          <td class="py-1.5 text-right font-mono break-all">
             {@invoice.purchase_order}
           </td>
         </tr>
         <tr :if={@invoice.iban} class="border-b border-border/50" data-testid="iban">
           <td class="py-1.5 pr-3 text-muted-foreground whitespace-nowrap">IBAN</td>
-          <td class="py-1.5 text-right font-mono text-xs break-all">
+          <td class="py-1.5 text-right font-mono break-all">
             {@invoice.iban}
           </td>
         </tr>
         <tr :if={@invoice.ksef_acquisition_date}>
           <td class="py-1.5 pr-3 text-muted-foreground whitespace-nowrap">Acquired</td>
-          <td class="py-1.5 text-right text-xs">
+          <td class="py-1.5 text-right">
             {format_datetime(@invoice.ksef_acquisition_date)}
           </td>
         </tr>
         <tr class="border-b border-border/50">
           <td class="py-1.5 pr-3 text-muted-foreground whitespace-nowrap">Created</td>
-          <td class="py-1.5 text-right text-xs">
+          <td class="py-1.5 text-right">
             {format_datetime(@invoice.inserted_at)}
           </td>
         </tr>
         <tr :if={@show_added_by} id="added-by-row" class="border-b border-border/50">
           <td class="py-1.5 pr-3 text-muted-foreground whitespace-nowrap">Added by</td>
-          <td class="py-1.5 text-right text-xs">{added_by_label(@invoice)}</td>
+          <td class="py-1.5 text-right">{added_by_label(@invoice)}</td>
         </tr>
         <tr :if={NaiveDateTime.compare(@invoice.updated_at, @invoice.inserted_at) != :eq}>
           <td class="py-1.5 pr-3 text-muted-foreground whitespace-nowrap">Updated</td>
-          <td class="py-1.5 text-right text-xs">
+          <td class="py-1.5 text-right">
             {format_datetime(@invoice.updated_at)}
           </td>
         </tr>
