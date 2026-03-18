@@ -300,11 +300,22 @@ defmodule KsefHub.Invoices do
   @spec update_invoice_fields(Invoice.t(), map()) ::
           {:ok, Invoice.t()} | {:error, Ecto.Changeset.t() | :ksef_not_editable}
   def update_invoice_fields(%Invoice{} = invoice, attrs) do
-    if Invoice.data_editable?(invoice) do
-      do_update_invoice_fields(invoice, attrs)
-    else
-      {:error, :ksef_not_editable}
-    end
+    Repo.transaction(fn ->
+      fresh_invoice =
+        Invoice
+        |> where(id: ^invoice.id)
+        |> lock("FOR UPDATE")
+        |> Repo.one!()
+
+      if Invoice.data_editable?(fresh_invoice) do
+        case do_update_invoice_fields(fresh_invoice, attrs) do
+          {:ok, updated} -> updated
+          {:error, changeset} -> Repo.rollback(changeset)
+        end
+      else
+        Repo.rollback(:ksef_not_editable)
+      end
+    end)
   end
 
   @spec do_update_invoice_fields(Invoice.t(), map()) ::

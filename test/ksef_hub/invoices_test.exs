@@ -1077,6 +1077,36 @@ defmodule KsefHub.InvoicesTest do
                Invoices.update_invoice_fields(invoice, %{"net_amount" => "1000.00"})
     end
 
+    test "rejects update when invoice source changed to ksef after struct was loaded", %{
+      company: company
+    } do
+      ksef_number = "stale-race-#{System.unique_integer([:positive])}"
+
+      stale_invoice =
+        insert(:pdf_upload_invoice,
+          company: company,
+          ksef_number: ksef_number,
+          extraction_status: :partial
+        )
+
+      # Simulate concurrent upsert that transitions the row to :ksef
+      upsert_attrs =
+        params_for(:invoice,
+          ksef_number: ksef_number,
+          company_id: company.id,
+          source: :ksef
+        )
+        |> Map.put(:xml_content, @sample_xml)
+
+      assert {:ok, %Invoice{source: :ksef}, _action} = Invoices.upsert_invoice(upsert_attrs)
+
+      # The stale struct still has source: :pdf_upload, but the DB row is now :ksef
+      assert stale_invoice.source == :pdf_upload
+
+      assert {:error, :ksef_not_editable} =
+               Invoices.update_invoice_fields(stale_invoice, %{"net_amount" => "1000.00"})
+    end
+
     test "updates invoice fields and recalculates extraction_status to complete", %{
       company: company
     } do
