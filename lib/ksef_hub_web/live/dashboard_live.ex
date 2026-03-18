@@ -143,7 +143,12 @@ defmodule KsefHubWeb.DashboardLive do
         tag -> tag.name
       end
     end)
-    |> maybe_add_chip(filters[:billing_date_from], "billing_date_from", "From", &Date.to_iso8601/1)
+    |> maybe_add_chip(
+      filters[:billing_date_from],
+      "billing_date_from",
+      "From",
+      &Date.to_iso8601/1
+    )
     |> maybe_add_chip(filters[:billing_date_to], "billing_date_to", "To", &Date.to_iso8601/1)
     |> Enum.reverse()
   end
@@ -240,7 +245,10 @@ defmodule KsefHubWeb.DashboardLive do
     if connected?(socket) do
       socket
       |> push_event("expense-bar-data", bar_chart_payload(socket.assigns.expense_monthly))
-      |> push_event("category-donut-data", donut_chart_payload(socket.assigns.expense_by_category))
+      |> push_event(
+        "category-donut-data",
+        donut_chart_payload(socket.assigns.expense_by_category)
+      )
     else
       socket
     end
@@ -311,8 +319,14 @@ defmodule KsefHubWeb.DashboardLive do
   @spec filter_query_params(map()) :: map()
   defp filter_query_params(filters) do
     %{}
-    |> put_non_empty("billing_date_from", filters[:billing_date_from] && Date.to_iso8601(filters[:billing_date_from]))
-    |> put_non_empty("billing_date_to", filters[:billing_date_to] && Date.to_iso8601(filters[:billing_date_to]))
+    |> put_non_empty(
+      "billing_date_from",
+      filters[:billing_date_from] && Date.to_iso8601(filters[:billing_date_from])
+    )
+    |> put_non_empty(
+      "billing_date_to",
+      filters[:billing_date_to] && Date.to_iso8601(filters[:billing_date_to])
+    )
     |> put_non_empty("category_id", filters[:category_id])
     |> put_non_empty("tag_id", first_tag_id(filters))
   end
@@ -444,7 +458,10 @@ defmodule KsefHubWeb.DashboardLive do
     </div>
 
     <!-- Income Summary -->
-    <div :if={@can_view_all_types && @current_company} class="grid grid-cols-1 sm:grid-cols-2 gap-4 mt-6">
+    <div
+      :if={@can_view_all_types && @current_company}
+      class="grid grid-cols-1 sm:grid-cols-2 gap-4 mt-6"
+    >
       <.stat_card
         title="Income This Month"
         value={format_decimal(@income_summary.current_month) <> " PLN"}
@@ -478,7 +495,7 @@ defmodule KsefHubWeb.DashboardLive do
           </div>
         </div>
       </.card>
-
+      
     <!-- Sync Status -->
       <.card padding="p-5">
         <h2 class="text-base font-semibold mb-3">Sync Status</h2>
