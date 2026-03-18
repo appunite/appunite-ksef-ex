@@ -161,8 +161,11 @@ defmodule KsefHubWeb.CategoryLiveTest do
       |> element("form#category-form")
       |> render_change(%{category: %{identifier: "finance:invoices", sort_order: "5"}})
 
-      # Click auto-generate — task completes synchronously in test
+      # Click auto-generate — task runs async via Task.Supervisor.async_nolink
       view |> element("button", "Auto") |> render_click()
+
+      # Wait for the async task result to be delivered
+      Process.sleep(50)
 
       # Emoji should be in the form
       html = render(view)

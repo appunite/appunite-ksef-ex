@@ -1086,6 +1086,79 @@ defmodule KsefHub.Invoices do
     end)
   end
 
+  # --- Aggregation Queries ---
+
+  @doc """
+  Returns monthly expense totals grouped by billing_date.
+
+  Supports filters: `:category_id`, `:tag_ids`, `:billing_date_from`, `:billing_date_to`.
+  Excludes invoices with nil billing_date.
+  """
+  @spec expense_monthly_totals(Ecto.UUID.t(), map()) :: [map()]
+  def expense_monthly_totals(company_id, filters \\ %{}) do
+    company_id
+    |> base_aggregation_query(:expense)
+    |> apply_filters(filters)
+    |> group_by([i], i.billing_date)
+    |> select([i], %{billing_date: i.billing_date, net_total: sum(i.net_amount)})
+    |> order_by([i], asc: i.billing_date)
+    |> Repo.all()
+  end
+
+  @doc """
+  Returns expense totals grouped by category.
+
+  Supports filters: `:tag_ids`, `:billing_date_from`, `:billing_date_to`.
+  Excludes invoices with nil billing_date. Uncategorized invoices are grouped
+  under `category_name: "Uncategorized"` with `emoji: nil`.
+  """
+  @spec expense_by_category(Ecto.UUID.t(), map()) :: [map()]
+  def expense_by_category(company_id, filters \\ %{}) do
+    company_id
+    |> base_aggregation_query(:expense)
+    |> apply_filters(filters)
+    |> join(:left, [i], c in Category, on: i.category_id == c.id)
+    |> group_by([..., c], [c.id, c.name, c.emoji])
+    |> select([i, ..., c], %{
+      category_name: coalesce(c.name, "Uncategorized"),
+      emoji: c.emoji,
+      net_total: sum(i.net_amount)
+    })
+    |> order_by([i], desc: sum(i.net_amount))
+    |> Repo.all()
+  end
+
+  @doc """
+  Returns income summary comparing current month to last month (net amounts).
+  Uses billing_date for grouping.
+  """
+  @spec income_monthly_summary(Ecto.UUID.t()) :: map()
+  def income_monthly_summary(company_id) do
+    today = Date.utc_today()
+    current_month_start = Date.beginning_of_month(today)
+    last_month_start = current_month_start |> Date.add(-1) |> Date.beginning_of_month()
+
+    results =
+      company_id
+      |> base_aggregation_query(:income)
+      |> where([i], i.billing_date in [^current_month_start, ^last_month_start])
+      |> group_by([i], i.billing_date)
+      |> select([i], %{billing_date: i.billing_date, net_total: sum(i.net_amount)})
+      |> Repo.all()
+      |> Map.new(&{&1.billing_date, &1.net_total})
+
+    %{
+      current_month: Map.get(results, current_month_start, Decimal.new(0)),
+      last_month: Map.get(results, last_month_start, Decimal.new(0))
+    }
+  end
+
+  @spec base_aggregation_query(Ecto.UUID.t(), :income | :expense) :: Ecto.Query.t()
+  defp base_aggregation_query(company_id, type) do
+    Invoice
+    |> where([i], i.company_id == ^company_id and i.type == ^type and not is_nil(i.billing_date))
+  end
+
   # --- Categories ---
 
   @doc "Returns all categories for a company, ordered by sort_order then identifier."
@@ -1602,10 +1675,14 @@ defmodule KsefHub.Invoices do
         where(q, [i], i.category_id == ^category_id)
 
       {:tag_ids, tag_ids}, q when is_list(tag_ids) and tag_ids != [] ->
-        q
-        |> join(:inner, [i], it in InvoiceTag, on: it.invoice_id == i.id)
-        |> where([..., it], it.tag_id in ^tag_ids)
-        |> distinct(true)
+        tag_subquery =
+          from(it in InvoiceTag,
+            where: it.tag_id in ^tag_ids,
+            select: it.invoice_id,
+            distinct: true
+          )
+
+        where(q, [i], i.id in subquery(tag_subquery))
 
       _, q ->
         q

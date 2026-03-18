@@ -24,12 +24,129 @@ import {Socket} from "phoenix"
 import {LiveSocket} from "phoenix_live_view"
 import {hooks as colocatedHooks} from "phoenix-colocated/ksef_hub"
 import topbar from "../vendor/topbar"
+import Chart from "../vendor/chart.js"
+
+// Chart color palettes
+const DONUT_COLORS = [
+  "rgba(59,130,246,0.7)",   // blue
+  "rgba(251,191,36,0.7)",   // amber
+  "rgba(34,197,94,0.7)",    // green
+  "rgba(239,68,68,0.7)",    // red
+  "rgba(168,85,247,0.7)",   // purple
+  "rgba(236,72,153,0.7)",   // pink
+  "rgba(20,184,166,0.7)",   // teal
+  "rgba(249,115,22,0.7)",   // orange
+  "rgba(107,114,128,0.7)",  // gray
+  "rgba(99,102,241,0.7)",   // indigo
+  "rgba(14,165,233,0.7)",   // sky
+  "rgba(132,204,22,0.7)",   // lime
+  "rgba(244,63,94,0.7)",    // rose
+  "rgba(217,70,239,0.7)",   // fuchsia
+  "rgba(245,158,11,0.7)",   // yellow
+]
+
+function showEmptyState(el) {
+  const canvas = el.querySelector("canvas")
+  canvas.style.display = "none"
+  let msg = el.querySelector(".chart-empty")
+  if (!msg) {
+    msg = document.createElement("div")
+    msg.className = "chart-empty flex items-center justify-center h-full text-sm text-muted-foreground"
+    msg.textContent = "No data for selected period"
+    el.appendChild(msg)
+  }
+  msg.style.display = ""
+}
+
+function hideEmptyState(el) {
+  const canvas = el.querySelector("canvas")
+  canvas.style.display = ""
+  const msg = el.querySelector(".chart-empty")
+  if (msg) msg.style.display = "none"
+}
+
+const ExpenseBarChart = {
+  mounted() {
+    const ctx = this.el.querySelector("canvas").getContext("2d")
+    this.chart = new Chart(ctx, {
+      type: "bar",
+      data: {
+        labels: [],
+        datasets: [{
+          label: "Net Expenses",
+          data: [],
+          backgroundColor: "rgba(251, 191, 36, 0.7)",
+          borderColor: "rgb(251, 191, 36)",
+          borderWidth: 1,
+        }],
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: { legend: { display: false } },
+        scales: {
+          y: { beginAtZero: true, ticks: { callback: v => v.toLocaleString("pl-PL") } },
+          x: { ticks: { maxRotation: 45 } },
+        },
+      },
+    })
+    this.handleEvent("expense-bar-data", ({ labels, values }) => {
+      if (values.length === 0) {
+        showEmptyState(this.el)
+      } else {
+        hideEmptyState(this.el)
+      }
+      this.chart.data.labels = labels
+      this.chart.data.datasets[0].data = values
+      this.chart.update()
+    })
+  },
+  destroyed() {
+    if (this.chart) this.chart.destroy()
+  },
+}
+
+const CategoryDonutChart = {
+  mounted() {
+    const ctx = this.el.querySelector("canvas").getContext("2d")
+    this.chart = new Chart(ctx, {
+      type: "doughnut",
+      data: {
+        labels: [],
+        datasets: [{ data: [], backgroundColor: DONUT_COLORS }],
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: {
+          legend: {
+            position: "right",
+            labels: { boxWidth: 12, padding: 8, font: { size: 11 } },
+          },
+        },
+      },
+    })
+    this.handleEvent("category-donut-data", ({ labels, values }) => {
+      if (values.length === 0) {
+        showEmptyState(this.el)
+      } else {
+        hideEmptyState(this.el)
+      }
+      this.chart.data.labels = labels
+      this.chart.data.datasets[0].data = values
+      this.chart.update()
+    })
+  },
+  destroyed() {
+    if (this.chart) this.chart.destroy()
+  },
+}
 
 const csrfToken = document.querySelector("meta[name='csrf-token']").getAttribute("content")
 const liveSocket = new LiveSocket("/live", Socket, {
   longPollFallbackMs: 2500,
   params: {_csrf_token: csrfToken},
-  hooks: {...colocatedHooks},
+  hooks: {...colocatedHooks, ExpenseBarChart, CategoryDonutChart},
 })
 
 // Show progress bar on live navigation and form submits
