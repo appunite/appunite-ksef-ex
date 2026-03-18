@@ -84,6 +84,13 @@ defmodule KsefHub.Invoices.Invoice do
   @spec sources() :: [invoice_source()]
   def sources, do: Ecto.Enum.values(__MODULE__, :source)
 
+  @editable_sources [:manual, :pdf_upload, :email]
+
+  @doc "Returns whether the invoice data fields can be edited. Only explicitly allowed sources are editable; KSeF and unknown sources are not."
+  @spec data_editable?(t()) :: boolean()
+  def data_editable?(%__MODULE__{source: source}) when source in @editable_sources, do: true
+  def data_editable?(%__MODULE__{}), do: false
+
   @doc "Returns a human-readable display label for the invoice source."
   @spec source_label(invoice_source()) :: String.t()
   def source_label(:ksef), do: "KSeF"
@@ -216,8 +223,13 @@ defmodule KsefHub.Invoices.Invoice do
     :buyer_address
   ]
 
-  @doc "Builds a changeset for manual field edits on the show page. Excludes company-side fields based on invoice type."
+  @doc "Builds a changeset for manual field edits on the show page. Excludes company-side fields based on invoice type. Rejects edits on non-editable sources."
   @spec edit_changeset(t(), map()) :: Ecto.Changeset.t()
+  def edit_changeset(%__MODULE__{source: source} = invoice, _attrs)
+      when source not in @editable_sources do
+    invoice |> change() |> add_error(:source, "#{source} invoices cannot be edited")
+  end
+
   def edit_changeset(invoice, attrs) do
     invoice
     |> cast(attrs, editable_fields(invoice.type))

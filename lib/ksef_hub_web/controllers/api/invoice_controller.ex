@@ -33,10 +33,6 @@ defmodule KsefHubWeb.Api.InvoiceController do
     invoice_number issue_date net_amount gross_amount currency purchase_order
     sales_date due_date iban)
 
-  @update_allowed_keys ~w(seller_nip seller_name buyer_nip buyer_name invoice_number
-    issue_date net_amount gross_amount currency ksef_number purchase_order
-    sales_date due_date iban)
-
   @max_pdf_size 10_000_000
 
   tags(["Invoices"])
@@ -257,7 +253,7 @@ defmodule KsefHubWeb.Api.InvoiceController do
   operation(:update,
     summary: "Update invoice",
     description:
-      "Updates fields on a pdf_upload invoice. Only pdf_upload invoices can be updated via this endpoint. Recalculates extraction_status after update.",
+      "Updates data fields on a non-KSeF invoice. KSeF invoices are legally immutable and cannot be updated. Recalculates extraction_status after update.",
     parameters: [
       id: [
         in: :path,
@@ -273,12 +269,12 @@ defmodule KsefHubWeb.Api.InvoiceController do
       403 => {"Forbidden — insufficient permissions", "application/json", Schemas.ErrorResponse},
       404 => {"Invoice not found", "application/json", Schemas.ErrorResponse},
       422 =>
-        {"Validation error — only pdf_upload invoices can be updated, or invalid field values",
+        {"Validation error — KSeF invoices cannot be updated, or invalid field values",
          "application/json", Schemas.ErrorResponse}
     }
   )
 
-  @doc "Updates fields on a pdf_upload invoice."
+  @doc "Updates data fields on a non-KSeF invoice."
   @spec update(Plug.Conn.t(), map()) :: Plug.Conn.t()
   def update(conn, %{"id" => id} = params) do
     company_id = conn.assigns.current_company.id
@@ -287,29 +283,21 @@ defmodule KsefHubWeb.Api.InvoiceController do
   end
 
   @spec do_update(Plug.Conn.t(), Invoice.t(), map()) :: Plug.Conn.t()
-  defp do_update(conn, %Invoice{source: :pdf_upload} = invoice, params) do
-    update_attrs =
-      params
-      |> atomize_keys(@update_allowed_keys)
-      |> Map.drop(Invoice.company_fields(invoice.type))
-
-    update_attrs = Invoices.recalculate_extraction_status(invoice, update_attrs)
-
-    case Invoices.update_invoice(invoice, update_attrs) do
+  defp do_update(conn, %Invoice{} = invoice, params) do
+    case Invoices.update_invoice_fields(invoice, params) do
       {:ok, updated} ->
         json(conn, %{data: invoice_json(updated)})
+
+      {:error, :ksef_not_editable} ->
+        conn
+        |> put_status(:unprocessable_entity)
+        |> json(%{error: "KSeF invoices cannot be updated"})
 
       {:error, changeset} ->
         conn
         |> put_status(:unprocessable_entity)
         |> json(%{error: changeset_errors(changeset)})
     end
-  end
-
-  defp do_update(conn, _invoice, _params) do
-    conn
-    |> put_status(:unprocessable_entity)
-    |> json(%{error: "Only pdf_upload invoices can be updated via this endpoint"})
   end
 
   operation(:show,
