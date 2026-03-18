@@ -7,6 +7,8 @@ defmodule KsefHubWeb.InvoiceLive.Classify do
   """
   use KsefHubWeb, :live_view
 
+  import KsefHubWeb.InvoiceComponents, only: [prediction_hint: 1]
+
   alias KsefHub.Authorization
   alias KsefHub.InvoiceClassifier
   alias KsefHub.Invoices
@@ -115,6 +117,33 @@ defmodule KsefHubWeb.InvoiceLive.Classify do
   end
 
   def handle_event("create_tag", %{"name" => name}, socket) do
+    unless socket.assigns.can_manage_tags do
+      {:noreply, put_flash(socket, :error, "You don't have permission to manage tags.")}
+    else
+      create_tag(socket, name)
+    end
+  end
+
+  def handle_event("save", _params, socket) do
+    unless socket.assigns.can_set_category or socket.assigns.can_set_tags do
+      {:noreply, put_flash(socket, :error, "You don't have permission to classify invoices.")}
+    else
+      save_classification(socket)
+    end
+  end
+
+  def handle_event("cancel", _params, socket) do
+    company = socket.assigns.current_company
+    invoice = socket.assigns.invoice
+
+    {:noreply, push_navigate(socket, to: ~p"/c/#{company.id}/invoices/#{invoice.id}")}
+  end
+
+  # --- Private event helpers ---
+
+  @spec create_tag(Phoenix.LiveView.Socket.t(), String.t()) ::
+          {:noreply, Phoenix.LiveView.Socket.t()}
+  defp create_tag(socket, name) do
     case String.trim(name) do
       "" ->
         {:noreply, socket}
@@ -143,7 +172,9 @@ defmodule KsefHubWeb.InvoiceLive.Classify do
     end
   end
 
-  def handle_event("save", _params, socket) do
+  @spec save_classification(Phoenix.LiveView.Socket.t()) ::
+          {:noreply, Phoenix.LiveView.Socket.t()}
+  defp save_classification(socket) do
     invoice = socket.assigns.invoice
     category_id = socket.assigns.selected_category_id
     tag_ids = MapSet.to_list(socket.assigns.selected_tag_ids)
@@ -167,13 +198,6 @@ defmodule KsefHubWeb.InvoiceLive.Classify do
       {:error, _} ->
         {:noreply, put_flash(socket, :error, "Failed to save classification.")}
     end
-  end
-
-  def handle_event("cancel", _params, socket) do
-    company = socket.assigns.current_company
-    invoice = socket.assigns.invoice
-
-    {:noreply, push_navigate(socket, to: ~p"/c/#{company.id}/invoices/#{invoice.id}")}
   end
 
   # --- Render ---
@@ -335,37 +359,6 @@ defmodule KsefHubWeb.InvoiceLive.Classify do
   end
 
   # --- Function Components ---
-
-  attr :predicted_at, :any, required: true
-  attr :status, :atom, required: true
-  attr :confidence, :any, required: true
-  attr :threshold, :float, required: true
-  attr :label, :string, required: true
-  attr :testid, :string, required: true
-
-  @spec prediction_hint(map()) :: Phoenix.LiveView.Rendered.t()
-  defp prediction_hint(assigns) do
-    assigns = assign(assigns, :show_hint, show_prediction_hint?(assigns))
-
-    ~H"""
-    <p :if={@show_hint} class="text-xs mt-1 opacity-60" data-testid={@testid}>
-      <%= cond do %>
-        <% @status == :manual -> %>
-          Manually adjusted
-        <% @confidence && @confidence >= @threshold -> %>
-          Predicted with {Float.round(@confidence * 100, 1)}% probability, feel free to adjust
-        <% @confidence && @confidence < @threshold -> %>
-          Could not predict {@label} automatically ({Float.round(@confidence * 100, 1)}% confidence)
-      <% end %>
-    </p>
-    """
-  end
-
-  @spec show_prediction_hint?(map()) :: boolean()
-  defp show_prediction_hint?(%{predicted_at: nil}), do: false
-  defp show_prediction_hint?(%{status: :manual}), do: true
-  defp show_prediction_hint?(%{confidence: confidence}) when is_number(confidence), do: true
-  defp show_prediction_hint?(_assigns), do: false
 
   # --- Private ---
 

@@ -517,42 +517,6 @@ defmodule KsefHubWeb.InvoiceLive.Show do
     {:noreply, socket}
   end
 
-  # --- Function Components ---
-
-  attr :predicted_at, :any, required: true
-  attr :status, :atom, required: true
-  attr :confidence, :any, required: true
-  attr :threshold, :float, required: true
-  attr :label, :string, required: true
-  attr :testid, :string, required: true
-
-  @spec prediction_hint(map()) :: Phoenix.LiveView.Rendered.t()
-  defp prediction_hint(assigns) do
-    assigns = assign(assigns, :show_hint, show_prediction_hint?(assigns))
-
-    ~H"""
-    <p :if={@show_hint} class="text-xs mt-1 opacity-60" data-testid={@testid}>
-      <%= cond do %>
-        <% @status == :manual -> %>
-          Manually adjusted
-        <% @confidence && @confidence >= @threshold -> %>
-          Predicted with {Float.round(@confidence * 100, 1)}% probability, feel free to adjust
-        <% @confidence && @confidence < @threshold -> %>
-          Could not predict {@label} automatically ({Float.round(@confidence * 100, 1)}% confidence)
-      <% end %>
-    </p>
-    """
-  end
-
-  @spec show_prediction_hint?(map()) :: boolean()
-  defp show_prediction_hint?(%{predicted_at: nil}), do: false
-
-  defp show_prediction_hint?(%{status: :manual}), do: true
-
-  defp show_prediction_hint?(%{confidence: confidence}) when is_number(confidence), do: true
-
-  defp show_prediction_hint?(_assigns), do: false
-
   # --- Private ---
 
   @spec note_form(Invoice.t()) :: Phoenix.HTML.Form.t()

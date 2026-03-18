@@ -307,6 +307,38 @@ defmodule KsefHubWeb.InvoiceComponents do
     """
   end
 
+  @doc "Renders a prediction hint showing confidence level or manual adjustment status."
+  @spec prediction_hint(map()) :: Phoenix.LiveView.Rendered.t()
+  attr :predicted_at, :any, required: true
+  attr :status, :atom, required: true
+  attr :confidence, :any, required: true
+  attr :threshold, :float, required: true
+  attr :label, :string, required: true
+  attr :testid, :string, required: true
+
+  def prediction_hint(assigns) do
+    assigns = assign(assigns, :show_hint, show_prediction_hint?(assigns))
+
+    ~H"""
+    <p :if={@show_hint} class="text-xs mt-1 opacity-60" data-testid={@testid}>
+      <%= cond do %>
+        <% @status == :manual -> %>
+          Manually adjusted
+        <% @confidence && @confidence >= @threshold -> %>
+          Predicted with {Float.round(@confidence * 100, 1)}% probability, feel free to adjust
+        <% true -> %>
+          Could not predict {@label} automatically ({Float.round((@confidence || 0.0) * 100, 1)}% confidence)
+      <% end %>
+    </p>
+    """
+  end
+
+  @spec show_prediction_hint?(map()) :: boolean()
+  defp show_prediction_hint?(%{predicted_at: nil}), do: false
+  defp show_prediction_hint?(%{status: :manual}), do: true
+  defp show_prediction_hint?(%{confidence: confidence}) when is_number(confidence), do: true
+  defp show_prediction_hint?(_assigns), do: false
+
   @doc "Formats an address map as a comma-separated string. Delegates to Invoice.format_address/1."
   @spec format_address(map() | nil) :: String.t()
   defdelegate format_address(addr), to: KsefHub.Invoices.Invoice

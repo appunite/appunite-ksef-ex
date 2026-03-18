@@ -210,5 +210,34 @@ defmodule KsefHubWeb.InvoiceLive.ClassifyTest do
       {:ok, _view, html} = live(conn, ~p"/c/#{company.id}/invoices/#{invoice.id}/classify")
       assert html =~ "Classification"
     end
+
+    test "reviewer cannot create tags inline", %{conn: conn, company: company} do
+      invoice = insert(:invoice, type: :expense, company: company)
+
+      {:ok, view, _html} = live(conn, ~p"/c/#{company.id}/invoices/#{invoice.id}/classify")
+
+      html = render_click(view, "create_tag", %{"name" => "sneaky-tag"})
+      assert html =~ "permission"
+    end
+
+    test "accountant cannot save classification", ctx do
+      {:ok, accountant} =
+        Accounts.get_or_create_google_user(%{
+          uid: "g-classify-acct",
+          email: "classify-acct@example.com",
+          name: "Accountant"
+        })
+
+      insert(:membership, user: accountant, company: ctx.company, role: :accountant)
+      conn = build_conn() |> log_in_user(accountant, %{current_company_id: ctx.company.id})
+      stub(KsefHub.PdfRenderer.Mock, :generate_html, fn _xml, _meta -> {:error, :no_xml} end)
+
+      invoice = insert(:invoice, type: :expense, company: ctx.company)
+
+      {:ok, view, _html} = live(conn, ~p"/c/#{ctx.company.id}/invoices/#{invoice.id}/classify")
+
+      html = render_click(view, "save")
+      assert html =~ "permission"
+    end
   end
 end

@@ -1,5 +1,5 @@
 defmodule KsefHub.EmojiGenerator.ClientTest do
-  use ExUnit.Case, async: true
+  use ExUnit.Case, async: false
 
   alias KsefHub.EmojiGenerator.Client
 

@@ -14,7 +14,12 @@ defmodule KsefHub.Repo.Migrations.ExtendCategories do
       add :examples, :text
     end
 
-    drop unique_index(:categories, [:company_id, :name])
+    # The old index was on [:company_id, :name] but column was renamed above,
+    # so we reference by the auto-generated index name.
+    drop_if_exists index(:categories, [:company_id, :name],
+                     name: "categories_company_id_name_index"
+                   )
+
     create unique_index(:categories, [:company_id, :identifier])
   end
 end
