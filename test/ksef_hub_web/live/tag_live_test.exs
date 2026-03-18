@@ -140,7 +140,7 @@ defmodule KsefHubWeb.TagLiveTest do
       assert {:error, {:live_redirect, %{to: to, flash: flash}}} =
                live(conn, ~p"/c/#{company.id}/tags/#{Ecto.UUID.generate()}/edit")
 
-      assert to == "/c/#{company.id}/tags"
+      assert to == "/c/#{company.id}/tags?type=expense"
       assert flash["error"] == "Tag not found."
     end
   end

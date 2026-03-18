@@ -635,13 +635,6 @@ defmodule KsefHubWeb.InvoiceLive.Show do
             <.icon name="hero-link" class="size-4" /> Share
           </.button>
           <.button
-            :if={@can_manage_payment_requests && @invoice.type == :expense}
-            variant="outline"
-            navigate={~p"/c/#{@current_company.id}/payment-requests/new?invoice_id=#{@invoice.id}"}
-          >
-            <.icon name="hero-banknotes" class="size-4" /> Add payment
-          </.button>
-          <.button
             :if={
               @can_approve && @invoice.type == :expense && @invoice.status == :pending &&
                 @invoice.duplicate_status != :confirmed
@@ -748,10 +741,11 @@ defmodule KsefHubWeb.InvoiceLive.Show do
               </span>
             </div>
             <.button
-              :if={@can_mutate && !@editing}
+              :if={@can_mutate && @data_editable && !@editing}
               size="sm"
               variant="outline"
               phx-click="toggle_edit"
+              data-testid="edit-details-btn"
             >
               <.icon name="hero-pencil-square" class="size-4" /> Edit
             </.button>

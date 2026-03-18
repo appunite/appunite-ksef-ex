@@ -115,7 +115,6 @@ defmodule KsefHubWeb.InvoiceLive.ShowTest do
       invoice = insert(:invoice, type: :expense, company: company)
 
       {:ok, _view, html} = live(conn, ~p"/c/#{company.id}/invoices/#{invoice.id}")
-      # Add payment button was moved from top bar to Payment Requests section only
       refute html =~ ~r/<header[^>]*>.*Add payment.*<\/header>/s
     end
   end
@@ -441,7 +440,7 @@ defmodule KsefHubWeb.InvoiceLive.ShowTest do
       stub(KsefHub.PdfRenderer.Mock, :generate_html, fn _xml, _meta -> {:error, :no_xml} end)
 
       {:ok, view, _html} = live(conn, ~p"/c/#{company.id}/invoices/#{invoice.id}")
-      refute has_element?(view, "button", "Edit")
+      refute has_element?(view, ~s([data-testid="edit-details-btn"]))
       assert has_element?(view, ~s([data-testid="ksef-locked-badge"]))
     end
 
