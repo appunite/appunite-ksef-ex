@@ -546,7 +546,8 @@ defmodule KsefHubWeb.InvoiceLive.Show do
            extracting: false,
            extract_ref: nil,
            invoice: reload_details(updated, socket),
-           editing: Invoice.data_editable?(updated) and updated.extraction_status in [:partial, :failed]
+           editing:
+             Invoice.data_editable?(updated) and updated.extraction_status in [:partial, :failed]
          )
          |> assign_new_edit_form(updated)
          |> put_flash(:info, "Invoice data re-extracted successfully.")}

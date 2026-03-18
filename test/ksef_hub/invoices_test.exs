@@ -1072,7 +1072,9 @@ defmodule KsefHub.InvoicesTest do
   describe "update_invoice_fields/2" do
     test "returns error for KSeF invoices", %{company: company} do
       invoice = insert(:invoice, company: company)
-      assert {:error, :ksef_not_editable} = Invoices.update_invoice_fields(invoice, %{"net_amount" => "1000.00"})
+
+      assert {:error, :ksef_not_editable} =
+               Invoices.update_invoice_fields(invoice, %{"net_amount" => "1000.00"})
     end
 
     test "updates invoice fields and recalculates extraction_status to complete", %{

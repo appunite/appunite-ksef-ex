@@ -551,7 +551,11 @@ defmodule KsefHubWeb.InvoiceLive.ShowTest do
       company: company
     } do
       invoice =
-        insert(:pdf_upload_invoice, company: company, extraction_status: :partial, net_amount: nil)
+        insert(:pdf_upload_invoice,
+          company: company,
+          extraction_status: :partial,
+          net_amount: nil
+        )
 
       stub(KsefHub.PdfRenderer.Mock, :generate_html, fn _xml, _meta -> {:error, :no_xml} end)
 
@@ -574,7 +578,11 @@ defmodule KsefHubWeb.InvoiceLive.ShowTest do
 
     test "cancel edit returns to read-only view", %{conn: conn, company: company} do
       invoice =
-        insert(:pdf_upload_invoice, company: company, extraction_status: :partial, net_amount: nil)
+        insert(:pdf_upload_invoice,
+          company: company,
+          extraction_status: :partial,
+          net_amount: nil
+        )
 
       stub(KsefHub.PdfRenderer.Mock, :generate_html, fn _xml, _meta -> {:error, :no_xml} end)
 
