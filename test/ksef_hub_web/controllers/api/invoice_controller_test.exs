@@ -711,6 +711,8 @@ defmodule KsefHubWeb.Api.InvoiceControllerTest do
       assert conn.status == 200
       data = Jason.decode!(conn.resp_body)["data"]
       assert data["seller_name"] == "Updated Name"
+      # Manual invoices have no extraction_status — update should not introduce one
+      assert data["extraction_status"] == nil
     end
   end
 

@@ -299,7 +299,12 @@ defmodule KsefHubWeb.Api.InvoiceController do
       |> atomize_keys(@update_allowed_keys)
       |> Map.drop(Invoice.company_fields(invoice.type))
 
-    update_attrs = Invoices.recalculate_extraction_status(invoice, update_attrs)
+    update_attrs =
+      if invoice.extraction_status do
+        Invoices.recalculate_extraction_status(invoice, update_attrs)
+      else
+        update_attrs
+      end
 
     case Invoices.update_invoice(invoice, update_attrs) do
       {:ok, updated} ->
