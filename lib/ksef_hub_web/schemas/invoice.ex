@@ -88,8 +88,9 @@ defmodule KsefHubWeb.Schemas.Invoice do
         type: :string,
         format: :date,
         nullable: true,
+        pattern: "^\\d{4}-\\d{2}-01$",
         description:
-          "Accounting period date (first day of month). Auto-computed from sales_date or issue_date, but user-overridable. Used for grouping invoices into billing periods."
+          "Accounting period date (first day of month, YYYY-MM-01). Auto-computed from sales_date or issue_date, but user-overridable. Used for grouping invoices into billing periods."
       },
       iban: %Schema{
         type: :string,

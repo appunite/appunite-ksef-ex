@@ -6,8 +6,6 @@ defmodule KsefHub.Repo.Migrations.AddBillingDateToInvoices do
       add :billing_date, :date
     end
 
-    create index(:invoices, [:company_id, :billing_date])
-
     execute(
       """
       UPDATE invoices
@@ -16,5 +14,7 @@ defmodule KsefHub.Repo.Migrations.AddBillingDateToInvoices do
       """,
       "UPDATE invoices SET billing_date = NULL"
     )
+
+    create index(:invoices, [:company_id, :billing_date])
   end
 end

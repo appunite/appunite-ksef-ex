@@ -1588,10 +1588,7 @@ defmodule KsefHubWeb.InvoiceLive.Show do
 
   @spec normalize_billing_date_param(map()) :: map()
   defp normalize_billing_date_param(%{"billing_date" => val} = params) when is_binary(val) do
-    case Regex.run(~r/^(\d{4})-(\d{2})$/, val) do
-      [_, year, month] -> Map.put(params, "billing_date", "#{year}-#{month}-01")
-      _ -> params
-    end
+    Map.put(params, "billing_date", normalize_month_to_date(val))
   end
 
   defp normalize_billing_date_param(params), do: params

@@ -2260,6 +2260,22 @@ defmodule KsefHub.InvoicesTest do
       assert invoice.billing_date == ~D[2026-04-01]
     end
 
+    test "explicit billing_date nil preserves nil despite dates being present", %{
+      company: company
+    } do
+      attrs =
+        params_for(:invoice,
+          company_id: company.id,
+          sales_date: ~D[2026-02-15],
+          issue_date: ~D[2026-02-10]
+        )
+        |> Map.put(:billing_date, nil)
+        |> Map.put(:xml_content, @sample_xml)
+
+      assert {:ok, invoice} = Invoices.create_invoice(attrs)
+      assert is_nil(invoice.billing_date)
+    end
+
     test "filters by billing_date_from and billing_date_to", %{company: company} do
       insert(:invoice, company: company, billing_date: ~D[2026-01-01], issue_date: ~D[2026-01-15])
       insert(:invoice, company: company, billing_date: ~D[2026-02-01], issue_date: ~D[2026-02-15])
@@ -2376,6 +2392,11 @@ defmodule KsefHub.InvoicesTest do
 
     test "handles string date values" do
       assert Invoices.compute_billing_date(%{issue_date: "2026-08-19"}) == ~D[2026-08-01]
+    end
+
+    test "handles ISO 8601 datetime strings" do
+      assert Invoices.compute_billing_date(%{issue_date: "2026-03-15T10:30:00Z"}) ==
+               ~D[2026-03-01]
     end
 
     test "handles invalid string date gracefully" do

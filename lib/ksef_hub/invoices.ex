@@ -219,12 +219,23 @@ defmodule KsefHub.Invoices do
 
   defp first_of_month(str) when is_binary(str) do
     case Date.from_iso8601(str) do
-      {:ok, date} -> first_of_month(date)
-      _ -> nil
+      {:ok, date} ->
+        first_of_month(date)
+
+      _ ->
+        case DateTime.from_iso8601(str) do
+          {:ok, dt, _} -> first_of_month(DateTime.to_date(dt))
+          _ -> nil
+        end
     end
   end
 
   defp first_of_month(_), do: nil
+
+  @spec has_attr?(map(), atom()) :: boolean()
+  defp has_attr?(attrs, key) do
+    Map.has_key?(attrs, key) or Map.has_key?(attrs, Atom.to_string(key))
+  end
 
   @spec get_attr(map(), atom()) :: term()
   defp get_attr(attrs, key) do
@@ -233,7 +244,7 @@ defmodule KsefHub.Invoices do
 
   @spec maybe_default_billing_date(map()) :: map()
   defp maybe_default_billing_date(attrs) do
-    if get_attr(attrs, :billing_date) do
+    if has_attr?(attrs, :billing_date) do
       attrs
     else
       case compute_billing_date(attrs) do

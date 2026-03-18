@@ -52,7 +52,9 @@ defmodule KsefHubWeb.Schemas.UpdateInvoiceRequest do
         type: :string,
         format: :date,
         nullable: true,
-        description: "Accounting period date (first day of month). Overrides auto-computed value."
+        pattern: "^\\d{4}-\\d{2}-01$",
+        description:
+          "Accounting period date (first day of month, YYYY-MM-01). Overrides auto-computed value."
       },
       iban: %Schema{
         type: :string,
