@@ -51,6 +51,7 @@ defmodule KsefHub.Invoices.Invoice do
     field :purchase_order, :string
     field :sales_date, :date
     field :due_date, :date
+    field :billing_date, :date
     field :iban, :string
     field :seller_address, :map
     field :buyer_address, :map
@@ -168,11 +169,13 @@ defmodule KsefHub.Invoices.Invoice do
       :purchase_order,
       :sales_date,
       :due_date,
+      :billing_date,
       :iban,
       :seller_address,
       :buyer_address
     ])
     |> validate_required([:type, :company_id])
+    |> validate_first_of_month(:billing_date)
     |> validate_nip_fields()
     |> validate_length(:original_filename, max: 255)
     |> validate_length(:purchase_order, max: 256)
@@ -210,6 +213,7 @@ defmodule KsefHub.Invoices.Invoice do
     :issue_date,
     :sales_date,
     :due_date,
+    :billing_date,
     :seller_nip,
     :seller_name,
     :buyer_nip,
@@ -233,6 +237,7 @@ defmodule KsefHub.Invoices.Invoice do
   def edit_changeset(invoice, attrs) do
     invoice
     |> cast(attrs, editable_fields(invoice.type))
+    |> validate_first_of_month(:billing_date)
     |> validate_nip_fields()
     |> validate_number(:net_amount, greater_than_or_equal_to: 0)
     |> validate_number(:gross_amount, greater_than_or_equal_to: 0)
@@ -268,6 +273,14 @@ defmodule KsefHub.Invoices.Invoice do
   def prediction_changeset(invoice, attrs) do
     invoice
     |> cast(attrs, @prediction_fields)
+  end
+
+  @doc "Builds a changeset for updating the billing_date field only. Works on all sources, including KSeF."
+  @spec billing_date_changeset(t(), map()) :: Ecto.Changeset.t()
+  def billing_date_changeset(invoice, attrs) do
+    invoice
+    |> cast(attrs, [:billing_date])
+    |> validate_first_of_month(:billing_date)
   end
 
   @doc "Builds a changeset for updating the note field only."
@@ -352,4 +365,11 @@ defmodule KsefHub.Invoices.Invoice do
   defp blank_value?(nil), do: true
   defp blank_value?(v) when is_binary(v), do: String.trim(v) == ""
   defp blank_value?(_), do: false
+
+  @spec validate_first_of_month(Ecto.Changeset.t(), atom()) :: Ecto.Changeset.t()
+  defp validate_first_of_month(changeset, field) do
+    validate_change(changeset, field, fn _, %Date{day: day} ->
+      if day == 1, do: [], else: [{field, "must be the first day of the month"}]
+    end)
+  end
 end

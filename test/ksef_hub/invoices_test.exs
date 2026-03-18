@@ -2217,4 +2217,190 @@ defmodule KsefHub.InvoicesTest do
       assert changeset.changes[:seller_address] == nil
     end
   end
+
+  describe "billing_date" do
+    test "auto-computes billing_date from sales_date on create", %{company: company} do
+      attrs =
+        params_for(:invoice,
+          company_id: company.id,
+          sales_date: ~D[2026-02-15],
+          issue_date: ~D[2026-02-10]
+        )
+        |> Map.delete(:billing_date)
+        |> Map.put(:xml_content, @sample_xml)
+
+      assert {:ok, invoice} = Invoices.create_invoice(attrs)
+      assert invoice.billing_date == ~D[2026-02-01]
+    end
+
+    test "auto-computes billing_date from issue_date when no sales_date", %{company: company} do
+      attrs =
+        params_for(:invoice,
+          company_id: company.id,
+          sales_date: nil,
+          issue_date: ~D[2026-03-20]
+        )
+        |> Map.delete(:billing_date)
+        |> Map.put(:xml_content, @sample_xml)
+
+      assert {:ok, invoice} = Invoices.create_invoice(attrs)
+      assert invoice.billing_date == ~D[2026-03-01]
+    end
+
+    test "explicit billing_date overrides auto-computation", %{company: company} do
+      attrs =
+        params_for(:invoice,
+          company_id: company.id,
+          sales_date: ~D[2026-02-15],
+          billing_date: ~D[2026-04-01]
+        )
+        |> Map.put(:xml_content, @sample_xml)
+
+      assert {:ok, invoice} = Invoices.create_invoice(attrs)
+      assert invoice.billing_date == ~D[2026-04-01]
+    end
+
+    test "explicit billing_date nil preserves nil despite dates being present", %{
+      company: company
+    } do
+      attrs =
+        params_for(:invoice,
+          company_id: company.id,
+          sales_date: ~D[2026-02-15],
+          issue_date: ~D[2026-02-10]
+        )
+        |> Map.put(:billing_date, nil)
+        |> Map.put(:xml_content, @sample_xml)
+
+      assert {:ok, invoice} = Invoices.create_invoice(attrs)
+      assert is_nil(invoice.billing_date)
+    end
+
+    test "filters by billing_date_from and billing_date_to", %{company: company} do
+      insert(:invoice, company: company, billing_date: ~D[2026-01-01], issue_date: ~D[2026-01-15])
+      insert(:invoice, company: company, billing_date: ~D[2026-02-01], issue_date: ~D[2026-02-15])
+      insert(:invoice, company: company, billing_date: ~D[2026-03-01], issue_date: ~D[2026-03-15])
+
+      result =
+        Invoices.list_invoices(company.id, %{
+          billing_date_from: ~D[2026-02-01],
+          billing_date_to: ~D[2026-02-28]
+        })
+
+      assert length(result) == 1
+      assert hd(result).billing_date == ~D[2026-02-01]
+    end
+
+    test "filters by billing_date_from only", %{company: company} do
+      insert(:invoice, company: company, billing_date: ~D[2026-01-01], issue_date: ~D[2026-01-15])
+      insert(:invoice, company: company, billing_date: ~D[2026-03-01], issue_date: ~D[2026-03-15])
+
+      result =
+        Invoices.list_invoices(company.id, %{billing_date_from: ~D[2026-02-01]})
+
+      assert length(result) == 1
+      assert hd(result).billing_date == ~D[2026-03-01]
+    end
+
+    test "filters by billing_date_to only", %{company: company} do
+      insert(:invoice, company: company, billing_date: ~D[2026-01-01], issue_date: ~D[2026-01-15])
+      insert(:invoice, company: company, billing_date: ~D[2026-03-01], issue_date: ~D[2026-03-15])
+
+      result =
+        Invoices.list_invoices(company.id, %{billing_date_to: ~D[2026-01-31]})
+
+      assert length(result) == 1
+      assert hd(result).billing_date == ~D[2026-01-01]
+    end
+
+    test "billing_date is nil when both sales_date and issue_date are nil", %{company: company} do
+      attrs =
+        params_for(:pdf_upload_invoice,
+          company_id: company.id,
+          sales_date: nil,
+          issue_date: nil
+        )
+        |> Map.delete(:billing_date)
+        |> Map.put(:pdf_content, "%PDF-1.4 test")
+
+      assert {:ok, invoice} = Invoices.create_invoice(attrs)
+      assert is_nil(invoice.billing_date)
+    end
+
+    test "auto-computes billing_date on upsert", %{company: company} do
+      attrs = %{
+        company_id: company.id,
+        type: :income,
+        source: :ksef,
+        ksef_number: "upsert-bd-test-001",
+        seller_nip: "1234567890",
+        seller_name: "Seller Sp. z o.o.",
+        buyer_nip: "0987654321",
+        buyer_name: "Buyer S.A.",
+        invoice_number: "FV/BD/001",
+        issue_date: ~D[2026-05-20],
+        sales_date: ~D[2026-05-15],
+        net_amount: Decimal.new("1000.00"),
+        gross_amount: Decimal.new("1230.00"),
+        xml_content: @sample_xml
+      }
+
+      assert {:ok, invoice, :inserted} = Invoices.upsert_invoice(attrs)
+      assert invoice.billing_date == ~D[2026-05-01]
+    end
+
+    test "update_billing_date works on KSeF invoices", %{company: company} do
+      invoice = insert(:invoice, company: company, source: :ksef, billing_date: ~D[2026-01-01])
+
+      assert {:ok, updated} =
+               Invoices.update_billing_date(invoice, %{billing_date: ~D[2026-06-01]})
+
+      assert updated.billing_date == ~D[2026-06-01]
+    end
+
+    test "update_billing_date can clear billing_date", %{company: company} do
+      invoice = insert(:invoice, company: company, billing_date: ~D[2026-01-01])
+
+      assert {:ok, updated} = Invoices.update_billing_date(invoice, %{billing_date: nil})
+      assert is_nil(updated.billing_date)
+    end
+  end
+
+  describe "compute_billing_date/1" do
+    test "returns first of month from sales_date" do
+      assert Invoices.compute_billing_date(%{sales_date: ~D[2026-07-23]}) == ~D[2026-07-01]
+    end
+
+    test "falls back to issue_date when no sales_date" do
+      assert Invoices.compute_billing_date(%{issue_date: ~D[2026-11-05]}) == ~D[2026-11-01]
+    end
+
+    test "prefers sales_date over issue_date" do
+      assert Invoices.compute_billing_date(%{
+               sales_date: ~D[2026-02-15],
+               issue_date: ~D[2026-01-30]
+             }) == ~D[2026-02-01]
+    end
+
+    test "returns nil when neither date present" do
+      assert Invoices.compute_billing_date(%{}) == nil
+    end
+
+    test "handles string keys" do
+      assert Invoices.compute_billing_date(%{"sales_date" => ~D[2026-05-10]}) == ~D[2026-05-01]
+    end
+
+    test "handles string date values" do
+      assert Invoices.compute_billing_date(%{issue_date: "2026-08-19"}) == ~D[2026-08-01]
+    end
+
+    test "handles ISO 8601 datetime strings" do
+      assert Invoices.compute_billing_date(%{issue_date: "2026-03-15T10:30:00Z"}) ==
+               ~D[2026-03-01]
+    end
+
+    test "handles invalid string date gracefully" do
+      assert Invoices.compute_billing_date(%{issue_date: "not-a-date"}) == nil
+    end
+  end
 end

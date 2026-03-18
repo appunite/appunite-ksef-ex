@@ -168,6 +168,11 @@ defmodule KsefHubWeb.InvoiceComponents do
   def format_date(nil), do: "-"
   def format_date(date), do: Calendar.strftime(date, "%Y-%m-%d")
 
+  @doc "Formats a date as \"Mon YYYY\" for billing period display."
+  @spec format_month(Date.t() | nil) :: String.t()
+  def format_month(nil), do: "-"
+  def format_month(date), do: Calendar.strftime(date, "%b %Y")
+
   @doc "Formats a numeric amount, or returns \"-\" for nil/unknown types."
   @spec format_amount(Decimal.t() | number() | nil) :: String.t()
   def format_amount(nil), do: "-"

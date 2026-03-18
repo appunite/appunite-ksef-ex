@@ -31,7 +31,7 @@ defmodule KsefHubWeb.Api.InvoiceController do
 
   @create_allowed_keys ~w(type ksef_number seller_nip seller_name buyer_nip buyer_name
     invoice_number issue_date net_amount gross_amount currency purchase_order
-    sales_date due_date iban)
+    sales_date due_date billing_date iban)
 
   @max_pdf_size 10_000_000
 
@@ -81,6 +81,16 @@ defmodule KsefHubWeb.Api.InvoiceController do
       date_to: [
         in: :query,
         description: "Filter invoices issued on or before this date (ISO 8601).",
+        schema: %Schema{type: :string, format: :date}
+      ],
+      billing_date_from: [
+        in: :query,
+        description: "Filter invoices with billing_date on or after this date (ISO 8601).",
+        schema: %Schema{type: :string, format: :date}
+      ],
+      billing_date_to: [
+        in: :query,
+        description: "Filter invoices with billing_date on or before this date (ISO 8601).",
         schema: %Schema{type: :string, format: :date}
       ],
       page: [
@@ -821,6 +831,8 @@ defmodule KsefHubWeb.Api.InvoiceController do
     |> maybe_put(:query, params["query"])
     |> maybe_put_date(:date_from, params["date_from"])
     |> maybe_put_date(:date_to, params["date_to"])
+    |> maybe_put_date(:billing_date_from, params["billing_date_from"])
+    |> maybe_put_date(:billing_date_to, params["billing_date_to"])
     |> maybe_put_integer(:page, params["page"])
     |> maybe_put_integer(:per_page, params["per_page"])
     |> maybe_put(:category_id, params["category_id"])
@@ -989,6 +1001,7 @@ defmodule KsefHubWeb.Api.InvoiceController do
       purchase_order: invoice.purchase_order,
       sales_date: invoice.sales_date,
       due_date: invoice.due_date,
+      billing_date: invoice.billing_date,
       iban: invoice.iban,
       seller_address: invoice.seller_address,
       buyer_address: invoice.buyer_address,

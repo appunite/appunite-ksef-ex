@@ -1370,4 +1370,83 @@ defmodule KsefHubWeb.Api.InvoiceControllerTest do
       assert conn.status == 200
     end
   end
+
+  describe "billing_date" do
+    test "billing_date appears in show response", %{conn: conn} do
+      %{company: company, token: token} = create_user_with_token(:owner)
+
+      invoice =
+        insert(:invoice, company: company, billing_date: ~D[2026-03-01])
+
+      conn = conn |> api_conn(token) |> get("/api/invoices/#{invoice.id}")
+
+      assert conn.status == 200
+      data = Jason.decode!(conn.resp_body)["data"]
+      assert data["billing_date"] == "2026-03-01"
+    end
+
+    test "create with explicit billing_date", %{conn: conn} do
+      %{token: token} = create_user_with_token(:owner)
+
+      body =
+        Jason.encode!(%{
+          type: "expense",
+          seller_nip: "1234567890",
+          seller_name: "Seller Sp. z o.o.",
+          buyer_nip: "0987654321",
+          buyer_name: "Buyer S.A.",
+          invoice_number: "FV/2026/BD1",
+          issue_date: "2026-02-20",
+          net_amount: "1000.00",
+          gross_amount: "1230.00",
+          billing_date: "2026-04-01"
+        })
+
+      conn = conn |> api_conn(token) |> post("/api/invoices", body)
+
+      assert conn.status == 201
+      data = Jason.decode!(conn.resp_body)["data"]
+      assert data["billing_date"] == "2026-04-01"
+    end
+
+    test "create auto-computes billing_date when not provided", %{conn: conn} do
+      %{token: token} = create_user_with_token(:owner)
+
+      body =
+        Jason.encode!(%{
+          type: "expense",
+          seller_nip: "1234567890",
+          seller_name: "Seller Sp. z o.o.",
+          buyer_nip: "0987654321",
+          buyer_name: "Buyer S.A.",
+          invoice_number: "FV/2026/BD2",
+          issue_date: "2026-02-20",
+          net_amount: "1000.00",
+          gross_amount: "1230.00"
+        })
+
+      conn = conn |> api_conn(token) |> post("/api/invoices", body)
+
+      assert conn.status == 201
+      data = Jason.decode!(conn.resp_body)["data"]
+      assert data["billing_date"] == "2026-02-01"
+    end
+
+    test "update billing_date via PATCH", %{conn: conn} do
+      %{company: company, token: token} = create_user_with_token(:owner)
+
+      invoice =
+        insert(:manual_invoice,
+          company: company,
+          billing_date: ~D[2026-02-01]
+        )
+
+      body = Jason.encode!(%{billing_date: "2026-05-01"})
+      conn = conn |> api_conn(token) |> patch("/api/invoices/#{invoice.id}", body)
+
+      assert conn.status == 200
+      data = Jason.decode!(conn.resp_body)["data"]
+      assert data["billing_date"] == "2026-05-01"
+    end
+  end
 end

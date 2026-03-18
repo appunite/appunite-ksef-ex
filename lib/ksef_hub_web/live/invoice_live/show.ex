@@ -84,6 +84,8 @@ defmodule KsefHubWeb.InvoiceLive.Show do
            categories: Invoices.list_categories(company.id),
            editing: auto_edit && can_mutate,
            edit_form: build_edit_form(invoice),
+           editing_billing_date: false,
+           billing_date_form: billing_date_form(invoice),
            editing_note: false,
            note_form: note_form(invoice),
            comments: Invoices.list_invoice_comments(company.id, invoice.id),
@@ -102,7 +104,8 @@ defmodule KsefHubWeb.InvoiceLive.Show do
   # Catch-all for mutation events when the user lacks permission.
 
   @mutation_events ~w(re_extract dismiss_duplicate confirm_duplicate
-    toggle_edit save_edit edit_note save_note copy_public_link)
+    toggle_edit save_edit edit_note save_note
+    edit_billing_date save_billing_date cancel_billing_date copy_public_link)
 
   @approve_events ~w(approve reject)
 
@@ -268,6 +271,8 @@ defmodule KsefHubWeb.InvoiceLive.Show do
 
   @impl true
   def handle_event("validate_edit", %{"invoice" => params}, socket) do
+    params = normalize_billing_date_param(params)
+
     changeset =
       socket.assigns.invoice
       |> Invoice.edit_changeset(params)
@@ -278,6 +283,8 @@ defmodule KsefHubWeb.InvoiceLive.Show do
 
   @impl true
   def handle_event("save_edit", %{"invoice" => params}, socket) do
+    params = normalize_billing_date_param(params)
+
     case Invoices.update_invoice_fields(socket.assigns.invoice, params) do
       {:ok, updated} ->
         reloaded = reload_details(updated, socket)
@@ -288,7 +295,8 @@ defmodule KsefHubWeb.InvoiceLive.Show do
          |> assign(
            invoice: reloaded,
            editing: false,
-           edit_form: build_edit_form(reloaded)
+           edit_form: build_edit_form(reloaded),
+           billing_date_form: billing_date_form(reloaded)
          )}
 
       {:error, :ksef_not_editable} ->
@@ -363,6 +371,48 @@ defmodule KsefHubWeb.InvoiceLive.Show do
   @impl true
   def handle_event("cancel_note", _params, socket) do
     {:noreply, assign(socket, editing_note: false, note_form: note_form(socket.assigns.invoice))}
+  end
+
+  # --- Events: Billing Date ---
+
+  @impl true
+  def handle_event("edit_billing_date", _params, socket) do
+    {:noreply,
+     assign(socket,
+       editing_billing_date: true,
+       billing_date_form: billing_date_form(socket.assigns.invoice)
+     )}
+  end
+
+  @impl true
+  def handle_event("save_billing_date", %{"billing_date" => val}, socket) do
+    billing_date = normalize_month_to_date(val)
+
+    case Invoices.update_billing_date(socket.assigns.invoice, %{billing_date: billing_date}) do
+      {:ok, updated} ->
+        reloaded = reload_details(updated, socket)
+
+        {:noreply,
+         socket
+         |> put_flash(:info, "Billing period updated.")
+         |> assign(
+           invoice: reloaded,
+           editing_billing_date: false,
+           billing_date_form: billing_date_form(reloaded)
+         )}
+
+      {:error, _changeset} ->
+        {:noreply, put_flash(socket, :error, "Failed to update billing period.")}
+    end
+  end
+
+  @impl true
+  def handle_event("cancel_billing_date", _params, socket) do
+    {:noreply,
+     assign(socket,
+       editing_billing_date: false,
+       billing_date_form: billing_date_form(socket.assigns.invoice)
+     )}
   end
 
   # --- Events: Comments ---
@@ -522,6 +572,11 @@ defmodule KsefHubWeb.InvoiceLive.Show do
   @spec note_form(Invoice.t()) :: Phoenix.HTML.Form.t()
   defp note_form(invoice) do
     to_form(%{"note" => invoice.note || ""})
+  end
+
+  @spec billing_date_form(Invoice.t()) :: Phoenix.HTML.Form.t()
+  defp billing_date_form(invoice) do
+    to_form(%{"billing_date" => invoice.billing_date})
   end
 
   @spec comment_form() :: Phoenix.HTML.Form.t()
@@ -762,7 +817,7 @@ defmodule KsefHubWeb.InvoiceLive.Show do
             <.invoice_details_table invoice={@invoice} show_added_by={true} />
           </div>
         </.card>
-        <!-- Category & Tags Card (read-only) -->
+        <!-- Category & Tags Card -->
         <.card padding="p-4">
           <div class="flex items-center justify-between mb-2">
             <h2 class="text-base font-semibold">Classification</h2>
@@ -804,6 +859,51 @@ defmodule KsefHubWeb.InvoiceLive.Show do
               label="tag"
               testid="prediction-tag-hint"
             />
+          </div>
+        </.card>
+        <!-- Billing Period Card -->
+        <.card padding="p-4">
+          <div class="flex items-center justify-between mb-2">
+            <h2 class="text-base font-semibold">Billing Period</h2>
+            <.button
+              :if={@can_mutate && !@editing_billing_date}
+              variant="outline"
+              size="sm"
+              phx-click="edit_billing_date"
+            >
+              <.icon name="hero-pencil-square" class="size-4" /> Edit
+            </.button>
+          </div>
+          <div :if={@editing_billing_date}>
+            <.form
+              for={@billing_date_form}
+              phx-submit="save_billing_date"
+              class="space-y-2"
+            >
+              <input
+                type="month"
+                name="billing_date"
+                value={format_month_value(@billing_date_form[:billing_date].value)}
+                class="h-9 w-full rounded-md border border-input bg-background px-3 text-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+                autofocus
+              />
+              <div class="flex gap-2">
+                <.button type="submit" size="sm">
+                  Save
+                </.button>
+                <.button
+                  type="button"
+                  variant="ghost"
+                  size="sm"
+                  phx-click="cancel_billing_date"
+                >
+                  Cancel
+                </.button>
+              </div>
+            </.form>
+          </div>
+          <div :if={!@editing_billing_date} class="text-sm">
+            {if @invoice.billing_date, do: format_month(@invoice.billing_date), else: "Not set"}
           </div>
         </.card>
         <!-- Note Card -->
@@ -1131,18 +1231,34 @@ defmodule KsefHubWeb.InvoiceLive.Show do
         </div>
       </div>
 
-      <div class="space-y-1">
-        <label for="edit-due-date" class="label">
-          <span class="text-sm font-medium text-xs">Due Date</span>
-        </label>
-        <input
-          type="date"
-          id="edit-due-date"
-          name={@edit_form[:due_date].name}
-          value={@edit_form[:due_date].value}
-          class="h-9 w-full rounded-md border border-input bg-background px-3 text-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
-        />
-        <.field_error errors={@edit_form[:due_date].errors} />
+      <div class="grid grid-cols-2 gap-3">
+        <div class="space-y-1">
+          <label for="edit-due-date" class="label">
+            <span class="text-sm font-medium text-xs">Due Date</span>
+          </label>
+          <input
+            type="date"
+            id="edit-due-date"
+            name={@edit_form[:due_date].name}
+            value={@edit_form[:due_date].value}
+            class="h-9 w-full rounded-md border border-input bg-background px-3 text-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+          />
+          <.field_error errors={@edit_form[:due_date].errors} />
+        </div>
+
+        <div class="space-y-1">
+          <label for="edit-billing-date" class="label">
+            <span class="text-sm font-medium text-xs">Billing Period</span>
+          </label>
+          <input
+            type="month"
+            id="edit-billing-date"
+            name={@edit_form[:billing_date].name}
+            value={format_month_value(@edit_form[:billing_date].value)}
+            class="h-9 w-full rounded-md border border-input bg-background px-3 text-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+          />
+          <.field_error errors={@edit_form[:billing_date].errors} />
+        </div>
       </div>
 
       <.amount_fields edit_form={@edit_form} />
@@ -1455,6 +1571,27 @@ defmodule KsefHubWeb.InvoiceLive.Show do
 
   @spec currencies() :: [String.t()]
   defp currencies, do: @common_currencies
+
+  @spec format_month_value(Date.t() | nil) :: String.t() | nil
+  defp format_month_value(%Date{year: y, month: m}),
+    do: "#{y}-#{String.pad_leading(Integer.to_string(m), 2, "0")}"
+
+  defp format_month_value(_), do: nil
+
+  @spec normalize_month_to_date(String.t()) :: String.t()
+  defp normalize_month_to_date(val) when is_binary(val) do
+    case Regex.run(~r/^(\d{4})-(\d{2})$/, val) do
+      [_, year, month] -> "#{year}-#{month}-01"
+      _ -> val
+    end
+  end
+
+  @spec normalize_billing_date_param(map()) :: map()
+  defp normalize_billing_date_param(%{"billing_date" => val} = params) when is_binary(val) do
+    Map.put(params, "billing_date", normalize_month_to_date(val))
+  end
+
+  defp normalize_billing_date_param(params), do: params
 
   attr :errors, :list, default: []
 
