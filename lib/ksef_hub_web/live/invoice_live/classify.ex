@@ -189,15 +189,18 @@ defmodule KsefHubWeb.InvoiceLive.Classify do
     category_id = socket.assigns.selected_category_id
     allowed_tag_ids = MapSet.new(socket.assigns.all_tags, & &1.id)
 
-    tag_ids =
-      socket.assigns.selected_tag_ids |> MapSet.intersection(allowed_tag_ids) |> MapSet.to_list()
+    selected_tags = socket.assigns.selected_tag_ids
+    intersected = MapSet.intersection(selected_tags, allowed_tag_ids)
+    tag_ids = MapSet.to_list(intersected)
 
+    can_set_category = socket.assigns.can_set_category
+    can_set_tags = socket.assigns.can_set_tags
     company = socket.assigns.current_company
 
     result =
       Invoices.with_manual_prediction(invoice, fn ->
-        with {:ok, updated} <- Invoices.set_invoice_category(invoice, category_id),
-             {:ok, _tags} <- Invoices.set_invoice_tags(updated.id, tag_ids) do
+        with {:ok, updated} <- maybe_set_category(invoice, category_id, can_set_category),
+             {:ok, _tags} <- maybe_set_tags(updated.id, tag_ids, can_set_tags) do
           {:ok, updated}
         end
       end)
@@ -217,6 +220,20 @@ defmodule KsefHubWeb.InvoiceLive.Classify do
         {:noreply, put_flash(socket, :error, "Failed to save classification.")}
     end
   end
+
+  @spec maybe_set_category(KsefHub.Invoices.Invoice.t(), Ecto.UUID.t() | nil, boolean()) ::
+          {:ok, KsefHub.Invoices.Invoice.t()} | {:error, term()}
+  defp maybe_set_category(invoice, _category_id, false), do: {:ok, invoice}
+
+  defp maybe_set_category(invoice, category_id, true),
+    do: Invoices.set_invoice_category(invoice, category_id)
+
+  @spec maybe_set_tags(Ecto.UUID.t(), [Ecto.UUID.t()], boolean()) ::
+          {:ok, [any()]} | {:error, term()}
+  defp maybe_set_tags(_invoice_id, _tag_ids, false), do: {:ok, []}
+
+  defp maybe_set_tags(invoice_id, tag_ids, true),
+    do: Invoices.set_invoice_tags(invoice_id, tag_ids)
 
   # --- Render ---
 

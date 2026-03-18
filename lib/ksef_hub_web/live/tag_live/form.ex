@@ -7,12 +7,14 @@ defmodule KsefHubWeb.TagLive.Form do
   alias KsefHub.Invoices
   alias KsefHub.Invoices.Tag
 
+  @doc "Initializes the socket with no additional assigns."
   @impl true
   @spec mount(map(), map(), Phoenix.LiveView.Socket.t()) :: {:ok, Phoenix.LiveView.Socket.t()}
   def mount(_params, _session, socket) do
     {:ok, socket}
   end
 
+  @doc "Applies the current live action (:new or :edit) based on URL params."
   @impl true
   @spec handle_params(map(), String.t(), Phoenix.LiveView.Socket.t()) ::
           {:noreply, Phoenix.LiveView.Socket.t()}
@@ -36,7 +38,7 @@ defmodule KsefHubWeb.TagLive.Form do
     |> assign(form: to_form(changeset, as: :tag))
   end
 
-  defp apply_action(socket, :edit, %{"id" => id}) do
+  defp apply_action(socket, :edit, %{"id" => id} = params) do
     company_id = socket.assigns.current_company.id
 
     case Invoices.get_tag(company_id, id) do
@@ -53,14 +55,17 @@ defmodule KsefHubWeb.TagLive.Form do
         |> assign(form: to_form(changeset, as: :tag))
 
       {:error, :not_found} ->
+        tag_type = parse_tag_type(params["type"])
+
         socket
         |> put_flash(:error, "Tag not found.")
-        |> push_navigate(to: ~p"/c/#{company_id}/tags")
+        |> push_navigate(to: ~p"/c/#{company_id}/tags?type=#{tag_type}")
     end
   end
 
   # --- Events ---
 
+  @doc "Handles form validation and save events for tag creation/editing."
   @impl true
   @spec handle_event(String.t(), map(), Phoenix.LiveView.Socket.t()) ::
           {:noreply, Phoenix.LiveView.Socket.t()}
@@ -141,6 +146,7 @@ defmodule KsefHubWeb.TagLive.Form do
     end
   end
 
+  @doc "Renders the tag creation/editing form."
   @impl true
   @spec render(map()) :: Phoenix.LiveView.Rendered.t()
   def render(assigns) do
