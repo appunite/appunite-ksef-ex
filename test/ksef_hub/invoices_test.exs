@@ -1070,11 +1070,16 @@ defmodule KsefHub.InvoicesTest do
   end
 
   describe "update_invoice_fields/2" do
+    test "returns error for KSeF invoices", %{company: company} do
+      invoice = insert(:invoice, company: company)
+      assert {:error, :ksef_not_editable} = Invoices.update_invoice_fields(invoice, %{"net_amount" => "1000.00"})
+    end
+
     test "updates invoice fields and recalculates extraction_status to complete", %{
       company: company
     } do
       invoice =
-        insert(:invoice,
+        insert(:pdf_upload_invoice,
           company: company,
           extraction_status: :partial,
           net_amount: nil,
@@ -1096,7 +1101,7 @@ defmodule KsefHub.InvoicesTest do
       company: company
     } do
       invoice =
-        insert(:invoice,
+        insert(:pdf_upload_invoice,
           company: company,
           extraction_status: :partial,
           seller_nip: nil,
@@ -1119,13 +1124,11 @@ defmodule KsefHub.InvoicesTest do
       assert updated.seller_nip == "FR61823475082"
     end
 
-    test "rejects foreign tax ID in seller_nip for KSeF expense invoices", %{company: company} do
-      invoice = insert(:invoice, company: company, type: :expense)
-
-      attrs = %{"seller_nip" => "FR61823475082"}
-
-      assert {:error, changeset} = Invoices.update_invoice_fields(invoice, attrs)
-      assert errors_on(changeset).seller_nip
+    test "succeeds for manual invoices", %{company: company} do
+      invoice = insert(:manual_invoice, company: company)
+      attrs = %{"seller_nip" => "9999999999"}
+      assert {:ok, updated} = Invoices.update_invoice_fields(invoice, attrs)
+      assert updated.seller_nip == "9999999999"
     end
 
     test "rejects seller_nip exceeding max length", %{company: company} do
@@ -1861,6 +1864,33 @@ defmodule KsefHub.InvoicesTest do
     end
   end
 
+  describe "data_editable?/1" do
+    test "returns false for KSeF invoices" do
+      assert Invoice.data_editable?(%Invoice{source: :ksef}) == false
+    end
+
+    test "returns true for manual invoices" do
+      assert Invoice.data_editable?(%Invoice{source: :manual}) == true
+    end
+
+    test "returns true for pdf_upload invoices" do
+      assert Invoice.data_editable?(%Invoice{source: :pdf_upload}) == true
+    end
+
+    test "returns true for email invoices" do
+      assert Invoice.data_editable?(%Invoice{source: :email}) == true
+    end
+  end
+
+  describe "edit_changeset/2 KSeF guard" do
+    test "returns invalid changeset with error for KSeF invoices" do
+      invoice = %Invoice{source: :ksef, type: :expense}
+      changeset = Invoice.edit_changeset(invoice, %{seller_name: "New Name"})
+      refute changeset.valid?
+      assert {"KSeF invoices cannot be edited", _} = changeset.errors[:source]
+    end
+  end
+
   describe "edit_changeset/2 company field protection" do
     test "ignores buyer fields for expense invoices", %{company: company} do
       invoice = insert(:pdf_upload_invoice, company: company, type: :expense)
@@ -1882,7 +1912,7 @@ defmodule KsefHub.InvoicesTest do
     end
 
     test "ignores seller fields for income invoices", %{company: company} do
-      invoice = insert(:invoice, company: company, type: :income)
+      invoice = insert(:pdf_upload_invoice, company: company, type: :income)
 
       changeset =
         Invoice.edit_changeset(invoice, %{

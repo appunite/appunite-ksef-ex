@@ -690,7 +690,7 @@ defmodule KsefHubWeb.Api.InvoiceControllerTest do
       assert conn.status == 422
     end
 
-    test "returns 422 for non-pdf_upload invoice", %{conn: conn} do
+    test "returns 422 for KSeF invoice", %{conn: conn} do
       %{company: company, token: token} = create_user_with_token(:owner)
       invoice = insert(:invoice, company: company)
 
@@ -698,7 +698,19 @@ defmodule KsefHubWeb.Api.InvoiceControllerTest do
       conn = conn |> api_conn(token) |> patch("/api/invoices/#{invoice.id}", body)
 
       assert conn.status == 422
-      assert Jason.decode!(conn.resp_body)["error"] =~ "Only pdf_upload"
+      assert Jason.decode!(conn.resp_body)["error"] =~ "KSeF invoices cannot be updated"
+    end
+
+    test "updates fields on a manual invoice", %{conn: conn} do
+      %{company: company, token: token} = create_user_with_token(:owner)
+      invoice = insert(:manual_invoice, company: company)
+
+      body = Jason.encode!(%{seller_name: "Updated Name"})
+      conn = conn |> api_conn(token) |> patch("/api/invoices/#{invoice.id}", body)
+
+      assert conn.status == 200
+      data = Jason.decode!(conn.resp_body)["data"]
+      assert data["seller_name"] == "Updated Name"
     end
   end
 

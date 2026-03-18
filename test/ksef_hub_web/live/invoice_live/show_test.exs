@@ -524,8 +524,18 @@ defmodule KsefHubWeb.InvoiceLive.ShowTest do
   end
 
   describe "edit form" do
-    test "shows edit form when Edit button is clicked", %{conn: conn, company: company} do
+    test "does not show edit button for KSeF invoices", %{conn: conn, company: company} do
       invoice = insert(:invoice, company: company)
+
+      stub(KsefHub.PdfRenderer.Mock, :generate_html, fn _xml, _meta -> {:error, :no_xml} end)
+
+      {:ok, view, _html} = live(conn, ~p"/c/#{company.id}/invoices/#{invoice.id}")
+      refute has_element?(view, "button", "Edit")
+      assert has_element?(view, ~s([data-testid="ksef-locked-badge"]))
+    end
+
+    test "shows edit form when Edit button is clicked", %{conn: conn, company: company} do
+      invoice = insert(:pdf_upload_invoice, company: company)
 
       stub(KsefHub.PdfRenderer.Mock, :generate_html, fn _xml, _meta -> {:error, :no_xml} end)
 
@@ -541,7 +551,7 @@ defmodule KsefHubWeb.InvoiceLive.ShowTest do
       company: company
     } do
       invoice =
-        insert(:invoice, company: company, extraction_status: :partial, net_amount: nil)
+        insert(:pdf_upload_invoice, company: company, extraction_status: :partial, net_amount: nil)
 
       stub(KsefHub.PdfRenderer.Mock, :generate_html, fn _xml, _meta -> {:error, :no_xml} end)
 
@@ -549,9 +559,22 @@ defmodule KsefHubWeb.InvoiceLive.ShowTest do
       assert has_element?(view, "form[phx-submit=save_edit]")
     end
 
-    test "cancel edit returns to read-only view", %{conn: conn, company: company} do
+    test "does not auto-edit for KSeF invoices even with partial extraction", %{
+      conn: conn,
+      company: company
+    } do
       invoice =
         insert(:invoice, company: company, extraction_status: :partial, net_amount: nil)
+
+      stub(KsefHub.PdfRenderer.Mock, :generate_html, fn _xml, _meta -> {:error, :no_xml} end)
+
+      {:ok, view, _html} = live(conn, ~p"/c/#{company.id}/invoices/#{invoice.id}")
+      refute has_element?(view, "form[phx-submit=save_edit]")
+    end
+
+    test "cancel edit returns to read-only view", %{conn: conn, company: company} do
+      invoice =
+        insert(:pdf_upload_invoice, company: company, extraction_status: :partial, net_amount: nil)
 
       stub(KsefHub.PdfRenderer.Mock, :generate_html, fn _xml, _meta -> {:error, :no_xml} end)
 
@@ -564,7 +587,7 @@ defmodule KsefHubWeb.InvoiceLive.ShowTest do
 
     test "saving edit updates invoice and exits edit mode", %{conn: conn, company: company} do
       invoice =
-        insert(:invoice,
+        insert(:pdf_upload_invoice,
           company: company,
           extraction_status: :partial,
           net_amount: nil,
