@@ -119,18 +119,18 @@ defmodule KsefHubWeb.InvoiceLive.Classify do
   end
 
   def handle_event("create_tag", %{"name" => name}, socket) do
-    unless socket.assigns.can_manage_tags do
-      {:noreply, put_flash(socket, :error, "You don't have permission to manage tags.")}
-    else
+    if socket.assigns.can_manage_tags do
       create_tag(socket, name)
+    else
+      {:noreply, put_flash(socket, :error, "You don't have permission to manage tags.")}
     end
   end
 
   def handle_event("save", _params, socket) do
-    unless socket.assigns.can_set_category or socket.assigns.can_set_tags do
-      {:noreply, put_flash(socket, :error, "You don't have permission to classify invoices.")}
-    else
+    if socket.assigns.can_set_category or socket.assigns.can_set_tags do
       save_classification(socket)
+    else
+      {:noreply, put_flash(socket, :error, "You don't have permission to classify invoices.")}
     end
   end
 
