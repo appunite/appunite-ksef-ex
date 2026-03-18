@@ -84,6 +84,7 @@ defmodule KsefHubWeb.InvoiceLive.Show do
            categories: Invoices.list_categories(company.id),
            editing: auto_edit && can_mutate,
            edit_form: build_edit_form(invoice),
+           billing_date_form: billing_date_form(invoice),
            editing_note: false,
            note_form: note_form(invoice),
            comments: Invoices.list_invoice_comments(company.id, invoice.id),
@@ -102,7 +103,7 @@ defmodule KsefHubWeb.InvoiceLive.Show do
   # Catch-all for mutation events when the user lacks permission.
 
   @mutation_events ~w(re_extract dismiss_duplicate confirm_duplicate
-    toggle_edit save_edit edit_note save_note copy_public_link)
+    toggle_edit save_edit edit_note save_note save_billing_date copy_public_link)
 
   @approve_events ~w(approve reject)
 
@@ -292,7 +293,8 @@ defmodule KsefHubWeb.InvoiceLive.Show do
          |> assign(
            invoice: reloaded,
            editing: false,
-           edit_form: build_edit_form(reloaded)
+           edit_form: build_edit_form(reloaded),
+           billing_date_form: billing_date_form(reloaded)
          )}
 
       {:error, :ksef_not_editable} ->
@@ -367,6 +369,26 @@ defmodule KsefHubWeb.InvoiceLive.Show do
   @impl true
   def handle_event("cancel_note", _params, socket) do
     {:noreply, assign(socket, editing_note: false, note_form: note_form(socket.assigns.invoice))}
+  end
+
+  # --- Events: Billing Date ---
+
+  @impl true
+  def handle_event("save_billing_date", %{"billing_date" => val}, socket) do
+    billing_date = normalize_month_to_date(val)
+
+    case Invoices.update_billing_date(socket.assigns.invoice, %{billing_date: billing_date}) do
+      {:ok, updated} ->
+        reloaded = reload_details(updated, socket)
+
+        {:noreply,
+         socket
+         |> put_flash(:info, "Billing period updated.")
+         |> assign(invoice: reloaded, billing_date_form: billing_date_form(reloaded))}
+
+      {:error, _changeset} ->
+        {:noreply, put_flash(socket, :error, "Failed to update billing period.")}
+    end
   end
 
   # --- Events: Comments ---
@@ -526,6 +548,11 @@ defmodule KsefHubWeb.InvoiceLive.Show do
   @spec note_form(Invoice.t()) :: Phoenix.HTML.Form.t()
   defp note_form(invoice) do
     to_form(%{"note" => invoice.note || ""})
+  end
+
+  @spec billing_date_form(Invoice.t()) :: Phoenix.HTML.Form.t()
+  defp billing_date_form(invoice) do
+    to_form(%{"billing_date" => invoice.billing_date})
   end
 
   @spec comment_form() :: Phoenix.HTML.Form.t()
@@ -764,6 +791,24 @@ defmodule KsefHubWeb.InvoiceLive.Show do
           </div>
           <div :if={!@editing}>
             <.invoice_details_table invoice={@invoice} show_added_by={true} />
+          </div>
+          <div :if={!@editing && @can_mutate} class="mt-3 pt-3 border-t border-border/50">
+            <.form
+              for={@billing_date_form}
+              phx-submit="save_billing_date"
+              class="flex items-center gap-2"
+            >
+              <label class="text-sm text-muted-foreground whitespace-nowrap">Billing Period</label>
+              <input
+                type="month"
+                name="billing_date"
+                value={format_month_value(@billing_date_form[:billing_date].value)}
+                class="h-8 rounded-md border border-input bg-background px-2 text-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+              />
+              <.button type="submit" size="sm" variant="outline">
+                Save
+              </.button>
+            </.form>
           </div>
         </.card>
         <!-- Category & Tags Card (read-only) -->
@@ -1481,6 +1526,14 @@ defmodule KsefHubWeb.InvoiceLive.Show do
     do: "#{y}-#{String.pad_leading(Integer.to_string(m), 2, "0")}"
 
   defp format_month_value(_), do: nil
+
+  @spec normalize_month_to_date(String.t()) :: String.t()
+  defp normalize_month_to_date(val) when is_binary(val) do
+    case Regex.run(~r/^(\d{4})-(\d{2})$/, val) do
+      [_, year, month] -> "#{year}-#{month}-01"
+      _ -> val
+    end
+  end
 
   @spec normalize_billing_date_param(map()) :: map()
   defp normalize_billing_date_param(%{"billing_date" => val} = params) when is_binary(val) do

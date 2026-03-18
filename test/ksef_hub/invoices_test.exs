@@ -2332,6 +2332,22 @@ defmodule KsefHub.InvoicesTest do
       assert {:ok, invoice, :inserted} = Invoices.upsert_invoice(attrs)
       assert invoice.billing_date == ~D[2026-05-01]
     end
+
+    test "update_billing_date works on KSeF invoices", %{company: company} do
+      invoice = insert(:invoice, company: company, source: :ksef, billing_date: ~D[2026-01-01])
+
+      assert {:ok, updated} =
+               Invoices.update_billing_date(invoice, %{billing_date: ~D[2026-06-01]})
+
+      assert updated.billing_date == ~D[2026-06-01]
+    end
+
+    test "update_billing_date can clear billing_date", %{company: company} do
+      invoice = insert(:invoice, company: company, billing_date: ~D[2026-01-01])
+
+      assert {:ok, updated} = Invoices.update_billing_date(invoice, %{billing_date: nil})
+      assert is_nil(updated.billing_date)
+    end
   end
 
   describe "compute_billing_date/1" do

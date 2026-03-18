@@ -1426,6 +1426,15 @@ defmodule KsefHub.Invoices do
     |> Repo.update()
   end
 
+  @doc "Updates the billing_date on any invoice, regardless of source."
+  @spec update_billing_date(Invoice.t(), map()) ::
+          {:ok, Invoice.t()} | {:error, Ecto.Changeset.t()}
+  def update_billing_date(%Invoice{} = invoice, attrs) do
+    invoice
+    |> Invoice.billing_date_changeset(attrs)
+    |> Repo.update()
+  end
+
   # --- Invoice Comments ---
 
   @doc "Lists comments for an invoice, ordered by insertion time ascending, with user preloaded. Scoped to company."

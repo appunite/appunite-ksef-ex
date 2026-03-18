@@ -273,6 +273,13 @@ defmodule KsefHub.Invoices.Invoice do
     |> cast(attrs, @prediction_fields)
   end
 
+  @doc "Builds a changeset for updating the billing_date field only. Works on all sources, including KSeF."
+  @spec billing_date_changeset(t(), map()) :: Ecto.Changeset.t()
+  def billing_date_changeset(invoice, attrs) do
+    invoice
+    |> cast(attrs, [:billing_date])
+  end
+
   @doc "Builds a changeset for updating the note field only."
   @spec note_changeset(t(), map()) :: Ecto.Changeset.t()
   def note_changeset(invoice, attrs) do
