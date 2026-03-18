@@ -84,6 +84,7 @@ defmodule KsefHubWeb.InvoiceLive.Show do
            categories: Invoices.list_categories(company.id),
            editing: auto_edit && can_mutate,
            edit_form: build_edit_form(invoice),
+           editing_billing_date: false,
            billing_date_form: billing_date_form(invoice),
            editing_note: false,
            note_form: note_form(invoice),
@@ -103,7 +104,8 @@ defmodule KsefHubWeb.InvoiceLive.Show do
   # Catch-all for mutation events when the user lacks permission.
 
   @mutation_events ~w(re_extract dismiss_duplicate confirm_duplicate
-    toggle_edit save_edit edit_note save_note save_billing_date copy_public_link)
+    toggle_edit save_edit edit_note save_note
+    edit_billing_date save_billing_date cancel_billing_date copy_public_link)
 
   @approve_events ~w(approve reject)
 
@@ -374,6 +376,15 @@ defmodule KsefHubWeb.InvoiceLive.Show do
   # --- Events: Billing Date ---
 
   @impl true
+  def handle_event("edit_billing_date", _params, socket) do
+    {:noreply,
+     assign(socket,
+       editing_billing_date: true,
+       billing_date_form: billing_date_form(socket.assigns.invoice)
+     )}
+  end
+
+  @impl true
   def handle_event("save_billing_date", %{"billing_date" => val}, socket) do
     billing_date = normalize_month_to_date(val)
 
@@ -384,11 +395,24 @@ defmodule KsefHubWeb.InvoiceLive.Show do
         {:noreply,
          socket
          |> put_flash(:info, "Billing period updated.")
-         |> assign(invoice: reloaded, billing_date_form: billing_date_form(reloaded))}
+         |> assign(
+           invoice: reloaded,
+           editing_billing_date: false,
+           billing_date_form: billing_date_form(reloaded)
+         )}
 
       {:error, _changeset} ->
         {:noreply, put_flash(socket, :error, "Failed to update billing period.")}
     end
+  end
+
+  @impl true
+  def handle_event("cancel_billing_date", _params, socket) do
+    {:noreply,
+     assign(socket,
+       editing_billing_date: false,
+       billing_date_form: billing_date_form(socket.assigns.invoice)
+     )}
   end
 
   # --- Events: Comments ---
@@ -841,28 +865,45 @@ defmodule KsefHubWeb.InvoiceLive.Show do
         <.card padding="p-4">
           <div class="flex items-center justify-between mb-2">
             <h2 class="text-base font-semibold">Billing Period</h2>
+            <.button
+              :if={@can_mutate && !@editing_billing_date}
+              variant="outline"
+              size="sm"
+              phx-click="edit_billing_date"
+            >
+              <.icon name="hero-pencil-square" class="size-4" /> Edit
+            </.button>
           </div>
-          <div :if={!@can_mutate}>
-            <span class="text-sm">
-              {if @invoice.billing_date, do: format_month(@invoice.billing_date), else: "Not set"}
-            </span>
-          </div>
-          <div :if={@can_mutate}>
+          <div :if={@editing_billing_date}>
             <.form
               for={@billing_date_form}
               phx-submit="save_billing_date"
-              class="flex items-center gap-2"
+              class="space-y-2"
             >
               <input
                 type="month"
                 name="billing_date"
                 value={format_month_value(@billing_date_form[:billing_date].value)}
                 class="h-9 w-full rounded-md border border-input bg-background px-3 text-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+                autofocus
               />
-              <.button type="submit" size="sm" variant="outline" class="shrink-0">
-                Save
-              </.button>
+              <div class="flex gap-2">
+                <.button type="submit" size="sm">
+                  Save
+                </.button>
+                <.button
+                  type="button"
+                  variant="ghost"
+                  size="sm"
+                  phx-click="cancel_billing_date"
+                >
+                  Cancel
+                </.button>
+              </div>
             </.form>
+          </div>
+          <div :if={!@editing_billing_date} class="text-sm">
+            {if @invoice.billing_date, do: format_month(@invoice.billing_date), else: "Not set"}
           </div>
         </.card>
         <!-- Note Card -->
