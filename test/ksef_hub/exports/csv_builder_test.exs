@@ -14,7 +14,7 @@ defmodule KsefHub.Exports.CsvBuilderTest do
       [header_line | _] = String.split(content, "\r\n", trim: true)
 
       assert header_line ==
-               "Invoice Number,Issue Date,Sales Date,Due Date,Type,Source,Seller NIP,Seller Name,Seller Address,Buyer NIP,Buyer Name,Buyer Address,Net Amount,Gross Amount,Currency,IBAN,Purchase Order,Category,Tags,KSeF Number,Added At,Original Filename,Duplicate Status"
+               "Invoice Number,Issue Date,Sales Date,Due Date,Billing Period,Type,Status,Source,Seller NIP,Seller Name,Seller Address,Buyer NIP,Buyer Name,Buyer Address,Net Amount,Gross Amount,Currency,IBAN,Purchase Order,Category,Tags,Note,KSeF Number,Added At,Original Filename,Duplicate Status"
     end
 
     test "includes invoice data in correct columns" do
@@ -74,6 +74,23 @@ defmodule KsefHub.Exports.CsvBuilderTest do
       assert content =~ "recurring; office"
     end
 
+    test "includes billing period, status, and note columns" do
+      invoice =
+        build_invoice(%{
+          billing_date: ~D[2026-01-01],
+          note: "Monthly rent"
+        })
+
+      csv = CsvBuilder.build([invoice])
+      content = String.replace_prefix(csv, <<0xEF, 0xBB, 0xBF>>, "")
+      [_header, data_line | _] = String.split(content, "\r\n", trim: true)
+      cols = parse_csv_row(data_line)
+
+      assert Enum.at(cols, 4) == "2026-01"
+      assert Enum.at(cols, 6) == "approved"
+      assert Enum.at(cols, 21) == "Monthly rent"
+    end
+
     test "handles nil fields gracefully" do
       invoice = build_invoice(%{invoice_number: nil, net_amount: nil, issue_date: nil})
       csv = CsvBuilder.build([invoice])
@@ -110,10 +127,10 @@ defmodule KsefHub.Exports.CsvBuilderTest do
       # Column indices based on header order
       assert Enum.at(cols, 2) == "2026-01-14"
       assert Enum.at(cols, 3) == "2026-02-14"
-      assert Enum.at(cols, 15) == "PL61109010140000071219812874"
-      assert Enum.at(cols, 16) == "PO-CSV-001"
-      assert Enum.at(cols, 8) =~ "ul. Testowa 1"
-      assert Enum.at(cols, 11) =~ "ul. Kupna 5"
+      assert Enum.at(cols, 17) == "PL61109010140000071219812874"
+      assert Enum.at(cols, 18) == "PO-CSV-001"
+      assert Enum.at(cols, 10) =~ "ul. Testowa 1"
+      assert Enum.at(cols, 13) =~ "ul. Kupna 5"
     end
   end
 
@@ -143,7 +160,9 @@ defmodule KsefHub.Exports.CsvBuilderTest do
       iban: nil,
       purchase_order: nil,
       seller_address: nil,
-      buyer_address: nil
+      buyer_address: nil,
+      billing_date: nil,
+      note: nil
     }
 
     struct!(Invoice, Map.merge(defaults, overrides))

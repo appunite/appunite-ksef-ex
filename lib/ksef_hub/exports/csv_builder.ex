@@ -8,7 +8,9 @@ defmodule KsefHub.Exports.CsvBuilder do
     "Issue Date",
     "Sales Date",
     "Due Date",
+    "Billing Period",
     "Type",
+    "Status",
     "Source",
     "Seller NIP",
     "Seller Name",
@@ -23,6 +25,7 @@ defmodule KsefHub.Exports.CsvBuilder do
     "Purchase Order",
     "Category",
     "Tags",
+    "Note",
     "KSeF Number",
     "Added At",
     "Original Filename",
@@ -48,7 +51,9 @@ defmodule KsefHub.Exports.CsvBuilder do
       format_date(invoice.issue_date),
       format_date(invoice.sales_date),
       format_date(invoice.due_date),
+      format_month(invoice.billing_date),
       s(invoice.type),
+      s(invoice.status),
       s(invoice.source),
       s(invoice.seller_nip),
       s(invoice.seller_name),
@@ -63,6 +68,7 @@ defmodule KsefHub.Exports.CsvBuilder do
       s(invoice.purchase_order),
       format_category(invoice),
       format_tags(invoice),
+      s(invoice.note),
       s(invoice.ksef_number),
       format_datetime(invoice.inserted_at),
       s(invoice.original_filename),
@@ -107,6 +113,10 @@ defmodule KsefHub.Exports.CsvBuilder do
   @spec format_date(Date.t() | nil) :: String.t()
   defp format_date(nil), do: ""
   defp format_date(%Date{} = date), do: Date.to_iso8601(date)
+
+  @spec format_month(Date.t() | nil) :: String.t()
+  defp format_month(nil), do: ""
+  defp format_month(%Date{} = date), do: Calendar.strftime(date, "%Y-%m")
 
   @spec format_decimal(Decimal.t() | nil) :: String.t()
   defp format_decimal(nil), do: ""

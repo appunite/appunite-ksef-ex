@@ -25,6 +25,7 @@ Add an `is_excluded` boolean field to the invoices table (default `false`, not n
 ## Consequences
 
 - Additive schema change — no impact on existing invoices (all default to `is_excluded: false`).
+- **Exports** — excluded invoices are filtered out of export batches (`exportable_invoices_query` includes `is_excluded == false`). They will not appear in CSV summaries or ZIP downloads.
 - Aggregation queries and list filters do not yet exclude these invoices — that filtering can be added incrementally as reporting features are built out.
 - The exclusion flag is independent of status, type, and source — any invoice can be excluded regardless of its other attributes.
-- Future work may include filtering excluded invoices from dashboard charts and export batches.
+- Future work may include filtering excluded invoices from dashboard charts.
