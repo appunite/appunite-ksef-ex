@@ -163,6 +163,18 @@ defmodule KsefHubWeb.InvoiceComponents do
     """
   end
 
+  @doc "Renders an 'excluded' badge when the invoice is excluded, nothing otherwise."
+  @spec excluded_badge(map()) :: Phoenix.LiveView.Rendered.t()
+  attr :is_excluded, :boolean, required: true
+
+  def excluded_badge(%{is_excluded: true} = assigns) do
+    ~H"""
+    <.badge variant="muted">excluded</.badge>
+    """
+  end
+
+  def excluded_badge(assigns), do: ~H""
+
   @doc "Formats a date as YYYY-MM-DD, or returns \"-\" for nil."
   @spec format_date(Date.t() | nil) :: String.t()
   def format_date(nil), do: "-"

@@ -467,6 +467,20 @@ defmodule KsefHub.InvoicesTest do
     end
   end
 
+  describe "exclude_invoice/1" do
+    test "marks an invoice as excluded", %{company: company} do
+      inv = insert(:invoice, company: company)
+      assert {:ok, %Invoice{is_excluded: true}} = Invoices.exclude_invoice(inv)
+    end
+  end
+
+  describe "include_invoice/1" do
+    test "marks an excluded invoice as included", %{company: company} do
+      inv = insert(:invoice, company: company, is_excluded: true)
+      assert {:ok, %Invoice{is_excluded: false}} = Invoices.include_invoice(inv)
+    end
+  end
+
   describe "role-based scoping" do
     test "list_invoices_paginated with role: reviewer returns only expense invoices", %{
       company: company

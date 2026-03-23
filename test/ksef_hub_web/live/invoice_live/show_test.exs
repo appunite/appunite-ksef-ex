@@ -271,6 +271,54 @@ defmodule KsefHubWeb.InvoiceLive.ShowTest do
     end
   end
 
+  describe "exclude/include" do
+    setup :stub_pdf
+
+    test "exclude event marks invoice as excluded and shows badge", %{
+      conn: conn,
+      company: company
+    } do
+      invoice = insert(:invoice, company: company)
+
+      {:ok, view, _html} = live(conn, ~p"/c/#{company.id}/invoices/#{invoice.id}")
+
+      html = render_hook(view, "exclude", %{})
+
+      assert html =~ "Invoice excluded."
+      assert html =~ "excluded"
+
+      updated = KsefHub.Repo.get!(KsefHub.Invoices.Invoice, invoice.id)
+      assert updated.is_excluded == true
+    end
+
+    test "include event removes exclusion and hides badge", %{
+      conn: conn,
+      company: company
+    } do
+      invoice = insert(:invoice, company: company, is_excluded: true)
+
+      {:ok, view, _html} = live(conn, ~p"/c/#{company.id}/invoices/#{invoice.id}")
+
+      html = render_hook(view, "include", %{})
+
+      assert html =~ "Invoice included."
+
+      updated = KsefHub.Repo.get!(KsefHub.Invoices.Invoice, invoice.id)
+      assert updated.is_excluded == false
+    end
+
+    test "excluded badge visible on page load for excluded invoice", %{
+      conn: conn,
+      company: company
+    } do
+      invoice = insert(:invoice, company: company, is_excluded: true)
+
+      {:ok, _view, html} = live(conn, ~p"/c/#{company.id}/invoices/#{invoice.id}")
+
+      assert html =~ "excluded"
+    end
+  end
+
   describe "classification display (read-only)" do
     setup :stub_pdf
 
