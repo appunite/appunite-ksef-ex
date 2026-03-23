@@ -78,7 +78,7 @@ defmodule KsefHub.Exports do
     batch
     |> exportable_invoices_query()
     |> order_by([i], asc: i.issue_date, asc: i.invoice_number)
-    |> preload([:category, :tags, :xml_file, :pdf_file])
+    |> preload([:category, :tags, :xml_file, :pdf_file, :created_by, :inbound_email])
     |> Repo.all()
   end
 

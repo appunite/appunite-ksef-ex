@@ -28,6 +28,8 @@ defmodule KsefHub.Exports.CsvBuilder do
     "Note",
     "KSeF Number",
     "Added At",
+    "Added By",
+    "Updated At",
     "Original Filename",
     "Duplicate Status"
   ]
@@ -71,6 +73,8 @@ defmodule KsefHub.Exports.CsvBuilder do
       s(invoice.note),
       s(invoice.ksef_number),
       format_datetime(invoice.inserted_at),
+      Invoice.added_by_label(invoice),
+      format_datetime(invoice.updated_at),
       s(invoice.original_filename),
       s(invoice.duplicate_status)
     ]

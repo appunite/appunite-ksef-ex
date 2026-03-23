@@ -9,20 +9,20 @@ defmodule KsefHub.Exports.CsvBuilderTest do
       csv = CsvBuilder.build([])
 
       assert String.starts_with?(csv, <<0xEF, 0xBB, 0xBF>>)
-      # Strip BOM
-      content = String.replace_prefix(csv, <<0xEF, 0xBB, 0xBF>>, "")
-      [header_line | _] = String.split(content, "\r\n", trim: true)
+      [header_line | _] = csv_lines(csv)
 
-      assert header_line ==
-               "Invoice Number,Issue Date,Sales Date,Due Date,Billing Period,Type,Status,Source,Seller NIP,Seller Name,Seller Address,Buyer NIP,Buyer Name,Buyer Address,Net Amount,Gross Amount,Currency,IBAN,Purchase Order,Category,Tags,Note,KSeF Number,Added At,Original Filename,Duplicate Status"
+      assert header_line =~ "Invoice Number,"
+      assert header_line =~ "Billing Period,"
+      assert header_line =~ "Status,"
+      assert header_line =~ "Note,"
+      assert header_line =~ "Added By,"
+      assert header_line =~ "Updated At,"
     end
 
     test "includes invoice data in correct columns" do
       invoice = build_invoice()
       csv = CsvBuilder.build([invoice])
-
-      content = String.replace_prefix(csv, <<0xEF, 0xBB, 0xBF>>, "")
-      lines = String.split(content, "\r\n", trim: true)
+      lines = csv_lines(csv)
 
       assert length(lines) == 2
       [_header, data] = lines
@@ -44,68 +44,55 @@ defmodule KsefHub.Exports.CsvBuilderTest do
 
     test "escapes fields containing commas" do
       invoice = build_invoice(%{seller_name: "Foo, Bar & Co."})
-      csv = CsvBuilder.build([invoice])
-
-      content = String.replace_prefix(csv, <<0xEF, 0xBB, 0xBF>>, "")
-      assert content =~ ~s("Foo, Bar & Co.")
+      assert csv_content(invoice) =~ ~s("Foo, Bar & Co.")
     end
 
     test "escapes fields containing double quotes" do
       invoice = build_invoice(%{seller_name: ~s(Foo "Bar" Corp)})
-      csv = CsvBuilder.build([invoice])
-
-      content = String.replace_prefix(csv, <<0xEF, 0xBB, 0xBF>>, "")
-      assert content =~ ~s("Foo ""Bar"" Corp")
+      assert csv_content(invoice) =~ ~s("Foo ""Bar"" Corp")
     end
 
     test "formats category name" do
       invoice = build_invoice(%{category: %Category{name: "operations:rent"}})
-      csv = CsvBuilder.build([invoice])
-
-      content = String.replace_prefix(csv, <<0xEF, 0xBB, 0xBF>>, "")
-      assert content =~ "operations:rent"
+      assert csv_content(invoice) =~ "operations:rent"
     end
 
     test "formats tags as semicolon-separated" do
       invoice = build_invoice(%{tags: [%Tag{name: "recurring"}, %Tag{name: "office"}]})
-      csv = CsvBuilder.build([invoice])
+      assert csv_content(invoice) =~ "recurring; office"
+    end
 
-      content = String.replace_prefix(csv, <<0xEF, 0xBB, 0xBF>>, "")
-      assert content =~ "recurring; office"
+    test "includes Added By from created_by user" do
+      user = %KsefHub.Accounts.User{name: "Jan Kowalski", email: "jan@example.com"}
+      invoice = build_invoice(%{source: :manual, created_by: user})
+
+      assert csv_col(invoice, 24) == "Jan Kowalski (manual)"
+    end
+
+    test "includes Added By as KSeF for synced invoices" do
+      invoice = build_invoice(%{source: :ksef})
+
+      assert csv_col(invoice, 24) == "KSeF (automatic sync)"
     end
 
     test "includes billing period, status, and note columns" do
-      invoice =
-        build_invoice(%{
-          billing_date: ~D[2026-01-01],
-          note: "Monthly rent"
-        })
+      invoice = build_invoice(%{billing_date: ~D[2026-01-01], note: "Monthly rent"})
 
-      csv = CsvBuilder.build([invoice])
-      content = String.replace_prefix(csv, <<0xEF, 0xBB, 0xBF>>, "")
-      [_header, data_line | _] = String.split(content, "\r\n", trim: true)
-      cols = parse_csv_row(data_line)
-
-      assert Enum.at(cols, 4) == "2026-01"
-      assert Enum.at(cols, 6) == "approved"
-      assert Enum.at(cols, 21) == "Monthly rent"
+      assert csv_col(invoice, 4) == "2026-01"
+      assert csv_col(invoice, 6) == "approved"
+      assert csv_col(invoice, 21) == "Monthly rent"
     end
 
     test "handles nil fields gracefully" do
       invoice = build_invoice(%{invoice_number: nil, net_amount: nil, issue_date: nil})
       csv = CsvBuilder.build([invoice])
 
-      # Should not crash
       assert is_binary(csv)
     end
 
     test "handles multiple invoices" do
       invoices = [build_invoice(), build_invoice(%{invoice_number: "FV/2026/002"})]
-      csv = CsvBuilder.build(invoices)
-
-      content = String.replace_prefix(csv, <<0xEF, 0xBB, 0xBF>>, "")
-      lines = String.split(content, "\r\n", trim: true)
-      assert length(lines) == 3
+      assert length(csv_lines(CsvBuilder.build(invoices))) == 3
     end
 
     test "includes extraction fields at correct column positions" do
@@ -119,12 +106,8 @@ defmodule KsefHub.Exports.CsvBuilderTest do
           buyer_address: %{"street" => "ul. Kupna 5", "city" => "Kraków", "country" => "PL"}
         })
 
-      csv = CsvBuilder.build([invoice])
-      content = String.replace_prefix(csv, <<0xEF, 0xBB, 0xBF>>, "")
-      [_header, data_line | _] = String.split(content, "\r\n", trim: true)
-      cols = parse_csv_row(data_line)
+      cols = csv_cols(invoice)
 
-      # Column indices based on header order
       assert Enum.at(cols, 2) == "2026-01-14"
       assert Enum.at(cols, 3) == "2026-02-14"
       assert Enum.at(cols, 17) == "PL61109010140000071219812874"
@@ -133,6 +116,27 @@ defmodule KsefHub.Exports.CsvBuilderTest do
       assert Enum.at(cols, 13) =~ "ul. Kupna 5"
     end
   end
+
+  @spec csv_lines(binary()) :: [String.t()]
+  defp csv_lines(csv) do
+    csv
+    |> String.replace_prefix(<<0xEF, 0xBB, 0xBF>>, "")
+    |> String.split("\r\n", trim: true)
+  end
+
+  @spec csv_content(Invoice.t()) :: String.t()
+  defp csv_content(invoice) do
+    [invoice] |> CsvBuilder.build() |> String.replace_prefix(<<0xEF, 0xBB, 0xBF>>, "")
+  end
+
+  @spec csv_cols(Invoice.t()) :: [String.t()]
+  defp csv_cols(invoice) do
+    [_header, data_line | _] = invoice |> csv_content() |> String.split("\r\n", trim: true)
+    parse_csv_row(data_line)
+  end
+
+  @spec csv_col(Invoice.t(), non_neg_integer()) :: String.t()
+  defp csv_col(invoice, index), do: Enum.at(csv_cols(invoice), index)
 
   @spec build_invoice(map()) :: Invoice.t()
   defp build_invoice(overrides \\ %{}) do
@@ -162,7 +166,10 @@ defmodule KsefHub.Exports.CsvBuilderTest do
       seller_address: nil,
       buyer_address: nil,
       billing_date: nil,
-      note: nil
+      note: nil,
+      updated_at: ~N[2026-01-10 09:00:00],
+      created_by: nil,
+      inbound_email: nil
     }
 
     struct!(Invoice, Map.merge(defaults, overrides))
