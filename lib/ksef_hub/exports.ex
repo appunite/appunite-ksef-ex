@@ -255,6 +255,7 @@ defmodule KsefHub.Exports do
     Invoice
     |> where([i], i.company_id == ^company_id)
     |> where([i], i.status == :approved)
+    |> where([i], i.is_excluded == false)
     |> where([i], i.issue_date >= ^date_from and i.issue_date <= ^date_to)
     |> maybe_filter_type(invoice_type)
     |> maybe_filter_only_new(only_new, user_id)
