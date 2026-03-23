@@ -345,6 +345,14 @@ defmodule KsefHubWeb.InvoiceLive.Show do
   # --- Events: Exclude/Include ---
 
   @impl true
+  def handle_event("exclude", _params, %{assigns: %{invoice: %{is_excluded: true}}} = socket) do
+    {:noreply, put_flash(socket, :info, "Invoice already excluded.")}
+  end
+
+  def handle_event("include", _params, %{assigns: %{invoice: %{is_excluded: false}}} = socket) do
+    {:noreply, put_flash(socket, :info, "Invoice already included.")}
+  end
+
   def handle_event(action, _params, socket) when action in ~w(exclude include) do
     {fun, ok_msg, err_msg} =
       case action do
@@ -1219,6 +1227,17 @@ defmodule KsefHubWeb.InvoiceLive.Show do
     """
   end
 
+  attr :title, :string, required: true
+
+  @spec section_heading(map()) :: Phoenix.LiveView.Rendered.t()
+  defp section_heading(assigns) do
+    ~H"""
+    <div class="text-xs font-medium text-muted-foreground uppercase tracking-wide pt-4 pb-1 mt-2 border-b border-border">
+      {@title}
+    </div>
+    """
+  end
+
   attr :edit_form, :map, required: true
   attr :invoice, :map, required: true
   attr :company, :map, required: true
@@ -1244,9 +1263,7 @@ defmodule KsefHubWeb.InvoiceLive.Show do
         company={@company}
       />
 
-      <div class="text-xs font-medium text-muted-foreground uppercase tracking-wide pt-4 pb-1 mt-2 border-b border-border">
-        Invoice
-      </div>
+      <.section_heading title="Invoice" />
 
       <div class="grid grid-cols-2 gap-3">
         <div class="space-y-1">
@@ -1370,9 +1387,7 @@ defmodule KsefHubWeb.InvoiceLive.Show do
       )
 
     ~H"""
-    <div class="text-xs font-medium text-muted-foreground uppercase tracking-wide pt-4 pb-1 mt-2 border-b border-border">
-      {@label}
-    </div>
+    <.section_heading title={@label} />
 
     <div class="space-y-1">
       <label for={"edit-#{@field_id}-street"} class="label">
@@ -1442,9 +1457,7 @@ defmodule KsefHubWeb.InvoiceLive.Show do
   @spec seller_fields(map()) :: Phoenix.LiveView.Rendered.t()
   defp seller_fields(assigns) do
     ~H"""
-    <div class="text-xs font-medium text-muted-foreground uppercase tracking-wide pt-4 pb-1 mt-2 border-b border-border">
-      Seller
-    </div>
+    <.section_heading title="Seller" />
 
     <div class="grid grid-cols-2 gap-3">
       <div class="space-y-1">
@@ -1504,9 +1517,7 @@ defmodule KsefHubWeb.InvoiceLive.Show do
   @spec buyer_fields(map()) :: Phoenix.LiveView.Rendered.t()
   defp buyer_fields(assigns) do
     ~H"""
-    <div class="text-xs font-medium text-muted-foreground uppercase tracking-wide pt-4 pb-1 mt-2 border-b border-border">
-      Buyer
-    </div>
+    <.section_heading title="Buyer" />
 
     <div class="grid grid-cols-2 gap-3">
       <div class="space-y-1">
@@ -1564,9 +1575,7 @@ defmodule KsefHubWeb.InvoiceLive.Show do
   @spec amount_fields(map()) :: Phoenix.LiveView.Rendered.t()
   defp amount_fields(assigns) do
     ~H"""
-    <div class="text-xs font-medium text-muted-foreground uppercase tracking-wide pt-4 pb-1 mt-2 border-b border-border">
-      Amounts
-    </div>
+    <.section_heading title="Amounts" />
 
     <div class="grid grid-cols-3 gap-3">
       <div class="space-y-1">
