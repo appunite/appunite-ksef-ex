@@ -419,10 +419,14 @@ defmodule KsefHubWeb.InvoiceLive.Show do
   end
 
   @impl true
-  def handle_event("save_billing_date", %{"billing_date" => val}, socket) do
-    billing_date = normalize_month_to_date(val)
+  def handle_event("save_billing_date", params, socket) do
+    billing_date_from = normalize_month_to_date(params["billing_date_from"] || "")
+    billing_date_to = normalize_month_to_date(params["billing_date_to"] || "")
 
-    case Invoices.update_billing_date(socket.assigns.invoice, %{billing_date: billing_date}) do
+    case Invoices.update_billing_date(socket.assigns.invoice, %{
+           billing_date_from: billing_date_from,
+           billing_date_to: billing_date_to
+         }) do
       {:ok, updated} ->
         reloaded = reload_details(updated, socket)
 
@@ -432,7 +436,8 @@ defmodule KsefHubWeb.InvoiceLive.Show do
          |> assign(
            invoice: reloaded,
            editing_billing_date: false,
-           billing_date_form: billing_date_form(reloaded)
+           billing_date_form: billing_date_form(reloaded),
+           edit_form: build_edit_form(reloaded)
          )}
 
       {:error, _changeset} ->
@@ -610,7 +615,10 @@ defmodule KsefHubWeb.InvoiceLive.Show do
 
   @spec billing_date_form(Invoice.t()) :: Phoenix.HTML.Form.t()
   defp billing_date_form(invoice) do
-    to_form(%{"billing_date" => invoice.billing_date})
+    to_form(%{
+      "billing_date_from" => invoice.billing_date_from,
+      "billing_date_to" => invoice.billing_date_to
+    })
   end
 
   @spec comment_form() :: Phoenix.HTML.Form.t()
@@ -945,13 +953,27 @@ defmodule KsefHubWeb.InvoiceLive.Show do
               phx-submit="save_billing_date"
               class="space-y-2"
             >
-              <input
-                type="month"
-                name="billing_date"
-                value={format_month_value(@billing_date_form[:billing_date].value)}
-                class="h-9 w-full rounded-md border border-input bg-background px-3 text-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
-                autofocus
-              />
+              <div class="grid grid-cols-2 gap-2">
+                <div class="space-y-1">
+                  <label class="text-xs text-muted-foreground">From</label>
+                  <input
+                    type="month"
+                    name="billing_date_from"
+                    value={format_month_value(@billing_date_form["billing_date_from"].value)}
+                    class="h-9 w-full rounded-md border border-input bg-background px-3 text-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+                    autofocus
+                  />
+                </div>
+                <div class="space-y-1">
+                  <label class="text-xs text-muted-foreground">To</label>
+                  <input
+                    type="month"
+                    name="billing_date_to"
+                    value={format_month_value(@billing_date_form["billing_date_to"].value)}
+                    class="h-9 w-full rounded-md border border-input bg-background px-3 text-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+                  />
+                </div>
+              </div>
               <div class="flex gap-2">
                 <.button type="submit" size="sm">
                   Save
@@ -968,7 +990,7 @@ defmodule KsefHubWeb.InvoiceLive.Show do
             </.form>
           </div>
           <div :if={!@editing_billing_date} class="text-sm">
-            {if @invoice.billing_date, do: format_month(@invoice.billing_date), else: "Not set"}
+            {format_billing_period(@invoice.billing_date_from, @invoice.billing_date_to)}
           </div>
         </.card>
         <!-- Note Card -->
@@ -1323,6 +1345,36 @@ defmodule KsefHubWeb.InvoiceLive.Show do
           />
           <.field_error errors={@edit_form[:due_date].errors} />
         </div>
+
+        <div class="space-y-1">
+          <label for="edit-billing-date-from" class="label">
+            <span class="text-sm font-medium text-xs">Billing From</span>
+          </label>
+          <input
+            type="month"
+            id="edit-billing-date-from"
+            name={@edit_form[:billing_date_from].name}
+            value={format_month_value(@edit_form[:billing_date_from].value)}
+            class="h-9 w-full rounded-md border border-input bg-background px-3 text-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+          />
+          <.field_error errors={@edit_form[:billing_date_from].errors} />
+        </div>
+      </div>
+
+      <div class="grid grid-cols-2 gap-3">
+        <div class="space-y-1">
+          <label for="edit-billing-date-to" class="label">
+            <span class="text-sm font-medium text-xs">Billing To</span>
+          </label>
+          <input
+            type="month"
+            id="edit-billing-date-to"
+            name={@edit_form[:billing_date_to].name}
+            value={format_month_value(@edit_form[:billing_date_to].value)}
+            class="h-9 w-full rounded-md border border-input bg-background px-3 text-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+          />
+          <.field_error errors={@edit_form[:billing_date_to].errors} />
+        </div>
       </div>
 
       <.amount_fields edit_form={@edit_form} />
@@ -1661,11 +1713,19 @@ defmodule KsefHubWeb.InvoiceLive.Show do
   end
 
   @spec normalize_billing_date_param(map()) :: map()
-  defp normalize_billing_date_param(%{"billing_date" => val} = params) when is_binary(val) do
-    Map.put(params, "billing_date", normalize_month_to_date(val))
+  defp normalize_billing_date_param(params) do
+    params
+    |> maybe_normalize_month_field("billing_date_from")
+    |> maybe_normalize_month_field("billing_date_to")
   end
 
-  defp normalize_billing_date_param(params), do: params
+  @spec maybe_normalize_month_field(map(), String.t()) :: map()
+  defp maybe_normalize_month_field(%{} = params, key) do
+    case params[key] do
+      val when is_binary(val) and val != "" -> Map.put(params, key, normalize_month_to_date(val))
+      _ -> params
+    end
+  end
 
   attr :errors, :list, default: []
 

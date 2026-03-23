@@ -185,6 +185,19 @@ defmodule KsefHubWeb.InvoiceComponents do
   def format_month(nil), do: "-"
   def format_month(date), do: Calendar.strftime(date, "%b %Y")
 
+  @doc ~s(Formats a billing period range. Single-month shows "Feb 2026", multi-month shows "Feb 2026 – Apr 2026".)
+  @spec format_billing_period(Date.t() | nil, Date.t() | nil) :: String.t()
+  def format_billing_period(nil, _), do: "Not set"
+  def format_billing_period(_, nil), do: "Not set"
+
+  def format_billing_period(from, to) do
+    if Date.compare(from, to) == :eq do
+      format_month(from)
+    else
+      ~s(#{format_month(from)} – #{format_month(to)})
+    end
+  end
+
   @doc "Formats a numeric amount, or returns \"-\" for nil/unknown types."
   @spec format_amount(Decimal.t() | number() | nil) :: String.t()
   def format_amount(nil), do: "-"

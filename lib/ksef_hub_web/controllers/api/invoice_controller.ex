@@ -31,7 +31,7 @@ defmodule KsefHubWeb.Api.InvoiceController do
 
   @create_allowed_keys ~w(type ksef_number seller_nip seller_name buyer_nip buyer_name
     invoice_number issue_date net_amount gross_amount currency purchase_order
-    sales_date due_date billing_date iban)
+    sales_date due_date billing_date_from billing_date_to iban)
 
   @max_pdf_size 10_000_000
 
@@ -85,12 +85,14 @@ defmodule KsefHubWeb.Api.InvoiceController do
       ],
       billing_date_from: [
         in: :query,
-        description: "Filter invoices with billing_date on or after this date (ISO 8601).",
+        description:
+          "Filter invoices whose billing period overlaps on or after this date (ISO 8601). Uses overlap semantics: returns invoices where billing_date_to >= this value.",
         schema: %Schema{type: :string, format: :date}
       ],
       billing_date_to: [
         in: :query,
-        description: "Filter invoices with billing_date on or before this date (ISO 8601).",
+        description:
+          "Filter invoices whose billing period overlaps on or before this date (ISO 8601). Uses overlap semantics: returns invoices where billing_date_from <= this value.",
         schema: %Schema{type: :string, format: :date}
       ],
       page: [
@@ -1001,7 +1003,8 @@ defmodule KsefHubWeb.Api.InvoiceController do
       purchase_order: invoice.purchase_order,
       sales_date: invoice.sales_date,
       due_date: invoice.due_date,
-      billing_date: invoice.billing_date,
+      billing_date_from: invoice.billing_date_from,
+      billing_date_to: invoice.billing_date_to,
       iban: invoice.iban,
       seller_address: invoice.seller_address,
       buyer_address: invoice.buyer_address,

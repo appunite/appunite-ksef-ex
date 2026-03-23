@@ -53,7 +53,7 @@ defmodule KsefHub.Exports.CsvBuilder do
       format_date(invoice.issue_date),
       format_date(invoice.sales_date),
       format_date(invoice.due_date),
-      format_month(invoice.billing_date),
+      format_billing_period(invoice.billing_date_from, invoice.billing_date_to),
       s(invoice.type),
       s(invoice.status),
       s(invoice.source),
@@ -118,9 +118,17 @@ defmodule KsefHub.Exports.CsvBuilder do
   defp format_date(nil), do: ""
   defp format_date(%Date{} = date), do: Date.to_iso8601(date)
 
-  @spec format_month(Date.t() | nil) :: String.t()
-  defp format_month(nil), do: ""
-  defp format_month(%Date{} = date), do: Calendar.strftime(date, "%Y-%m")
+  @spec format_billing_period(Date.t() | nil, Date.t() | nil) :: String.t()
+  defp format_billing_period(nil, _), do: ""
+  defp format_billing_period(_, nil), do: ""
+
+  defp format_billing_period(%Date{} = from, %Date{} = to) do
+    if Date.compare(from, to) == :eq do
+      Calendar.strftime(from, "%Y-%m")
+    else
+      "#{Calendar.strftime(from, "%Y-%m")} – #{Calendar.strftime(to, "%Y-%m")}"
+    end
+  end
 
   @spec format_decimal(Decimal.t() | nil) :: String.t()
   defp format_decimal(nil), do: ""
