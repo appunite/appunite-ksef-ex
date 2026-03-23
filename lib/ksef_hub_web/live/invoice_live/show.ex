@@ -707,7 +707,7 @@ defmodule KsefHubWeb.InvoiceLive.Show do
             </.button>
             <div
               id="download-menu"
-              class="hidden absolute right-0 top-full mt-1 z-50 p-1 border border-border bg-popover text-popover-foreground rounded-md shadow-md w-44"
+              class={dropdown_menu_class()}
               phx-click-away={JS.hide(to: "#download-menu")}
             >
               <a
@@ -738,7 +738,7 @@ defmodule KsefHubWeb.InvoiceLive.Show do
             </.button>
             <div
               id="actions-menu"
-              class="hidden absolute right-0 top-full mt-1 z-50 p-1 border border-border bg-popover text-popover-foreground rounded-md shadow-md w-44"
+              class={dropdown_menu_class()}
               phx-click-away={JS.hide(to: "#actions-menu")}
             >
               <button
@@ -1626,6 +1626,11 @@ defmodule KsefHubWeb.InvoiceLive.Show do
 
   @spec currencies() :: [String.t()]
   defp currencies, do: @common_currencies
+
+  @spec dropdown_menu_class() :: String.t()
+  defp dropdown_menu_class,
+    do:
+      "hidden absolute right-0 top-full mt-1 z-50 p-1 border border-border bg-popover text-popover-foreground rounded-md shadow-md w-44"
 
   @spec dropdown_item_class() :: String.t()
   defp dropdown_item_class,
