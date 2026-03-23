@@ -348,8 +348,11 @@ defmodule KsefHubWeb.InvoiceLive.Show do
   def handle_event(action, _params, socket) when action in ~w(exclude include) do
     {fun, ok_msg, err_msg} =
       case action do
-        "exclude" -> {&Invoices.exclude_invoice/1, "Invoice excluded.", "Failed to exclude invoice."}
-        "include" -> {&Invoices.include_invoice/1, "Invoice included.", "Failed to include invoice."}
+        "exclude" ->
+          {&Invoices.exclude_invoice/1, "Invoice excluded.", "Failed to exclude invoice."}
+
+        "include" ->
+          {&Invoices.include_invoice/1, "Invoice included.", "Failed to include invoice."}
       end
 
     case fun.(socket.assigns.invoice) do
@@ -731,8 +734,7 @@ defmodule KsefHubWeb.InvoiceLive.Show do
               phx-click={JS.toggle(to: "#actions-menu")}
               data-testid="actions-menu-btn"
             >
-              Actions
-              <.icon name="hero-chevron-down" class="size-3" />
+              Actions <.icon name="hero-chevron-down" class="size-3" />
             </.button>
             <div
               id="actions-menu"
@@ -1242,7 +1244,9 @@ defmodule KsefHubWeb.InvoiceLive.Show do
         company={@company}
       />
 
-      <div class="text-xs font-medium text-muted-foreground uppercase tracking-wide pt-4 pb-1 mt-2 border-b border-border">Invoice</div>
+      <div class="text-xs font-medium text-muted-foreground uppercase tracking-wide pt-4 pb-1 mt-2 border-b border-border">
+        Invoice
+      </div>
 
       <div class="grid grid-cols-2 gap-3">
         <div class="space-y-1">
@@ -1366,7 +1370,9 @@ defmodule KsefHubWeb.InvoiceLive.Show do
       )
 
     ~H"""
-    <div class="text-xs font-medium text-muted-foreground uppercase tracking-wide pt-4 pb-1 mt-2 border-b border-border">{@label}</div>
+    <div class="text-xs font-medium text-muted-foreground uppercase tracking-wide pt-4 pb-1 mt-2 border-b border-border">
+      {@label}
+    </div>
 
     <div class="space-y-1">
       <label for={"edit-#{@field_id}-street"} class="label">
@@ -1436,7 +1442,9 @@ defmodule KsefHubWeb.InvoiceLive.Show do
   @spec seller_fields(map()) :: Phoenix.LiveView.Rendered.t()
   defp seller_fields(assigns) do
     ~H"""
-    <div class="text-xs font-medium text-muted-foreground uppercase tracking-wide pt-4 pb-1 mt-2 border-b border-border">Seller</div>
+    <div class="text-xs font-medium text-muted-foreground uppercase tracking-wide pt-4 pb-1 mt-2 border-b border-border">
+      Seller
+    </div>
 
     <div class="grid grid-cols-2 gap-3">
       <div class="space-y-1">
@@ -1496,7 +1504,9 @@ defmodule KsefHubWeb.InvoiceLive.Show do
   @spec buyer_fields(map()) :: Phoenix.LiveView.Rendered.t()
   defp buyer_fields(assigns) do
     ~H"""
-    <div class="text-xs font-medium text-muted-foreground uppercase tracking-wide pt-4 pb-1 mt-2 border-b border-border">Buyer</div>
+    <div class="text-xs font-medium text-muted-foreground uppercase tracking-wide pt-4 pb-1 mt-2 border-b border-border">
+      Buyer
+    </div>
 
     <div class="grid grid-cols-2 gap-3">
       <div class="space-y-1">
@@ -1554,7 +1564,9 @@ defmodule KsefHubWeb.InvoiceLive.Show do
   @spec amount_fields(map()) :: Phoenix.LiveView.Rendered.t()
   defp amount_fields(assigns) do
     ~H"""
-    <div class="text-xs font-medium text-muted-foreground uppercase tracking-wide pt-4 pb-1 mt-2 border-b border-border">Amounts</div>
+    <div class="text-xs font-medium text-muted-foreground uppercase tracking-wide pt-4 pb-1 mt-2 border-b border-border">
+      Amounts
+    </div>
 
     <div class="grid grid-cols-3 gap-3">
       <div class="space-y-1">
