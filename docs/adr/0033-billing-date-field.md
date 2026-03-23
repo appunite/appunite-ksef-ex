@@ -4,7 +4,7 @@ Date: 2026-03-18
 
 ## Status
 
-Accepted
+Superseded by 0034
 
 ## Context
 

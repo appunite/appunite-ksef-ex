@@ -2232,49 +2232,57 @@ defmodule KsefHub.InvoicesTest do
     end
   end
 
-  describe "billing_date" do
-    test "auto-computes billing_date from sales_date on create", %{company: company} do
+  describe "billing_date_range" do
+    test "auto-computes billing_date_from/to from sales_date on create", %{company: company} do
       attrs =
         params_for(:invoice,
           company_id: company.id,
           sales_date: ~D[2026-02-15],
           issue_date: ~D[2026-02-10]
         )
-        |> Map.delete(:billing_date)
+        |> Map.delete(:billing_date_from)
+        |> Map.delete(:billing_date_to)
         |> Map.put(:xml_content, @sample_xml)
 
       assert {:ok, invoice} = Invoices.create_invoice(attrs)
-      assert invoice.billing_date == ~D[2026-02-01]
+      assert invoice.billing_date_from == ~D[2026-02-01]
+      assert invoice.billing_date_to == ~D[2026-02-01]
     end
 
-    test "auto-computes billing_date from issue_date when no sales_date", %{company: company} do
+    test "auto-computes billing_date_from/to from issue_date when no sales_date", %{
+      company: company
+    } do
       attrs =
         params_for(:invoice,
           company_id: company.id,
           sales_date: nil,
           issue_date: ~D[2026-03-20]
         )
-        |> Map.delete(:billing_date)
+        |> Map.delete(:billing_date_from)
+        |> Map.delete(:billing_date_to)
         |> Map.put(:xml_content, @sample_xml)
 
       assert {:ok, invoice} = Invoices.create_invoice(attrs)
-      assert invoice.billing_date == ~D[2026-03-01]
+      assert invoice.billing_date_from == ~D[2026-03-01]
+      assert invoice.billing_date_to == ~D[2026-03-01]
     end
 
-    test "explicit billing_date overrides auto-computation", %{company: company} do
+    test "explicit billing_date_from/to overrides auto-computation", %{company: company} do
       attrs =
         params_for(:invoice,
           company_id: company.id,
           sales_date: ~D[2026-02-15],
-          billing_date: ~D[2026-04-01]
+          billing_date_from: ~D[2026-04-01],
+          billing_date_to: ~D[2026-06-01]
         )
         |> Map.put(:xml_content, @sample_xml)
 
       assert {:ok, invoice} = Invoices.create_invoice(attrs)
-      assert invoice.billing_date == ~D[2026-04-01]
+      assert invoice.billing_date_from == ~D[2026-04-01]
+      assert invoice.billing_date_to == ~D[2026-06-01]
     end
 
-    test "explicit billing_date nil preserves nil despite dates being present", %{
+    test "explicit billing_date_from nil preserves nil despite dates being present", %{
       company: company
     } do
       attrs =
@@ -2283,17 +2291,51 @@ defmodule KsefHub.InvoicesTest do
           sales_date: ~D[2026-02-15],
           issue_date: ~D[2026-02-10]
         )
-        |> Map.put(:billing_date, nil)
+        |> Map.put(:billing_date_from, nil)
+        |> Map.put(:billing_date_to, nil)
         |> Map.put(:xml_content, @sample_xml)
 
       assert {:ok, invoice} = Invoices.create_invoice(attrs)
-      assert is_nil(invoice.billing_date)
+      assert is_nil(invoice.billing_date_from)
+      assert is_nil(invoice.billing_date_to)
     end
 
-    test "filters by billing_date_from and billing_date_to", %{company: company} do
-      insert(:invoice, company: company, billing_date: ~D[2026-01-01], issue_date: ~D[2026-01-15])
-      insert(:invoice, company: company, billing_date: ~D[2026-02-01], issue_date: ~D[2026-02-15])
-      insert(:invoice, company: company, billing_date: ~D[2026-03-01], issue_date: ~D[2026-03-15])
+    test "validates billing_date_to >= billing_date_from", %{company: company} do
+      attrs =
+        params_for(:invoice,
+          company_id: company.id,
+          billing_date_from: ~D[2026-06-01],
+          billing_date_to: ~D[2026-04-01]
+        )
+        |> Map.put(:xml_content, @sample_xml)
+
+      assert {:error, changeset} = Invoices.create_invoice(attrs)
+      assert "must be on or after billing_date_from" in errors_on(changeset).billing_date_to
+    end
+
+    test "filters by billing_date_from and billing_date_to with overlap semantics", %{
+      company: company
+    } do
+      insert(:invoice,
+        company: company,
+        billing_date_from: ~D[2026-01-01],
+        billing_date_to: ~D[2026-01-01],
+        issue_date: ~D[2026-01-15]
+      )
+
+      insert(:invoice,
+        company: company,
+        billing_date_from: ~D[2026-02-01],
+        billing_date_to: ~D[2026-02-01],
+        issue_date: ~D[2026-02-15]
+      )
+
+      insert(:invoice,
+        company: company,
+        billing_date_from: ~D[2026-03-01],
+        billing_date_to: ~D[2026-03-01],
+        issue_date: ~D[2026-03-15]
+      )
 
       result =
         Invoices.list_invoices(company.id, %{
@@ -2302,46 +2344,86 @@ defmodule KsefHub.InvoicesTest do
         })
 
       assert length(result) == 1
-      assert hd(result).billing_date == ~D[2026-02-01]
+      assert hd(result).billing_date_from == ~D[2026-02-01]
     end
 
-    test "filters by billing_date_from only", %{company: company} do
-      insert(:invoice, company: company, billing_date: ~D[2026-01-01], issue_date: ~D[2026-01-15])
-      insert(:invoice, company: company, billing_date: ~D[2026-03-01], issue_date: ~D[2026-03-15])
+    test "multi-month invoice overlaps with filter range", %{company: company} do
+      insert(:invoice,
+        company: company,
+        billing_date_from: ~D[2026-01-01],
+        billing_date_to: ~D[2026-03-01],
+        issue_date: ~D[2026-01-15]
+      )
 
       result =
         Invoices.list_invoices(company.id, %{billing_date_from: ~D[2026-02-01]})
 
       assert length(result) == 1
-      assert hd(result).billing_date == ~D[2026-03-01]
+    end
+
+    test "filters by billing_date_from only", %{company: company} do
+      insert(:invoice,
+        company: company,
+        billing_date_from: ~D[2026-01-01],
+        billing_date_to: ~D[2026-01-01],
+        issue_date: ~D[2026-01-15]
+      )
+
+      insert(:invoice,
+        company: company,
+        billing_date_from: ~D[2026-03-01],
+        billing_date_to: ~D[2026-03-01],
+        issue_date: ~D[2026-03-15]
+      )
+
+      result =
+        Invoices.list_invoices(company.id, %{billing_date_from: ~D[2026-02-01]})
+
+      assert length(result) == 1
+      assert hd(result).billing_date_from == ~D[2026-03-01]
     end
 
     test "filters by billing_date_to only", %{company: company} do
-      insert(:invoice, company: company, billing_date: ~D[2026-01-01], issue_date: ~D[2026-01-15])
-      insert(:invoice, company: company, billing_date: ~D[2026-03-01], issue_date: ~D[2026-03-15])
+      insert(:invoice,
+        company: company,
+        billing_date_from: ~D[2026-01-01],
+        billing_date_to: ~D[2026-01-01],
+        issue_date: ~D[2026-01-15]
+      )
+
+      insert(:invoice,
+        company: company,
+        billing_date_from: ~D[2026-03-01],
+        billing_date_to: ~D[2026-03-01],
+        issue_date: ~D[2026-03-15]
+      )
 
       result =
         Invoices.list_invoices(company.id, %{billing_date_to: ~D[2026-01-31]})
 
       assert length(result) == 1
-      assert hd(result).billing_date == ~D[2026-01-01]
+      assert hd(result).billing_date_from == ~D[2026-01-01]
     end
 
-    test "billing_date is nil when both sales_date and issue_date are nil", %{company: company} do
+    test "billing_date_from/to are nil when both sales_date and issue_date are nil", %{
+      company: company
+    } do
       attrs =
         params_for(:pdf_upload_invoice,
           company_id: company.id,
           sales_date: nil,
           issue_date: nil
         )
-        |> Map.delete(:billing_date)
+        |> Map.delete(:billing_date_from)
+        |> Map.delete(:billing_date_to)
         |> Map.put(:pdf_content, "%PDF-1.4 test")
 
       assert {:ok, invoice} = Invoices.create_invoice(attrs)
-      assert is_nil(invoice.billing_date)
+      assert is_nil(invoice.billing_date_from)
+      assert is_nil(invoice.billing_date_to)
     end
 
-    test "auto-computes billing_date on upsert", %{company: company} do
+    test "auto-computes billing_date_from/to on upsert", %{company: company} do
       attrs = %{
         company_id: company.id,
         type: :income,
@@ -2360,23 +2442,67 @@ defmodule KsefHub.InvoicesTest do
       }
 
       assert {:ok, invoice, :inserted} = Invoices.upsert_invoice(attrs)
-      assert invoice.billing_date == ~D[2026-05-01]
+      assert invoice.billing_date_from == ~D[2026-05-01]
+      assert invoice.billing_date_to == ~D[2026-05-01]
     end
 
     test "update_billing_date works on KSeF invoices", %{company: company} do
-      invoice = insert(:invoice, company: company, source: :ksef, billing_date: ~D[2026-01-01])
+      invoice =
+        insert(:invoice,
+          company: company,
+          source: :ksef,
+          billing_date_from: ~D[2026-01-01],
+          billing_date_to: ~D[2026-01-01]
+        )
 
       assert {:ok, updated} =
-               Invoices.update_billing_date(invoice, %{billing_date: ~D[2026-06-01]})
+               Invoices.update_billing_date(invoice, %{
+                 billing_date_from: ~D[2026-06-01],
+                 billing_date_to: ~D[2026-08-01]
+               })
 
-      assert updated.billing_date == ~D[2026-06-01]
+      assert updated.billing_date_from == ~D[2026-06-01]
+      assert updated.billing_date_to == ~D[2026-08-01]
     end
 
-    test "update_billing_date can clear billing_date", %{company: company} do
-      invoice = insert(:invoice, company: company, billing_date: ~D[2026-01-01])
+    test "update_billing_date can clear billing dates", %{company: company} do
+      invoice =
+        insert(:invoice,
+          company: company,
+          billing_date_from: ~D[2026-01-01],
+          billing_date_to: ~D[2026-01-01]
+        )
 
-      assert {:ok, updated} = Invoices.update_billing_date(invoice, %{billing_date: nil})
-      assert is_nil(updated.billing_date)
+      assert {:ok, updated} =
+               Invoices.update_billing_date(invoice, %{
+                 billing_date_from: nil,
+                 billing_date_to: nil
+               })
+
+      assert is_nil(updated.billing_date_from)
+      assert is_nil(updated.billing_date_to)
+    end
+
+    test "multi-month allocation distributes evenly with rounding", %{company: company} do
+      insert(:invoice,
+        type: :expense,
+        company: company,
+        billing_date_from: ~D[2026-01-01],
+        billing_date_to: ~D[2026-03-01],
+        net_amount: Decimal.new("100.00")
+      )
+
+      result = Invoices.expense_monthly_totals(company.id)
+      assert length(result) == 3
+
+      amounts = Enum.map(result, & &1.net_total)
+      total = Enum.reduce(amounts, Decimal.new(0), &Decimal.add/2)
+      assert Decimal.equal?(total, Decimal.new("100.00"))
+
+      # First two months get 33.33, last gets 33.34
+      assert Decimal.equal?(Enum.at(amounts, 0), Decimal.new("33.33"))
+      assert Decimal.equal?(Enum.at(amounts, 1), Decimal.new("33.33"))
+      assert Decimal.equal?(Enum.at(amounts, 2), Decimal.new("33.34"))
     end
   end
 
@@ -2419,25 +2545,28 @@ defmodule KsefHub.InvoicesTest do
   end
 
   describe "expense_monthly_totals/2" do
-    test "returns monthly totals grouped by billing_date", %{company: company} do
+    test "returns monthly totals grouped by billing period", %{company: company} do
       insert(:invoice,
         type: :expense,
         company: company,
-        billing_date: ~D[2026-01-01],
+        billing_date_from: ~D[2026-01-01],
+        billing_date_to: ~D[2026-01-01],
         net_amount: Decimal.new("500.00")
       )
 
       insert(:invoice,
         type: :expense,
         company: company,
-        billing_date: ~D[2026-01-01],
+        billing_date_from: ~D[2026-01-01],
+        billing_date_to: ~D[2026-01-01],
         net_amount: Decimal.new("300.00")
       )
 
       insert(:invoice,
         type: :expense,
         company: company,
-        billing_date: ~D[2026-02-01],
+        billing_date_from: ~D[2026-02-01],
+        billing_date_to: ~D[2026-02-01],
         net_amount: Decimal.new("200.00")
       )
 
@@ -2450,18 +2579,20 @@ defmodule KsefHub.InvoicesTest do
       assert Decimal.equal?(feb.net_total, Decimal.new("200.00"))
     end
 
-    test "excludes invoices with nil billing_date", %{company: company} do
+    test "excludes invoices with nil billing_date_from", %{company: company} do
       insert(:invoice,
         type: :expense,
         company: company,
-        billing_date: nil,
+        billing_date_from: nil,
+        billing_date_to: nil,
         net_amount: Decimal.new("100.00")
       )
 
       insert(:invoice,
         type: :expense,
         company: company,
-        billing_date: ~D[2026-01-01],
+        billing_date_from: ~D[2026-01-01],
+        billing_date_to: ~D[2026-01-01],
         net_amount: Decimal.new("50.00")
       )
 
@@ -2474,7 +2605,8 @@ defmodule KsefHub.InvoicesTest do
       insert(:invoice,
         type: :income,
         company: company,
-        billing_date: ~D[2026-01-01],
+        billing_date_from: ~D[2026-01-01],
+        billing_date_to: ~D[2026-01-01],
         net_amount: Decimal.new("1000.00")
       )
 
@@ -2485,14 +2617,16 @@ defmodule KsefHub.InvoicesTest do
       insert(:invoice,
         type: :expense,
         company: company,
-        billing_date: ~D[2026-01-01],
+        billing_date_from: ~D[2026-01-01],
+        billing_date_to: ~D[2026-01-01],
         net_amount: Decimal.new("100.00")
       )
 
       insert(:invoice,
         type: :expense,
         company: company,
-        billing_date: ~D[2026-03-01],
+        billing_date_from: ~D[2026-03-01],
+        billing_date_to: ~D[2026-03-01],
         net_amount: Decimal.new("200.00")
       )
 
@@ -2512,7 +2646,8 @@ defmodule KsefHub.InvoicesTest do
       insert(:invoice,
         type: :expense,
         company: company,
-        billing_date: ~D[2026-01-01],
+        billing_date_from: ~D[2026-01-01],
+        billing_date_to: ~D[2026-01-01],
         net_amount: Decimal.new("100.00"),
         category_id: category.id
       )
@@ -2520,7 +2655,8 @@ defmodule KsefHub.InvoicesTest do
       insert(:invoice,
         type: :expense,
         company: company,
-        billing_date: ~D[2026-01-01],
+        billing_date_from: ~D[2026-01-01],
+        billing_date_to: ~D[2026-01-01],
         net_amount: Decimal.new("200.00"),
         category_id: nil
       )
@@ -2538,7 +2674,8 @@ defmodule KsefHub.InvoicesTest do
         insert(:invoice,
           type: :expense,
           company: company,
-          billing_date: ~D[2026-01-01],
+          billing_date_from: ~D[2026-01-01],
+          billing_date_to: ~D[2026-01-01],
           net_amount: Decimal.new("100.00")
         )
 
@@ -2548,6 +2685,48 @@ defmodule KsefHub.InvoicesTest do
       result = Invoices.expense_monthly_totals(company.id, %{tag_ids: [tag1.id, tag2.id]})
       assert [row] = result
       assert Decimal.equal?(row.net_total, Decimal.new("100.00"))
+    end
+
+    test "allocates multi-month invoice across 2 months", %{company: company} do
+      insert(:invoice,
+        type: :expense,
+        company: company,
+        billing_date_from: ~D[2026-01-01],
+        billing_date_to: ~D[2026-02-01],
+        net_amount: Decimal.new("100.00")
+      )
+
+      result = Invoices.expense_monthly_totals(company.id)
+      assert [jan, feb] = result
+      assert jan.billing_date == ~D[2026-01-01]
+      assert feb.billing_date == ~D[2026-02-01]
+      assert Decimal.equal?(jan.net_total, Decimal.new("50.00"))
+      assert Decimal.equal?(feb.net_total, Decimal.new("50.00"))
+    end
+
+    test "combines single and multi-month invoices in same month", %{company: company} do
+      insert(:invoice,
+        type: :expense,
+        company: company,
+        billing_date_from: ~D[2026-01-01],
+        billing_date_to: ~D[2026-03-01],
+        net_amount: Decimal.new("300.00")
+      )
+
+      insert(:invoice,
+        type: :expense,
+        company: company,
+        billing_date_from: ~D[2026-02-01],
+        billing_date_to: ~D[2026-02-01],
+        net_amount: Decimal.new("50.00")
+      )
+
+      result = Invoices.expense_monthly_totals(company.id)
+      assert length(result) == 3
+
+      feb = Enum.find(result, &(&1.billing_date == ~D[2026-02-01]))
+      # 100 (from 3-month) + 50 (from single) = 150
+      assert Decimal.equal?(feb.net_total, Decimal.new("150.00"))
     end
   end
 
@@ -2559,7 +2738,8 @@ defmodule KsefHub.InvoicesTest do
       insert(:invoice,
         type: :expense,
         company: company,
-        billing_date: ~D[2026-01-01],
+        billing_date_from: ~D[2026-01-01],
+        billing_date_to: ~D[2026-01-01],
         net_amount: Decimal.new("500.00"),
         category_id: cat1.id
       )
@@ -2567,7 +2747,8 @@ defmodule KsefHub.InvoicesTest do
       insert(:invoice,
         type: :expense,
         company: company,
-        billing_date: ~D[2026-01-01],
+        billing_date_from: ~D[2026-01-01],
+        billing_date_to: ~D[2026-01-01],
         net_amount: Decimal.new("300.00"),
         category_id: cat2.id
       )
@@ -2583,7 +2764,8 @@ defmodule KsefHub.InvoicesTest do
       insert(:invoice,
         type: :expense,
         company: company,
-        billing_date: ~D[2026-01-01],
+        billing_date_from: ~D[2026-01-01],
+        billing_date_to: ~D[2026-01-01],
         net_amount: Decimal.new("100.00"),
         category_id: nil
       )
@@ -2600,7 +2782,8 @@ defmodule KsefHub.InvoicesTest do
       insert(:invoice,
         type: :expense,
         company: company,
-        billing_date: ~D[2026-01-01],
+        billing_date_from: ~D[2026-01-01],
+        billing_date_to: ~D[2026-01-01],
         net_amount: Decimal.new("100.00"),
         category_id: cat.id
       )
@@ -2608,7 +2791,8 @@ defmodule KsefHub.InvoicesTest do
       insert(:invoice,
         type: :expense,
         company: company,
-        billing_date: ~D[2026-03-01],
+        billing_date_from: ~D[2026-03-01],
+        billing_date_to: ~D[2026-03-01],
         net_amount: Decimal.new("200.00"),
         category_id: cat.id
       )
@@ -2631,7 +2815,8 @@ defmodule KsefHub.InvoicesTest do
         insert(:invoice,
           type: :expense,
           company: company,
-          billing_date: ~D[2026-01-01],
+          billing_date_from: ~D[2026-01-01],
+          billing_date_to: ~D[2026-01-01],
           net_amount: Decimal.new("250.00"),
           category_id: cat.id
         )
@@ -2643,6 +2828,25 @@ defmodule KsefHub.InvoicesTest do
       assert [row] = result
       assert Decimal.equal?(row.net_total, Decimal.new("250.00"))
     end
+
+    test "allocates multi-month invoice proportionally by category", %{company: company} do
+      cat = insert(:category, company: company, name: "SaaS", emoji: "💻")
+
+      insert(:invoice,
+        type: :expense,
+        company: company,
+        billing_date_from: ~D[2026-01-01],
+        billing_date_to: ~D[2026-03-01],
+        net_amount: Decimal.new("300.00"),
+        category_id: cat.id
+      )
+
+      result = Invoices.expense_by_category(company.id)
+      assert [row] = result
+      assert row.category_name == "SaaS"
+      # Full amount allocated (100/month x3 = 300)
+      assert Decimal.equal?(row.net_total, Decimal.new("300.00"))
+    end
   end
 
   describe "income_monthly_summary/1" do
@@ -2653,14 +2857,16 @@ defmodule KsefHub.InvoicesTest do
       insert(:invoice,
         type: :income,
         company: company,
-        billing_date: current_month,
+        billing_date_from: current_month,
+        billing_date_to: current_month,
         net_amount: Decimal.new("1000.00")
       )
 
       insert(:invoice,
         type: :income,
         company: company,
-        billing_date: last_month,
+        billing_date_from: last_month,
+        billing_date_to: last_month,
         net_amount: Decimal.new("800.00")
       )
 
@@ -2681,12 +2887,33 @@ defmodule KsefHub.InvoicesTest do
       insert(:invoice,
         type: :expense,
         company: company,
-        billing_date: current_month,
+        billing_date_from: current_month,
+        billing_date_to: current_month,
         net_amount: Decimal.new("500.00")
       )
 
       result = Invoices.income_monthly_summary(company.id)
       assert Decimal.equal?(result.current_month, Decimal.new(0))
+    end
+
+    test "allocates multi-month invoice proportionally across current and last month", %{
+      company: company
+    } do
+      current_month = Date.utc_today() |> Date.beginning_of_month()
+      last_month = current_month |> Date.add(-1) |> Date.beginning_of_month()
+
+      # Invoice spanning last month + current month
+      insert(:invoice,
+        type: :income,
+        company: company,
+        billing_date_from: last_month,
+        billing_date_to: current_month,
+        net_amount: Decimal.new("200.00")
+      )
+
+      result = Invoices.income_monthly_summary(company.id)
+      assert Decimal.equal?(result.current_month, Decimal.new("100.00"))
+      assert Decimal.equal?(result.last_month, Decimal.new("100.00"))
     end
   end
 end

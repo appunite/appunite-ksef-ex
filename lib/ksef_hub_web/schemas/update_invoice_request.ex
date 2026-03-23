@@ -48,13 +48,21 @@ defmodule KsefHubWeb.Schemas.UpdateInvoiceRequest do
         nullable: true,
         description: "Payment due date."
       },
-      billing_date: %Schema{
+      billing_date_from: %Schema{
         type: :string,
         format: :date,
         nullable: true,
         pattern: "^\\d{4}-\\d{2}-01$",
         description:
-          "Accounting period date (first day of month, YYYY-MM-01). Overrides auto-computed value."
+          "Start of billing period (first day of month, YYYY-MM-01). Overrides auto-computed value."
+      },
+      billing_date_to: %Schema{
+        type: :string,
+        format: :date,
+        nullable: true,
+        pattern: "^\\d{4}-\\d{2}-01$",
+        description:
+          "End of billing period (first day of month, YYYY-MM-01). Must be >= billing_date_from."
       },
       iban: %Schema{
         type: :string,
