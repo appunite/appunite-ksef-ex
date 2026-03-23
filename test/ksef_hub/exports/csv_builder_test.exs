@@ -76,7 +76,12 @@ defmodule KsefHub.Exports.CsvBuilderTest do
     end
 
     test "includes billing period, status, and note columns" do
-      invoice = build_invoice(%{billing_date: ~D[2026-01-01], note: "Monthly rent"})
+      invoice =
+        build_invoice(%{
+          billing_date_from: ~D[2026-01-01],
+          billing_date_to: ~D[2026-01-01],
+          note: "Monthly rent"
+        })
 
       assert csv_col(invoice, 4) == "2026-01"
       assert csv_col(invoice, 6) == "approved"
@@ -165,7 +170,8 @@ defmodule KsefHub.Exports.CsvBuilderTest do
       purchase_order: nil,
       seller_address: nil,
       buyer_address: nil,
-      billing_date: nil,
+      billing_date_from: nil,
+      billing_date_to: nil,
       note: nil,
       updated_at: ~N[2026-01-10 09:00:00],
       created_by: nil,
