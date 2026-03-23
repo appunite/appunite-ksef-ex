@@ -546,6 +546,18 @@ defmodule KsefHub.Invoices do
 
   def reject_invoice(%Invoice{type: type}), do: {:error, {:invalid_type, type}}
 
+  @doc "Marks an invoice as excluded."
+  @spec exclude_invoice(Invoice.t()) :: {:ok, Invoice.t()} | {:error, Ecto.Changeset.t()}
+  def exclude_invoice(%Invoice{} = invoice) do
+    update_invoice(invoice, %{is_excluded: true})
+  end
+
+  @doc "Marks an invoice as included (removes exclusion)."
+  @spec include_invoice(Invoice.t()) :: {:ok, Invoice.t()} | {:error, Ecto.Changeset.t()}
+  def include_invoice(%Invoice{} = invoice) do
+    update_invoice(invoice, %{is_excluded: false})
+  end
+
   @doc """
   Populates company-side fields on invoice attrs based on type.
 

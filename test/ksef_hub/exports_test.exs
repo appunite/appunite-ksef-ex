@@ -196,6 +196,34 @@ defmodule KsefHub.ExportsTest do
       assert count == 1
     end
 
+    test "excludes invoices marked as is_excluded", %{user: user, company: company} do
+      insert(:invoice,
+        company: company,
+        issue_date: ~D[2026-01-15],
+        type: :expense,
+        status: :approved
+      )
+
+      insert(:invoice,
+        company: company,
+        issue_date: ~D[2026-01-16],
+        type: :expense,
+        status: :approved,
+        is_excluded: true
+      )
+
+      count =
+        Exports.count_exportable_invoices(company.id, %{
+          date_from: ~D[2026-01-01],
+          date_to: ~D[2026-01-31],
+          invoice_type: nil,
+          only_new: false,
+          user_id: user.id
+        })
+
+      assert count == 1
+    end
+
     test "only_new is per-user", %{user: user, company: company} do
       other_user = insert(:user)
 

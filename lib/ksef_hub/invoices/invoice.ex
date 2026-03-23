@@ -69,6 +69,7 @@ defmodule KsefHub.Invoices.Invoice do
     has_one :inbound_email, KsefHub.InboundEmail.InboundEmail
 
     field :public_token, :string
+    field :is_excluded, :boolean, default: false
 
     timestamps()
   end
@@ -172,7 +173,8 @@ defmodule KsefHub.Invoices.Invoice do
       :billing_date,
       :iban,
       :seller_address,
-      :buyer_address
+      :buyer_address,
+      :is_excluded
     ])
     |> validate_required([:type, :company_id])
     |> validate_first_of_month(:billing_date)

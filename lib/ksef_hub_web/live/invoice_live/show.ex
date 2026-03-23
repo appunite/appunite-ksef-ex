@@ -105,7 +105,8 @@ defmodule KsefHubWeb.InvoiceLive.Show do
 
   @mutation_events ~w(re_extract dismiss_duplicate confirm_duplicate
     toggle_edit save_edit edit_note save_note
-    edit_billing_date save_billing_date cancel_billing_date copy_public_link)
+    edit_billing_date save_billing_date cancel_billing_date copy_public_link
+    exclude include)
 
   @approve_events ~w(approve reject)
 
@@ -339,6 +340,39 @@ defmodule KsefHubWeb.InvoiceLive.Show do
      |> assign(:invoice, %{invoice | public_token: updated.public_token})
      |> push_event("copy_to_clipboard", %{text: url})
      |> put_flash(:info, "Public link copied to clipboard.")}
+  end
+
+  # --- Events: Exclude/Include ---
+
+  @impl true
+  def handle_event("exclude", _params, %{assigns: %{invoice: %{is_excluded: true}}} = socket) do
+    {:noreply, put_flash(socket, :info, "Invoice already excluded.")}
+  end
+
+  def handle_event("include", _params, %{assigns: %{invoice: %{is_excluded: false}}} = socket) do
+    {:noreply, put_flash(socket, :info, "Invoice already included.")}
+  end
+
+  def handle_event(action, _params, socket) when action in ~w(exclude include) do
+    {fun, ok_msg, err_msg} =
+      case action do
+        "exclude" ->
+          {&Invoices.exclude_invoice/1, "Invoice excluded.", "Failed to exclude invoice."}
+
+        "include" ->
+          {&Invoices.include_invoice/1, "Invoice included.", "Failed to include invoice."}
+      end
+
+    case fun.(socket.assigns.invoice) do
+      {:ok, updated} ->
+        {:noreply,
+         socket
+         |> put_flash(:info, ok_msg)
+         |> assign(:invoice, reload_details(updated, socket))}
+
+      {:error, _changeset} ->
+        {:noreply, put_flash(socket, :error, err_msg)}
+    end
   end
 
   # --- Events: Note ---
@@ -646,49 +680,10 @@ defmodule KsefHubWeb.InvoiceLive.Show do
         />
         <.extraction_badge status={@invoice.extraction_status} />
         <.payment_badge status={@payment_status} />
+        <.excluded_badge is_excluded={@invoice.is_excluded} />
       </:subtitle>
       <:actions>
         <div class="flex gap-2">
-          <div :if={@invoice.xml_file || @invoice.pdf_file} class="relative">
-            <.button
-              variant="outline"
-              type="button"
-              phx-click={JS.toggle(to: "#download-menu")}
-            >
-              <.icon name="hero-arrow-down-tray" class="size-4" /> Download
-              <.icon name="hero-chevron-down" class="size-3" />
-            </.button>
-            <div
-              id="download-menu"
-              class="hidden absolute right-0 top-full mt-1 z-50 p-1 border border-border bg-popover text-popover-foreground rounded-md shadow-md w-44"
-              phx-click-away={JS.hide(to: "#download-menu")}
-            >
-              <a
-                href={~p"/c/#{@current_company.id}/invoices/#{@invoice.id}/pdf"}
-                target="_blank"
-                class="flex items-center gap-2 px-2 py-1.5 text-sm rounded-sm text-muted-foreground hover:bg-shad-accent hover:text-shad-accent-foreground transition-colors"
-              >
-                PDF
-              </a>
-              <a
-                :if={@invoice.xml_file}
-                href={~p"/c/#{@current_company.id}/invoices/#{@invoice.id}/xml"}
-                target="_blank"
-                class="flex items-center gap-2 px-2 py-1.5 text-sm rounded-sm text-muted-foreground hover:bg-shad-accent hover:text-shad-accent-foreground transition-colors"
-              >
-                XML
-              </a>
-            </div>
-          </div>
-          <.button
-            :if={@can_mutate}
-            variant="outline"
-            phx-click="copy_public_link"
-            data-testid="copy-public-link"
-            id="copy-link-btn"
-          >
-            <.icon name="hero-link" class="size-4" /> Share
-          </.button>
           <.button
             :if={
               @can_approve && @invoice.type == :expense && @invoice.status == :pending &&
@@ -709,6 +704,76 @@ defmodule KsefHubWeb.InvoiceLive.Show do
           >
             Reject
           </.button>
+          <div :if={@invoice.xml_file || @invoice.pdf_file} class="relative">
+            <.button
+              variant="outline"
+              type="button"
+              phx-click={JS.toggle(to: "#download-menu")}
+            >
+              <.icon name="hero-arrow-down-tray" class="size-4" /> Download
+              <.icon name="hero-chevron-down" class="size-3" />
+            </.button>
+            <div
+              id="download-menu"
+              class={dropdown_menu_class()}
+              phx-click-away={JS.hide(to: "#download-menu")}
+            >
+              <a
+                href={~p"/c/#{@current_company.id}/invoices/#{@invoice.id}/pdf"}
+                target="_blank"
+                class={dropdown_item_class()}
+              >
+                PDF
+              </a>
+              <a
+                :if={@invoice.xml_file}
+                href={~p"/c/#{@current_company.id}/invoices/#{@invoice.id}/xml"}
+                target="_blank"
+                class={dropdown_item_class()}
+              >
+                XML
+              </a>
+            </div>
+          </div>
+          <div :if={@can_mutate} class="relative">
+            <.button
+              variant="outline"
+              type="button"
+              phx-click={JS.toggle(to: "#actions-menu")}
+              data-testid="actions-menu-btn"
+            >
+              Actions <.icon name="hero-chevron-down" class="size-3" />
+            </.button>
+            <div
+              id="actions-menu"
+              class={dropdown_menu_class()}
+              phx-click-away={JS.hide(to: "#actions-menu")}
+            >
+              <button
+                phx-click="copy_public_link"
+                data-testid="copy-public-link"
+                class={dropdown_item_class()}
+              >
+                <.icon name="hero-link" class="size-4" /> Share
+              </button>
+              <button
+                :if={!@invoice.is_excluded}
+                phx-click="exclude"
+                data-testid="exclude-btn"
+                class={dropdown_item_class()}
+              >
+                <.icon name="hero-eye-slash" class="size-4" /> Exclude
+              </button>
+              <button
+                :if={@invoice.is_excluded}
+                phx-click="include"
+                data-testid="include-btn"
+                class={dropdown_item_class()}
+              >
+                <.icon name="hero-eye" class="size-4" /> Include
+              </button>
+            </div>
+          </div>
         </div>
       </:actions>
     </.header>
@@ -1162,6 +1227,17 @@ defmodule KsefHubWeb.InvoiceLive.Show do
     """
   end
 
+  attr :title, :string, required: true
+
+  @spec section_heading(map()) :: Phoenix.LiveView.Rendered.t()
+  defp section_heading(assigns) do
+    ~H"""
+    <div class="text-xs font-medium text-muted-foreground uppercase tracking-wide pt-4 pb-1 mt-2 border-b border-border">
+      {@title}
+    </div>
+    """
+  end
+
   attr :edit_form, :map, required: true
   attr :invoice, :map, required: true
   attr :company, :map, required: true
@@ -1187,9 +1263,9 @@ defmodule KsefHubWeb.InvoiceLive.Show do
         company={@company}
       />
 
-      <div class="border-t border-border my-4 text-xs my-1">Invoice</div>
+      <.section_heading title="Invoice" />
 
-      <div class="grid grid-cols-3 gap-3">
+      <div class="grid grid-cols-2 gap-3">
         <div class="space-y-1">
           <label for="edit-invoice-number" class="label">
             <span class="text-sm font-medium text-xs">Invoice Number</span>
@@ -1217,7 +1293,9 @@ defmodule KsefHubWeb.InvoiceLive.Show do
           />
           <.field_error errors={@edit_form[:issue_date].errors} />
         </div>
+      </div>
 
+      <div class="grid grid-cols-2 gap-3">
         <div class="space-y-1">
           <label for="edit-sales-date" class="label">
             <span class="text-sm font-medium text-xs">Sales Date</span>
@@ -1231,9 +1309,7 @@ defmodule KsefHubWeb.InvoiceLive.Show do
           />
           <.field_error errors={@edit_form[:sales_date].errors} />
         </div>
-      </div>
 
-      <div class="grid grid-cols-2 gap-3">
         <div class="space-y-1">
           <label for="edit-due-date" class="label">
             <span class="text-sm font-medium text-xs">Due Date</span>
@@ -1246,20 +1322,6 @@ defmodule KsefHubWeb.InvoiceLive.Show do
             class="h-9 w-full rounded-md border border-input bg-background px-3 text-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
           />
           <.field_error errors={@edit_form[:due_date].errors} />
-        </div>
-
-        <div class="space-y-1">
-          <label for="edit-billing-date" class="label">
-            <span class="text-sm font-medium text-xs">Billing Period</span>
-          </label>
-          <input
-            type="month"
-            id="edit-billing-date"
-            name={@edit_form[:billing_date].name}
-            value={format_month_value(@edit_form[:billing_date].value)}
-            class="h-9 w-full rounded-md border border-input bg-background px-3 text-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
-          />
-          <.field_error errors={@edit_form[:billing_date].errors} />
         </div>
       </div>
 
@@ -1325,7 +1387,7 @@ defmodule KsefHubWeb.InvoiceLive.Show do
       )
 
     ~H"""
-    <div class="border-t border-border my-4 text-xs my-1">{@label}</div>
+    <.section_heading title={@label} />
 
     <div class="space-y-1">
       <label for={"edit-#{@field_id}-street"} class="label">
@@ -1395,7 +1457,7 @@ defmodule KsefHubWeb.InvoiceLive.Show do
   @spec seller_fields(map()) :: Phoenix.LiveView.Rendered.t()
   defp seller_fields(assigns) do
     ~H"""
-    <div class="border-t border-border my-4 text-xs my-1">Seller</div>
+    <.section_heading title="Seller" />
 
     <div class="grid grid-cols-2 gap-3">
       <div class="space-y-1">
@@ -1455,7 +1517,7 @@ defmodule KsefHubWeb.InvoiceLive.Show do
   @spec buyer_fields(map()) :: Phoenix.LiveView.Rendered.t()
   defp buyer_fields(assigns) do
     ~H"""
-    <div class="border-t border-border my-4 text-xs my-1">Buyer</div>
+    <.section_heading title="Buyer" />
 
     <div class="grid grid-cols-2 gap-3">
       <div class="space-y-1">
@@ -1513,7 +1575,7 @@ defmodule KsefHubWeb.InvoiceLive.Show do
   @spec amount_fields(map()) :: Phoenix.LiveView.Rendered.t()
   defp amount_fields(assigns) do
     ~H"""
-    <div class="border-t border-border my-4 text-xs my-1">Amounts</div>
+    <.section_heading title="Amounts" />
 
     <div class="grid grid-cols-3 gap-3">
       <div class="space-y-1">
@@ -1573,6 +1635,16 @@ defmodule KsefHubWeb.InvoiceLive.Show do
 
   @spec currencies() :: [String.t()]
   defp currencies, do: @common_currencies
+
+  @spec dropdown_menu_class() :: String.t()
+  defp dropdown_menu_class,
+    do:
+      "hidden absolute right-0 top-full mt-1 z-50 p-1 border border-border bg-popover text-popover-foreground rounded-md shadow-md w-44"
+
+  @spec dropdown_item_class() :: String.t()
+  defp dropdown_item_class,
+    do:
+      "flex w-full items-center gap-2 px-2 py-1.5 text-sm rounded-sm text-muted-foreground hover:bg-shad-accent hover:text-shad-accent-foreground transition-colors"
 
   @spec format_month_value(Date.t() | nil) :: String.t() | nil
   defp format_month_value(%Date{year: y, month: m}),
