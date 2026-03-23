@@ -1122,6 +1122,7 @@ defmodule KsefHub.Invoices do
     })
     |> Repo.all()
     |> expand_to_monthly_allocations()
+    |> trim_allocations_to_window(filters)
     |> Enum.group_by(& &1.billing_date, & &1.allocated_amount)
     |> Enum.map(fn {date, amounts} ->
       %{billing_date: date, net_total: sum_decimals(amounts)}
@@ -1151,6 +1152,7 @@ defmodule KsefHub.Invoices do
     })
     |> Repo.all()
     |> Enum.flat_map(&expand_with_metadata(&1, [:category_name, :emoji]))
+    |> trim_allocations_to_window(filters)
     |> Enum.group_by(fn row -> {row.category_name, row.emoji} end, & &1.allocated_amount)
     |> Enum.map(fn {{name, emoji}, amounts} ->
       %{category_name: name, emoji: emoji, net_total: sum_decimals(amounts)}
@@ -1211,6 +1213,22 @@ defmodule KsefHub.Invoices do
 
   @spec sum_decimals([Decimal.t()]) :: Decimal.t()
   defp sum_decimals(amounts), do: Enum.reduce(amounts, Decimal.new(0), &Decimal.add/2)
+
+  @spec trim_allocations_to_window([map()], map()) :: [map()]
+  defp trim_allocations_to_window(allocations, filters) do
+    from = Map.get(filters, :billing_date_from)
+    to = Map.get(filters, :billing_date_to)
+
+    allocations
+    |> then(fn allocs ->
+      if from,
+        do: Enum.filter(allocs, &(Date.compare(&1.billing_date, from) != :lt)),
+        else: allocs
+    end)
+    |> then(fn allocs ->
+      if to, do: Enum.filter(allocs, &(Date.compare(&1.billing_date, to) != :gt)), else: allocs
+    end)
+  end
 
   # --- Multi-month allocation helpers ---
 

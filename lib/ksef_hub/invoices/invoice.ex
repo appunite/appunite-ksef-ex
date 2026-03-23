@@ -384,10 +384,21 @@ defmodule KsefHub.Invoices.Invoice do
     from = get_field(changeset, :billing_date_from)
     to = get_field(changeset, :billing_date_to)
 
-    if from && to && Date.compare(from, to) == :gt do
-      add_error(changeset, :billing_date_to, "must be on or after billing_date_from")
-    else
-      changeset
+    cond do
+      is_nil(from) and is_nil(to) ->
+        changeset
+
+      is_nil(from) ->
+        add_error(changeset, :billing_date_from, "must be provided when billing_date_to is set")
+
+      is_nil(to) ->
+        add_error(changeset, :billing_date_to, "must be provided when billing_date_from is set")
+
+      Date.compare(from, to) == :gt ->
+        add_error(changeset, :billing_date_to, "must be on or after billing_date_from")
+
+      true ->
+        changeset
     end
   end
 

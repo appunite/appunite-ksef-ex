@@ -19,6 +19,19 @@ defmodule KsefHub.Repo.Migrations.ReplaceBillingDateWithRange do
   end
 
   def down do
+    # Guard against data loss: abort if any invoices span multiple months
+    %{rows: [[count]]} =
+      repo().query!(
+        "SELECT COUNT(*) FROM invoices WHERE billing_date_to IS NOT NULL AND billing_date_to > billing_date_from"
+      )
+
+    if count > 0 do
+      raise Ecto.MigrationError,
+        message:
+          "Cannot rollback: #{count} invoice(s) have multi-month billing ranges " <>
+            "(billing_date_to > billing_date_from). Rolling back would lose data."
+    end
+
     alter table(:invoices) do
       add :billing_date, :date
     end

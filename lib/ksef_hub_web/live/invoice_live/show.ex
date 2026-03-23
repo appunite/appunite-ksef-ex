@@ -436,7 +436,8 @@ defmodule KsefHubWeb.InvoiceLive.Show do
          |> assign(
            invoice: reloaded,
            editing_billing_date: false,
-           billing_date_form: billing_date_form(reloaded)
+           billing_date_form: billing_date_form(reloaded),
+           edit_form: build_edit_form(reloaded)
          )}
 
       {:error, _changeset} ->
