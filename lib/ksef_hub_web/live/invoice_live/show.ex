@@ -8,6 +8,7 @@ defmodule KsefHubWeb.InvoiceLive.Show do
   require Logger
 
   alias KsefHub.Authorization
+  alias KsefHub.Companies
   alias KsefHub.InvoiceClassifier
   alias KsefHub.Invoices
   alias KsefHub.Invoices.Invoice
@@ -45,7 +46,12 @@ defmodule KsefHubWeb.InvoiceLive.Show do
   defp mount_invoice(socket, company, id) do
     role = socket.assigns[:current_role]
 
-    case Invoices.get_invoice_with_details(company.id, id, role: role) do
+    user_id = socket.assigns.current_user.id
+
+    case Invoices.get_invoice_with_details(company.id, id,
+           role: role,
+           user_id: user_id
+         ) do
       nil ->
         {:ok,
          socket
@@ -62,6 +68,7 @@ defmodule KsefHubWeb.InvoiceLive.Show do
         can_manage_tags = Authorization.can?(role, :manage_tags)
         can_manage_payment_requests = Authorization.can?(role, :manage_payment_requests)
         can_view_payment_requests = Authorization.can?(role, :view_payment_requests)
+        can_manage_access = Authorization.can?(role, :manage_team)
         payment_status = PaymentRequests.payment_status_for_invoice(invoice.id)
         invoice_payment_requests = PaymentRequests.list_for_invoice(invoice.id)
 
@@ -78,6 +85,11 @@ defmodule KsefHubWeb.InvoiceLive.Show do
            can_manage_tags: can_manage_tags,
            can_manage_payment_requests: can_manage_payment_requests,
            can_view_payment_requests: can_view_payment_requests,
+           can_manage_access: can_manage_access,
+           access_grants:
+             if(can_manage_access, do: Invoices.list_access_grants(invoice.id), else: []),
+           company_reviewers:
+             if(can_manage_access, do: list_company_reviewers(company.id), else: []),
            payment_status: payment_status,
            invoice_payment_requests: invoice_payment_requests,
            html_preview: generate_preview(invoice),
@@ -556,6 +568,77 @@ defmodule KsefHubWeb.InvoiceLive.Show do
     end
   end
 
+  # --- Events: Access Control ---
+
+  @impl true
+  def handle_event(
+        "toggle_access_restricted",
+        _params,
+        %{assigns: %{can_manage_access: false}} = socket
+      ) do
+    {:noreply, put_flash(socket, :error, "You don't have permission to manage access.")}
+  end
+
+  def handle_event("toggle_access_restricted", _params, socket) do
+    invoice = socket.assigns.invoice
+    new_value = !invoice.access_restricted
+
+    case Invoices.set_access_restricted(invoice, new_value) do
+      {:ok, updated} ->
+        {:noreply,
+         socket
+         |> assign(
+           invoice: reload_details(updated, socket),
+           access_grants: Invoices.list_access_grants(updated.id)
+         )
+         |> put_flash(
+           :info,
+           if(new_value, do: "Access restricted.", else: "Access opened to all reviewers.")
+         )}
+
+      {:error, :income_always_restricted} ->
+        {:noreply, put_flash(socket, :error, "Income invoices must always be restricted.")}
+
+      {:error, _changeset} ->
+        {:noreply, put_flash(socket, :error, "Failed to update access.")}
+    end
+  end
+
+  @impl true
+  def handle_event("grant_access", _params, %{assigns: %{can_manage_access: false}} = socket) do
+    {:noreply, put_flash(socket, :error, "You don't have permission to manage access.")}
+  end
+
+  def handle_event("grant_access", %{"user_id" => user_id}, socket) do
+    invoice = socket.assigns.invoice
+    granted_by_id = socket.assigns.current_user.id
+
+    case Invoices.grant_access(invoice.id, user_id, granted_by_id) do
+      {:ok, _grant} ->
+        {:noreply, assign(socket, access_grants: Invoices.list_access_grants(invoice.id))}
+
+      {:error, _} ->
+        {:noreply, put_flash(socket, :error, "Failed to grant access.")}
+    end
+  end
+
+  @impl true
+  def handle_event("revoke_access", _params, %{assigns: %{can_manage_access: false}} = socket) do
+    {:noreply, put_flash(socket, :error, "You don't have permission to manage access.")}
+  end
+
+  def handle_event("revoke_access", %{"user_id" => user_id}, socket) do
+    invoice = socket.assigns.invoice
+
+    case Invoices.revoke_access(invoice.id, user_id) do
+      {:ok, _} ->
+        {:noreply, assign(socket, access_grants: Invoices.list_access_grants(invoice.id))}
+
+      {:error, _} ->
+        {:noreply, put_flash(socket, :error, "Failed to revoke access.")}
+    end
+  end
+
   # --- Async: Re-extraction ---
 
   @impl true
@@ -638,7 +721,8 @@ defmodule KsefHubWeb.InvoiceLive.Show do
   defp reload_details(invoice, socket) do
     company_id = socket.assigns.current_company.id
     role = socket.assigns[:current_role]
-    Invoices.get_invoice_with_details!(company_id, invoice.id, role: role)
+    user_id = socket.assigns.current_user.id
+    Invoices.get_invoice_with_details!(company_id, invoice.id, role: role, user_id: user_id)
   end
 
   @spec build_edit_form(Invoice.t()) :: Phoenix.HTML.Form.t()
@@ -1153,6 +1237,15 @@ defmodule KsefHubWeb.InvoiceLive.Show do
         current_user_id={@current_user.id}
       />
     </div>
+
+    <!-- Access Control Section -->
+    <div :if={@can_manage_access} id="access-control-section" class="mt-6">
+      <.access_control_card
+        access_grants={@access_grants}
+        company_reviewers={@company_reviewers}
+        invoice={@invoice}
+      />
+    </div>
     """
   end
 
@@ -1245,6 +1338,152 @@ defmodule KsefHubWeb.InvoiceLive.Show do
         >{@comment_form[:body].value}</textarea>
         <.button type="submit" size="sm">Post</.button>
       </.form>
+    </.card>
+    """
+  end
+
+  @spec list_company_reviewers(Ecto.UUID.t()) :: [map()]
+  defp list_company_reviewers(company_id) do
+    company_id
+    |> Companies.list_members()
+    |> Enum.reject(&Authorization.can?(&1.role, :view_all_invoice_types))
+  end
+
+  attr :access_grants, :list, required: true
+  attr :company_reviewers, :list, required: true
+  attr :invoice, :map, required: true
+
+  @spec access_control_card(map()) :: Phoenix.LiveView.Rendered.t()
+  defp access_control_card(assigns) do
+    granted_user_ids = MapSet.new(assigns.access_grants, & &1.user_id)
+
+    ungrantable_reviewers =
+      Enum.reject(assigns.company_reviewers, &MapSet.member?(granted_user_ids, &1.user_id))
+
+    assigns = assign(assigns, ungrantable_reviewers: ungrantable_reviewers)
+
+    ~H"""
+    <.card padding="p-4">
+      <h2 class="text-base font-semibold mb-3">Access</h2>
+
+      <div class="flex items-center gap-2 mb-3">
+        <div class="relative">
+          <button
+            type="button"
+            phx-click={JS.toggle(to: "#access-mode-menu")}
+            class="inline-flex items-center gap-1.5 rounded-md border border-input bg-background px-3 py-1.5 text-sm font-medium hover:bg-accent hover:text-accent-foreground"
+          >
+            <.icon
+              name={if(@invoice.access_restricted, do: "hero-lock-closed", else: "hero-users")}
+              class="size-4 text-muted-foreground"
+            />
+            {if @invoice.access_restricted, do: "Only people invited", else: "All reviewers"}
+            <.icon name="hero-chevron-down" class="size-3 text-muted-foreground" />
+          </button>
+          <div
+            id="access-mode-menu"
+            class="hidden absolute left-0 top-full mt-1 z-50 w-56 rounded-md border border-border bg-popover text-popover-foreground shadow-md"
+            phx-click-away={JS.hide(to: "#access-mode-menu")}
+          >
+            <button
+              :if={@invoice.access_restricted}
+              type="button"
+              phx-click={JS.hide(to: "#access-mode-menu") |> JS.push("toggle_access_restricted")}
+              class="flex w-full items-center gap-2.5 px-3 py-2 text-sm hover:bg-shad-accent rounded-t-md"
+            >
+              <.icon name="hero-users" class="size-4 text-muted-foreground" />
+              <span>All reviewers</span>
+            </button>
+            <div
+              :if={!@invoice.access_restricted}
+              class="flex w-full items-center gap-2.5 px-3 py-2 text-sm bg-shad-accent rounded-t-md"
+            >
+              <.icon name="hero-users" class="size-4 text-muted-foreground" />
+              <span>All reviewers</span>
+              <.icon name="hero-check" class="size-4 ml-auto" />
+            </div>
+
+            <button
+              :if={!@invoice.access_restricted}
+              type="button"
+              phx-click={JS.hide(to: "#access-mode-menu") |> JS.push("toggle_access_restricted")}
+              class="flex w-full items-center gap-2.5 px-3 py-2 text-sm hover:bg-shad-accent rounded-b-md"
+            >
+              <.icon name="hero-lock-closed" class="size-4 text-muted-foreground" />
+              <span>Only people invited</span>
+            </button>
+            <div
+              :if={@invoice.access_restricted}
+              class="flex w-full items-center gap-2.5 px-3 py-2 text-sm bg-shad-accent rounded-b-md"
+            >
+              <.icon name="hero-lock-closed" class="size-4 text-muted-foreground" />
+              <span>Only people invited</span>
+              <.icon name="hero-check" class="size-4 ml-auto" />
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <p :if={!@invoice.access_restricted} class="text-sm text-muted-foreground">
+        All reviewers in the company can view this invoice.
+      </p>
+
+      <div :if={@invoice.access_restricted}>
+        <p class="text-sm text-muted-foreground mb-3">
+          Only invited reviewers can view this invoice. Owners, admins, and accountants always have access.
+        </p>
+
+        <div :if={@access_grants != []} class="space-y-0.5 mb-3">
+          <div
+            :for={grant <- @access_grants}
+            class="flex items-center justify-between py-1.5 px-2 rounded hover:bg-muted group"
+          >
+            <div class="flex items-center gap-2 text-sm">
+              <div class="flex items-center justify-center size-6 rounded-full bg-muted text-xs font-medium uppercase">
+                {String.first(grant.user.name || grant.user.email)}
+              </div>
+              <span>{grant.user.name || grant.user.email}</span>
+            </div>
+            <button
+              phx-click="revoke_access"
+              phx-value-user_id={grant.user_id}
+              class="opacity-0 group-hover:opacity-100 focus:opacity-100 focus-visible:opacity-100 text-muted-foreground hover:text-shad-destructive transition-opacity"
+              aria-label={"Remove #{grant.user.name || grant.user.email}"}
+            >
+              <.icon name="hero-x-mark" class="size-4" />
+            </button>
+          </div>
+        </div>
+
+        <div :if={@ungrantable_reviewers != []}>
+          <form phx-submit="grant_access" class="flex items-center gap-2">
+            <select
+              name="user_id"
+              class="h-8 flex-1 rounded-md border border-input bg-background px-2 text-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+            >
+              <option :for={member <- @ungrantable_reviewers} value={member.user_id}>
+                {member.user.name || member.user.email}
+              </option>
+            </select>
+            <.button type="submit" size="sm" variant="outline">
+              Invite
+            </.button>
+          </form>
+        </div>
+
+        <p
+          :if={@ungrantable_reviewers == [] && @company_reviewers == []}
+          class="text-xs text-muted-foreground"
+        >
+          No reviewers in this company. Add reviewers from team settings.
+        </p>
+        <p
+          :if={@ungrantable_reviewers == [] && @company_reviewers != []}
+          class="text-xs text-muted-foreground"
+        >
+          All reviewers have been invited.
+        </p>
+      </div>
     </.card>
     """
   end

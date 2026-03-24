@@ -37,7 +37,10 @@ defmodule KsefHubWeb.InvoiceLive.Classify do
          |> redirect(to: ~p"/companies")}
 
       true ->
-        case Invoices.get_invoice_with_details(company.id, id, role: role) do
+        case Invoices.get_invoice_with_details(company.id, id,
+               role: role,
+               user_id: socket.assigns.current_user.id
+             ) do
           nil ->
             {:ok,
              socket

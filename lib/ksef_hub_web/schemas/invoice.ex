@@ -209,6 +209,11 @@ defmodule KsefHubWeb.Schemas.Invoice do
         nullable: true,
         description: "When the ML prediction was generated."
       },
+      access_restricted: %Schema{
+        type: :boolean,
+        description:
+          "When true, only explicitly granted reviewers can see this invoice. Owners, admins, and accountants always have access regardless."
+      },
       inserted_at: %Schema{type: :string, format: :"date-time"},
       updated_at: %Schema{type: :string, format: :"date-time"}
     },

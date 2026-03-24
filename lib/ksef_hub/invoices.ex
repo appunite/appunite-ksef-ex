@@ -8,12 +8,13 @@ defmodule KsefHub.Invoices do
   require Logger
 
   alias KsefHub.Accounts.User
+  alias KsefHub.Authorization
   alias KsefHub.Companies
   alias KsefHub.Companies.{Company, Membership}
   alias KsefHub.Files
   alias KsefHub.InvoiceClassifier.Worker, as: ClassifierWorker
   alias KsefHub.InvoiceExtractor.ContextBuilder
-  alias KsefHub.Invoices.{Category, Invoice, InvoiceComment, InvoiceTag, Tag}
+  alias KsefHub.Invoices.{Category, Invoice, InvoiceAccessGrant, InvoiceComment, InvoiceTag, Tag}
   alias KsefHub.Repo
 
   @max_per_page 100
@@ -42,9 +43,8 @@ defmodule KsefHub.Invoices do
   """
   @spec list_invoices(Ecto.UUID.t(), map(), keyword()) :: [Invoice.t()]
   def list_invoices(company_id, filters \\ %{}, opts \\ []) do
-    filters = scope_by_role(filters, opts[:role])
     {page, per_page} = extract_pagination(filters)
-    do_list_invoices(company_id, filters, page, per_page)
+    do_list_invoices(company_id, filters, page, per_page, opts)
   end
 
   @doc """
@@ -54,11 +54,15 @@ defmodule KsefHub.Invoices do
   """
   @spec count_invoices(Ecto.UUID.t(), map(), keyword()) :: non_neg_integer()
   def count_invoices(company_id, filters \\ %{}, opts \\ []) do
-    filters = scope_by_role(filters, opts[:role])
+    do_count_invoices(company_id, filters, opts)
+  end
 
+  @spec do_count_invoices(Ecto.UUID.t(), map(), keyword()) :: non_neg_integer()
+  defp do_count_invoices(company_id, filters, opts) do
     Invoice
     |> where([i], i.company_id == ^company_id)
     |> apply_filters(filters)
+    |> maybe_filter_by_access(opts)
     |> subquery()
     |> Repo.aggregate(:count)
   end
@@ -83,15 +87,14 @@ defmodule KsefHub.Invoices do
           total_pages: non_neg_integer()
         }
   def list_invoices_paginated(company_id, filters \\ %{}, opts \\ []) do
-    filters = scope_by_role(filters, opts[:role])
     {page, per_page} = extract_pagination(filters)
 
     entries =
       company_id
-      |> do_list_invoices(filters, page, per_page)
+      |> do_list_invoices(filters, page, per_page, opts)
       |> Repo.preload([:category, :tags])
 
-    total_count = count_invoices(company_id, filters, opts)
+    total_count = do_count_invoices(company_id, filters, opts)
     total_pages = max(ceil(total_count / per_page), 1)
 
     %{
@@ -108,7 +111,7 @@ defmodule KsefHub.Invoices do
   def get_invoice!(company_id, id, opts \\ []) do
     Invoice
     |> where([i], i.company_id == ^company_id and i.id == ^id)
-    |> maybe_scope_type_by_role(opts[:role])
+    |> maybe_filter_by_access(opts)
     |> Repo.one!()
   end
 
@@ -117,7 +120,7 @@ defmodule KsefHub.Invoices do
   def get_invoice_with_details!(company_id, id, opts \\ []) do
     Invoice
     |> where([i], i.company_id == ^company_id and i.id == ^id)
-    |> maybe_scope_type_by_role(opts[:role])
+    |> maybe_filter_by_access(opts)
     |> preload([:xml_file, :pdf_file, :category, :tags, :created_by, :inbound_email])
     |> Repo.one!()
   end
@@ -127,7 +130,7 @@ defmodule KsefHub.Invoices do
   def get_invoice_with_details(company_id, id, opts \\ []) do
     Invoice
     |> where([i], i.company_id == ^company_id and i.id == ^id)
-    |> maybe_scope_type_by_role(opts[:role])
+    |> maybe_filter_by_access(opts)
     |> preload([:xml_file, :pdf_file, :category, :tags, :created_by, :inbound_email])
     |> Repo.one()
   end
@@ -137,7 +140,7 @@ defmodule KsefHub.Invoices do
   def get_invoice(company_id, id, opts \\ []) do
     Invoice
     |> where([i], i.company_id == ^company_id and i.id == ^id)
-    |> maybe_scope_type_by_role(opts[:role])
+    |> maybe_filter_by_access(opts)
     |> Repo.one()
   end
 
@@ -242,6 +245,15 @@ defmodule KsefHub.Invoices do
     attrs[key] || attrs[Atom.to_string(key)]
   end
 
+  @spec maybe_restrict_income(map()) :: map()
+  defp maybe_restrict_income(attrs) do
+    type = attrs[:type] || attrs["type"]
+
+    if type in [:income, "income"],
+      do: Map.put(attrs, :access_restricted, true),
+      else: attrs
+  end
+
   @spec maybe_default_billing_date(map()) :: map()
   defp maybe_default_billing_date(attrs) do
     if has_attr?(attrs, :billing_date_from) or has_attr?(attrs, :billing_date_to) do
@@ -262,7 +274,7 @@ defmodule KsefHub.Invoices do
     company_id = attrs[:company_id] || attrs["company_id"]
     {pdf_content, attrs} = Map.pop(attrs, :pdf_content)
     {xml_content, attrs} = Map.pop(attrs, :xml_content)
-    attrs = maybe_default_billing_date(attrs)
+    attrs = attrs |> maybe_default_billing_date() |> maybe_restrict_income()
 
     Repo.transaction(fn ->
       with {:ok, attrs} <- maybe_create_xml_file(attrs, xml_content),
@@ -285,7 +297,7 @@ defmodule KsefHub.Invoices do
           {:ok, Invoice.t(), :inserted | :updated} | {:error, Ecto.Changeset.t()}
   def upsert_invoice(attrs) do
     company_id = attrs[:company_id] || attrs["company_id"]
-    attrs = maybe_default_billing_date(attrs)
+    attrs = attrs |> maybe_default_billing_date() |> maybe_restrict_income()
 
     case do_upsert(company_id, attrs) do
       {:ok, invoice} ->
@@ -960,12 +972,18 @@ defmodule KsefHub.Invoices do
   defp do_insert_invoice(company_id, attrs) do
     {file_ids, attrs} = pop_file_ids(attrs)
     {created_by_id, attrs} = Map.pop(attrs, :created_by_id)
+    {access_restricted, attrs} = Map.pop(attrs, :access_restricted)
 
     trusted_fields =
       file_ids
       |> Map.put(:company_id, company_id)
       |> then(fn m ->
         if created_by_id, do: Map.put(m, :created_by_id, created_by_id), else: m
+      end)
+      |> then(fn m ->
+        if is_boolean(access_restricted),
+          do: Map.put(m, :access_restricted, access_restricted),
+          else: m
       end)
 
     %Invoice{}
@@ -979,12 +997,18 @@ defmodule KsefHub.Invoices do
   defp do_upsert_invoice(company_id, attrs) do
     {file_ids, attrs} = pop_file_ids(attrs)
     {created_by_id, attrs} = Map.pop(attrs, :created_by_id)
+    {access_restricted, attrs} = Map.pop(attrs, :access_restricted)
 
     trusted_fields =
       file_ids
       |> Map.put(:company_id, company_id)
       |> then(fn m ->
         if created_by_id, do: Map.put(m, :created_by_id, created_by_id), else: m
+      end)
+      |> then(fn m ->
+        if is_boolean(access_restricted),
+          do: Map.put(m, :access_restricted, access_restricted),
+          else: m
       end)
 
     %Invoice{}
@@ -1706,6 +1730,103 @@ defmodule KsefHub.Invoices do
     end
   end
 
+  # --- Access Control ---
+
+  @doc "Lists access grants for an invoice, with user preloaded."
+  @spec list_access_grants(Ecto.UUID.t()) :: [InvoiceAccessGrant.t()]
+  def list_access_grants(invoice_id) do
+    InvoiceAccessGrant
+    |> where([g], g.invoice_id == ^invoice_id)
+    |> preload(:user)
+    |> order_by([g], asc: g.inserted_at)
+    |> Repo.all()
+  end
+
+  @doc """
+  Grants a user access to a restricted invoice. Idempotent — duplicate grants are silently ignored.
+
+  Validates that the target user is a member of the same company as the invoice
+  and does not have full invoice visibility (i.e. is a reviewer, not admin/owner/accountant).
+  """
+  @spec grant_access(Ecto.UUID.t(), Ecto.UUID.t(), Ecto.UUID.t() | nil) ::
+          {:ok, InvoiceAccessGrant.t()} | {:error, Ecto.Changeset.t()}
+  def grant_access(invoice_id, user_id, granted_by_id \\ nil) do
+    with {:ok, company_id} <- fetch_invoice_company_id(invoice_id),
+         {:ok, _membership} <- validate_grantable_member(company_id, user_id) do
+      %InvoiceAccessGrant{}
+      |> Ecto.Changeset.change(%{
+        invoice_id: invoice_id,
+        user_id: user_id,
+        granted_by_id: granted_by_id
+      })
+      |> Ecto.Changeset.unique_constraint([:invoice_id, :user_id])
+      |> Ecto.Changeset.foreign_key_constraint(:invoice_id)
+      |> Ecto.Changeset.foreign_key_constraint(:user_id)
+      |> Ecto.Changeset.foreign_key_constraint(:granted_by_id)
+      |> Repo.insert(on_conflict: :nothing, conflict_target: [:invoice_id, :user_id])
+    end
+  end
+
+  @spec fetch_invoice_company_id(Ecto.UUID.t()) ::
+          {:ok, Ecto.UUID.t()} | {:error, Ecto.Changeset.t()}
+  defp fetch_invoice_company_id(invoice_id) do
+    case Repo.get(Invoice, invoice_id) do
+      %Invoice{company_id: cid} -> {:ok, cid}
+      nil -> {:error, grant_error(:invoice_id, "invoice not found")}
+    end
+  end
+
+  @spec validate_grantable_member(Ecto.UUID.t(), Ecto.UUID.t()) ::
+          {:ok, Membership.t()} | {:error, Ecto.Changeset.t()}
+  defp validate_grantable_member(company_id, user_id) do
+    case Companies.get_membership(user_id, company_id) do
+      %Membership{role: role} = m ->
+        if full_invoice_visibility?(role),
+          do: {:error, grant_error(:user_id, "user already has full access via their role")},
+          else: {:ok, m}
+
+      nil ->
+        {:error, grant_error(:user_id, "user is not a member of this company")}
+    end
+  end
+
+  @spec grant_error(atom(), String.t()) :: Ecto.Changeset.t()
+  defp grant_error(field, message) do
+    %InvoiceAccessGrant{}
+    |> Ecto.Changeset.change()
+    |> Ecto.Changeset.add_error(field, message)
+  end
+
+  @doc "Revokes a user's access to a restricted invoice."
+  @spec revoke_access(Ecto.UUID.t(), Ecto.UUID.t()) ::
+          {:ok, InvoiceAccessGrant.t()} | {:error, :not_found}
+  def revoke_access(invoice_id, user_id) do
+    InvoiceAccessGrant
+    |> where([g], g.invoice_id == ^invoice_id and g.user_id == ^user_id)
+    |> Repo.one()
+    |> case do
+      nil -> {:error, :not_found}
+      grant -> Repo.delete(grant)
+    end
+  end
+
+  @doc """
+  Sets the access_restricted flag on an invoice.
+
+  Income invoices cannot be unrestricted — they are always restricted by design
+  so reviewers cannot see them unless explicitly granted access.
+  """
+  @spec set_access_restricted(Invoice.t(), boolean()) ::
+          {:ok, Invoice.t()} | {:error, :income_always_restricted | Ecto.Changeset.t()}
+  def set_access_restricted(%Invoice{type: :income}, false),
+    do: {:error, :income_always_restricted}
+
+  def set_access_restricted(%Invoice{} = invoice, restricted) when is_boolean(restricted) do
+    invoice
+    |> Ecto.Changeset.change(%{access_restricted: restricted})
+    |> Repo.update()
+  end
+
   # --- Private ---
 
   @spec detect_duplicate(Ecto.UUID.t(), map()) :: map()
@@ -1745,19 +1866,49 @@ defmodule KsefHub.Invoices do
     end)
   end
 
-  @spec scope_by_role(map(), Membership.role() | nil) :: map()
-  defp scope_by_role(filters, :reviewer), do: Map.put(filters, :type, :expense)
-  defp scope_by_role(filters, _role), do: filters
+  @spec full_invoice_visibility?(Membership.role() | nil) :: boolean()
+  defp full_invoice_visibility?(nil), do: false
+  defp full_invoice_visibility?(role), do: Authorization.can?(role, :view_all_invoice_types)
 
-  @spec maybe_scope_type_by_role(Ecto.Queryable.t(), Membership.role() | nil) :: Ecto.Query.t()
-  defp maybe_scope_type_by_role(query, :reviewer), do: where(query, [i], i.type == :expense)
-  defp maybe_scope_type_by_role(query, _role), do: query
+  @spec maybe_filter_by_access(Ecto.Queryable.t(), keyword()) :: Ecto.Query.t()
+  defp maybe_filter_by_access(query, opts) do
+    role = opts[:role]
+    user_id = opts[:user_id]
+    has_role_key = Keyword.has_key?(opts, :role)
 
-  @spec do_list_invoices(Ecto.UUID.t(), map(), pos_integer(), pos_integer()) :: [Invoice.t()]
-  defp do_list_invoices(company_id, filters, page, per_page) do
+    cond do
+      # Role with full visibility — no filtering needed
+      full_invoice_visibility?(role) ->
+        query
+
+      # Role specified with a user_id — filter by access grants
+      is_binary(user_id) ->
+        where(
+          query,
+          [i],
+          i.access_restricted == false or
+            i.id in subquery(
+              from(g in InvoiceAccessGrant, where: g.user_id == ^user_id, select: g.invoice_id)
+            )
+        )
+
+      # Internal/system calls (no role key at all) — no filtering
+      not has_role_key ->
+        query
+
+      # Any other case — deny restricted invoices as a safety net
+      true ->
+        where(query, [i], i.access_restricted == false)
+    end
+  end
+
+  @spec do_list_invoices(Ecto.UUID.t(), map(), pos_integer(), pos_integer(), keyword()) ::
+          [Invoice.t()]
+  defp do_list_invoices(company_id, filters, page, per_page, opts) do
     Invoice
     |> where([i], i.company_id == ^company_id)
     |> apply_filters(filters)
+    |> maybe_filter_by_access(opts)
     |> order_by([i], desc: i.issue_date, desc: i.inserted_at)
     |> limit(^per_page)
     |> offset(^((page - 1) * per_page))

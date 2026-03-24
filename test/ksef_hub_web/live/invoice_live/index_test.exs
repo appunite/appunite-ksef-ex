@@ -344,11 +344,22 @@ defmodule KsefHubWeb.InvoiceLive.IndexTest do
       %{conn: conn, company: company}
     end
 
-    test "reviewer sees only expense invoices", %{conn: conn, company: company} do
+    test "reviewer sees only expense invoices (income is access-restricted)", %{
+      conn: conn,
+      company: company
+    } do
       insert(:invoice,
         type: :income,
         seller_name: "Hidden Income Seller",
-        company: company
+        company: company,
+        access_restricted: true
+      )
+
+      insert(:invoice,
+        type: :income,
+        seller_name: "Visible Income Seller",
+        company: company,
+        access_restricted: false
       )
 
       insert(:invoice,
@@ -357,41 +368,37 @@ defmodule KsefHubWeb.InvoiceLive.IndexTest do
         company: company
       )
 
-      {:ok, _view, html} = live(conn, ~p"/c/#{company.id}/invoices")
+      # Verify income view filters out restricted invoices
+      {:ok, _view, html} = live(conn, ~p"/c/#{company.id}/invoices?type=income")
       refute html =~ "Hidden Income Seller"
+      assert html =~ "Visible Income Seller"
+
+      # Verify expense view still works
+      {:ok, _view, html} = live(conn, ~p"/c/#{company.id}/invoices")
       assert html =~ "Visible Expense Seller"
     end
 
-    test "reviewer cannot see income invoices via type=income URL param", %{
+    test "reviewer cannot see restricted income invoices via type=income URL param", %{
       conn: conn,
       company: company
     } do
       insert(:invoice,
         type: :income,
         seller_name: "Secret Income Seller",
-        company: company
-      )
-
-      insert(:invoice,
-        type: :expense,
-        seller_name: "Allowed Expense Seller",
-        company: company
+        company: company,
+        access_restricted: true
       )
 
       {:ok, _view, html} = live(conn, ~p"/c/#{company.id}/invoices?type=income")
       refute html =~ "Secret Income Seller"
-      assert html =~ "Allowed Expense Seller"
     end
 
-    test "reviewer sees only static Expense tab", %{conn: conn, company: company} do
+    test "reviewer sees both Expense and Income tabs", %{conn: conn, company: company} do
       insert(:invoice, type: :expense, company: company)
 
-      {:ok, view, html} = live(conn, ~p"/c/#{company.id}/invoices")
-      # No clickable tab links
-      refute html =~ ~r/>\s*Income\s*<\/a>/
-      refute html =~ ~r/>\s*Expense\s*<\/a>/
-      # Static Expense label is shown
-      assert has_element?(view, "span", "Expense")
+      {:ok, _view, html} = live(conn, ~p"/c/#{company.id}/invoices")
+      assert html =~ "Expense"
+      assert html =~ "Income"
     end
   end
 end

@@ -29,6 +29,9 @@ defmodule KsefHubWeb.Api.InvoiceController do
   plug KsefHubWeb.Plugs.RequirePermission, :set_invoice_category when action == :set_category
   plug KsefHubWeb.Plugs.RequirePermission, :set_invoice_tags when action == :set_tags
 
+  plug KsefHubWeb.Plugs.RequirePermission,
+       :manage_team when action in [:get_access, :set_access, :grant_access, :revoke_access]
+
   @create_allowed_keys ~w(type ksef_number seller_nip seller_name buyer_nip buyer_name
     invoice_number issue_date net_amount gross_amount currency purchase_order
     sales_date due_date billing_date_from billing_date_to iban)
@@ -130,7 +133,12 @@ defmodule KsefHubWeb.Api.InvoiceController do
     company_id = conn.assigns.current_company.id
     role = conn.assigns[:current_role]
     filters = build_filters(params)
-    result = Invoices.list_invoices_paginated(company_id, filters, role: role)
+
+    result =
+      Invoices.list_invoices_paginated(company_id, filters,
+        role: role,
+        user_id: conn.assigns.api_token.created_by_id
+      )
 
     json(conn, %{
       data: Enum.map(result.entries, &invoice_json/1),
@@ -290,7 +298,13 @@ defmodule KsefHubWeb.Api.InvoiceController do
   @spec update(Plug.Conn.t(), map()) :: Plug.Conn.t()
   def update(conn, %{"id" => id} = params) do
     company_id = conn.assigns.current_company.id
-    invoice = Invoices.get_invoice!(company_id, id, role: conn.assigns[:current_role])
+
+    invoice =
+      Invoices.get_invoice!(company_id, id,
+        role: conn.assigns[:current_role],
+        user_id: conn.assigns.api_token.created_by_id
+      )
+
     do_update(conn, invoice, params)
   end
 
@@ -336,7 +350,10 @@ defmodule KsefHubWeb.Api.InvoiceController do
     company_id = conn.assigns.current_company.id
 
     invoice =
-      Invoices.get_invoice_with_details!(company_id, id, role: conn.assigns[:current_role])
+      Invoices.get_invoice_with_details!(company_id, id,
+        role: conn.assigns[:current_role],
+        user_id: conn.assigns.api_token.created_by_id
+      )
 
     json(conn, %{data: invoice_json(invoice)})
   end
@@ -367,7 +384,12 @@ defmodule KsefHubWeb.Api.InvoiceController do
   @spec approve(Plug.Conn.t(), map()) :: Plug.Conn.t()
   def approve(conn, %{"id" => id}) do
     company_id = conn.assigns.current_company.id
-    invoice = Invoices.get_invoice!(company_id, id, role: conn.assigns[:current_role])
+
+    invoice =
+      Invoices.get_invoice!(company_id, id,
+        role: conn.assigns[:current_role],
+        user_id: conn.assigns.api_token.created_by_id
+      )
 
     case Invoices.approve_invoice(invoice) do
       {:ok, updated} ->
@@ -417,7 +439,12 @@ defmodule KsefHubWeb.Api.InvoiceController do
   @spec reject(Plug.Conn.t(), map()) :: Plug.Conn.t()
   def reject(conn, %{"id" => id}) do
     company_id = conn.assigns.current_company.id
-    invoice = Invoices.get_invoice!(company_id, id, role: conn.assigns[:current_role])
+
+    invoice =
+      Invoices.get_invoice!(company_id, id,
+        role: conn.assigns[:current_role],
+        user_id: conn.assigns.api_token.created_by_id
+      )
 
     case Invoices.reject_invoice(invoice) do
       {:ok, updated} ->
@@ -461,7 +488,12 @@ defmodule KsefHubWeb.Api.InvoiceController do
   @spec confirm_duplicate(Plug.Conn.t(), map()) :: Plug.Conn.t()
   def confirm_duplicate(conn, %{"id" => id}) do
     company_id = conn.assigns.current_company.id
-    invoice = Invoices.get_invoice!(company_id, id, role: conn.assigns[:current_role])
+
+    invoice =
+      Invoices.get_invoice!(company_id, id,
+        role: conn.assigns[:current_role],
+        user_id: conn.assigns.api_token.created_by_id
+      )
 
     case Invoices.confirm_duplicate(invoice) do
       {:ok, updated} ->
@@ -510,7 +542,12 @@ defmodule KsefHubWeb.Api.InvoiceController do
   @spec dismiss_duplicate(Plug.Conn.t(), map()) :: Plug.Conn.t()
   def dismiss_duplicate(conn, %{"id" => id}) do
     company_id = conn.assigns.current_company.id
-    invoice = Invoices.get_invoice!(company_id, id, role: conn.assigns[:current_role])
+
+    invoice =
+      Invoices.get_invoice!(company_id, id,
+        role: conn.assigns[:current_role],
+        user_id: conn.assigns.api_token.created_by_id
+      )
 
     case Invoices.dismiss_duplicate(invoice) do
       {:ok, updated} ->
@@ -564,7 +601,10 @@ defmodule KsefHubWeb.Api.InvoiceController do
     company_id = conn.assigns.current_company.id
 
     invoice =
-      Invoices.get_invoice_with_details!(company_id, id, role: conn.assigns[:current_role])
+      Invoices.get_invoice_with_details!(company_id, id,
+        role: conn.assigns[:current_role],
+        user_id: conn.assigns.api_token.created_by_id
+      )
 
     if is_nil(invoice.xml_file) do
       conn
@@ -621,7 +661,10 @@ defmodule KsefHubWeb.Api.InvoiceController do
     company_id = conn.assigns.current_company.id
 
     invoice =
-      Invoices.get_invoice_with_details!(company_id, id, role: conn.assigns[:current_role])
+      Invoices.get_invoice_with_details!(company_id, id,
+        role: conn.assigns[:current_role],
+        user_id: conn.assigns.api_token.created_by_id
+      )
 
     if is_nil(invoice.xml_file) do
       conn
@@ -667,7 +710,10 @@ defmodule KsefHubWeb.Api.InvoiceController do
     company_id = conn.assigns.current_company.id
 
     invoice =
-      Invoices.get_invoice_with_details!(company_id, id, role: conn.assigns[:current_role])
+      Invoices.get_invoice_with_details!(company_id, id,
+        role: conn.assigns[:current_role],
+        user_id: conn.assigns.api_token.created_by_id
+      )
 
     serve_pdf(conn, invoice)
   end
@@ -736,13 +782,14 @@ defmodule KsefHubWeb.Api.InvoiceController do
   def set_category(conn, %{"id" => id} = params) do
     company_id = conn.assigns.current_company.id
     role = conn.assigns[:current_role]
-    invoice = Invoices.get_invoice!(company_id, id, role: role)
+    user_id = conn.assigns.api_token.created_by_id
+    invoice = Invoices.get_invoice!(company_id, id, role: role, user_id: user_id)
     category_id = params["category_id"]
 
     with :ok <- validate_category_company(category_id, company_id),
          {:ok, updated} <- Invoices.set_invoice_category(invoice, category_id),
          {:ok, _} <- Invoices.mark_prediction_manual(updated) do
-      invoice = Invoices.get_invoice_with_details!(company_id, id, role: role)
+      invoice = Invoices.get_invoice_with_details!(company_id, id, role: role, user_id: user_id)
       json(conn, %{data: invoice_json(invoice)})
     else
       {:error, :invalid_uuid} ->
@@ -795,7 +842,12 @@ defmodule KsefHubWeb.Api.InvoiceController do
   @spec set_tags(Plug.Conn.t(), map()) :: Plug.Conn.t()
   def set_tags(conn, %{"id" => id} = params) do
     company_id = conn.assigns.current_company.id
-    invoice = Invoices.get_invoice!(company_id, id, role: conn.assigns[:current_role])
+
+    invoice =
+      Invoices.get_invoice!(company_id, id,
+        role: conn.assigns[:current_role],
+        user_id: conn.assigns.api_token.created_by_id
+      )
 
     with {:ok, tag_ids} <- validate_tag_ids(params["tag_ids"]),
          true <- Invoices.tags_belong_to_company?(tag_ids, company_id),
@@ -805,6 +857,280 @@ defmodule KsefHubWeb.Api.InvoiceController do
     else
       error -> render_tag_error(conn, id, error)
     end
+  end
+
+  # --- Access Control ---
+
+  operation(:get_access,
+    summary: "Get invoice access control",
+    description:
+      "Returns the access restriction status and list of access grants for an invoice. Requires manage_team permission.",
+    parameters: [
+      id: [
+        in: :path,
+        description: "Invoice UUID.",
+        schema: %Schema{type: :string, format: :uuid}
+      ]
+    ],
+    responses: %{
+      200 =>
+        {"Access control status and grants", "application/json", Schemas.AccessGrantListResponse},
+      401 =>
+        {"Unauthorized — missing or invalid API token", "application/json", Schemas.ErrorResponse},
+      403 => {"Forbidden — insufficient permissions", "application/json", Schemas.ErrorResponse},
+      404 => {"Invoice not found", "application/json", Schemas.ErrorResponse}
+    }
+  )
+
+  @doc "Returns access restriction status and grants for an invoice."
+  @spec get_access(Plug.Conn.t(), map()) :: Plug.Conn.t()
+  def get_access(conn, %{"id" => id}) do
+    company_id = conn.assigns.current_company.id
+
+    invoice =
+      Invoices.get_invoice!(company_id, id,
+        role: conn.assigns[:current_role],
+        user_id: conn.assigns.api_token.created_by_id
+      )
+
+    grants = Invoices.list_access_grants(invoice.id)
+
+    json(conn, %{
+      data: %{
+        access_restricted: invoice.access_restricted,
+        grants: Enum.map(grants, &access_grant_json/1)
+      }
+    })
+  end
+
+  operation(:set_access,
+    summary: "Set invoice access restriction",
+    description:
+      "Toggles whether the invoice is restricted to only granted reviewers. Owners, admins, and accountants always have access regardless. Requires manage_team permission.",
+    parameters: [
+      id: [
+        in: :path,
+        description: "Invoice UUID.",
+        schema: %Schema{type: :string, format: :uuid}
+      ]
+    ],
+    request_body:
+      {"Access restriction setting", "application/json",
+       %Schema{
+         type: :object,
+         properties: %{
+           access_restricted: %Schema{type: :boolean, description: "Whether to restrict access."}
+         },
+         required: [:access_restricted]
+       }},
+    responses: %{
+      200 =>
+        {"Updated access control status", "application/json", Schemas.AccessGrantListResponse},
+      401 =>
+        {"Unauthorized — missing or invalid API token", "application/json", Schemas.ErrorResponse},
+      403 => {"Forbidden — insufficient permissions", "application/json", Schemas.ErrorResponse},
+      404 => {"Invoice not found", "application/json", Schemas.ErrorResponse},
+      422 =>
+        {"Unprocessable Entity — access_restricted (boolean) is required", "application/json",
+         Schemas.ErrorResponse}
+    }
+  )
+
+  @doc "Sets the access_restricted flag on an invoice."
+  @spec set_access(Plug.Conn.t(), map()) :: Plug.Conn.t()
+  def set_access(conn, %{"id" => id, "access_restricted" => restricted})
+      when is_boolean(restricted) do
+    company_id = conn.assigns.current_company.id
+
+    invoice =
+      Invoices.get_invoice!(company_id, id,
+        role: conn.assigns[:current_role],
+        user_id: conn.assigns.api_token.created_by_id
+      )
+
+    case Invoices.set_access_restricted(invoice, restricted) do
+      {:ok, updated} ->
+        grants = Invoices.list_access_grants(updated.id)
+
+        json(conn, %{
+          data: %{
+            access_restricted: updated.access_restricted,
+            grants: Enum.map(grants, &access_grant_json/1)
+          }
+        })
+
+      {:error, :income_always_restricted} ->
+        conn
+        |> put_status(:unprocessable_entity)
+        |> json(%{error: "Income invoices cannot be unrestricted"})
+
+      {:error, _changeset} ->
+        conn
+        |> put_status(:unprocessable_entity)
+        |> json(%{error: "Failed to update access restriction"})
+    end
+  end
+
+  def set_access(conn, _params) do
+    conn
+    |> put_status(:unprocessable_entity)
+    |> json(%{error: "access_restricted (boolean) is required"})
+  end
+
+  operation(:grant_access,
+    summary: "Grant invoice access",
+    description:
+      "Grants a user access to a restricted invoice. Idempotent — duplicate grants are silently accepted. Requires manage_team permission.",
+    parameters: [
+      id: [
+        in: :path,
+        description: "Invoice UUID.",
+        schema: %Schema{type: :string, format: :uuid}
+      ]
+    ],
+    request_body:
+      {"User to grant access to", "application/json",
+       %Schema{
+         type: :object,
+         properties: %{
+           user_id: %Schema{
+             type: :string,
+             format: :uuid,
+             description: "UUID of the user to grant access to."
+           }
+         },
+         required: [:user_id]
+       }},
+    responses: %{
+      200 => {"Updated access grants list", "application/json", Schemas.AccessGrantListResponse},
+      401 =>
+        {"Unauthorized — missing or invalid API token", "application/json", Schemas.ErrorResponse},
+      403 => {"Forbidden — insufficient permissions", "application/json", Schemas.ErrorResponse},
+      404 => {"Invoice not found", "application/json", Schemas.ErrorResponse},
+      422 => {"Invalid user_id", "application/json", Schemas.ErrorResponse}
+    }
+  )
+
+  @doc "Grants a user access to a restricted invoice."
+  @spec grant_access(Plug.Conn.t(), map()) :: Plug.Conn.t()
+  def grant_access(conn, %{"id" => id, "user_id" => user_id}) when is_binary(user_id) do
+    case Ecto.UUID.cast(user_id) do
+      {:ok, _} ->
+        company_id = conn.assigns.current_company.id
+        granted_by_id = conn.assigns.api_token.created_by_id
+
+        invoice =
+          Invoices.get_invoice!(company_id, id,
+            role: conn.assigns[:current_role],
+            user_id: granted_by_id
+          )
+
+        case Invoices.grant_access(invoice.id, user_id, granted_by_id) do
+          {:ok, _grant} ->
+            grants = Invoices.list_access_grants(invoice.id)
+
+            json(conn, %{
+              data: %{
+                access_restricted: invoice.access_restricted,
+                grants: Enum.map(grants, &access_grant_json/1)
+              }
+            })
+
+          {:error, _} ->
+            conn
+            |> put_status(:unprocessable_entity)
+            |> json(%{error: "Failed to grant access"})
+        end
+
+      :error ->
+        conn
+        |> put_status(:unprocessable_entity)
+        |> json(%{error: "Invalid user_id format"})
+    end
+  end
+
+  def grant_access(conn, _params) do
+    conn
+    |> put_status(:unprocessable_entity)
+    |> json(%{error: "Invalid or missing user_id"})
+  end
+
+  operation(:revoke_access,
+    summary: "Revoke invoice access",
+    description:
+      "Revokes a user's access to a restricted invoice. Requires manage_team permission.",
+    parameters: [
+      id: [
+        in: :path,
+        description: "Invoice UUID.",
+        schema: %Schema{type: :string, format: :uuid}
+      ],
+      user_id: [
+        in: :path,
+        description: "UUID of the user whose access to revoke.",
+        schema: %Schema{type: :string, format: :uuid}
+      ]
+    ],
+    responses: %{
+      200 => {"Updated access grants list", "application/json", Schemas.AccessGrantListResponse},
+      401 =>
+        {"Unauthorized — missing or invalid API token", "application/json", Schemas.ErrorResponse},
+      403 => {"Forbidden — insufficient permissions", "application/json", Schemas.ErrorResponse},
+      404 => {"Invoice or grant not found", "application/json", Schemas.ErrorResponse},
+      422 =>
+        {"Unprocessable Entity — invalid request parameters (e.g. invalid UUID)",
+         "application/json", Schemas.ErrorResponse}
+    }
+  )
+
+  @doc "Revokes a user's access to a restricted invoice."
+  @spec revoke_access(Plug.Conn.t(), map()) :: Plug.Conn.t()
+  def revoke_access(conn, %{"id" => id, "user_id" => user_id}) do
+    case Ecto.UUID.cast(user_id) do
+      {:ok, _} ->
+        company_id = conn.assigns.current_company.id
+
+        invoice =
+          Invoices.get_invoice!(company_id, id,
+            role: conn.assigns[:current_role],
+            user_id: conn.assigns.api_token.created_by_id
+          )
+
+        case Invoices.revoke_access(invoice.id, user_id) do
+          {:ok, _} ->
+            grants = Invoices.list_access_grants(invoice.id)
+
+            json(conn, %{
+              data: %{
+                access_restricted: invoice.access_restricted,
+                grants: Enum.map(grants, &access_grant_json/1)
+              }
+            })
+
+          {:error, :not_found} ->
+            conn
+            |> put_status(:not_found)
+            |> json(%{error: "Access grant not found"})
+        end
+
+      :error ->
+        conn
+        |> put_status(:unprocessable_entity)
+        |> json(%{error: "Invalid user_id format"})
+    end
+  end
+
+  @spec access_grant_json(KsefHub.Invoices.InvoiceAccessGrant.t()) :: map()
+  defp access_grant_json(grant) do
+    %{
+      id: grant.id,
+      invoice_id: grant.invoice_id,
+      user_id: grant.user_id,
+      user_name: grant.user.name,
+      user_email: grant.user.email,
+      granted_by_id: grant.granted_by_id,
+      inserted_at: grant.inserted_at
+    }
   end
 
   # --- Private ---
@@ -1008,6 +1334,7 @@ defmodule KsefHubWeb.Api.InvoiceController do
       iban: invoice.iban,
       seller_address: invoice.seller_address,
       buyer_address: invoice.buyer_address,
+      access_restricted: invoice.access_restricted,
       inserted_at: invoice.inserted_at,
       updated_at: invoice.updated_at
     }

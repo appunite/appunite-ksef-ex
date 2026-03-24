@@ -803,11 +803,11 @@ defmodule KsefHubWeb.Api.InvoiceControllerTest do
     end
   end
 
-  describe "reviewer role scoping" do
-    test "reviewer token returns only expense invoices from index", %{conn: conn} do
+  describe "reviewer role scoping via access control" do
+    test "reviewer token returns only expense invoices (income is auto-restricted)", %{conn: conn} do
       {:ok, %{company: company, token: token}} = create_user_with_token(:reviewer)
-      insert(:invoice, company: company, type: :income, seller_name: "Income Seller")
-      insert(:invoice, company: company, type: :expense, seller_name: "Expense Seller")
+      insert(:invoice, company: company, type: :income, access_restricted: true)
+      insert(:invoice, company: company, type: :expense)
 
       conn = conn |> api_conn(token) |> get("/api/invoices")
 
@@ -817,9 +817,9 @@ defmodule KsefHubWeb.Api.InvoiceControllerTest do
       assert body["meta"]["total_count"] == 1
     end
 
-    test "reviewer token returns 404 for income invoice show", %{conn: conn} do
+    test "reviewer token returns 404 for restricted income invoice show", %{conn: conn} do
       {:ok, %{company: company, token: token}} = create_user_with_token(:reviewer)
-      income = insert(:invoice, company: company, type: :income)
+      income = insert(:invoice, company: company, type: :income, access_restricted: true)
 
       assert_error_sent 404, fn ->
         conn |> api_conn(token) |> get("/api/invoices/#{income.id}")
@@ -836,27 +836,27 @@ defmodule KsefHubWeb.Api.InvoiceControllerTest do
       assert Jason.decode!(conn.resp_body)["data"]["id"] == expense.id
     end
 
-    test "reviewer token returns 404 for income invoice approve", %{conn: conn} do
+    test "reviewer token returns 404 for restricted income invoice approve", %{conn: conn} do
       {:ok, %{company: company, token: token}} = create_user_with_token(:reviewer)
-      income = insert(:invoice, company: company, type: :income)
+      income = insert(:invoice, company: company, type: :income, access_restricted: true)
 
       assert_error_sent 404, fn ->
         conn |> api_conn(token) |> post("/api/invoices/#{income.id}/approve")
       end
     end
 
-    test "reviewer token returns 404 for income invoice reject", %{conn: conn} do
+    test "reviewer token returns 404 for restricted income invoice reject", %{conn: conn} do
       {:ok, %{company: company, token: token}} = create_user_with_token(:reviewer)
-      income = insert(:invoice, company: company, type: :income)
+      income = insert(:invoice, company: company, type: :income, access_restricted: true)
 
       assert_error_sent 404, fn ->
         conn |> api_conn(token) |> post("/api/invoices/#{income.id}/reject")
       end
     end
 
-    test "reviewer token returns 404 for income invoice xml", %{conn: conn} do
+    test "reviewer token returns 404 for restricted income invoice xml", %{conn: conn} do
       {:ok, %{company: company, token: token}} = create_user_with_token(:reviewer)
-      income = insert(:invoice, company: company, type: :income)
+      income = insert(:invoice, company: company, type: :income, access_restricted: true)
 
       assert_error_sent 404, fn ->
         conn |> api_conn(token) |> get("/api/invoices/#{income.id}/xml")
@@ -1459,6 +1459,165 @@ defmodule KsefHubWeb.Api.InvoiceControllerTest do
       data = Jason.decode!(conn.resp_body)["data"]
       assert data["billing_date_from"] == "2026-05-01"
       assert data["billing_date_to"] == "2026-07-01"
+    end
+  end
+
+  describe "access control API" do
+    test "get_access returns access status and grants", %{conn: conn} do
+      %{company: company, token: token} = create_user_with_token(:owner)
+      invoice = insert(:invoice, company: company, access_restricted: false)
+
+      conn = conn |> api_conn(token) |> get("/api/invoices/#{invoice.id}/access")
+
+      assert conn.status == 200
+      data = Jason.decode!(conn.resp_body)["data"]
+      assert data["access_restricted"] == false
+      assert data["grants"] == []
+    end
+
+    test "set_access toggles restriction", %{conn: conn} do
+      %{company: company, token: token} = create_user_with_token(:owner)
+      invoice = insert(:invoice, company: company)
+
+      conn =
+        conn
+        |> api_conn(token)
+        |> put("/api/invoices/#{invoice.id}/access", %{access_restricted: true})
+
+      assert conn.status == 200
+      data = Jason.decode!(conn.resp_body)["data"]
+      assert data["access_restricted"] == true
+    end
+
+    test "grant_access and revoke_access work", %{conn: conn} do
+      %{company: company, token: token} = create_user_with_token(:owner)
+      invoice = insert(:invoice, company: company, access_restricted: true)
+      reviewer = insert(:user)
+      insert(:membership, user: reviewer, company: company, role: :reviewer)
+
+      # Grant
+      conn1 =
+        conn
+        |> api_conn(token)
+        |> post("/api/invoices/#{invoice.id}/access/grants", %{user_id: reviewer.id})
+
+      assert conn1.status == 200
+      data = Jason.decode!(conn1.resp_body)["data"]
+      assert length(data["grants"]) == 1
+      assert hd(data["grants"])["user_id"] == reviewer.id
+
+      # Revoke
+      conn2 =
+        conn
+        |> api_conn(token)
+        |> delete("/api/invoices/#{invoice.id}/access/grants/#{reviewer.id}")
+
+      assert conn2.status == 200
+      data = Jason.decode!(conn2.resp_body)["data"]
+      assert data["grants"] == []
+    end
+
+    test "grant_access and revoke_access reject malformed user_id", %{conn: conn} do
+      %{company: company, token: token} = create_user_with_token(:owner)
+      invoice = insert(:invoice, company: company, access_restricted: true)
+
+      conn1 =
+        conn
+        |> api_conn(token)
+        |> post("/api/invoices/#{invoice.id}/access/grants", %{user_id: "not-a-uuid"})
+
+      assert conn1.status == 422
+
+      conn2 =
+        conn
+        |> api_conn(token)
+        |> delete("/api/invoices/#{invoice.id}/access/grants/not-a-uuid")
+
+      assert conn2.status == 422
+    end
+
+    test "cannot unrestrict income invoice", %{conn: conn} do
+      %{company: company, token: token} = create_user_with_token(:owner)
+      invoice = insert(:invoice, company: company, type: :income, access_restricted: true)
+
+      conn =
+        conn
+        |> api_conn(token)
+        |> put("/api/invoices/#{invoice.id}/access", %{access_restricted: false})
+
+      assert conn.status == 422
+      body = Jason.decode!(conn.resp_body)
+      assert body["error"] =~ "Income invoices"
+    end
+
+    test "reviewer cannot access access control endpoints", %{conn: conn} do
+      {:ok, %{company: company, token: token}} = create_user_with_token(:reviewer)
+      invoice = insert(:invoice, company: company, type: :expense)
+
+      conn = conn |> api_conn(token) |> get("/api/invoices/#{invoice.id}/access")
+      assert conn.status == 403
+    end
+
+    test "reviewer cannot see restricted invoice via API", %{conn: conn} do
+      {:ok, %{token: token, company: company}} = create_user_with_token(:reviewer)
+      insert(:invoice, company: company, type: :expense, access_restricted: true)
+
+      conn = conn |> api_conn(token) |> get("/api/invoices")
+
+      assert conn.status == 200
+      body = Jason.decode!(conn.resp_body)
+      assert body["data"] == []
+      assert body["meta"]["total_count"] == 0
+    end
+
+    test "reviewer with explicit grant can view restricted invoice", %{conn: conn} do
+      %{company: company, token: owner_token} = create_user_with_token(:owner)
+
+      # Create reviewer in the same company with their own API token
+      reviewer = insert(:user, google_uid: "uid-#{System.unique_integer([:positive])}")
+      reviewer_membership = insert(:membership, user: reviewer, company: company, role: :owner)
+
+      {:ok, reviewer_token_result} =
+        KsefHub.Accounts.create_api_token(reviewer.id, company.id, %{name: "Reviewer Token"})
+
+      reviewer_membership
+      |> Ecto.Changeset.change(role: :reviewer)
+      |> KsefHub.Repo.update!()
+
+      reviewer_token = reviewer_token_result.token
+
+      invoice = insert(:invoice, company: company, type: :expense, access_restricted: true)
+
+      # Grant access to reviewer (as owner)
+      grant_conn =
+        conn
+        |> api_conn(owner_token)
+        |> post("/api/invoices/#{invoice.id}/access/grants", %{user_id: reviewer.id})
+
+      assert grant_conn.status == 200
+
+      # Reviewer can now see the restricted invoice via show
+      show_conn = conn |> api_conn(reviewer_token) |> get("/api/invoices/#{invoice.id}")
+      assert show_conn.status == 200
+      assert Jason.decode!(show_conn.resp_body)["data"]["id"] == invoice.id
+
+      # Reviewer can also see it in the list
+      list_conn = conn |> api_conn(reviewer_token) |> get("/api/invoices")
+      assert list_conn.status == 200
+      body = Jason.decode!(list_conn.resp_body)
+      assert body["meta"]["total_count"] > 0
+      assert Enum.any?(body["data"], &(&1["id"] == invoice.id))
+    end
+
+    test "index returns access_restricted field", %{conn: conn} do
+      %{company: company, token: token} = create_user_with_token(:owner)
+      insert(:invoice, company: company, access_restricted: true)
+
+      conn = conn |> api_conn(token) |> get("/api/invoices")
+
+      assert conn.status == 200
+      data = Jason.decode!(conn.resp_body)["data"]
+      assert hd(data)["access_restricted"] == true
     end
   end
 end

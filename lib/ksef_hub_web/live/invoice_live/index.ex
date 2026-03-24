@@ -35,7 +35,6 @@ defmodule KsefHubWeb.InvoiceLive.Index do
       params
       |> parse_filters()
       |> Map.put_new(:type, :expense)
-      |> sanitize_type(role)
 
     company_id =
       case socket.assigns[:current_company] do
@@ -52,7 +51,10 @@ defmodule KsefHubWeb.InvoiceLive.Index do
 
     result =
       if company_id do
-        Invoices.list_invoices_paginated(company_id, filters, role: role)
+        Invoices.list_invoices_paginated(company_id, filters,
+          role: role,
+          user_id: socket.assigns[:current_user] && socket.assigns.current_user.id
+        )
       else
         %{entries: [], page: 1, per_page: 25, total_count: 0, total_pages: 1}
       end
@@ -65,12 +67,11 @@ defmodule KsefHubWeb.InvoiceLive.Index do
 
   @spec filter_assigns(map(), map(), atom() | nil, map()) :: keyword()
   defp filter_assigns(filters, result, role, assigns) do
-    normalized = normalize_filters(filters, role)
-    form = build_filters_form(normalized)
+    form = build_filters_form(filters)
 
     active_filters =
       build_active_filters(
-        normalized,
+        filters,
         Map.get(assigns, :categories, []),
         Map.get(assigns, :all_tags, [])
       )
@@ -87,29 +88,10 @@ defmodule KsefHubWeb.InvoiceLive.Index do
       per_page: result.per_page,
       total_count: result.total_count,
       total_pages: result.total_pages,
-      can_view_all_types: Authorization.can?(role, :view_all_invoice_types),
       can_create: Authorization.can?(role, :create_invoice),
       active_filters: active_filters,
       filter_count: length(active_filters)
     ]
-  end
-
-  @spec sanitize_type(map(), atom() | nil) :: map()
-  defp sanitize_type(filters, role) do
-    if Authorization.can?(role, :view_all_invoice_types) do
-      filters
-    else
-      Map.put(filters, :type, :expense)
-    end
-  end
-
-  @spec normalize_filters(map(), atom() | nil) :: map()
-  defp normalize_filters(filters, role) do
-    if filters[:type] && !Authorization.can?(role, :view_all_invoice_types) do
-      Map.delete(filters, :type)
-    else
-      filters
-    end
   end
 
   @spec build_filters_form(map()) :: Phoenix.HTML.Form.t()
@@ -320,7 +302,6 @@ defmodule KsefHubWeb.InvoiceLive.Index do
     <!-- Type Tabs -->
     <div class="flex border-b border-border mb-4">
       <.link
-        :if={@can_view_all_types}
         patch={tab_url(@current_company.id, @filters, :expense)}
         class={tab_class(@filters[:type] == :expense)}
         aria-current={if @filters[:type] == :expense, do: "page"}
@@ -328,16 +309,12 @@ defmodule KsefHubWeb.InvoiceLive.Index do
         Expense
       </.link>
       <.link
-        :if={@can_view_all_types}
         patch={tab_url(@current_company.id, @filters, :income)}
         class={tab_class(@filters[:type] == :income)}
         aria-current={if @filters[:type] == :income, do: "page"}
       >
         Income
       </.link>
-      <span :if={!@can_view_all_types} class={tab_class(true)} aria-current="page">
-        Expense
-      </span>
     </div>
 
     <.form for={@form} phx-change="filter" class="contents">
