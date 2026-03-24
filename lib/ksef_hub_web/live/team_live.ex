@@ -107,7 +107,7 @@ defmodule KsefHubWeb.TeamLive do
     end
   end
 
-  defdelegate role_label(role), to: Membership
+  defp role_label(role), do: Membership.role_label(role)
 
   @spec format_changeset_errors(Ecto.Changeset.t()) :: String.t()
   defp format_changeset_errors(changeset) do

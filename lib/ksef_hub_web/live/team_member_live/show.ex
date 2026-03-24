@@ -77,7 +77,6 @@ defmodule KsefHubWeb.TeamMemberLive.Show do
   @impl true
   def handle_event("save_member", %{"user" => params}, socket) do
     membership = socket.assigns.membership
-    user = membership.user
 
     with :ok <- validate_role_change(membership, params["role"], socket),
          {:ok, role_atom} <- resolve_role(params["role"]),

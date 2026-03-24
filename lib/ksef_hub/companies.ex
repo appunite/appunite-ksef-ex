@@ -233,6 +233,7 @@ defmodule KsefHub.Companies do
           {:ok, %{user: User.t(), membership: Membership.t()}}
           | {:error, atom(), Ecto.Changeset.t(), map()}
   def update_member(%Membership{} = membership, name, role) do
+    membership = Repo.preload(membership, :user)
     user = membership.user
 
     multi =
@@ -248,7 +249,7 @@ defmodule KsefHub.Companies do
 
     case Repo.transaction(multi) do
       {:ok, %{user: updated_user, membership: updated_membership}} ->
-        {:ok, %{user: updated_user, membership: updated_membership}}
+        {:ok, %{user: updated_user, membership: %{updated_membership | user: updated_user}}}
 
       {:error, :user, changeset, _} ->
         {:error, :user, changeset, %{}}

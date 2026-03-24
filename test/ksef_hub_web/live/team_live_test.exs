@@ -95,6 +95,13 @@ defmodule KsefHubWeb.TeamLiveTest do
 
       {:ok, view, _html} = live(conn, ~p"/c/#{company.id}/team")
       assert has_element?(view, "[data-testid='invitation-row-#{invitation.id}']")
+      assert has_element?(view, "[data-testid='invitation-link-#{invitation.id}']")
+
+      view
+      |> element("[data-testid='invitation-link-#{invitation.id}']")
+      |> render_click()
+
+      assert_redirect(view, ~p"/c/#{company.id}/team/invitations/#{invitation.id}")
     end
   end
 
