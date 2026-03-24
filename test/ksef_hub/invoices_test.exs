@@ -2946,29 +2946,44 @@ defmodule KsefHub.InvoicesTest do
     test "grant_access creates a grant record", %{company: company} do
       invoice = insert(:invoice, company: company, type: :expense)
       user = insert(:user)
+      insert(:membership, user: user, company: company, role: :reviewer)
       granter = insert(:user)
 
       assert {:ok, grant} = Invoices.grant_access(invoice.id, user.id, granter.id)
       assert grant.invoice_id == invoice.id
     end
 
-    test "grant_access is idempotent", %{company: company} do
+    test "grant_access is idempotent", %{company: company, reviewer: reviewer} do
       invoice = insert(:invoice, company: company, type: :expense)
-      user = insert(:user)
 
-      assert {:ok, _} = Invoices.grant_access(invoice.id, user.id)
-      assert {:ok, _} = Invoices.grant_access(invoice.id, user.id)
+      assert {:ok, _} = Invoices.grant_access(invoice.id, reviewer.id)
+      assert {:ok, _} = Invoices.grant_access(invoice.id, reviewer.id)
 
       grants = Invoices.list_access_grants(invoice.id)
       assert length(grants) == 1
     end
 
-    test "revoke_access removes a grant", %{company: company} do
+    test "grant_access rejects non-member user", %{company: company} do
       invoice = insert(:invoice, company: company, type: :expense)
-      user = insert(:user)
+      outsider = insert(:user)
 
-      {:ok, _} = Invoices.grant_access(invoice.id, user.id)
-      assert {:ok, _} = Invoices.revoke_access(invoice.id, user.id)
+      assert {:error, changeset} = Invoices.grant_access(invoice.id, outsider.id)
+      assert changeset.errors[:user_id]
+    end
+
+    test "grant_access rejects user with full visibility role", %{company: company, admin: admin} do
+      invoice = insert(:invoice, company: company, type: :expense)
+
+      assert {:error, changeset} = Invoices.grant_access(invoice.id, admin.id)
+      assert {msg, _} = changeset.errors[:user_id]
+      assert msg =~ "full access"
+    end
+
+    test "revoke_access removes a grant", %{company: company, reviewer: reviewer} do
+      invoice = insert(:invoice, company: company, type: :expense)
+
+      {:ok, _} = Invoices.grant_access(invoice.id, reviewer.id)
+      assert {:ok, _} = Invoices.revoke_access(invoice.id, reviewer.id)
 
       assert Invoices.list_access_grants(invoice.id) == []
     end
@@ -2980,15 +2995,17 @@ defmodule KsefHub.InvoicesTest do
       assert {:error, :not_found} = Invoices.revoke_access(invoice.id, user.id)
     end
 
-    test "list_access_grants returns grants with preloaded user", %{company: company} do
+    test "list_access_grants returns grants with preloaded user", %{
+      company: company,
+      reviewer: reviewer
+    } do
       invoice = insert(:invoice, company: company, type: :expense)
-      user = insert(:user)
 
-      {:ok, _} = Invoices.grant_access(invoice.id, user.id)
+      {:ok, _} = Invoices.grant_access(invoice.id, reviewer.id)
       grants = Invoices.list_access_grants(invoice.id)
 
       assert [grant] = grants
-      assert grant.user.id == user.id
+      assert grant.user.id == reviewer.id
     end
 
     test "set_access_restricted toggles the flag", %{company: company} do
@@ -3233,11 +3250,10 @@ defmodule KsefHub.InvoicesTest do
       assert hd(result).type == :expense
     end
 
-    test "grants are cleaned up when invoice is deleted", %{company: company} do
+    test "grants are cleaned up when invoice is deleted", %{company: company, reviewer: reviewer} do
       invoice = insert(:invoice, company: company, type: :expense)
-      user = insert(:user)
 
-      {:ok, _} = Invoices.grant_access(invoice.id, user.id)
+      {:ok, _} = Invoices.grant_access(invoice.id, reviewer.id)
       assert length(Invoices.list_access_grants(invoice.id)) == 1
 
       KsefHub.Repo.delete!(invoice)

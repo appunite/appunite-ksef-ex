@@ -1728,17 +1728,59 @@ defmodule KsefHub.Invoices do
     |> Repo.all()
   end
 
-  @doc "Grants a user access to a restricted invoice. Idempotent — duplicate grants are silently ignored."
+  @doc """
+  Grants a user access to a restricted invoice. Idempotent — duplicate grants are silently ignored.
+
+  Validates that the target user is a member of the same company as the invoice
+  and does not have full invoice visibility (i.e. is a reviewer, not admin/owner/accountant).
+  """
   @spec grant_access(Ecto.UUID.t(), Ecto.UUID.t(), Ecto.UUID.t() | nil) ::
           {:ok, InvoiceAccessGrant.t()} | {:error, Ecto.Changeset.t()}
   def grant_access(invoice_id, user_id, granted_by_id \\ nil) do
+    with {:ok, company_id} <- fetch_invoice_company_id(invoice_id),
+         {:ok, _membership} <- validate_grantable_member(company_id, user_id) do
+      %InvoiceAccessGrant{}
+      |> Ecto.Changeset.change(%{
+        invoice_id: invoice_id,
+        user_id: user_id,
+        granted_by_id: granted_by_id
+      })
+      |> Ecto.Changeset.unique_constraint([:invoice_id, :user_id])
+      |> Ecto.Changeset.foreign_key_constraint(:invoice_id)
+      |> Ecto.Changeset.foreign_key_constraint(:user_id)
+      |> Ecto.Changeset.foreign_key_constraint(:granted_by_id)
+      |> Repo.insert(on_conflict: :nothing, conflict_target: [:invoice_id, :user_id])
+    end
+  end
+
+  @spec fetch_invoice_company_id(Ecto.UUID.t()) ::
+          {:ok, Ecto.UUID.t()} | {:error, Ecto.Changeset.t()}
+  defp fetch_invoice_company_id(invoice_id) do
+    case Repo.get(Invoice, invoice_id) do
+      %Invoice{company_id: cid} -> {:ok, cid}
+      nil -> {:error, grant_error(:invoice_id, "invoice not found")}
+    end
+  end
+
+  @spec validate_grantable_member(Ecto.UUID.t(), Ecto.UUID.t()) ::
+          {:ok, Membership.t()} | {:error, Ecto.Changeset.t()}
+  defp validate_grantable_member(company_id, user_id) do
+    case Companies.get_membership(user_id, company_id) do
+      %Membership{role: role} = m ->
+        if full_invoice_visibility?(role),
+          do: {:error, grant_error(:user_id, "user already has full access via their role")},
+          else: {:ok, m}
+
+      nil ->
+        {:error, grant_error(:user_id, "user is not a member of this company")}
+    end
+  end
+
+  @spec grant_error(atom(), String.t()) :: Ecto.Changeset.t()
+  defp grant_error(field, message) do
     %InvoiceAccessGrant{}
-    |> Ecto.Changeset.change(%{
-      invoice_id: invoice_id,
-      user_id: user_id,
-      granted_by_id: granted_by_id
-    })
-    |> Repo.insert(on_conflict: :nothing, conflict_target: [:invoice_id, :user_id])
+    |> Ecto.Changeset.change()
+    |> Ecto.Changeset.add_error(field, message)
   end
 
   @doc "Revokes a user's access to a restricted invoice."
@@ -1837,7 +1879,11 @@ defmodule KsefHub.Invoices do
     end
   end
 
-  defp maybe_filter_by_access(query, _role, _user_id), do: query
+  # No role specified (internal/system calls) — no filtering
+  defp maybe_filter_by_access(query, nil, _user_id), do: query
+  # Role specified but user_id missing — deny restricted invoices as a safety net
+  defp maybe_filter_by_access(query, _role, _user_id),
+    do: where(query, [i], i.access_restricted == false)
 
   @spec do_list_invoices(Ecto.UUID.t(), map(), pos_integer(), pos_integer(), keyword()) ::
           [Invoice.t()]

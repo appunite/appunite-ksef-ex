@@ -1517,6 +1517,25 @@ defmodule KsefHubWeb.Api.InvoiceControllerTest do
       assert data["grants"] == []
     end
 
+    test "grant_access and revoke_access reject malformed user_id", %{conn: conn} do
+      %{company: company, token: token} = create_user_with_token(:owner)
+      invoice = insert(:invoice, company: company, access_restricted: true)
+
+      conn1 =
+        conn
+        |> api_conn(token)
+        |> post("/api/invoices/#{invoice.id}/access/grants", %{user_id: "not-a-uuid"})
+
+      assert conn1.status == 422
+
+      conn2 =
+        conn
+        |> api_conn(token)
+        |> delete("/api/invoices/#{invoice.id}/access/grants/not-a-uuid")
+
+      assert conn2.status == 422
+    end
+
     test "reviewer cannot access access control endpoints", %{conn: conn} do
       {:ok, %{company: company, token: token}} = create_user_with_token(:reviewer)
       invoice = insert(:invoice, company: company, type: :expense)

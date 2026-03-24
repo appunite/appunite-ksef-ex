@@ -86,8 +86,10 @@ defmodule KsefHubWeb.InvoiceLive.Show do
            can_manage_payment_requests: can_manage_payment_requests,
            can_view_payment_requests: can_view_payment_requests,
            can_manage_access: can_manage_access,
-           access_grants: Invoices.list_access_grants(invoice.id),
-           company_reviewers: list_company_reviewers(company.id),
+           access_grants:
+             if(can_manage_access, do: Invoices.list_access_grants(invoice.id), else: []),
+           company_reviewers:
+             if(can_manage_access, do: list_company_reviewers(company.id), else: []),
            payment_status: payment_status,
            invoice_payment_requests: invoice_payment_requests,
            html_preview: generate_preview(invoice),
@@ -1442,7 +1444,7 @@ defmodule KsefHubWeb.InvoiceLive.Show do
             <button
               phx-click="revoke_access"
               phx-value-user_id={grant.user_id}
-              class="opacity-0 group-hover:opacity-100 text-muted-foreground hover:text-shad-destructive transition-opacity"
+              class="opacity-0 group-hover:opacity-100 focus:opacity-100 focus-visible:opacity-100 text-muted-foreground hover:text-shad-destructive transition-opacity"
               aria-label={"Remove #{grant.user.name || grant.user.email}"}
             >
               <.icon name="hero-x-mark" class="size-4" />
