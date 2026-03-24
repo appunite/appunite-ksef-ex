@@ -320,7 +320,7 @@ defmodule KsefHubWeb.PaymentRequestLiveTest do
       assert updated.status == :voided
     end
 
-    test "shows voided banner for voided payment request", %{
+    test "shows voided payment request as read-only", %{
       conn: conn,
       company: company,
       owner: owner
@@ -334,7 +334,51 @@ defmodule KsefHubWeb.PaymentRequestLiveTest do
 
       {:ok, view, _html} = live(conn, ~p"/c/#{company.id}/payment-requests/#{pr.id}/edit")
       assert has_element?(view, "[data-testid='voided-banner']")
+      refute has_element?(view, "button", "Save changes")
       refute has_element?(view, "button", "Void")
+      assert render(view) =~ "Back"
+    end
+
+    test "shows paid payment request as read-only", %{
+      conn: conn,
+      company: company,
+      owner: owner
+    } do
+      pr =
+        insert(:payment_request,
+          company: company,
+          created_by: owner,
+          status: :paid
+        )
+
+      {:ok, view, _html} = live(conn, ~p"/c/#{company.id}/payment-requests/#{pr.id}/edit")
+      assert has_element?(view, "[data-testid='paid-banner']")
+      assert has_element?(view, "h1", "Payment Request")
+      refute has_element?(view, "button", "Save changes")
+      assert render(view) =~ "Back"
+    end
+
+    test "server-side rejects save on paid payment request", %{
+      conn: conn,
+      company: company,
+      owner: owner
+    } do
+      pr =
+        insert(:payment_request,
+          company: company,
+          created_by: owner,
+          status: :paid
+        )
+
+      {:ok, view, _html} = live(conn, ~p"/c/#{company.id}/payment-requests/#{pr.id}/edit")
+
+      render_submit(view, "save", %{
+        "payment_request" => %{"title" => "Hacked Title"}
+      })
+
+      {path, flash} = assert_redirect(view)
+      assert path == "/c/#{company.id}/payment-requests"
+      assert flash["error"] =~ "Only pending"
     end
 
     test "handles invalid invoice_id gracefully", %{conn: conn, company: company} do

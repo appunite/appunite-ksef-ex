@@ -376,4 +376,26 @@ defmodule KsefHub.PaymentRequestsTest do
       refute Map.has_key?(result, inv.id)
     end
   end
+
+  describe "update_payment_request/3" do
+    test "updates a pending payment request", %{company: company, user: user} do
+      pr = insert(:payment_request, company: company, created_by: user, status: :pending)
+      assert {:ok, updated} = PaymentRequests.update_payment_request(pr, user.id, %{title: "New"})
+      assert updated.title == "New"
+    end
+
+    test "rejects update of paid payment request", %{company: company, user: user} do
+      pr = insert(:payment_request, company: company, created_by: user, status: :paid)
+
+      assert {:error, :not_editable} =
+               PaymentRequests.update_payment_request(pr, user.id, %{title: "New"})
+    end
+
+    test "rejects update of voided payment request", %{company: company, user: user} do
+      pr = insert(:payment_request, company: company, created_by: user, status: :voided)
+
+      assert {:error, :not_editable} =
+               PaymentRequests.update_payment_request(pr, user.id, %{title: "New"})
+    end
+  end
 end

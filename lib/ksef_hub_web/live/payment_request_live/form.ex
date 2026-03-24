@@ -45,7 +45,8 @@ defmodule KsefHubWeb.PaymentRequestLive.Form do
     |> assign(
       page_title: "New Payment Request",
       payment_request: %PaymentRequest{},
-      invoice: invoice
+      invoice: invoice,
+      readonly: false
     )
     |> assign(form: to_form(changeset, as: :payment_request))
   end
@@ -62,12 +63,14 @@ defmodule KsefHubWeb.PaymentRequestLive.Form do
       pr ->
         pr = KsefHub.Repo.preload(pr, [:invoice, :created_by, :updated_by])
         changeset = PaymentRequest.changeset(pr, %{})
+        readonly = pr.status != :pending
 
         socket
         |> assign(
-          page_title: "Edit Payment Request",
+          page_title: if(readonly, do: "Payment Request", else: "Edit Payment Request"),
           payment_request: pr,
-          invoice: pr.invoice
+          invoice: pr.invoice,
+          readonly: readonly
         )
         |> assign(form: to_form(changeset, as: :payment_request))
     end
@@ -153,6 +156,12 @@ defmodule KsefHubWeb.PaymentRequestLive.Form do
         {:noreply,
          socket
          |> put_flash(:info, "Payment request updated successfully.")
+         |> push_navigate(to: ~p"/c/#{company_id}/payment-requests")}
+
+      {:error, :not_editable} ->
+        {:noreply,
+         socket
+         |> put_flash(:error, "Only pending payment requests can be edited.")
          |> push_navigate(to: ~p"/c/#{company_id}/payment-requests")}
 
       {:error, %Ecto.Changeset{} = changeset} ->
@@ -263,13 +272,20 @@ defmodule KsefHubWeb.PaymentRequestLive.Form do
       </span>
     </div>
 
-    <!-- Voided banner -->
+    <!-- Status banners -->
     <div
       :if={editing?(@live_action) && @payment_request.status == :voided}
       class="mt-4 p-4 rounded-md border border-error bg-error/10 text-error text-sm font-medium"
       data-testid="voided-banner"
     >
       This payment request has been voided.
+    </div>
+    <div
+      :if={editing?(@live_action) && @payment_request.status == :paid}
+      class="mt-4 p-4 rounded-md border border-success bg-success/10 text-success text-sm font-medium"
+      data-testid="paid-banner"
+    >
+      This payment request has been paid.
     </div>
 
     <!-- Linked invoice info -->
@@ -334,13 +350,14 @@ defmodule KsefHubWeb.PaymentRequestLive.Form do
           value={@form[:recipient_name].value}
           class="w-full h-9 rounded-md border border-input bg-background px-3 text-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
           required
+          disabled={@readonly}
         />
         <.error :for={msg <- Enum.map(@form[:recipient_name].errors, &translate_error/1)}>
           {msg}
         </.error>
       </div>
 
-      <fieldset class="space-y-3">
+      <fieldset class="space-y-3" disabled={@readonly}>
         <legend class="text-sm font-medium">Recipient address</legend>
         <div class="grid grid-cols-2 gap-3">
           <div class="col-span-2 space-y-1">
@@ -406,6 +423,7 @@ defmodule KsefHubWeb.PaymentRequestLive.Form do
             name={@form[:currency].name}
             class="w-full h-9 rounded-md border border-input bg-background px-2 text-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
             required
+            disabled={@readonly}
           >
             <option
               :for={code <- @currencies}
@@ -430,6 +448,7 @@ defmodule KsefHubWeb.PaymentRequestLive.Form do
           value={@form[:title].value}
           class="w-full h-9 rounded-md border border-input bg-background px-3 text-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
           required
+          disabled={@readonly}
         />
         <.error :for={msg <- Enum.map(@form[:title].errors, &translate_error/1)}>
           {msg}
@@ -461,13 +480,15 @@ defmodule KsefHubWeb.PaymentRequestLive.Form do
           rows="3"
           class="w-full rounded-md border border-input bg-background px-3 py-2 text-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
           placeholder="Internal note..."
+          disabled={@readonly}
         >{@form[:note].value}</textarea>
       </div>
 
       <div class="flex items-center gap-3 pt-2">
         <.button
+          :if={!@readonly}
           type="submit"
-          disabled={!@can_manage || (editing?(@live_action) && @payment_request.status == :voided)}
+          disabled={!@can_manage}
         >
           <.icon name="hero-check" class="size-4" />
           {if editing?(@live_action), do: "Save changes", else: "Create payment request"}
@@ -485,7 +506,7 @@ defmodule KsefHubWeb.PaymentRequestLive.Form do
           variant="outline"
           navigate={~p"/c/#{@current_company.id}/payment-requests"}
         >
-          Cancel
+          {if @readonly, do: "Back", else: "Cancel"}
         </.button>
       </div>
     </.form>

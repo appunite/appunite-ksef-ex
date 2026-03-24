@@ -106,14 +106,21 @@ defmodule KsefHub.PaymentRequests do
     |> Repo.insert()
   end
 
-  @doc "Updates an existing payment request."
+  @doc """
+  Updates an existing payment request.
+
+  Only pending requests can be edited. Returns `{:error, :not_editable}` for
+  paid or voided requests.
+  """
   @spec update_payment_request(PaymentRequest.t(), Ecto.UUID.t(), map()) ::
-          {:ok, PaymentRequest.t()} | {:error, Ecto.Changeset.t()}
-  def update_payment_request(%PaymentRequest{} = pr, user_id, attrs) do
+          {:ok, PaymentRequest.t()} | {:error, :not_editable} | {:error, Ecto.Changeset.t()}
+  def update_payment_request(%PaymentRequest{status: :pending} = pr, user_id, attrs) do
     pr
     |> PaymentRequest.changeset(Map.put(attrs, :updated_by_id, user_id))
     |> Repo.update()
   end
+
+  def update_payment_request(%PaymentRequest{}, _user_id, _attrs), do: {:error, :not_editable}
 
   # --- Pre-fill from invoice ---
 
