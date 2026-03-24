@@ -223,6 +223,9 @@ defmodule KsefHubWeb.TeamLive do
   defp assignable_roles(:admin), do: [:admin, :accountant, :reviewer]
   defp assignable_roles(_), do: []
 
+  @spec role_label(atom()) :: String.t()
+  defp role_label(role), do: role |> Atom.to_string() |> String.capitalize()
+
   @spec format_changeset_errors(Ecto.Changeset.t()) :: String.t()
   defp format_changeset_errors(changeset) do
     Ecto.Changeset.traverse_errors(changeset, fn {msg, opts} ->
@@ -297,12 +300,6 @@ defmodule KsefHubWeb.TeamLive do
                   Role
                 </th>
                 <th class="text-left py-3 px-4 text-xs font-medium text-muted-foreground uppercase tracking-wide">
-                  Status
-                </th>
-                <th class="text-left py-3 px-4 text-xs font-medium text-muted-foreground uppercase tracking-wide">
-                  Expires
-                </th>
-                <th class="text-left py-3 px-4 text-xs font-medium text-muted-foreground uppercase tracking-wide">
                   Action
                 </th>
               </tr>
@@ -316,7 +313,13 @@ defmodule KsefHubWeb.TeamLive do
                 <td class="py-3.5 px-4">{member.user.email}</td>
                 <td class="py-3.5 px-4">{member.user.name || "-"}</td>
                 <td class="py-3.5 px-4">
-                  <.badge :if={member.role == :owner} variant="default">{member.role}</.badge>
+                  <select
+                    :if={member.role == :owner}
+                    disabled
+                    class="text-sm py-1 px-2 rounded-md border border-border bg-background opacity-60"
+                  >
+                    <option>{role_label(member.role)}</option>
+                  </select>
                   <form
                     :if={member.role != :owner && @assignable_roles != []}
                     phx-change="change_role"
@@ -325,7 +328,7 @@ defmodule KsefHubWeb.TeamLive do
                   >
                     <select
                       name="role"
-                      class="select select-sm select-bordered"
+                      class="text-sm py-1 px-2 rounded-md border border-border bg-background"
                       data-testid={"role-select-#{member.user.id}"}
                     >
                       <option
@@ -333,19 +336,18 @@ defmodule KsefHubWeb.TeamLive do
                         value={role}
                         selected={role == member.role}
                       >
-                        {role |> Atom.to_string() |> String.capitalize()}
+                        {role_label(role)}
                       </option>
                     </select>
                   </form>
-                  <.badge
+                  <select
                     :if={member.role != :owner && @assignable_roles == []}
-                    variant="default"
+                    disabled
+                    class="text-sm py-1 px-2 rounded-md border border-border bg-background opacity-60"
                   >
-                    {member.role}
-                  </.badge>
+                    <option>{role_label(member.role)}</option>
+                  </select>
                 </td>
-                <td class="py-3.5 px-4"></td>
-                <td class="py-3.5 px-4">-</td>
                 <td class="py-3.5 px-4">
                   <.button
                     :if={member.role != :owner}
@@ -368,15 +370,22 @@ defmodule KsefHubWeb.TeamLive do
                 id={dom_id}
                 class="border-b border-border/50 hover:bg-muted/50 transition-colors"
               >
-                <td class="py-3.5 px-4">{inv.email}</td>
+                <td class="py-3.5 px-4">
+                  <div>{inv.email}</div>
+                  <div class="text-xs text-muted-foreground mt-0.5">
+                    Pending — expires {Calendar.strftime(inv.expires_at, "%Y-%m-%d")}
+                  </div>
+                </td>
                 <td class="py-3.5 px-4">-</td>
                 <td class="py-3.5 px-4">
-                  <.badge variant="default" data-role={inv.role}>{inv.role}</.badge>
+                  <select
+                    disabled
+                    data-role={inv.role}
+                    class="text-sm py-1 px-2 rounded-md border border-border bg-background opacity-60"
+                  >
+                    <option>{role_label(inv.role)}</option>
+                  </select>
                 </td>
-                <td class="py-3.5 px-4">
-                  <.badge variant="warning">pending</.badge>
-                </td>
-                <td class="py-3.5 px-4">{Calendar.strftime(inv.expires_at, "%Y-%m-%d")}</td>
                 <td class="py-3.5 px-4">
                   <.button
                     variant="outline"
