@@ -1239,7 +1239,7 @@ defmodule KsefHubWeb.InvoiceLive.Show do
     </div>
 
     <!-- Access Control Section -->
-    <div :if={@can_manage_access} class="mt-6">
+    <div :if={@can_manage_access} id="access-control-section" class="mt-6">
       <.access_control_card
         access_grants={@access_grants}
         company_reviewers={@company_reviewers}

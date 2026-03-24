@@ -597,11 +597,19 @@ defmodule KsefHub.InvoicesTest do
       assert result.total_count == 2
     end
 
-    test "role: nil returns all invoices (backward compat)", %{company: company} do
-      insert(:invoice, type: :income, company: company)
-      insert(:invoice, type: :expense, company: company)
+    test "role: nil without user_id denies restricted invoices", %{company: company} do
+      insert(:invoice, type: :income, company: company, access_restricted: true)
+      insert(:invoice, type: :expense, company: company, access_restricted: false)
 
       result = Invoices.list_invoices_paginated(company.id, %{}, role: nil)
+      assert result.total_count == 1
+    end
+
+    test "internal system calls (no role, no user_id) see all invoices", %{company: company} do
+      insert(:invoice, type: :income, company: company, access_restricted: true)
+      insert(:invoice, type: :expense, company: company)
+
+      result = Invoices.list_invoices_paginated(company.id, %{}, [])
       assert result.total_count == 2
     end
 

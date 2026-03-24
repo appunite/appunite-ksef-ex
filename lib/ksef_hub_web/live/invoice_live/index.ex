@@ -67,12 +67,11 @@ defmodule KsefHubWeb.InvoiceLive.Index do
 
   @spec filter_assigns(map(), map(), atom() | nil, map()) :: keyword()
   defp filter_assigns(filters, result, role, assigns) do
-    normalized = normalize_filters(filters, role)
-    form = build_filters_form(normalized)
+    form = build_filters_form(filters)
 
     active_filters =
       build_active_filters(
-        normalized,
+        filters,
         Map.get(assigns, :categories, []),
         Map.get(assigns, :all_tags, [])
       )
@@ -89,16 +88,10 @@ defmodule KsefHubWeb.InvoiceLive.Index do
       per_page: result.per_page,
       total_count: result.total_count,
       total_pages: result.total_pages,
-      can_view_all_types: true,
       can_create: Authorization.can?(role, :create_invoice),
       active_filters: active_filters,
       filter_count: length(active_filters)
     ]
-  end
-
-  @spec normalize_filters(map(), atom() | nil) :: map()
-  defp normalize_filters(filters, _role) do
-    filters
   end
 
   @spec build_filters_form(map()) :: Phoenix.HTML.Form.t()
@@ -309,7 +302,6 @@ defmodule KsefHubWeb.InvoiceLive.Index do
     <!-- Type Tabs -->
     <div class="flex border-b border-border mb-4">
       <.link
-        :if={@can_view_all_types}
         patch={tab_url(@current_company.id, @filters, :expense)}
         class={tab_class(@filters[:type] == :expense)}
         aria-current={if @filters[:type] == :expense, do: "page"}
@@ -317,16 +309,12 @@ defmodule KsefHubWeb.InvoiceLive.Index do
         Expense
       </.link>
       <.link
-        :if={@can_view_all_types}
         patch={tab_url(@current_company.id, @filters, :income)}
         class={tab_class(@filters[:type] == :income)}
         aria-current={if @filters[:type] == :income, do: "page"}
       >
         Income
       </.link>
-      <span :if={!@can_view_all_types} class={tab_class(true)} aria-current="page">
-        Expense
-      </span>
     </div>
 
     <.form for={@form} phx-change="filter" class="contents">

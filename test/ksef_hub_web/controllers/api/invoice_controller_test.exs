@@ -1570,6 +1570,45 @@ defmodule KsefHubWeb.Api.InvoiceControllerTest do
       assert body["meta"]["total_count"] == 0
     end
 
+    test "reviewer with explicit grant can view restricted invoice", %{conn: conn} do
+      %{company: company, token: owner_token} = create_user_with_token(:owner)
+
+      # Create reviewer in the same company with their own API token
+      reviewer = insert(:user, google_uid: "uid-#{System.unique_integer([:positive])}")
+      reviewer_membership = insert(:membership, user: reviewer, company: company, role: :owner)
+
+      {:ok, reviewer_token_result} =
+        KsefHub.Accounts.create_api_token(reviewer.id, company.id, %{name: "Reviewer Token"})
+
+      reviewer_membership
+      |> Ecto.Changeset.change(role: :reviewer)
+      |> KsefHub.Repo.update!()
+
+      reviewer_token = reviewer_token_result.token
+
+      invoice = insert(:invoice, company: company, type: :expense, access_restricted: true)
+
+      # Grant access to reviewer (as owner)
+      grant_conn =
+        conn
+        |> api_conn(owner_token)
+        |> post("/api/invoices/#{invoice.id}/access/grants", %{user_id: reviewer.id})
+
+      assert grant_conn.status == 200
+
+      # Reviewer can now see the restricted invoice via show
+      show_conn = conn |> api_conn(reviewer_token) |> get("/api/invoices/#{invoice.id}")
+      assert show_conn.status == 200
+      assert Jason.decode!(show_conn.resp_body)["data"]["id"] == invoice.id
+
+      # Reviewer can also see it in the list
+      list_conn = conn |> api_conn(reviewer_token) |> get("/api/invoices")
+      assert list_conn.status == 200
+      body = Jason.decode!(list_conn.resp_body)
+      assert body["meta"]["total_count"] > 0
+      assert Enum.any?(body["data"], &(&1["id"] == invoice.id))
+    end
+
     test "index returns access_restricted field", %{conn: conn} do
       %{company: company, token: token} = create_user_with_token(:owner)
       insert(:invoice, company: company, access_restricted: true)

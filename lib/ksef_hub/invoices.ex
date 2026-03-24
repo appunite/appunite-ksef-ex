@@ -62,7 +62,7 @@ defmodule KsefHub.Invoices do
     Invoice
     |> where([i], i.company_id == ^company_id)
     |> apply_filters(filters)
-    |> maybe_filter_by_access(opts[:role], opts[:user_id])
+    |> maybe_filter_by_access(opts)
     |> subquery()
     |> Repo.aggregate(:count)
   end
@@ -111,7 +111,7 @@ defmodule KsefHub.Invoices do
   def get_invoice!(company_id, id, opts \\ []) do
     Invoice
     |> where([i], i.company_id == ^company_id and i.id == ^id)
-    |> maybe_filter_by_access(opts[:role], opts[:user_id])
+    |> maybe_filter_by_access(opts)
     |> Repo.one!()
   end
 
@@ -120,7 +120,7 @@ defmodule KsefHub.Invoices do
   def get_invoice_with_details!(company_id, id, opts \\ []) do
     Invoice
     |> where([i], i.company_id == ^company_id and i.id == ^id)
-    |> maybe_filter_by_access(opts[:role], opts[:user_id])
+    |> maybe_filter_by_access(opts)
     |> preload([:xml_file, :pdf_file, :category, :tags, :created_by, :inbound_email])
     |> Repo.one!()
   end
@@ -130,7 +130,7 @@ defmodule KsefHub.Invoices do
   def get_invoice_with_details(company_id, id, opts \\ []) do
     Invoice
     |> where([i], i.company_id == ^company_id and i.id == ^id)
-    |> maybe_filter_by_access(opts[:role], opts[:user_id])
+    |> maybe_filter_by_access(opts)
     |> preload([:xml_file, :pdf_file, :category, :tags, :created_by, :inbound_email])
     |> Repo.one()
   end
@@ -140,7 +140,7 @@ defmodule KsefHub.Invoices do
   def get_invoice(company_id, id, opts \\ []) do
     Invoice
     |> where([i], i.company_id == ^company_id and i.id == ^id)
-    |> maybe_filter_by_access(opts[:role], opts[:user_id])
+    |> maybe_filter_by_access(opts)
     |> Repo.one()
   end
 
@@ -1867,31 +1867,40 @@ defmodule KsefHub.Invoices do
   end
 
   @spec full_invoice_visibility?(Membership.role() | nil) :: boolean()
-  defp full_invoice_visibility?(nil), do: true
+  defp full_invoice_visibility?(nil), do: false
   defp full_invoice_visibility?(role), do: Authorization.can?(role, :view_all_invoice_types)
 
-  @spec maybe_filter_by_access(Ecto.Queryable.t(), Membership.role() | nil, Ecto.UUID.t() | nil) ::
-          Ecto.Query.t()
-  defp maybe_filter_by_access(query, role, user_id) when is_binary(user_id) do
-    if full_invoice_visibility?(role) do
-      query
-    else
-      where(
-        query,
-        [i],
-        i.access_restricted == false or
-          i.id in subquery(
-            from(g in InvoiceAccessGrant, where: g.user_id == ^user_id, select: g.invoice_id)
-          )
-      )
+  @spec maybe_filter_by_access(Ecto.Queryable.t(), keyword()) :: Ecto.Query.t()
+  defp maybe_filter_by_access(query, opts) do
+    role = opts[:role]
+    user_id = opts[:user_id]
+    has_role_key = Keyword.has_key?(opts, :role)
+
+    cond do
+      # Role with full visibility — no filtering needed
+      full_invoice_visibility?(role) ->
+        query
+
+      # Role specified with a user_id — filter by access grants
+      is_binary(user_id) ->
+        where(
+          query,
+          [i],
+          i.access_restricted == false or
+            i.id in subquery(
+              from(g in InvoiceAccessGrant, where: g.user_id == ^user_id, select: g.invoice_id)
+            )
+        )
+
+      # Internal/system calls (no role key at all) — no filtering
+      not has_role_key ->
+        query
+
+      # Any other case — deny restricted invoices as a safety net
+      true ->
+        where(query, [i], i.access_restricted == false)
     end
   end
-
-  # No role specified (internal/system calls) — no filtering
-  defp maybe_filter_by_access(query, nil, _user_id), do: query
-  # Role specified but user_id missing — deny restricted invoices as a safety net
-  defp maybe_filter_by_access(query, _role, _user_id),
-    do: where(query, [i], i.access_restricted == false)
 
   @spec do_list_invoices(Ecto.UUID.t(), map(), pos_integer(), pos_integer(), keyword()) ::
           [Invoice.t()]
@@ -1899,7 +1908,7 @@ defmodule KsefHub.Invoices do
     Invoice
     |> where([i], i.company_id == ^company_id)
     |> apply_filters(filters)
-    |> maybe_filter_by_access(opts[:role], opts[:user_id])
+    |> maybe_filter_by_access(opts)
     |> order_by([i], desc: i.issue_date, desc: i.inserted_at)
     |> limit(^per_page)
     |> offset(^((page - 1) * per_page))

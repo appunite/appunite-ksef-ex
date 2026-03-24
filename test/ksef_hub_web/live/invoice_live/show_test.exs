@@ -1009,9 +1009,9 @@ defmodule KsefHubWeb.InvoiceLive.ShowTest do
     test "access control card is visible for owner", %{conn: conn, company: company} do
       invoice = insert(:invoice, type: :expense, company: company)
 
-      {:ok, _view, html} = live(conn, ~p"/c/#{company.id}/invoices/#{invoice.id}")
-      assert html =~ "Access"
-      assert html =~ "All reviewers"
+      {:ok, view, _html} = live(conn, ~p"/c/#{company.id}/invoices/#{invoice.id}")
+      assert has_element?(view, "#access-control-section")
+      assert has_element?(view, "#access-mode-menu")
     end
 
     test "access control card is not visible for reviewer", %{conn: _conn} do
@@ -1030,9 +1030,9 @@ defmodule KsefHubWeb.InvoiceLive.ShowTest do
 
       stub(KsefHub.PdfRenderer.Mock, :generate_html, fn _xml, _meta -> {:error, :no_xml} end)
 
-      {:ok, _view, html} = live(conn, ~p"/c/#{company.id}/invoices/#{invoice.id}")
-      refute html =~ "Only people invited"
-      refute html =~ "access-mode-menu"
+      {:ok, view, _html} = live(conn, ~p"/c/#{company.id}/invoices/#{invoice.id}")
+      refute has_element?(view, "#access-control-section")
+      refute has_element?(view, "#access-mode-menu")
     end
 
     test "toggling access restriction works", %{conn: conn, company: company} do

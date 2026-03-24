@@ -1049,6 +1049,12 @@ defmodule KsefHubWeb.Api.InvoiceController do
     end
   end
 
+  def grant_access(conn, _params) do
+    conn
+    |> put_status(:unprocessable_entity)
+    |> json(%{error: "Invalid or missing user_id"})
+  end
+
   operation(:revoke_access,
     summary: "Revoke invoice access",
     description:
@@ -1070,7 +1076,10 @@ defmodule KsefHubWeb.Api.InvoiceController do
       401 =>
         {"Unauthorized — missing or invalid API token", "application/json", Schemas.ErrorResponse},
       403 => {"Forbidden — insufficient permissions", "application/json", Schemas.ErrorResponse},
-      404 => {"Invoice or grant not found", "application/json", Schemas.ErrorResponse}
+      404 => {"Invoice or grant not found", "application/json", Schemas.ErrorResponse},
+      422 =>
+        {"Unprocessable Entity — invalid request parameters (e.g. invalid UUID)",
+         "application/json", Schemas.ErrorResponse}
     }
   )
 

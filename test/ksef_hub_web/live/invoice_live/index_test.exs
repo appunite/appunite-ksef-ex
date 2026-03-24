@@ -356,13 +356,25 @@ defmodule KsefHubWeb.InvoiceLive.IndexTest do
       )
 
       insert(:invoice,
+        type: :income,
+        seller_name: "Visible Income Seller",
+        company: company,
+        access_restricted: false
+      )
+
+      insert(:invoice,
         type: :expense,
         seller_name: "Visible Expense Seller",
         company: company
       )
 
-      {:ok, _view, html} = live(conn, ~p"/c/#{company.id}/invoices")
+      # Verify income view filters out restricted invoices
+      {:ok, _view, html} = live(conn, ~p"/c/#{company.id}/invoices?type=income")
       refute html =~ "Hidden Income Seller"
+      assert html =~ "Visible Income Seller"
+
+      # Verify expense view still works
+      {:ok, _view, html} = live(conn, ~p"/c/#{company.id}/invoices")
       assert html =~ "Visible Expense Seller"
     end
 
