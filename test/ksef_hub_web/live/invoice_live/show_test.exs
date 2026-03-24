@@ -151,9 +151,10 @@ defmodule KsefHubWeb.InvoiceLive.ShowTest do
     } do
       invoice = insert(:invoice, type: :expense, company: company)
 
-      {:ok, _view, html} = live(conn, ~p"/c/#{company.id}/invoices/#{invoice.id}")
-      assert html =~ "Payment Requests</h2>"
-      assert html =~ "No payment requests yet."
+      {:ok, view, _html} = live(conn, ~p"/c/#{company.id}/invoices/#{invoice.id}")
+      assert has_element?(view, "#payment-requests-section")
+      assert has_element?(view, "#payment-requests-section a", "Add")
+      assert has_element?(view, "#payment-requests-section p", "No payment requests yet.")
     end
 
     test "hides payment requests section for accountant when none exist", %{company: company} do
@@ -169,8 +170,8 @@ defmodule KsefHubWeb.InvoiceLive.ShowTest do
 
       invoice = insert(:invoice, type: :expense, company: company)
 
-      {:ok, _view, html} = live(conn, ~p"/c/#{company.id}/invoices/#{invoice.id}")
-      refute html =~ "Payment Requests</h2>"
+      {:ok, view, _html} = live(conn, ~p"/c/#{company.id}/invoices/#{invoice.id}")
+      refute has_element?(view, "#payment-requests-section")
     end
 
     test "shows paid badge and paid date for paid payment request", %{
