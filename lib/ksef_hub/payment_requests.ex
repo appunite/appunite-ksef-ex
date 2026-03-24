@@ -19,7 +19,7 @@ defmodule KsefHub.PaymentRequests do
   Returns a paginated list of payment requests for a company.
 
   ## Filters
-    * `:status` - `:pending` or `:paid`
+    * `:status` - `:pending`, `:paid`, or `:voided`
     * `:date_from` - earliest inserted_at date (inclusive)
     * `:date_to` - latest inserted_at date (inclusive)
     * `:query` - search across recipient_name, title, iban
@@ -172,6 +172,20 @@ defmodule KsefHub.PaymentRequests do
     |> Repo.update_all(set: [status: :paid, paid_at: now, updated_at: now])
   end
 
+  # --- Void ---
+
+  @doc "Voids a pending payment request. Only pending requests can be voided."
+  @spec void_payment_request(Ecto.UUID.t(), Ecto.UUID.t()) ::
+          {:ok, PaymentRequest.t()} | {:error, :not_found | :already_voided | :already_paid}
+  def void_payment_request(company_id, id) do
+    case get_payment_request(company_id, id) do
+      nil -> {:error, :not_found}
+      %{status: :voided} -> {:error, :already_voided}
+      %{status: :paid} -> {:error, :already_paid}
+      pr -> pr |> PaymentRequest.void_changeset() |> Repo.update()
+    end
+  end
+
   # --- CSV ---
 
   @doc "Builds CSV binary from a list of payment requests. Delegates to CsvBuilder."
@@ -210,13 +224,13 @@ defmodule KsefHub.PaymentRequests do
   Returns the payment status for a single invoice.
 
   Returns `:paid` if any linked payment request is paid, `:pending` if all are pending,
-  or `nil` if there are no payment requests.
+  or `nil` if there are no payment requests. Voided payment requests are excluded.
   """
   @spec payment_status_for_invoice(Ecto.UUID.t()) :: :paid | :pending | nil
   def payment_status_for_invoice(invoice_id) do
     statuses =
       PaymentRequest
-      |> where([p], p.invoice_id == ^invoice_id)
+      |> where([p], p.invoice_id == ^invoice_id and p.status != :voided)
       |> select([p], p.status)
       |> Repo.all()
 
@@ -231,13 +245,14 @@ defmodule KsefHub.PaymentRequests do
   Returns a map of invoice_id => payment status for a list of invoice IDs.
 
   Status is `:paid` if any linked PR is paid, `:pending` otherwise.
+  Voided payment requests are excluded.
   """
   @spec payment_statuses_for_invoices([Ecto.UUID.t()]) :: %{Ecto.UUID.t() => :paid | :pending}
   def payment_statuses_for_invoices([]), do: %{}
 
   def payment_statuses_for_invoices(invoice_ids) do
     PaymentRequest
-    |> where([p], p.invoice_id in ^invoice_ids)
+    |> where([p], p.invoice_id in ^invoice_ids and p.status != :voided)
     |> group_by([p], p.invoice_id)
     |> select([p], {p.invoice_id, fragment("bool_or(? = 'paid')", p.status)})
     |> Repo.all()

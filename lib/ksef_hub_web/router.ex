@@ -243,6 +243,7 @@ defmodule KsefHubWeb.Router do
 
     resources "/payment-requests", PaymentRequestController, only: [:index, :create]
     post "/payment-requests/:id/mark-paid", PaymentRequestController, :mark_paid
+    post "/payment-requests/:id/void", PaymentRequestController, :void
   end
 
   # Enable LiveDashboard, Swoosh mailbox, and SwaggerUI in development

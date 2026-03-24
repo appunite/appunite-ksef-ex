@@ -153,6 +153,58 @@ defmodule KsefHubWeb.Api.PaymentRequestControllerTest do
     end
   end
 
+  describe "void" do
+    test "voids a pending payment request", %{conn: conn} do
+      %{company: company, token: token, user: user} = create_user_with_token(:owner)
+      pr = insert(:payment_request, company: company, created_by: user, status: :pending)
+
+      conn = conn |> api_conn(token) |> post("/api/payment-requests/#{pr.id}/void")
+      assert conn.status == 200
+      body = Jason.decode!(conn.resp_body)
+      assert body["data"]["status"] == "voided"
+      assert body["data"]["voided_at"] != nil
+    end
+
+    test "returns 422 for already paid request", %{conn: conn} do
+      %{company: company, token: token, user: user} = create_user_with_token(:owner)
+      pr = insert(:payment_request, company: company, created_by: user, status: :paid)
+
+      conn = conn |> api_conn(token) |> post("/api/payment-requests/#{pr.id}/void")
+      assert conn.status == 422
+      body = Jason.decode!(conn.resp_body)
+      assert body["error"] =~ "cannot be voided"
+    end
+
+    test "returns 422 for already voided request", %{conn: conn} do
+      %{company: company, token: token, user: user} = create_user_with_token(:owner)
+      pr = insert(:payment_request, company: company, created_by: user, status: :voided)
+
+      conn = conn |> api_conn(token) |> post("/api/payment-requests/#{pr.id}/void")
+      assert conn.status == 422
+      body = Jason.decode!(conn.resp_body)
+      assert body["error"] =~ "already voided"
+    end
+
+    test "returns 404 for non-existent request", %{conn: conn} do
+      %{token: token} = create_user_with_token(:owner)
+
+      conn =
+        conn
+        |> api_conn(token)
+        |> post("/api/payment-requests/#{Ecto.UUID.generate()}/void")
+
+      assert conn.status == 404
+    end
+
+    test "accountant cannot void", %{conn: conn} do
+      {:ok, %{company: company, token: token}} = create_user_with_token(:accountant)
+      pr = insert(:payment_request, company: company, status: :pending)
+
+      conn = conn |> api_conn(token) |> post("/api/payment-requests/#{pr.id}/void")
+      assert conn.status == 403
+    end
+  end
+
   describe "response fields" do
     test "includes note and paid_at in response", %{conn: conn} do
       %{company: company, token: token, user: user} = create_user_with_token(:owner)

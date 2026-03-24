@@ -5,7 +5,7 @@ defmodule KsefHub.PaymentRequests.PaymentRequest do
   import Ecto.Changeset
 
   @type t :: %__MODULE__{}
-  @type status :: :pending | :paid
+  @type status :: :pending | :paid | :voided
 
   @primary_key {:id, :binary_id, autogenerate: true}
   @foreign_key_type :binary_id
@@ -22,7 +22,8 @@ defmodule KsefHub.PaymentRequests.PaymentRequest do
     field :iban, :string
     field :note, :string
     field :paid_at, :utc_datetime_usec
-    field :status, Ecto.Enum, values: [:pending, :paid], default: :pending
+    field :voided_at, :utc_datetime_usec
+    field :status, Ecto.Enum, values: [:pending, :paid, :voided], default: :pending
 
     belongs_to :invoice, KsefHub.Invoices.Invoice
     belongs_to :company, KsefHub.Companies.Company
@@ -69,6 +70,12 @@ defmodule KsefHub.PaymentRequests.PaymentRequest do
   @spec mark_paid_changeset(t()) :: Ecto.Changeset.t()
   def mark_paid_changeset(payment_request) do
     change(payment_request, status: :paid, paid_at: DateTime.utc_now())
+  end
+
+  @doc "Builds a changeset that voids a payment request."
+  @spec void_changeset(t()) :: Ecto.Changeset.t()
+  def void_changeset(payment_request) do
+    change(payment_request, status: :voided, voided_at: DateTime.utc_now())
   end
 
   @doc "Formats an address map as a comma-separated string. Delegates to Invoice.format_address/1."

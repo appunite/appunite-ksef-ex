@@ -96,13 +96,16 @@ defmodule KsefHubWeb.PaymentRequestLive.Index do
 
   def handle_event("toggle_select_all", _params, socket) do
     if socket.assigns.can_manage do
-      all_ids = MapSet.new(socket.assigns.payment_requests, & &1.id)
+      selectable_ids =
+        socket.assigns.payment_requests
+        |> Enum.filter(&selectable?/1)
+        |> MapSet.new(& &1.id)
 
       selected =
-        if MapSet.equal?(socket.assigns.selected_ids, all_ids) do
+        if MapSet.equal?(socket.assigns.selected_ids, selectable_ids) do
           MapSet.new()
         else
-          all_ids
+          selectable_ids
         end
 
       {:noreply, assign(socket, selected_ids: selected)}
@@ -237,9 +240,14 @@ defmodule KsefHubWeb.PaymentRequestLive.Index do
     end)
   end
 
+  @spec selectable?(PaymentRequest.t()) :: boolean()
+  defp selectable?(%{status: :voided}), do: false
+  defp selectable?(_), do: true
+
   @spec status_variant(atom()) :: String.t()
   defp status_variant(:pending), do: "warning"
   defp status_variant(:paid), do: "success"
+  defp status_variant(:voided), do: "error"
   defp status_variant(_), do: "muted"
 
   @impl true
@@ -274,6 +282,7 @@ defmodule KsefHubWeb.PaymentRequestLive.Index do
               <option value="">All</option>
               <option value="pending" selected={@form[:status].value == "pending"}>Pending</option>
               <option value="paid" selected={@form[:status].value == "paid"}>Paid</option>
+              <option value="voided" selected={@form[:status].value == "voided"}>Voided</option>
             </select>
           </div>
 
@@ -335,7 +344,7 @@ defmodule KsefHubWeb.PaymentRequestLive.Index do
                   checked={
                     MapSet.size(@selected_ids) > 0 &&
                       MapSet.size(@selected_ids) ==
-                        length(@payment_requests)
+                        Enum.count(@payment_requests, &selectable?/1)
                   }
                 />
               </th>
@@ -367,6 +376,7 @@ defmodule KsefHubWeb.PaymentRequestLive.Index do
             >
               <td :if={@can_manage} class="py-3.5 px-4">
                 <input
+                  :if={selectable?(pr)}
                   type="checkbox"
                   class="checkbox checkbox-sm"
                   phx-click="toggle_select"

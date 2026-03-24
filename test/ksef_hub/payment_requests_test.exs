@@ -197,6 +197,33 @@ defmodule KsefHub.PaymentRequestsTest do
     end
   end
 
+  describe "void_payment_request/2" do
+    test "voids a pending payment request", %{company: company, user: user} do
+      pr = insert(:payment_request, company: company, created_by: user, status: :pending)
+
+      assert {:ok, voided} = PaymentRequests.void_payment_request(company.id, pr.id)
+      assert voided.status == :voided
+      assert voided.voided_at != nil
+    end
+
+    test "returns error for already paid request", %{company: company, user: user} do
+      pr = insert(:payment_request, company: company, created_by: user, status: :paid)
+
+      assert {:error, :already_paid} = PaymentRequests.void_payment_request(company.id, pr.id)
+    end
+
+    test "returns error for already voided request", %{company: company, user: user} do
+      pr = insert(:payment_request, company: company, created_by: user, status: :voided)
+
+      assert {:error, :already_voided} = PaymentRequests.void_payment_request(company.id, pr.id)
+    end
+
+    test "returns error for non-existent ID", %{company: company} do
+      assert {:error, :not_found} =
+               PaymentRequests.void_payment_request(company.id, Ecto.UUID.generate())
+    end
+  end
+
   describe "prefill_attrs_from_invoice/1" do
     test "prefills from expense invoice" do
       invoice = %KsefHub.Invoices.Invoice{
@@ -274,6 +301,39 @@ defmodule KsefHub.PaymentRequestsTest do
 
       assert PaymentRequests.payment_status_for_invoice(invoice.id) == :paid
     end
+
+    test "ignores voided PRs", %{company: company, user: user} do
+      invoice = insert(:invoice, company: company)
+
+      insert(:payment_request,
+        company: company,
+        created_by: user,
+        invoice: invoice,
+        status: :voided
+      )
+
+      assert PaymentRequests.payment_status_for_invoice(invoice.id) == nil
+    end
+
+    test "ignores voided PRs when pending exist", %{company: company, user: user} do
+      invoice = insert(:invoice, company: company)
+
+      insert(:payment_request,
+        company: company,
+        created_by: user,
+        invoice: invoice,
+        status: :voided
+      )
+
+      insert(:payment_request,
+        company: company,
+        created_by: user,
+        invoice: invoice,
+        status: :pending
+      )
+
+      assert PaymentRequests.payment_status_for_invoice(invoice.id) == :pending
+    end
   end
 
   describe "payment_statuses_for_invoices/1" do
@@ -300,6 +360,20 @@ defmodule KsefHub.PaymentRequestsTest do
 
     test "returns empty map for empty list" do
       assert PaymentRequests.payment_statuses_for_invoices([]) == %{}
+    end
+
+    test "excludes voided PRs from batch statuses", %{company: company, user: user} do
+      inv = insert(:invoice, company: company)
+
+      insert(:payment_request,
+        company: company,
+        created_by: user,
+        invoice: inv,
+        status: :voided
+      )
+
+      result = PaymentRequests.payment_statuses_for_invoices([inv.id])
+      refute Map.has_key?(result, inv.id)
     end
   end
 end

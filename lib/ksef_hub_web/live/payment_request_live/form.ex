@@ -87,6 +87,33 @@ defmodule KsefHubWeb.PaymentRequestLive.Form do
     {:noreply, assign(socket, form: to_form(changeset, as: :payment_request))}
   end
 
+  def handle_event("void", _params, socket) do
+    if socket.assigns.can_manage do
+      company_id = socket.assigns.current_company.id
+      pr = socket.assigns.payment_request
+
+      case PaymentRequests.void_payment_request(company_id, pr.id) do
+        {:ok, _pr} ->
+          {:noreply,
+           socket
+           |> put_flash(:info, "Payment request voided.")
+           |> push_navigate(to: ~p"/c/#{company_id}/payment-requests")}
+
+        {:error, :already_voided} ->
+          {:noreply, put_flash(socket, :error, "Payment request is already voided.")}
+
+        {:error, :already_paid} ->
+          {:noreply, put_flash(socket, :error, "Paid payment requests cannot be voided.")}
+
+        {:error, _} ->
+          {:noreply, put_flash(socket, :error, "Could not void payment request.")}
+      end
+    else
+      {:noreply,
+       put_flash(socket, :error, "You do not have permission to manage payment requests.")}
+    end
+  end
+
   def handle_event("save", %{"payment_request" => params}, socket) do
     if socket.assigns.can_manage do
       do_save(socket, socket.assigns.live_action, params)
@@ -234,6 +261,15 @@ defmodule KsefHubWeb.PaymentRequestLive.Form do
       <span :if={@payment_request.paid_at}>
         &middot; Paid on {format_datetime(@payment_request.paid_at)}
       </span>
+    </div>
+
+    <!-- Voided banner -->
+    <div
+      :if={editing?(@live_action) && @payment_request.status == :voided}
+      class="mt-4 p-4 rounded-md border border-error bg-error/10 text-error text-sm font-medium"
+      data-testid="voided-banner"
+    >
+      This payment request has been voided.
     </div>
 
     <!-- Linked invoice info -->
@@ -429,9 +465,21 @@ defmodule KsefHubWeb.PaymentRequestLive.Form do
       </div>
 
       <div class="flex items-center gap-3 pt-2">
-        <.button type="submit" disabled={!@can_manage}>
+        <.button
+          type="submit"
+          disabled={!@can_manage || (editing?(@live_action) && @payment_request.status == :voided)}
+        >
           <.icon name="hero-check" class="size-4" />
           {if editing?(@live_action), do: "Save changes", else: "Create payment request"}
+        </.button>
+        <.button
+          :if={editing?(@live_action) && @can_manage && @payment_request.status == :pending}
+          type="button"
+          variant="destructive"
+          phx-click="void"
+          data-confirm="Are you sure you want to void this payment request?"
+        >
+          <.icon name="hero-x-circle" class="size-4" /> Void
         </.button>
         <.button
           variant="outline"
