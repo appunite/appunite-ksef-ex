@@ -1159,7 +1159,14 @@ defmodule KsefHubWeb.InvoiceLive.Show do
       </.card>
     </div>
     <!-- Payment Requests Section -->
-    <div :if={@can_view_payment_requests && @invoice_payment_requests != []} class="mt-6">
+    <div
+      :if={
+        (@invoice.type == :expense && @can_manage_payment_requests) ||
+          (@can_view_payment_requests && @invoice_payment_requests != [])
+      }
+      id="payment-requests-section"
+      class="mt-6"
+    >
       <div class="rounded-lg border border-border p-4">
         <div class="flex items-center justify-between mb-3">
           <h2 class="text-base font-semibold">Payment Requests</h2>
@@ -1172,7 +1179,10 @@ defmodule KsefHubWeb.InvoiceLive.Show do
             <.icon name="hero-plus" class="size-3.5" /> Add
           </.button>
         </div>
-        <table class="w-full text-sm">
+        <p :if={@invoice_payment_requests == []} class="text-sm text-muted-foreground py-2">
+          No payment requests yet.
+        </p>
+        <table :if={@invoice_payment_requests != []} class="w-full text-sm">
           <thead>
             <tr class="border-b border-border">
               <th class="text-left py-2 px-2 text-xs font-medium text-muted-foreground uppercase">
