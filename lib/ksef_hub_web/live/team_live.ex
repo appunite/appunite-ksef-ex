@@ -273,8 +273,7 @@ defmodule KsefHubWeb.TeamLive do
             options={[{"Admin", "admin"}, {"Accountant", "accountant"}, {"Reviewer", "reviewer"}]}
           />
         </div>
-        <div class="fieldset mb-2">
-          <span class="mb-1 invisible">_</span>
+        <div class="mb-2">
           <.button type="submit">
             <.icon name="hero-paper-airplane" class="size-4" /> Invite
           </.button>
