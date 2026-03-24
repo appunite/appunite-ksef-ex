@@ -145,7 +145,28 @@ defmodule KsefHubWeb.InvoiceLive.ShowTest do
       assert html =~ "500.00"
     end
 
-    test "hides payment requests section when none exist", %{conn: conn, company: company} do
+    test "shows empty state when no payment requests exist for owner", %{
+      conn: conn,
+      company: company
+    } do
+      invoice = insert(:invoice, type: :expense, company: company)
+
+      {:ok, _view, html} = live(conn, ~p"/c/#{company.id}/invoices/#{invoice.id}")
+      assert html =~ "Payment Requests</h2>"
+      assert html =~ "No payment requests yet."
+    end
+
+    test "hides payment requests section for accountant when none exist", %{company: company} do
+      {:ok, accountant} =
+        Accounts.get_or_create_google_user(%{
+          uid: "g-show-accountant",
+          email: "accountant@example.com",
+          name: "Accountant"
+        })
+
+      insert(:membership, user: accountant, company: company, role: :accountant)
+      conn = build_conn() |> log_in_user(accountant, %{current_company_id: company.id})
+
       invoice = insert(:invoice, type: :expense, company: company)
 
       {:ok, _view, html} = live(conn, ~p"/c/#{company.id}/invoices/#{invoice.id}")
