@@ -163,6 +163,12 @@ defmodule KsefHubWeb.InvoiceComponents do
     """
   end
 
+  def payment_badge(%{status: :voided} = assigns) do
+    ~H"""
+    <.badge variant="error">voided</.badge>
+    """
+  end
+
   @doc "Renders an 'excluded' badge when the invoice is excluded, nothing otherwise."
   @spec excluded_badge(map()) :: Phoenix.LiveView.Rendered.t()
   attr :is_excluded, :boolean, required: true

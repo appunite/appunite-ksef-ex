@@ -55,6 +55,7 @@ defmodule KsefHub.Factory do
   def membership_factory do
     %Membership{
       role: :owner,
+      status: :active,
       user: build(:user),
       company: build(:company)
     }

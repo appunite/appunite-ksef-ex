@@ -231,6 +231,14 @@ defmodule KsefHub.Invitations do
   # List
   # ---------------------------------------------------------------------------
 
+  @doc "Fetches an invitation by ID, scoped to a company."
+  @spec get_invitation(Ecto.UUID.t(), Ecto.UUID.t()) :: Invitation.t() | nil
+  def get_invitation(invitation_id, company_id) do
+    Invitation
+    |> where([i], i.id == ^invitation_id and i.company_id == ^company_id)
+    |> Repo.one()
+  end
+
   @doc """
   Lists all pending, non-expired invitations for a company, ordered by newest first.
   """

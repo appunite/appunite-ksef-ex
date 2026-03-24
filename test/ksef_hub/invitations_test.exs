@@ -328,4 +328,41 @@ defmodule KsefHub.InvitationsTest do
       assert {:ok, []} = Invitations.accept_pending_invitations_for_email(user)
     end
   end
+
+  describe "get_invitation/2" do
+    test "returns invitation scoped to company" do
+      company = insert(:company)
+      owner = insert(:user)
+      insert(:membership, user: owner, company: company, role: :owner)
+
+      {:ok, %{invitation: invitation}} =
+        Invitations.create_invitation(owner.id, company.id, %{
+          email: "find-me@example.com",
+          role: :accountant
+        })
+
+      assert %Invitation{email: "find-me@example.com"} =
+               Invitations.get_invitation(invitation.id, company.id)
+    end
+
+    test "returns nil for wrong company" do
+      company = insert(:company)
+      other_company = insert(:company)
+      owner = insert(:user)
+      insert(:membership, user: owner, company: company, role: :owner)
+
+      {:ok, %{invitation: invitation}} =
+        Invitations.create_invitation(owner.id, company.id, %{
+          email: "scoped@example.com",
+          role: :accountant
+        })
+
+      assert is_nil(Invitations.get_invitation(invitation.id, other_company.id))
+    end
+
+    test "returns nil for non-existent ID" do
+      company = insert(:company)
+      assert is_nil(Invitations.get_invitation(Ecto.UUID.generate(), company.id))
+    end
+  end
 end

@@ -120,7 +120,7 @@ defmodule KsefHubWeb.InvoiceLive.Show do
     edit_billing_date save_billing_date cancel_billing_date copy_public_link
     exclude include)
 
-  @approve_events ~w(approve reject)
+  @approve_events ~w(approve reject reset_status)
 
   @impl true
   @spec handle_event(String.t(), map(), Phoenix.LiveView.Socket.t()) ::
@@ -210,6 +210,28 @@ defmodule KsefHubWeb.InvoiceLive.Show do
 
       {:error, _changeset} ->
         {:noreply, put_flash(socket, :error, "Failed to reject invoice.")}
+    end
+  end
+
+  def handle_event("reset_status", _params, socket) do
+    case Invoices.reset_invoice_status(socket.assigns.invoice) do
+      {:ok, updated} ->
+        {:noreply,
+         socket
+         |> put_flash(:info, "Invoice status reset to pending.")
+         |> assign(:invoice, reload_details(updated, socket))}
+
+      {:error, :already_pending} ->
+        {:noreply, put_flash(socket, :error, "Invoice is already pending.")}
+
+      {:error, :confirmed_duplicate} ->
+        {:noreply, put_flash(socket, :error, "Cannot reset a confirmed duplicate.")}
+
+      {:error, {:invalid_type, _}} ->
+        {:noreply, put_flash(socket, :error, "Only expense invoices can be reset.")}
+
+      {:error, _changeset} ->
+        {:noreply, put_flash(socket, :error, "Failed to reset invoice status.")}
     end
   end
 
@@ -863,6 +885,18 @@ defmodule KsefHubWeb.InvoiceLive.Show do
                 class={dropdown_item_class()}
               >
                 <.icon name="hero-eye" class="size-4" /> Include
+              </button>
+              <button
+                :if={
+                  @can_approve && @invoice.type == :expense &&
+                    @invoice.status in [:approved, :rejected] &&
+                    @invoice.duplicate_status != :confirmed
+                }
+                phx-click="reset_status"
+                data-testid="reset-status-btn"
+                class={dropdown_item_class()}
+              >
+                <.icon name="hero-arrow-uturn-left" class="size-4" /> Reset Decision
               </button>
             </div>
           </div>

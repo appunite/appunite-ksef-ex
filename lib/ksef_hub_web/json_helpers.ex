@@ -53,6 +53,7 @@ defmodule KsefHubWeb.JsonHelpers do
       note: pr.note,
       status: pr.status,
       paid_at: pr.paid_at,
+      voided_at: pr.voided_at,
       invoice_id: pr.invoice_id,
       inserted_at: pr.inserted_at,
       updated_at: pr.updated_at

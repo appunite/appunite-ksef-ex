@@ -20,7 +20,7 @@ defmodule KsefHubWeb.Api.PaymentRequestController do
        :view_payment_requests when action in [:index]
 
   plug KsefHubWeb.Plugs.RequirePermission,
-       :manage_payment_requests when action in [:create, :mark_paid]
+       :manage_payment_requests when action in [:create, :mark_paid, :void]
 
   @create_allowed_keys ~w(recipient_name amount currency title iban note invoice_id
     recipient_address)
@@ -35,7 +35,7 @@ defmodule KsefHubWeb.Api.PaymentRequestController do
       status: [
         in: :query,
         description: "Filter by status.",
-        schema: %Schema{type: :string, enum: ["pending", "paid"]}
+        schema: %Schema{type: :string, enum: ["pending", "paid", "voided"]}
       ],
       query: [
         in: :query,
@@ -151,6 +151,56 @@ defmodule KsefHubWeb.Api.PaymentRequestController do
         conn
         |> put_status(:not_found)
         |> json(%{error: "Payment request not found"})
+    end
+  end
+
+  operation(:void,
+    summary: "Void payment request",
+    description: "Voids a pending payment request. Only pending requests can be voided.",
+    parameters: [
+      id: [
+        in: :path,
+        description: "Payment Request UUID.",
+        schema: %Schema{type: :string, format: :uuid}
+      ]
+    ],
+    responses: %{
+      200 => {"Success", "application/json", Schemas.PaymentRequestResponse},
+      401 => {"Unauthorized", "application/json", Schemas.ErrorResponse},
+      403 => {"Forbidden", "application/json", Schemas.ErrorResponse},
+      404 => {"Not found", "application/json", Schemas.ErrorResponse},
+      422 => {"Cannot void", "application/json", Schemas.ErrorResponse}
+    }
+  )
+
+  @doc "Voids a pending payment request."
+  @spec void(Plug.Conn.t(), map()) :: Plug.Conn.t()
+  def void(conn, %{"id" => id}) do
+    company_id = conn.assigns.current_company.id
+
+    case PaymentRequests.void_payment_request(company_id, id) do
+      {:ok, pr} ->
+        json(conn, %{data: payment_request_json(pr)})
+
+      {:error, :not_found} ->
+        conn
+        |> put_status(:not_found)
+        |> json(%{error: "Payment request not found"})
+
+      {:error, :already_voided} ->
+        conn
+        |> put_status(:unprocessable_entity)
+        |> json(%{error: "Payment request is already voided"})
+
+      {:error, :already_paid} ->
+        conn
+        |> put_status(:unprocessable_entity)
+        |> json(%{error: "Paid payment requests cannot be voided"})
+
+      {:error, %Ecto.Changeset{}} ->
+        conn
+        |> put_status(:unprocessable_entity)
+        |> json(%{error: "Failed to void payment request"})
     end
   end
 

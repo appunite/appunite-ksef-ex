@@ -32,13 +32,19 @@ defmodule KsefHubWeb.Schemas.PaymentRequest do
         minLength: 15,
         maxLength: 34
       },
-      status: %Schema{type: :string, enum: ["pending", "paid"]},
+      status: %Schema{type: :string, enum: ["pending", "paid", "voided"]},
       note: %Schema{type: :string, nullable: true, description: "Optional internal note."},
       paid_at: %Schema{
         type: :string,
         format: :"date-time",
         nullable: true,
         description: "When the payment was marked as paid."
+      },
+      voided_at: %Schema{
+        type: :string,
+        format: :"date-time",
+        nullable: true,
+        description: "When the payment request was voided."
       },
       invoice_id: %Schema{
         type: :string,

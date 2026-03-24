@@ -25,7 +25,9 @@ defmodule KsefHubWeb.Api.InvoiceController do
   plug KsefHubWeb.Plugs.RequirePermission,
        :update_invoice when action in [:update, :confirm_duplicate, :dismiss_duplicate]
 
-  plug KsefHubWeb.Plugs.RequirePermission, :approve_invoice when action in [:approve, :reject]
+  plug KsefHubWeb.Plugs.RequirePermission,
+       :approve_invoice when action in [:approve, :reject, :reset_status]
+
   plug KsefHubWeb.Plugs.RequirePermission, :set_invoice_category when action == :set_category
   plug KsefHubWeb.Plugs.RequirePermission, :set_invoice_tags when action == :set_tags
 
@@ -454,6 +456,61 @@ defmodule KsefHubWeb.Api.InvoiceController do
         conn
         |> put_status(:unprocessable_entity)
         |> json(%{error: "Only expense invoices can be rejected"})
+
+      {:error, changeset} ->
+        conn
+        |> put_status(:unprocessable_entity)
+        |> json(%{error: changeset_errors(changeset)})
+    end
+  end
+
+  operation(:reset_status,
+    summary: "Reset expense invoice status",
+    description:
+      "Resets an approved or rejected expense invoice back to pending. Only expense invoices can be reset.",
+    parameters: [
+      id: [
+        in: :path,
+        description: "Invoice UUID.",
+        schema: %Schema{type: :string, format: :uuid}
+      ]
+    ],
+    responses: %{
+      200 => {"Reset invoice", "application/json", Schemas.InvoiceResponse},
+      401 =>
+        {"Unauthorized — missing or invalid API token", "application/json", Schemas.ErrorResponse},
+      403 => {"Forbidden — insufficient permissions", "application/json", Schemas.ErrorResponse},
+      404 => {"Invoice not found", "application/json", Schemas.ErrorResponse},
+      422 =>
+        {"Invoice is already pending or not an expense invoice", "application/json",
+         Schemas.ErrorResponse}
+    }
+  )
+
+  @doc "Resets an expense invoice status back to pending."
+  @spec reset_status(Plug.Conn.t(), map()) :: Plug.Conn.t()
+  def reset_status(conn, %{"id" => id}) do
+    company_id = conn.assigns.current_company.id
+
+    invoice =
+      Invoices.get_invoice!(company_id, id,
+        role: conn.assigns[:current_role],
+        user_id: conn.assigns.api_token.created_by_id
+      )
+
+    case Invoices.reset_invoice_status(invoice) do
+      {:ok, updated} ->
+        json(conn, %{data: invoice_json(updated)})
+
+      {:error, :already_pending} ->
+        conn
+        |> put_status(:unprocessable_entity)
+        |> json(%{error: "Invoice is already pending"})
+
+      {:error, {:invalid_type, _type}} ->
+        conn
+        |> put_status(:unprocessable_entity)
+        |> json(%{error: "Only expense invoices can be reset"})
 
       {:error, changeset} ->
         conn

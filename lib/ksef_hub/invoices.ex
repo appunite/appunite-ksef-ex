@@ -559,6 +559,30 @@ defmodule KsefHub.Invoices do
 
   def reject_invoice(%Invoice{type: type}), do: {:error, {:invalid_type, type}}
 
+  @doc """
+  Resets an expense invoice status back to pending.
+
+  Only works for expense invoices that are currently approved or rejected.
+  """
+  @spec reset_invoice_status(Invoice.t()) ::
+          {:ok, Invoice.t()}
+          | {:error, Ecto.Changeset.t()}
+          | {:error, :already_pending}
+          | {:error, {:invalid_type, Invoice.invoice_type()}}
+  def reset_invoice_status(%Invoice{type: :expense, status: :pending}) do
+    {:error, :already_pending}
+  end
+
+  def reset_invoice_status(%Invoice{type: :expense, duplicate_status: :confirmed}) do
+    {:error, :confirmed_duplicate}
+  end
+
+  def reset_invoice_status(%Invoice{type: :expense} = invoice) do
+    update_invoice(invoice, %{status: :pending})
+  end
+
+  def reset_invoice_status(%Invoice{type: type}), do: {:error, {:invalid_type, type}}
+
   @doc "Marks an invoice as excluded."
   @spec exclude_invoice(Invoice.t()) :: {:ok, Invoice.t()} | {:error, Ecto.Changeset.t()}
   def exclude_invoice(%Invoice{} = invoice) do

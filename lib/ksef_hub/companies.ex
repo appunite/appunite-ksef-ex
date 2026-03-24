@@ -57,18 +57,20 @@ defmodule KsefHub.Companies do
 
     Company
     |> from(as: :company)
-    |> join(:inner, [c], m in Membership, on: m.company_id == c.id and m.user_id == ^user_id)
+    |> join(:inner, [c], m in Membership,
+      on: m.company_id == c.id and m.user_id == ^user_id and m.status == :active
+    )
     |> where([c], c.is_active == true)
     |> order_by([c], asc: c.name)
     |> select_merge([c], %{has_active_credential: exists(subquery(active_cred_subquery))})
     |> Repo.all()
   end
 
-  @doc "Lists active companies for a given user, ordered by name."
+  @doc "Lists active companies for a given user (active memberships only), ordered by name."
   @spec list_companies_for_user(Ecto.UUID.t()) :: [Company.t()]
   def list_companies_for_user(user_id) do
     Membership
-    |> where([m], m.user_id == ^user_id)
+    |> where([m], m.user_id == ^user_id and m.status == :active)
     |> join(:inner, [m], c in Company, on: c.id == m.company_id and c.is_active == true)
     |> order_by([m, c], asc: c.name)
     |> select([m, c], c)
@@ -79,7 +81,7 @@ defmodule KsefHub.Companies do
   @spec first_company_id_for_user(Ecto.UUID.t()) :: Ecto.UUID.t() | nil
   def first_company_id_for_user(user_id) do
     Membership
-    |> where([m], m.user_id == ^user_id)
+    |> where([m], m.user_id == ^user_id and m.status == :active)
     |> join(:inner, [m], c in Company, on: c.id == m.company_id and c.is_active == true)
     |> order_by([m, c], asc: c.name, asc: c.id)
     |> select([m, c], c.id)
@@ -221,18 +223,86 @@ defmodule KsefHub.Companies do
     |> Repo.update()
   end
 
-  @doc "Fetches the membership for a user+company pair, returning nil if none exists."
-  @spec get_membership(Ecto.UUID.t(), Ecto.UUID.t()) :: Membership.t() | nil
-  def get_membership(user_id, company_id) do
-    Repo.get_by(Membership, user_id: user_id, company_id: company_id)
+  @doc """
+  Atomically updates a member's user name and membership role in a single transaction.
+
+  If `role` matches the current role, only the name update is performed.
+  Returns `{:ok, %{user: user, membership: membership}}` on success.
+  """
+  @spec update_member(Membership.t(), String.t() | nil, Membership.role() | nil) ::
+          {:ok, %{user: User.t(), membership: Membership.t()}}
+          | {:error, atom(), Ecto.Changeset.t(), map()}
+  def update_member(%Membership{} = membership, name, role) do
+    membership = Repo.preload(membership, :user)
+    user = membership.user
+
+    multi =
+      Multi.new()
+      |> Multi.update(:user, User.changeset(user, %{name: name}))
+      |> then(fn multi ->
+        if role && role != membership.role do
+          Multi.update(multi, :membership, Membership.changeset(membership, %{role: role}))
+        else
+          Multi.put(multi, :membership, membership)
+        end
+      end)
+
+    case Repo.transaction(multi) do
+      {:ok, %{user: updated_user, membership: updated_membership}} ->
+        {:ok, %{user: updated_user, membership: %{updated_membership | user: updated_user}}}
+
+      {:error, :user, changeset, _} ->
+        {:error, :user, changeset, %{}}
+
+      {:error, :membership, changeset, _} ->
+        {:error, :membership, changeset, %{}}
+    end
   end
 
-  @doc "Fetches the membership for a user+company pair, raising if not found."
+  @doc "Blocks a membership (soft delete)."
+  @spec block_member(Membership.t()) :: {:ok, Membership.t()} | {:error, Ecto.Changeset.t()}
+  def block_member(%Membership{} = membership) do
+    membership
+    |> Membership.status_changeset(%{status: :blocked})
+    |> Repo.update()
+  end
+
+  @doc "Unblocks a membership, restoring active status."
+  @spec unblock_member(Membership.t()) :: {:ok, Membership.t()} | {:error, Ecto.Changeset.t()}
+  def unblock_member(%Membership{} = membership) do
+    membership
+    |> Membership.status_changeset(%{status: :active})
+    |> Repo.update()
+  end
+
+  @doc "Fetches the active membership for a user+company pair, returning nil if none exists or blocked."
+  @spec get_membership(Ecto.UUID.t(), Ecto.UUID.t()) :: Membership.t() | nil
+  def get_membership(user_id, company_id) do
+    Membership
+    |> where([m], m.user_id == ^user_id and m.company_id == ^company_id and m.status == :active)
+    |> Repo.one()
+  end
+
+  @doc "Fetches the active membership for a user+company pair, raising if not found."
   @spec get_membership!(Ecto.UUID.t(), Ecto.UUID.t()) :: Membership.t()
   def get_membership!(user_id, company_id) do
     Membership
-    |> where([m], m.user_id == ^user_id and m.company_id == ^company_id)
+    |> where([m], m.user_id == ^user_id and m.company_id == ^company_id and m.status == :active)
     |> Repo.one!()
+  end
+
+  @doc """
+  Fetches a membership by ID with its preloaded user, regardless of status.
+
+  Unlike `get_membership/2`, this intentionally returns memberships of any status
+  (active, blocked, etc.) so the detail page can display and manage them.
+  """
+  @spec get_membership_with_user(Ecto.UUID.t(), Ecto.UUID.t()) :: Membership.t() | nil
+  def get_membership_with_user(membership_id, company_id) do
+    Membership
+    |> where([m], m.id == ^membership_id and m.company_id == ^company_id)
+    |> preload(:user)
+    |> Repo.one()
   end
 
   @doc """
@@ -258,7 +328,7 @@ defmodule KsefHub.Companies do
     roles = List.wrap(role_or_roles)
 
     Membership
-    |> where([m], m.user_id == ^user_id and m.company_id == ^company_id)
+    |> where([m], m.user_id == ^user_id and m.company_id == ^company_id and m.status == :active)
     |> where([m], m.role in ^roles)
     |> Repo.exists?()
   end
@@ -271,7 +341,7 @@ defmodule KsefHub.Companies do
           {:ok, Membership.t()} | {:error, :unauthorized}
   def authorize(user_id, company_id, required_roles) do
     Membership
-    |> where([m], m.user_id == ^user_id and m.company_id == ^company_id)
+    |> where([m], m.user_id == ^user_id and m.company_id == ^company_id and m.status == :active)
     |> where([m], m.role in ^required_roles)
     |> Repo.one()
     |> case do

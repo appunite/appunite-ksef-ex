@@ -37,6 +37,14 @@ defmodule KsefHub.Accounts do
   @spec get_user!(Ecto.UUID.t()) :: User.t()
   def get_user!(id), do: Repo.get!(User, id)
 
+  @doc "Updates a user's name."
+  @spec update_user_name(User.t(), String.t()) :: {:ok, User.t()} | {:error, Ecto.Changeset.t()}
+  def update_user_name(%User{} = user, name) do
+    user
+    |> User.changeset(%{name: name})
+    |> Repo.update()
+  end
+
   @doc """
   Fetches a user by email address, returning `nil` if not found.
 
