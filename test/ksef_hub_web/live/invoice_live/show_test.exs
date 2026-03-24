@@ -303,6 +303,43 @@ defmodule KsefHubWeb.InvoiceLive.ShowTest do
     end
   end
 
+  describe "reset_status" do
+    setup :stub_pdf
+
+    test "reset button appears for approved expense invoices", %{conn: conn, company: company} do
+      invoice = insert(:invoice, type: :expense, status: :approved, company: company)
+
+      {:ok, view, _html} = live(conn, ~p"/c/#{company.id}/invoices/#{invoice.id}")
+      assert has_element?(view, "[data-testid=reset-status-btn]", "Reset Decision")
+    end
+
+    test "reset button appears for rejected expense invoices", %{conn: conn, company: company} do
+      invoice = insert(:invoice, type: :expense, status: :rejected, company: company)
+
+      {:ok, view, _html} = live(conn, ~p"/c/#{company.id}/invoices/#{invoice.id}")
+      assert has_element?(view, "[data-testid=reset-status-btn]", "Reset Decision")
+    end
+
+    test "reset button hidden for pending invoices", %{conn: conn, company: company} do
+      invoice = insert(:invoice, type: :expense, status: :pending, company: company)
+
+      {:ok, view, _html} = live(conn, ~p"/c/#{company.id}/invoices/#{invoice.id}")
+      refute has_element?(view, "[data-testid=reset-status-btn]")
+    end
+
+    test "clicking reset changes status back to pending", %{conn: conn, company: company} do
+      invoice = insert(:invoice, type: :expense, status: :approved, company: company)
+
+      {:ok, view, _html} = live(conn, ~p"/c/#{company.id}/invoices/#{invoice.id}")
+
+      view |> element("[data-testid=reset-status-btn]") |> render_click()
+
+      assert has_element?(view, "[class*=rounded-md]", "pending")
+      assert has_element?(view, "button", "Approve")
+      assert has_element?(view, "button", "Reject")
+    end
+  end
+
   describe "exclude/include" do
     setup :stub_pdf
 

@@ -223,6 +223,7 @@ defmodule KsefHubWeb.Router do
     patch "/invoices/:id", InvoiceController, :update
     post "/invoices/:id/approve", InvoiceController, :approve
     post "/invoices/:id/reject", InvoiceController, :reject
+    post "/invoices/:id/reset_status", InvoiceController, :reset_status
     post "/invoices/:id/confirm-duplicate", InvoiceController, :confirm_duplicate
     post "/invoices/:id/dismiss-duplicate", InvoiceController, :dismiss_duplicate
     get "/invoices/:id/html", InvoiceController, :html

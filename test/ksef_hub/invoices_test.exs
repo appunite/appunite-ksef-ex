@@ -474,6 +474,28 @@ defmodule KsefHub.InvoicesTest do
     end
   end
 
+  describe "reset_invoice_status/1" do
+    test "resets approved expense invoice to pending", %{company: company} do
+      inv = insert(:invoice, type: :expense, status: :approved, company: company)
+      assert {:ok, %Invoice{status: :pending}} = Invoices.reset_invoice_status(inv)
+    end
+
+    test "resets rejected expense invoice to pending", %{company: company} do
+      inv = insert(:invoice, type: :expense, status: :rejected, company: company)
+      assert {:ok, %Invoice{status: :pending}} = Invoices.reset_invoice_status(inv)
+    end
+
+    test "returns error for already pending invoice", %{company: company} do
+      inv = insert(:invoice, type: :expense, status: :pending, company: company)
+      assert {:error, :already_pending} = Invoices.reset_invoice_status(inv)
+    end
+
+    test "returns error for income invoice", %{company: company} do
+      inv = insert(:invoice, type: :income, company: company)
+      assert {:error, {:invalid_type, :income}} = Invoices.reset_invoice_status(inv)
+    end
+  end
+
   describe "exclude_invoice/1" do
     test "marks an invoice as excluded", %{company: company} do
       inv = insert(:invoice, company: company)

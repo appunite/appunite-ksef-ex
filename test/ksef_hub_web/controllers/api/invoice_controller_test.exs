@@ -127,6 +127,66 @@ defmodule KsefHubWeb.Api.InvoiceControllerTest do
     end
   end
 
+  describe "reset_status" do
+    test "resets approved expense invoice to pending", %{conn: conn} do
+      %{company: company, token: token} = create_user_with_token(:owner)
+      invoice = insert(:invoice, company: company, type: :expense, status: :approved)
+
+      conn = conn |> api_conn(token) |> post("/api/invoices/#{invoice.id}/reset_status")
+
+      assert conn.status == 200
+      assert Jason.decode!(conn.resp_body)["data"]["status"] == "pending"
+    end
+
+    test "resets rejected expense invoice to pending", %{conn: conn} do
+      %{company: company, token: token} = create_user_with_token(:owner)
+      invoice = insert(:invoice, company: company, type: :expense, status: :rejected)
+
+      conn = conn |> api_conn(token) |> post("/api/invoices/#{invoice.id}/reset_status")
+
+      assert conn.status == 200
+      assert Jason.decode!(conn.resp_body)["data"]["status"] == "pending"
+    end
+
+    test "returns 422 for already pending invoice", %{conn: conn} do
+      %{company: company, token: token} = create_user_with_token(:owner)
+      invoice = insert(:invoice, company: company, type: :expense, status: :pending)
+
+      conn = conn |> api_conn(token) |> post("/api/invoices/#{invoice.id}/reset_status")
+
+      assert conn.status == 422
+      assert Jason.decode!(conn.resp_body)["error"] =~ "already pending"
+    end
+
+    test "returns 422 for income invoice", %{conn: conn} do
+      %{company: company, token: token} = create_user_with_token(:owner)
+      invoice = insert(:invoice, company: company, type: :income)
+
+      conn = conn |> api_conn(token) |> post("/api/invoices/#{invoice.id}/reset_status")
+
+      assert conn.status == 422
+      assert Jason.decode!(conn.resp_body)["error"] =~ "expense"
+    end
+
+    test "accountant gets 403", %{conn: conn} do
+      {:ok, %{company: company, token: token}} = create_user_with_token(:accountant)
+      invoice = insert(:invoice, company: company, type: :expense, status: :approved)
+
+      conn = conn |> api_conn(token) |> post("/api/invoices/#{invoice.id}/reset_status")
+      assert conn.status == 403
+    end
+
+    test "reviewer can reset", %{conn: conn} do
+      {:ok, %{company: company, token: token}} = create_user_with_token(:reviewer)
+      invoice = insert(:invoice, company: company, type: :expense, status: :approved)
+
+      conn = conn |> api_conn(token) |> post("/api/invoices/#{invoice.id}/reset_status")
+
+      assert conn.status == 200
+      assert Jason.decode!(conn.resp_body)["data"]["status"] == "pending"
+    end
+  end
+
   describe "xml" do
     test "returns XML content with correct headers", %{conn: conn} do
       %{company: company, token: token} = create_user_with_token(:owner)
