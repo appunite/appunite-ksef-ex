@@ -158,13 +158,7 @@ defmodule KsefHubWeb.InvoiceLive.ShowTest do
     end
 
     test "hides payment requests section for accountant when none exist", %{company: company} do
-      {:ok, accountant} =
-        Accounts.get_or_create_google_user(%{
-          uid: "g-show-accountant",
-          email: "accountant@example.com",
-          name: "Accountant"
-        })
-
+      accountant = insert(:user)
       insert(:membership, user: accountant, company: company, role: :accountant)
       conn = build_conn() |> log_in_user(accountant, %{current_company_id: company.id})
 
@@ -172,6 +166,22 @@ defmodule KsefHubWeb.InvoiceLive.ShowTest do
 
       {:ok, view, _html} = live(conn, ~p"/c/#{company.id}/invoices/#{invoice.id}")
       refute has_element?(view, "#payment-requests-section")
+    end
+
+    test "shows payment requests section for accountant when requests exist", %{
+      company: company,
+      user: user
+    } do
+      accountant = insert(:user)
+      insert(:membership, user: accountant, company: company, role: :accountant)
+      conn = build_conn() |> log_in_user(accountant, %{current_company_id: company.id})
+
+      invoice = insert(:invoice, type: :expense, company: company)
+      insert(:payment_request, invoice: invoice, company: company, created_by: user)
+
+      {:ok, view, _html} = live(conn, ~p"/c/#{company.id}/invoices/#{invoice.id}")
+      assert has_element?(view, "#payment-requests-section")
+      refute has_element?(view, "#payment-requests-section a", "Add")
     end
 
     test "shows paid badge and paid date for paid payment request", %{
