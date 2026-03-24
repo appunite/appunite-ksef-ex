@@ -74,6 +74,7 @@ defmodule KsefHubWeb.InvoiceLive.Classify do
                can_manage_tags: can_manage_tags,
                new_tag_form: to_form(%{"name" => ""}),
                tag_form_key: 0,
+               show_all_tags: false,
                confidence_threshold: InvoiceClassifier.confidence_threshold(),
                expanded_group: expanded_group_for(invoice.category_id, categories)
              )}
@@ -126,6 +127,10 @@ defmodule KsefHubWeb.InvoiceLive.Classify do
 
         {:noreply, assign(socket, :selected_tag_ids, updated)}
     end
+  end
+
+  def handle_event("toggle_show_all_tags", _params, socket) do
+    {:noreply, assign(socket, :show_all_tags, !socket.assigns.show_all_tags)}
   end
 
   def handle_event("create_tag", %{"name" => name}, socket) do
@@ -344,7 +349,7 @@ defmodule KsefHubWeb.InvoiceLive.Classify do
 
         <div class="space-y-1">
           <label
-            :for={tag <- @all_tags}
+            :for={tag <- visible_tags(@all_tags, @selected_tag_ids, @show_all_tags)}
             class="flex items-center gap-2 cursor-pointer hover:bg-muted rounded px-2 py-1.5"
           >
             <input
@@ -357,6 +362,16 @@ defmodule KsefHubWeb.InvoiceLive.Classify do
             <span class="text-sm">{tag.name}</span>
           </label>
         </div>
+
+        <% hidden_count = hidden_tag_count(@all_tags, @selected_tag_ids) %>
+        <button
+          :if={hidden_count > 0}
+          phx-click="toggle_show_all_tags"
+          class="text-xs text-muted-foreground hover:text-foreground mt-2 underline-offset-4 hover:underline"
+          data-testid="toggle-show-all-tags"
+        >
+          {if @show_all_tags, do: "Show less", else: "Show more (#{hidden_count} more)"}
+        </button>
 
         <.prediction_hint
           predicted_at={@invoice.prediction_predicted_at}
@@ -431,6 +446,22 @@ defmodule KsefHubWeb.InvoiceLive.Classify do
       nil -> nil
       cat -> category_group(cat)
     end
+  end
+
+  @spec visible_tags([map()], MapSet.t(), boolean()) :: [map()]
+  defp visible_tags(all_tags, _selected_tag_ids, true), do: all_tags
+
+  defp visible_tags(all_tags, selected_tag_ids, false) do
+    {top, rest} = Enum.split(all_tags, 8)
+    selected_rest = Enum.filter(rest, &MapSet.member?(selected_tag_ids, &1.id))
+    top ++ selected_rest
+  end
+
+  @spec hidden_tag_count([map()], MapSet.t()) :: non_neg_integer()
+  defp hidden_tag_count(all_tags, selected_tag_ids) do
+    all_tags
+    |> Enum.drop(8)
+    |> Enum.count(&(not MapSet.member?(selected_tag_ids, &1.id)))
   end
 
   @spec changeset_message(Ecto.Changeset.t()) :: String.t()

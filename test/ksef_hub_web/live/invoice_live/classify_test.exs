@@ -188,6 +188,73 @@ defmodule KsefHubWeb.InvoiceLive.ClassifyTest do
     end
   end
 
+  describe "tag visibility (show more / show less)" do
+    test "with >8 tags, only first 8 are visible initially", %{conn: conn, company: company} do
+      tags =
+        for i <- 1..12 do
+          insert(:tag, company: company, name: "tag-#{String.pad_leading("#{i}", 2, "0")}")
+        end
+
+      invoice = insert(:invoice, type: :expense, company: company)
+
+      {:ok, view, _html} = live(conn, ~p"/c/#{company.id}/invoices/#{invoice.id}/classify")
+
+      # First 8 should be visible
+      for tag <- Enum.take(tags, 8) do
+        assert has_element?(view, ~s(input[phx-value-tag-id="#{tag.id}"]))
+      end
+
+      # Tags 9-12 should be hidden
+      for tag <- Enum.drop(tags, 8) do
+        refute has_element?(view, ~s(input[phx-value-tag-id="#{tag.id}"]))
+      end
+
+      # "Show more" button should be present
+      assert has_element?(view, ~s([data-testid="toggle-show-all-tags"]))
+      assert render(view) =~ "Show more (4 more)"
+    end
+
+    test "clicking 'Show more' reveals all tags", %{conn: conn, company: company} do
+      tags =
+        for i <- 1..10 do
+          insert(:tag, company: company, name: "tag-#{String.pad_leading("#{i}", 2, "0")}")
+        end
+
+      invoice = insert(:invoice, type: :expense, company: company)
+
+      {:ok, view, _html} = live(conn, ~p"/c/#{company.id}/invoices/#{invoice.id}/classify")
+
+      view |> element(~s([data-testid="toggle-show-all-tags"])) |> render_click()
+
+      # All tags should be visible now
+      for tag <- tags do
+        assert has_element?(view, ~s(input[phx-value-tag-id="#{tag.id}"]))
+      end
+
+      # Button should now say "Show less"
+      assert render(view) =~ "Show less"
+    end
+
+    test "selected tags beyond top 8 are always visible", %{conn: conn, company: company} do
+      tags =
+        for i <- 1..10 do
+          insert(:tag, company: company, name: "tag-#{String.pad_leading("#{i}", 2, "0")}")
+        end
+
+      tag_9 = Enum.at(tags, 8)
+      invoice = insert(:invoice, type: :expense, company: company, tags: [tag_9])
+
+      {:ok, view, _html} = live(conn, ~p"/c/#{company.id}/invoices/#{invoice.id}/classify")
+
+      # Tag 9 should be visible because it's selected
+      assert has_element?(view, ~s(input[phx-value-tag-id="#{tag_9.id}"][checked]))
+
+      # Tag 10 should still be hidden (not selected)
+      tag_10 = Enum.at(tags, 9)
+      refute has_element?(view, ~s(input[phx-value-tag-id="#{tag_10.id}"]))
+    end
+  end
+
   describe "permissions" do
     setup do
       {:ok, reviewer} =
