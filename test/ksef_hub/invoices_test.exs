@@ -3322,6 +3322,68 @@ defmodule KsefHub.InvoicesTest do
       assert hd(result).type == :expense
     end
 
+    test "income invoice cannot be unrestricted", %{company: company} do
+      invoice =
+        insert(:invoice, company: company, type: :income, access_restricted: true)
+
+      assert {:error, :income_always_restricted} =
+               Invoices.set_access_restricted(invoice, false)
+
+      # Verify it's still restricted
+      reloaded = KsefHub.Repo.reload!(invoice)
+      assert reloaded.access_restricted == true
+    end
+
+    test "expense invoice can be toggled freely", %{company: company} do
+      invoice = insert(:invoice, company: company, type: :expense)
+
+      assert {:ok, restricted} = Invoices.set_access_restricted(invoice, true)
+      assert restricted.access_restricted == true
+
+      assert {:ok, unrestricted} = Invoices.set_access_restricted(restricted, false)
+      assert unrestricted.access_restricted == false
+    end
+
+    test "grant_access to non-member returns error", %{company: company} do
+      invoice = insert(:invoice, company: company, type: :expense, access_restricted: true)
+      non_member = insert(:user)
+
+      assert {:error, changeset} = Invoices.grant_access(invoice.id, non_member.id)
+      assert changeset.errors[:user_id]
+    end
+
+    test "grant_access to admin returns error (already has full access)", %{
+      company: company,
+      admin: admin
+    } do
+      invoice =
+        insert(:invoice, company: company, type: :expense, access_restricted: true)
+
+      assert {:error, changeset} = Invoices.grant_access(invoice.id, admin.id)
+      assert changeset.errors[:user_id]
+    end
+
+    test "upsert_invoice auto-restricts income invoices", %{company: company} do
+      attrs = %{
+        company_id: company.id,
+        type: :income,
+        source: :ksef,
+        ksef_number: "auto-restrict-test-001",
+        seller_nip: "1234567890",
+        seller_name: "Seller",
+        buyer_nip: "0987654321",
+        buyer_name: "Buyer",
+        invoice_number: "FV/AR/001",
+        issue_date: ~D[2026-03-01],
+        net_amount: Decimal.new("100.00"),
+        gross_amount: Decimal.new("123.00"),
+        xml_content: File.read!("test/support/fixtures/sample_income.xml")
+      }
+
+      assert {:ok, invoice, :inserted} = Invoices.upsert_invoice(attrs)
+      assert invoice.access_restricted == true
+    end
+
     test "grants are cleaned up when invoice is deleted", %{company: company, reviewer: reviewer} do
       invoice = insert(:invoice, company: company, type: :expense)
 

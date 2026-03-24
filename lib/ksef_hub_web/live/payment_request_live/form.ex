@@ -33,7 +33,11 @@ defmodule KsefHubWeb.PaymentRequestLive.Form do
   @spec apply_action(Phoenix.LiveView.Socket.t(), atom(), map()) :: Phoenix.LiveView.Socket.t()
   defp apply_action(socket, :new, params) do
     company = socket.assigns[:current_company]
-    {invoice, attrs} = load_invoice_and_attrs(params, company)
+    role = socket.assigns[:current_role]
+    user_id = socket.assigns[:current_user] && socket.assigns.current_user.id
+
+    {invoice, attrs} =
+      load_invoice_and_attrs(params, company, role: role, user_id: user_id)
 
     changeset = PaymentRequest.changeset(%PaymentRequest{}, attrs)
 
@@ -129,10 +133,10 @@ defmodule KsefHubWeb.PaymentRequestLive.Form do
     end
   end
 
-  @spec load_invoice_and_attrs(map(), map() | nil) :: {map() | nil, map()}
-  defp load_invoice_and_attrs(%{"invoice_id" => invoice_id}, %{id: company_id})
+  @spec load_invoice_and_attrs(map(), map() | nil, keyword()) :: {map() | nil, map()}
+  defp load_invoice_and_attrs(%{"invoice_id" => invoice_id}, %{id: company_id}, opts)
        when is_binary(invoice_id) and invoice_id != "" do
-    case Invoices.get_invoice(company_id, invoice_id) do
+    case Invoices.get_invoice(company_id, invoice_id, opts) do
       nil ->
         {nil, %{}}
 
@@ -142,7 +146,7 @@ defmodule KsefHubWeb.PaymentRequestLive.Form do
     end
   end
 
-  defp load_invoice_and_attrs(_params, _company), do: {nil, %{}}
+  defp load_invoice_and_attrs(_params, _company, _opts), do: {nil, %{}}
 
   @allowed_keys %{
     "recipient_name" => :recipient_name,

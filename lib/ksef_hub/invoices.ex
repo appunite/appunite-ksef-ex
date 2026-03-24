@@ -1810,9 +1810,17 @@ defmodule KsefHub.Invoices do
     end
   end
 
-  @doc "Toggles the access_restricted flag on an invoice."
+  @doc """
+  Sets the access_restricted flag on an invoice.
+
+  Income invoices cannot be unrestricted — they are always restricted by design
+  so reviewers cannot see them unless explicitly granted access.
+  """
   @spec set_access_restricted(Invoice.t(), boolean()) ::
-          {:ok, Invoice.t()} | {:error, Ecto.Changeset.t()}
+          {:ok, Invoice.t()} | {:error, :income_always_restricted | Ecto.Changeset.t()}
+  def set_access_restricted(%Invoice{type: :income}, false),
+    do: {:error, :income_always_restricted}
+
   def set_access_restricted(%Invoice{} = invoice, restricted) when is_boolean(restricted) do
     invoice
     |> Ecto.Changeset.change(%{access_restricted: restricted})

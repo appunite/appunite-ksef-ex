@@ -959,6 +959,11 @@ defmodule KsefHubWeb.Api.InvoiceController do
           }
         })
 
+      {:error, :income_always_restricted} ->
+        conn
+        |> put_status(:unprocessable_entity)
+        |> json(%{error: "Income invoices cannot be unrestricted"})
+
       {:error, _changeset} ->
         conn
         |> put_status(:unprocessable_entity)

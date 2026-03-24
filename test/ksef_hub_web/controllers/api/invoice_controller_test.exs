@@ -1536,6 +1536,20 @@ defmodule KsefHubWeb.Api.InvoiceControllerTest do
       assert conn2.status == 422
     end
 
+    test "cannot unrestrict income invoice", %{conn: conn} do
+      %{company: company, token: token} = create_user_with_token(:owner)
+      invoice = insert(:invoice, company: company, type: :income, access_restricted: true)
+
+      conn =
+        conn
+        |> api_conn(token)
+        |> put("/api/invoices/#{invoice.id}/access", %{access_restricted: false})
+
+      assert conn.status == 422
+      body = Jason.decode!(conn.resp_body)
+      assert body["error"] =~ "Income invoices"
+    end
+
     test "reviewer cannot access access control endpoints", %{conn: conn} do
       {:ok, %{company: company, token: token}} = create_user_with_token(:reviewer)
       invoice = insert(:invoice, company: company, type: :expense)

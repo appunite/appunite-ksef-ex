@@ -596,6 +596,9 @@ defmodule KsefHubWeb.InvoiceLive.Show do
            if(new_value, do: "Access restricted.", else: "Access opened to all reviewers.")
          )}
 
+      {:error, :income_always_restricted} ->
+        {:noreply, put_flash(socket, :error, "Income invoices must always be restricted.")}
+
       {:error, _changeset} ->
         {:noreply, put_flash(socket, :error, "Failed to update access.")}
     end

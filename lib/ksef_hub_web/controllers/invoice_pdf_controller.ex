@@ -57,7 +57,11 @@ defmodule KsefHubWeb.InvoicePdfController do
     with {:uuid, {:ok, _}} <- {:uuid, Ecto.UUID.cast(company_id)},
          {:role, role} when not is_nil(role) <- {:role, resolve_role(user_id, company_id)},
          {:invoice, %{} = invoice} <-
-           {:invoice, Invoices.get_invoice_with_details(company_id, id, role: role)} do
+           {:invoice,
+            Invoices.get_invoice_with_details(company_id, id,
+              role: role,
+              user_id: to_string(user_id)
+            )} do
       fun.(conn, invoice)
     else
       error -> handle_invoice_error(conn, company_id, inline?, error)
