@@ -130,7 +130,12 @@ defmodule KsefHubWeb.Api.InvoiceController do
     company_id = conn.assigns.current_company.id
     role = conn.assigns[:current_role]
     filters = build_filters(params)
-    result = Invoices.list_invoices_paginated(company_id, filters, role: role)
+
+    result =
+      Invoices.list_invoices_paginated(company_id, filters,
+        role: role,
+        user_id: conn.assigns.api_token.created_by_id
+      )
 
     json(conn, %{
       data: Enum.map(result.entries, &invoice_json/1),
@@ -290,7 +295,13 @@ defmodule KsefHubWeb.Api.InvoiceController do
   @spec update(Plug.Conn.t(), map()) :: Plug.Conn.t()
   def update(conn, %{"id" => id} = params) do
     company_id = conn.assigns.current_company.id
-    invoice = Invoices.get_invoice!(company_id, id, role: conn.assigns[:current_role])
+
+    invoice =
+      Invoices.get_invoice!(company_id, id,
+        role: conn.assigns[:current_role],
+        user_id: conn.assigns.api_token.created_by_id
+      )
+
     do_update(conn, invoice, params)
   end
 
@@ -336,7 +347,10 @@ defmodule KsefHubWeb.Api.InvoiceController do
     company_id = conn.assigns.current_company.id
 
     invoice =
-      Invoices.get_invoice_with_details!(company_id, id, role: conn.assigns[:current_role])
+      Invoices.get_invoice_with_details!(company_id, id,
+        role: conn.assigns[:current_role],
+        user_id: conn.assigns.api_token.created_by_id
+      )
 
     json(conn, %{data: invoice_json(invoice)})
   end
@@ -367,7 +381,12 @@ defmodule KsefHubWeb.Api.InvoiceController do
   @spec approve(Plug.Conn.t(), map()) :: Plug.Conn.t()
   def approve(conn, %{"id" => id}) do
     company_id = conn.assigns.current_company.id
-    invoice = Invoices.get_invoice!(company_id, id, role: conn.assigns[:current_role])
+
+    invoice =
+      Invoices.get_invoice!(company_id, id,
+        role: conn.assigns[:current_role],
+        user_id: conn.assigns.api_token.created_by_id
+      )
 
     case Invoices.approve_invoice(invoice) do
       {:ok, updated} ->
@@ -417,7 +436,12 @@ defmodule KsefHubWeb.Api.InvoiceController do
   @spec reject(Plug.Conn.t(), map()) :: Plug.Conn.t()
   def reject(conn, %{"id" => id}) do
     company_id = conn.assigns.current_company.id
-    invoice = Invoices.get_invoice!(company_id, id, role: conn.assigns[:current_role])
+
+    invoice =
+      Invoices.get_invoice!(company_id, id,
+        role: conn.assigns[:current_role],
+        user_id: conn.assigns.api_token.created_by_id
+      )
 
     case Invoices.reject_invoice(invoice) do
       {:ok, updated} ->
@@ -461,7 +485,12 @@ defmodule KsefHubWeb.Api.InvoiceController do
   @spec confirm_duplicate(Plug.Conn.t(), map()) :: Plug.Conn.t()
   def confirm_duplicate(conn, %{"id" => id}) do
     company_id = conn.assigns.current_company.id
-    invoice = Invoices.get_invoice!(company_id, id, role: conn.assigns[:current_role])
+
+    invoice =
+      Invoices.get_invoice!(company_id, id,
+        role: conn.assigns[:current_role],
+        user_id: conn.assigns.api_token.created_by_id
+      )
 
     case Invoices.confirm_duplicate(invoice) do
       {:ok, updated} ->
@@ -510,7 +539,12 @@ defmodule KsefHubWeb.Api.InvoiceController do
   @spec dismiss_duplicate(Plug.Conn.t(), map()) :: Plug.Conn.t()
   def dismiss_duplicate(conn, %{"id" => id}) do
     company_id = conn.assigns.current_company.id
-    invoice = Invoices.get_invoice!(company_id, id, role: conn.assigns[:current_role])
+
+    invoice =
+      Invoices.get_invoice!(company_id, id,
+        role: conn.assigns[:current_role],
+        user_id: conn.assigns.api_token.created_by_id
+      )
 
     case Invoices.dismiss_duplicate(invoice) do
       {:ok, updated} ->
@@ -564,7 +598,10 @@ defmodule KsefHubWeb.Api.InvoiceController do
     company_id = conn.assigns.current_company.id
 
     invoice =
-      Invoices.get_invoice_with_details!(company_id, id, role: conn.assigns[:current_role])
+      Invoices.get_invoice_with_details!(company_id, id,
+        role: conn.assigns[:current_role],
+        user_id: conn.assigns.api_token.created_by_id
+      )
 
     if is_nil(invoice.xml_file) do
       conn
@@ -621,7 +658,10 @@ defmodule KsefHubWeb.Api.InvoiceController do
     company_id = conn.assigns.current_company.id
 
     invoice =
-      Invoices.get_invoice_with_details!(company_id, id, role: conn.assigns[:current_role])
+      Invoices.get_invoice_with_details!(company_id, id,
+        role: conn.assigns[:current_role],
+        user_id: conn.assigns.api_token.created_by_id
+      )
 
     if is_nil(invoice.xml_file) do
       conn
@@ -667,7 +707,10 @@ defmodule KsefHubWeb.Api.InvoiceController do
     company_id = conn.assigns.current_company.id
 
     invoice =
-      Invoices.get_invoice_with_details!(company_id, id, role: conn.assigns[:current_role])
+      Invoices.get_invoice_with_details!(company_id, id,
+        role: conn.assigns[:current_role],
+        user_id: conn.assigns.api_token.created_by_id
+      )
 
     serve_pdf(conn, invoice)
   end
@@ -736,13 +779,14 @@ defmodule KsefHubWeb.Api.InvoiceController do
   def set_category(conn, %{"id" => id} = params) do
     company_id = conn.assigns.current_company.id
     role = conn.assigns[:current_role]
-    invoice = Invoices.get_invoice!(company_id, id, role: role)
+    user_id = conn.assigns.api_token.created_by_id
+    invoice = Invoices.get_invoice!(company_id, id, role: role, user_id: user_id)
     category_id = params["category_id"]
 
     with :ok <- validate_category_company(category_id, company_id),
          {:ok, updated} <- Invoices.set_invoice_category(invoice, category_id),
          {:ok, _} <- Invoices.mark_prediction_manual(updated) do
-      invoice = Invoices.get_invoice_with_details!(company_id, id, role: role)
+      invoice = Invoices.get_invoice_with_details!(company_id, id, role: role, user_id: user_id)
       json(conn, %{data: invoice_json(invoice)})
     else
       {:error, :invalid_uuid} ->
@@ -795,7 +839,12 @@ defmodule KsefHubWeb.Api.InvoiceController do
   @spec set_tags(Plug.Conn.t(), map()) :: Plug.Conn.t()
   def set_tags(conn, %{"id" => id} = params) do
     company_id = conn.assigns.current_company.id
-    invoice = Invoices.get_invoice!(company_id, id, role: conn.assigns[:current_role])
+
+    invoice =
+      Invoices.get_invoice!(company_id, id,
+        role: conn.assigns[:current_role],
+        user_id: conn.assigns.api_token.created_by_id
+      )
 
     with {:ok, tag_ids} <- validate_tag_ids(params["tag_ids"]),
          true <- Invoices.tags_belong_to_company?(tag_ids, company_id),

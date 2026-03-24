@@ -68,9 +68,11 @@ defmodule KsefHub.Invoices.Invoice do
     has_many :comments, KsefHub.Invoices.InvoiceComment
     belongs_to :created_by, KsefHub.Accounts.User
     has_one :inbound_email, KsefHub.InboundEmail.InboundEmail
+    has_many :access_grants, KsefHub.Invoices.InvoiceAccessGrant
 
     field :public_token, :string
     field :is_excluded, :boolean, default: false
+    field :access_restricted, :boolean, default: false
 
     timestamps()
   end

@@ -988,5 +988,92 @@ defmodule KsefHubWeb.InvoiceLive.ShowTest do
       assert {:error, {:redirect, %{to: ^expected_path}}} =
                live(conn, ~p"/c/#{company.id}/invoices/#{invoice.id}")
     end
+
+    test "reviewer is redirected when viewing restricted expense invoice without grant", %{
+      conn: conn,
+      company: company
+    } do
+      invoice =
+        insert(:invoice, type: :expense, company: company, access_restricted: true)
+
+      expected_path = "/c/#{company.id}/invoices"
+
+      assert {:error, {:redirect, %{to: ^expected_path}}} =
+               live(conn, ~p"/c/#{company.id}/invoices/#{invoice.id}")
+    end
+  end
+
+  describe "access control card" do
+    setup :stub_pdf
+
+    test "access control card is visible for owner", %{conn: conn, company: company} do
+      invoice = insert(:invoice, type: :expense, company: company)
+
+      {:ok, _view, html} = live(conn, ~p"/c/#{company.id}/invoices/#{invoice.id}")
+      assert html =~ "Access"
+      assert html =~ "All reviewers"
+    end
+
+    test "access control card is not visible for reviewer", %{conn: _conn} do
+      {:ok, reviewer} =
+        Accounts.get_or_create_google_user(%{
+          uid: "g-rev-access-1",
+          email: "reviewer-access@example.com",
+          name: "Reviewer Access"
+        })
+
+      company = insert(:company)
+      insert(:membership, user: reviewer, company: company, role: :reviewer)
+
+      conn = build_conn() |> log_in_user(reviewer, %{current_company_id: company.id})
+      invoice = insert(:invoice, type: :expense, company: company)
+
+      stub(KsefHub.PdfRenderer.Mock, :generate_html, fn _xml, _meta -> {:error, :no_xml} end)
+
+      {:ok, _view, html} = live(conn, ~p"/c/#{company.id}/invoices/#{invoice.id}")
+      refute html =~ "Only people invited"
+      refute html =~ "access-mode-menu"
+    end
+
+    test "toggling access restriction works", %{conn: conn, company: company} do
+      invoice = insert(:invoice, type: :expense, company: company)
+
+      {:ok, view, _html} = live(conn, ~p"/c/#{company.id}/invoices/#{invoice.id}")
+
+      # Use the event directly since the button has JS command chain, not simple phx-click
+      html = render_click(view, "toggle_access_restricted")
+
+      assert html =~ "Only people invited"
+      assert html =~ "Owners, admins, and accountants always have access"
+
+      updated = Invoices.get_invoice!(company.id, invoice.id)
+      assert updated.access_restricted == true
+    end
+
+    test "grant and revoke access events work", %{conn: conn, company: company} do
+      invoice =
+        insert(:invoice, type: :expense, company: company, access_restricted: true)
+
+      reviewer = insert(:user, name: "Granted Reviewer")
+      insert(:membership, user: reviewer, company: company, role: :reviewer)
+
+      {:ok, view, _html} = live(conn, ~p"/c/#{company.id}/invoices/#{invoice.id}")
+
+      # Grant access
+      view
+      |> form("form[phx-submit=grant_access]", %{"user_id" => reviewer.id})
+      |> render_submit()
+
+      html = render(view)
+      assert html =~ "Granted Reviewer"
+      assert length(Invoices.list_access_grants(invoice.id)) == 1
+
+      # Revoke access
+      view
+      |> element(~s(button[phx-click="revoke_access"][phx-value-user_id="#{reviewer.id}"]))
+      |> render_click()
+
+      assert Invoices.list_access_grants(invoice.id) == []
+    end
   end
 end

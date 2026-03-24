@@ -52,7 +52,10 @@ defmodule KsefHubWeb.InvoiceLive.Index do
 
     result =
       if company_id do
-        Invoices.list_invoices_paginated(company_id, filters, role: role)
+        Invoices.list_invoices_paginated(company_id, filters,
+          role: role,
+          user_id: socket.assigns[:current_user] && socket.assigns.current_user.id
+        )
       else
         %{entries: [], page: 1, per_page: 25, total_count: 0, total_pages: 1}
       end

@@ -15,7 +15,7 @@ defmodule KsefHub.Factory do
   alias KsefHub.Files.File, as: FileRecord
   alias KsefHub.InboundEmail.InboundEmail, as: InboundEmailRecord
   alias KsefHub.Invitations.Invitation
-  alias KsefHub.Invoices.{Category, Invoice, InvoiceComment, InvoiceTag, Tag}
+  alias KsefHub.Invoices.{Category, Invoice, InvoiceAccessGrant, InvoiceComment, InvoiceTag, Tag}
   alias KsefHub.PaymentRequests.PaymentRequest
   alias KsefHub.Sync.Checkpoint
 
@@ -225,6 +225,16 @@ defmodule KsefHub.Factory do
     %InvoiceTag{
       invoice: build(:invoice),
       tag: build(:tag)
+    }
+  end
+
+  @doc "Builds an `InvoiceAccessGrant` linking a user to an invoice."
+  @spec invoice_access_grant_factory() :: InvoiceAccessGrant.t()
+  def invoice_access_grant_factory do
+    %InvoiceAccessGrant{
+      invoice: build(:invoice),
+      user: build(:user),
+      granted_by: build(:user)
     }
   end
 
