@@ -182,6 +182,8 @@ defmodule KsefHubWeb.Router do
         {KsefHubWeb.LiveAuth, {:require_permission, :manage_team}}
       ] do
       live "/team", TeamLive
+      live "/team/members/:id", TeamMemberLive.Show, :member
+      live "/team/invitations/:id", TeamMemberLive.Show, :invitation
     end
 
     live_session :require_view_payment_requests,

@@ -463,4 +463,18 @@ defmodule KsefHub.AccountsTest do
                Accounts.revoke_api_token(user.id, company.id, token.id)
     end
   end
+
+  describe "update_user_name/2" do
+    test "updates user name" do
+      user = create_user()
+      assert {:ok, updated} = Accounts.update_user_name(user, "New Name")
+      assert updated.name == "New Name"
+    end
+
+    test "allows clearing name" do
+      user = create_user()
+      assert {:ok, updated} = Accounts.update_user_name(user, nil)
+      assert is_nil(updated.name)
+    end
+  end
 end

@@ -1,12 +1,18 @@
 defmodule KsefHub.Companies.Membership do
   @moduledoc """
-  Membership schema. Links a user to a company with a specific role.
+  Membership schema. Links a user to a company with a specific role and status.
 
-  Roles:
-  - `owner` — full access including destructive operations (delete company, transfer ownership)
-  - `admin` — same as owner except cannot delete company or transfer ownership
-  - `accountant` — read-only invoice access plus exports and API token management
-  - `reviewer` — can view and manage expense invoices, trigger syncs
+  ## Roles
+
+  - `:owner` — full access including destructive operations (delete company, transfer ownership)
+  - `:admin` — same as owner except cannot delete company or transfer ownership
+  - `:accountant` — read-only invoice access plus exports and API token management
+  - `:reviewer` — can view and manage expense invoices, trigger syncs
+
+  ## Status
+
+  - `:active` — normal access (default)
+  - `:blocked` — soft-deleted; member loses all access without destroying the record
   """
 
   use Ecto.Schema
@@ -14,12 +20,14 @@ defmodule KsefHub.Companies.Membership do
 
   @type t :: %__MODULE__{}
   @type role :: :owner | :admin | :accountant | :reviewer
+  @type status :: :active | :blocked
 
   @primary_key {:id, :binary_id, autogenerate: true}
   @foreign_key_type :binary_id
 
   schema "memberships" do
     field :role, Ecto.Enum, values: [:owner, :admin, :accountant, :reviewer]
+    field :status, Ecto.Enum, values: [:active, :blocked], default: :active
 
     belongs_to :user, KsefHub.Accounts.User
     belongs_to :company, KsefHub.Companies.Company
@@ -30,6 +38,33 @@ defmodule KsefHub.Companies.Membership do
   @doc "Returns the list of valid membership roles."
   @spec roles() :: [role()]
   def roles, do: Ecto.Enum.values(__MODULE__, :role)
+
+  @doc "Returns a human-readable label for a role."
+  @spec role_label(role()) :: String.t()
+  def role_label(role), do: role |> Atom.to_string() |> String.capitalize()
+
+  @doc "Returns a short description of what a role can do."
+  @spec role_description(role()) :: String.t()
+  def role_description(:owner),
+    do: "Full access including destructive operations like deleting the company."
+
+  def role_description(:admin),
+    do: "Same as Owner, except cannot delete the company or transfer ownership."
+
+  def role_description(:reviewer),
+    do:
+      "Can view and manage expense invoices, approve/reject, trigger syncs, and manage payment requests."
+
+  def role_description(:accountant),
+    do: "Read-only invoice access for all types, plus exports and API token management."
+
+  def role_description(_), do: ""
+
+  @doc "Returns the roles that the given role is allowed to assign to other members."
+  @spec assignable_roles(role()) :: [role()]
+  def assignable_roles(:owner), do: [:admin, :accountant, :reviewer]
+  def assignable_roles(:admin), do: [:admin, :accountant, :reviewer]
+  def assignable_roles(_), do: []
 
   @doc """
   Builds a changeset for membership creation/update.
@@ -49,5 +84,13 @@ defmodule KsefHub.Companies.Membership do
       name: :memberships_user_id_company_id_index,
       message: "already a member of this company"
     )
+  end
+
+  @doc "Builds a changeset for status-only updates (block/unblock)."
+  @spec status_changeset(t(), map()) :: Ecto.Changeset.t()
+  def status_changeset(membership, attrs) do
+    membership
+    |> cast(attrs, [:status])
+    |> validate_required([:status])
   end
 end

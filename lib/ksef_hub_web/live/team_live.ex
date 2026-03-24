@@ -1,16 +1,15 @@
 defmodule KsefHubWeb.TeamLive do
   @moduledoc """
   LiveView for team management — page for owners and admins to view members,
-  send invitations, cancel pending invitations, change roles, and remove members.
+  send invitations, and navigate to member/invitation detail pages.
   """
 
   use KsefHubWeb, :live_view
 
   require Logger
 
-  alias KsefHub.Authorization
   alias KsefHub.Companies
-  alias KsefHub.Companies.Company
+  alias KsefHub.Companies.{Company, Membership}
   alias KsefHub.Invitations
   alias KsefHub.Invitations.InvitationNotifier
 
@@ -27,7 +26,7 @@ defmodule KsefHubWeb.TeamLive do
      |> load_team_data()}
   end
 
-  @doc "Handles invite, cancel, remove, change_role, and validate events."
+  @doc "Handles invite and validate events."
   @spec handle_event(String.t(), map(), Phoenix.LiveView.Socket.t()) ::
           {:noreply, Phoenix.LiveView.Socket.t()}
   @impl true
@@ -73,72 +72,6 @@ defmodule KsefHubWeb.TeamLive do
     end
   end
 
-  @impl true
-  def handle_event("cancel_invitation", %{"id" => invitation_id}, socket) do
-    user = socket.assigns.current_user
-
-    case Invitations.cancel_invitation(user.id, invitation_id) do
-      {:ok, _} ->
-        {:noreply,
-         socket
-         |> put_flash(:info, "Invitation cancelled.")
-         |> load_team_data()}
-
-      {:error, _} ->
-        {:noreply, put_flash(socket, :error, "Failed to cancel invitation.")}
-    end
-  end
-
-  @impl true
-  def handle_event("change_role", %{"user-id" => member_user_id, "role" => role}, socket) do
-    current_role = socket.assigns.current_role
-    company = socket.assigns.current_company
-    allowed_roles = assignable_roles(current_role)
-
-    with {:ok, role_atom} <- parse_role(role),
-         :ok <- check_permission(current_role),
-         :ok <- check_role_allowed(role_atom, allowed_roles),
-         :ok <- check_not_self(member_user_id, socket.assigns.current_user.id),
-         {:ok, membership} <- fetch_non_owner_membership(member_user_id, company.id),
-         {:ok, _} <- Companies.update_membership_role(membership, role_atom) do
-      {:noreply,
-       socket
-       |> put_flash(:info, "Role updated.")
-       |> load_team_data()}
-    else
-      {:error, message} when is_binary(message) ->
-        {:noreply, put_flash(socket, :error, message)}
-
-      {:error, %Ecto.Changeset{}} ->
-        {:noreply, put_flash(socket, :error, "Failed to update role.")}
-    end
-  end
-
-  @impl true
-  def handle_event("remove_member", %{"user-id" => member_user_id}, socket) do
-    company = socket.assigns.current_company
-
-    case Companies.get_membership(member_user_id, company.id) do
-      nil ->
-        {:noreply, put_flash(socket, :error, "Member not found.")}
-
-      %{role: :owner} ->
-        {:noreply, put_flash(socket, :error, "Cannot remove company owner.")}
-
-      membership ->
-        case Companies.delete_membership(membership) do
-          {:ok, _} ->
-            {:noreply,
-             socket
-             |> put_flash(:info, "Member removed.")
-             |> load_team_data()}
-
-          {:error, _} ->
-            {:noreply, put_flash(socket, :error, "Failed to remove member.")}
-        end
-    end
-  end
-
   # --- Private helpers ---
 
   @spec load_team_data(Phoenix.LiveView.Socket.t()) :: Phoenix.LiveView.Socket.t()
@@ -148,7 +81,6 @@ defmodule KsefHubWeb.TeamLive do
     pending_invitations = Invitations.list_pending_invitations(company.id)
 
     socket
-    |> assign(assignable_roles: assignable_roles(socket.assigns.current_role))
     |> stream(:members, members, reset: true)
     |> stream(:pending_invitations, pending_invitations, reset: true)
   end
@@ -175,56 +107,7 @@ defmodule KsefHubWeb.TeamLive do
     end
   end
 
-  @valid_roles ~w(owner admin accountant reviewer)a
-
-  @spec parse_role(String.t()) :: {:ok, atom()} | {:error, String.t()}
-  defp parse_role(role) when is_binary(role) do
-    role_atom = String.to_existing_atom(role)
-
-    if role_atom in @valid_roles do
-      {:ok, role_atom}
-    else
-      {:error, "Invalid role."}
-    end
-  rescue
-    ArgumentError -> {:error, "Invalid role."}
-  end
-
-  @spec check_not_self(Ecto.UUID.t(), Ecto.UUID.t()) :: :ok | {:error, String.t()}
-  defp check_not_self(target_id, current_id) when target_id == current_id,
-    do: {:error, "You cannot change your own role."}
-
-  defp check_not_self(_, _), do: :ok
-
-  @spec check_permission(atom()) :: :ok | {:error, String.t()}
-  defp check_permission(role) do
-    if Authorization.can?(role, :manage_team),
-      do: :ok,
-      else: {:error, "You don't have permission to change roles."}
-  end
-
-  @spec check_role_allowed(atom(), [atom()]) :: :ok | {:error, String.t()}
-  defp check_role_allowed(role, allowed) do
-    if role in allowed, do: :ok, else: {:error, "Invalid role."}
-  end
-
-  @spec fetch_non_owner_membership(Ecto.UUID.t(), Ecto.UUID.t()) ::
-          {:ok, Companies.Membership.t()} | {:error, String.t()}
-  defp fetch_non_owner_membership(user_id, company_id) do
-    case Companies.get_membership(user_id, company_id) do
-      nil -> {:error, "Member not found."}
-      %{role: :owner} -> {:error, "Cannot change owner's role."}
-      membership -> {:ok, membership}
-    end
-  end
-
-  @spec assignable_roles(atom()) :: [atom()]
-  defp assignable_roles(:owner), do: [:admin, :accountant, :reviewer]
-  defp assignable_roles(:admin), do: [:admin, :accountant, :reviewer]
-  defp assignable_roles(_), do: []
-
-  @spec role_label(atom()) :: String.t()
-  defp role_label(role), do: role |> Atom.to_string() |> String.capitalize()
+  defdelegate role_label(role), to: Membership
 
   @spec format_changeset_errors(Ecto.Changeset.t()) :: String.t()
   defp format_changeset_errors(changeset) do
@@ -234,6 +117,16 @@ defmodule KsefHubWeb.TeamLive do
       end)
     end)
     |> Enum.map_join("; ", fn {field, errors} -> "#{field}: #{Enum.join(errors, ", ")}" end)
+  end
+
+  @spec member_path(Ecto.UUID.t(), Companies.Membership.t()) :: String.t()
+  defp member_path(company_id, member) do
+    ~p"/c/#{company_id}/team/members/#{member.id}"
+  end
+
+  @spec invitation_path(Ecto.UUID.t(), Invitations.Invitation.t()) :: String.t()
+  defp invitation_path(company_id, invitation) do
+    ~p"/c/#{company_id}/team/invitations/#{invitation.id}"
   end
 
   @doc "Renders the team management page."
@@ -286,7 +179,7 @@ defmodule KsefHubWeb.TeamLive do
       <h2 class="text-base font-semibold mb-3">Members</h2>
       <div class="rounded-lg border border-border overflow-hidden">
         <div class="overflow-x-auto" data-testid="member-list">
-          <table class="w-full text-sm" data-testid="team-table">
+          <table class="w-full table-fixed text-sm" data-testid="team-table">
             <thead>
               <tr class="border-b border-border">
                 <th class="text-left py-3 px-4 text-xs font-medium text-muted-foreground uppercase tracking-wide">
@@ -298,68 +191,30 @@ defmodule KsefHubWeb.TeamLive do
                 <th class="text-left py-3 px-4 text-xs font-medium text-muted-foreground uppercase tracking-wide">
                   Role
                 </th>
-                <th class="text-left py-3 px-4 text-xs font-medium text-muted-foreground uppercase tracking-wide">
-                  Action
-                </th>
               </tr>
             </thead>
             <tbody id="members-list" phx-update="stream">
               <tr
                 :for={{dom_id, member} <- @streams.members}
                 id={dom_id}
-                class="border-b border-border/50 hover:bg-muted/50 transition-colors"
+                class="border-b border-border/50 hover:bg-muted/50 transition-colors cursor-pointer"
+                phx-click={JS.navigate(member_path(@current_company.id, member))}
+                data-testid={"member-row-#{member.user.id}"}
               >
-                <td class="py-3.5 px-4">{member.user.email}</td>
+                <td class="py-3.5 px-4">
+                  {member.user.email}
+                  <.badge
+                    :if={member.status == :blocked}
+                    variant="error"
+                    class="ml-2"
+                    data-testid={"blocked-badge-#{member.user.id}"}
+                  >
+                    Blocked
+                  </.badge>
+                </td>
                 <td class="py-3.5 px-4">{member.user.name || "-"}</td>
                 <td class="py-3.5 px-4">
-                  <select
-                    :if={member.role == :owner}
-                    disabled
-                    class="text-sm py-1 px-2 rounded-md border border-border bg-background opacity-60"
-                  >
-                    <option>{role_label(member.role)}</option>
-                  </select>
-                  <form
-                    :if={member.role != :owner && @assignable_roles != []}
-                    phx-change="change_role"
-                    phx-value-user-id={member.user.id}
-                    data-testid={"role-form-#{member.user.id}"}
-                  >
-                    <select
-                      name="role"
-                      class="text-sm py-1 px-2 rounded-md border border-border bg-background"
-                      data-testid={"role-select-#{member.user.id}"}
-                    >
-                      <option
-                        :for={role <- @assignable_roles}
-                        value={role}
-                        selected={role == member.role}
-                      >
-                        {role_label(role)}
-                      </option>
-                    </select>
-                  </form>
-                  <select
-                    :if={member.role != :owner && @assignable_roles == []}
-                    disabled
-                    class="text-sm py-1 px-2 rounded-md border border-border bg-background opacity-60"
-                  >
-                    <option>{role_label(member.role)}</option>
-                  </select>
-                </td>
-                <td class="py-3.5 px-4">
-                  <.button
-                    :if={member.role != :owner}
-                    variant="outline"
-                    size="sm"
-                    class="border-shad-destructive text-shad-destructive hover:bg-shad-destructive/10"
-                    phx-click="remove_member"
-                    phx-value-user-id={member.user.id}
-                    data-confirm="Remove this member from the company?"
-                    data-testid={"remove-member-#{member.user.id}"}
-                  >
-                    Remove
-                  </.button>
+                  <.badge variant="muted">{role_label(member.role)}</.badge>
                 </td>
               </tr>
             </tbody>
@@ -367,7 +222,9 @@ defmodule KsefHubWeb.TeamLive do
               <tr
                 :for={{dom_id, inv} <- @streams.pending_invitations}
                 id={dom_id}
-                class="border-b border-border/50 hover:bg-muted/50 transition-colors"
+                class="border-b border-border/50 hover:bg-muted/50 transition-colors cursor-pointer"
+                phx-click={JS.navigate(invitation_path(@current_company.id, inv))}
+                data-testid={"invitation-row-#{inv.id}"}
               >
                 <td class="py-3.5 px-4">
                   <div>{inv.email}</div>
@@ -377,26 +234,7 @@ defmodule KsefHubWeb.TeamLive do
                 </td>
                 <td class="py-3.5 px-4">-</td>
                 <td class="py-3.5 px-4">
-                  <select
-                    disabled
-                    data-role={inv.role}
-                    class="text-sm py-1 px-2 rounded-md border border-border bg-background opacity-60"
-                  >
-                    <option>{role_label(inv.role)}</option>
-                  </select>
-                </td>
-                <td class="py-3.5 px-4">
-                  <.button
-                    variant="outline"
-                    size="sm"
-                    class="border-shad-destructive text-shad-destructive hover:bg-shad-destructive/10"
-                    phx-click="cancel_invitation"
-                    phx-value-id={inv.id}
-                    data-confirm="Cancel this invitation?"
-                    data-testid={"cancel-invitation-#{inv.id}"}
-                  >
-                    Cancel
-                  </.button>
+                  <.badge variant="muted">{role_label(inv.role)}</.badge>
                 </td>
               </tr>
             </tbody>

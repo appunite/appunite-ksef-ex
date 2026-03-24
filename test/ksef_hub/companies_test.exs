@@ -359,6 +359,105 @@ defmodule KsefHub.CompaniesTest do
     end
   end
 
+  describe "block_member/1" do
+    test "sets membership status to blocked" do
+      company = insert(:company)
+      user = insert(:user)
+      membership = insert(:membership, user: user, company: company, role: :accountant)
+
+      assert {:ok, blocked} = Companies.block_member(membership)
+      assert blocked.status == :blocked
+    end
+
+    test "blocked member is invisible to get_membership/2" do
+      company = insert(:company)
+      user = insert(:user)
+      membership = insert(:membership, user: user, company: company, role: :accountant)
+
+      {:ok, _} = Companies.block_member(membership)
+      assert is_nil(Companies.get_membership(user.id, company.id))
+    end
+
+    test "blocked member is excluded from list_companies_for_user/1" do
+      company = insert(:company)
+      user = insert(:user)
+      membership = insert(:membership, user: user, company: company, role: :accountant)
+
+      {:ok, _} = Companies.block_member(membership)
+      assert Companies.list_companies_for_user(user.id) == []
+    end
+  end
+
+  describe "unblock_member/1" do
+    test "restores membership to active status" do
+      company = insert(:company)
+      user = insert(:user)
+
+      membership =
+        insert(:membership, user: user, company: company, role: :accountant, status: :blocked)
+
+      assert {:ok, unblocked} = Companies.unblock_member(membership)
+      assert unblocked.status == :active
+    end
+
+    test "unblocked member is visible to get_membership/2 again" do
+      company = insert(:company)
+      user = insert(:user)
+
+      membership =
+        insert(:membership, user: user, company: company, role: :accountant, status: :blocked)
+
+      {:ok, _} = Companies.unblock_member(membership)
+      assert %{role: :accountant} = Companies.get_membership(user.id, company.id)
+    end
+  end
+
+  describe "get_membership_with_user/2" do
+    test "returns membership with preloaded user" do
+      company = insert(:company)
+      user = insert(:user, name: "Test User")
+      membership = insert(:membership, user: user, company: company, role: :accountant)
+
+      result = Companies.get_membership_with_user(membership.id, company.id)
+      assert result.id == membership.id
+      assert result.user.name == "Test User"
+    end
+
+    test "returns nil for non-existent membership" do
+      company = insert(:company)
+      assert is_nil(Companies.get_membership_with_user(Ecto.UUID.generate(), company.id))
+    end
+
+    test "returns blocked memberships (any status)" do
+      company = insert(:company)
+      user = insert(:user)
+
+      membership =
+        insert(:membership, user: user, company: company, role: :accountant, status: :blocked)
+
+      assert %{status: :blocked} = Companies.get_membership_with_user(membership.id, company.id)
+    end
+  end
+
+  describe "list_members/1 with blocked status" do
+    test "returns members of all statuses" do
+      company = insert(:company)
+      active_user = insert(:user, name: "Active")
+      blocked_user = insert(:user, name: "Blocked")
+      insert(:membership, user: active_user, company: company, role: :admin)
+
+      insert(:membership,
+        user: blocked_user,
+        company: company,
+        role: :accountant,
+        status: :blocked
+      )
+
+      members = Companies.list_members(company.id)
+      assert length(members) == 2
+    end
+  end
+
   describe "has_role?/3" do
     test "returns true when user has the specified role" do
       user = insert(:user)
