@@ -1461,4 +1461,91 @@ defmodule KsefHubWeb.Api.InvoiceControllerTest do
       assert data["billing_date_to"] == "2026-07-01"
     end
   end
+
+  describe "access control API" do
+    test "get_access returns access status and grants", %{conn: conn} do
+      %{company: company, token: token} = create_user_with_token(:owner)
+      invoice = insert(:invoice, company: company, access_restricted: false)
+
+      conn = conn |> api_conn(token) |> get("/api/invoices/#{invoice.id}/access")
+
+      assert conn.status == 200
+      data = Jason.decode!(conn.resp_body)["data"]
+      assert data["access_restricted"] == false
+      assert data["grants"] == []
+    end
+
+    test "set_access toggles restriction", %{conn: conn} do
+      %{company: company, token: token} = create_user_with_token(:owner)
+      invoice = insert(:invoice, company: company)
+
+      conn =
+        conn
+        |> api_conn(token)
+        |> put("/api/invoices/#{invoice.id}/access", %{access_restricted: true})
+
+      assert conn.status == 200
+      data = Jason.decode!(conn.resp_body)["data"]
+      assert data["access_restricted"] == true
+    end
+
+    test "grant_access and revoke_access work", %{conn: conn} do
+      %{company: company, token: token} = create_user_with_token(:owner)
+      invoice = insert(:invoice, company: company, access_restricted: true)
+      reviewer = insert(:user)
+      insert(:membership, user: reviewer, company: company, role: :reviewer)
+
+      # Grant
+      conn1 =
+        conn
+        |> api_conn(token)
+        |> post("/api/invoices/#{invoice.id}/access/grants", %{user_id: reviewer.id})
+
+      assert conn1.status == 200
+      data = Jason.decode!(conn1.resp_body)["data"]
+      assert length(data["grants"]) == 1
+      assert hd(data["grants"])["user_id"] == reviewer.id
+
+      # Revoke
+      conn2 =
+        conn
+        |> api_conn(token)
+        |> delete("/api/invoices/#{invoice.id}/access/grants/#{reviewer.id}")
+
+      assert conn2.status == 200
+      data = Jason.decode!(conn2.resp_body)["data"]
+      assert data["grants"] == []
+    end
+
+    test "reviewer cannot access access control endpoints", %{conn: conn} do
+      {:ok, %{company: company, token: token}} = create_user_with_token(:reviewer)
+      invoice = insert(:invoice, company: company, type: :expense)
+
+      conn = conn |> api_conn(token) |> get("/api/invoices/#{invoice.id}/access")
+      assert conn.status == 403
+    end
+
+    test "reviewer cannot see restricted invoice via API", %{conn: conn} do
+      {:ok, %{token: token, company: company}} = create_user_with_token(:reviewer)
+      insert(:invoice, company: company, type: :expense, access_restricted: true)
+
+      conn = conn |> api_conn(token) |> get("/api/invoices")
+
+      assert conn.status == 200
+      body = Jason.decode!(conn.resp_body)
+      assert body["data"] == []
+      assert body["meta"]["total_count"] == 0
+    end
+
+    test "index returns access_restricted field", %{conn: conn} do
+      %{company: company, token: token} = create_user_with_token(:owner)
+      insert(:invoice, company: company, access_restricted: true)
+
+      conn = conn |> api_conn(token) |> get("/api/invoices")
+
+      assert conn.status == 200
+      data = Jason.decode!(conn.resp_body)["data"]
+      assert hd(data)["access_restricted"] == true
+    end
+  end
 end

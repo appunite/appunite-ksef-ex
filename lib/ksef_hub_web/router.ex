@@ -230,6 +230,10 @@ defmodule KsefHubWeb.Router do
     get "/invoices/:id/xml", InvoiceController, :xml
     put "/invoices/:id/category", InvoiceController, :set_category
     put "/invoices/:id/tags", InvoiceController, :set_tags
+    get "/invoices/:id/access", InvoiceController, :get_access
+    put "/invoices/:id/access", InvoiceController, :set_access
+    post "/invoices/:id/access/grants", InvoiceController, :grant_access
+    delete "/invoices/:id/access/grants/:user_id", InvoiceController, :revoke_access
 
     resources "/categories", CategoryController, except: [:new, :edit]
     resources "/tags", TagController, except: [:new, :edit]
