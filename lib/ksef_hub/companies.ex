@@ -291,7 +291,12 @@ defmodule KsefHub.Companies do
     |> Repo.one!()
   end
 
-  @doc "Fetches a membership by ID with preloaded user (any status), for the detail page."
+  @doc """
+  Fetches a membership by ID with its preloaded user, regardless of status.
+
+  Unlike `get_membership/2`, this intentionally returns memberships of any status
+  (active, blocked, etc.) so the detail page can display and manage them.
+  """
   @spec get_membership_with_user(Ecto.UUID.t(), Ecto.UUID.t()) :: Membership.t() | nil
   def get_membership_with_user(membership_id, company_id) do
     Membership

@@ -236,7 +236,7 @@ defmodule KsefHubWeb.TeamLive do
                     class="hover:underline underline-offset-4"
                     data-testid={"invitation-link-#{inv.id}"}
                   >
-                    <div>{inv.email}</div>
+                    {inv.email}
                   </.link>
                   <div class="text-xs text-muted-foreground mt-0.5">
                     Pending — expires {Calendar.strftime(inv.expires_at, "%Y-%m-%d")}
