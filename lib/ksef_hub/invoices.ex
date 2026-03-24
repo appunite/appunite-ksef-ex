@@ -573,6 +573,10 @@ defmodule KsefHub.Invoices do
     {:error, :already_pending}
   end
 
+  def reset_invoice_status(%Invoice{type: :expense, duplicate_status: :confirmed}) do
+    {:error, :confirmed_duplicate}
+  end
+
   def reset_invoice_status(%Invoice{type: :expense} = invoice) do
     update_invoice(invoice, %{status: :pending})
   end

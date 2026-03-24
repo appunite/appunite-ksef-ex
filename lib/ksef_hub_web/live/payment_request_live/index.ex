@@ -81,11 +81,18 @@ defmodule KsefHubWeb.PaymentRequestLive.Index do
           :error -> id
         end
 
+      pr = Enum.find(socket.assigns.payment_requests, &(&1.id == normalized_id))
+
       selected =
-        if MapSet.member?(socket.assigns.selected_ids, normalized_id) do
-          MapSet.delete(socket.assigns.selected_ids, normalized_id)
-        else
-          MapSet.put(socket.assigns.selected_ids, normalized_id)
+        cond do
+          is_nil(pr) or not selectable?(pr) ->
+            socket.assigns.selected_ids
+
+          MapSet.member?(socket.assigns.selected_ids, normalized_id) ->
+            MapSet.delete(socket.assigns.selected_ids, normalized_id)
+
+          true ->
+            MapSet.put(socket.assigns.selected_ids, normalized_id)
         end
 
       {:noreply, assign(socket, selected_ids: selected)}

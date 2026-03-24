@@ -79,10 +79,10 @@ defmodule KsefHubWeb.TeamMemberLive.Show do
     membership = socket.assigns.membership
     user = membership.user
 
-    # Validate role permissions before persisting anything (keeps both saves atomic in intent)
     with :ok <- validate_role_change(membership, params["role"], socket),
-         {:ok, updated_user} <- Accounts.update_user_name(user, params["name"]),
-         {:ok, updated_membership} <- maybe_update_role(membership, params["role"]) do
+         {:ok, role_atom} <- resolve_role(params["role"]),
+         {:ok, %{user: updated_user, membership: updated_membership}} <-
+           Companies.update_member(membership, params["name"], role_atom) do
       updated_membership = %{updated_membership | user: updated_user}
 
       {:noreply,
@@ -94,6 +94,9 @@ defmodule KsefHubWeb.TeamMemberLive.Show do
     else
       {:error, message} when is_binary(message) ->
         {:noreply, put_flash(socket, :error, message)}
+
+      {:error, _, _, _} ->
+        {:noreply, put_flash(socket, :error, "Failed to save changes.")}
 
       {:error, _} ->
         {:noreply, put_flash(socket, :error, "Failed to save changes.")}
@@ -181,19 +184,9 @@ defmodule KsefHubWeb.TeamMemberLive.Show do
     end
   end
 
-  @spec maybe_update_role(Membership.t(), String.t() | nil) ::
-          {:ok, Membership.t()} | {:error, Ecto.Changeset.t()}
-  defp maybe_update_role(membership, nil), do: {:ok, membership}
-
-  defp maybe_update_role(membership, role) do
-    {:ok, role_atom} = parse_role(role)
-
-    if role_atom == membership.role do
-      {:ok, membership}
-    else
-      Companies.update_membership_role(membership, role_atom)
-    end
-  end
+  @spec resolve_role(String.t() | nil) :: {:ok, atom() | nil}
+  defp resolve_role(nil), do: {:ok, nil}
+  defp resolve_role(role), do: parse_role(role)
 
   @spec auth_method(Accounts.User.t()) :: String.t()
   defp auth_method(%{google_uid: uid}) when is_binary(uid), do: "Google"

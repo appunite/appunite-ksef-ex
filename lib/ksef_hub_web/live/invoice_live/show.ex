@@ -224,6 +224,9 @@ defmodule KsefHubWeb.InvoiceLive.Show do
       {:error, :already_pending} ->
         {:noreply, put_flash(socket, :error, "Invoice is already pending.")}
 
+      {:error, :confirmed_duplicate} ->
+        {:noreply, put_flash(socket, :error, "Cannot reset a confirmed duplicate.")}
+
       {:error, {:invalid_type, _}} ->
         {:noreply, put_flash(socket, :error, "Only expense invoices can be reset.")}
 

@@ -223,6 +223,41 @@ defmodule KsefHub.Companies do
     |> Repo.update()
   end
 
+  @doc """
+  Atomically updates a member's user name and membership role in a single transaction.
+
+  If `role` matches the current role, only the name update is performed.
+  Returns `{:ok, %{user: user, membership: membership}}` on success.
+  """
+  @spec update_member(Membership.t(), String.t() | nil, Membership.role() | nil) ::
+          {:ok, %{user: User.t(), membership: Membership.t()}}
+          | {:error, atom(), Ecto.Changeset.t(), map()}
+  def update_member(%Membership{} = membership, name, role) do
+    user = membership.user
+
+    multi =
+      Multi.new()
+      |> Multi.update(:user, User.changeset(user, %{name: name}))
+      |> then(fn multi ->
+        if role && role != membership.role do
+          Multi.update(multi, :membership, Membership.changeset(membership, %{role: role}))
+        else
+          Multi.put(multi, :membership, membership)
+        end
+      end)
+
+    case Repo.transaction(multi) do
+      {:ok, %{user: updated_user, membership: updated_membership}} ->
+        {:ok, %{user: updated_user, membership: updated_membership}}
+
+      {:error, :user, changeset, _} ->
+        {:error, :user, changeset, %{}}
+
+      {:error, :membership, changeset, _} ->
+        {:error, :membership, changeset, %{}}
+    end
+  end
+
   @doc "Blocks a membership (soft delete)."
   @spec block_member(Membership.t()) :: {:ok, Membership.t()} | {:error, Ecto.Changeset.t()}
   def block_member(%Membership{} = membership) do

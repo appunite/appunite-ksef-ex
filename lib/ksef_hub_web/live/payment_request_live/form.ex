@@ -411,6 +411,7 @@ defmodule KsefHubWeb.PaymentRequestLive.Form do
             value={@form[:amount].value}
             class="w-full h-9 rounded-md border border-input bg-background px-3 text-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
             required
+            disabled={@readonly}
           />
           <.error :for={msg <- Enum.map(@form[:amount].errors, &translate_error/1)}>
             {msg}
@@ -464,6 +465,7 @@ defmodule KsefHubWeb.PaymentRequestLive.Form do
           value={@form[:iban].value}
           class="w-full h-9 rounded-md border border-input bg-background px-3 text-sm font-mono focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
           required
+          disabled={@readonly}
         />
         <.error :for={msg <- Enum.map(@form[:iban].errors, &translate_error/1)}>
           {msg}

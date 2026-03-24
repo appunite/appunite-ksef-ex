@@ -196,6 +196,11 @@ defmodule KsefHubWeb.Api.PaymentRequestController do
         conn
         |> put_status(:unprocessable_entity)
         |> json(%{error: "Paid payment requests cannot be voided"})
+
+      {:error, %Ecto.Changeset{}} ->
+        conn
+        |> put_status(:unprocessable_entity)
+        |> json(%{error: "Failed to void payment request"})
     end
   end
 

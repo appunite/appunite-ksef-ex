@@ -365,7 +365,7 @@ defmodule KsefHubWeb.InvoiceLive.Classify do
 
         <% hidden_count = hidden_tag_count(@all_tags, @selected_tag_ids) %>
         <button
-          :if={hidden_count > 0}
+          :if={hidden_count > 0 or @show_all_tags}
           phx-click="toggle_show_all_tags"
           class="text-xs text-muted-foreground hover:text-foreground mt-2 underline-offset-4 hover:underline"
           data-testid="toggle-show-all-tags"

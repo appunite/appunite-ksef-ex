@@ -197,12 +197,17 @@ defmodule KsefHubWeb.TeamLive do
               <tr
                 :for={{dom_id, member} <- @streams.members}
                 id={dom_id}
-                class="border-b border-border/50 hover:bg-muted/50 transition-colors cursor-pointer"
-                phx-click={JS.navigate(member_path(@current_company.id, member))}
+                class="border-b border-border/50 hover:bg-muted/50 transition-colors"
                 data-testid={"member-row-#{member.user.id}"}
               >
                 <td class="py-3.5 px-4">
-                  {member.user.email}
+                  <.link
+                    navigate={member_path(@current_company.id, member)}
+                    class="hover:underline underline-offset-4"
+                    data-testid={"member-link-#{member.user.id}"}
+                  >
+                    {member.user.email}
+                  </.link>
                   <.badge
                     :if={member.status == :blocked}
                     variant="error"
@@ -222,12 +227,17 @@ defmodule KsefHubWeb.TeamLive do
               <tr
                 :for={{dom_id, inv} <- @streams.pending_invitations}
                 id={dom_id}
-                class="border-b border-border/50 hover:bg-muted/50 transition-colors cursor-pointer"
-                phx-click={JS.navigate(invitation_path(@current_company.id, inv))}
+                class="border-b border-border/50 hover:bg-muted/50 transition-colors"
                 data-testid={"invitation-row-#{inv.id}"}
               >
                 <td class="py-3.5 px-4">
-                  <div>{inv.email}</div>
+                  <.link
+                    navigate={invitation_path(@current_company.id, inv)}
+                    class="hover:underline underline-offset-4"
+                    data-testid={"invitation-link-#{inv.id}"}
+                  >
+                    <div>{inv.email}</div>
+                  </.link>
                   <div class="text-xs text-muted-foreground mt-0.5">
                     Pending — expires {Calendar.strftime(inv.expires_at, "%Y-%m-%d")}
                   </div>
