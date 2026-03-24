@@ -1009,33 +1009,34 @@ defmodule KsefHubWeb.Api.InvoiceController do
   @doc "Grants a user access to a restricted invoice."
   @spec grant_access(Plug.Conn.t(), map()) :: Plug.Conn.t()
   def grant_access(conn, %{"id" => id, "user_id" => user_id}) when is_binary(user_id) do
-    with {:ok, _} <- Ecto.UUID.cast(user_id) do
-      company_id = conn.assigns.current_company.id
-      granted_by_id = conn.assigns.api_token.created_by_id
+    case Ecto.UUID.cast(user_id) do
+      {:ok, _} ->
+        company_id = conn.assigns.current_company.id
+        granted_by_id = conn.assigns.api_token.created_by_id
 
-      invoice =
-        Invoices.get_invoice!(company_id, id,
-          role: conn.assigns[:current_role],
-          user_id: granted_by_id
-        )
+        invoice =
+          Invoices.get_invoice!(company_id, id,
+            role: conn.assigns[:current_role],
+            user_id: granted_by_id
+          )
 
-      case Invoices.grant_access(invoice.id, user_id, granted_by_id) do
-        {:ok, _grant} ->
-          grants = Invoices.list_access_grants(invoice.id)
+        case Invoices.grant_access(invoice.id, user_id, granted_by_id) do
+          {:ok, _grant} ->
+            grants = Invoices.list_access_grants(invoice.id)
 
-          json(conn, %{
-            data: %{
-              access_restricted: invoice.access_restricted,
-              grants: Enum.map(grants, &access_grant_json/1)
-            }
-          })
+            json(conn, %{
+              data: %{
+                access_restricted: invoice.access_restricted,
+                grants: Enum.map(grants, &access_grant_json/1)
+              }
+            })
 
-        {:error, _} ->
-          conn
-          |> put_status(:unprocessable_entity)
-          |> json(%{error: "Failed to grant access"})
-      end
-    else
+          {:error, _} ->
+            conn
+            |> put_status(:unprocessable_entity)
+            |> json(%{error: "Failed to grant access"})
+        end
+
       :error ->
         conn
         |> put_status(:unprocessable_entity)
@@ -1071,32 +1072,33 @@ defmodule KsefHubWeb.Api.InvoiceController do
   @doc "Revokes a user's access to a restricted invoice."
   @spec revoke_access(Plug.Conn.t(), map()) :: Plug.Conn.t()
   def revoke_access(conn, %{"id" => id, "user_id" => user_id}) do
-    with {:ok, _} <- Ecto.UUID.cast(user_id) do
-      company_id = conn.assigns.current_company.id
+    case Ecto.UUID.cast(user_id) do
+      {:ok, _} ->
+        company_id = conn.assigns.current_company.id
 
-      invoice =
-        Invoices.get_invoice!(company_id, id,
-          role: conn.assigns[:current_role],
-          user_id: conn.assigns.api_token.created_by_id
-        )
+        invoice =
+          Invoices.get_invoice!(company_id, id,
+            role: conn.assigns[:current_role],
+            user_id: conn.assigns.api_token.created_by_id
+          )
 
-      case Invoices.revoke_access(invoice.id, user_id) do
-        {:ok, _} ->
-          grants = Invoices.list_access_grants(invoice.id)
+        case Invoices.revoke_access(invoice.id, user_id) do
+          {:ok, _} ->
+            grants = Invoices.list_access_grants(invoice.id)
 
-          json(conn, %{
-            data: %{
-              access_restricted: invoice.access_restricted,
-              grants: Enum.map(grants, &access_grant_json/1)
-            }
-          })
+            json(conn, %{
+              data: %{
+                access_restricted: invoice.access_restricted,
+                grants: Enum.map(grants, &access_grant_json/1)
+              }
+            })
 
-        {:error, :not_found} ->
-          conn
-          |> put_status(:not_found)
-          |> json(%{error: "Access grant not found"})
-      end
-    else
+          {:error, :not_found} ->
+            conn
+            |> put_status(:not_found)
+            |> json(%{error: "Access grant not found"})
+        end
+
       :error ->
         conn
         |> put_status(:unprocessable_entity)

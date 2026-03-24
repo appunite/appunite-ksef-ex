@@ -35,7 +35,6 @@ defmodule KsefHubWeb.InvoiceLive.Index do
       params
       |> parse_filters()
       |> Map.put_new(:type, :expense)
-      |> sanitize_type(role)
 
     company_id =
       case socket.assigns[:current_company] do
@@ -90,29 +89,16 @@ defmodule KsefHubWeb.InvoiceLive.Index do
       per_page: result.per_page,
       total_count: result.total_count,
       total_pages: result.total_pages,
-      can_view_all_types: Authorization.can?(role, :view_all_invoice_types),
+      can_view_all_types: true,
       can_create: Authorization.can?(role, :create_invoice),
       active_filters: active_filters,
       filter_count: length(active_filters)
     ]
   end
 
-  @spec sanitize_type(map(), atom() | nil) :: map()
-  defp sanitize_type(filters, role) do
-    if Authorization.can?(role, :view_all_invoice_types) do
-      filters
-    else
-      Map.put(filters, :type, :expense)
-    end
-  end
-
   @spec normalize_filters(map(), atom() | nil) :: map()
-  defp normalize_filters(filters, role) do
-    if filters[:type] && !Authorization.can?(role, :view_all_invoice_types) do
-      Map.delete(filters, :type)
-    else
-      filters
-    end
+  defp normalize_filters(filters, _role) do
+    filters
   end
 
   @spec build_filters_form(map()) :: Phoenix.HTML.Form.t()

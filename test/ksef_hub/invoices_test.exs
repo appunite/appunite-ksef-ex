@@ -420,10 +420,17 @@ defmodule KsefHub.InvoicesTest do
       assert is_nil(Invoices.get_invoice_with_details(company.id, Ecto.UUID.generate()))
     end
 
-    test "respects role scoping", %{company: company} do
-      income = insert(:invoice, type: :income, company: company)
+    test "respects access control scoping", %{company: company} do
+      reviewer = insert(:user)
+      insert(:membership, user: reviewer, company: company, role: :reviewer)
+      income = insert(:invoice, type: :income, company: company, access_restricted: true)
 
-      assert is_nil(Invoices.get_invoice_with_details(company.id, income.id, role: :reviewer))
+      assert is_nil(
+               Invoices.get_invoice_with_details(company.id, income.id,
+                 role: :reviewer,
+                 user_id: reviewer.id
+               )
+             )
     end
   end
 
@@ -481,77 +488,135 @@ defmodule KsefHub.InvoicesTest do
     end
   end
 
-  describe "role-based scoping" do
-    test "list_invoices_paginated with role: reviewer returns only expense invoices", %{
-      company: company
+  describe "role-based scoping via access control" do
+    setup %{company: company} do
+      reviewer = insert(:user)
+      insert(:membership, user: reviewer, company: company, role: :reviewer)
+      %{reviewer: reviewer}
+    end
+
+    test "income invoices are auto-restricted on creation", %{company: company} do
+      attrs =
+        params_for(:invoice, company_id: company.id, type: :income)
+        |> Map.put(:xml_content, @sample_xml)
+
+      assert {:ok, invoice} = Invoices.create_invoice(attrs)
+      assert invoice.access_restricted == true
+    end
+
+    test "expense invoices are not auto-restricted", %{company: company} do
+      attrs =
+        params_for(:manual_invoice, company_id: company.id, type: :expense)
+
+      assert {:ok, invoice} = Invoices.create_manual_invoice(company.id, attrs)
+      assert invoice.access_restricted == false
+    end
+
+    test "reviewer cannot see income invoices without grant", %{
+      company: company,
+      reviewer: reviewer
     } do
-      insert(:invoice, type: :income, company: company)
+      insert(:invoice, type: :income, company: company, access_restricted: true)
       insert(:invoice, type: :expense, company: company)
 
-      result = Invoices.list_invoices_paginated(company.id, %{}, role: :reviewer)
+      result =
+        Invoices.list_invoices_paginated(company.id, %{},
+          role: :reviewer,
+          user_id: reviewer.id
+        )
 
-      assert length(result.entries) == 1
-      assert hd(result.entries).type == :expense
       assert result.total_count == 1
-    end
-
-    test "list_invoices_paginated with role: reviewer overrides user-supplied type: income filter",
-         %{company: company} do
-      insert(:invoice, type: :income, company: company)
-      insert(:invoice, type: :expense, company: company)
-
-      result = Invoices.list_invoices_paginated(company.id, %{type: :income}, role: :reviewer)
-
-      assert length(result.entries) == 1
       assert hd(result.entries).type == :expense
     end
 
-    test "get_invoice with role: reviewer returns nil for income invoice", %{company: company} do
-      income = insert(:invoice, type: :income, company: company)
+    test "reviewer can see income invoice when granted access", %{
+      company: company,
+      reviewer: reviewer
+    } do
+      income = insert(:invoice, type: :income, company: company, access_restricted: true)
+      Invoices.grant_access(income.id, reviewer.id)
 
-      assert is_nil(Invoices.get_invoice(company.id, income.id, role: :reviewer))
+      result =
+        Invoices.list_invoices_paginated(company.id, %{type: :income},
+          role: :reviewer,
+          user_id: reviewer.id
+        )
+
+      assert result.total_count == 1
+      assert hd(result.entries).type == :income
     end
 
-    test "get_invoice with role: reviewer returns expense invoice", %{company: company} do
+    test "get_invoice with role: reviewer returns nil for income invoice without grant", %{
+      company: company,
+      reviewer: reviewer
+    } do
+      income = insert(:invoice, type: :income, company: company, access_restricted: true)
+
+      assert is_nil(
+               Invoices.get_invoice(company.id, income.id,
+                 role: :reviewer,
+                 user_id: reviewer.id
+               )
+             )
+    end
+
+    test "get_invoice with role: reviewer returns expense invoice", %{
+      company: company,
+      reviewer: reviewer
+    } do
       expense = insert(:invoice, type: :expense, company: company)
 
-      assert %Invoice{} = Invoices.get_invoice(company.id, expense.id, role: :reviewer)
+      assert %Invoice{} =
+               Invoices.get_invoice(company.id, expense.id,
+                 role: :reviewer,
+                 user_id: reviewer.id
+               )
     end
 
-    test "get_invoice! with role: reviewer raises for income invoice", %{company: company} do
-      income = insert(:invoice, type: :income, company: company)
+    test "get_invoice! with role: reviewer raises for income invoice without grant", %{
+      company: company,
+      reviewer: reviewer
+    } do
+      income = insert(:invoice, type: :income, company: company, access_restricted: true)
 
       assert_raise Ecto.NoResultsError, fn ->
-        Invoices.get_invoice!(company.id, income.id, role: :reviewer)
+        Invoices.get_invoice!(company.id, income.id, role: :reviewer, user_id: reviewer.id)
       end
     end
 
-    test "list_invoices_paginated with role: owner returns all invoices", %{company: company} do
+    test "owner sees all invoices including restricted income", %{company: company} do
+      owner = insert(:user)
+      insert(:membership, user: owner, company: company, role: :owner)
+
       insert(:invoice, type: :income, company: company)
       insert(:invoice, type: :expense, company: company)
 
-      result = Invoices.list_invoices_paginated(company.id, %{}, role: :owner)
+      result =
+        Invoices.list_invoices_paginated(company.id, %{}, role: :owner, user_id: owner.id)
 
       assert result.total_count == 2
     end
 
-    test "list_invoices_paginated with role: nil returns all invoices (backward compat)", %{
-      company: company
-    } do
+    test "role: nil returns all invoices (backward compat)", %{company: company} do
       insert(:invoice, type: :income, company: company)
       insert(:invoice, type: :expense, company: company)
 
       result = Invoices.list_invoices_paginated(company.id, %{}, role: nil)
-
       assert result.total_count == 2
     end
 
-    test "count_invoices with role: reviewer counts only expense invoices", %{company: company} do
-      insert(:invoice, type: :income, company: company)
+    test "count_invoices for reviewer excludes restricted income", %{
+      company: company,
+      reviewer: reviewer
+    } do
+      insert(:invoice, type: :income, company: company, access_restricted: true)
       insert(:invoice, type: :expense, company: company)
       insert(:invoice, type: :expense, company: company)
 
-      assert Invoices.count_invoices(company.id, %{}, role: :reviewer) == 2
+      assert Invoices.count_invoices(company.id, %{},
+               role: :reviewer,
+               user_id: reviewer.id
+             ) == 2
     end
   end
 
@@ -3236,11 +3301,18 @@ defmodule KsefHub.InvoicesTest do
                )
     end
 
-    test "reviewer only sees expense type even when access_restricted is false on income", %{
+    test "income invoices are auto-restricted so reviewer cannot see them by default", %{
       company: company,
       reviewer: reviewer
     } do
-      insert(:invoice, company: company, type: :income, access_restricted: false)
+      # Income invoices get access_restricted: true automatically
+      attrs =
+        params_for(:invoice, company_id: company.id, type: :income)
+        |> Map.put(:xml_content, File.read!("test/support/fixtures/sample_income.xml"))
+
+      {:ok, income} = Invoices.create_invoice(attrs)
+      assert income.access_restricted == true
+
       insert(:invoice, company: company, type: :expense, access_restricted: false)
 
       result =

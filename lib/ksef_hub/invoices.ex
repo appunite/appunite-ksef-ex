@@ -43,7 +43,6 @@ defmodule KsefHub.Invoices do
   """
   @spec list_invoices(Ecto.UUID.t(), map(), keyword()) :: [Invoice.t()]
   def list_invoices(company_id, filters \\ %{}, opts \\ []) do
-    filters = scope_by_role(filters, opts[:role])
     {page, per_page} = extract_pagination(filters)
     do_list_invoices(company_id, filters, page, per_page, opts)
   end
@@ -55,7 +54,6 @@ defmodule KsefHub.Invoices do
   """
   @spec count_invoices(Ecto.UUID.t(), map(), keyword()) :: non_neg_integer()
   def count_invoices(company_id, filters \\ %{}, opts \\ []) do
-    filters = scope_by_role(filters, opts[:role])
     do_count_invoices(company_id, filters, opts)
   end
 
@@ -89,7 +87,6 @@ defmodule KsefHub.Invoices do
           total_pages: non_neg_integer()
         }
   def list_invoices_paginated(company_id, filters \\ %{}, opts \\ []) do
-    filters = scope_by_role(filters, opts[:role])
     {page, per_page} = extract_pagination(filters)
 
     entries =
@@ -114,7 +111,6 @@ defmodule KsefHub.Invoices do
   def get_invoice!(company_id, id, opts \\ []) do
     Invoice
     |> where([i], i.company_id == ^company_id and i.id == ^id)
-    |> maybe_scope_type_by_role(opts[:role])
     |> maybe_filter_by_access(opts[:role], opts[:user_id])
     |> Repo.one!()
   end
@@ -124,7 +120,6 @@ defmodule KsefHub.Invoices do
   def get_invoice_with_details!(company_id, id, opts \\ []) do
     Invoice
     |> where([i], i.company_id == ^company_id and i.id == ^id)
-    |> maybe_scope_type_by_role(opts[:role])
     |> maybe_filter_by_access(opts[:role], opts[:user_id])
     |> preload([:xml_file, :pdf_file, :category, :tags, :created_by, :inbound_email])
     |> Repo.one!()
@@ -135,7 +130,6 @@ defmodule KsefHub.Invoices do
   def get_invoice_with_details(company_id, id, opts \\ []) do
     Invoice
     |> where([i], i.company_id == ^company_id and i.id == ^id)
-    |> maybe_scope_type_by_role(opts[:role])
     |> maybe_filter_by_access(opts[:role], opts[:user_id])
     |> preload([:xml_file, :pdf_file, :category, :tags, :created_by, :inbound_email])
     |> Repo.one()
@@ -146,7 +140,6 @@ defmodule KsefHub.Invoices do
   def get_invoice(company_id, id, opts \\ []) do
     Invoice
     |> where([i], i.company_id == ^company_id and i.id == ^id)
-    |> maybe_scope_type_by_role(opts[:role])
     |> maybe_filter_by_access(opts[:role], opts[:user_id])
     |> Repo.one()
   end
@@ -252,6 +245,15 @@ defmodule KsefHub.Invoices do
     attrs[key] || attrs[Atom.to_string(key)]
   end
 
+  @spec maybe_restrict_income(map()) :: map()
+  defp maybe_restrict_income(attrs) do
+    type = attrs[:type] || attrs["type"]
+
+    if type in [:income, "income"],
+      do: Map.put(attrs, :access_restricted, true),
+      else: attrs
+  end
+
   @spec maybe_default_billing_date(map()) :: map()
   defp maybe_default_billing_date(attrs) do
     if has_attr?(attrs, :billing_date_from) or has_attr?(attrs, :billing_date_to) do
@@ -272,7 +274,7 @@ defmodule KsefHub.Invoices do
     company_id = attrs[:company_id] || attrs["company_id"]
     {pdf_content, attrs} = Map.pop(attrs, :pdf_content)
     {xml_content, attrs} = Map.pop(attrs, :xml_content)
-    attrs = maybe_default_billing_date(attrs)
+    attrs = attrs |> maybe_default_billing_date() |> maybe_restrict_income()
 
     Repo.transaction(fn ->
       with {:ok, attrs} <- maybe_create_xml_file(attrs, xml_content),
@@ -295,7 +297,7 @@ defmodule KsefHub.Invoices do
           {:ok, Invoice.t(), :inserted | :updated} | {:error, Ecto.Changeset.t()}
   def upsert_invoice(attrs) do
     company_id = attrs[:company_id] || attrs["company_id"]
-    attrs = maybe_default_billing_date(attrs)
+    attrs = attrs |> maybe_default_billing_date() |> maybe_restrict_income()
 
     case do_upsert(company_id, attrs) do
       {:ok, invoice} ->
@@ -970,12 +972,18 @@ defmodule KsefHub.Invoices do
   defp do_insert_invoice(company_id, attrs) do
     {file_ids, attrs} = pop_file_ids(attrs)
     {created_by_id, attrs} = Map.pop(attrs, :created_by_id)
+    {access_restricted, attrs} = Map.pop(attrs, :access_restricted)
 
     trusted_fields =
       file_ids
       |> Map.put(:company_id, company_id)
       |> then(fn m ->
         if created_by_id, do: Map.put(m, :created_by_id, created_by_id), else: m
+      end)
+      |> then(fn m ->
+        if is_boolean(access_restricted),
+          do: Map.put(m, :access_restricted, access_restricted),
+          else: m
       end)
 
     %Invoice{}
@@ -989,12 +997,18 @@ defmodule KsefHub.Invoices do
   defp do_upsert_invoice(company_id, attrs) do
     {file_ids, attrs} = pop_file_ids(attrs)
     {created_by_id, attrs} = Map.pop(attrs, :created_by_id)
+    {access_restricted, attrs} = Map.pop(attrs, :access_restricted)
 
     trusted_fields =
       file_ids
       |> Map.put(:company_id, company_id)
       |> then(fn m ->
         if created_by_id, do: Map.put(m, :created_by_id, created_by_id), else: m
+      end)
+      |> then(fn m ->
+        if is_boolean(access_restricted),
+          do: Map.put(m, :access_restricted, access_restricted),
+          else: m
       end)
 
     %Invoice{}
@@ -1847,20 +1861,6 @@ defmodule KsefHub.Invoices do
   @spec full_invoice_visibility?(Membership.role() | nil) :: boolean()
   defp full_invoice_visibility?(nil), do: true
   defp full_invoice_visibility?(role), do: Authorization.can?(role, :view_all_invoice_types)
-
-  @spec scope_by_role(map(), Membership.role() | nil) :: map()
-  defp scope_by_role(filters, role) do
-    if full_invoice_visibility?(role),
-      do: filters,
-      else: Map.put(filters, :type, :expense)
-  end
-
-  @spec maybe_scope_type_by_role(Ecto.Queryable.t(), Membership.role() | nil) :: Ecto.Query.t()
-  defp maybe_scope_type_by_role(query, role) do
-    if full_invoice_visibility?(role),
-      do: query,
-      else: where(query, [i], i.type == :expense)
-  end
 
   @spec maybe_filter_by_access(Ecto.Queryable.t(), Membership.role() | nil, Ecto.UUID.t() | nil) ::
           Ecto.Query.t()

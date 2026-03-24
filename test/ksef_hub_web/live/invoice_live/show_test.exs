@@ -981,7 +981,7 @@ defmodule KsefHubWeb.InvoiceLive.ShowTest do
     end
 
     test "reviewer is redirected when viewing income invoice", %{conn: conn, company: company} do
-      invoice = insert(:invoice, type: :income, company: company)
+      invoice = insert(:invoice, type: :income, company: company, access_restricted: true)
 
       expected_path = "/c/#{company.id}/invoices"
 
