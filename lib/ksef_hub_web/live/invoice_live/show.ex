@@ -1160,7 +1160,10 @@ defmodule KsefHubWeb.InvoiceLive.Show do
     </div>
     <!-- Payment Requests Section -->
     <div
-      :if={@can_manage_payment_requests || (@can_view_payment_requests && @invoice_payment_requests != [])}
+      :if={
+        @can_manage_payment_requests ||
+          (@can_view_payment_requests && @invoice_payment_requests != [])
+      }
       class="mt-6"
     >
       <div class="rounded-lg border border-border p-4">
