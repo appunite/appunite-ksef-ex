@@ -187,8 +187,9 @@ defmodule KsefHub.Exports do
     {:ok, content}
   end
 
-  def resolve_pdf(%Invoice{xml_file: %{content: xml_content}}) when is_binary(xml_content) do
-    pdf_renderer().generate_pdf(xml_content, %{})
+  def resolve_pdf(%Invoice{xml_file: %{content: xml_content}, ksef_number: ksef_number})
+      when is_binary(xml_content) do
+    pdf_renderer().generate_pdf(xml_content, %{ksef_number: ksef_number})
   end
 
   def resolve_pdf(_invoice) do
@@ -202,7 +203,20 @@ defmodule KsefHub.Exports do
       |> String.replace(~r/[^\w\.\-]/u, "_")
       |> String.slice(0, 100)
 
-    "#{String.pad_leading(to_string(idx), 4, "0")}_#{number}.pdf"
+    prefix = String.pad_leading(to_string(idx), 4, "0")
+
+    case invoice.ksef_number do
+      nil ->
+        "#{prefix}_#{number}.pdf"
+
+      ksef ->
+        ksef_sanitized =
+          ksef
+          |> String.replace(~r/[^\w\.\-]/u, "_")
+          |> String.slice(0, 100)
+
+        "#{prefix}_#{number}_#{ksef_sanitized}.pdf"
+    end
   end
 
   @spec store_zip_file(ExportBatch.t(), binary()) ::
