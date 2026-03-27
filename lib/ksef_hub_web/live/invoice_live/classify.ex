@@ -75,7 +75,8 @@ defmodule KsefHubWeb.InvoiceLive.Classify do
                new_tag_form: to_form(%{"name" => ""}),
                tag_form_key: 0,
                show_all_tags: false,
-               confidence_threshold: InvoiceClassifier.confidence_threshold(),
+               category_confidence_threshold: InvoiceClassifier.category_confidence_threshold(),
+               tag_confidence_threshold: InvoiceClassifier.tag_confidence_threshold(),
                expanded_group: expanded_group_for(invoice.category_id, categories)
              )}
         end
@@ -337,7 +338,7 @@ defmodule KsefHubWeb.InvoiceLive.Classify do
           predicted_at={@invoice.prediction_predicted_at}
           status={@invoice.prediction_status}
           confidence={@invoice.prediction_category_confidence}
-          threshold={@confidence_threshold}
+          threshold={@category_confidence_threshold}
           label="category"
           testid="prediction-category-hint"
         />
@@ -377,7 +378,7 @@ defmodule KsefHubWeb.InvoiceLive.Classify do
           predicted_at={@invoice.prediction_predicted_at}
           status={@invoice.prediction_status}
           confidence={@invoice.prediction_tag_confidence}
-          threshold={@confidence_threshold}
+          threshold={@tag_confidence_threshold}
           label="tag"
           testid="prediction-tag-hint"
         />
