@@ -109,7 +109,7 @@ spec:
 
         # --- Invoice extractor sidecar (PDF → structured JSON) ---
         - name: invoice-extractor
-          image: europe-west1-docker.pkg.dev/au-ksef-ex/ksef-hub/invoice-extractor:latest
+          image: europe-west1-docker.pkg.dev/au-ksef-ex/ghcr-mirror/appunite/au-ksef-unstructured:latest
           env:
             - name: PORT
               value: "3002"
@@ -152,7 +152,7 @@ spec:
 
         # --- Invoice classifier sidecar (LightGBM category/tag prediction) ---
         - name: invoice-classifier
-          image: europe-west1-docker.pkg.dev/au-ksef-ex/ksef-hub/invoice-classifier:latest
+          image: europe-west1-docker.pkg.dev/au-ksef-ex/ghcr-mirror/appunite/au-payroll-model-categories:latest
           env:
             - name: PORT
               value: "3003"
