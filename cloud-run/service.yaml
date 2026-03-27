@@ -125,7 +125,7 @@ spec:
                   name: anthropic-api-key
           resources:
             limits:
-              memory: 2Gi
+              memory: 512Mi
               cpu: "1"
           startupProbe:
             httpGet:
@@ -163,7 +163,7 @@ spec:
                   name: invoice-classifier-api-token
           resources:
             limits:
-              memory: 1Gi
+              memory: 512Mi
               cpu: "1"
           startupProbe:
             httpGet:
