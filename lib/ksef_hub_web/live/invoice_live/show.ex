@@ -107,7 +107,8 @@ defmodule KsefHubWeb.InvoiceLive.Show do
            comment_form_key: 0,
            editing_comment_id: nil,
            edit_comment_form: nil,
-           confidence_threshold: InvoiceClassifier.confidence_threshold()
+           category_confidence_threshold: InvoiceClassifier.category_confidence_threshold(),
+           tag_confidence_threshold: InvoiceClassifier.tag_confidence_threshold()
          )}
     end
   end
@@ -1031,7 +1032,7 @@ defmodule KsefHubWeb.InvoiceLive.Show do
               predicted_at={@invoice.prediction_predicted_at}
               status={@invoice.prediction_status}
               confidence={@invoice.prediction_category_confidence}
-              threshold={@confidence_threshold}
+              threshold={@category_confidence_threshold}
               label="category"
               testid="prediction-category-hint"
             />
@@ -1046,7 +1047,7 @@ defmodule KsefHubWeb.InvoiceLive.Show do
               predicted_at={@invoice.prediction_predicted_at}
               status={@invoice.prediction_status}
               confidence={@invoice.prediction_tag_confidence}
-              threshold={@confidence_threshold}
+              threshold={@tag_confidence_threshold}
               label="tag"
               testid="prediction-tag-hint"
             />

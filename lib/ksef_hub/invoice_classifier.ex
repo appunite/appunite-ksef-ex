@@ -3,9 +3,13 @@ defmodule KsefHub.InvoiceClassifier do
   Invoice classification context. Orchestrates ML-based category and tag
   prediction for expense invoices using the au-payroll-model-categories sidecar.
 
-  Auto-applies predictions when confidence meets the configurable threshold
-  (default 51%, set via `CONFIDENCE_THRESHOLD` env var) and a matching category/tag
-  exists in the company. Below threshold, predictions are stored for human review.
+  Auto-applies predictions when confidence meets configurable thresholds:
+  - Category: default 71%, set via `CATEGORY_CONFIDENCE_THRESHOLD` env var
+  - Tag: default 85%, set via `TAG_CONFIDENCE_THRESHOLD` env var
+
+  When confidence meets the threshold and a matching category/tag exists in
+  the company, the prediction is auto-applied. Below threshold, predictions
+  are stored for human review.
   """
 
   import Ecto.Query
@@ -16,9 +20,15 @@ defmodule KsefHub.InvoiceClassifier do
   alias KsefHub.Invoices.{Category, Invoice, Tag}
   alias KsefHub.Repo
 
-  @doc "Returns the current confidence threshold (0.0–1.0) from application config."
-  @spec confidence_threshold() :: float()
-  def confidence_threshold, do: Application.get_env(:ksef_hub, :confidence_threshold, 0.51)
+  @doc "Returns the current category confidence threshold (0.0–1.0) from application config."
+  @spec category_confidence_threshold() :: float()
+  def category_confidence_threshold,
+    do: Application.get_env(:ksef_hub, :category_confidence_threshold, 0.71)
+
+  @doc "Returns the current tag confidence threshold (0.0–1.0) from application config."
+  @spec tag_confidence_threshold() :: float()
+  def tag_confidence_threshold,
+    do: Application.get_env(:ksef_hub, :tag_confidence_threshold, 0.85)
 
   @doc """
   Runs category and tag prediction for an expense invoice, then applies
@@ -97,9 +107,10 @@ defmodule KsefHub.InvoiceClassifier do
     matching_category = find_category_by_identifier(company_id, cat_identifier)
     matching_tag = find_tag_by_name(company_id, tag_name)
 
-    threshold = confidence_threshold()
-    confident_category? = cat_confidence >= threshold and matching_category != nil
-    confident_tag? = tag_confidence >= threshold and matching_tag != nil
+    confident_category? =
+      cat_confidence >= category_confidence_threshold() and matching_category != nil
+
+    confident_tag? = tag_confidence >= tag_confidence_threshold() and matching_tag != nil
 
     %{
       attrs: build_prediction_attrs(cat_result, tag_result, confident_category?, confident_tag?),
