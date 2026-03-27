@@ -107,7 +107,9 @@ defmodule KsefHub.InvoiceClassifier do
     matching_category = find_category_by_identifier(company_id, cat_identifier)
     matching_tag = find_tag_by_name(company_id, tag_name)
 
-    confident_category? = cat_confidence >= category_confidence_threshold() and matching_category != nil
+    confident_category? =
+      cat_confidence >= category_confidence_threshold() and matching_category != nil
+
     confident_tag? = tag_confidence >= tag_confidence_threshold() and matching_tag != nil
 
     %{
