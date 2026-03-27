@@ -81,15 +81,21 @@ defmodule KsefHub.InvoiceExtractor.Client do
     end
   end
 
+  @pdf_settings Jason.encode!(%{strategy: "auto", languages: ["pol", "eng"]})
+
   @spec build_form_parts(binary(), String.t(), String.t() | nil) :: keyword()
   defp build_form_parts(pdf_binary, filename, nil) do
-    [file: {pdf_binary, filename: filename, content_type: "application/pdf"}]
+    [
+      file: {pdf_binary, filename: filename, content_type: "application/pdf"},
+      pdf_settings_json: @pdf_settings
+    ]
   end
 
   defp build_form_parts(pdf_binary, filename, context) do
     [
       file: {pdf_binary, filename: filename, content_type: "application/pdf"},
-      context: context
+      context: context,
+      pdf_settings_json: @pdf_settings
     ]
   end
 
