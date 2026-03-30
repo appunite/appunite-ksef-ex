@@ -3352,6 +3352,74 @@ defmodule KsefHub.InvoicesTest do
       assert hd(result).type == :expense
     end
 
+    test "expense invoices with purchase_order are auto-restricted", %{
+      company: company,
+      reviewer: reviewer
+    } do
+      attrs =
+        params_for(:invoice,
+          company_id: company.id,
+          type: :expense,
+          purchase_order: "PO-2026-001"
+        )
+        |> Map.put(:xml_content, File.read!("test/support/fixtures/sample_expense.xml"))
+
+      {:ok, invoice} = Invoices.create_invoice(attrs)
+      assert invoice.access_restricted == true
+
+      insert(:invoice, company: company, type: :expense, access_restricted: false)
+
+      result =
+        Invoices.list_invoices(company.id, %{}, role: :reviewer, user_id: reviewer.id)
+
+      assert length(result) == 1
+      refute hd(result).id == invoice.id
+    end
+
+    test "upserted expense invoice with purchase_order is auto-restricted", %{
+      company: company,
+      reviewer: reviewer
+    } do
+      attrs =
+        params_for(:invoice,
+          company_id: company.id,
+          type: :expense,
+          ksef_number: "upsert-po-restrict",
+          purchase_order: "PO-2026-002"
+        )
+        |> Map.put(:xml_content, File.read!("test/support/fixtures/sample_expense.xml"))
+
+      assert {:ok, invoice, :inserted} = Invoices.upsert_invoice(attrs)
+      assert invoice.access_restricted == true
+
+      result =
+        Invoices.list_invoices(company.id, %{}, role: :reviewer, user_id: reviewer.id)
+
+      refute Enum.any?(result, &(&1.id == invoice.id))
+    end
+
+    test "expense invoices without purchase_order are not auto-restricted", %{company: company} do
+      attrs =
+        params_for(:invoice, company_id: company.id, type: :expense, purchase_order: nil)
+        |> Map.put(:xml_content, File.read!("test/support/fixtures/sample_expense.xml"))
+
+      {:ok, invoice} = Invoices.create_invoice(attrs)
+      assert invoice.access_restricted == false
+    end
+
+    test "expense invoice with purchase_order can be unrestricted by admin", %{company: company} do
+      invoice =
+        insert(:invoice,
+          company: company,
+          type: :expense,
+          purchase_order: "PO-123",
+          access_restricted: true
+        )
+
+      assert {:ok, unrestricted} = Invoices.set_access_restricted(invoice, false)
+      assert unrestricted.access_restricted == false
+    end
+
     test "income invoice cannot be unrestricted", %{company: company} do
       invoice =
         insert(:invoice, company: company, type: :income, access_restricted: true)

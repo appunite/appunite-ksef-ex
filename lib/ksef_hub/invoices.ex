@@ -245,13 +245,16 @@ defmodule KsefHub.Invoices do
     attrs[key] || attrs[Atom.to_string(key)]
   end
 
-  @spec maybe_restrict_income(map()) :: map()
-  defp maybe_restrict_income(attrs) do
+  @spec maybe_restrict_access(map()) :: map()
+  defp maybe_restrict_access(attrs) do
     type = attrs[:type] || attrs["type"]
+    purchase_order = attrs[:purchase_order] || attrs["purchase_order"]
 
-    if type in [:income, "income"],
-      do: Map.put(attrs, :access_restricted, true),
-      else: attrs
+    cond do
+      type in [:income, "income"] -> Map.put(attrs, :access_restricted, true)
+      purchase_order not in [nil, ""] -> Map.put(attrs, :access_restricted, true)
+      true -> attrs
+    end
   end
 
   @spec maybe_default_billing_date(map()) :: map()
@@ -274,7 +277,7 @@ defmodule KsefHub.Invoices do
     company_id = attrs[:company_id] || attrs["company_id"]
     {pdf_content, attrs} = Map.pop(attrs, :pdf_content)
     {xml_content, attrs} = Map.pop(attrs, :xml_content)
-    attrs = attrs |> maybe_default_billing_date() |> maybe_restrict_income()
+    attrs = attrs |> maybe_default_billing_date() |> maybe_restrict_access()
 
     Repo.transaction(fn ->
       with {:ok, attrs} <- maybe_create_xml_file(attrs, xml_content),
@@ -297,7 +300,7 @@ defmodule KsefHub.Invoices do
           {:ok, Invoice.t(), :inserted | :updated} | {:error, Ecto.Changeset.t()}
   def upsert_invoice(attrs) do
     company_id = attrs[:company_id] || attrs["company_id"]
-    attrs = attrs |> maybe_default_billing_date() |> maybe_restrict_income()
+    attrs = attrs |> maybe_default_billing_date() |> maybe_restrict_access()
 
     case do_upsert(company_id, attrs) do
       {:ok, invoice} ->
