@@ -292,8 +292,11 @@ defmodule KsefHub.CompaniesTest do
       user_b = insert(:user)
       attrs = %{name: "Same NIP Co", nip: "1111111111"}
 
-      assert {:ok, %{company: _c1}} = Companies.create_company_with_owner(user_a, attrs)
-      assert {:ok, %{company: _c2}} = Companies.create_company_with_owner(user_b, attrs)
+      assert {:ok, %{company: c1}} = Companies.create_company_with_owner(user_a, attrs)
+      assert {:ok, %{company: c2}} = Companies.create_company_with_owner(user_b, attrs)
+
+      assert c1.id != c2.id
+      assert c1.nip == c2.nip
     end
 
     test "prevents same user from creating two companies with same NIP" do
@@ -318,6 +321,8 @@ defmodule KsefHub.CompaniesTest do
       assert {:ok, %{company: new_company}} =
                Companies.create_company_with_owner(user, %{name: "New Co", nip: "1111111111"})
 
+      assert new_company.id != company.id
+      assert new_company.nip == "1111111111"
       assert new_company.name == "New Co"
     end
   end

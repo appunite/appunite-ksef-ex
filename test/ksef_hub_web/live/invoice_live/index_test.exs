@@ -45,9 +45,14 @@ defmodule KsefHubWeb.InvoiceLive.IndexTest do
 
   describe "certificate warning banner" do
     test "shows warning when company has no certificate", %{conn: conn, company: company} do
-      {:ok, _view, html} = live(conn, ~p"/c/#{company.id}/invoices")
-      assert html =~ "KSeF sync not configured"
-      assert html =~ ~s|/c/#{company.id}/settings/certificates|
+      {:ok, view, _html} = live(conn, ~p"/c/#{company.id}/invoices")
+
+      assert has_element?(view, "[data-testid=certificate-warning-banner]")
+
+      assert has_element?(
+               view,
+               ~s{a[href="/c/#{company.id}/settings/certificates"]}
+             )
     end
 
     test "hides warning when company has a certificate", %{
@@ -55,9 +60,9 @@ defmodule KsefHubWeb.InvoiceLive.IndexTest do
       user: user,
       company: company
     } do
-      insert(:user_certificate, user: user)
-      {:ok, _view, html} = live(conn, ~p"/c/#{company.id}/invoices")
-      refute html =~ "KSeF sync not configured"
+      insert(:user_certificate, user: user, is_active: true)
+      {:ok, view, _html} = live(conn, ~p"/c/#{company.id}/invoices")
+      refute has_element?(view, "[data-testid=certificate-warning-banner]")
     end
   end
 

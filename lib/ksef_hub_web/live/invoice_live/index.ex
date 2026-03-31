@@ -311,6 +311,7 @@ defmodule KsefHubWeb.InvoiceLive.Index do
 
     <div
       :if={!@has_certificate}
+      data-testid="certificate-warning-banner"
       class="rounded-lg border border-warning/50 bg-warning/10 p-4 mb-4 flex items-start gap-3"
     >
       <.icon name="hero-exclamation-triangle" class="size-5 text-warning mt-0.5" />
