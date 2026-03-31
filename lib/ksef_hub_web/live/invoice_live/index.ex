@@ -438,15 +438,23 @@ defmodule KsefHubWeb.InvoiceLive.Index do
           <:col :let={inv} label="Date" class="w-28">
             <span class="whitespace-nowrap">{format_date(inv.issue_date)}</span>
           </:col>
-          <:col :let={inv} label="Seller">
+          <:col :let={inv} label={if @filters[:type] == :income, do: "Buyer", else: "Seller"}>
             <.link
               navigate={~p"/c/#{@current_company.id}/invoices/#{inv.id}"}
               class="text-shad-primary underline-offset-4 hover:underline"
             >
               {cond do
-                String.trim(inv.seller_name || "") != "" -> inv.seller_name
-                String.trim(inv.invoice_number || "") != "" -> inv.invoice_number
-                true -> "Untitled invoice"
+                @filters[:type] == :income && String.trim(inv.buyer_name || "") != "" ->
+                  inv.buyer_name
+
+                String.trim(inv.seller_name || "") != "" ->
+                  inv.seller_name
+
+                String.trim(inv.invoice_number || "") != "" ->
+                  inv.invoice_number
+
+                true ->
+                  "Untitled invoice"
               end}
             </.link>
           </:col>
