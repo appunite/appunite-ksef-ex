@@ -56,7 +56,7 @@ defmodule KsefHubWeb.SettingsComponents do
     """
   end
 
-  @spec settings_tabs(map(), atom()) :: [map()]
+  @spec settings_tabs(map(), atom() | nil) :: [map()]
   defp settings_tabs(company, role) do
     id = company.id
 

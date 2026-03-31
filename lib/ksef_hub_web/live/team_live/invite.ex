@@ -59,7 +59,7 @@ defmodule KsefHubWeb.TeamLive.Invite do
         {:noreply, put_flash(socket, :error, "This person is already a member of the company.")}
 
       {:error, :unauthorized} ->
-        {:noreply, put_flash(socket, :error, "Only the owner can send invitations.")}
+        {:noreply, put_flash(socket, :error, "You are not authorized to send invitations.")}
 
       {:error, %Ecto.Changeset{} = changeset} ->
         message = format_changeset_errors(changeset)

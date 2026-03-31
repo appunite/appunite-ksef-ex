@@ -192,7 +192,7 @@ defmodule KsefHubWeb.CompanyLive.Form do
          |> put_flash(:info, "Company created.")
          |> redirect(to: ~p"/c/#{company.id}/invoices")}
 
-      {:error, :company, changeset, _changes} ->
+      {:error, _failed_step, changeset, _changes} ->
         {:noreply, assign(socket, form: to_form(changeset))}
     end
   end
