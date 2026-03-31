@@ -12,6 +12,7 @@ defmodule KsefHubWeb.InvoiceLive.Classify do
   alias KsefHub.Authorization
   alias KsefHub.InvoiceClassifier
   alias KsefHub.Invoices
+  alias KsefHub.Invoices.CostLine
 
   # --- Mount ---
 
@@ -59,6 +60,9 @@ defmodule KsefHubWeb.InvoiceLive.Classify do
             all_tags = Invoices.list_tags(company.id, invoice.type)
             current_tag_ids = MapSet.new(invoice.tags, & &1.id)
 
+            category_cost_line_map =
+              Map.new(categories, fn c -> {c.id, c.default_cost_line} end)
+
             {:ok,
              socket
              |> assign(
@@ -69,6 +73,8 @@ defmodule KsefHubWeb.InvoiceLive.Classify do
                all_tags: all_tags,
                selected_category_id: invoice.category_id,
                selected_tag_ids: current_tag_ids,
+               selected_cost_line: invoice.cost_line,
+               category_cost_line_map: category_cost_line_map,
                can_set_category: can_set_category,
                can_set_tags: can_set_tags,
                can_manage_tags: can_manage_tags,
@@ -92,9 +98,19 @@ defmodule KsefHubWeb.InvoiceLive.Classify do
     if socket.assigns.can_set_category do
       category_id = if id == "", do: nil, else: id
 
+      # Auto-update cost_line from category's default (only when selecting, not clearing)
+      selected_cost_line =
+        if category_id do
+          default = socket.assigns.category_cost_line_map[category_id]
+          default || socket.assigns.selected_cost_line
+        else
+          socket.assigns.selected_cost_line
+        end
+
       {:noreply,
        assign(socket,
          selected_category_id: category_id,
+         selected_cost_line: selected_cost_line,
          expanded_group: expanded_group_for(category_id, socket.assigns.categories)
        )}
     else
@@ -106,6 +122,17 @@ defmodule KsefHubWeb.InvoiceLive.Classify do
     current = socket.assigns.expanded_group
 
     {:noreply, assign(socket, :expanded_group, if(current == group, do: nil, else: group))}
+  end
+
+  def handle_event("select_cost_line", %{"cost_line" => value}, socket) do
+    if socket.assigns.can_set_category do
+      case CostLine.cast(value) do
+        {:ok, cost_line} -> {:noreply, assign(socket, :selected_cost_line, cost_line)}
+        :error -> {:noreply, socket}
+      end
+    else
+      {:noreply, put_flash(socket, :error, "You don't have permission to set cost line.")}
+    end
   end
 
   def handle_event("toggle_tag", %{"tag-id" => tag_id}, socket) do
@@ -206,9 +233,17 @@ defmodule KsefHubWeb.InvoiceLive.Classify do
     can_set_tags = socket.assigns.can_set_tags
     company = socket.assigns.current_company
 
+    cost_line = socket.assigns.selected_cost_line
+
     result =
       Invoices.with_manual_prediction(invoice, fn ->
-        with {:ok, updated} <- maybe_set_category(invoice, category_id, can_set_category),
+        with {:ok, updated} <-
+               maybe_set_category_and_cost_line(
+                 invoice,
+                 category_id,
+                 cost_line,
+                 can_set_category
+               ),
              {:ok, _tags} <- maybe_set_tags(updated.id, tag_ids, can_set_tags) do
           {:ok, updated}
         end
@@ -230,12 +265,20 @@ defmodule KsefHubWeb.InvoiceLive.Classify do
     end
   end
 
-  @spec maybe_set_category(KsefHub.Invoices.Invoice.t(), Ecto.UUID.t() | nil, boolean()) ::
-          {:ok, KsefHub.Invoices.Invoice.t()} | {:error, term()}
-  defp maybe_set_category(invoice, _category_id, false), do: {:ok, invoice}
+  @spec maybe_set_category_and_cost_line(
+          KsefHub.Invoices.Invoice.t(),
+          Ecto.UUID.t() | nil,
+          atom() | nil,
+          boolean()
+        ) :: {:ok, KsefHub.Invoices.Invoice.t()} | {:error, term()}
+  defp maybe_set_category_and_cost_line(invoice, _category_id, _cost_line, false),
+    do: {:ok, invoice}
 
-  defp maybe_set_category(invoice, category_id, true),
-    do: Invoices.set_invoice_category(invoice, category_id)
+  defp maybe_set_category_and_cost_line(invoice, category_id, cost_line, true) do
+    with {:ok, updated} <- Invoices.set_invoice_category(invoice, category_id) do
+      Invoices.set_invoice_cost_line(updated, cost_line)
+    end
+  end
 
   @spec maybe_set_tags(Ecto.UUID.t(), [Ecto.UUID.t()], boolean()) ::
           {:ok, [any()]} | {:error, term()}
@@ -342,6 +385,26 @@ defmodule KsefHubWeb.InvoiceLive.Classify do
           label="category"
           testid="prediction-category-hint"
         />
+      </section>
+
+      <%!-- Cost Line Section --%>
+      <section :if={@can_set_category} class="mb-8" data-testid="cost-line-section">
+        <h2 class="text-base font-semibold mb-3">Cost Line</h2>
+        <select
+          phx-change="select_cost_line"
+          name="cost_line"
+          class="h-9 w-full rounded-md border border-input bg-background px-3 text-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+          data-testid="cost-line-select"
+        >
+          <option value="" selected={is_nil(@selected_cost_line)}>None</option>
+          <option
+            :for={{label, value} <- CostLine.options()}
+            value={value}
+            selected={@selected_cost_line == value}
+          >
+            {label}
+          </option>
+        </select>
       </section>
 
       <%!-- Tags Section --%>

@@ -1507,18 +1507,39 @@ defmodule KsefHub.Invoices do
   end
 
   def set_invoice_category(%Invoice{} = invoice, category_id) do
-    category_exists? =
-      Category
-      |> where([c], c.id == ^category_id and c.company_id == ^invoice.company_id)
-      |> Repo.exists?()
+    case Category
+         |> where([c], c.id == ^category_id and c.company_id == ^invoice.company_id)
+         |> Repo.one() do
+      %Category{} = category ->
+        attrs = %{category_id: category_id}
 
-    if category_exists? do
-      invoice
-      |> Invoice.category_changeset(%{category_id: category_id})
-      |> Repo.update()
-    else
-      {:error, :category_not_in_company}
+        attrs =
+          if category.default_cost_line,
+            do: Map.put(attrs, :cost_line, category.default_cost_line),
+            else: attrs
+
+        invoice
+        |> Invoice.category_changeset(attrs)
+        |> Repo.update()
+
+      nil ->
+        {:error, :category_not_in_company}
     end
+  end
+
+  @doc """
+  Sets the cost line on an expense invoice independently of category.
+
+  Returns `{:error, :expense_only}` for income invoices.
+  """
+  @spec set_invoice_cost_line(Invoice.t(), atom() | nil) ::
+          {:ok, Invoice.t()} | {:error, Ecto.Changeset.t() | :expense_only}
+  def set_invoice_cost_line(%Invoice{type: :income}, _cost_line), do: {:error, :expense_only}
+
+  def set_invoice_cost_line(%Invoice{} = invoice, cost_line) do
+    invoice
+    |> Invoice.category_changeset(%{cost_line: cost_line})
+    |> Repo.update()
   end
 
   @doc """

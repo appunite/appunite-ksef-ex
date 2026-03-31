@@ -29,7 +29,13 @@ defmodule KsefHubWeb.Schemas.UpdateCategoryRequest do
         nullable: true,
         description: "Example descriptions for this category."
       },
-      sort_order: %Schema{type: :integer, description: "Sort order for display."}
+      sort_order: %Schema{type: :integer, description: "Sort order for display."},
+      default_cost_line: %Schema{
+        type: :string,
+        enum: ["growth", "heads", "service", "service_delivery", "client_success"],
+        nullable: true,
+        description: "Default cost line for invoices assigned to this category."
+      }
     },
     example: %{
       identifier: "operations:utilities",

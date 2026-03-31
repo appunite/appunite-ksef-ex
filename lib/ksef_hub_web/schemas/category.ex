@@ -41,6 +41,13 @@ defmodule KsefHubWeb.Schemas.Category do
         description: "Sort order for display.",
         default: 0
       },
+      default_cost_line: %Schema{
+        type: :string,
+        enum: ["growth", "heads", "service", "service_delivery", "client_success"],
+        nullable: true,
+        description:
+          "Default cost line for invoices assigned to this category. Auto-populated when setting category."
+      },
       inserted_at: %Schema{type: :string, format: :"date-time"},
       updated_at: %Schema{type: :string, format: :"date-time"}
     },

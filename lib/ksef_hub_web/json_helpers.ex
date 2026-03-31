@@ -20,6 +20,7 @@ defmodule KsefHubWeb.JsonHelpers do
       description: category.description,
       examples: category.examples,
       sort_order: category.sort_order,
+      default_cost_line: category.default_cost_line,
       inserted_at: category.inserted_at,
       updated_at: category.updated_at
     }
