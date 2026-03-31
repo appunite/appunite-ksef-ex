@@ -410,7 +410,7 @@ defmodule KsefHubWeb.InvoiceLive.ShowTest do
     end
 
     test "shows 'No category' placeholder when nil", %{conn: conn, company: company} do
-      invoice = insert(:invoice, company: company, category: nil)
+      invoice = insert(:invoice, type: :expense, company: company, category: nil)
 
       {:ok, view, _html} = live(conn, ~p"/c/#{company.id}/invoices/#{invoice.id}")
       assert has_element?(view, "[data-testid=category-display]", "-")
