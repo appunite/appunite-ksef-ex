@@ -1023,7 +1023,7 @@ defmodule KsefHubWeb.InvoiceLive.Show do
             </.link>
           </div>
 
-          <div class="mb-3">
+          <div :if={@invoice.type == :expense} class="mb-3">
             <label class="text-sm text-muted-foreground">Category</label>
             <div class="mt-1" data-testid="category-display">
               <.category_badge category={find_category(@invoice.category_id, @categories)} />
