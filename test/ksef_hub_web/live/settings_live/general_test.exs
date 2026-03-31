@@ -34,7 +34,6 @@ defmodule KsefHubWeb.SettingsLive.GeneralTest do
   end
 
   describe "settings sidebar tab visibility" do
-
     test "reviewer sees General, Syncs, API Tokens, and Payment-related tabs", %{
       conn: conn,
       company: company

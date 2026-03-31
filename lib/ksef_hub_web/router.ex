@@ -98,8 +98,8 @@ defmodule KsefHubWeb.Router do
     # Company management routes (not company-scoped)
     live_session :authenticated_top, on_mount: {KsefHubWeb.LiveAuth, :default} do
       live "/companies", CompanyLive.Index
-      live "/companies/new", CompanyLive.Index, :new
-      live "/companies/:id/edit", CompanyLive.Index, :edit
+      live "/companies/new", CompanyLive.Form, :new
+      live "/companies/:id/edit", CompanyLive.Form, :edit
     end
 
     post "/switch-company/:id", CompanySwitchController, :update
