@@ -5,13 +5,17 @@ defmodule KsefHubWeb.InvoiceLive.Index do
   use KsefHubWeb, :live_view
 
   alias KsefHub.Authorization
+  alias KsefHub.Credentials
   alias KsefHub.Invoices
   alias KsefHub.Invoices.Invoice
   alias KsefHub.PaymentRequests
 
   import KsefHubWeb.InvoiceComponents
 
+  @doc "Loads initial assigns: page title, categories, tags, and certificate status."
   @impl true
+  @spec mount(map() | nil, map(), Phoenix.LiveView.Socket.t()) ::
+          {:ok, Phoenix.LiveView.Socket.t()}
   def mount(_params, _session, socket) do
     company_id =
       case socket.assigns do
@@ -19,11 +23,15 @@ defmodule KsefHubWeb.InvoiceLive.Index do
         _ -> nil
       end
 
+    has_certificate =
+      if company_id, do: Credentials.get_certificate_for_company(company_id) != nil, else: false
+
     {:ok,
      assign(socket,
        page_title: "Invoices",
        categories: if(company_id, do: Invoices.list_categories(company_id), else: []),
-       all_tags: []
+       all_tags: [],
+       has_certificate: has_certificate
      )}
   end
 
@@ -286,7 +294,9 @@ defmodule KsefHubWeb.InvoiceLive.Index do
   defp to_string_or_empty(value) when is_atom(value), do: Atom.to_string(value)
   defp to_string_or_empty(value) when is_binary(value), do: value
 
+  @doc "Renders the invoice index page with filters, type tabs, and optional certificate warning."
   @impl true
+  @spec render(map()) :: Phoenix.LiveView.Rendered.t()
   def render(assigns) do
     ~H"""
     <.header>
@@ -298,6 +308,27 @@ defmodule KsefHubWeb.InvoiceLive.Index do
         </.button>
       </:actions>
     </.header>
+
+    <div
+      :if={!@has_certificate}
+      data-testid="certificate-warning-banner"
+      class="rounded-lg border border-warning/50 bg-warning/10 p-4 mb-4 flex items-start gap-3"
+    >
+      <.icon name="hero-exclamation-triangle" class="size-5 text-warning mt-0.5" />
+      <div>
+        <p class="text-sm font-medium">KSeF sync not configured</p>
+        <p class="text-sm text-muted-foreground">
+          Upload a certificate in
+          <.link
+            navigate={~p"/c/#{@current_company.id}/settings/certificates"}
+            class="underline"
+          >
+            Settings &rarr; Certificates
+          </.link>
+          to enable automatic invoice sync with KSeF.
+        </p>
+      </div>
+    </div>
 
     <!-- Type Tabs -->
     <div class="flex border-b border-border mb-4">

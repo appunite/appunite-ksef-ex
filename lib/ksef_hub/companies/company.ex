@@ -30,7 +30,6 @@ defmodule KsefHub.Companies.Company do
     |> cast(attrs, [:name, :nip, :address, :is_active])
     |> validate_required([:name, :nip])
     |> validate_format(:nip, ~r/^\d{10}$/, message: "must be a 10-digit NIP")
-    |> unique_constraint(:nip)
   end
 
   @doc "Builds a changeset for updating inbound email settings (allowed sender domain, CC email)."
