@@ -1,7 +1,8 @@
 defmodule KsefHubWeb.TokenLive do
   @moduledoc """
-  LiveView for managing API tokens — create, view, and revoke bearer tokens.
+  LiveView for listing and revoking API tokens.
 
+  Token creation is handled by `KsefHubWeb.TokenLive.Form`.
   Tokens are scoped to the current company. Owners, admins, and accountants can access.
   """
   use KsefHubWeb, :live_view

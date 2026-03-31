@@ -22,16 +22,18 @@ defmodule KsefHubWeb.SettingsLive.GeneralTest do
       assert html =~ "phx:set-theme"
     end
 
-    test "shows settings sidebar with tabs", %{conn: conn, company: company} do
+    test "shows settings sidebar with all tabs", %{conn: conn, company: company} do
       {:ok, view, _html} = live(conn, ~p"/c/#{company.id}/settings")
 
       assert has_element?(view, "nav[aria-label='Settings']")
       assert has_element?(view, "a", "General")
-      assert has_element?(view, "a", "Certificates")
-      assert has_element?(view, "a", "API Tokens")
+      assert has_element?(view, "a", "Exports")
+      assert has_element?(view, "a", "Syncs")
       assert has_element?(view, "a", "Categories")
       assert has_element?(view, "a", "Tags")
       assert has_element?(view, "a", "Team")
+      assert has_element?(view, "a", "API Tokens")
+      assert has_element?(view, "a", "Certificates")
     end
   end
 
@@ -39,42 +41,46 @@ defmodule KsefHubWeb.SettingsLive.GeneralTest do
     test "owner sees all tabs", %{conn: conn, company: company} do
       {:ok, view, _html} = live(conn, ~p"/c/#{company.id}/settings")
 
-      assert has_element?(view, "a", "General")
-      assert has_element?(view, "a", "Certificates")
-      assert has_element?(view, "a", "API Tokens")
-      assert has_element?(view, "a", "Categories")
-      assert has_element?(view, "a", "Tags")
-      assert has_element?(view, "a", "Team")
+      for tab <- ~w(General Exports Syncs Categories Tags Team Certificates) ++ ["API Tokens"] do
+        assert has_element?(view, "nav[aria-label='Settings'] a", tab)
+      end
     end
 
-    test "reviewer sees only General and API Tokens tabs", %{conn: conn, company: company} do
+    test "reviewer sees General, Syncs, API Tokens, and Payment-related tabs", %{
+      conn: conn,
+      company: company
+    } do
       reviewer = insert(:user)
       insert(:membership, user: reviewer, company: company, role: :reviewer)
       conn = log_in_user(conn, reviewer, %{current_company_id: company.id})
 
       {:ok, view, _html} = live(conn, ~p"/c/#{company.id}/settings")
 
-      assert has_element?(view, "a", "General")
-      assert has_element?(view, "a", "API Tokens")
+      assert has_element?(view, "nav[aria-label='Settings'] a", "General")
+      assert has_element?(view, "nav[aria-label='Settings'] a", "Syncs")
+      assert has_element?(view, "nav[aria-label='Settings'] a", "API Tokens")
       refute has_element?(view, "nav[aria-label='Settings'] a", "Certificates")
       refute has_element?(view, "nav[aria-label='Settings'] a", "Categories")
       refute has_element?(view, "nav[aria-label='Settings'] a", "Tags")
       refute has_element?(view, "nav[aria-label='Settings'] a", "Team")
+      refute has_element?(view, "nav[aria-label='Settings'] a", "Exports")
     end
 
-    test "accountant sees General and API Tokens tabs", %{conn: conn, company: company} do
+    test "accountant sees General, Exports, API Tokens tabs", %{conn: conn, company: company} do
       accountant = insert(:user)
       insert(:membership, user: accountant, company: company, role: :accountant)
       conn = log_in_user(conn, accountant, %{current_company_id: company.id})
 
       {:ok, view, _html} = live(conn, ~p"/c/#{company.id}/settings")
 
-      assert has_element?(view, "a", "General")
-      assert has_element?(view, "a", "API Tokens")
+      assert has_element?(view, "nav[aria-label='Settings'] a", "General")
+      assert has_element?(view, "nav[aria-label='Settings'] a", "Exports")
+      assert has_element?(view, "nav[aria-label='Settings'] a", "API Tokens")
       refute has_element?(view, "nav[aria-label='Settings'] a", "Certificates")
       refute has_element?(view, "nav[aria-label='Settings'] a", "Categories")
       refute has_element?(view, "nav[aria-label='Settings'] a", "Tags")
       refute has_element?(view, "nav[aria-label='Settings'] a", "Team")
+      refute has_element?(view, "nav[aria-label='Settings'] a", "Syncs")
     end
   end
 end
