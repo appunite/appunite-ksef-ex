@@ -41,7 +41,7 @@ defmodule KsefHubWeb.CompanyLive.Index do
       Companies
       <:subtitle>Manage your companies</:subtitle>
       <:actions>
-        <.button :if={@can_manage_company} navigate={~p"/companies/new"}>
+        <.button navigate={~p"/companies/new"}>
           New Company
         </.button>
       </:actions>

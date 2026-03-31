@@ -21,6 +21,36 @@ defmodule KsefHubWeb.CompanyLiveTest do
   end
 
   describe "CompanyLive.Index — create new company" do
+    test "user with no companies sees New Company button and can create one", %{conn: conn} do
+      user = insert(:user)
+
+      # Index page shows button
+      {:ok, view, html} =
+        conn
+        |> log_in_user(user)
+        |> live("/companies")
+
+      assert html =~ "New Company"
+      assert has_element?(view, ~s(a[href="/companies/new"]), "New Company")
+
+      # Can navigate to /companies/new and submit
+      {:ok, view, _html} =
+        conn
+        |> log_in_user(user)
+        |> live("/companies/new")
+
+      view
+      |> form("form[phx-submit=save]", company: %{name: "First Corp", nip: "1122334455"})
+      |> render_submit()
+
+      companies = Companies.list_companies_for_user(user.id)
+      new_company = Enum.find(companies, &(&1.name == "First Corp"))
+      assert new_company
+
+      membership = Companies.get_membership(user.id, new_company.id)
+      assert membership.role == :owner
+    end
+
     test "creating a company auto-creates owner membership", %{conn: conn} do
       user = insert(:user)
       # User needs at least one company to not be redirected to /companies/new

@@ -29,20 +29,14 @@ defmodule KsefHubWeb.CompanyLive.Form do
 
   @spec apply_action(Phoenix.LiveView.Socket.t(), atom(), map()) :: Phoenix.LiveView.Socket.t()
   defp apply_action(socket, :new, _params) do
-    if socket.assigns.can_manage_company do
-      socket
-      |> assign(
-        page_title: "New Company",
-        company: %Company{},
-        form: to_form(Company.changeset(%Company{}, %{})),
-        inbound_settings_form: nil,
-        inbound_domain_configured: false
-      )
-    else
-      socket
-      |> put_flash(:error, "You don't have permission to create companies.")
-      |> push_navigate(to: ~p"/companies")
-    end
+    socket
+    |> assign(
+      page_title: "New Company",
+      company: %Company{},
+      form: to_form(Company.changeset(%Company{}, %{})),
+      inbound_settings_form: nil,
+      inbound_domain_configured: false
+    )
   end
 
   defp apply_action(socket, :edit, %{"id" => id}) do
@@ -66,12 +60,27 @@ defmodule KsefHubWeb.CompanyLive.Form do
 
   # --- Authorization guard for mutation events ---
 
+  @new_company_events ~w(save validate)
   @company_mutation_events ~w(save validate enable_inbound_email disable_inbound_email
     regenerate_inbound_email validate_inbound_settings save_inbound_settings)
 
   @impl true
-  def handle_event(event, _params, %{assigns: %{can_manage_company: false}} = socket)
-      when event in @company_mutation_events do
+  def handle_event(
+        event,
+        _params,
+        %{assigns: %{can_manage_company: false, live_action: :new}} = socket
+      )
+      when event in @company_mutation_events and event not in @new_company_events do
+    {:noreply, put_flash(socket, :error, "You don't have permission to manage companies.")}
+  end
+
+  @impl true
+  def handle_event(
+        event,
+        _params,
+        %{assigns: %{can_manage_company: false, live_action: action}} = socket
+      )
+      when event in @company_mutation_events and action != :new do
     {:noreply, put_flash(socket, :error, "You don't have permission to manage companies.")}
   end
 

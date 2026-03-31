@@ -166,6 +166,6 @@ defmodule KsefHubWeb.LiveAuth do
 
   @spec company_route?(Phoenix.LiveView.Socket.t()) :: boolean()
   defp company_route?(socket) do
-    socket.view in [KsefHubWeb.CompanyLive.Index]
+    socket.view in [KsefHubWeb.CompanyLive.Index, KsefHubWeb.CompanyLive.Form]
   end
 end
