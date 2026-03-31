@@ -62,14 +62,14 @@ defmodule KsefHubWeb.SettingsComponents do
 
     [
       {nil, "General", ~p"/c/#{id}/settings", "hero-cog-6-tooth"},
-      {:manage_certificates, "Certificates", ~p"/c/#{id}/settings/certificates",
-       "hero-shield-check"},
-      {:manage_tokens, "API Tokens", ~p"/c/#{id}/settings/tokens", "hero-key"},
+      {:view_exports, "Exports", ~p"/c/#{id}/settings/exports", "hero-arrow-down-tray"},
+      {:view_syncs, "Syncs", ~p"/c/#{id}/settings/syncs", "hero-arrow-path"},
       {:manage_categories, "Categories", ~p"/c/#{id}/settings/categories", "hero-squares-2x2"},
       {:manage_tags, "Tags", ~p"/c/#{id}/settings/tags", "hero-tag"},
-      {:view_syncs, "Syncs", ~p"/c/#{id}/settings/syncs", "hero-arrow-path"},
-      {:view_exports, "Exports", ~p"/c/#{id}/settings/exports", "hero-arrow-down-tray"},
-      {:manage_team, "Team", ~p"/c/#{id}/settings/team", "hero-user-group"}
+      {:manage_team, "Team", ~p"/c/#{id}/settings/team", "hero-user-group"},
+      {:manage_tokens, "API Tokens", ~p"/c/#{id}/settings/tokens", "hero-key"},
+      {:manage_certificates, "Certificates", ~p"/c/#{id}/settings/certificates",
+       "hero-shield-check"}
     ]
     |> Enum.filter(fn {perm, _label, _path, _icon} ->
       is_nil(perm) or Authorization.can?(role, perm)

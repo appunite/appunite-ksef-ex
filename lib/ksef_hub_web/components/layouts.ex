@@ -272,11 +272,11 @@ defmodule KsefHubWeb.Layouts do
   @spec theme_toggle(map()) :: Phoenix.LiveView.Rendered.t()
   def theme_toggle(assigns) do
     ~H"""
-    <div class="relative flex flex-row items-center border border-border bg-muted rounded-full">
+    <div class="relative inline-flex flex-row items-center border border-border bg-muted rounded-full">
       <div class="absolute w-1/3 h-full rounded-full bg-background shadow-sm left-0 [[data-theme=light]_&]:left-1/3 [[data-theme=dark]_&]:left-2/3 transition-[left]" />
 
       <button
-        class="flex p-2 cursor-pointer w-1/3"
+        class="flex items-center justify-center p-2 cursor-pointer w-10"
         phx-click={JS.dispatch("phx:set-theme")}
         data-phx-theme="system"
       >
@@ -284,7 +284,7 @@ defmodule KsefHubWeb.Layouts do
       </button>
 
       <button
-        class="flex p-2 cursor-pointer w-1/3"
+        class="flex items-center justify-center p-2 cursor-pointer w-10"
         phx-click={JS.dispatch("phx:set-theme")}
         data-phx-theme="light"
       >
@@ -292,7 +292,7 @@ defmodule KsefHubWeb.Layouts do
       </button>
 
       <button
-        class="flex p-2 cursor-pointer w-1/3"
+        class="flex items-center justify-center p-2 cursor-pointer w-10"
         phx-click={JS.dispatch("phx:set-theme")}
         data-phx-theme="dark"
       >
