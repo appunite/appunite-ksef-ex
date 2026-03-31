@@ -396,21 +396,22 @@ defmodule KsefHubWeb.InvoiceLive.Classify do
       <%!-- Cost Line Section --%>
       <section :if={@can_set_category} class="mb-8" data-testid="cost-line-section">
         <h2 class="text-base font-semibold mb-3">Cost Line</h2>
-        <select
-          phx-change="select_cost_line"
-          name="cost_line"
-          class="h-9 w-full rounded-md border border-input bg-background px-3 text-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
-          data-testid="cost-line-select"
-        >
-          <option value="" selected={is_nil(@selected_cost_line)}>None</option>
-          <option
-            :for={{label, value} <- CostLine.options()}
-            value={value}
-            selected={@selected_cost_line == value}
+        <form phx-change="select_cost_line">
+          <select
+            name="cost_line"
+            class="h-9 w-full rounded-md border border-input bg-background px-3 text-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+            data-testid="cost-line-select"
           >
-            {label}
-          </option>
-        </select>
+            <option value="" selected={is_nil(@selected_cost_line)}>None</option>
+            <option
+              :for={{label, value} <- CostLine.options()}
+              value={value}
+              selected={@selected_cost_line == value}
+            >
+              {label}
+            </option>
+          </select>
+        </form>
       </section>
 
       <%!-- Tags Section --%>

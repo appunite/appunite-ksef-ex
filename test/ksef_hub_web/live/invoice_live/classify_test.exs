@@ -366,6 +366,19 @@ defmodule KsefHubWeb.InvoiceLive.ClassifyTest do
       assert updated.category_id == category.id
     end
 
+    test "persists cost line without category on save", %{conn: conn, company: company} do
+      invoice = insert(:invoice, type: :expense, company: company)
+
+      {:ok, view, _html} = live(conn, ~p"/c/#{company.id}/invoices/#{invoice.id}/classify")
+
+      render_change(view, "select_cost_line", %{"cost_line" => "service"})
+      render_click(view, "save")
+
+      updated = Invoices.get_invoice!(company.id, invoice.id)
+      assert updated.cost_line == :service
+      assert is_nil(updated.category_id)
+    end
+
     test "does not render cost line section for income invoice", %{conn: conn, company: company} do
       invoice = insert(:invoice, type: :income, company: company)
 
