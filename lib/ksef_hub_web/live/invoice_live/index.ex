@@ -194,6 +194,24 @@ defmodule KsefHubWeb.InvoiceLive.Index do
   defp status_display(:rejected), do: "Rejected"
   defp status_display(other), do: to_string(other)
 
+  @spec counterparty_name(map(), atom() | nil) :: String.t()
+  defp counterparty_name(invoice, :income) do
+    cond do
+      String.trim(invoice.buyer_name || "") != "" -> invoice.buyer_name
+      String.trim(invoice.seller_name || "") != "" -> invoice.seller_name
+      String.trim(invoice.invoice_number || "") != "" -> invoice.invoice_number
+      true -> "Untitled invoice"
+    end
+  end
+
+  defp counterparty_name(invoice, _type) do
+    cond do
+      String.trim(invoice.seller_name || "") != "" -> invoice.seller_name
+      String.trim(invoice.invoice_number || "") != "" -> invoice.invoice_number
+      true -> "Untitled invoice"
+    end
+  end
+
   @spec filter_params_without_page(map()) :: map()
   defp filter_params_without_page(filters) do
     %{}
@@ -443,19 +461,7 @@ defmodule KsefHubWeb.InvoiceLive.Index do
               navigate={~p"/c/#{@current_company.id}/invoices/#{inv.id}"}
               class="text-shad-primary underline-offset-4 hover:underline"
             >
-              {cond do
-                @filters[:type] == :income && String.trim(inv.buyer_name || "") != "" ->
-                  inv.buyer_name
-
-                String.trim(inv.seller_name || "") != "" ->
-                  inv.seller_name
-
-                String.trim(inv.invoice_number || "") != "" ->
-                  inv.invoice_number
-
-                true ->
-                  "Untitled invoice"
-              end}
+              {counterparty_name(inv, @filters[:type])}
             </.link>
           </:col>
           <:col :let={inv} :if={@filters[:type] == :income} label="Net" class="w-36 text-right">
