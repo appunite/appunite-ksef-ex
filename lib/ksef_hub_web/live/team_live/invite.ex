@@ -26,7 +26,9 @@ defmodule KsefHubWeb.TeamLive.Invite do
      )}
   end
 
-  @doc "Handles `\"validate\"` (live form validation) and `\"invite\"` (submission) events."
+  @doc ~S"""
+  Handles "validate" (live form validation) and "invite" (submission) events.
+  """
   @impl true
   @spec handle_event(String.t(), map(), Phoenix.LiveView.Socket.t()) ::
           {:noreply, Phoenix.LiveView.Socket.t()}
