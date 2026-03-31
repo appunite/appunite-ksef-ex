@@ -42,10 +42,8 @@ defmodule KsefHubWeb.Layouts do
 
           <div class="flex-1" />
           
-    <!-- Theme toggle + Company selector + avatar menu -->
+    <!-- Company selector + avatar menu -->
           <div class="flex items-center gap-2">
-            <.theme_toggle />
-
             <div :if={@current_company} class="dropdown dropdown-end">
               <div
                 tabindex="0"
@@ -170,16 +168,8 @@ defmodule KsefHubWeb.Layouts do
       {nil, nil, "Invoices", ~p"/c/#{id}/invoices", "hero-document-text"},
       {nil, :view_payment_requests, "Payments", ~p"/c/#{id}/payment-requests", "hero-banknotes"},
       {nil, nil, "Dashboard", ~p"/c/#{id}/dashboard", "hero-home"},
-      {nil, :manage_categories, "Expense Categories", ~p"/c/#{id}/categories",
-       "hero-squares-2x2"},
-      {nil, :manage_tags, "Tags", ~p"/c/#{id}/tags", "hero-tag"},
-      {nil, :view_exports, "Exports", ~p"/c/#{id}/exports", "hero-arrow-down-tray"},
-      {nil, :view_syncs, "Syncs", ~p"/c/#{id}/syncs", "hero-arrow-path"},
       {nil, :manage_company, "Companies", ~p"/companies", "hero-building-office-2"},
-      {"Admin", :manage_certificates, "Certificates", ~p"/c/#{id}/certificates",
-       "hero-shield-check"},
-      {nil, :manage_tokens, "API Tokens", ~p"/c/#{id}/tokens", "hero-key"},
-      {nil, :manage_team, "Team", ~p"/c/#{id}/team", "hero-user-group"}
+      {nil, nil, "Settings", ~p"/c/#{id}/settings", "hero-cog-6-tooth"}
     ]
     |> Enum.filter(fn {_section, perm, _label, _path, _icon} ->
       is_nil(perm) or Authorization.can?(role, perm)
@@ -282,11 +272,11 @@ defmodule KsefHubWeb.Layouts do
   @spec theme_toggle(map()) :: Phoenix.LiveView.Rendered.t()
   def theme_toggle(assigns) do
     ~H"""
-    <div class="relative flex flex-row items-center border border-border bg-muted rounded-full">
+    <div class="relative inline-flex flex-row items-center border border-border bg-muted rounded-full">
       <div class="absolute w-1/3 h-full rounded-full bg-background shadow-sm left-0 [[data-theme=light]_&]:left-1/3 [[data-theme=dark]_&]:left-2/3 transition-[left]" />
 
       <button
-        class="flex p-2 cursor-pointer w-1/3"
+        class="flex items-center justify-center p-2 cursor-pointer w-10"
         phx-click={JS.dispatch("phx:set-theme")}
         data-phx-theme="system"
       >
@@ -294,7 +284,7 @@ defmodule KsefHubWeb.Layouts do
       </button>
 
       <button
-        class="flex p-2 cursor-pointer w-1/3"
+        class="flex items-center justify-center p-2 cursor-pointer w-10"
         phx-click={JS.dispatch("phx:set-theme")}
         data-phx-theme="light"
       >
@@ -302,7 +292,7 @@ defmodule KsefHubWeb.Layouts do
       </button>
 
       <button
-        class="flex p-2 cursor-pointer w-1/3"
+        class="flex items-center justify-center p-2 cursor-pointer w-10"
         phx-click={JS.dispatch("phx:set-theme")}
         data-phx-theme="dark"
       >

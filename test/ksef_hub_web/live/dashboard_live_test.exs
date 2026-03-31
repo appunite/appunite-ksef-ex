@@ -30,8 +30,7 @@ defmodule KsefHubWeb.DashboardLiveTest do
       # Top navbar navigation rendered via app layout
       assert html =~ "border-b border-border"
       assert html =~ "Invoices"
-      assert html =~ "Certificates"
-      assert html =~ "API Tokens"
+      assert html =~ "Settings"
     end
 
     test "shows invoice counts", %{conn: conn, company: company} do

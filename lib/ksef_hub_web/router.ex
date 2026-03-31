@@ -98,8 +98,8 @@ defmodule KsefHubWeb.Router do
     # Company management routes (not company-scoped)
     live_session :authenticated_top, on_mount: {KsefHubWeb.LiveAuth, :default} do
       live "/companies", CompanyLive.Index
-      live "/companies/new", CompanyLive.Index, :new
-      live "/companies/:id/edit", CompanyLive.Index, :edit
+      live "/companies/new", CompanyLive.Form, :new
+      live "/companies/:id/edit", CompanyLive.Form, :edit
     end
 
     post "/switch-company/:id", CompanySwitchController, :update
@@ -124,12 +124,17 @@ defmodule KsefHubWeb.Router do
       live "/invoices/:id/classify", InvoiceLive.Classify
     end
 
+    live_session :settings_general, on_mount: {KsefHubWeb.LiveAuth, :default} do
+      live "/settings", SettingsLive.General
+    end
+
     live_session :require_manage_tokens,
       on_mount: [
         {KsefHubWeb.LiveAuth, :default},
         {KsefHubWeb.LiveAuth, {:require_permission, :manage_tokens}}
       ] do
-      live "/tokens", TokenLive
+      live "/settings/tokens", TokenLive
+      live "/settings/tokens/new", TokenLive.Form
     end
 
     live_session :require_view_syncs,
@@ -137,7 +142,7 @@ defmodule KsefHubWeb.Router do
         {KsefHubWeb.LiveAuth, :default},
         {KsefHubWeb.LiveAuth, {:require_permission, :view_syncs}}
       ] do
-      live "/syncs", SyncLive
+      live "/settings/syncs", SyncLive
     end
 
     live_session :require_view_exports,
@@ -145,7 +150,7 @@ defmodule KsefHubWeb.Router do
         {KsefHubWeb.LiveAuth, :default},
         {KsefHubWeb.LiveAuth, {:require_permission, :view_exports}}
       ] do
-      live "/exports", ExportLive.Index
+      live "/settings/exports", ExportLive.Index
     end
 
     live_session :require_manage_certificates,
@@ -153,7 +158,7 @@ defmodule KsefHubWeb.Router do
         {KsefHubWeb.LiveAuth, :default},
         {KsefHubWeb.LiveAuth, {:require_permission, :manage_certificates}}
       ] do
-      live "/certificates", CertificateLive
+      live "/settings/certificates", CertificateLive
     end
 
     live_session :require_manage_categories,
@@ -161,9 +166,9 @@ defmodule KsefHubWeb.Router do
         {KsefHubWeb.LiveAuth, :default},
         {KsefHubWeb.LiveAuth, {:require_permission, :manage_categories}}
       ] do
-      live "/categories", CategoryLive.Index, :index
-      live "/categories/new", CategoryLive.Form, :new
-      live "/categories/:id/edit", CategoryLive.Form, :edit
+      live "/settings/categories", CategoryLive.Index, :index
+      live "/settings/categories/new", CategoryLive.Form, :new
+      live "/settings/categories/:id/edit", CategoryLive.Form, :edit
     end
 
     live_session :require_manage_tags,
@@ -171,9 +176,9 @@ defmodule KsefHubWeb.Router do
         {KsefHubWeb.LiveAuth, :default},
         {KsefHubWeb.LiveAuth, {:require_permission, :manage_tags}}
       ] do
-      live "/tags", TagLive.Index, :index
-      live "/tags/new", TagLive.Form, :new
-      live "/tags/:id/edit", TagLive.Form, :edit
+      live "/settings/tags", TagLive.Index, :index
+      live "/settings/tags/new", TagLive.Form, :new
+      live "/settings/tags/:id/edit", TagLive.Form, :edit
     end
 
     live_session :require_manage_team,
@@ -181,9 +186,10 @@ defmodule KsefHubWeb.Router do
         {KsefHubWeb.LiveAuth, :default},
         {KsefHubWeb.LiveAuth, {:require_permission, :manage_team}}
       ] do
-      live "/team", TeamLive
-      live "/team/members/:id", TeamMemberLive.Show, :member
-      live "/team/invitations/:id", TeamMemberLive.Show, :invitation
+      live "/settings/team", TeamLive
+      live "/settings/team/invite", TeamLive.Invite
+      live "/settings/team/members/:id", TeamMemberLive.Show, :member
+      live "/settings/team/invitations/:id", TeamMemberLive.Show, :invitation
     end
 
     live_session :require_view_payment_requests,

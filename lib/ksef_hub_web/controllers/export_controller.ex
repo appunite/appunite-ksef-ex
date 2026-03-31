@@ -44,17 +44,17 @@ defmodule KsefHubWeb.ExportController do
       %{status: :completed} ->
         conn
         |> put_flash(:error, "Export file not found.")
-        |> redirect(to: ~p"/c/#{company_id}/exports")
+        |> redirect(to: ~p"/c/#{company_id}/settings/exports")
 
       _ ->
         conn
         |> put_flash(:error, "Export is not yet ready.")
-        |> redirect(to: ~p"/c/#{company_id}/exports")
+        |> redirect(to: ~p"/c/#{company_id}/settings/exports")
     end
   rescue
     Ecto.NoResultsError ->
       conn
       |> put_flash(:error, "Export not found.")
-      |> redirect(to: ~p"/c/#{company_id}/exports")
+      |> redirect(to: ~p"/c/#{company_id}/settings/exports")
   end
 end

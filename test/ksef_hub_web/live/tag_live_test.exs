@@ -23,7 +23,7 @@ defmodule KsefHubWeb.TagLiveTest do
 
   describe "Index" do
     test "renders tags page with expense tab active by default", %{conn: conn, company: company} do
-      {:ok, _view, html} = live(conn, ~p"/c/#{company.id}/tags")
+      {:ok, _view, html} = live(conn, ~p"/c/#{company.id}/settings/tags")
       assert html =~ "Tags"
       assert html =~ "New Tag"
       assert html =~ "Expense"
@@ -34,7 +34,7 @@ defmodule KsefHubWeb.TagLiveTest do
       insert(:tag, company: company, name: "monthly", type: :expense)
       insert(:tag, company: company, name: "income-only", type: :income)
 
-      {:ok, _view, html} = live(conn, ~p"/c/#{company.id}/tags")
+      {:ok, _view, html} = live(conn, ~p"/c/#{company.id}/settings/tags")
       assert html =~ "monthly"
       refute html =~ "income-only"
     end
@@ -43,7 +43,7 @@ defmodule KsefHubWeb.TagLiveTest do
       insert(:tag, company: company, name: "expense-only", type: :expense)
       insert(:tag, company: company, name: "income-only", type: :income)
 
-      {:ok, _view, html} = live(conn, ~p"/c/#{company.id}/tags?type=income")
+      {:ok, _view, html} = live(conn, ~p"/c/#{company.id}/settings/tags?type=income")
       assert html =~ "income-only"
       refute html =~ "expense-only"
     end
@@ -53,7 +53,7 @@ defmodule KsefHubWeb.TagLiveTest do
       invoice = insert(:invoice, company: company)
       insert(:invoice_tag, invoice: invoice, tag: tag)
 
-      {:ok, _view, html} = live(conn, ~p"/c/#{company.id}/tags")
+      {:ok, _view, html} = live(conn, ~p"/c/#{company.id}/settings/tags")
       assert html =~ "counted"
       assert html =~ ">1</span>"
     end
@@ -63,7 +63,7 @@ defmodule KsefHubWeb.TagLiveTest do
     test "deletes a tag", %{conn: conn, company: company} do
       tag = insert(:tag, company: company, name: "delete-me")
 
-      {:ok, view, _html} = live(conn, ~p"/c/#{company.id}/tags")
+      {:ok, view, _html} = live(conn, ~p"/c/#{company.id}/settings/tags")
       assert render(view) =~ "delete-me"
 
       view |> element("button", "Delete") |> render_click(%{"id" => tag.id})
@@ -77,33 +77,33 @@ defmodule KsefHubWeb.TagLiveTest do
       other_company = insert(:company)
       insert(:tag, company: other_company, name: "other-secret")
 
-      {:ok, _view, html} = live(conn, ~p"/c/#{company.id}/tags")
+      {:ok, _view, html} = live(conn, ~p"/c/#{company.id}/settings/tags")
       refute html =~ "other-secret"
     end
   end
 
   describe "Form - new" do
     test "renders new tag form", %{conn: conn, company: company} do
-      {:ok, _view, html} = live(conn, ~p"/c/#{company.id}/tags/new")
+      {:ok, _view, html} = live(conn, ~p"/c/#{company.id}/settings/tags/new")
       assert html =~ "New Tag"
       assert html =~ "Create Tag"
     end
 
     test "creates a tag with valid data", %{conn: conn, company: company} do
-      {:ok, view, _html} = live(conn, ~p"/c/#{company.id}/tags/new")
+      {:ok, view, _html} = live(conn, ~p"/c/#{company.id}/settings/tags/new")
 
       view
       |> element("form#tag-form")
       |> render_submit(%{tag: %{name: "quarterly", description: "Quarterly reports"}})
 
-      flash = assert_redirect(view, ~p"/c/#{company.id}/tags?type=expense")
+      flash = assert_redirect(view, ~p"/c/#{company.id}/settings/tags?type=expense")
       assert flash["info"] == "Tag created."
     end
 
     test "shows error for duplicate name", %{conn: conn, company: company} do
       insert(:tag, company: company, name: "duplicate")
 
-      {:ok, view, _html} = live(conn, ~p"/c/#{company.id}/tags/new")
+      {:ok, view, _html} = live(conn, ~p"/c/#{company.id}/settings/tags/new")
 
       view
       |> element("form#tag-form")
@@ -118,7 +118,7 @@ defmodule KsefHubWeb.TagLiveTest do
     test "renders edit form with tag data", %{conn: conn, company: company} do
       tag = insert(:tag, company: company, name: "edit-me")
 
-      {:ok, _view, html} = live(conn, ~p"/c/#{company.id}/tags/#{tag.id}/edit")
+      {:ok, _view, html} = live(conn, ~p"/c/#{company.id}/settings/tags/#{tag.id}/edit")
       assert html =~ "Edit Tag"
       assert html =~ "edit-me"
     end
@@ -126,21 +126,21 @@ defmodule KsefHubWeb.TagLiveTest do
     test "updates tag", %{conn: conn, company: company} do
       tag = insert(:tag, company: company, name: "old-name")
 
-      {:ok, view, _html} = live(conn, ~p"/c/#{company.id}/tags/#{tag.id}/edit")
+      {:ok, view, _html} = live(conn, ~p"/c/#{company.id}/settings/tags/#{tag.id}/edit")
 
       view
       |> element("form#tag-form")
       |> render_submit(%{tag: %{name: "new-name", description: "Updated"}})
 
-      flash = assert_redirect(view, ~p"/c/#{company.id}/tags?type=expense")
+      flash = assert_redirect(view, ~p"/c/#{company.id}/settings/tags?type=expense")
       assert flash["info"] == "Tag updated."
     end
 
     test "redirects for non-existent tag", %{conn: conn, company: company} do
       assert {:error, {:live_redirect, %{to: to, flash: flash}}} =
-               live(conn, ~p"/c/#{company.id}/tags/#{Ecto.UUID.generate()}/edit")
+               live(conn, ~p"/c/#{company.id}/settings/tags/#{Ecto.UUID.generate()}/edit")
 
-      assert to == "/c/#{company.id}/tags?type=expense"
+      assert to == "/c/#{company.id}/settings/tags?type=expense"
       assert flash["error"] == "Tag not found."
     end
   end

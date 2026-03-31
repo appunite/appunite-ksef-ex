@@ -28,7 +28,7 @@ defmodule KsefHubWeb.TeamMemberLive.ShowTest do
       member = insert(:user, name: "Bob", email: "bob@example.com")
       membership = insert(:membership, user: member, company: company, role: :accountant)
 
-      {:ok, view, _html} = live(conn, ~p"/c/#{company.id}/team/members/#{membership.id}")
+      {:ok, view, _html} = live(conn, ~p"/c/#{company.id}/settings/team/members/#{membership.id}")
 
       assert has_element?(view, "[data-testid='member-email']", "bob@example.com")
       assert has_element?(view, "[data-testid='name-form']")
@@ -36,8 +36,8 @@ defmodule KsefHubWeb.TeamMemberLive.ShowTest do
 
     test "redirects when member not found", %{conn: conn, company: company} do
       {:ok, _view, html} =
-        live(conn, ~p"/c/#{company.id}/team/members/#{Ecto.UUID.generate()}")
-        |> follow_redirect(conn, ~p"/c/#{company.id}/team")
+        live(conn, ~p"/c/#{company.id}/settings/team/members/#{Ecto.UUID.generate()}")
+        |> follow_redirect(conn, ~p"/c/#{company.id}/settings/team")
 
       assert html =~ "Member not found"
     end
@@ -48,7 +48,7 @@ defmodule KsefHubWeb.TeamMemberLive.ShowTest do
       member = insert(:user, name: "Old Name", email: "rename@example.com")
       membership = insert(:membership, user: member, company: company, role: :accountant)
 
-      {:ok, view, _html} = live(conn, ~p"/c/#{company.id}/team/members/#{membership.id}")
+      {:ok, view, _html} = live(conn, ~p"/c/#{company.id}/settings/team/members/#{membership.id}")
 
       view
       |> form("[data-testid='name-form']", %{"user" => %{"name" => "New Name"}})
@@ -66,7 +66,7 @@ defmodule KsefHubWeb.TeamMemberLive.ShowTest do
       member = insert(:user, name: "Old Name", email: "both@example.com")
       membership = insert(:membership, user: member, company: company, role: :accountant)
 
-      {:ok, view, _html} = live(conn, ~p"/c/#{company.id}/team/members/#{membership.id}")
+      {:ok, view, _html} = live(conn, ~p"/c/#{company.id}/settings/team/members/#{membership.id}")
 
       view
       |> form("[data-testid='name-form']", %{
@@ -89,7 +89,7 @@ defmodule KsefHubWeb.TeamMemberLive.ShowTest do
       member = insert(:user, name: "Desc Test", email: "desc@example.com")
       membership = insert(:membership, user: member, company: company, role: :accountant)
 
-      {:ok, view, _html} = live(conn, ~p"/c/#{company.id}/team/members/#{membership.id}")
+      {:ok, view, _html} = live(conn, ~p"/c/#{company.id}/settings/team/members/#{membership.id}")
 
       # Initial description for accountant
       assert render(view) =~ "Read-only invoice access"
@@ -108,7 +108,7 @@ defmodule KsefHubWeb.TeamMemberLive.ShowTest do
       member = insert(:user, name: "Role Target", email: "role@example.com")
       membership = insert(:membership, user: member, company: company, role: :accountant)
 
-      {:ok, view, _html} = live(conn, ~p"/c/#{company.id}/team/members/#{membership.id}")
+      {:ok, view, _html} = live(conn, ~p"/c/#{company.id}/settings/team/members/#{membership.id}")
       assert has_element?(view, "[data-testid='role-select']")
 
       view
@@ -124,7 +124,7 @@ defmodule KsefHubWeb.TeamMemberLive.ShowTest do
     end
 
     test "cannot change own role", %{conn: conn, company: company, owner_membership: om} do
-      {:ok, view, _html} = live(conn, ~p"/c/#{company.id}/team/members/#{om.id}")
+      {:ok, view, _html} = live(conn, ~p"/c/#{company.id}/settings/team/members/#{om.id}")
 
       # Owner's own detail page should not show role select
       refute has_element?(view, "[data-testid='role-select']")
@@ -141,7 +141,7 @@ defmodule KsefHubWeb.TeamMemberLive.ShowTest do
       insert(:membership, user: admin, company: company, role: :admin)
       admin_conn = log_in_user(conn, admin, %{current_company_id: company.id})
 
-      {:ok, view, _html} = live(admin_conn, ~p"/c/#{company.id}/team/members/#{om.id}")
+      {:ok, view, _html} = live(admin_conn, ~p"/c/#{company.id}/settings/team/members/#{om.id}")
 
       # Owner detail page should show read-only role badge, not select
       refute has_element?(view, "[data-testid='role-select']")
@@ -153,7 +153,7 @@ defmodule KsefHubWeb.TeamMemberLive.ShowTest do
       member = insert(:user, name: "Block Me", email: "block@example.com")
       membership = insert(:membership, user: member, company: company, role: :accountant)
 
-      {:ok, view, _html} = live(conn, ~p"/c/#{company.id}/team/members/#{membership.id}")
+      {:ok, view, _html} = live(conn, ~p"/c/#{company.id}/settings/team/members/#{membership.id}")
       assert has_element?(view, "[data-testid='block-button']")
 
       view
@@ -173,7 +173,7 @@ defmodule KsefHubWeb.TeamMemberLive.ShowTest do
       membership =
         insert(:membership, user: member, company: company, role: :accountant, status: :blocked)
 
-      {:ok, view, _html} = live(conn, ~p"/c/#{company.id}/team/members/#{membership.id}")
+      {:ok, view, _html} = live(conn, ~p"/c/#{company.id}/settings/team/members/#{membership.id}")
       assert has_element?(view, "[data-testid='unblock-button']")
 
       view
@@ -187,12 +187,12 @@ defmodule KsefHubWeb.TeamMemberLive.ShowTest do
     end
 
     test "cannot block owner", %{conn: conn, company: company, owner_membership: om} do
-      {:ok, view, _html} = live(conn, ~p"/c/#{company.id}/team/members/#{om.id}")
+      {:ok, view, _html} = live(conn, ~p"/c/#{company.id}/settings/team/members/#{om.id}")
       refute has_element?(view, "[data-testid='block-button']")
     end
 
     test "cannot block self", %{conn: conn, company: company, owner_membership: om} do
-      {:ok, view, _html} = live(conn, ~p"/c/#{company.id}/team/members/#{om.id}")
+      {:ok, view, _html} = live(conn, ~p"/c/#{company.id}/settings/team/members/#{om.id}")
       refute has_element?(view, "[data-testid='block-button']")
     end
 
@@ -201,7 +201,7 @@ defmodule KsefHubWeb.TeamMemberLive.ShowTest do
       company: company,
       owner_membership: om
     } do
-      {:ok, view, _html} = live(conn, ~p"/c/#{company.id}/team/members/#{om.id}")
+      {:ok, view, _html} = live(conn, ~p"/c/#{company.id}/settings/team/members/#{om.id}")
       render_click(view, "block_member", %{})
       assert has_element?(view, "#flash-error", "Cannot change owner")
     end
@@ -218,7 +218,7 @@ defmodule KsefHubWeb.TeamMemberLive.ShowTest do
       admin_conn = log_in_user(conn, admin, %{current_company_id: company.id})
 
       {:ok, view, _html} =
-        live(admin_conn, ~p"/c/#{company.id}/team/members/#{admin_membership.id}")
+        live(admin_conn, ~p"/c/#{company.id}/settings/team/members/#{admin_membership.id}")
 
       render_click(view, "block_member", %{})
       assert has_element?(view, "#flash-error", "You cannot change your own role")
@@ -233,7 +233,7 @@ defmodule KsefHubWeb.TeamMemberLive.ShowTest do
       blocked_conn = log_in_user(conn, member, %{current_company_id: company.id})
 
       # Blocked user should be redirected — they have no active companies
-      assert {:error, {:redirect, _}} = live(blocked_conn, ~p"/c/#{company.id}/team")
+      assert {:error, {:redirect, _}} = live(blocked_conn, ~p"/c/#{company.id}/settings/team")
     end
   end
 
@@ -246,7 +246,7 @@ defmodule KsefHubWeb.TeamMemberLive.ShowTest do
         })
 
       {:ok, view, _html} =
-        live(conn, ~p"/c/#{company.id}/team/invitations/#{invitation.id}")
+        live(conn, ~p"/c/#{company.id}/settings/team/invitations/#{invitation.id}")
 
       assert has_element?(view, "[data-testid='invitation-email']", "invitee@example.com")
       assert has_element?(view, "[data-testid='invitation-status']", "Pending")
@@ -260,7 +260,7 @@ defmodule KsefHubWeb.TeamMemberLive.ShowTest do
         })
 
       {:ok, view, _html} =
-        live(conn, ~p"/c/#{company.id}/team/invitations/#{invitation.id}")
+        live(conn, ~p"/c/#{company.id}/settings/team/invitations/#{invitation.id}")
 
       assert has_element?(view, "[data-testid='cancel-invitation-button']")
 
@@ -274,8 +274,8 @@ defmodule KsefHubWeb.TeamMemberLive.ShowTest do
 
     test "redirects when invitation not found", %{conn: conn, company: company} do
       {:ok, _view, html} =
-        live(conn, ~p"/c/#{company.id}/team/invitations/#{Ecto.UUID.generate()}")
-        |> follow_redirect(conn, ~p"/c/#{company.id}/team")
+        live(conn, ~p"/c/#{company.id}/settings/team/invitations/#{Ecto.UUID.generate()}")
+        |> follow_redirect(conn, ~p"/c/#{company.id}/settings/team")
 
       assert html =~ "Invitation not found"
     end

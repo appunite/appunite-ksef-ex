@@ -6,6 +6,8 @@ defmodule KsefHubWeb.SyncLive do
 
   use KsefHubWeb, :live_view
 
+  import KsefHubWeb.SettingsComponents, only: [settings_layout: 1]
+
   require Logger
 
   import KsefHubWeb.InvoiceComponents, only: [format_datetime: 1]
@@ -79,51 +81,57 @@ defmodule KsefHubWeb.SyncLive do
   @impl true
   def render(assigns) do
     ~H"""
-    <.header>
-      Syncs
-      <:subtitle>KSeF invoice sync history</:subtitle>
-      <:actions>
-        <.button phx-click="trigger_sync">
-          <.icon name="hero-arrow-path" class="size-4" /> Sync Now
-        </.button>
-      </:actions>
-    </.header>
+    <.settings_layout
+      current_path={@current_path}
+      current_company={@current_company}
+      current_role={@current_role}
+    >
+      <.header>
+        Syncs
+        <:subtitle>KSeF invoice sync history</:subtitle>
+        <:actions>
+          <.button phx-click="trigger_sync">
+            <.icon name="hero-arrow-path" class="size-4" /> Sync Now
+          </.button>
+        </:actions>
+      </.header>
 
-    <div class="mt-6 rounded-lg border border-border overflow-hidden">
-      <div class="overflow-x-auto">
-        <.table id="syncs" rows={@streams.jobs} row_id={fn {id, _} -> id end}>
-          <:col :let={{_id, job}} label="Time">
-            {format_datetime(job.inserted_at)}
-          </:col>
-          <:col :let={{_id, job}} label="Duration">
-            {format_duration(job.duration)}
-          </:col>
-          <:col :let={{_id, job}} label="Status">
-            <.badge variant={sync_badge_variant(job.state)}>{job.state}</.badge>
-          </:col>
-          <:col :let={{_id, job}} label="Income">
-            <span class="font-mono">{job.income_count || "-"}</span>
-          </:col>
-          <:col :let={{_id, job}} label="Expense">
-            <span class="font-mono">{job.expense_count || "-"}</span>
-          </:col>
-          <:col :let={{_id, job}} label="Error">
-            <span
-              :if={job.error}
-              class="text-shad-destructive/80 text-xs truncate max-w-xs inline-block"
-              title={job.error}
-            >
-              {truncate(job.error, 80)}
-            </span>
-          </:col>
-        </.table>
+      <div class="mt-6 rounded-lg border border-border overflow-hidden">
+        <div class="overflow-x-auto">
+          <.table id="syncs" rows={@streams.jobs} row_id={fn {id, _} -> id end}>
+            <:col :let={{_id, job}} label="Time">
+              {format_datetime(job.inserted_at)}
+            </:col>
+            <:col :let={{_id, job}} label="Duration">
+              {format_duration(job.duration)}
+            </:col>
+            <:col :let={{_id, job}} label="Status">
+              <.badge variant={sync_badge_variant(job.state)}>{job.state}</.badge>
+            </:col>
+            <:col :let={{_id, job}} label="Income">
+              <span class="font-mono">{job.income_count || "-"}</span>
+            </:col>
+            <:col :let={{_id, job}} label="Expense">
+              <span class="font-mono">{job.expense_count || "-"}</span>
+            </:col>
+            <:col :let={{_id, job}} label="Error">
+              <span
+                :if={job.error}
+                class="text-shad-destructive/80 text-xs truncate max-w-xs inline-block"
+                title={job.error}
+              >
+                {truncate(job.error, 80)}
+              </span>
+            </:col>
+          </.table>
+        </div>
       </div>
-    </div>
 
-    <div :if={@jobs_count == 0} class="text-center py-12">
-      <.icon name="hero-arrow-path" class="size-8 text-muted-foreground mx-auto mb-2" />
-      <p class="text-muted-foreground">No sync runs yet.</p>
-    </div>
+      <div :if={@jobs_count == 0} class="text-center py-12">
+        <.icon name="hero-arrow-path" class="size-8 text-muted-foreground mx-auto mb-2" />
+        <p class="text-muted-foreground">No sync runs yet.</p>
+      </div>
+    </.settings_layout>
     """
   end
 

@@ -4,6 +4,8 @@ defmodule KsefHubWeb.TagLive.Form do
   """
   use KsefHubWeb, :live_view
 
+  import KsefHubWeb.SettingsComponents, only: [settings_layout: 1]
+
   alias KsefHub.Invoices
   alias KsefHub.Invoices.Tag
 
@@ -59,7 +61,7 @@ defmodule KsefHubWeb.TagLive.Form do
 
         socket
         |> put_flash(:error, "Tag not found.")
-        |> push_navigate(to: ~p"/c/#{company_id}/tags?type=#{tag_type}")
+        |> push_navigate(to: ~p"/c/#{company_id}/settings/tags?type=#{tag_type}")
     end
   end
 
@@ -101,7 +103,8 @@ defmodule KsefHubWeb.TagLive.Form do
          socket
          |> put_flash(:info, "Tag created.")
          |> push_navigate(
-           to: ~p"/c/#{socket.assigns.current_company.id}/tags?type=#{socket.assigns.tag_type}"
+           to:
+             ~p"/c/#{socket.assigns.current_company.id}/settings/tags?type=#{socket.assigns.tag_type}"
          )}
 
       {:error, %Ecto.Changeset{} = changeset} ->
@@ -120,7 +123,8 @@ defmodule KsefHubWeb.TagLive.Form do
          socket
          |> put_flash(:info, "Tag updated.")
          |> push_navigate(
-           to: ~p"/c/#{socket.assigns.current_company.id}/tags?type=#{socket.assigns.tag_type}"
+           to:
+             ~p"/c/#{socket.assigns.current_company.id}/settings/tags?type=#{socket.assigns.tag_type}"
          )}
 
       {:error, %Ecto.Changeset{} = changeset} ->
@@ -151,40 +155,46 @@ defmodule KsefHubWeb.TagLive.Form do
   @spec render(map()) :: Phoenix.LiveView.Rendered.t()
   def render(assigns) do
     ~H"""
-    <.header>
-      {if @live_action == :edit,
-        do: "Edit Tag",
-        else: "New #{String.capitalize(to_string(@tag_type))} Tag"}
-      <:subtitle>
-        {if @live_action == :edit,
-          do: "Update tag details",
-          else: "Create a new #{@tag_type} tag for invoice annotation"}
-      </:subtitle>
-    </.header>
-
-    <.form
-      for={@form}
-      phx-submit="save"
-      phx-change="validate"
-      class="mt-6 space-y-6 max-w-xl"
-      id="tag-form"
+    <.settings_layout
+      current_path={@current_path}
+      current_company={@current_company}
+      current_role={@current_role}
     >
-      <.input field={@form[:name]} label="Name" placeholder="e.g. monthly" required />
+      <.header>
+        {if @live_action == :edit,
+          do: "Edit Tag",
+          else: "New #{String.capitalize(to_string(@tag_type))} Tag"}
+        <:subtitle>
+          {if @live_action == :edit,
+            do: "Update tag details",
+            else: "Create a new #{@tag_type} tag for invoice annotation"}
+        </:subtitle>
+      </.header>
 
-      <.input field={@form[:description]} label="Description" placeholder="Optional description" />
+      <.form
+        for={@form}
+        phx-submit="save"
+        phx-change="validate"
+        class="mt-6 space-y-6 max-w-xl"
+        id="tag-form"
+      >
+        <.input field={@form[:name]} label="Name" placeholder="e.g. monthly" required />
 
-      <div class="flex items-center gap-3 pt-2">
-        <.button type="submit">
-          {if @live_action == :edit, do: "Update Tag", else: "Create Tag"}
-        </.button>
-        <.button
-          variant="outline"
-          navigate={~p"/c/#{@current_company.id}/tags?type=#{@tag_type}"}
-        >
-          Cancel
-        </.button>
-      </div>
-    </.form>
+        <.input field={@form[:description]} label="Description" placeholder="Optional description" />
+
+        <div class="flex items-center gap-3 pt-2">
+          <.button type="submit">
+            {if @live_action == :edit, do: "Update Tag", else: "Create Tag"}
+          </.button>
+          <.button
+            variant="outline"
+            navigate={~p"/c/#{@current_company.id}/settings/tags?type=#{@tag_type}"}
+          >
+            Cancel
+          </.button>
+        </div>
+      </.form>
+    </.settings_layout>
     """
   end
 end

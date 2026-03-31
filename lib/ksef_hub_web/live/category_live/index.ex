@@ -6,6 +6,8 @@ defmodule KsefHubWeb.CategoryLive.Index do
   """
   use KsefHubWeb, :live_view
 
+  import KsefHubWeb.SettingsComponents, only: [settings_layout: 1]
+
   alias KsefHub.Invoices
   alias KsefHub.Invoices.Category
 
@@ -50,61 +52,67 @@ defmodule KsefHubWeb.CategoryLive.Index do
   @spec render(map()) :: Phoenix.LiveView.Rendered.t()
   def render(assigns) do
     ~H"""
-    <.header>
-      Expense Categories
-      <:subtitle>Manage expense invoice classification categories</:subtitle>
-      <:actions>
-        <.button navigate={~p"/c/#{@current_company.id}/categories/new"}>
-          New Category
-        </.button>
-      </:actions>
-    </.header>
+    <.settings_layout
+      current_path={@current_path}
+      current_company={@current_company}
+      current_role={@current_role}
+    >
+      <.header>
+        Expense Categories
+        <:subtitle>Manage expense invoice classification categories</:subtitle>
+        <:actions>
+          <.button navigate={~p"/c/#{@current_company.id}/settings/categories/new"}>
+            New Category
+          </.button>
+        </:actions>
+      </.header>
 
-    <div class="rounded-lg border border-border overflow-hidden mt-6">
-      <div class="overflow-x-auto">
-        <.table
-          id="categories"
-          rows={@streams.categories}
-          row_id={fn {id, _} -> id end}
-          row_item={fn {_id, item} -> item end}
-        >
-          <:col :let={cat} label="Emoji" class="w-16 text-center">
-            {cat.emoji || "-"}
-          </:col>
-          <:col :let={cat} label="Identifier">
-            <span data-testid={"category-identifier-#{cat.id}"}>{cat.identifier}</span>
-          </:col>
-          <:col :let={cat} label="Name">
-            <span data-testid={"category-name-#{cat.id}"}>{cat.name || "-"}</span>
-          </:col>
-          <:col :let={cat} label="Description">
-            <span class="text-muted-foreground">{cat.description || "-"}</span>
-          </:col>
-          <:col :let={cat} label="Order" class="w-20 text-center">
-            {cat.sort_order}
-          </:col>
-          <:action :let={cat}>
-            <.button
-              variant="outline"
-              size="sm"
-              navigate={~p"/c/#{@current_company.id}/categories/#{cat.id}/edit"}
-            >
-              Edit
-            </.button>
-            <.button
-              variant="outline"
-              size="sm"
-              class="border-shad-destructive text-shad-destructive hover:bg-shad-destructive/10"
-              phx-click="delete"
-              phx-value-id={cat.id}
-              data-confirm="Delete this category? Invoices with this category will become uncategorized."
-            >
-              Delete
-            </.button>
-          </:action>
-        </.table>
+      <div class="rounded-lg border border-border overflow-hidden mt-6">
+        <div class="overflow-x-auto">
+          <.table
+            id="categories"
+            rows={@streams.categories}
+            row_id={fn {id, _} -> id end}
+            row_item={fn {_id, item} -> item end}
+          >
+            <:col :let={cat} label="Emoji" class="w-16 text-center">
+              {cat.emoji || "-"}
+            </:col>
+            <:col :let={cat} label="Identifier">
+              <span data-testid={"category-identifier-#{cat.id}"}>{cat.identifier}</span>
+            </:col>
+            <:col :let={cat} label="Name">
+              <span data-testid={"category-name-#{cat.id}"}>{cat.name || "-"}</span>
+            </:col>
+            <:col :let={cat} label="Description">
+              <span class="text-muted-foreground">{cat.description || "-"}</span>
+            </:col>
+            <:col :let={cat} label="Order" class="w-20 text-center">
+              {cat.sort_order}
+            </:col>
+            <:action :let={cat}>
+              <.button
+                variant="outline"
+                size="sm"
+                navigate={~p"/c/#{@current_company.id}/settings/categories/#{cat.id}/edit"}
+              >
+                Edit
+              </.button>
+              <.button
+                variant="outline"
+                size="sm"
+                class="border-shad-destructive text-shad-destructive hover:bg-shad-destructive/10"
+                phx-click="delete"
+                phx-value-id={cat.id}
+                data-confirm="Delete this category? Invoices with this category will become uncategorized."
+              >
+                Delete
+              </.button>
+            </:action>
+          </.table>
+        </div>
       </div>
-    </div>
+    </.settings_layout>
     """
   end
 end

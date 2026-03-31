@@ -26,7 +26,7 @@ defmodule KsefHubWeb.ExportLive.IndexTest do
 
   describe "mount" do
     test "renders exports page with form and empty state", %{conn: conn, company: company} do
-      {:ok, _view, html} = live(conn, ~p"/c/#{company.id}/exports")
+      {:ok, _view, html} = live(conn, ~p"/c/#{company.id}/settings/exports")
       assert html =~ "Exports"
       assert html =~ "New Export"
       assert html =~ "No exports yet"
@@ -43,7 +43,7 @@ defmodule KsefHubWeb.ExportLive.IndexTest do
         invoice_count: 5
       )
 
-      {:ok, _view, html} = live(conn, ~p"/c/#{company.id}/exports")
+      {:ok, _view, html} = live(conn, ~p"/c/#{company.id}/settings/exports")
       assert html =~ "2026-01-01"
       assert html =~ "2026-01-31"
       assert html =~ "expense"
@@ -58,14 +58,14 @@ defmodule KsefHubWeb.ExportLive.IndexTest do
     } do
       insert(:export_batch, user: user, company: company, status: :completed)
 
-      {:ok, _view, html} = live(conn, ~p"/c/#{company.id}/exports")
+      {:ok, _view, html} = live(conn, ~p"/c/#{company.id}/settings/exports")
       assert html =~ "Download ZIP"
     end
 
     test "shows processing badge for pending batches", %{conn: conn, user: user, company: company} do
       insert(:export_batch, user: user, company: company, status: :pending)
 
-      {:ok, _view, html} = live(conn, ~p"/c/#{company.id}/exports")
+      {:ok, _view, html} = live(conn, ~p"/c/#{company.id}/settings/exports")
       assert html =~ "Processing"
     end
 
@@ -77,7 +77,7 @@ defmodule KsefHubWeb.ExportLive.IndexTest do
         error_message: "something went wrong"
       )
 
-      {:ok, _view, html} = live(conn, ~p"/c/#{company.id}/exports")
+      {:ok, _view, html} = live(conn, ~p"/c/#{company.id}/settings/exports")
       assert html =~ "Failed"
       assert html =~ "something went wrong"
     end
@@ -92,7 +92,7 @@ defmodule KsefHubWeb.ExportLive.IndexTest do
         date_to: ~D[2026-02-28]
       )
 
-      {:ok, _view, html} = live(conn, ~p"/c/#{company.id}/exports")
+      {:ok, _view, html} = live(conn, ~p"/c/#{company.id}/settings/exports")
       assert html =~ "No exports yet"
     end
   end
@@ -113,7 +113,7 @@ defmodule KsefHubWeb.ExportLive.IndexTest do
         status: :approved
       )
 
-      {:ok, view, _html} = live(conn, ~p"/c/#{company.id}/exports")
+      {:ok, view, _html} = live(conn, ~p"/c/#{company.id}/settings/exports")
 
       view
       |> element("form[phx-submit=export]")
@@ -135,7 +135,7 @@ defmodule KsefHubWeb.ExportLive.IndexTest do
         status: :approved
       )
 
-      {:ok, view, _html} = live(conn, ~p"/c/#{company.id}/exports")
+      {:ok, view, _html} = live(conn, ~p"/c/#{company.id}/settings/exports")
 
       view
       |> element("form[phx-submit=export]")
@@ -150,7 +150,7 @@ defmodule KsefHubWeb.ExportLive.IndexTest do
     end
 
     test "shows 0 when no invoices match", %{conn: conn, company: company} do
-      {:ok, view, _html} = live(conn, ~p"/c/#{company.id}/exports")
+      {:ok, view, _html} = live(conn, ~p"/c/#{company.id}/settings/exports")
 
       view
       |> element("form[phx-submit=export]")
@@ -167,7 +167,7 @@ defmodule KsefHubWeb.ExportLive.IndexTest do
 
   describe "export" do
     test "creates a batch and shows it in the list", %{conn: conn, company: company} do
-      {:ok, view, _html} = live(conn, ~p"/c/#{company.id}/exports")
+      {:ok, view, _html} = live(conn, ~p"/c/#{company.id}/settings/exports")
 
       view
       |> element("form[phx-submit=export]")
@@ -181,7 +181,7 @@ defmodule KsefHubWeb.ExportLive.IndexTest do
     end
 
     test "shows error for invalid date range", %{conn: conn, company: company} do
-      {:ok, view, _html} = live(conn, ~p"/c/#{company.id}/exports")
+      {:ok, view, _html} = live(conn, ~p"/c/#{company.id}/settings/exports")
 
       view
       |> element("form[phx-submit=export]")
@@ -206,7 +206,7 @@ defmodule KsefHubWeb.ExportLive.IndexTest do
           status: :pending
         )
 
-      {:ok, view, html} = live(conn, ~p"/c/#{company.id}/exports")
+      {:ok, view, html} = live(conn, ~p"/c/#{company.id}/settings/exports")
       assert html =~ "Processing"
 
       # Simulate worker completing the batch
@@ -222,7 +222,7 @@ defmodule KsefHubWeb.ExportLive.IndexTest do
     end
 
     test "ignores export_status for non-existent batch", %{conn: conn, company: company} do
-      {:ok, view, _html} = live(conn, ~p"/c/#{company.id}/exports")
+      {:ok, view, _html} = live(conn, ~p"/c/#{company.id}/settings/exports")
 
       send(view.pid, {:export_status, Ecto.UUID.generate(), :completed})
 
@@ -241,7 +241,7 @@ defmodule KsefHubWeb.ExportLive.IndexTest do
         status: :approved
       )
 
-      {:ok, view, _html} = live(conn, ~p"/c/#{company.id}/exports")
+      {:ok, view, _html} = live(conn, ~p"/c/#{company.id}/settings/exports")
 
       view
       |> element("form[phx-submit=export]")

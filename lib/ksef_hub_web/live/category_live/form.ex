@@ -4,6 +4,8 @@ defmodule KsefHubWeb.CategoryLive.Form do
   """
   use KsefHubWeb, :live_view
 
+  import KsefHubWeb.SettingsComponents, only: [settings_layout: 1]
+
   alias KsefHub.EmojiGenerator
   alias KsefHub.Invoices
   alias KsefHub.Invoices.{Category, CostLine}
@@ -55,7 +57,7 @@ defmodule KsefHubWeb.CategoryLive.Form do
       {:error, :not_found} ->
         socket
         |> put_flash(:error, "Category not found.")
-        |> push_navigate(to: ~p"/c/#{company_id}/categories")
+        |> push_navigate(to: ~p"/c/#{company_id}/settings/categories")
     end
   end
 
@@ -154,7 +156,7 @@ defmodule KsefHubWeb.CategoryLive.Form do
         {:noreply,
          socket
          |> put_flash(:info, "Category created.")
-         |> push_navigate(to: ~p"/c/#{socket.assigns.current_company.id}/categories")}
+         |> push_navigate(to: ~p"/c/#{socket.assigns.current_company.id}/settings/categories")}
 
       {:error, %Ecto.Changeset{} = changeset} ->
         {:noreply, assign(socket, form: to_form(changeset, as: :category))}
@@ -169,7 +171,7 @@ defmodule KsefHubWeb.CategoryLive.Form do
         {:noreply,
          socket
          |> put_flash(:info, "Category updated.")
-         |> push_navigate(to: ~p"/c/#{socket.assigns.current_company.id}/categories")}
+         |> push_navigate(to: ~p"/c/#{socket.assigns.current_company.id}/settings/categories")}
 
       {:error, %Ecto.Changeset{} = changeset} ->
         {:noreply, assign(socket, form: to_form(changeset, as: :category))}
@@ -239,111 +241,116 @@ defmodule KsefHubWeb.CategoryLive.Form do
   @spec render(map()) :: Phoenix.LiveView.Rendered.t()
   def render(assigns) do
     ~H"""
-    <.header>
-      {if @live_action == :edit, do: "Edit Category", else: "New Category"}
-      <:subtitle>
-        {if @live_action == :edit,
-          do: "Update category details",
-          else: "Create a new invoice classification category"}
-      </:subtitle>
-    </.header>
-
-    <.form
-      for={@form}
-      phx-submit="save"
-      phx-change="validate"
-      class="mt-6 space-y-6 max-w-xl"
-      id="category-form"
+    <.settings_layout
+      current_path={@current_path}
+      current_company={@current_company}
+      current_role={@current_role}
     >
-      <div class="flex items-start gap-3">
-        <div>
-          <.input
-            field={@form[:emoji]}
-            label="Emoji"
-            placeholder="📦"
-            class="h-9 w-16 rounded-md border border-input bg-background px-3 text-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring text-center"
-          />
-          <button
-            type="button"
-            phx-click="generate_emoji"
-            disabled={@emoji_loading}
-            class="mt-1 text-xs text-muted-foreground hover:text-foreground underline-offset-4 hover:underline disabled:opacity-50"
-          >
-            {if @emoji_loading, do: "Generating…", else: "Auto ✨"}
-          </button>
+      <.header>
+        {if @live_action == :edit, do: "Edit Category", else: "New Category"}
+        <:subtitle>
+          {if @live_action == :edit,
+            do: "Update category details",
+            else: "Create a new invoice classification category"}
+        </:subtitle>
+      </.header>
+
+      <.form
+        for={@form}
+        phx-submit="save"
+        phx-change="validate"
+        class="mt-6 space-y-6 max-w-xl"
+        id="category-form"
+      >
+        <div class="flex items-start gap-3">
+          <div>
+            <.input
+              field={@form[:emoji]}
+              label="Emoji"
+              placeholder="📦"
+              class="h-9 w-16 rounded-md border border-input bg-background px-3 text-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring text-center"
+            />
+            <button
+              type="button"
+              phx-click="generate_emoji"
+              disabled={@emoji_loading}
+              class="mt-1 text-xs text-muted-foreground hover:text-foreground underline-offset-4 hover:underline disabled:opacity-50"
+            >
+              {if @emoji_loading, do: "Generating…", else: "Auto ✨"}
+            </button>
+          </div>
+          <div class="flex-1">
+            <.input
+              field={@form[:identifier]}
+              label="Identifier"
+              placeholder="finance:invoices"
+              required
+            />
+            <p class="mt-1 text-xs text-muted-foreground">
+              Used by the ML classifier. Format: group:target
+            </p>
+          </div>
         </div>
-        <div class="flex-1">
-          <.input
-            field={@form[:identifier]}
-            label="Identifier"
-            placeholder="finance:invoices"
-            required
-          />
-          <p class="mt-1 text-xs text-muted-foreground">
-            Used by the ML classifier. Format: group:target
+
+        <.input
+          field={@form[:name]}
+          label="Display Name"
+          placeholder="Invoices"
+        />
+
+        <.input
+          field={@form[:description]}
+          label="Description"
+          placeholder="Optional description"
+        />
+
+        <.input
+          field={@form[:examples]}
+          label="Examples"
+          placeholder="Example invoices for this category..."
+        />
+
+        <.input
+          field={@form[:sort_order]}
+          type="number"
+          label="Sort Order"
+          class="h-9 w-24 rounded-md border border-input bg-background px-3 text-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+        />
+
+        <div class="space-y-1">
+          <label class="text-sm font-medium">Default Cost Line</label>
+          <select
+            name={@form[:default_cost_line].name}
+            class="h-9 w-full rounded-md border border-input bg-background px-3 text-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+            data-testid="default-cost-line-select"
+          >
+            <option value="" selected={is_nil(@form[:default_cost_line].value)}>None</option>
+            <option
+              :for={{label, value} <- CostLine.options()}
+              value={value}
+              selected={to_string(@form[:default_cost_line].value) == to_string(value)}
+            >
+              {label}
+            </option>
+          </select>
+          <p class="text-xs text-muted-foreground">
+            Auto-assigned to invoices when this category is selected
           </p>
         </div>
-        <div>
-          <.input
-            field={@form[:sort_order]}
-            type="number"
-            label="Sort Order"
-            class="h-9 w-24 rounded-md border border-input bg-background px-3 text-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
-          />
-        </div>
-      </div>
 
-      <.input
-        field={@form[:name]}
-        label="Display Name"
-        placeholder="Invoices"
-      />
-
-      <.input
-        field={@form[:description]}
-        label="Description"
-        placeholder="Optional description"
-      />
-
-      <.input
-        field={@form[:examples]}
-        label="Examples"
-        placeholder="Example invoices for this category..."
-      />
-
-      <div class="space-y-1">
-        <label class="text-sm font-medium">Default Cost Line</label>
-        <select
-          name={@form[:default_cost_line].name}
-          class="h-9 w-full rounded-md border border-input bg-background px-3 text-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
-          data-testid="default-cost-line-select"
-        >
-          <option value="" selected={is_nil(@form[:default_cost_line].value)}>None</option>
-          <option
-            :for={{label, value} <- CostLine.options()}
-            value={value}
-            selected={to_string(@form[:default_cost_line].value) == to_string(value)}
+        <div class="flex items-center gap-3 pt-2">
+          <.button type="submit">
+            {if @live_action == :edit, do: "Update Category", else: "Create Category"}
+          </.button>
+          <.button
+            variant="outline"
+            navigate={~p"/c/#{@current_company.id}/settings/categories"}
           >
-            {label}
-          </option>
-        </select>
-        <p class="text-xs text-muted-foreground">
-          Auto-assigned to invoices when this category is selected
-        </p>
-      </div>
-
-      <div class="flex items-center gap-3 pt-2">
-        <.button type="submit">
-          {if @live_action == :edit, do: "Update Category", else: "Create Category"}
-        </.button>
-        <.button
-          variant="outline"
-          navigate={~p"/c/#{@current_company.id}/categories"}
-        >
-          Cancel
-        </.button>
-      </div>
-    </.form>
+            Cancel
+          </.button>
+        </div>
+      </.form>
+    </.settings_layout>
     """
   end
 end
