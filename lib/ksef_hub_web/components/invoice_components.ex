@@ -31,16 +31,20 @@ defmodule KsefHubWeb.InvoiceComponents do
   @doc "Renders a coloured badge for the invoice status (:pending / :approved / :rejected / :duplicate). Renders nothing for nil."
   @spec status_badge(map()) :: Phoenix.LiveView.Rendered.t()
   attr :status, :atom, required: true
+  attr :label, :string, default: nil
 
   def status_badge(%{status: nil} = assigns) do
     ~H""
   end
 
   def status_badge(assigns) do
-    assigns = assign(assigns, :variant, status_variant(assigns.status))
+    assigns =
+      assigns
+      |> assign(:variant, status_variant(assigns.status))
+      |> assign_new(:display_label, fn -> assigns[:label] || Atom.to_string(assigns.status) end)
 
     ~H"""
-    <.badge variant={@variant}>{@status}</.badge>
+    <.badge variant={@variant}>{@display_label}</.badge>
     """
   end
 
@@ -145,29 +149,29 @@ defmodule KsefHubWeb.InvoiceComponents do
     """
   end
 
-  @doc "Renders a payment status badge: 'paid' (success), 'pending' (warning), or nothing for nil."
+  @doc "Renders a payment status badge: 'paid' (success), 'pending' (warning), 'voided' (error), or nothing for nil."
   @spec payment_badge(map()) :: Phoenix.LiveView.Rendered.t()
   attr :status, :atom, required: true
+  attr :label, :string, default: nil
 
   def payment_badge(%{status: nil} = assigns), do: ~H""
 
-  def payment_badge(%{status: :paid} = assigns) do
+  def payment_badge(assigns) do
+    assigns =
+      assigns
+      |> assign(:variant, payment_variant(assigns.status))
+      |> assign_new(:display_label, fn -> assigns[:label] || Atom.to_string(assigns.status) end)
+
     ~H"""
-    <.badge variant="success">paid</.badge>
+    <.badge variant={@variant}>{@display_label}</.badge>
     """
   end
 
-  def payment_badge(%{status: :pending} = assigns) do
-    ~H"""
-    <.badge variant="warning">pending</.badge>
-    """
-  end
-
-  def payment_badge(%{status: :voided} = assigns) do
-    ~H"""
-    <.badge variant="error">voided</.badge>
-    """
-  end
+  @spec payment_variant(atom()) :: String.t()
+  defp payment_variant(:paid), do: "success"
+  defp payment_variant(:pending), do: "warning"
+  defp payment_variant(:voided), do: "error"
+  defp payment_variant(_), do: "muted"
 
   @doc "Renders an 'excluded' badge when the invoice is excluded, nothing otherwise."
   @spec excluded_badge(map()) :: Phoenix.LiveView.Rendered.t()

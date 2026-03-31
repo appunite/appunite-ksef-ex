@@ -786,7 +786,10 @@ defmodule KsefHubWeb.InvoiceLive.Show do
       Invoice {@invoice.invoice_number}
       <:subtitle>
         <.type_badge type={@invoice.type} />
-        <.status_badge status={display_status(@invoice)} />
+        <.status_badge
+          status={display_status(@invoice)}
+          label={header_status_label(display_status(@invoice))}
+        />
         <.needs_review_badge
           prediction_status={@invoice.prediction_status}
           duplicate_status={@invoice.duplicate_status}
@@ -794,7 +797,7 @@ defmodule KsefHubWeb.InvoiceLive.Show do
           status={@invoice.status}
         />
         <.extraction_badge status={@invoice.extraction_status} />
-        <.payment_badge status={@payment_status} />
+        <.payment_badge status={@payment_status} label={header_payment_label(@payment_status)} />
         <.excluded_badge is_excluded={@invoice.is_excluded} />
       </:subtitle>
       <:actions>
@@ -1023,7 +1026,7 @@ defmodule KsefHubWeb.InvoiceLive.Show do
             </.link>
           </div>
 
-          <div class="mb-3">
+          <div :if={@invoice.type == :expense} class="mb-3">
             <label class="text-sm text-muted-foreground">Category</label>
             <div class="mt-1" data-testid="category-display">
               <.category_badge category={find_category(@invoice.category_id, @categories)} />
@@ -1978,6 +1981,14 @@ defmodule KsefHubWeb.InvoiceLive.Show do
 
   @spec currencies() :: [String.t()]
   defp currencies, do: @common_currencies
+
+  @spec header_status_label(atom() | nil) :: String.t() | nil
+  defp header_status_label(:pending), do: "review pending"
+  defp header_status_label(_status), do: nil
+
+  @spec header_payment_label(atom() | nil) :: String.t() | nil
+  defp header_payment_label(:pending), do: "payment pending"
+  defp header_payment_label(_status), do: nil
 
   @spec dropdown_menu_class() :: String.t()
   defp dropdown_menu_class,
