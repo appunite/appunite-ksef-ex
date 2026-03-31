@@ -47,8 +47,7 @@ defmodule KsefHubWeb.InvoiceLive.IndexTest do
     test "shows warning when company has no certificate", %{conn: conn, company: company} do
       {:ok, _view, html} = live(conn, ~p"/c/#{company.id}/invoices")
       assert html =~ "KSeF sync not configured"
-      assert html =~ "Settings"
-      assert html =~ "Certificates"
+      assert html =~ ~s|/c/#{company.id}/settings/certificates|
     end
 
     test "hides warning when company has a certificate", %{

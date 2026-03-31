@@ -313,7 +313,7 @@ defmodule KsefHub.CompaniesTest do
       attrs = %{name: "Original Co", nip: "1111111111"}
 
       assert {:ok, %{company: company}} = Companies.create_company_with_owner(user, attrs)
-      Companies.update_company(company, %{is_active: false})
+      assert {:ok, _deactivated} = Companies.update_company(company, %{is_active: false})
 
       assert {:ok, %{company: new_company}} =
                Companies.create_company_with_owner(user, %{name: "New Co", nip: "1111111111"})

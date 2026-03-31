@@ -12,7 +12,10 @@ defmodule KsefHubWeb.InvoiceLive.Index do
 
   import KsefHubWeb.InvoiceComponents
 
+  @doc "Loads initial assigns: page title, categories, tags, and certificate status."
   @impl true
+  @spec mount(map() | nil, map(), Phoenix.LiveView.Socket.t()) ::
+          {:ok, Phoenix.LiveView.Socket.t()}
   def mount(_params, _session, socket) do
     company_id =
       case socket.assigns do
@@ -291,7 +294,9 @@ defmodule KsefHubWeb.InvoiceLive.Index do
   defp to_string_or_empty(value) when is_atom(value), do: Atom.to_string(value)
   defp to_string_or_empty(value) when is_binary(value), do: value
 
+  @doc "Renders the invoice index page with filters, type tabs, and optional certificate warning."
   @impl true
+  @spec render(map()) :: Phoenix.LiveView.Rendered.t()
   def render(assigns) do
     ~H"""
     <.header>
