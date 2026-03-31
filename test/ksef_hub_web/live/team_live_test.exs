@@ -106,8 +106,13 @@ defmodule KsefHubWeb.TeamLiveTest do
   end
 
   describe "invite member" do
-    test "owner can send invitation", %{conn: conn, company: company} do
+    test "Invite Member button navigates to invite page", %{conn: conn, company: company} do
       {:ok, view, _html} = live(conn, ~p"/c/#{company.id}/settings/team")
+      assert has_element?(view, "a", "Invite Member")
+    end
+
+    test "owner can send invitation from invite page", %{conn: conn, company: company} do
+      {:ok, view, _html} = live(conn, ~p"/c/#{company.id}/settings/team/invite")
 
       view
       |> form("[data-testid='invite-form']", %{
@@ -115,15 +120,15 @@ defmodule KsefHubWeb.TeamLiveTest do
       })
       |> render_submit()
 
-      assert has_element?(view, "#flash-info", "Invitation sent")
-      assert has_element?(view, "[data-testid='team-table'] td", "newmember@example.com")
+      flash = assert_redirect(view, ~p"/c/#{company.id}/settings/team")
+      assert flash["info"] =~ "Invitation sent"
     end
 
     test "shows error when inviting existing member", %{conn: conn, company: company} do
       existing = insert(:user, email: "existing@example.com")
       insert(:membership, user: existing, company: company, role: :accountant)
 
-      {:ok, view, _html} = live(conn, ~p"/c/#{company.id}/settings/team")
+      {:ok, view, _html} = live(conn, ~p"/c/#{company.id}/settings/team/invite")
 
       view
       |> form("[data-testid='invite-form']", %{

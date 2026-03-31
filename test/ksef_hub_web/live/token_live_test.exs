@@ -93,17 +93,19 @@ defmodule KsefHubWeb.TokenLiveTest do
   end
 
   describe "create token" do
-    test "toggle form shows create form", %{conn: conn, company: company} do
+    test "New Token button navigates to form page", %{conn: conn, company: company} do
       {:ok, view, _html} = live(conn, ~p"/c/#{company.id}/settings/tokens")
 
-      view |> element("button", "New Token") |> render_click()
-      assert has_element?(view, "button", "Create Token")
+      assert has_element?(view, "a", "New Token")
+
+      assert view
+             |> element("a", "New Token")
+             |> render_click()
+             |> follow_redirect(conn, ~p"/c/#{company.id}/settings/tokens/new")
     end
 
-    test "creates token scoped to current company", %{conn: conn, company: company} do
-      {:ok, view, _html} = live(conn, ~p"/c/#{company.id}/settings/tokens")
-
-      view |> element("button", "New Token") |> render_click()
+    test "creates token and shows plaintext", %{conn: conn, company: company} do
+      {:ok, view, _html} = live(conn, ~p"/c/#{company.id}/settings/tokens/new")
 
       view
       |> element("form[phx-submit=create]")
@@ -111,7 +113,7 @@ defmodule KsefHubWeb.TokenLiveTest do
 
       html = render(view)
       assert html =~ "Copy your API token now"
-      assert html =~ "My Token"
+      assert has_element?(view, "a", "Done")
     end
   end
 
@@ -133,20 +135,16 @@ defmodule KsefHubWeb.TokenLiveTest do
     end
   end
 
-  describe "dismiss token" do
-    test "dismisses the plaintext token alert", %{conn: conn, company: company} do
-      {:ok, view, _html} = live(conn, ~p"/c/#{company.id}/settings/tokens")
-
-      view |> element("button", "New Token") |> render_click()
+  describe "token form navigation" do
+    test "Done button navigates back to token list", %{conn: conn, company: company} do
+      {:ok, view, _html} = live(conn, ~p"/c/#{company.id}/settings/tokens/new")
 
       view
       |> element("form[phx-submit=create]")
-      |> render_submit(%{token: %{name: "Dismiss Test", description: ""}})
+      |> render_submit(%{token: %{name: "Nav Test", description: ""}})
 
       assert render(view) =~ "Copy your API token now"
-
-      view |> element("button", "Dismiss") |> render_click()
-      refute render(view) =~ "Copy your API token now"
+      assert has_element?(view, "a", "Done")
     end
   end
 end

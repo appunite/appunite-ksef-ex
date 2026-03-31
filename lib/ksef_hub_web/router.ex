@@ -134,6 +134,7 @@ defmodule KsefHubWeb.Router do
         {KsefHubWeb.LiveAuth, {:require_permission, :manage_tokens}}
       ] do
       live "/settings/tokens", TokenLive
+      live "/settings/tokens/new", TokenLive.Form
     end
 
     live_session :require_view_syncs,
@@ -186,6 +187,7 @@ defmodule KsefHubWeb.Router do
         {KsefHubWeb.LiveAuth, {:require_permission, :manage_team}}
       ] do
       live "/settings/team", TeamLive
+      live "/settings/team/invite", TeamLive.Invite
       live "/settings/team/members/:id", TeamMemberLive.Show, :member
       live "/settings/team/invitations/:id", TeamMemberLive.Show, :invitation
     end
