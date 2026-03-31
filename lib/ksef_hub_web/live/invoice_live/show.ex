@@ -786,7 +786,10 @@ defmodule KsefHubWeb.InvoiceLive.Show do
       Invoice {@invoice.invoice_number}
       <:subtitle>
         <.type_badge type={@invoice.type} />
-        <.status_badge status={display_status(@invoice)} label={header_status_label(display_status(@invoice))} />
+        <.status_badge
+          status={display_status(@invoice)}
+          label={header_status_label(display_status(@invoice))}
+        />
         <.needs_review_badge
           prediction_status={@invoice.prediction_status}
           duplicate_status={@invoice.duplicate_status}
