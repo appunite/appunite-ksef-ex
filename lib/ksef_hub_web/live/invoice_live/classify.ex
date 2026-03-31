@@ -49,44 +49,50 @@ defmodule KsefHubWeb.InvoiceLive.Classify do
              |> redirect(to: ~p"/c/#{company.id}/invoices")}
 
           invoice ->
-            can_set_category =
-              invoice.type == :expense && Authorization.can?(role, :set_invoice_category)
-
-            can_set_tags = Authorization.can?(role, :set_invoice_tags)
-            can_manage_tags = Authorization.can?(role, :manage_tags)
-
-            categories = Invoices.list_categories(company.id)
-            grouped = group_categories(categories)
-            all_tags = Invoices.list_tags(company.id, invoice.type)
-            current_tag_ids = MapSet.new(invoice.tags, & &1.id)
-
-            category_cost_line_map =
-              Map.new(categories, fn c -> {c.id, c.default_cost_line} end)
-
-            {:ok,
-             socket
-             |> assign(
-               page_title: "Classify #{invoice.invoice_number}",
-               invoice: invoice,
-               categories: categories,
-               grouped_categories: grouped,
-               all_tags: all_tags,
-               selected_category_id: invoice.category_id,
-               selected_tag_ids: current_tag_ids,
-               selected_cost_line: invoice.cost_line,
-               category_cost_line_map: category_cost_line_map,
-               can_set_category: can_set_category,
-               can_set_tags: can_set_tags,
-               can_manage_tags: can_manage_tags,
-               new_tag_form: to_form(%{"name" => ""}),
-               tag_form_key: 0,
-               show_all_tags: false,
-               category_confidence_threshold: InvoiceClassifier.category_confidence_threshold(),
-               tag_confidence_threshold: InvoiceClassifier.tag_confidence_threshold(),
-               expanded_group: expanded_group_for(invoice.category_id, categories)
-             )}
+            mount_invoice(socket, invoice, role, company)
         end
     end
+  end
+
+  @spec mount_invoice(Phoenix.LiveView.Socket.t(), map(), atom(), map()) ::
+          {:ok, Phoenix.LiveView.Socket.t()}
+  defp mount_invoice(socket, invoice, role, company) do
+    can_set_category =
+      invoice.type == :expense && Authorization.can?(role, :set_invoice_category)
+
+    can_set_tags = Authorization.can?(role, :set_invoice_tags)
+    can_manage_tags = Authorization.can?(role, :manage_tags)
+
+    categories = Invoices.list_categories(company.id)
+    grouped = group_categories(categories)
+    all_tags = Invoices.list_tags(company.id, invoice.type)
+    current_tag_ids = MapSet.new(invoice.tags, & &1.id)
+
+    category_cost_line_map =
+      Map.new(categories, fn c -> {c.id, c.default_cost_line} end)
+
+    {:ok,
+     socket
+     |> assign(
+       page_title: "Classify #{invoice.invoice_number}",
+       invoice: invoice,
+       categories: categories,
+       grouped_categories: grouped,
+       all_tags: all_tags,
+       selected_category_id: invoice.category_id,
+       selected_tag_ids: current_tag_ids,
+       selected_cost_line: invoice.cost_line,
+       category_cost_line_map: category_cost_line_map,
+       can_set_category: can_set_category,
+       can_set_tags: can_set_tags,
+       can_manage_tags: can_manage_tags,
+       new_tag_form: to_form(%{"name" => ""}),
+       tag_form_key: 0,
+       show_all_tags: false,
+       category_confidence_threshold: InvoiceClassifier.category_confidence_threshold(),
+       tag_confidence_threshold: InvoiceClassifier.tag_confidence_threshold(),
+       expanded_group: expanded_group_for(invoice.category_id, categories)
+     )}
   end
 
   # --- Events ---
