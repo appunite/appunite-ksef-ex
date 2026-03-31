@@ -110,13 +110,13 @@ defmodule KsefHubWeb.TagLive.Index do
             row_id={fn {id, _} -> id end}
             row_item={fn {_id, item} -> item end}
           >
-            <:col :let={tag} label="Name">
+            <:col :let={tag} label="Name" class="w-[30%]">
               <span data-testid={"tag-name-#{tag.id}"}>{tag.name}</span>
             </:col>
-            <:col :let={tag} label="Description">
+            <:col :let={tag} label="Description" class="w-[30%]">
               <span class="text-muted-foreground">{tag.description || "-"}</span>
             </:col>
-            <:col :let={tag} label="Usage" class="w-20 text-center">
+            <:col :let={tag} label="Usage" class="text-center">
               <span class="font-mono">{tag.usage_count}</span>
             </:col>
             <:action :let={tag}>
