@@ -128,6 +128,10 @@ defmodule KsefHubWeb.InvoiceLive.IndexTest do
       refute html =~ "Expense Seller"
       assert has_element?(view, "th", "Buyer")
       refute has_element?(view, "th", "Seller")
+      assert has_element?(view, "th", "Net")
+      refute has_element?(view, "th", "Status")
+      refute has_element?(view, "th", "Category")
+      refute has_element?(view, "th", "Payment")
     end
 
     test "filters by status", %{conn: conn, company: company} do
@@ -137,6 +141,10 @@ defmodule KsefHubWeb.InvoiceLive.IndexTest do
       assert html =~ "Expense Seller"
       assert has_element?(view, "th", "Seller")
       refute has_element?(view, "th", "Buyer")
+      refute has_element?(view, "th", "Net")
+      assert has_element?(view, "th", "Status")
+      assert has_element?(view, "th", "Category")
+      assert has_element?(view, "th", "Payment")
     end
 
     test "filter change updates URL via push_patch", %{conn: conn, company: company} do
