@@ -5,6 +5,7 @@ defmodule KsefHubWeb.Schemas.Category do
 
   require OpenApiSpex
 
+  alias KsefHub.Invoices.CostLine
   alias OpenApiSpex.Schema
 
   OpenApiSpex.schema(%{
@@ -43,7 +44,7 @@ defmodule KsefHubWeb.Schemas.Category do
       },
       default_cost_line: %Schema{
         type: :string,
-        enum: ["growth", "heads", "service", "service_delivery", "client_success"],
+        enum: Enum.map(CostLine.values(), &Atom.to_string/1),
         nullable: true,
         description:
           "Default cost line for invoices assigned to this category. Auto-populated when setting category."

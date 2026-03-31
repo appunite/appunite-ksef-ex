@@ -1158,6 +1158,15 @@ defmodule KsefHubWeb.InvoiceLive.ShowTest do
       assert render(view) =~ "Service delivery"
     end
 
+    test "shows fallback dash when cost line is nil", %{conn: conn, company: company} do
+      invoice = insert(:invoice, type: :expense, cost_line: nil, company: company)
+
+      {:ok, view, _html} = live(conn, ~p"/c/#{company.id}/invoices/#{invoice.id}")
+
+      assert has_element?(view, ~s([data-testid="cost-line-display"]))
+      assert render(view) =~ "—"
+    end
+
     test "does not show cost line section for income invoice", %{conn: conn, company: company} do
       invoice = insert(:invoice, type: :income, company: company)
 
