@@ -14,6 +14,7 @@ defmodule KsefHubWeb.TeamLive.Invite do
   alias KsefHub.Invitations
   alias KsefHub.Invitations.InvitationNotifier
 
+  @doc "Initializes the invite form with default email and role fields."
   @impl true
   @spec mount(map(), map(), Phoenix.LiveView.Socket.t()) :: {:ok, Phoenix.LiveView.Socket.t()}
   def mount(_params, _session, socket) do
@@ -25,6 +26,7 @@ defmodule KsefHubWeb.TeamLive.Invite do
      )}
   end
 
+  @doc "Handles `\"validate\"` (live form validation) and `\"invite\"` (submission) events."
   @impl true
   @spec handle_event(String.t(), map(), Phoenix.LiveView.Socket.t()) ::
           {:noreply, Phoenix.LiveView.Socket.t()}
@@ -84,12 +86,18 @@ defmodule KsefHubWeb.TeamLive.Invite do
 
       {:error, reason} ->
         Logger.warning(
-          "Failed to deliver invitation email to #{invitation.email}: #{inspect(reason)}"
+          "Failed to deliver invitation email for invitation_id=#{invitation.id}: #{sanitize_email_error(reason)}"
         )
 
         :email_failed
     end
   end
+
+  @spec sanitize_email_error(term()) :: atom()
+  defp sanitize_email_error(%{__exception__: true}), do: :provider_error
+  defp sanitize_email_error(:timeout), do: :network_error
+  defp sanitize_email_error({:network_error, _}), do: :network_error
+  defp sanitize_email_error(_), do: :delivery_failed
 
   @spec format_changeset_errors(Ecto.Changeset.t()) :: String.t()
   defp format_changeset_errors(changeset) do
@@ -101,6 +109,7 @@ defmodule KsefHubWeb.TeamLive.Invite do
     |> Enum.map_join("; ", fn {field, errors} -> "#{field}: #{Enum.join(errors, ", ")}" end)
   end
 
+  @doc "Renders the invitation form with email, role select, and submit/cancel buttons."
   @impl true
   @spec render(map()) :: Phoenix.LiveView.Rendered.t()
   def render(assigns) do
