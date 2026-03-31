@@ -168,8 +168,6 @@ defmodule KsefHubWeb.Layouts do
       {nil, nil, "Invoices", ~p"/c/#{id}/invoices", "hero-document-text"},
       {nil, :view_payment_requests, "Payments", ~p"/c/#{id}/payment-requests", "hero-banknotes"},
       {nil, nil, "Dashboard", ~p"/c/#{id}/dashboard", "hero-home"},
-      {nil, :view_exports, "Exports", ~p"/c/#{id}/exports", "hero-arrow-down-tray"},
-      {nil, :view_syncs, "Syncs", ~p"/c/#{id}/syncs", "hero-arrow-path"},
       {nil, :manage_company, "Companies", ~p"/companies", "hero-building-office-2"},
       {nil, nil, "Settings", ~p"/c/#{id}/settings", "hero-cog-6-tooth"}
     ]

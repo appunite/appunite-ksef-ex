@@ -141,7 +141,7 @@ defmodule KsefHubWeb.Router do
         {KsefHubWeb.LiveAuth, :default},
         {KsefHubWeb.LiveAuth, {:require_permission, :view_syncs}}
       ] do
-      live "/syncs", SyncLive
+      live "/settings/syncs", SyncLive
     end
 
     live_session :require_view_exports,
@@ -149,7 +149,7 @@ defmodule KsefHubWeb.Router do
         {KsefHubWeb.LiveAuth, :default},
         {KsefHubWeb.LiveAuth, {:require_permission, :view_exports}}
       ] do
-      live "/exports", ExportLive.Index
+      live "/settings/exports", ExportLive.Index
     end
 
     live_session :require_manage_certificates,

@@ -3,7 +3,7 @@ defmodule KsefHubWeb.SettingsComponents do
   Shared layout component for the Settings pages.
 
   Renders a two-column layout with a sidebar for navigation between
-  settings tabs (General, Certificates, API Tokens, Categories, Tags)
+  settings tabs (General, Certificates, API Tokens, Categories, Tags, Syncs, Exports, Team)
   and a content area for the active tab.
   """
   use KsefHubWeb, :html
@@ -67,6 +67,8 @@ defmodule KsefHubWeb.SettingsComponents do
       {:manage_tokens, "API Tokens", ~p"/c/#{id}/settings/tokens", "hero-key"},
       {:manage_categories, "Categories", ~p"/c/#{id}/settings/categories", "hero-squares-2x2"},
       {:manage_tags, "Tags", ~p"/c/#{id}/settings/tags", "hero-tag"},
+      {:view_syncs, "Syncs", ~p"/c/#{id}/settings/syncs", "hero-arrow-path"},
+      {:view_exports, "Exports", ~p"/c/#{id}/settings/exports", "hero-arrow-down-tray"},
       {:manage_team, "Team", ~p"/c/#{id}/settings/team", "hero-user-group"}
     ]
     |> Enum.filter(fn {perm, _label, _path, _icon} ->
