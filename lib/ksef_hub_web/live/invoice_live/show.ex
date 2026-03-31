@@ -1044,7 +1044,10 @@ defmodule KsefHubWeb.InvoiceLive.Show do
           <div :if={@invoice.type == :expense} class="mb-3">
             <label class="text-sm text-muted-foreground">Cost Line</label>
             <div class="mt-1" data-testid="cost-line-display">
-              {if @invoice.cost_line, do: CostLine.label(@invoice.cost_line), else: "—"}
+              <.badge :if={@invoice.cost_line} variant="info">
+                {CostLine.label(@invoice.cost_line)}
+              </.badge>
+              <span :if={is_nil(@invoice.cost_line)} class="text-muted-foreground">-</span>
             </div>
           </div>
 
