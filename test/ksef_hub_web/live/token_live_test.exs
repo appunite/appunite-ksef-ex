@@ -23,13 +23,13 @@ defmodule KsefHubWeb.TokenLiveTest do
 
   describe "mount" do
     test "renders token page with company-scoped tokens", %{conn: conn, company: company} do
-      {:ok, _view, html} = live(conn, ~p"/c/#{company.id}/tokens")
+      {:ok, _view, html} = live(conn, ~p"/c/#{company.id}/settings/tokens")
       assert html =~ "API Tokens"
       assert html =~ "New Token"
     end
 
     test "shows empty state when no tokens for company", %{conn: conn, company: company} do
-      {:ok, _view, html} = live(conn, ~p"/c/#{company.id}/tokens")
+      {:ok, _view, html} = live(conn, ~p"/c/#{company.id}/settings/tokens")
       assert html =~ "No API tokens yet"
     end
 
@@ -43,7 +43,7 @@ defmodule KsefHubWeb.TokenLiveTest do
       {:ok, %{api_token: hidden_token}} =
         Accounts.create_api_token(user.id, other_company.id, %{name: "Other Company Token"})
 
-      {:ok, view, _html} = live(conn, ~p"/c/#{company.id}/tokens")
+      {:ok, view, _html} = live(conn, ~p"/c/#{company.id}/settings/tokens")
 
       assert has_element?(
                view,
@@ -70,7 +70,7 @@ defmodule KsefHubWeb.TokenLiveTest do
         build_conn()
         |> log_in_user(reviewer, %{current_company_id: company.id})
 
-      assert {:ok, _view, _html} = live(conn, ~p"/c/#{company.id}/tokens")
+      assert {:ok, _view, _html} = live(conn, ~p"/c/#{company.id}/settings/tokens")
     end
 
     test "non-member is redirected away", %{company: company} do
@@ -86,7 +86,7 @@ defmodule KsefHubWeb.TokenLiveTest do
         |> log_in_user(non_member, %{current_company_id: company.id})
 
       assert {:error, {:redirect, %{to: "/companies", flash: %{"error" => message}}}} =
-               live(conn, ~p"/c/#{company.id}/tokens")
+               live(conn, ~p"/c/#{company.id}/settings/tokens")
 
       assert message =~ "access"
     end
@@ -94,14 +94,14 @@ defmodule KsefHubWeb.TokenLiveTest do
 
   describe "create token" do
     test "toggle form shows create form", %{conn: conn, company: company} do
-      {:ok, view, _html} = live(conn, ~p"/c/#{company.id}/tokens")
+      {:ok, view, _html} = live(conn, ~p"/c/#{company.id}/settings/tokens")
 
       view |> element("button", "New Token") |> render_click()
       assert has_element?(view, "button", "Create Token")
     end
 
     test "creates token scoped to current company", %{conn: conn, company: company} do
-      {:ok, view, _html} = live(conn, ~p"/c/#{company.id}/tokens")
+      {:ok, view, _html} = live(conn, ~p"/c/#{company.id}/settings/tokens")
 
       view |> element("button", "New Token") |> render_click()
 
@@ -124,7 +124,7 @@ defmodule KsefHubWeb.TokenLiveTest do
       {:ok, _} =
         Accounts.create_api_token(user.id, company.id, %{name: "Revoke Test"})
 
-      {:ok, view, _html} = live(conn, ~p"/c/#{company.id}/tokens")
+      {:ok, view, _html} = live(conn, ~p"/c/#{company.id}/settings/tokens")
 
       view |> element("button", "Revoke") |> render_click()
 
@@ -135,7 +135,7 @@ defmodule KsefHubWeb.TokenLiveTest do
 
   describe "dismiss token" do
     test "dismisses the plaintext token alert", %{conn: conn, company: company} do
-      {:ok, view, _html} = live(conn, ~p"/c/#{company.id}/tokens")
+      {:ok, view, _html} = live(conn, ~p"/c/#{company.id}/settings/tokens")
 
       view |> element("button", "New Token") |> render_click()
 

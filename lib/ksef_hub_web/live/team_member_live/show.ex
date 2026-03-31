@@ -9,6 +9,8 @@ defmodule KsefHubWeb.TeamMemberLive.Show do
 
   use KsefHubWeb, :live_view
 
+  import KsefHubWeb.SettingsComponents, only: [settings_layout: 1]
+
   alias KsefHub.Accounts
   alias KsefHub.Companies
   alias KsefHub.Companies.Membership
@@ -32,7 +34,7 @@ defmodule KsefHubWeb.TeamMemberLive.Show do
       nil ->
         socket
         |> put_flash(:error, "Member not found.")
-        |> push_navigate(to: ~p"/c/#{company.id}/team")
+        |> push_navigate(to: ~p"/c/#{company.id}/settings/team")
 
       membership ->
         socket
@@ -51,7 +53,7 @@ defmodule KsefHubWeb.TeamMemberLive.Show do
       nil ->
         socket
         |> put_flash(:error, "Invitation not found.")
-        |> push_navigate(to: ~p"/c/#{company.id}/team")
+        |> push_navigate(to: ~p"/c/#{company.id}/settings/team")
 
       invitation ->
         socket
@@ -262,148 +264,160 @@ defmodule KsefHubWeb.TeamMemberLive.Show do
   @impl true
   def render(%{live_action: :member} = assigns) do
     ~H"""
-    <.header>
-      <.link
-        navigate={~p"/c/#{@current_company.id}/team"}
-        class="text-muted-foreground hover:text-foreground text-sm"
-      >
-        &larr; Back to team
-      </.link>
-    </.header>
+    <.settings_layout
+      current_path={@current_path}
+      current_company={@current_company}
+      current_role={@current_role}
+    >
+      <.header>
+        <.link
+          navigate={~p"/c/#{@current_company.id}/settings/team"}
+          class="text-muted-foreground hover:text-foreground text-sm"
+        >
+          &larr; Back to team
+        </.link>
+      </.header>
 
-    <.card class="mt-6">
-      <h2 class="text-base font-semibold mb-4">Member details</h2>
+      <.card class="mt-6">
+        <h2 class="text-base font-semibold mb-4">Member details</h2>
 
-      <div class="mb-4">
-        <label class="block text-sm font-medium text-muted-foreground mb-1">Email</label>
-        <div class="text-sm" data-testid="member-email">{@membership.user.email}</div>
-      </div>
-
-      <div class="mb-4 flex gap-6">
-        <div>
-          <label class="block text-sm font-medium text-muted-foreground mb-1">Auth method</label>
-          <div class="text-sm" data-testid="auth-method">{auth_method(@membership.user)}</div>
-        </div>
-        <div>
-          <label class="block text-sm font-medium text-muted-foreground mb-1">Joined</label>
-          <div class="text-sm">{Calendar.strftime(@membership.inserted_at, "%Y-%m-%d")}</div>
-        </div>
-      </div>
-
-      <div :if={@membership.status == :blocked} class="mb-4">
-        <.badge variant="error" data-testid="blocked-badge">Blocked</.badge>
-      </div>
-
-      <.form
-        for={@name_form}
-        phx-submit="save_member"
-        phx-change="validate_member"
-        data-testid="name-form"
-      >
         <div class="mb-4">
-          <.input field={@name_form[:name]} type="text" label="Name" />
+          <label class="block text-sm font-medium text-muted-foreground mb-1">Email</label>
+          <div class="text-sm" data-testid="member-email">{@membership.user.email}</div>
         </div>
 
-        <div class="mb-1">
-          <.input
-            :if={can_manage_role?(assigns)}
-            field={@name_form[:role]}
-            type="select"
-            label="Role"
-            options={Enum.map(@assignable_roles, &{role_label(&1), &1})}
-            value={@membership.role}
-            data-testid="role-select"
-          />
-          <div :if={!can_manage_role?(assigns)}>
-            <label class="block text-sm font-medium text-muted-foreground mb-1">Role</label>
-            <.badge variant="muted">{role_label(@membership.role)}</.badge>
+        <div class="mb-4 flex gap-6">
+          <div>
+            <label class="block text-sm font-medium text-muted-foreground mb-1">Auth method</label>
+            <div class="text-sm" data-testid="auth-method">{auth_method(@membership.user)}</div>
+          </div>
+          <div>
+            <label class="block text-sm font-medium text-muted-foreground mb-1">Joined</label>
+            <div class="text-sm">{Calendar.strftime(@membership.inserted_at, "%Y-%m-%d")}</div>
           </div>
         </div>
 
-        <p class="text-xs text-muted-foreground mb-6">{role_description(@selected_role)}</p>
-
-        <div class="flex items-center gap-3 pt-4 border-t border-border">
-          <.button type="submit" size="sm">Save</.button>
-          <.button
-            :if={can_block?(assigns)}
-            type="button"
-            variant="outline"
-            size="sm"
-            class="border-shad-destructive text-shad-destructive hover:bg-shad-destructive/10"
-            phx-click="block_member"
-            data-confirm="Block this member? They will lose all access to the company."
-            data-testid="block-button"
-          >
-            Block member
-          </.button>
-          <.button
-            :if={can_unblock?(assigns)}
-            type="button"
-            variant="outline"
-            size="sm"
-            phx-click="unblock_member"
-            data-testid="unblock-button"
-          >
-            Unblock member
-          </.button>
+        <div :if={@membership.status == :blocked} class="mb-4">
+          <.badge variant="error" data-testid="blocked-badge">Blocked</.badge>
         </div>
-      </.form>
-    </.card>
+
+        <.form
+          for={@name_form}
+          phx-submit="save_member"
+          phx-change="validate_member"
+          data-testid="name-form"
+        >
+          <div class="mb-4">
+            <.input field={@name_form[:name]} type="text" label="Name" />
+          </div>
+
+          <div class="mb-1">
+            <.input
+              :if={can_manage_role?(assigns)}
+              field={@name_form[:role]}
+              type="select"
+              label="Role"
+              options={Enum.map(@assignable_roles, &{role_label(&1), &1})}
+              value={@membership.role}
+              data-testid="role-select"
+            />
+            <div :if={!can_manage_role?(assigns)}>
+              <label class="block text-sm font-medium text-muted-foreground mb-1">Role</label>
+              <.badge variant="muted">{role_label(@membership.role)}</.badge>
+            </div>
+          </div>
+
+          <p class="text-xs text-muted-foreground mb-6">{role_description(@selected_role)}</p>
+
+          <div class="flex items-center gap-3 pt-4 border-t border-border">
+            <.button type="submit" size="sm">Save</.button>
+            <.button
+              :if={can_block?(assigns)}
+              type="button"
+              variant="outline"
+              size="sm"
+              class="border-shad-destructive text-shad-destructive hover:bg-shad-destructive/10"
+              phx-click="block_member"
+              data-confirm="Block this member? They will lose all access to the company."
+              data-testid="block-button"
+            >
+              Block member
+            </.button>
+            <.button
+              :if={can_unblock?(assigns)}
+              type="button"
+              variant="outline"
+              size="sm"
+              phx-click="unblock_member"
+              data-testid="unblock-button"
+            >
+              Unblock member
+            </.button>
+          </div>
+        </.form>
+      </.card>
+    </.settings_layout>
     """
   end
 
   def render(%{live_action: :invitation} = assigns) do
     ~H"""
-    <.header>
-      <.link
-        navigate={~p"/c/#{@current_company.id}/team"}
-        class="text-muted-foreground hover:text-foreground text-sm"
-      >
-        &larr; Back to team
-      </.link>
-    </.header>
-
-    <.card class="mt-6">
-      <h2 class="text-base font-semibold mb-4">Invitation details</h2>
-
-      <div class="mb-4">
-        <label class="block text-sm font-medium text-muted-foreground mb-1">Email</label>
-        <div class="text-sm" data-testid="invitation-email">{@invitation.email}</div>
-      </div>
-
-      <div class="mb-4">
-        <label class="block text-sm font-medium text-muted-foreground mb-1">Role</label>
-        <.badge variant="muted">{role_label(@invitation.role)}</.badge>
-      </div>
-
-      <div class="mb-4">
-        <label class="block text-sm font-medium text-muted-foreground mb-1">Status</label>
-        <.badge
-          variant={invitation_status_variant(@invitation.status)}
-          data-testid="invitation-status"
+    <.settings_layout
+      current_path={@current_path}
+      current_company={@current_company}
+      current_role={@current_role}
+    >
+      <.header>
+        <.link
+          navigate={~p"/c/#{@current_company.id}/settings/team"}
+          class="text-muted-foreground hover:text-foreground text-sm"
         >
-          {Atom.to_string(@invitation.status) |> String.capitalize()}
-        </.badge>
-      </div>
+          &larr; Back to team
+        </.link>
+      </.header>
 
-      <div class="mb-4">
-        <label class="block text-sm font-medium text-muted-foreground mb-1">Expires</label>
-        <span class="text-sm">{Calendar.strftime(@invitation.expires_at, "%Y-%m-%d %H:%M")}</span>
-      </div>
+      <.card class="mt-6">
+        <h2 class="text-base font-semibold mb-4">Invitation details</h2>
 
-      <div :if={@invitation.status == :pending} class="mt-6 pt-4 border-t border-border">
-        <.button
-          variant="outline"
-          size="sm"
-          class="border-shad-destructive text-shad-destructive hover:bg-shad-destructive/10"
-          phx-click="cancel_invitation"
-          data-confirm="Cancel this invitation?"
-          data-testid="cancel-invitation-button"
-        >
-          Cancel invitation
-        </.button>
-      </div>
-    </.card>
+        <div class="mb-4">
+          <label class="block text-sm font-medium text-muted-foreground mb-1">Email</label>
+          <div class="text-sm" data-testid="invitation-email">{@invitation.email}</div>
+        </div>
+
+        <div class="mb-4">
+          <label class="block text-sm font-medium text-muted-foreground mb-1">Role</label>
+          <.badge variant="muted">{role_label(@invitation.role)}</.badge>
+        </div>
+
+        <div class="mb-4">
+          <label class="block text-sm font-medium text-muted-foreground mb-1">Status</label>
+          <.badge
+            variant={invitation_status_variant(@invitation.status)}
+            data-testid="invitation-status"
+          >
+            {Atom.to_string(@invitation.status) |> String.capitalize()}
+          </.badge>
+        </div>
+
+        <div class="mb-4">
+          <label class="block text-sm font-medium text-muted-foreground mb-1">Expires</label>
+          <span class="text-sm">{Calendar.strftime(@invitation.expires_at, "%Y-%m-%d %H:%M")}</span>
+        </div>
+
+        <div :if={@invitation.status == :pending} class="mt-6 pt-4 border-t border-border">
+          <.button
+            variant="outline"
+            size="sm"
+            class="border-shad-destructive text-shad-destructive hover:bg-shad-destructive/10"
+            phx-click="cancel_invitation"
+            data-confirm="Cancel this invitation?"
+            data-testid="cancel-invitation-button"
+          >
+            Cancel invitation
+          </.button>
+        </div>
+      </.card>
+    </.settings_layout>
     """
   end
 end

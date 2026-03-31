@@ -17,10 +17,8 @@ defmodule KsefHubWeb.RoleBasedNavTest do
 
       assert has_element?(view, "a[href='/c/#{company.id}/dashboard']")
       assert has_element?(view, "a[href='/c/#{company.id}/invoices']")
-      assert has_element?(view, "a[href='/c/#{company.id}/categories']")
-      assert has_element?(view, "a[href='/c/#{company.id}/tags']")
-      assert has_element?(view, "a[href='/c/#{company.id}/certificates']")
-      assert has_element?(view, "a[href='/c/#{company.id}/tokens']")
+      # Categories, Tags, Certificates, API Tokens are now under Settings
+      assert has_element?(view, "a[href='/c/#{company.id}/settings']")
     end
 
     test "accountant does not see admin-only nav items", %{conn: conn} do
@@ -35,11 +33,8 @@ defmodule KsefHubWeb.RoleBasedNavTest do
 
       assert has_element?(view, "a[href='/c/#{company.id}/dashboard']")
       assert has_element?(view, "a[href='/c/#{company.id}/invoices']")
-      refute has_element?(view, "a[href='/c/#{company.id}/categories']")
-      refute has_element?(view, "a[href='/c/#{company.id}/tags']")
-      refute has_element?(view, "a[href='/c/#{company.id}/certificates']")
-      # Accountant can manage tokens
-      assert has_element?(view, "a[href='/c/#{company.id}/tokens']")
+      # Settings is visible to all roles (General tab has no permission requirement)
+      assert has_element?(view, "a[href='/c/#{company.id}/settings']")
     end
 
     test "reviewer does not see admin-only nav items", %{conn: conn} do
@@ -54,10 +49,7 @@ defmodule KsefHubWeb.RoleBasedNavTest do
 
       assert has_element?(view, "a[href='/c/#{company.id}/dashboard']")
       assert has_element?(view, "a[href='/c/#{company.id}/invoices']")
-      refute has_element?(view, "a[href='/c/#{company.id}/categories']")
-      refute has_element?(view, "a[href='/c/#{company.id}/tags']")
-      refute has_element?(view, "a[href='/c/#{company.id}/certificates']")
-      assert has_element?(view, "a[href='/c/#{company.id}/tokens']")
+      assert has_element?(view, "a[href='/c/#{company.id}/settings']")
     end
   end
 end

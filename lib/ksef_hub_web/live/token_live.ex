@@ -7,6 +7,7 @@ defmodule KsefHubWeb.TokenLive do
   use KsefHubWeb, :live_view
 
   import KsefHubWeb.InvoiceComponents, only: [format_datetime: 1]
+  import KsefHubWeb.SettingsComponents, only: [settings_layout: 1]
 
   alias KsefHub.Accounts
 
@@ -108,103 +109,109 @@ defmodule KsefHubWeb.TokenLive do
   @impl true
   def render(assigns) do
     ~H"""
-    <.header>
-      API Tokens
-      <:subtitle>Manage bearer tokens for API access</:subtitle>
-      <:actions>
-        <.button phx-click="toggle_form">
-          <.icon name="hero-plus" class="size-4" /> New Token
-        </.button>
-      </:actions>
-    </.header>
-
-    <!-- Plaintext Token Alert -->
-    <div
-      :if={@show_token}
-      class="border border-warning/20 bg-warning/5 rounded-lg p-4 mt-4 flex gap-3 items-start"
-      role="alert"
+    <.settings_layout
+      current_path={@current_path}
+      current_company={@current_company}
+      current_role={@current_role}
     >
-      <.icon name="hero-exclamation-triangle" class="size-5 text-warning/70 shrink-0 mt-0.5" />
-      <div class="flex-1">
-        <p class="font-semibold text-sm">Copy your API token now. It won't be shown again.</p>
-        <code class="block mt-2 p-2 bg-card rounded text-sm font-mono break-all select-all text-card-foreground">
-          {@show_token}
-        </code>
-      </div>
-      <.button variant="ghost" phx-click="dismiss_token">
-        Dismiss
-      </.button>
-    </div>
-
-    <!-- Create Form -->
-    <.card :if={@show_create_form} class="mt-6">
-      <h2 class="text-base font-semibold">Create New Token</h2>
-      <.form
-        for={@form}
-        phx-submit="create"
-        phx-change="validate"
-        class="space-y-4 mt-2"
-        id="create-token-form"
+      <.header>
+        API Tokens
+        <:subtitle>Manage bearer tokens for API access</:subtitle>
+        <:actions>
+          <.button phx-click="toggle_form">
+            <.icon name="hero-plus" class="size-4" /> New Token
+          </.button>
+        </:actions>
+      </.header>
+      
+    <!-- Plaintext Token Alert -->
+      <div
+        :if={@show_token}
+        class="border border-warning/20 bg-warning/5 rounded-lg p-4 mt-4 flex gap-3 items-start"
+        role="alert"
       >
-        <.input field={@form[:name]} label="Name" placeholder="e.g. CI/CD Pipeline" required />
-        <.input
-          field={@form[:description]}
-          type="textarea"
-          label="Description"
-          placeholder="What is this token used for?"
-        />
-        <div class="flex gap-2">
-          <.button type="submit">Create Token</.button>
-          <.button type="button" variant="ghost" phx-click="toggle_form">Cancel</.button>
+        <.icon name="hero-exclamation-triangle" class="size-5 text-warning/70 shrink-0 mt-0.5" />
+        <div class="flex-1">
+          <p class="font-semibold text-sm">Copy your API token now. It won't be shown again.</p>
+          <code class="block mt-2 p-2 bg-card rounded text-sm font-mono break-all select-all text-card-foreground">
+            {@show_token}
+          </code>
         </div>
-      </.form>
-    </.card>
-
-    <!-- Token Table -->
-    <div class="rounded-lg border border-border overflow-hidden mt-6">
-      <div class="overflow-x-auto">
-        <.table
-          id="tokens"
-          rows={@streams.tokens}
-          row_id={fn {id, _} -> id end}
-          row_item={fn {_id, item} -> item end}
-        >
-          <:col :let={token} label="Name">
-            <span data-testid={"token-name-#{token.id}"}>{token.name}</span>
-          </:col>
-          <:col :let={token} label="Prefix">
-            <code class="font-mono text-sm">{token.token_prefix}****</code>
-          </:col>
-          <:col :let={token} label="Last Used">
-            {format_datetime(token.last_used_at)}
-          </:col>
-          <:col :let={token} label="Requests">
-            <span class="font-mono">{token.request_count}</span>
-          </:col>
-          <:col :let={token} label="Status">
-            <.badge :if={token.is_active} variant="success">Active</.badge>
-            <.badge :if={!token.is_active} variant="muted">Revoked</.badge>
-          </:col>
-          <:action :let={token}>
-            <.button
-              :if={token.is_active}
-              variant="outline"
-              size="sm"
-              class="border-shad-destructive text-shad-destructive hover:bg-shad-destructive/10"
-              phx-click="revoke"
-              phx-value-id={token.id}
-              data-confirm="Are you sure? This will immediately revoke API access for this token."
-            >
-              Revoke
-            </.button>
-          </:action>
-        </.table>
+        <.button variant="ghost" phx-click="dismiss_token">
+          Dismiss
+        </.button>
       </div>
-    </div>
+      
+    <!-- Create Form -->
+      <.card :if={@show_create_form} class="mt-6">
+        <h2 class="text-base font-semibold">Create New Token</h2>
+        <.form
+          for={@form}
+          phx-submit="create"
+          phx-change="validate"
+          class="space-y-4 mt-2"
+          id="create-token-form"
+        >
+          <.input field={@form[:name]} label="Name" placeholder="e.g. CI/CD Pipeline" required />
+          <.input
+            field={@form[:description]}
+            type="textarea"
+            label="Description"
+            placeholder="What is this token used for?"
+          />
+          <div class="flex gap-2">
+            <.button type="submit">Create Token</.button>
+            <.button type="button" variant="ghost" phx-click="toggle_form">Cancel</.button>
+          </div>
+        </.form>
+      </.card>
+      
+    <!-- Token Table -->
+      <div class="rounded-lg border border-border overflow-hidden mt-6">
+        <div class="overflow-x-auto">
+          <.table
+            id="tokens"
+            rows={@streams.tokens}
+            row_id={fn {id, _} -> id end}
+            row_item={fn {_id, item} -> item end}
+          >
+            <:col :let={token} label="Name">
+              <span data-testid={"token-name-#{token.id}"}>{token.name}</span>
+            </:col>
+            <:col :let={token} label="Prefix">
+              <code class="font-mono text-sm">{token.token_prefix}****</code>
+            </:col>
+            <:col :let={token} label="Last Used">
+              {format_datetime(token.last_used_at)}
+            </:col>
+            <:col :let={token} label="Requests">
+              <span class="font-mono">{token.request_count}</span>
+            </:col>
+            <:col :let={token} label="Status">
+              <.badge :if={token.is_active} variant="success">Active</.badge>
+              <.badge :if={!token.is_active} variant="muted">Revoked</.badge>
+            </:col>
+            <:action :let={token}>
+              <.button
+                :if={token.is_active}
+                variant="outline"
+                size="sm"
+                class="border-shad-destructive text-shad-destructive hover:bg-shad-destructive/10"
+                phx-click="revoke"
+                phx-value-id={token.id}
+                data-confirm="Are you sure? This will immediately revoke API access for this token."
+              >
+                Revoke
+              </.button>
+            </:action>
+          </.table>
+        </div>
+      </div>
 
-    <p :if={@tokens_count == 0} class="text-center text-muted-foreground py-8">
-      No API tokens yet. Create one to get started.
-    </p>
+      <p :if={@tokens_count == 0} class="text-center text-muted-foreground py-8">
+        No API tokens yet. Create one to get started.
+      </p>
+    </.settings_layout>
     """
   end
 end

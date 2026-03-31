@@ -27,7 +27,7 @@ defmodule KsefHubWeb.CategoryLiveTest do
 
   describe "Index" do
     test "renders expense categories page", %{conn: conn, company: company} do
-      {:ok, _view, html} = live(conn, ~p"/c/#{company.id}/categories")
+      {:ok, _view, html} = live(conn, ~p"/c/#{company.id}/settings/categories")
       assert html =~ "Expense Categories"
       assert html =~ "New Category"
     end
@@ -35,7 +35,7 @@ defmodule KsefHubWeb.CategoryLiveTest do
     test "lists existing categories", %{conn: conn, company: company} do
       insert(:category, company: company, identifier: "finance:invoices", emoji: "💰")
 
-      {:ok, _view, html} = live(conn, ~p"/c/#{company.id}/categories")
+      {:ok, _view, html} = live(conn, ~p"/c/#{company.id}/settings/categories")
       assert html =~ "finance:invoices"
       assert html =~ "💰"
     end
@@ -43,7 +43,7 @@ defmodule KsefHubWeb.CategoryLiveTest do
     test "deletes a category", %{conn: conn, company: company} do
       cat = insert(:category, company: company, identifier: "delete:me")
 
-      {:ok, view, _html} = live(conn, ~p"/c/#{company.id}/categories")
+      {:ok, view, _html} = live(conn, ~p"/c/#{company.id}/settings/categories")
       assert render(view) =~ "delete:me"
 
       view |> element("button", "Delete") |> render_click(%{"id" => cat.id})
@@ -57,20 +57,20 @@ defmodule KsefHubWeb.CategoryLiveTest do
       other_company = insert(:company)
       insert(:category, company: other_company, identifier: "other:secret")
 
-      {:ok, _view, html} = live(conn, ~p"/c/#{company.id}/categories")
+      {:ok, _view, html} = live(conn, ~p"/c/#{company.id}/settings/categories")
       refute html =~ "other:secret"
     end
   end
 
   describe "Form - new" do
     test "renders new category form", %{conn: conn, company: company} do
-      {:ok, _view, html} = live(conn, ~p"/c/#{company.id}/categories/new")
+      {:ok, _view, html} = live(conn, ~p"/c/#{company.id}/settings/categories/new")
       assert html =~ "New Category"
       assert html =~ "Create Category"
     end
 
     test "creates a category with valid data", %{conn: conn, company: company} do
-      {:ok, view, _html} = live(conn, ~p"/c/#{company.id}/categories/new")
+      {:ok, view, _html} = live(conn, ~p"/c/#{company.id}/settings/categories/new")
 
       view
       |> element("form#category-form")
@@ -84,12 +84,12 @@ defmodule KsefHubWeb.CategoryLiveTest do
         }
       })
 
-      flash = assert_redirect(view, ~p"/c/#{company.id}/categories")
+      flash = assert_redirect(view, ~p"/c/#{company.id}/settings/categories")
       assert flash["info"] == "Category created."
     end
 
     test "shows error for invalid identifier format", %{conn: conn, company: company} do
-      {:ok, view, _html} = live(conn, ~p"/c/#{company.id}/categories/new")
+      {:ok, view, _html} = live(conn, ~p"/c/#{company.id}/settings/categories/new")
 
       view
       |> element("form#category-form")
@@ -111,7 +111,7 @@ defmodule KsefHubWeb.CategoryLiveTest do
     test "renders edit form with category data", %{conn: conn, company: company} do
       cat = insert(:category, company: company, identifier: "hr:salaries", emoji: "💼")
 
-      {:ok, _view, html} = live(conn, ~p"/c/#{company.id}/categories/#{cat.id}/edit")
+      {:ok, _view, html} = live(conn, ~p"/c/#{company.id}/settings/categories/#{cat.id}/edit")
       assert html =~ "Edit Category"
       assert html =~ "hr:salaries"
     end
@@ -119,7 +119,7 @@ defmodule KsefHubWeb.CategoryLiveTest do
     test "updates category", %{conn: conn, company: company} do
       cat = insert(:category, company: company, identifier: "hr:salaries", emoji: "💼")
 
-      {:ok, view, _html} = live(conn, ~p"/c/#{company.id}/categories/#{cat.id}/edit")
+      {:ok, view, _html} = live(conn, ~p"/c/#{company.id}/settings/categories/#{cat.id}/edit")
 
       view
       |> element("form#category-form")
@@ -132,15 +132,15 @@ defmodule KsefHubWeb.CategoryLiveTest do
         }
       })
 
-      flash = assert_redirect(view, ~p"/c/#{company.id}/categories")
+      flash = assert_redirect(view, ~p"/c/#{company.id}/settings/categories")
       assert flash["info"] == "Category updated."
     end
 
     test "redirects for non-existent category", %{conn: conn, company: company} do
       assert {:error, {:live_redirect, %{to: to, flash: flash}}} =
-               live(conn, ~p"/c/#{company.id}/categories/#{Ecto.UUID.generate()}/edit")
+               live(conn, ~p"/c/#{company.id}/settings/categories/#{Ecto.UUID.generate()}/edit")
 
-      assert to == "/c/#{company.id}/categories"
+      assert to == "/c/#{company.id}/settings/categories"
       assert flash["error"] == "Category not found."
     end
   end
@@ -154,7 +154,7 @@ defmodule KsefHubWeb.CategoryLiveTest do
         {:ok, "💰"}
       end)
 
-      {:ok, view, _html} = live(conn, ~p"/c/#{company.id}/categories/new")
+      {:ok, view, _html} = live(conn, ~p"/c/#{company.id}/settings/categories/new")
 
       # Type identifier first (trigger validate so form has params)
       view
@@ -180,7 +180,7 @@ defmodule KsefHubWeb.CategoryLiveTest do
         {:error, :api_error}
       end)
 
-      {:ok, view, _html} = live(conn, ~p"/c/#{company.id}/categories/new")
+      {:ok, view, _html} = live(conn, ~p"/c/#{company.id}/settings/categories/new")
 
       view
       |> element("form#category-form")
@@ -195,7 +195,7 @@ defmodule KsefHubWeb.CategoryLiveTest do
     end
 
     test "handles task crash gracefully via DOWN message", %{conn: conn, company: company} do
-      {:ok, view, _html} = live(conn, ~p"/c/#{company.id}/categories/new")
+      {:ok, view, _html} = live(conn, ~p"/c/#{company.id}/settings/categories/new")
 
       # Simulate a DOWN message arriving (e.g. task supervisor crash)
       send(view.pid, {:DOWN, make_ref(), :process, self(), :normal})
@@ -206,7 +206,7 @@ defmodule KsefHubWeb.CategoryLiveTest do
     end
 
     test "shows error when identifier is empty", %{conn: conn, company: company} do
-      {:ok, view, _html} = live(conn, ~p"/c/#{company.id}/categories/new")
+      {:ok, view, _html} = live(conn, ~p"/c/#{company.id}/settings/categories/new")
 
       view |> element("button", "Auto") |> render_click()
 

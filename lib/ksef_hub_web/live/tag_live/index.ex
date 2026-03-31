@@ -8,6 +8,8 @@ defmodule KsefHubWeb.TagLive.Index do
   """
   use KsefHubWeb, :live_view
 
+  import KsefHubWeb.SettingsComponents, only: [settings_layout: 1]
+
   alias KsefHub.Invoices
   alias KsefHub.Invoices.Tag
 
@@ -67,73 +69,79 @@ defmodule KsefHubWeb.TagLive.Index do
   @spec render(map()) :: Phoenix.LiveView.Rendered.t()
   def render(assigns) do
     ~H"""
-    <.header>
-      Tags
-      <:subtitle>Manage invoice tags for flexible multi-label annotation</:subtitle>
-      <:actions>
-        <.button navigate={~p"/c/#{@current_company.id}/tags/new?type=#{@active_type}"}>
-          New Tag
-        </.button>
-      </:actions>
-    </.header>
+    <.settings_layout
+      current_path={@current_path}
+      current_company={@current_company}
+      current_role={@current_role}
+    >
+      <.header>
+        Tags
+        <:subtitle>Manage invoice tags for flexible multi-label annotation</:subtitle>
+        <:actions>
+          <.button navigate={~p"/c/#{@current_company.id}/settings/tags/new?type=#{@active_type}"}>
+            New Tag
+          </.button>
+        </:actions>
+      </.header>
 
-    <%!-- Type Tabs --%>
-    <div class="flex border-b border-border mt-4 mb-4">
-      <.link
-        patch={~p"/c/#{@current_company.id}/tags?type=expense"}
-        class={tab_class(@active_type == :expense)}
-        aria-current={if @active_type == :expense, do: "page"}
-      >
-        Expense
-      </.link>
-      <.link
-        patch={~p"/c/#{@current_company.id}/tags?type=income"}
-        class={tab_class(@active_type == :income)}
-        aria-current={if @active_type == :income, do: "page"}
-      >
-        Income
-      </.link>
-    </div>
-
-    <div class="rounded-lg border border-border overflow-hidden">
-      <div class="overflow-x-auto">
-        <.table
-          id="tags"
-          rows={@streams.tags}
-          row_id={fn {id, _} -> id end}
-          row_item={fn {_id, item} -> item end}
+      <%!-- Type Tabs --%>
+      <div class="flex border-b border-border mt-4 mb-4">
+        <.link
+          patch={~p"/c/#{@current_company.id}/settings/tags?type=expense"}
+          class={tab_class(@active_type == :expense)}
+          aria-current={if @active_type == :expense, do: "page"}
         >
-          <:col :let={tag} label="Name">
-            <span data-testid={"tag-name-#{tag.id}"}>{tag.name}</span>
-          </:col>
-          <:col :let={tag} label="Description">
-            <span class="text-muted-foreground">{tag.description || "-"}</span>
-          </:col>
-          <:col :let={tag} label="Usage" class="w-20 text-center">
-            <span class="font-mono">{tag.usage_count}</span>
-          </:col>
-          <:action :let={tag}>
-            <.button
-              variant="outline"
-              size="sm"
-              navigate={~p"/c/#{@current_company.id}/tags/#{tag.id}/edit"}
-            >
-              Edit
-            </.button>
-            <.button
-              variant="outline"
-              size="sm"
-              class="border-shad-destructive text-shad-destructive hover:bg-shad-destructive/10"
-              phx-click="delete"
-              phx-value-id={tag.id}
-              data-confirm="Delete this tag? It will be removed from all invoices."
-            >
-              Delete
-            </.button>
-          </:action>
-        </.table>
+          Expense
+        </.link>
+        <.link
+          patch={~p"/c/#{@current_company.id}/settings/tags?type=income"}
+          class={tab_class(@active_type == :income)}
+          aria-current={if @active_type == :income, do: "page"}
+        >
+          Income
+        </.link>
       </div>
-    </div>
+
+      <div class="rounded-lg border border-border overflow-hidden">
+        <div class="overflow-x-auto">
+          <.table
+            id="tags"
+            rows={@streams.tags}
+            row_id={fn {id, _} -> id end}
+            row_item={fn {_id, item} -> item end}
+          >
+            <:col :let={tag} label="Name">
+              <span data-testid={"tag-name-#{tag.id}"}>{tag.name}</span>
+            </:col>
+            <:col :let={tag} label="Description">
+              <span class="text-muted-foreground">{tag.description || "-"}</span>
+            </:col>
+            <:col :let={tag} label="Usage" class="w-20 text-center">
+              <span class="font-mono">{tag.usage_count}</span>
+            </:col>
+            <:action :let={tag}>
+              <.button
+                variant="outline"
+                size="sm"
+                navigate={~p"/c/#{@current_company.id}/settings/tags/#{tag.id}/edit"}
+              >
+                Edit
+              </.button>
+              <.button
+                variant="outline"
+                size="sm"
+                class="border-shad-destructive text-shad-destructive hover:bg-shad-destructive/10"
+                phx-click="delete"
+                phx-value-id={tag.id}
+                data-confirm="Delete this tag? It will be removed from all invoices."
+              >
+                Delete
+              </.button>
+            </:action>
+          </.table>
+        </div>
+      </div>
+    </.settings_layout>
     """
   end
 end

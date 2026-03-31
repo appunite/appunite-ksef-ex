@@ -6,6 +6,8 @@ defmodule KsefHubWeb.TeamLive do
 
   use KsefHubWeb, :live_view
 
+  import KsefHubWeb.SettingsComponents, only: [settings_layout: 1]
+
   require Logger
 
   alias KsefHub.Companies
@@ -121,12 +123,12 @@ defmodule KsefHubWeb.TeamLive do
 
   @spec member_path(Ecto.UUID.t(), Companies.Membership.t()) :: String.t()
   defp member_path(company_id, member) do
-    ~p"/c/#{company_id}/team/members/#{member.id}"
+    ~p"/c/#{company_id}/settings/team/members/#{member.id}"
   end
 
   @spec invitation_path(Ecto.UUID.t(), Invitations.Invitation.t()) :: String.t()
   defp invitation_path(company_id, invitation) do
-    ~p"/c/#{company_id}/team/invitations/#{invitation.id}"
+    ~p"/c/#{company_id}/settings/team/invitations/#{invitation.id}"
   end
 
   @doc "Renders the team management page."
@@ -134,124 +136,130 @@ defmodule KsefHubWeb.TeamLive do
   @impl true
   def render(assigns) do
     ~H"""
-    <.header>
-      Team
-      <:subtitle>Manage members and invitations for {@current_company.name}</:subtitle>
-    </.header>
-
+    <.settings_layout
+      current_path={@current_path}
+      current_company={@current_company}
+      current_role={@current_role}
+    >
+      <.header>
+        Team
+        <:subtitle>Manage members and invitations for {@current_company.name}</:subtitle>
+      </.header>
+      
     <!-- Invite Form -->
-    <.card class="mt-6">
-      <h2 class="text-base font-semibold mb-3">Invite a new member</h2>
-      <.form
-        for={@invite_form}
-        phx-submit="invite"
-        phx-change="validate_invite"
-        data-testid="invite-form"
-        class="flex gap-3 items-end"
-      >
-        <div class="flex-1">
-          <.input
-            field={@invite_form[:email]}
-            type="email"
-            label="Email"
-            placeholder="user@example.com"
-            required
-          />
-        </div>
-        <div class="w-48">
-          <.input
-            field={@invite_form[:role]}
-            type="select"
-            label="Role"
-            options={[{"Admin", "admin"}, {"Accountant", "accountant"}, {"Reviewer", "reviewer"}]}
-          />
-        </div>
-        <div class="mb-2">
-          <.button type="submit">
-            <.icon name="hero-paper-airplane" class="size-4" /> Invite
-          </.button>
-        </div>
-      </.form>
-    </.card>
-
+      <.card class="mt-6">
+        <h2 class="text-base font-semibold mb-3">Invite a new member</h2>
+        <.form
+          for={@invite_form}
+          phx-submit="invite"
+          phx-change="validate_invite"
+          data-testid="invite-form"
+          class="flex gap-3 items-end"
+        >
+          <div class="flex-1">
+            <.input
+              field={@invite_form[:email]}
+              type="email"
+              label="Email"
+              placeholder="user@example.com"
+              required
+            />
+          </div>
+          <div class="w-48">
+            <.input
+              field={@invite_form[:role]}
+              type="select"
+              label="Role"
+              options={[{"Admin", "admin"}, {"Accountant", "accountant"}, {"Reviewer", "reviewer"}]}
+            />
+          </div>
+          <div class="mb-2">
+            <.button type="submit">
+              <.icon name="hero-paper-airplane" class="size-4" /> Invite
+            </.button>
+          </div>
+        </.form>
+      </.card>
+      
     <!-- Team members & pending invitations -->
-    <.card class="mt-6">
-      <h2 class="text-base font-semibold mb-3">Members</h2>
-      <div class="rounded-lg border border-border overflow-hidden">
-        <div class="overflow-x-auto" data-testid="member-list">
-          <table class="w-full table-fixed text-sm" data-testid="team-table">
-            <thead>
-              <tr class="border-b border-border">
-                <th class="text-left py-3 px-4 text-xs font-medium text-muted-foreground uppercase tracking-wide">
-                  Email
-                </th>
-                <th class="text-left py-3 px-4 text-xs font-medium text-muted-foreground uppercase tracking-wide">
-                  Name
-                </th>
-                <th class="text-left py-3 px-4 text-xs font-medium text-muted-foreground uppercase tracking-wide">
-                  Role
-                </th>
-              </tr>
-            </thead>
-            <tbody id="members-list" phx-update="stream">
-              <tr
-                :for={{dom_id, member} <- @streams.members}
-                id={dom_id}
-                class="border-b border-border/50 hover:bg-muted/50 transition-colors"
-                data-testid={"member-row-#{member.user.id}"}
-              >
-                <td class="py-3.5 px-4">
-                  <.link
-                    navigate={member_path(@current_company.id, member)}
-                    class="hover:underline underline-offset-4"
-                    data-testid={"member-link-#{member.user.id}"}
-                  >
-                    {member.user.email}
-                  </.link>
-                  <.badge
-                    :if={member.status == :blocked}
-                    variant="error"
-                    class="ml-2"
-                    data-testid={"blocked-badge-#{member.user.id}"}
-                  >
-                    Blocked
-                  </.badge>
-                </td>
-                <td class="py-3.5 px-4">{member.user.name || "-"}</td>
-                <td class="py-3.5 px-4">
-                  <.badge variant="muted">{role_label(member.role)}</.badge>
-                </td>
-              </tr>
-            </tbody>
-            <tbody id="pending-invitations-list" phx-update="stream">
-              <tr
-                :for={{dom_id, inv} <- @streams.pending_invitations}
-                id={dom_id}
-                class="border-b border-border/50 hover:bg-muted/50 transition-colors"
-                data-testid={"invitation-row-#{inv.id}"}
-              >
-                <td class="py-3.5 px-4">
-                  <.link
-                    navigate={invitation_path(@current_company.id, inv)}
-                    class="hover:underline underline-offset-4"
-                    data-testid={"invitation-link-#{inv.id}"}
-                  >
-                    {inv.email}
-                  </.link>
-                  <div class="text-xs text-muted-foreground mt-0.5">
-                    Pending — expires {Calendar.strftime(inv.expires_at, "%Y-%m-%d")}
-                  </div>
-                </td>
-                <td class="py-3.5 px-4">-</td>
-                <td class="py-3.5 px-4">
-                  <.badge variant="muted">{role_label(inv.role)}</.badge>
-                </td>
-              </tr>
-            </tbody>
-          </table>
+      <.card class="mt-6">
+        <h2 class="text-base font-semibold mb-3">Members</h2>
+        <div class="rounded-lg border border-border overflow-hidden">
+          <div class="overflow-x-auto" data-testid="member-list">
+            <table class="w-full table-fixed text-sm" data-testid="team-table">
+              <thead>
+                <tr class="border-b border-border">
+                  <th class="text-left py-3 px-4 text-xs font-medium text-muted-foreground uppercase tracking-wide">
+                    Email
+                  </th>
+                  <th class="text-left py-3 px-4 text-xs font-medium text-muted-foreground uppercase tracking-wide">
+                    Name
+                  </th>
+                  <th class="text-left py-3 px-4 text-xs font-medium text-muted-foreground uppercase tracking-wide">
+                    Role
+                  </th>
+                </tr>
+              </thead>
+              <tbody id="members-list" phx-update="stream">
+                <tr
+                  :for={{dom_id, member} <- @streams.members}
+                  id={dom_id}
+                  class="border-b border-border/50 hover:bg-muted/50 transition-colors"
+                  data-testid={"member-row-#{member.user.id}"}
+                >
+                  <td class="py-3.5 px-4">
+                    <.link
+                      navigate={member_path(@current_company.id, member)}
+                      class="hover:underline underline-offset-4"
+                      data-testid={"member-link-#{member.user.id}"}
+                    >
+                      {member.user.email}
+                    </.link>
+                    <.badge
+                      :if={member.status == :blocked}
+                      variant="error"
+                      class="ml-2"
+                      data-testid={"blocked-badge-#{member.user.id}"}
+                    >
+                      Blocked
+                    </.badge>
+                  </td>
+                  <td class="py-3.5 px-4">{member.user.name || "-"}</td>
+                  <td class="py-3.5 px-4">
+                    <.badge variant="muted">{role_label(member.role)}</.badge>
+                  </td>
+                </tr>
+              </tbody>
+              <tbody id="pending-invitations-list" phx-update="stream">
+                <tr
+                  :for={{dom_id, inv} <- @streams.pending_invitations}
+                  id={dom_id}
+                  class="border-b border-border/50 hover:bg-muted/50 transition-colors"
+                  data-testid={"invitation-row-#{inv.id}"}
+                >
+                  <td class="py-3.5 px-4">
+                    <.link
+                      navigate={invitation_path(@current_company.id, inv)}
+                      class="hover:underline underline-offset-4"
+                      data-testid={"invitation-link-#{inv.id}"}
+                    >
+                      {inv.email}
+                    </.link>
+                    <div class="text-xs text-muted-foreground mt-0.5">
+                      Pending — expires {Calendar.strftime(inv.expires_at, "%Y-%m-%d")}
+                    </div>
+                  </td>
+                  <td class="py-3.5 px-4">-</td>
+                  <td class="py-3.5 px-4">
+                    <.badge variant="muted">{role_label(inv.role)}</.badge>
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
         </div>
-      </div>
-    </.card>
+      </.card>
+    </.settings_layout>
     """
   end
 end

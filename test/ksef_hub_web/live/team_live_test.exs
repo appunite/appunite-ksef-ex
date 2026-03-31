@@ -24,7 +24,7 @@ defmodule KsefHubWeb.TeamLiveTest do
 
   describe "mount" do
     test "renders team page for owner", %{conn: conn, company: company} do
-      {:ok, view, _html} = live(conn, ~p"/c/#{company.id}/team")
+      {:ok, view, _html} = live(conn, ~p"/c/#{company.id}/settings/team")
       assert has_element?(view, "h1", "Team")
       assert has_element?(view, "h2", "Members")
     end
@@ -43,7 +43,7 @@ defmodule KsefHubWeb.TeamLiveTest do
       expected_path = "/c/#{company.id}/invoices"
 
       assert {:error, {:redirect, %{to: ^expected_path, flash: flash}}} =
-               live(non_owner_conn, ~p"/c/#{company.id}/team")
+               live(non_owner_conn, ~p"/c/#{company.id}/settings/team")
 
       assert flash["error"] =~ "You don't have permission to access this page."
     end
@@ -54,7 +54,7 @@ defmodule KsefHubWeb.TeamLiveTest do
       member = insert(:user, name: "Bob Accountant", email: "bob@example.com")
       insert(:membership, user: member, company: company, role: :accountant)
 
-      {:ok, view, _html} = live(conn, ~p"/c/#{company.id}/team")
+      {:ok, view, _html} = live(conn, ~p"/c/#{company.id}/settings/team")
       assert has_element?(view, "[data-testid='member-list']")
       assert has_element?(view, "[data-testid='member-list'] td", "Owner")
       assert has_element?(view, "[data-testid='member-list'] td", "Bob Accountant")
@@ -67,7 +67,7 @@ defmodule KsefHubWeb.TeamLiveTest do
       member = insert(:user, name: "Clickable", email: "click@example.com")
       membership = insert(:membership, user: member, company: company, role: :accountant)
 
-      {:ok, view, _html} = live(conn, ~p"/c/#{company.id}/team")
+      {:ok, view, _html} = live(conn, ~p"/c/#{company.id}/settings/team")
       assert has_element?(view, "[data-testid='member-row-#{member.id}']")
       assert has_element?(view, "[data-testid='member-link-#{member.id}']")
 
@@ -75,14 +75,14 @@ defmodule KsefHubWeb.TeamLiveTest do
       |> element("[data-testid='member-link-#{member.id}']")
       |> render_click()
 
-      assert_redirect(view, "/c/#{company.id}/team/members/#{membership.id}")
+      assert_redirect(view, "/c/#{company.id}/settings/team/members/#{membership.id}")
     end
 
     test "shows blocked badge for blocked members", %{conn: conn, company: company} do
       member = insert(:user, name: "Blocked User", email: "blocked@example.com")
       insert(:membership, user: member, company: company, role: :accountant, status: :blocked)
 
-      {:ok, view, _html} = live(conn, ~p"/c/#{company.id}/team")
+      {:ok, view, _html} = live(conn, ~p"/c/#{company.id}/settings/team")
       assert has_element?(view, "[data-testid='blocked-badge-#{member.id}']", "Blocked")
     end
 
@@ -93,7 +93,7 @@ defmodule KsefHubWeb.TeamLiveTest do
           role: :reviewer
         })
 
-      {:ok, view, _html} = live(conn, ~p"/c/#{company.id}/team")
+      {:ok, view, _html} = live(conn, ~p"/c/#{company.id}/settings/team")
       assert has_element?(view, "[data-testid='invitation-row-#{invitation.id}']")
       assert has_element?(view, "[data-testid='invitation-link-#{invitation.id}']")
 
@@ -101,13 +101,13 @@ defmodule KsefHubWeb.TeamLiveTest do
       |> element("[data-testid='invitation-link-#{invitation.id}']")
       |> render_click()
 
-      assert_redirect(view, ~p"/c/#{company.id}/team/invitations/#{invitation.id}")
+      assert_redirect(view, ~p"/c/#{company.id}/settings/team/invitations/#{invitation.id}")
     end
   end
 
   describe "invite member" do
     test "owner can send invitation", %{conn: conn, company: company} do
-      {:ok, view, _html} = live(conn, ~p"/c/#{company.id}/team")
+      {:ok, view, _html} = live(conn, ~p"/c/#{company.id}/settings/team")
 
       view
       |> form("[data-testid='invite-form']", %{
@@ -123,7 +123,7 @@ defmodule KsefHubWeb.TeamLiveTest do
       existing = insert(:user, email: "existing@example.com")
       insert(:membership, user: existing, company: company, role: :accountant)
 
-      {:ok, view, _html} = live(conn, ~p"/c/#{company.id}/team")
+      {:ok, view, _html} = live(conn, ~p"/c/#{company.id}/settings/team")
 
       view
       |> form("[data-testid='invite-form']", %{

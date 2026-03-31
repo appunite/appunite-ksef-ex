@@ -11,7 +11,7 @@ defmodule KsefHubWeb.LiveAuthTest do
       {:error, {:redirect, %{to: "/"}}} =
         conn
         |> init_test_session(%{})
-        |> live(~p"/c/#{company.id}/categories")
+        |> live(~p"/c/#{company.id}/settings/categories")
     end
 
     test "redirects to / when session user_token is invalid", %{conn: conn} do
@@ -20,7 +20,7 @@ defmodule KsefHubWeb.LiveAuthTest do
       {:error, {:redirect, %{to: "/"}}} =
         conn
         |> init_test_session(%{user_token: "invalid-token"})
-        |> live(~p"/c/#{company.id}/categories")
+        |> live(~p"/c/#{company.id}/settings/categories")
     end
 
     test "redirects to / when session user_token is expired", %{conn: conn} do
@@ -29,7 +29,7 @@ defmodule KsefHubWeb.LiveAuthTest do
       {:error, {:redirect, %{to: "/"}}} =
         conn
         |> init_test_session(%{user_token: :crypto.strong_rand_bytes(32)})
-        |> live(~p"/c/#{company.id}/categories")
+        |> live(~p"/c/#{company.id}/settings/categories")
     end
 
     test "assigns current_user for valid session with membership", %{conn: conn} do
@@ -40,7 +40,7 @@ defmodule KsefHubWeb.LiveAuthTest do
       {:ok, view, _html} =
         conn
         |> log_in_user(user, %{current_company_id: company.id})
-        |> live(~p"/c/#{company.id}/categories")
+        |> live(~p"/c/#{company.id}/settings/categories")
 
       assert has_element?(view, "a[href='/c/#{company.id}/dashboard']")
     end
@@ -54,7 +54,7 @@ defmodule KsefHubWeb.LiveAuthTest do
       {:ok, view, _html} =
         conn
         |> log_in_user(user, %{current_company_id: company_a.id})
-        |> live(~p"/c/#{company_a.id}/categories")
+        |> live(~p"/c/#{company_a.id}/settings/categories")
 
       assert has_element?(view, "[data-testid='current-company-name']", "My Company")
       refute has_element?(view, "button", "Other Company")
@@ -67,7 +67,7 @@ defmodule KsefHubWeb.LiveAuthTest do
       {:error, {:redirect, %{to: "/companies"}}} =
         conn
         |> log_in_user(user)
-        |> live(~p"/c/#{company.id}/categories")
+        |> live(~p"/c/#{company.id}/settings/categories")
     end
 
     test "user with no memberships on non-scoped route sees companies page", %{conn: conn} do
@@ -91,7 +91,7 @@ defmodule KsefHubWeb.LiveAuthTest do
       {:ok, view, _html} =
         conn
         |> log_in_user(user, %{current_company_id: other.id})
-        |> live(~p"/c/#{company.id}/categories")
+        |> live(~p"/c/#{company.id}/settings/categories")
 
       # URL company_id takes priority over session
       assert has_element?(view, "[data-testid='current-company-name']", "Mine")
@@ -108,7 +108,7 @@ defmodule KsefHubWeb.LiveAuthTest do
       assert {:error, {:redirect, %{to: ^expected_path}}} =
                conn
                |> log_in_user(user, %{current_company_id: company.id})
-               |> live(~p"/c/#{company.id}/categories")
+               |> live(~p"/c/#{company.id}/settings/categories")
     end
   end
 end
