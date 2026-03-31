@@ -113,7 +113,7 @@ defmodule KsefHubWeb.InvoiceLive.IndexTest do
   describe "filters" do
     setup %{conn: conn, company: company} do
       income =
-        insert(:invoice, type: :income, seller_name: "Income Seller", company: company)
+        insert(:invoice, type: :income, buyer_name: "Income Buyer", company: company)
 
       expense =
         insert(:invoice, type: :expense, seller_name: "Expense Seller", company: company)
@@ -124,15 +124,27 @@ defmodule KsefHubWeb.InvoiceLive.IndexTest do
     test "filters by type", %{conn: conn, company: company} do
       {:ok, view, _html} = live(conn, ~p"/c/#{company.id}/invoices?type=income")
       html = render(view)
-      assert html =~ "Income Seller"
+      assert html =~ "Income Buyer"
       refute html =~ "Expense Seller"
+      assert has_element?(view, "th", "Buyer")
+      refute has_element?(view, "th", "Seller")
+      assert has_element?(view, "th", "Net")
+      refute has_element?(view, "th", "Status")
+      refute has_element?(view, "th", "Category")
+      refute has_element?(view, "th", "Payment")
     end
 
     test "filters by status", %{conn: conn, company: company} do
       {:ok, view, _html} = live(conn, ~p"/c/#{company.id}/invoices?type=expense&status=pending")
       html = render(view)
-      refute html =~ "Income Seller"
+      refute html =~ "Income Buyer"
       assert html =~ "Expense Seller"
+      assert has_element?(view, "th", "Seller")
+      refute has_element?(view, "th", "Buyer")
+      refute has_element?(view, "th", "Net")
+      assert has_element?(view, "th", "Status")
+      assert has_element?(view, "th", "Category")
+      assert has_element?(view, "th", "Payment")
     end
 
     test "filter change updates URL via push_patch", %{conn: conn, company: company} do
@@ -198,7 +210,7 @@ defmodule KsefHubWeb.InvoiceLive.IndexTest do
     end
 
     test "clicking Income tab filters to income invoices", %{conn: conn, company: company} do
-      insert(:invoice, type: :income, seller_name: "Alpha Vendor", company: company)
+      insert(:invoice, type: :income, buyer_name: "Alpha Buyer", company: company)
       insert(:invoice, type: :expense, seller_name: "Beta Vendor", company: company)
 
       {:ok, view, _html} = live(conn, ~p"/c/#{company.id}/invoices")
@@ -208,7 +220,7 @@ defmodule KsefHubWeb.InvoiceLive.IndexTest do
       |> render_click()
 
       html = render(view)
-      assert html =~ "Alpha Vendor"
+      assert html =~ "Alpha Buyer"
       refute html =~ "Beta Vendor"
     end
   end
@@ -373,14 +385,14 @@ defmodule KsefHubWeb.InvoiceLive.IndexTest do
     } do
       insert(:invoice,
         type: :income,
-        seller_name: "Hidden Income Seller",
+        buyer_name: "Hidden Income Buyer",
         company: company,
         access_restricted: true
       )
 
       insert(:invoice,
         type: :income,
-        seller_name: "Visible Income Seller",
+        buyer_name: "Visible Income Buyer",
         company: company,
         access_restricted: false
       )
@@ -393,8 +405,8 @@ defmodule KsefHubWeb.InvoiceLive.IndexTest do
 
       # Verify income view filters out restricted invoices
       {:ok, _view, html} = live(conn, ~p"/c/#{company.id}/invoices?type=income")
-      refute html =~ "Hidden Income Seller"
-      assert html =~ "Visible Income Seller"
+      refute html =~ "Hidden Income Buyer"
+      assert html =~ "Visible Income Buyer"
 
       # Verify expense view still works
       {:ok, _view, html} = live(conn, ~p"/c/#{company.id}/invoices")
@@ -407,13 +419,13 @@ defmodule KsefHubWeb.InvoiceLive.IndexTest do
     } do
       insert(:invoice,
         type: :income,
-        seller_name: "Secret Income Seller",
+        buyer_name: "Secret Income Buyer",
         company: company,
         access_restricted: true
       )
 
       {:ok, _view, html} = live(conn, ~p"/c/#{company.id}/invoices?type=income")
-      refute html =~ "Secret Income Seller"
+      refute html =~ "Secret Income Buyer"
     end
 
     test "reviewer sees both Expense and Income tabs", %{conn: conn, company: company} do

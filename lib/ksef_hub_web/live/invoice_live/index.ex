@@ -194,6 +194,24 @@ defmodule KsefHubWeb.InvoiceLive.Index do
   defp status_display(:rejected), do: "Rejected"
   defp status_display(other), do: to_string(other)
 
+  @spec counterparty_name(map(), atom() | nil) :: String.t()
+  defp counterparty_name(invoice, :income) do
+    cond do
+      String.trim(invoice.buyer_name || "") != "" -> invoice.buyer_name
+      String.trim(invoice.seller_name || "") != "" -> invoice.seller_name
+      String.trim(invoice.invoice_number || "") != "" -> invoice.invoice_number
+      true -> "Untitled invoice"
+    end
+  end
+
+  defp counterparty_name(invoice, _type) do
+    cond do
+      String.trim(invoice.seller_name || "") != "" -> invoice.seller_name
+      String.trim(invoice.invoice_number || "") != "" -> invoice.invoice_number
+      true -> "Untitled invoice"
+    end
+  end
+
   @spec filter_params_without_page(map()) :: map()
   defp filter_params_without_page(filters) do
     %{}
@@ -438,23 +456,23 @@ defmodule KsefHubWeb.InvoiceLive.Index do
           <:col :let={inv} label="Date" class="w-28">
             <span class="whitespace-nowrap">{format_date(inv.issue_date)}</span>
           </:col>
-          <:col :let={inv} label="Seller">
+          <:col :let={inv} label={if @filters[:type] == :income, do: "Buyer", else: "Seller"}>
             <.link
               navigate={~p"/c/#{@current_company.id}/invoices/#{inv.id}"}
               class="text-shad-primary underline-offset-4 hover:underline"
             >
-              {cond do
-                String.trim(inv.seller_name || "") != "" -> inv.seller_name
-                String.trim(inv.invoice_number || "") != "" -> inv.invoice_number
-                true -> "Untitled invoice"
-              end}
+              {counterparty_name(inv, @filters[:type])}
             </.link>
+          </:col>
+          <:col :let={inv} :if={@filters[:type] == :income} label="Net" class="w-36 text-right">
+            <span class="font-mono">{format_amount(inv.net_amount)}</span>
+            <span class="text-xs text-muted-foreground">{inv.currency}</span>
           </:col>
           <:col :let={inv} label="Gross" class="w-36 text-right">
             <span class="font-mono">{format_amount(inv.gross_amount)}</span>
             <span class="text-xs text-muted-foreground">{inv.currency}</span>
           </:col>
-          <:col :let={inv} label="Status" class="w-28">
+          <:col :let={inv} :if={@filters[:type] != :income} label="Status" class="w-28">
             <div class="flex flex-wrap gap-1">
               <.status_badge status={display_status(inv)} />
               <.needs_review_badge
@@ -466,13 +484,13 @@ defmodule KsefHubWeb.InvoiceLive.Index do
               <.extraction_badge status={inv.extraction_status} />
             </div>
           </:col>
-          <:col :let={inv} label="Category">
+          <:col :let={inv} :if={@filters[:type] != :income} label="Category">
             <.category_badge category={inv.category} />
           </:col>
           <:col :let={inv} label="Tags">
             <.tag_list tags={inv.tags} />
           </:col>
-          <:col :let={inv} label="Payment" class="w-28">
+          <:col :let={inv} :if={@filters[:type] != :income} label="Payment" class="w-28">
             <.payment_badge status={@payment_statuses[inv.id]} />
           </:col>
         </.table>
