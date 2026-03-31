@@ -18,7 +18,7 @@ defmodule KsefHubWeb.SettingsComponents do
   """
   attr :current_path, :string, required: true
   attr :current_company, :map, required: true
-  attr :current_role, :atom, required: true
+  attr :current_role, :atom, default: nil
 
   slot :inner_block, required: true
 

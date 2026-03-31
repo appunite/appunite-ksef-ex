@@ -3,7 +3,7 @@ defmodule KsefHubWeb.TokenLive do
   LiveView for listing and revoking API tokens.
 
   Token creation is handled by `KsefHubWeb.TokenLive.Form`.
-  Tokens are scoped to the current company. Owners, admins, and accountants can access.
+  Tokens are scoped to the current company. Any role with `:manage_tokens` permission can access.
   """
   use KsefHubWeb, :live_view
 

@@ -22,29 +22,18 @@ defmodule KsefHubWeb.SettingsLive.GeneralTest do
       assert html =~ "phx:set-theme"
     end
 
-    test "shows settings sidebar with all tabs", %{conn: conn, company: company} do
+    test "shows settings sidebar with all tabs for owner", %{conn: conn, company: company} do
       {:ok, view, _html} = live(conn, ~p"/c/#{company.id}/settings")
 
       assert has_element?(view, "nav[aria-label='Settings']")
-      assert has_element?(view, "a", "General")
-      assert has_element?(view, "a", "Exports")
-      assert has_element?(view, "a", "Syncs")
-      assert has_element?(view, "a", "Categories")
-      assert has_element?(view, "a", "Tags")
-      assert has_element?(view, "a", "Team")
-      assert has_element?(view, "a", "API Tokens")
-      assert has_element?(view, "a", "Certificates")
-    end
-  end
-
-  describe "settings sidebar tab visibility" do
-    test "owner sees all tabs", %{conn: conn, company: company} do
-      {:ok, view, _html} = live(conn, ~p"/c/#{company.id}/settings")
 
       for tab <- ~w(General Exports Syncs Categories Tags Team Certificates) ++ ["API Tokens"] do
         assert has_element?(view, "nav[aria-label='Settings'] a", tab)
       end
     end
+  end
+
+  describe "settings sidebar tab visibility" do
 
     test "reviewer sees General, Syncs, API Tokens, and Payment-related tabs", %{
       conn: conn,

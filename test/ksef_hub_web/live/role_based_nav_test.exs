@@ -17,8 +17,14 @@ defmodule KsefHubWeb.RoleBasedNavTest do
 
       assert has_element?(view, "a[href='/c/#{company.id}/dashboard']")
       assert has_element?(view, "a[href='/c/#{company.id}/invoices']")
-      # Categories, Tags, Certificates, API Tokens are now under Settings
       assert has_element?(view, "a[href='/c/#{company.id}/settings']")
+
+      # Old top-level admin links removed in favour of Settings
+      refute has_element?(view, "a[href='/c/#{company.id}/categories']")
+      refute has_element?(view, "a[href='/c/#{company.id}/tags']")
+      refute has_element?(view, "a[href='/c/#{company.id}/certificates']")
+      refute has_element?(view, "a[href='/c/#{company.id}/tokens']")
+      refute has_element?(view, "a[href='/c/#{company.id}/team']")
     end
 
     test "accountant does not see admin-only nav items", %{conn: conn} do
@@ -31,10 +37,10 @@ defmodule KsefHubWeb.RoleBasedNavTest do
         |> log_in_user(user, %{current_company_id: company.id})
         |> live("/c/#{company.id}/dashboard")
 
-      assert has_element?(view, "a[href='/c/#{company.id}/dashboard']")
-      assert has_element?(view, "a[href='/c/#{company.id}/invoices']")
-      # Settings is visible to all roles (General tab has no permission requirement)
       assert has_element?(view, "a[href='/c/#{company.id}/settings']")
+      refute has_element?(view, "a[href='/c/#{company.id}/categories']")
+      refute has_element?(view, "a[href='/c/#{company.id}/tokens']")
+      refute has_element?(view, "a[href='/c/#{company.id}/team']")
     end
 
     test "reviewer does not see admin-only nav items", %{conn: conn} do
@@ -47,9 +53,10 @@ defmodule KsefHubWeb.RoleBasedNavTest do
         |> log_in_user(user, %{current_company_id: company.id})
         |> live("/c/#{company.id}/dashboard")
 
-      assert has_element?(view, "a[href='/c/#{company.id}/dashboard']")
-      assert has_element?(view, "a[href='/c/#{company.id}/invoices']")
       assert has_element?(view, "a[href='/c/#{company.id}/settings']")
+      refute has_element?(view, "a[href='/c/#{company.id}/categories']")
+      refute has_element?(view, "a[href='/c/#{company.id}/tokens']")
+      refute has_element?(view, "a[href='/c/#{company.id}/team']")
     end
   end
 end
