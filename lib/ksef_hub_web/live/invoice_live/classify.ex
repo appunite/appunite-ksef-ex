@@ -490,7 +490,7 @@ defmodule KsefHubWeb.InvoiceLive.Classify do
   defp group_categories(categories) do
     categories
     |> Enum.group_by(&category_group/1)
-    |> Enum.sort_by(fn {group, _} -> group end)
+    |> Enum.sort_by(fn {_group, cats} -> Enum.min_by(cats, & &1.sort_order).sort_order end)
   end
 
   @spec category_group(map()) :: String.t()
