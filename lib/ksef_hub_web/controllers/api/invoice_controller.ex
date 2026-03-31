@@ -16,7 +16,7 @@ defmodule KsefHubWeb.Api.InvoiceController do
   import KsefHubWeb.JsonHelpers, only: [category_json: 1, tag_json: 1, atomize_keys: 2]
 
   alias KsefHub.Invoices
-  alias KsefHub.Invoices.Invoice
+  alias KsefHub.Invoices.{CostLine, Invoice}
   alias KsefHubWeb.Schemas
   alias OpenApiSpex.Schema
 
@@ -843,12 +843,19 @@ defmodule KsefHubWeb.Api.InvoiceController do
     invoice = Invoices.get_invoice!(company_id, id, role: role, user_id: user_id)
     category_id = params["category_id"]
 
-    with :ok <- validate_category_company(category_id, company_id),
+    with {:ok, cost_line} <- cast_cost_line_param(params),
+         :ok <- validate_category_company(category_id, company_id),
          {:ok, updated} <- Invoices.set_invoice_category(invoice, category_id),
+         {:ok, updated} <- maybe_set_api_cost_line(updated, cost_line),
          {:ok, _} <- Invoices.mark_prediction_manual(updated) do
       invoice = Invoices.get_invoice_with_details!(company_id, id, role: role, user_id: user_id)
       json(conn, %{data: invoice_json(invoice)})
     else
+      {:error, :invalid_cost_line} ->
+        conn
+        |> put_status(:unprocessable_entity)
+        |> json(%{error: "Invalid cost_line value"})
+
       {:error, :invalid_uuid} ->
         conn
         |> put_status(:unprocessable_entity)
@@ -1317,6 +1324,24 @@ defmodule KsefHubWeb.Api.InvoiceController do
   defp valid_uuid?(value) when is_binary(value), do: match?({:ok, _}, Ecto.UUID.cast(value))
   defp valid_uuid?(_), do: false
 
+  @spec cast_cost_line_param(map()) ::
+          {:ok, atom() | nil | :not_provided} | {:error, :invalid_cost_line}
+  defp cast_cost_line_param(%{"cost_line" => value}) do
+    case CostLine.cast(value) do
+      {:ok, cost_line} -> {:ok, cost_line}
+      :error -> {:error, :invalid_cost_line}
+    end
+  end
+
+  defp cast_cost_line_param(_params), do: {:ok, :not_provided}
+
+  @spec maybe_set_api_cost_line(Invoice.t(), atom() | nil | :not_provided) ::
+          {:ok, Invoice.t()} | {:error, term()}
+  defp maybe_set_api_cost_line(invoice, :not_provided), do: {:ok, invoice}
+
+  defp maybe_set_api_cost_line(invoice, cost_line),
+    do: Invoices.set_invoice_cost_line(invoice, cost_line)
+
   @spec validate_file_present(map()) :: {:ok, Plug.Upload.t()} | {:error, :missing_file}
   defp validate_file_present(%{"file" => %Plug.Upload{} = upload}), do: {:ok, upload}
 
@@ -1391,6 +1416,7 @@ defmodule KsefHubWeb.Api.InvoiceController do
       iban: invoice.iban,
       seller_address: invoice.seller_address,
       buyer_address: invoice.buyer_address,
+      cost_line: invoice.cost_line,
       access_restricted: invoice.access_restricted,
       inserted_at: invoice.inserted_at,
       updated_at: invoice.updated_at

@@ -4,6 +4,8 @@ defmodule KsefHub.Invoices.Category do
   use Ecto.Schema
   import Ecto.Changeset
 
+  alias KsefHub.Invoices.CostLine
+
   @type t :: %__MODULE__{}
 
   @primary_key {:id, :binary_id, autogenerate: true}
@@ -16,6 +18,7 @@ defmodule KsefHub.Invoices.Category do
     field :description, :string
     field :examples, :string
     field :sort_order, :integer, default: 0
+    field :default_cost_line, Ecto.Enum, values: CostLine.values()
 
     belongs_to :company, KsefHub.Companies.Company
     has_many :invoices, KsefHub.Invoices.Invoice
@@ -27,7 +30,15 @@ defmodule KsefHub.Invoices.Category do
   @spec changeset(t() | Ecto.Changeset.t(), map()) :: Ecto.Changeset.t()
   def changeset(category, attrs) do
     category
-    |> cast(attrs, [:identifier, :name, :emoji, :description, :examples, :sort_order])
+    |> cast(attrs, [
+      :identifier,
+      :name,
+      :emoji,
+      :description,
+      :examples,
+      :sort_order,
+      :default_cost_line
+    ])
     |> validate_required([:identifier, :company_id])
     |> validate_format(:identifier, ~r/^[^:]+:.+$/, message: "must be in group:target format")
     |> unique_constraint([:company_id, :identifier], error_key: :identifier)

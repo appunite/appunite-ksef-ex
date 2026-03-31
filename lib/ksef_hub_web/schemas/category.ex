@@ -5,6 +5,7 @@ defmodule KsefHubWeb.Schemas.Category do
 
   require OpenApiSpex
 
+  alias KsefHub.Invoices.CostLine
   alias OpenApiSpex.Schema
 
   OpenApiSpex.schema(%{
@@ -40,6 +41,13 @@ defmodule KsefHubWeb.Schemas.Category do
         type: :integer,
         description: "Sort order for display.",
         default: 0
+      },
+      default_cost_line: %Schema{
+        type: :string,
+        enum: Enum.map(CostLine.values(), &Atom.to_string/1),
+        nullable: true,
+        description:
+          "Default cost line for invoices assigned to this category. Auto-populated when setting category."
       },
       inserted_at: %Schema{type: :string, format: :"date-time"},
       updated_at: %Schema{type: :string, format: :"date-time"}

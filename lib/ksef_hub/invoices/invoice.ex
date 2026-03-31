@@ -4,6 +4,8 @@ defmodule KsefHub.Invoices.Invoice do
   use Ecto.Schema
   import Ecto.Changeset
 
+  alias KsefHub.Invoices.CostLine
+
   @type t :: %__MODULE__{}
   @type invoice_type :: :income | :expense
   @type invoice_status :: :pending | :approved | :rejected
@@ -71,6 +73,7 @@ defmodule KsefHub.Invoices.Invoice do
     has_many :access_grants, KsefHub.Invoices.InvoiceAccessGrant
 
     field :public_token, :string
+    field :cost_line, Ecto.Enum, values: CostLine.values()
     field :is_excluded, :boolean, default: false
     field :access_restricted, :boolean, default: false
 
@@ -210,7 +213,7 @@ defmodule KsefHub.Invoices.Invoice do
   @spec category_changeset(t(), map()) :: Ecto.Changeset.t()
   def category_changeset(invoice, attrs) do
     invoice
-    |> cast(attrs, [:category_id])
+    |> cast(attrs, [:category_id, :cost_line])
     |> foreign_key_constraint(:category_id)
   end
 

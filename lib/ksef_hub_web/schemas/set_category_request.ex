@@ -17,6 +17,13 @@ defmodule KsefHubWeb.Schemas.SetCategoryRequest do
         format: :uuid,
         nullable: true,
         description: "Category UUID to assign, or null to clear."
+      },
+      cost_line: %Schema{
+        type: :string,
+        enum: ["growth", "heads", "service", "service_delivery", "client_success"],
+        nullable: true,
+        description:
+          "Optional cost line override. If omitted, cost_line is auto-set from the category's default_cost_line."
       }
     },
     required: [:category_id],

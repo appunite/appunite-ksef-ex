@@ -11,7 +11,7 @@ defmodule KsefHubWeb.InvoiceLive.Show do
   alias KsefHub.Companies
   alias KsefHub.InvoiceClassifier
   alias KsefHub.Invoices
-  alias KsefHub.Invoices.Invoice
+  alias KsefHub.Invoices.{CostLine, Invoice}
   alias KsefHub.PaymentRequests
 
   import KsefHubWeb.InvoiceComponents
@@ -1036,6 +1036,13 @@ defmodule KsefHubWeb.InvoiceLive.Show do
               label="category"
               testid="prediction-category-hint"
             />
+          </div>
+
+          <div :if={@invoice.type == :expense} class="mb-3">
+            <label class="text-sm text-muted-foreground">Cost Line</label>
+            <div class="mt-1" data-testid="cost-line-display">
+              {if @invoice.cost_line, do: CostLine.label(@invoice.cost_line), else: "—"}
+            </div>
           </div>
 
           <div>

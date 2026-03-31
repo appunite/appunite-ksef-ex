@@ -209,6 +209,13 @@ defmodule KsefHubWeb.Schemas.Invoice do
         nullable: true,
         description: "When the ML prediction was generated."
       },
+      cost_line: %Schema{
+        type: :string,
+        enum: ["growth", "heads", "service", "service_delivery", "client_success"],
+        nullable: true,
+        description:
+          "Cost line classification mapping to a business cost center. Can be auto-set from category default or manually overridden."
+      },
       access_restricted: %Schema{
         type: :boolean,
         description:

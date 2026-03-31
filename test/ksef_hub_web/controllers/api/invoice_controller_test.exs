@@ -1002,6 +1002,54 @@ defmodule KsefHubWeb.Api.InvoiceControllerTest do
       assert conn.status == 422
       assert Jason.decode!(conn.resp_body)["error"] == "Category not found in this company"
     end
+
+    test "includes cost_line in invoice JSON response", %{conn: conn} do
+      %{company: company, token: token} = create_user_with_token(:owner)
+      invoice = insert(:invoice, type: :expense, company: company, cost_line: :growth)
+
+      conn = conn |> api_conn(token) |> get("/api/invoices/#{invoice.id}")
+
+      assert conn.status == 200
+      assert Jason.decode!(conn.resp_body)["data"]["cost_line"] == "growth"
+    end
+
+    test "set_category with cost_line override", %{conn: conn} do
+      %{company: company, token: token} = create_user_with_token(:owner)
+      category = insert(:category, company: company, default_cost_line: :growth)
+      invoice = insert(:invoice, type: :expense, company: company)
+
+      body = Jason.encode!(%{category_id: category.id, cost_line: "heads"})
+      conn = conn |> api_conn(token) |> put("/api/invoices/#{invoice.id}/category", body)
+
+      assert conn.status == 200
+      data = Jason.decode!(conn.resp_body)["data"]
+      assert data["cost_line"] == "heads"
+    end
+
+    test "set_category returns 422 for invalid cost_line", %{conn: conn} do
+      %{company: company, token: token} = create_user_with_token(:owner)
+      category = insert(:category, company: company)
+      invoice = insert(:invoice, type: :expense, company: company)
+
+      body = Jason.encode!(%{category_id: category.id, cost_line: "bogus"})
+      conn = conn |> api_conn(token) |> put("/api/invoices/#{invoice.id}/category", body)
+
+      assert conn.status == 422
+      assert Jason.decode!(conn.resp_body)["error"] =~ "Invalid cost_line"
+    end
+
+    test "set_category auto-sets cost_line from default when not provided", %{conn: conn} do
+      %{company: company, token: token} = create_user_with_token(:owner)
+      category = insert(:category, company: company, default_cost_line: :service_delivery)
+      invoice = insert(:invoice, type: :expense, company: company)
+
+      body = Jason.encode!(%{category_id: category.id})
+      conn = conn |> api_conn(token) |> put("/api/invoices/#{invoice.id}/category", body)
+
+      assert conn.status == 200
+      data = Jason.decode!(conn.resp_body)["data"]
+      assert data["cost_line"] == "service_delivery"
+    end
   end
 
   describe "set_tags" do

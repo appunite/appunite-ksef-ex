@@ -1145,4 +1145,34 @@ defmodule KsefHubWeb.InvoiceLive.ShowTest do
       assert Invoices.list_access_grants(invoice.id) == []
     end
   end
+
+  describe "cost line display" do
+    setup :stub_pdf
+
+    test "shows cost line for expense invoice", %{conn: conn, company: company} do
+      invoice = insert(:invoice, type: :expense, company: company, cost_line: :service_delivery)
+
+      {:ok, view, _html} = live(conn, ~p"/c/#{company.id}/invoices/#{invoice.id}")
+
+      assert has_element?(view, ~s([data-testid="cost-line-display"]))
+      assert render(view) =~ "Service delivery"
+    end
+
+    test "shows fallback dash when cost line is nil", %{conn: conn, company: company} do
+      invoice = insert(:invoice, type: :expense, cost_line: nil, company: company)
+
+      {:ok, view, _html} = live(conn, ~p"/c/#{company.id}/invoices/#{invoice.id}")
+
+      assert has_element?(view, ~s([data-testid="cost-line-display"]))
+      assert render(view) =~ "—"
+    end
+
+    test "does not show cost line section for income invoice", %{conn: conn, company: company} do
+      invoice = insert(:invoice, type: :income, company: company)
+
+      {:ok, view, _html} = live(conn, ~p"/c/#{company.id}/invoices/#{invoice.id}")
+
+      refute has_element?(view, ~s([data-testid="cost-line-display"]))
+    end
+  end
 end

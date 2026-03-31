@@ -308,4 +308,70 @@ defmodule KsefHubWeb.InvoiceLive.ClassifyTest do
       assert html =~ "permission"
     end
   end
+
+  describe "cost line" do
+    test "renders cost line dropdown for expense invoice", %{conn: conn, company: company} do
+      invoice = insert(:invoice, type: :expense, company: company)
+
+      {:ok, view, _html} = live(conn, ~p"/c/#{company.id}/invoices/#{invoice.id}/classify")
+
+      assert has_element?(view, ~s([data-testid="cost-line-section"]))
+      assert has_element?(view, ~s([data-testid="cost-line-select"]))
+      assert has_element?(view, ~s(option[value="growth"]))
+      assert has_element?(view, ~s(option[value="service_delivery"]))
+    end
+
+    test "auto-updates cost line when selecting category with default", %{
+      conn: conn,
+      company: company
+    } do
+      category = insert(:category, company: company, default_cost_line: :service_delivery)
+      invoice = insert(:invoice, type: :expense, company: company)
+
+      {:ok, view, _html} = live(conn, ~p"/c/#{company.id}/invoices/#{invoice.id}/classify")
+
+      render_click(view, "select_category", %{"id" => category.id})
+
+      assert has_element?(view, ~s(option[value="service_delivery"][selected]))
+    end
+
+    test "persists cost line on save", %{conn: conn, company: company} do
+      category = insert(:category, company: company, default_cost_line: :growth)
+      invoice = insert(:invoice, type: :expense, company: company)
+
+      {:ok, view, _html} = live(conn, ~p"/c/#{company.id}/invoices/#{invoice.id}/classify")
+
+      render_click(view, "select_category", %{"id" => category.id})
+      render_click(view, "save")
+
+      updated = Invoices.get_invoice!(company.id, invoice.id)
+      assert updated.cost_line == :growth
+    end
+
+    test "allows manual cost line override after category select", %{
+      conn: conn,
+      company: company
+    } do
+      category = insert(:category, company: company, default_cost_line: :growth)
+      invoice = insert(:invoice, type: :expense, company: company)
+
+      {:ok, view, _html} = live(conn, ~p"/c/#{company.id}/invoices/#{invoice.id}/classify")
+
+      render_click(view, "select_category", %{"id" => category.id})
+      render_change(view, "select_cost_line", %{"cost_line" => "heads"})
+      render_click(view, "save")
+
+      updated = Invoices.get_invoice!(company.id, invoice.id)
+      assert updated.cost_line == :heads
+      assert updated.category_id == category.id
+    end
+
+    test "does not render cost line section for income invoice", %{conn: conn, company: company} do
+      invoice = insert(:invoice, type: :income, company: company)
+
+      {:ok, view, _html} = live(conn, ~p"/c/#{company.id}/invoices/#{invoice.id}/classify")
+
+      refute has_element?(view, ~s([data-testid="cost-line-section"]))
+    end
+  end
 end

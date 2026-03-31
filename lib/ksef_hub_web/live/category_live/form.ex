@@ -6,7 +6,7 @@ defmodule KsefHubWeb.CategoryLive.Form do
 
   alias KsefHub.EmojiGenerator
   alias KsefHub.Invoices
-  alias KsefHub.Invoices.Category
+  alias KsefHub.Invoices.{Category, CostLine}
 
   @doc "Initialises emoji_loading assign for the async emoji generator."
   @impl true
@@ -197,7 +197,7 @@ defmodule KsefHubWeb.CategoryLive.Form do
   @spec current_form_params(Phoenix.LiveView.Socket.t()) :: map()
   defp current_form_params(socket) do
     form = socket.assigns.form
-    fields = ~w(identifier name emoji description examples sort_order)a
+    fields = ~w(identifier name emoji description examples sort_order default_cost_line)a
 
     Map.new(fields, fn field ->
       value = form[field].value
@@ -219,7 +219,8 @@ defmodule KsefHubWeb.CategoryLive.Form do
       emoji: blank_to_nil(params["emoji"]),
       description: blank_to_nil(params["description"]),
       examples: blank_to_nil(params["examples"]),
-      sort_order: sort_order
+      sort_order: sort_order,
+      default_cost_line: blank_to_nil(params["default_cost_line"])
     }
   end
 
@@ -282,6 +283,14 @@ defmodule KsefHubWeb.CategoryLive.Form do
             Used by the ML classifier. Format: group:target
           </p>
         </div>
+        <div>
+          <.input
+            field={@form[:sort_order]}
+            type="number"
+            label="Sort Order"
+            class="h-9 w-24 rounded-md border border-input bg-background px-3 text-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+          />
+        </div>
       </div>
 
       <.input
@@ -302,12 +311,26 @@ defmodule KsefHubWeb.CategoryLive.Form do
         placeholder="Example invoices for this category..."
       />
 
-      <.input
-        field={@form[:sort_order]}
-        type="number"
-        label="Sort Order"
-        class="h-9 w-24 rounded-md border border-input bg-background px-3 text-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
-      />
+      <div class="space-y-1">
+        <label class="text-sm font-medium">Default Cost Line</label>
+        <select
+          name={@form[:default_cost_line].name}
+          class="h-9 w-full rounded-md border border-input bg-background px-3 text-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+          data-testid="default-cost-line-select"
+        >
+          <option value="" selected={is_nil(@form[:default_cost_line].value)}>None</option>
+          <option
+            :for={{label, value} <- CostLine.options()}
+            value={value}
+            selected={to_string(@form[:default_cost_line].value) == to_string(value)}
+          >
+            {label}
+          </option>
+        </select>
+        <p class="text-xs text-muted-foreground">
+          Auto-assigned to invoices when this category is selected
+        </p>
+      </div>
 
       <div class="flex items-center gap-3 pt-2">
         <.button type="submit">

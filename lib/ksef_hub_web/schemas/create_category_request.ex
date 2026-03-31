@@ -33,6 +33,12 @@ defmodule KsefHubWeb.Schemas.CreateCategoryRequest do
         type: :integer,
         description: "Sort order for display.",
         default: 0
+      },
+      default_cost_line: %Schema{
+        type: :string,
+        enum: ["growth", "heads", "service", "service_delivery", "client_success"],
+        nullable: true,
+        description: "Default cost line for invoices assigned to this category."
       }
     },
     required: [:identifier],
