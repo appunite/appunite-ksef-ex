@@ -121,13 +121,36 @@ defmodule KsefHub.Companies do
           {:ok, %{company: Company.t(), membership: Membership.t()}}
           | {:error, atom(), Ecto.Changeset.t(), map()}
   def create_company_with_owner(%User{} = user, attrs) do
-    Multi.new()
-    |> Multi.insert(:company, Company.changeset(%Company{}, attrs))
-    |> Multi.insert(:membership, fn %{company: company} ->
-      %Membership{user_id: user.id, company_id: company.id}
-      |> Membership.changeset(%{role: :owner})
-    end)
-    |> Repo.transaction()
+    nip = Map.get(attrs, "nip") || Map.get(attrs, :nip)
+
+    if nip && user_owns_company_with_nip?(user.id, nip) do
+      changeset =
+        %Company{}
+        |> Company.changeset(attrs)
+        |> Ecto.Changeset.add_error(:nip, "you already have a company with this NIP")
+
+      {:error, :company, changeset, %{}}
+    else
+      Multi.new()
+      |> Multi.insert(:company, Company.changeset(%Company{}, attrs))
+      |> Multi.insert(:membership, fn %{company: company} ->
+        %Membership{user_id: user.id, company_id: company.id}
+        |> Membership.changeset(%{role: :owner})
+      end)
+      |> Repo.transaction()
+    end
+  end
+
+  @spec user_owns_company_with_nip?(Ecto.UUID.t(), String.t()) :: boolean()
+  defp user_owns_company_with_nip?(user_id, nip) do
+    Membership
+    |> join(:inner, [m], c in Company, on: c.id == m.company_id)
+    |> where(
+      [m, c],
+      m.user_id == ^user_id and m.role == :owner and m.status == :active and c.nip == ^nip and
+        c.is_active == true
+    )
+    |> Repo.exists?()
   end
 
   @doc "Updates inbound email settings (allowed sender domain, CC email) for a company."

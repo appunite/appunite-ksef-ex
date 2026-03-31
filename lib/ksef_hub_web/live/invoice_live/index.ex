@@ -5,6 +5,7 @@ defmodule KsefHubWeb.InvoiceLive.Index do
   use KsefHubWeb, :live_view
 
   alias KsefHub.Authorization
+  alias KsefHub.Credentials
   alias KsefHub.Invoices
   alias KsefHub.Invoices.Invoice
   alias KsefHub.PaymentRequests
@@ -19,11 +20,15 @@ defmodule KsefHubWeb.InvoiceLive.Index do
         _ -> nil
       end
 
+    has_certificate =
+      if company_id, do: Credentials.get_certificate_for_company(company_id) != nil, else: false
+
     {:ok,
      assign(socket,
        page_title: "Invoices",
        categories: if(company_id, do: Invoices.list_categories(company_id), else: []),
-       all_tags: []
+       all_tags: [],
+       has_certificate: has_certificate
      )}
   end
 
@@ -298,6 +303,26 @@ defmodule KsefHubWeb.InvoiceLive.Index do
         </.button>
       </:actions>
     </.header>
+
+    <div
+      :if={!@has_certificate}
+      class="rounded-lg border border-warning/50 bg-warning/10 p-4 mb-4 flex items-start gap-3"
+    >
+      <.icon name="hero-exclamation-triangle" class="size-5 text-warning mt-0.5" />
+      <div>
+        <p class="text-sm font-medium">KSeF sync not configured</p>
+        <p class="text-sm text-muted-foreground">
+          Upload a certificate in
+          <.link
+            navigate={~p"/c/#{@current_company.id}/settings/certificates"}
+            class="underline"
+          >
+            Settings &rarr; Certificates
+          </.link>
+          to enable automatic invoice sync with KSeF.
+        </p>
+      </div>
+    </div>
 
     <!-- Type Tabs -->
     <div class="flex border-b border-border mb-4">

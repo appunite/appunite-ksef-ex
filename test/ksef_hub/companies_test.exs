@@ -46,10 +46,9 @@ defmodule KsefHub.CompaniesTest do
       assert "must be a 10-digit NIP" in errors_on(changeset).nip
     end
 
-    test "enforces unique NIP" do
+    test "allows duplicate NIP across different companies" do
       insert(:company, nip: "1234567890")
-      assert {:error, changeset} = Companies.create_company(%{name: "Other", nip: "1234567890"})
-      assert "has already been taken" in errors_on(changeset).nip
+      assert {:ok, %Company{}} = Companies.create_company(%{name: "Other", nip: "1234567890"})
     end
   end
 
@@ -106,11 +105,11 @@ defmodule KsefHub.CompaniesTest do
       assert "must be a 10-digit NIP" in errors_on(changeset).nip
     end
 
-    test "enforces unique NIP on update" do
+    test "allows updating NIP to one used by another company" do
       insert(:company, nip: "1111111111")
       company = insert(:company, nip: "2222222222")
-      assert {:error, changeset} = Companies.update_company(company, %{nip: "1111111111"})
-      assert "has already been taken" in errors_on(changeset).nip
+      assert {:ok, updated} = Companies.update_company(company, %{nip: "1111111111"})
+      assert updated.nip == "1111111111"
     end
   end
 
@@ -288,15 +287,38 @@ defmodule KsefHub.CompaniesTest do
       assert Companies.list_companies_for_user(user.id) == []
     end
 
-    test "rolls back if NIP already taken" do
-      insert(:company, nip: "1111111111")
+    test "allows different users to create companies with same NIP" do
+      user_a = insert(:user)
+      user_b = insert(:user)
+      attrs = %{name: "Same NIP Co", nip: "1111111111"}
+
+      assert {:ok, %{company: _c1}} = Companies.create_company_with_owner(user_a, attrs)
+      assert {:ok, %{company: _c2}} = Companies.create_company_with_owner(user_b, attrs)
+    end
+
+    test "prevents same user from creating two companies with same NIP" do
       user = insert(:user)
-      attrs = %{name: "Dupe Co", nip: "1111111111"}
+      attrs = %{name: "First Co", nip: "1111111111"}
 
-      assert {:error, :company, changeset, _changes} =
-               Companies.create_company_with_owner(user, attrs)
+      assert {:ok, %{company: _}} = Companies.create_company_with_owner(user, attrs)
 
-      assert "has already been taken" in errors_on(changeset).nip
+      assert {:error, :company, changeset, _} =
+               Companies.create_company_with_owner(user, %{name: "Second Co", nip: "1111111111"})
+
+      assert "you already have a company with this NIP" in errors_on(changeset).nip
+    end
+
+    test "allows re-creating company with same NIP after deactivation" do
+      user = insert(:user)
+      attrs = %{name: "Original Co", nip: "1111111111"}
+
+      assert {:ok, %{company: company}} = Companies.create_company_with_owner(user, attrs)
+      Companies.update_company(company, %{is_active: false})
+
+      assert {:ok, %{company: new_company}} =
+               Companies.create_company_with_owner(user, %{name: "New Co", nip: "1111111111"})
+
+      assert new_company.name == "New Co"
     end
   end
 
