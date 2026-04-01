@@ -223,6 +223,8 @@ defmodule KsefHub.InvoicesTest do
       assert updated.prediction_status == :predicted
       assert updated.prediction_category_name == "finance:invoices"
       assert updated.prediction_category_confidence == 0.92
+      assert updated.prediction_category_model_version == original.prediction_category_model_version
+      assert updated.prediction_tag_model_version == original.prediction_tag_model_version
     end
   end
 
