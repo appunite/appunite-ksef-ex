@@ -34,7 +34,8 @@ defmodule KsefHubWeb.Api.CategoryController do
         {"Category list ordered by sort_order then name", "application/json",
          Schemas.CategoryListResponse},
       401 =>
-        {"Unauthorized — missing or invalid API token", "application/json", Schemas.ErrorResponse}
+        {"Unauthorized — missing or invalid API token", "application/json", Schemas.ErrorResponse},
+      403 => {"Forbidden — insufficient permissions", "application/json", Schemas.ErrorResponse}
     }
   )
 
@@ -60,6 +61,7 @@ defmodule KsefHubWeb.Api.CategoryController do
       200 => {"Category", "application/json", Schemas.CategoryResponse},
       401 =>
         {"Unauthorized — missing or invalid API token", "application/json", Schemas.ErrorResponse},
+      403 => {"Forbidden — insufficient permissions", "application/json", Schemas.ErrorResponse},
       404 => {"Category not found", "application/json", Schemas.ErrorResponse}
     }
   )

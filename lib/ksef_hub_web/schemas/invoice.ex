@@ -255,10 +255,7 @@ defmodule KsefHubWeb.Schemas.Invoice do
         description: "Financial invoices",
         sort_order: 0
       },
-      tags: [
-        %{id: "e5d4c3b2-a198-7654-3210-fedcba098765", name: "urgent", usage_count: 3},
-        %{id: "f6e5d4c3-b2a1-9876-5432-10fedcba0987", name: "quarterly", usage_count: 7}
-      ],
+      tags: ["urgent", "quarterly"],
       duplicate_of_id: nil,
       duplicate_status: nil,
       ksef_acquisition_date: "2024-01-15T10:30:00Z",

@@ -1084,6 +1084,28 @@ defmodule KsefHubWeb.Api.InvoiceControllerTest do
       assert conn.status == 422
       assert Jason.decode!(conn.resp_body)["error"] == "tags must be a list of strings"
     end
+
+    test "returns 422 for mixed-element tags list", %{conn: conn} do
+      %{company: company, token: token} = create_user_with_token(:owner)
+      invoice = insert(:invoice, company: company)
+
+      body = Jason.encode!(%{tags: ["alpha", 123]})
+      conn = conn |> api_conn(token) |> put("/api/invoices/#{invoice.id}/tags", body)
+
+      assert conn.status == 422
+      assert Jason.decode!(conn.resp_body)["error"] == "tags must be a list of strings"
+    end
+
+    test "returns 422 when tags key is missing", %{conn: conn} do
+      %{company: company, token: token} = create_user_with_token(:owner)
+      invoice = insert(:invoice, company: company, tags: ["existing"])
+
+      body = Jason.encode!(%{})
+      conn = conn |> api_conn(token) |> put("/api/invoices/#{invoice.id}/tags", body)
+
+      assert conn.status == 422
+      assert Jason.decode!(conn.resp_body)["error"] == "tags must be a list of strings"
+    end
   end
 
   describe "filtering by category_id" do

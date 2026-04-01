@@ -915,14 +915,18 @@ defmodule KsefHubWeb.Api.InvoiceController do
     invoice =
       Invoices.get_invoice!(company_id, id, role: role, user_id: user_id)
 
-    tags = params["tags"] || []
-
-    with true <- is_list(tags) and Enum.all?(tags, &is_binary/1),
+    with {:ok, tags} <- Map.fetch(params, "tags"),
+         true <- is_list(tags) and Enum.all?(tags, &is_binary/1),
          {:ok, updated} <- Invoices.set_invoice_tags(invoice, tags),
          {:ok, _} <- Invoices.mark_prediction_manual(updated) do
       invoice = Invoices.get_invoice_with_details!(company_id, id, role: role, user_id: user_id)
       json(conn, %{data: invoice_json(invoice)})
     else
+      :error ->
+        conn
+        |> put_status(:unprocessable_entity)
+        |> json(%{error: "tags must be a list of strings"})
+
       false ->
         conn
         |> put_status(:unprocessable_entity)
@@ -949,7 +953,8 @@ defmodule KsefHubWeb.Api.InvoiceController do
     responses: %{
       200 => {"List of tags", "application/json", Schemas.TagListResponse},
       401 =>
-        {"Unauthorized — missing or invalid API token", "application/json", Schemas.ErrorResponse}
+        {"Unauthorized — missing or invalid API token", "application/json", Schemas.ErrorResponse},
+      403 => {"Forbidden — insufficient permissions", "application/json", Schemas.ErrorResponse}
     }
   )
 

@@ -101,7 +101,7 @@ defmodule KsefHub.InvoiceClassifier do
   defp resolve_predictions(company_id, cat_result, tag_result) do
     cat_identifier = cat_result["predicted_label"]
     cat_confidence = cat_result["confidence"] || 0.0
-    tag_name = tag_result["predicted_label"]
+    tag_name = normalize_tag_label(tag_result["predicted_label"])
     tag_confidence = tag_result["confidence"] || 0.0
 
     matching_category = find_category_by_identifier(company_id, cat_identifier)
@@ -109,8 +109,7 @@ defmodule KsefHub.InvoiceClassifier do
     confident_category? =
       cat_confidence >= category_confidence_threshold() and matching_category != nil
 
-    confident_tag? =
-      tag_confidence >= tag_confidence_threshold() and is_binary(tag_name) and tag_name != ""
+    confident_tag? = tag_confidence >= tag_confidence_threshold() and tag_name != nil
 
     %{
       attrs: build_prediction_attrs(cat_result, tag_result, confident_category?, confident_tag?),
@@ -118,6 +117,18 @@ defmodule KsefHub.InvoiceClassifier do
       tag_name: if(confident_tag?, do: tag_name)
     }
   end
+
+  @max_tag_length 100
+
+  @spec normalize_tag_label(String.t() | nil) :: String.t() | nil
+  defp normalize_tag_label(nil), do: nil
+
+  defp normalize_tag_label(label) when is_binary(label) do
+    trimmed = String.trim(label)
+    if trimmed != "" and String.length(trimmed) <= @max_tag_length, do: trimmed
+  end
+
+  defp normalize_tag_label(_), do: nil
 
   @spec build_prediction_attrs(map(), map(), boolean(), boolean()) :: map()
   defp build_prediction_attrs(cat_result, tag_result, apply_category?, apply_tag?) do

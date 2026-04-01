@@ -14,8 +14,9 @@ defmodule KsefHubWeb.Schemas.SetTagsRequest do
     properties: %{
       tags: %Schema{
         type: :array,
-        items: %Schema{type: :string},
-        description: "Tag names to assign."
+        items: %Schema{type: :string, maxLength: 100},
+        maxItems: 50,
+        description: "Tag names to assign. Up to 50 tags, each up to 100 characters."
       }
     },
     required: [:tags]
