@@ -240,6 +240,14 @@ defmodule KsefHub.Companies do
     |> Repo.all()
   end
 
+  @doc "Fetches a bank account by ID scoped to a company, or nil if not found."
+  @spec get_bank_account(Ecto.UUID.t(), Ecto.UUID.t()) :: CompanyBankAccount.t() | nil
+  def get_bank_account(company_id, id) do
+    CompanyBankAccount
+    |> where([ba], ba.company_id == ^company_id and ba.id == ^id)
+    |> Repo.one()
+  end
+
   @doc "Returns the bank account for a company and currency, or nil if not found."
   @spec get_bank_account_for_currency(Ecto.UUID.t(), String.t()) :: CompanyBankAccount.t() | nil
   def get_bank_account_for_currency(company_id, currency) do

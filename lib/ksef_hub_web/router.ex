@@ -207,6 +207,7 @@ defmodule KsefHubWeb.Router do
       ] do
       live "/payment-requests/new", PaymentRequestLive.Form, :new
       live "/payment-requests/:id/edit", PaymentRequestLive.Form, :edit
+      live "/settings/bank-accounts", BankAccountLive
     end
 
     get "/payment-requests/csv", PaymentRequestCsvController, :download
