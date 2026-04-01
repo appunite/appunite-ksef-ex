@@ -516,7 +516,9 @@ defmodule KsefHubWeb.InvoiceLive.ClassifyTest do
       tags = for i <- 1..12, do: "Project-#{String.pad_leading("#{i}", 2, "0")}"
       for tag <- tags, do: insert(:invoice, company: company, type: :expense, project_tag: tag)
 
-      # Project-12 is the most recent, so it appears first; Project-09 would be at position 9 (hidden)
+      # Recency-descending: Project-12 at position 1, Project-09 at position 4 (visible),
+      # Project-04 at position 9 (hidden). Project-01 is beyond the top 8 but remains
+      # visible because it is the selected tag on the invoice being classified.
       invoice = insert(:invoice, type: :expense, company: company, project_tag: "Project-01")
 
       {:ok, view, _html} = live(conn, ~p"/c/#{company.id}/invoices/#{invoice.id}/classify")
