@@ -4,8 +4,14 @@ defmodule KsefHubWeb.CompanyLiveTest do
   import KsefHub.Factory
   import Phoenix.LiveViewTest
 
+  import Mox
+
   alias KsefHub.Accounts
   alias KsefHub.Companies
+  alias KsefHub.Credentials
+
+  setup :set_mox_from_context
+  setup :verify_on_exit!
 
   defp setup_user_with_company(_context) do
     {:ok, user} =
@@ -73,6 +79,84 @@ defmodule KsefHubWeb.CompanyLiveTest do
 
       membership = Companies.get_membership(user.id, new_company.id)
       assert membership.role == :owner
+    end
+
+    test "auto-creates credential when user has certificate", %{conn: conn} do
+      user = insert(:user)
+      existing = insert(:company)
+      insert(:membership, user: user, company: existing, role: :owner)
+      insert(:user_certificate, user: user, is_active: true)
+
+      # Stub KSeF mocks so inline AuthWorker doesn't fail
+      stub(KsefHub.KsefClient.Mock, :get_challenge, fn ->
+        {:ok, %{challenge: "stub-challenge", timestamp: "2025-01-01T00:00:00Z"}}
+      end)
+
+      stub(KsefHub.XadesSigner.Mock, :sign_challenge, fn _, _, _, _ ->
+        {:ok, "<StubSignedXML/>"}
+      end)
+
+      stub(KsefHub.KsefClient.Mock, :authenticate_xades, fn _ ->
+        {:ok,
+         %{
+           reference_number: "stub-ref",
+           auth_token: "stub-auth",
+           auth_token_valid_until: DateTime.add(DateTime.utc_now(), 300)
+         }}
+      end)
+
+      stub(KsefHub.KsefClient.Mock, :poll_auth_status, fn _, _ -> {:ok, :success} end)
+
+      stub(KsefHub.KsefClient.Mock, :redeem_tokens, fn _ ->
+        {:ok,
+         %{
+           access_token: "stub-access",
+           refresh_token: "stub-refresh",
+           access_valid_until: DateTime.add(DateTime.utc_now(), 900),
+           refresh_valid_until: DateTime.add(DateTime.utc_now(), 48 * 24 * 3600)
+         }}
+      end)
+
+      {:ok, view, _html} =
+        conn
+        |> log_in_user(user, %{current_company_id: existing.id})
+        |> live("/companies/new")
+
+      view
+      |> form("form[phx-submit=save]", company: %{name: "Auto Cred Corp", nip: "5566778899"})
+      |> render_submit()
+
+      new_company =
+        user.id
+        |> Companies.list_companies_for_user()
+        |> Enum.find(&(&1.name == "Auto Cred Corp"))
+
+      assert new_company
+      assert Credentials.get_active_credential(new_company.id)
+    end
+
+    test "does not create credential when user has no certificate", %{conn: conn} do
+      user = insert(:user)
+      existing = insert(:company)
+      insert(:membership, user: user, company: existing, role: :owner)
+      # No certificate uploaded
+
+      {:ok, view, _html} =
+        conn
+        |> log_in_user(user, %{current_company_id: existing.id})
+        |> live("/companies/new")
+
+      view
+      |> form("form[phx-submit=save]", company: %{name: "No Cert Corp", nip: "1122334456"})
+      |> render_submit()
+
+      new_company =
+        user.id
+        |> Companies.list_companies_for_user()
+        |> Enum.find(&(&1.name == "No Cert Corp"))
+
+      assert new_company
+      refute Credentials.get_active_credential(new_company.id)
     end
 
     test "lists only user's companies", %{conn: conn} do

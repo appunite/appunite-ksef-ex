@@ -7,9 +7,13 @@ defmodule KsefHubWeb.CompanyLive.Form do
   """
   use KsefHubWeb, :live_view
 
+  require Logger
+
   alias KsefHub.Authorization
   alias KsefHub.Companies
   alias KsefHub.Companies.Company
+  alias KsefHub.Credentials
+  alias KsefHub.KsefClient.AuthWorker
 
   @impl true
   @spec mount(map(), map(), Phoenix.LiveView.Socket.t()) :: {:ok, Phoenix.LiveView.Socket.t()}
@@ -196,6 +200,8 @@ defmodule KsefHubWeb.CompanyLive.Form do
 
     case Companies.create_company_with_owner(user, params) do
       {:ok, %{company: company}} ->
+        maybe_setup_credential(user, company)
+
         {:noreply,
          socket
          |> put_flash(:info, "Company created.")
@@ -216,6 +222,24 @@ defmodule KsefHubWeb.CompanyLive.Form do
 
       {:error, changeset} ->
         {:noreply, assign(socket, form: to_form(changeset))}
+    end
+  end
+
+  @spec maybe_setup_credential(KsefHub.Accounts.User.t(), Company.t()) :: :ok
+  defp maybe_setup_credential(user, company) do
+    with cert when not is_nil(cert) <- Credentials.get_active_user_certificate(user.id),
+         {:ok, _credential} <- Credentials.ensure_credential_for_company(company.id) do
+      enqueue_auth(company.id)
+    end
+
+    :ok
+  end
+
+  @spec enqueue_auth(Ecto.UUID.t()) :: :ok
+  defp enqueue_auth(company_id) do
+    case %{company_id: company_id} |> AuthWorker.new() |> Oban.insert() do
+      {:ok, _job} -> :ok
+      {:error, _reason} -> Logger.error("Failed to enqueue auth job for company #{company_id}")
     end
   end
 

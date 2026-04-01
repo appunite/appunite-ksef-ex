@@ -117,6 +117,24 @@ defmodule KsefHub.CredentialsTest do
     end
   end
 
+  describe "ensure_credential_for_company/1" do
+    test "creates credential when none exists", %{company: company} do
+      assert {:ok, %Credential{is_active: true}} =
+               Credentials.ensure_credential_for_company(company.id)
+
+      assert Credentials.get_active_credential(company.id)
+    end
+
+    test "returns existing credential without creating a new one", %{company: company} do
+      existing = insert(:credential, company: company, nip: company.nip)
+
+      assert {:ok, %Credential{id: id}} =
+               Credentials.ensure_credential_for_company(company.id)
+
+      assert id == existing.id
+    end
+  end
+
   describe "deactivate_credential/1" do
     test "sets is_active to false", %{company: company} do
       cred = insert(:credential, company: company, nip: company.nip)

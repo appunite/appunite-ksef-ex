@@ -17,6 +17,7 @@ defmodule KsefHubWeb.CertificateLive do
 
   require Logger
 
+  alias KsefHub.Companies
   alias KsefHub.Credentials
   alias KsefHub.Credentials.{Encryption, UserCertificate}
   alias KsefHub.KsefClient.AuthWorker
@@ -195,8 +196,7 @@ defmodule KsefHubWeb.CertificateLive do
 
       case Credentials.replace_active_user_certificate(user.id, attrs) do
         {:ok, _user_cert} ->
-          ensure_credential_exists(company)
-          enqueue_auth(company.id)
+          ensure_credentials_and_auth_for_user(user)
 
           {:noreply,
            socket
@@ -214,25 +214,19 @@ defmodule KsefHubWeb.CertificateLive do
     end
   end
 
-  @spec ensure_credential_exists(KsefHub.Companies.Company.t()) :: :ok
-  defp ensure_credential_exists(company) do
-    case Credentials.get_active_credential(company.id) do
-      nil ->
-        case Credentials.replace_active_credential(company.id, %{}) do
-          {:ok, _credential} ->
-            :ok
+  @spec ensure_credentials_and_auth_for_user(KsefHub.Accounts.User.t()) :: :ok
+  defp ensure_credentials_and_auth_for_user(user) do
+    user.id
+    |> Companies.list_companies_for_user()
+    |> Enum.each(fn company ->
+      case Credentials.ensure_credential_for_company(company.id) do
+        {:ok, _credential} ->
+          enqueue_auth(company.id)
 
-          {:error, changeset} ->
-            Logger.warning(
-              "Failed to create credential for company #{company.id}: #{inspect(changeset.errors)}"
-            )
-
-            :ok
-        end
-
-      _credential ->
-        :ok
-    end
+        {:error, _changeset} ->
+          Logger.warning("Failed to create credential for company #{company.id}")
+      end
+    end)
   end
 
   @spec non_empty_or_nil(String.t() | nil) :: String.t() | nil

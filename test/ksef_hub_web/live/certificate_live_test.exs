@@ -384,6 +384,53 @@ defmodule KsefHubWeb.CertificateLiveTest do
     end
   end
 
+  describe "certificate upload creates credentials for all companies" do
+    test "creates credentials for all user's companies on upload", %{
+      conn: conn,
+      user: user,
+      company: company
+    } do
+      # User owns a second company
+      second_company = insert(:company, nip: "9876543210")
+      insert(:membership, user: user, company: second_company, role: :owner)
+
+      KsefHub.Credentials.Pkcs12Converter.Mock
+      |> expect(:convert, fn _key, _crt, nil ->
+        {:ok, %{p12_data: "fake-p12", p12_password: "generated"}}
+      end)
+
+      CertificateInfo.Mock
+      |> expect(:extract, fn "fake-p12", "generated" ->
+        {:ok, %{subject: "CN=Test", expires_at: ~D[2026-12-31]}}
+      end)
+
+      {:ok, view, _html} = live(conn, ~p"/c/#{company.id}/settings/certificates")
+
+      key_input =
+        file_input(view, "form[phx-submit=save]", :private_key, [
+          %{name: "test.key", content: "key-data", type: "application/x-pem-file"}
+        ])
+
+      crt_input =
+        file_input(view, "form[phx-submit=save]", :certificate_crt, [
+          %{name: "test.crt", content: "crt-data", type: "application/x-pem-file"}
+        ])
+
+      render_upload(key_input, "test.key")
+      render_upload(crt_input, "test.crt")
+
+      view
+      |> form("form[phx-submit=save]", credential: %{key_passphrase: ""})
+      |> render_submit()
+
+      assert has_element?(view, "#flash-info", "Certificate uploaded successfully.")
+
+      # Both companies should have active credentials
+      assert Credentials.get_active_credential(company.id)
+      assert Credentials.get_active_credential(second_company.id)
+    end
+  end
+
   describe "remove certificate" do
     test "deactivates the user certificate", %{conn: conn, user: user, company: company} do
       cert = insert(:user_certificate, user: user, is_active: true)
