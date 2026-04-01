@@ -149,9 +149,21 @@ defmodule KsefHub.InvoiceClassifier do
   defp persist_and_apply(invoice, %{attrs: attrs, category: category, tag_name: tag_name}) do
     Repo.transaction(fn ->
       updated = update_prediction_fields!(invoice, attrs)
-      if category, do: apply_category_safely(updated, category)
-      if tag_name, do: apply_tag_safely(updated, tag_name)
-      Repo.reload!(updated)
+      cat_applied = if category, do: apply_category_safely(updated, category), else: false
+      tag_applied = if tag_name, do: apply_tag_safely(updated, tag_name), else: false
+
+      final = Repo.reload!(updated)
+
+      # Recompute status based on what actually applied
+      actual_status = if cat_applied or tag_applied, do: :predicted, else: :needs_review
+
+      if actual_status != attrs[:prediction_status] do
+        final
+        |> Invoice.prediction_changeset(%{prediction_status: actual_status})
+        |> Repo.update!()
+      else
+        final
+      end
     end)
   end
 
@@ -162,18 +174,21 @@ defmodule KsefHub.InvoiceClassifier do
     |> Repo.update!()
   end
 
-  @spec apply_category_safely(Invoice.t(), Category.t()) :: :ok
+  @spec apply_category_safely(Invoice.t(), Category.t()) :: boolean()
   defp apply_category_safely(invoice, category) do
     case Invoices.set_invoice_category(invoice, category.id) do
-      {:ok, _} -> :ok
-      {:error, reason} -> Logger.warning("Failed to apply predicted category: #{inspect(reason)}")
+      {:ok, _} -> true
+      {:error, reason} ->
+        Logger.warning("Failed to apply predicted category: #{inspect(reason)}")
+        false
     end
   end
 
-  @spec apply_tag_safely(Invoice.t(), String.t()) :: :ok
+  @spec apply_tag_safely(Invoice.t(), String.t()) :: boolean()
   defp apply_tag_safely(invoice, tag_name) do
-    {:ok, _} = Invoices.add_invoice_tag(invoice, tag_name)
-    :ok
+    {:ok, updated} = Invoices.add_invoice_tag(invoice, tag_name)
+    # Tag was applied if it's now present on the invoice
+    tag_name in (updated.tags || [])
   end
 
   @spec find_category_by_identifier(Ecto.UUID.t(), String.t() | nil) :: Category.t() | nil

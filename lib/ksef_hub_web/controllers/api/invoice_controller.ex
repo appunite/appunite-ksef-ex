@@ -970,7 +970,12 @@ defmodule KsefHubWeb.Api.InvoiceController do
         _ -> nil
       end
 
-    tags = Invoices.list_distinct_tags(company_id, type)
+    tags =
+      Invoices.list_distinct_tags(company_id, type,
+        role: conn.assigns[:current_role],
+        user_id: conn.assigns.api_token.created_by_id
+      )
+
     json(conn, %{data: tags})
   end
 

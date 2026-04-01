@@ -1396,11 +1396,29 @@ defmodule KsefHub.Invoices do
   @spec set_invoice_tags(Invoice.t(), [String.t()]) ::
           {:ok, Invoice.t()} | {:error, Ecto.Changeset.t()}
   def set_invoice_tags(%Invoice{} = invoice, tags) when is_list(tags) do
-    normalized = tags |> Enum.map(&String.trim/1) |> Enum.reject(&(&1 == "")) |> Enum.uniq()
+    if Enum.all?(tags, &is_binary/1) do
+      normalized = tags |> Enum.map(&String.trim/1) |> Enum.reject(&(&1 == "")) |> Enum.uniq()
 
-    invoice
-    |> Invoice.tags_changeset(%{tags: normalized})
-    |> Repo.update()
+      invoice
+      |> Invoice.tags_changeset(%{tags: normalized})
+      |> Repo.update()
+    else
+      changeset =
+        invoice
+        |> Ecto.Changeset.change()
+        |> Ecto.Changeset.add_error(:tags, "all tags must be strings")
+
+      {:error, changeset}
+    end
+  end
+
+  def set_invoice_tags(%Invoice{} = invoice, _tags) do
+    changeset =
+      invoice
+      |> Ecto.Changeset.change()
+      |> Ecto.Changeset.add_error(:tags, "must be a list")
+
+    {:error, changeset}
   end
 
   @doc "Adds a single tag to an invoice (idempotent). Trims whitespace. Uses atomic DB update with validation guards."
@@ -1427,13 +1445,14 @@ defmodule KsefHub.Invoices do
   Lists distinct tag values used on invoices for a company,
   optionally filtered by invoice type. Ordered by most recently used.
   """
-  @spec list_distinct_tags(Ecto.UUID.t(), atom() | nil) :: [String.t()]
-  def list_distinct_tags(company_id, type \\ nil) do
+  @spec list_distinct_tags(Ecto.UUID.t(), atom() | nil, keyword()) :: [String.t()]
+  def list_distinct_tags(company_id, type \\ nil, opts \\ []) do
     base =
       Invoice
       |> where([i], i.company_id == ^company_id)
       |> then(fn q -> if type, do: where(q, [i], i.type == ^type), else: q end)
       |> where([i], fragment("array_length(?, 1) > 0", i.tags))
+      |> maybe_filter_by_access(opts)
 
     from(
       t in subquery(

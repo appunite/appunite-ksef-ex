@@ -64,7 +64,11 @@ defmodule KsefHubWeb.InvoiceLive.Classify do
 
     categories = Invoices.list_categories(company.id)
     grouped = group_categories(categories)
-    distinct_tags = Invoices.list_distinct_tags(company.id, invoice.type)
+    distinct_tags =
+      Invoices.list_distinct_tags(company.id, invoice.type,
+        role: socket.assigns[:current_role],
+        user_id: socket.assigns[:current_user] && socket.assigns.current_user.id
+      )
     current_tags = MapSet.new(invoice.tags)
     # Merge invoice's own tags into the list so they always appear as checkboxes.
     # Preserves recency order from list_distinct_tags, appending any missing invoice tags at the end.

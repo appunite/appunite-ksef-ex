@@ -212,7 +212,11 @@ defmodule KsefHubWeb.DashboardLive do
           cert_expires_at: user_cert && user_cert.not_after,
           cert_active: credential != nil && credential.is_active && user_cert != nil,
           categories: Invoices.list_categories(company.id),
-          tags: Invoices.list_distinct_tags(company.id, :expense)
+          tags:
+            Invoices.list_distinct_tags(company.id, :expense,
+              role: socket.assigns[:current_role],
+              user_id: socket.assigns[:current_user] && socket.assigns.current_user.id
+            )
         )
     end
   end

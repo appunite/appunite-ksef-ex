@@ -52,7 +52,10 @@ defmodule KsefHubWeb.InvoiceLive.Index do
 
     all_tags =
       if company_id do
-        Invoices.list_distinct_tags(company_id, filters[:type])
+        Invoices.list_distinct_tags(company_id, filters[:type],
+          role: role,
+          user_id: socket.assigns[:current_user] && socket.assigns.current_user.id
+        )
       else
         []
       end
