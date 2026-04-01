@@ -389,7 +389,7 @@ defmodule KsefHub.InvoicesTest do
 
     test "preloads category and tags on entries", %{company: company} do
       category = insert(:category, company: company)
-      invoice = insert(:invoice, company: company, category: category, tags: ["monthly"])
+      _invoice = insert(:invoice, company: company, category: category, tags: ["monthly"])
 
       result = Invoices.list_invoices_paginated(company.id)
 

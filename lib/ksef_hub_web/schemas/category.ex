@@ -56,6 +56,7 @@ defmodule KsefHubWeb.Schemas.Category do
     required: [:id, :identifier, :sort_order],
     example: %{
       id: "a1b2c3d4-e5f6-7890-abcd-ef1234567890",
+      company_id: "d4e5f6a7-b8c9-0123-4567-89abcdef0123",
       identifier: "operations:utilities",
       name: "Utilities",
       emoji: "⚡",
