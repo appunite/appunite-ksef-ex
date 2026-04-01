@@ -118,14 +118,12 @@ defmodule KsefHub.InvoiceClassifier do
     }
   end
 
-  @max_tag_length 100
-
   @spec normalize_tag_label(String.t() | nil) :: String.t() | nil
   defp normalize_tag_label(nil), do: nil
 
   defp normalize_tag_label(label) when is_binary(label) do
     trimmed = String.trim(label)
-    if trimmed != "" and String.length(trimmed) <= @max_tag_length, do: trimmed
+    if trimmed != "" and String.length(trimmed) <= Invoice.max_tag_length(), do: trimmed
   end
 
   defp normalize_tag_label(_), do: nil

@@ -228,6 +228,14 @@ defmodule KsefHub.Invoices.Invoice do
   @max_tags 50
   @max_tag_length 100
 
+  @doc "Returns the maximum number of tags allowed per invoice."
+  @spec max_tags() :: pos_integer()
+  def max_tags, do: @max_tags
+
+  @doc "Returns the maximum length of a single tag string."
+  @spec max_tag_length() :: pos_integer()
+  def max_tag_length, do: @max_tag_length
+
   @doc "Builds a changeset for setting tags as a string array."
   @spec tags_changeset(t(), map()) :: Ecto.Changeset.t()
   def tags_changeset(invoice, attrs) do

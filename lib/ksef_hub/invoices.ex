@@ -1403,17 +1403,18 @@ defmodule KsefHub.Invoices do
     |> Repo.update()
   end
 
-  @doc "Adds a single tag to an invoice (idempotent). Trims whitespace. Uses atomic DB update to avoid stale-read races."
+  @doc "Adds a single tag to an invoice (idempotent). Trims whitespace. Uses atomic DB update with validation guards."
   @spec add_invoice_tag(Invoice.t(), String.t()) :: {:ok, Invoice.t()}
   def add_invoice_tag(%Invoice{} = invoice, tag_name) when is_binary(tag_name) do
     trimmed = String.trim(tag_name)
 
-    if trimmed == "" do
+    if trimmed == "" or String.length(trimmed) > Invoice.max_tag_length() do
       {:ok, invoice}
     else
       Invoice
       |> where([i], i.id == ^invoice.id)
       |> where([i], fragment("NOT ? = ANY(?)", ^trimmed, i.tags))
+      |> where([i], fragment("coalesce(array_length(?, 1), 0) < ?", i.tags, ^Invoice.max_tags()))
       |> Repo.update_all(
         set: [tags: dynamic([i], fragment("array_append(?, ?)", i.tags, ^trimmed))]
       )
