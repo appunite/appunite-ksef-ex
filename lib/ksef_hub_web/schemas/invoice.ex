@@ -142,8 +142,8 @@ defmodule KsefHubWeb.Schemas.Invoice do
       },
       tags: %Schema{
         type: :array,
-        items: KsefHubWeb.Schemas.Tag,
-        description: "Tags assigned to this invoice (included in show response)."
+        items: %Schema{type: :string},
+        description: "Tags assigned to this invoice."
       },
       duplicate_of_id: %Schema{
         type: :string,

@@ -34,8 +34,9 @@ defmodule KsefHubWeb.InvoiceLive.ClassifyTest do
       insert(:category, company: company, identifier: "finance:invoices", emoji: "💰")
       insert(:category, company: company, identifier: "finance:payroll", emoji: "💵")
       insert(:category, company: company, identifier: "ops:hosting", emoji: "🖥")
-      insert(:tag, company: company, name: "monthly")
-      insert(:tag, company: company, name: "quarterly")
+      # Create invoices with tags so list_distinct_tags returns them
+      insert(:invoice, type: :expense, company: company, tags: ["monthly"])
+      insert(:invoice, type: :expense, company: company, tags: ["quarterly"])
 
       invoice = insert(:invoice, type: :expense, company: company)
 
@@ -89,25 +90,25 @@ defmodule KsefHubWeb.InvoiceLive.ClassifyTest do
 
   describe "tag toggling" do
     test "toggling a tag updates local state", %{conn: conn, company: company} do
-      tag = insert(:tag, company: company, name: "monthly")
+      insert(:invoice, type: :expense, company: company, tags: ["monthly"])
       invoice = insert(:invoice, type: :expense, company: company)
 
       {:ok, view, _html} = live(conn, ~p"/c/#{company.id}/invoices/#{invoice.id}/classify")
 
       # Toggle tag on
       view
-      |> element(~s(input[phx-value-tag-id="#{tag.id}"]))
+      |> element(~s(input[phx-value-tag-name="monthly"]))
       |> render_click()
 
       # Tag should now be checked
-      assert has_element?(view, ~s(input[phx-value-tag-id="#{tag.id}"][checked]))
+      assert has_element?(view, ~s(input[phx-value-tag-name="monthly"][checked]))
     end
   end
 
   describe "save" do
     test "persists category and tags, redirects to show", %{conn: conn, company: company} do
       cat = insert(:category, company: company, identifier: "finance:invoices")
-      tag = insert(:tag, company: company, name: "monthly")
+      insert(:invoice, type: :expense, company: company, tags: ["monthly"])
       invoice = insert(:invoice, type: :expense, company: company)
 
       {:ok, view, _html} = live(conn, ~p"/c/#{company.id}/invoices/#{invoice.id}/classify")
@@ -117,7 +118,7 @@ defmodule KsefHubWeb.InvoiceLive.ClassifyTest do
       view |> element(~s([data-testid="category-#{cat.id}"])) |> render_click()
 
       # Toggle tag
-      view |> element(~s(input[phx-value-tag-id="#{tag.id}"])) |> render_click()
+      view |> element(~s(input[phx-value-tag-name="monthly"])) |> render_click()
 
       # Save
       view |> element(~s([data-testid="save-classification"])) |> render_click()
@@ -127,7 +128,7 @@ defmodule KsefHubWeb.InvoiceLive.ClassifyTest do
       # Verify persistence
       updated = Invoices.get_invoice_with_details!(company.id, invoice.id)
       assert updated.category_id == cat.id
-      assert Enum.any?(updated.tags, &(&1.id == tag.id))
+      assert "monthly" in updated.tags
     end
 
     test "marks predicted invoice as manual on save", %{conn: conn, company: company} do
@@ -190,23 +191,30 @@ defmodule KsefHubWeb.InvoiceLive.ClassifyTest do
 
   describe "tag visibility (show more / show less)" do
     test "with >8 tags, only first 8 are visible initially", %{conn: conn, company: company} do
-      tags =
+      tag_names =
         for i <- 1..12 do
-          insert(:tag, company: company, name: "tag-#{String.pad_leading("#{i}", 2, "0")}")
+          "tag-#{String.pad_leading("#{i}", 2, "0")}"
         end
+
+      # Create invoices with these tags so list_distinct_tags returns them
+      for name <- tag_names do
+        insert(:invoice, type: :expense, company: company, tags: [name])
+      end
 
       invoice = insert(:invoice, type: :expense, company: company)
 
       {:ok, view, _html} = live(conn, ~p"/c/#{company.id}/invoices/#{invoice.id}/classify")
 
-      # First 8 should be visible
-      for tag <- Enum.take(tags, 8) do
-        assert has_element?(view, ~s(input[phx-value-tag-id="#{tag.id}"]))
+      # First 8 should be visible (sorted alphabetically)
+      sorted = Enum.sort(tag_names)
+
+      for name <- Enum.take(sorted, 8) do
+        assert has_element?(view, ~s(input[phx-value-tag-name="#{name}"]))
       end
 
       # Tags 9-12 should be hidden
-      for tag <- Enum.drop(tags, 8) do
-        refute has_element?(view, ~s(input[phx-value-tag-id="#{tag.id}"]))
+      for name <- Enum.drop(sorted, 8) do
+        refute has_element?(view, ~s(input[phx-value-tag-name="#{name}"]))
       end
 
       # "Show more" button should be present
@@ -215,10 +223,14 @@ defmodule KsefHubWeb.InvoiceLive.ClassifyTest do
     end
 
     test "clicking 'Show more' reveals all tags", %{conn: conn, company: company} do
-      tags =
+      tag_names =
         for i <- 1..10 do
-          insert(:tag, company: company, name: "tag-#{String.pad_leading("#{i}", 2, "0")}")
+          "tag-#{String.pad_leading("#{i}", 2, "0")}"
         end
+
+      for name <- tag_names do
+        insert(:invoice, type: :expense, company: company, tags: [name])
+      end
 
       invoice = insert(:invoice, type: :expense, company: company)
 
@@ -227,8 +239,8 @@ defmodule KsefHubWeb.InvoiceLive.ClassifyTest do
       view |> element(~s([data-testid="toggle-show-all-tags"])) |> render_click()
 
       # All tags should be visible now
-      for tag <- tags do
-        assert has_element?(view, ~s(input[phx-value-tag-id="#{tag.id}"]))
+      for name <- tag_names do
+        assert has_element?(view, ~s(input[phx-value-tag-name="#{name}"]))
       end
 
       # Button should now say "Show less"
@@ -236,22 +248,28 @@ defmodule KsefHubWeb.InvoiceLive.ClassifyTest do
     end
 
     test "selected tags beyond top 8 are always visible", %{conn: conn, company: company} do
-      tags =
+      tag_names =
         for i <- 1..10 do
-          insert(:tag, company: company, name: "tag-#{String.pad_leading("#{i}", 2, "0")}")
+          "tag-#{String.pad_leading("#{i}", 2, "0")}"
         end
 
-      tag_9 = Enum.at(tags, 8)
+      for name <- tag_names do
+        insert(:invoice, type: :expense, company: company, tags: [name])
+      end
+
+      sorted = Enum.sort(tag_names)
+      tag_9 = Enum.at(sorted, 8)
+
       invoice = insert(:invoice, type: :expense, company: company, tags: [tag_9])
 
       {:ok, view, _html} = live(conn, ~p"/c/#{company.id}/invoices/#{invoice.id}/classify")
 
       # Tag 9 should be visible because it's selected
-      assert has_element?(view, ~s(input[phx-value-tag-id="#{tag_9.id}"][checked]))
+      assert has_element?(view, ~s(input[phx-value-tag-name="#{tag_9}"][checked]))
 
       # Tag 10 should still be hidden (not selected)
-      tag_10 = Enum.at(tags, 9)
-      refute has_element?(view, ~s(input[phx-value-tag-id="#{tag_10.id}"]))
+      tag_10 = Enum.at(sorted, 9)
+      refute has_element?(view, ~s(input[phx-value-tag-name="#{tag_10}"]))
     end
   end
 
@@ -279,13 +297,13 @@ defmodule KsefHubWeb.InvoiceLive.ClassifyTest do
       assert html =~ "Classification"
     end
 
-    test "reviewer cannot create tags inline", %{conn: conn, company: company} do
+    test "reviewer can add tags inline", %{conn: conn, company: company} do
       invoice = insert(:invoice, type: :expense, company: company)
 
       {:ok, view, _html} = live(conn, ~p"/c/#{company.id}/invoices/#{invoice.id}/classify")
 
-      html = render_click(view, "create_tag", %{"name" => "sneaky-tag"})
-      assert html =~ "permission"
+      html = render_click(view, "create_tag", %{"name" => "new-tag"})
+      assert html =~ "new-tag"
     end
 
     test "accountant cannot save classification", ctx do

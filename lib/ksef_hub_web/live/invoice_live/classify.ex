@@ -61,12 +61,13 @@ defmodule KsefHubWeb.InvoiceLive.Classify do
       invoice.type == :expense && Authorization.can?(role, :set_invoice_category)
 
     can_set_tags = Authorization.can?(role, :set_invoice_tags)
-    can_manage_tags = Authorization.can?(role, :manage_tags)
 
     categories = Invoices.list_categories(company.id)
     grouped = group_categories(categories)
-    all_tags = Invoices.list_tags(company.id, invoice.type)
-    current_tag_ids = MapSet.new(invoice.tags, & &1.id)
+    distinct_tags = Invoices.list_distinct_tags(company.id, invoice.type)
+    current_tags = MapSet.new(invoice.tags)
+    # Merge invoice's own tags into the list so they always appear as checkboxes
+    all_tags = Enum.sort(Enum.uniq(distinct_tags ++ invoice.tags))
     project_tags = Invoices.list_project_tags(company.id)
 
     category_cost_line_map =
@@ -81,14 +82,13 @@ defmodule KsefHubWeb.InvoiceLive.Classify do
        grouped_categories: grouped,
        all_tags: all_tags,
        selected_category_id: invoice.category_id,
-       selected_tag_ids: current_tag_ids,
+       selected_tags: current_tags,
        selected_cost_line: invoice.cost_line,
        selected_project_tag: invoice.project_tag,
        project_tags: project_tags,
        category_cost_line_map: category_cost_line_map,
        can_set_category: can_set_category,
        can_set_tags: can_set_tags,
-       can_manage_tags: can_manage_tags,
        new_tag_form: to_form(%{"name" => ""}),
        new_project_tag_form: to_form(%{"name" => ""}),
        tag_form_key: 0,
@@ -147,25 +147,18 @@ defmodule KsefHubWeb.InvoiceLive.Classify do
     end
   end
 
-  def handle_event("toggle_tag", %{"tag-id" => tag_id}, socket) do
-    allowed_ids = MapSet.new(socket.assigns.all_tags, & &1.id)
+  def handle_event("toggle_tag", %{"tag-name" => tag_name}, socket) do
+    if socket.assigns.can_set_tags do
+      current = socket.assigns.selected_tags
 
-    cond do
-      not socket.assigns.can_set_tags ->
-        {:noreply, put_flash(socket, :error, "You don't have permission to manage tags.")}
+      updated =
+        if MapSet.member?(current, tag_name),
+          do: MapSet.delete(current, tag_name),
+          else: MapSet.put(current, tag_name)
 
-      not MapSet.member?(allowed_ids, tag_id) ->
-        {:noreply, socket}
-
-      true ->
-        current = socket.assigns.selected_tag_ids
-
-        updated =
-          if MapSet.member?(current, tag_id),
-            do: MapSet.delete(current, tag_id),
-            else: MapSet.put(current, tag_id)
-
-        {:noreply, assign(socket, :selected_tag_ids, updated)}
+      {:noreply, assign(socket, :selected_tags, updated)}
+    else
+      {:noreply, put_flash(socket, :error, "You don't have permission to manage tags.")}
     end
   end
 
@@ -195,7 +188,7 @@ defmodule KsefHubWeb.InvoiceLive.Classify do
   end
 
   def handle_event("create_tag", %{"name" => name}, socket) do
-    if socket.assigns.can_manage_tags do
+    if socket.assigns.can_set_tags do
       create_tag(socket, name)
     else
       {:noreply, put_flash(socket, :error, "You don't have permission to manage tags.")}
@@ -227,27 +220,19 @@ defmodule KsefHubWeb.InvoiceLive.Classify do
         {:noreply, socket}
 
       trimmed ->
-        invoice = socket.assigns.invoice
-        company_id = invoice.company_id
+        all_tags =
+          if trimmed in socket.assigns.all_tags,
+            do: socket.assigns.all_tags,
+            else: Enum.sort([trimmed | socket.assigns.all_tags])
 
-        case Invoices.create_tag(company_id, %{name: trimmed, type: invoice.type}) do
-          {:ok, tag} ->
-            {:noreply,
-             socket
-             |> assign(
-               all_tags: Invoices.list_tags(company_id, invoice.type),
-               selected_tag_ids: MapSet.put(socket.assigns.selected_tag_ids, tag.id),
-               new_tag_form: to_form(%{"name" => ""}),
-               tag_form_key: socket.assigns.tag_form_key + 1
-             )}
-
-          {:error, %Ecto.Changeset{} = cs} ->
-            msg = changeset_message(cs)
-            {:noreply, put_flash(socket, :error, "Failed to create tag: #{msg}")}
-
-          {:error, _} ->
-            {:noreply, put_flash(socket, :error, "Failed to create tag.")}
-        end
+        {:noreply,
+         socket
+         |> assign(
+           all_tags: all_tags,
+           selected_tags: MapSet.put(socket.assigns.selected_tags, trimmed),
+           new_tag_form: to_form(%{"name" => ""}),
+           tag_form_key: socket.assigns.tag_form_key + 1
+         )}
     end
   end
 
@@ -256,11 +241,7 @@ defmodule KsefHubWeb.InvoiceLive.Classify do
   defp save_classification(socket) do
     invoice = socket.assigns.invoice
     category_id = socket.assigns.selected_category_id
-    allowed_tag_ids = MapSet.new(socket.assigns.all_tags, & &1.id)
-
-    selected_tags = socket.assigns.selected_tag_ids
-    intersected = MapSet.intersection(selected_tags, allowed_tag_ids)
-    tag_ids = MapSet.to_list(intersected)
+    tag_names = MapSet.to_list(socket.assigns.selected_tags)
 
     can_set_category = socket.assigns.can_set_category
     can_set_tags = socket.assigns.can_set_tags
@@ -278,7 +259,7 @@ defmodule KsefHubWeb.InvoiceLive.Classify do
                  cost_line,
                  can_set_category
                ),
-             {:ok, _tags} <- maybe_set_tags(updated.id, tag_ids, can_set_tags) do
+             {:ok, updated} <- maybe_set_tags(updated, tag_names, can_set_tags) do
           maybe_set_project_tag(updated, project_tag, can_set_tags)
         end
       end)
@@ -314,12 +295,12 @@ defmodule KsefHubWeb.InvoiceLive.Classify do
     end
   end
 
-  @spec maybe_set_tags(Ecto.UUID.t(), [Ecto.UUID.t()], boolean()) ::
-          {:ok, [any()]} | {:error, term()}
-  defp maybe_set_tags(_invoice_id, _tag_ids, false), do: {:ok, []}
+  @spec maybe_set_tags(Invoice.t(), [String.t()], boolean()) ::
+          {:ok, Invoice.t()} | {:error, term()}
+  defp maybe_set_tags(invoice, _tags, false), do: {:ok, invoice}
 
-  defp maybe_set_tags(invoice_id, tag_ids, true),
-    do: Invoices.set_invoice_tags(invoice_id, tag_ids)
+  defp maybe_set_tags(invoice, tags, true),
+    do: Invoices.set_invoice_tags(invoice, tags)
 
   @spec apply_custom_project_tag(Phoenix.LiveView.Socket.t(), String.t()) ::
           {:noreply, Phoenix.LiveView.Socket.t()}
@@ -484,21 +465,21 @@ defmodule KsefHubWeb.InvoiceLive.Classify do
 
         <div class="space-y-1">
           <label
-            :for={tag <- visible_tags(@all_tags, @selected_tag_ids, @show_all_tags)}
+            :for={tag <- visible_tags(@all_tags, @selected_tags, @show_all_tags)}
             class="flex items-center gap-2 cursor-pointer hover:bg-muted rounded px-2 py-1.5"
           >
             <input
               type="checkbox"
               class="size-3.5 rounded border border-input bg-background accent-shad-primary"
-              checked={MapSet.member?(@selected_tag_ids, tag.id)}
+              checked={MapSet.member?(@selected_tags, tag)}
               phx-click="toggle_tag"
-              phx-value-tag-id={tag.id}
+              phx-value-tag-name={tag}
             />
-            <span class="text-sm">{tag.name}</span>
+            <span class="text-sm">{tag}</span>
           </label>
         </div>
 
-        <% hidden_count = hidden_tag_count(@all_tags, @selected_tag_ids) %>
+        <% hidden_count = hidden_tag_count(@all_tags, @selected_tags) %>
         <button
           :if={hidden_count > 0 or @show_all_tags}
           phx-click="toggle_show_all_tags"
@@ -519,7 +500,7 @@ defmodule KsefHubWeb.InvoiceLive.Classify do
 
         <%!-- New Tag Inline --%>
         <.form
-          :if={@can_manage_tags}
+          :if={@can_set_tags}
           for={@new_tag_form}
           phx-submit="create_tag"
           id={"new-tag-form-#{@tag_form_key}"}
@@ -655,14 +636,14 @@ defmodule KsefHubWeb.InvoiceLive.Classify do
 
   @default_visible_limit 8
 
-  @spec visible_tags([map()], MapSet.t(), boolean()) :: [map()]
-  defp visible_tags(all_tags, selected_tag_ids, show_all) do
-    visible_items(all_tags, show_all, &MapSet.member?(selected_tag_ids, &1.id))
+  @spec visible_tags([String.t()], MapSet.t(), boolean()) :: [String.t()]
+  defp visible_tags(all_tags, selected_tags, show_all) do
+    visible_items(all_tags, show_all, &MapSet.member?(selected_tags, &1))
   end
 
-  @spec hidden_tag_count([map()], MapSet.t()) :: non_neg_integer()
-  defp hidden_tag_count(all_tags, selected_tag_ids) do
-    hidden_item_count(all_tags, &MapSet.member?(selected_tag_ids, &1.id))
+  @spec hidden_tag_count([String.t()], MapSet.t()) :: non_neg_integer()
+  defp hidden_tag_count(all_tags, selected_tags) do
+    hidden_item_count(all_tags, &MapSet.member?(selected_tags, &1))
   end
 
   @spec visible_project_tags([String.t()], String.t() | nil, boolean()) :: [String.t()]
@@ -688,16 +669,5 @@ defmodule KsefHubWeb.InvoiceLive.Classify do
     all_items
     |> Enum.drop(@default_visible_limit)
     |> Enum.count(&(not selected?.(&1)))
-  end
-
-  @spec changeset_message(Ecto.Changeset.t()) :: String.t()
-  defp changeset_message(changeset) do
-    changeset
-    |> Ecto.Changeset.traverse_errors(fn {msg, opts} ->
-      Regex.replace(~r"%{(\w+)}", msg, fn _, key ->
-        opts |> Keyword.get(String.to_existing_atom(key), key) |> to_string()
-      end)
-    end)
-    |> Enum.map_join(", ", fn {k, v} -> "#{k} #{Enum.join(v, ", ")}" end)
   end
 end

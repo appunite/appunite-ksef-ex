@@ -27,7 +27,7 @@ defmodule KsefHubWeb.SettingsLive.GeneralTest do
 
       assert has_element?(view, "nav[aria-label='Settings']")
 
-      for tab <- ~w(General Exports Syncs Categories Tags Team Certificates) ++ ["API Tokens"] do
+      for tab <- ~w(General Exports Syncs Categories Team Certificates) ++ ["API Tokens"] do
         assert has_element?(view, "nav[aria-label='Settings'] a", tab)
       end
     end

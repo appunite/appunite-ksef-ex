@@ -68,7 +68,7 @@ defmodule KsefHubWeb.DashboardLive do
       |> put_non_empty("billing_date_from", params["billing_date_from"])
       |> put_non_empty("billing_date_to", params["billing_date_to"])
       |> put_non_empty("category_id", params["category_id"])
-      |> put_non_empty("tag_id", params["tag_id"])
+      |> put_non_empty("tag", params["tag"])
 
     company_id = socket.assigns.current_company.id
 
@@ -110,8 +110,7 @@ defmodule KsefHubWeb.DashboardLive do
   @spec assign_filter_state(Phoenix.LiveView.Socket.t(), map()) :: Phoenix.LiveView.Socket.t()
   defp assign_filter_state(socket, filters) do
     categories = socket.assigns[:categories] || []
-    tags = socket.assigns[:tags] || []
-    active_filters = build_active_filters(filters, categories, tags)
+    active_filters = build_active_filters(filters, categories)
 
     assign(socket,
       filters: filters,
@@ -129,13 +128,13 @@ defmodule KsefHubWeb.DashboardLive do
       "billing_date_to" =>
         (filters[:billing_date_to] && Date.to_iso8601(filters[:billing_date_to])) || "",
       "category_id" => filters[:category_id] || "",
-      "tag_id" => first_tag_id(filters) || ""
+      "tag" => first_tag(filters) || ""
     }
     |> to_form(as: :filters)
   end
 
-  @spec build_active_filters(map(), list(), list()) :: [map()]
-  defp build_active_filters(filters, categories, tags) do
+  @spec build_active_filters(map(), list()) :: [map()]
+  defp build_active_filters(filters, categories) do
     []
     |> maybe_add_chip(filters[:category_id], "category_id", "Category", fn id ->
       case Enum.find(categories, &(&1.id == id)) do
@@ -143,12 +142,7 @@ defmodule KsefHubWeb.DashboardLive do
         cat -> cat.name || cat.identifier
       end
     end)
-    |> maybe_add_chip(first_tag_id(filters), "tag_id", "Tag", fn id ->
-      case Enum.find(tags, &(&1.id == id)) do
-        nil -> id
-        tag -> tag.name
-      end
-    end)
+    |> maybe_add_chip(first_tag(filters), "tag", "Tag", & &1)
     |> maybe_add_chip(
       filters[:billing_date_from],
       "billing_date_from",
@@ -166,9 +160,9 @@ defmodule KsefHubWeb.DashboardLive do
     [%{key: key, label: label, value: formatter.(value)} | acc]
   end
 
-  @spec first_tag_id(map()) :: String.t() | nil
-  defp first_tag_id(%{tag_ids: [id | _]}), do: id
-  defp first_tag_id(_), do: nil
+  @spec first_tag(map()) :: String.t() | nil
+  defp first_tag(%{tags: [tag | _]}), do: tag
+  defp first_tag(_), do: nil
 
   @spec load_data(Phoenix.LiveView.Socket.t()) :: Phoenix.LiveView.Socket.t()
   defp load_data(socket) do
@@ -218,7 +212,7 @@ defmodule KsefHubWeb.DashboardLive do
           cert_expires_at: user_cert && user_cert.not_after,
           cert_active: credential != nil && credential.is_active && user_cert != nil,
           categories: Invoices.list_categories(company.id),
-          tags: Invoices.list_tags(company.id, :expense)
+          tags: Invoices.list_distinct_tags(company.id, :expense)
         )
     end
   end
@@ -298,7 +292,7 @@ defmodule KsefHubWeb.DashboardLive do
     |> maybe_parse_date(:billing_date_from, params["billing_date_from"])
     |> maybe_parse_date(:billing_date_to, params["billing_date_to"])
     |> maybe_parse_string(:category_id, params["category_id"])
-    |> maybe_parse_tag_id(params["tag_id"])
+    |> maybe_parse_tag(params["tag"])
   end
 
   @spec maybe_parse_date(map(), atom(), String.t() | nil) :: map()
@@ -317,10 +311,10 @@ defmodule KsefHubWeb.DashboardLive do
   defp maybe_parse_string(filters, _key, ""), do: filters
   defp maybe_parse_string(filters, key, value), do: Map.put(filters, key, value)
 
-  @spec maybe_parse_tag_id(map(), String.t() | nil) :: map()
-  defp maybe_parse_tag_id(filters, nil), do: filters
-  defp maybe_parse_tag_id(filters, ""), do: filters
-  defp maybe_parse_tag_id(filters, tag_id), do: Map.put(filters, :tag_ids, [tag_id])
+  @spec maybe_parse_tag(map(), String.t() | nil) :: map()
+  defp maybe_parse_tag(filters, nil), do: filters
+  defp maybe_parse_tag(filters, ""), do: filters
+  defp maybe_parse_tag(filters, tag), do: Map.put(filters, :tags, [tag])
 
   @spec filter_query_params(map()) :: map()
   defp filter_query_params(filters) do
@@ -334,7 +328,7 @@ defmodule KsefHubWeb.DashboardLive do
       filters[:billing_date_to] && Date.to_iso8601(filters[:billing_date_to])
     )
     |> put_non_empty("category_id", filters[:category_id])
-    |> put_non_empty("tag_id", first_tag_id(filters))
+    |> put_non_empty("tag", first_tag(filters))
   end
 
   @spec put_non_empty(map(), String.t(), String.t() | nil) :: map()
@@ -409,16 +403,16 @@ defmodule KsefHubWeb.DashboardLive do
           <div :if={@tags != []} class="space-y-1">
             <label class="block text-xs font-medium text-muted-foreground">Tag</label>
             <select
-              name={@form[:tag_id].name}
+              name={@form[:tag].name}
               class="w-full h-9 rounded-md border border-input bg-background px-2 text-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
             >
               <option value="">All</option>
               <option
                 :for={tag <- @tags}
-                value={tag.id}
-                selected={@form[:tag_id].value == tag.id}
+                value={tag}
+                selected={@form[:tag].value == tag}
               >
-                {tag.name}
+                {tag}
               </option>
             </select>
           </div>

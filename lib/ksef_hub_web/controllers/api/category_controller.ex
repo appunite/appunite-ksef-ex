@@ -18,6 +18,8 @@ defmodule KsefHubWeb.Api.CategoryController do
   plug KsefHubWeb.Plugs.RequirePermission,
        :manage_categories when action in [:create, :update, :delete]
 
+  plug KsefHubWeb.Plugs.RequirePermission, :view_invoices when action in [:index, :show]
+
   @category_allowed_keys ~w(identifier name emoji description examples sort_order default_cost_line)
 
   tags(["Expense Categories"])

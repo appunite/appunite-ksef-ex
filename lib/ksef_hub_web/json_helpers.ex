@@ -6,7 +6,7 @@ defmodule KsefHubWeb.JsonHelpers do
   eliminating duplication across controllers.
   """
 
-  alias KsefHub.Invoices.{Category, Tag}
+  alias KsefHub.Invoices.Category
   alias KsefHub.PaymentRequests.PaymentRequest
 
   @doc "Serializes a category struct to a JSON-safe map."
@@ -23,20 +23,6 @@ defmodule KsefHubWeb.JsonHelpers do
       default_cost_line: category.default_cost_line,
       inserted_at: category.inserted_at,
       updated_at: category.updated_at
-    }
-  end
-
-  @doc "Serializes a tag struct to a JSON-safe map."
-  @spec tag_json(Tag.t()) :: map()
-  def tag_json(tag) do
-    %{
-      id: tag.id,
-      name: tag.name,
-      type: to_string(tag.type),
-      description: tag.description,
-      usage_count: Map.get(tag, :usage_count, 0),
-      inserted_at: tag.inserted_at,
-      updated_at: tag.updated_at
     }
   end
 

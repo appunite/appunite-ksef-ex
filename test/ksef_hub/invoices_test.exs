@@ -388,32 +388,26 @@ defmodule KsefHub.InvoicesTest do
 
     test "preloads category and tags on entries", %{company: company} do
       category = insert(:category, company: company)
-      tag = insert(:tag, company: company)
-      invoice = insert(:invoice, company: company, category: category)
-      insert(:invoice_tag, invoice: invoice, tag: tag)
+      invoice = insert(:invoice, company: company, category: category, tags: ["monthly"])
 
       result = Invoices.list_invoices_paginated(company.id)
 
       entry = hd(result.entries)
       assert entry.category.id == category.id
-      assert [loaded_tag] = entry.tags
-      assert loaded_tag.id == tag.id
+      assert entry.tags == ["monthly"]
     end
   end
 
   describe "get_invoice_with_details/3" do
     test "returns invoice with preloaded category and tags", %{company: company} do
       category = insert(:category, company: company)
-      tag = insert(:tag, company: company)
-      invoice = insert(:invoice, company: company, category: category)
-      insert(:invoice_tag, invoice: invoice, tag: tag)
+      invoice = insert(:invoice, company: company, category: category, tags: ["monthly"])
 
       result = Invoices.get_invoice_with_details(company.id, invoice.id)
 
       assert result.id == invoice.id
       assert result.category.id == category.id
-      assert [loaded_tag] = result.tags
-      assert loaded_tag.id == tag.id
+      assert result.tags == ["monthly"]
     end
 
     test "returns nil when invoice not found", %{company: company} do
@@ -2762,22 +2756,16 @@ defmodule KsefHub.InvoicesTest do
     end
 
     test "does not double-count invoices matching multiple tags", %{company: company} do
-      tag1 = insert(:tag, company: company)
-      tag2 = insert(:tag, company: company)
+      insert(:invoice,
+        type: :expense,
+        company: company,
+        billing_date_from: ~D[2026-01-01],
+        billing_date_to: ~D[2026-01-01],
+        net_amount: Decimal.new("100.00"),
+        tags: ["alpha", "beta"]
+      )
 
-      invoice =
-        insert(:invoice,
-          type: :expense,
-          company: company,
-          billing_date_from: ~D[2026-01-01],
-          billing_date_to: ~D[2026-01-01],
-          net_amount: Decimal.new("100.00")
-        )
-
-      insert(:invoice_tag, invoice: invoice, tag: tag1)
-      insert(:invoice_tag, invoice: invoice, tag: tag2)
-
-      result = Invoices.expense_monthly_totals(company.id, %{tag_ids: [tag1.id, tag2.id]})
+      result = Invoices.expense_monthly_totals(company.id, %{tags: ["alpha", "beta"]})
       assert [row] = result
       assert Decimal.equal?(row.net_total, Decimal.new("100.00"))
     end
@@ -2903,23 +2891,18 @@ defmodule KsefHub.InvoicesTest do
 
     test "does not double-count invoices matching multiple tags", %{company: company} do
       cat = insert(:category, company: company, name: "Office", emoji: "🏢")
-      tag1 = insert(:tag, company: company)
-      tag2 = insert(:tag, company: company)
 
-      invoice =
-        insert(:invoice,
-          type: :expense,
-          company: company,
-          billing_date_from: ~D[2026-01-01],
-          billing_date_to: ~D[2026-01-01],
-          net_amount: Decimal.new("250.00"),
-          category_id: cat.id
-        )
+      insert(:invoice,
+        type: :expense,
+        company: company,
+        billing_date_from: ~D[2026-01-01],
+        billing_date_to: ~D[2026-01-01],
+        net_amount: Decimal.new("250.00"),
+        category_id: cat.id,
+        tags: ["alpha", "beta"]
+      )
 
-      insert(:invoice_tag, invoice: invoice, tag: tag1)
-      insert(:invoice_tag, invoice: invoice, tag: tag2)
-
-      result = Invoices.expense_by_category(company.id, %{tag_ids: [tag1.id, tag2.id]})
+      result = Invoices.expense_by_category(company.id, %{tags: ["alpha", "beta"]})
       assert [row] = result
       assert Decimal.equal?(row.net_total, Decimal.new("250.00"))
     end

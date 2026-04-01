@@ -84,9 +84,7 @@ defmodule KsefHubWeb.InvoiceLive.IndexTest do
     end
 
     test "shows tag names in table", %{conn: conn, company: company} do
-      tag = insert(:tag, company: company, name: "monthly")
-      invoice = insert(:invoice, company: company, type: :expense)
-      insert(:invoice_tag, invoice: invoice, tag: tag)
+      insert(:invoice, company: company, type: :expense, tags: ["monthly"])
 
       {:ok, _view, html} = live(conn, ~p"/c/#{company.id}/invoices")
       assert html =~ "monthly"
@@ -247,13 +245,17 @@ defmodule KsefHubWeb.InvoiceLive.IndexTest do
     end
 
     test "filters by tag", %{conn: conn, company: company} do
-      tag = insert(:tag, company: company, name: "quarterly")
-      tagged = insert(:invoice, company: company, type: :expense, seller_name: "Tagged Seller")
-      insert(:invoice_tag, invoice: tagged, tag: tag)
+      insert(:invoice,
+        company: company,
+        type: :expense,
+        seller_name: "Tagged Seller",
+        tags: ["quarterly"]
+      )
+
       insert(:invoice, company: company, type: :expense, seller_name: "Untagged Seller")
 
       {:ok, view, _html} =
-        live(conn, ~p"/c/#{company.id}/invoices?type=expense&tag_id=#{tag.id}")
+        live(conn, ~p"/c/#{company.id}/invoices?type=expense&tag=quarterly")
 
       html = render(view)
       assert html =~ "Tagged Seller"
@@ -273,20 +275,20 @@ defmodule KsefHubWeb.InvoiceLive.IndexTest do
     end
 
     test "tag filter change updates URL", %{conn: conn, company: company} do
-      tag = insert(:tag, company: company, name: "filter-tag")
+      insert(:invoice, company: company, type: :expense, tags: ["filter-tag"])
 
       {:ok, view, _html} = live(conn, ~p"/c/#{company.id}/invoices?type=expense")
 
       view
       |> element("form[phx-change=filter]")
-      |> render_change(%{"filters" => %{"tag_id" => tag.id}})
+      |> render_change(%{"filters" => %{"tag" => "filter-tag"}})
 
-      assert_patched(view, "/c/#{company.id}/invoices?tag_id=#{tag.id}&type=expense")
+      assert_patched(view, "/c/#{company.id}/invoices?tag=filter-tag&type=expense")
     end
 
     test "renders category and tag filter dropdowns", %{conn: conn, company: company} do
       insert(:category, company: company, identifier: "ops:dropdown-test", name: nil)
-      insert(:tag, company: company, name: "dropdown-tag")
+      insert(:invoice, company: company, type: :expense, tags: ["dropdown-tag"])
 
       {:ok, _view, html} = live(conn, ~p"/c/#{company.id}/invoices")
       assert html =~ "ops:dropdown-test"

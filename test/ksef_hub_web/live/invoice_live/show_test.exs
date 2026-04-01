@@ -417,9 +417,7 @@ defmodule KsefHubWeb.InvoiceLive.ShowTest do
     end
 
     test "displays assigned tags as badges", %{conn: conn, company: company} do
-      tag = insert(:tag, company: company, name: "quarterly-report")
-      invoice = insert(:invoice, type: :expense, company: company)
-      insert(:invoice_tag, invoice: invoice, tag: tag)
+      invoice = insert(:invoice, type: :expense, company: company, tags: ["quarterly-report"])
 
       {:ok, _view, html} = live(conn, ~p"/c/#{company.id}/invoices/#{invoice.id}")
       assert html =~ "quarterly-report"
