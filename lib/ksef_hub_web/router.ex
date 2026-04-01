@@ -257,8 +257,6 @@ defmodule KsefHubWeb.Router do
     resources "/categories", CategoryController, except: [:new, :edit]
     resources "/tags", TagController, except: [:new, :edit]
 
-    resources "/tokens", TokenController, only: [:index, :create, :delete]
-
     resources "/payment-requests", PaymentRequestController, only: [:index, :create]
     post "/payment-requests/:id/mark-paid", PaymentRequestController, :mark_paid
     post "/payment-requests/:id/void", PaymentRequestController, :void
