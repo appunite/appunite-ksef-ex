@@ -216,7 +216,7 @@ defmodule KsefHubWeb.CertificateLive do
   @spec ensure_credentials_and_auth_for_user(KsefHub.Accounts.User.t()) :: :ok
   defp ensure_credentials_and_auth_for_user(user) do
     user.id
-    |> Companies.list_companies_for_user()
+    |> Companies.list_owned_companies_for_user()
     |> Enum.each(fn company ->
       case Credentials.ensure_credential_for_company(company.id) do
         {:ok, _credential} ->

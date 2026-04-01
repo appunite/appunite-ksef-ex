@@ -77,6 +77,17 @@ defmodule KsefHub.Companies do
     |> Repo.all()
   end
 
+  @doc "Returns active companies where the user has owner role."
+  @spec list_owned_companies_for_user(Ecto.UUID.t()) :: [Company.t()]
+  def list_owned_companies_for_user(user_id) do
+    Membership
+    |> where([m], m.user_id == ^user_id and m.status == :active and m.role == :owner)
+    |> join(:inner, [m], c in Company, on: c.id == m.company_id and c.is_active == true)
+    |> order_by([m, c], asc: c.name)
+    |> select([m, c], c)
+    |> Repo.all()
+  end
+
   @doc "Returns the first company ID for a user, or nil if the user has no companies."
   @spec first_company_id_for_user(Ecto.UUID.t()) :: Ecto.UUID.t() | nil
   def first_company_id_for_user(user_id) do
