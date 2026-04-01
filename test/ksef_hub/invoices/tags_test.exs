@@ -5,338 +5,142 @@ defmodule KsefHub.Invoices.TagsTest do
 
   alias KsefHub.Invoices
 
-  describe "list_tags/2" do
-    test "returns tags ordered by usage_count desc then name" do
-      company = insert(:company)
-      tag_a = insert(:tag, company: company, name: "alpha")
-      tag_b = insert(:tag, company: company, name: "beta")
-      _tag_c = insert(:tag, company: company, name: "gamma")
-
-      invoice1 = insert(:invoice, company: company)
-      invoice2 = insert(:invoice, company: company)
-
-      insert(:invoice_tag, invoice: invoice1, tag: tag_b)
-      insert(:invoice_tag, invoice: invoice2, tag: tag_b)
-      insert(:invoice_tag, invoice: invoice1, tag: tag_a)
-
-      tags = Invoices.list_tags(company.id)
-
-      assert [
-               %{name: "beta", usage_count: 2},
-               %{name: "alpha", usage_count: 1},
-               %{name: "gamma", usage_count: 0}
-             ] =
-               tags
-    end
-
-    test "returns only tags for the given company" do
-      company = insert(:company)
-      other = insert(:company)
-      insert(:tag, company: company, name: "mine")
-      insert(:tag, company: other, name: "other")
-
-      tags = Invoices.list_tags(company.id)
-
-      assert length(tags) == 1
-      assert hd(tags).name == "mine"
-    end
-
-    test "filters by type when provided" do
-      company = insert(:company)
-      insert(:tag, company: company, name: "expense-tag", type: :expense)
-      insert(:tag, company: company, name: "income-tag", type: :income)
-
-      expense_tags = Invoices.list_tags(company.id, :expense)
-      assert length(expense_tags) == 1
-      assert hd(expense_tags).name == "expense-tag"
-
-      income_tags = Invoices.list_tags(company.id, :income)
-      assert length(income_tags) == 1
-      assert hd(income_tags).name == "income-tag"
-
-      all_tags = Invoices.list_tags(company.id)
-      assert length(all_tags) == 2
-    end
+  setup do
+    company = insert(:company)
+    %{company: company}
   end
 
-  describe "get_tag/2" do
-    test "returns tag by id scoped to company" do
-      company = insert(:company)
-      tag = insert(:tag, company: company)
-
-      assert {:ok, found} = Invoices.get_tag(company.id, tag.id)
-      assert found.id == tag.id
-    end
-
-    test "returns error for tag from different company" do
-      company = insert(:company)
-      other = insert(:company)
-      tag = insert(:tag, company: other)
-
-      assert {:error, :not_found} = Invoices.get_tag(company.id, tag.id)
-    end
-  end
-
-  describe "get_tag!/2" do
-    test "returns tag by id" do
-      company = insert(:company)
-      tag = insert(:tag, company: company)
-
-      assert Invoices.get_tag!(company.id, tag.id).id == tag.id
-    end
-
-    test "raises for non-existent id" do
-      company = insert(:company)
-
-      assert_raise Ecto.NoResultsError, fn ->
-        Invoices.get_tag!(company.id, Ecto.UUID.generate())
-      end
-    end
-  end
-
-  describe "create_tag/2" do
-    test "creates a tag with valid attrs" do
-      company = insert(:company)
-
-      assert {:ok, tag} = Invoices.create_tag(company.id, %{name: "urgent"})
-      assert tag.name == "urgent"
-      assert tag.company_id == company.id
-    end
-
-    test "returns error for missing name" do
-      company = insert(:company)
-
-      assert {:error, changeset} = Invoices.create_tag(company.id, %{})
-      assert errors_on(changeset).name
-    end
-
-    test "returns error for duplicate name within company and type" do
-      company = insert(:company)
-      insert(:tag, company: company, name: "duplicate", type: :expense)
-
-      assert {:error, changeset} =
-               Invoices.create_tag(company.id, %{name: "duplicate", type: :expense})
-
-      assert "has already been taken" in errors_on(changeset).name
-    end
-
-    test "allows same name in different companies" do
-      company1 = insert(:company)
-      company2 = insert(:company)
-      insert(:tag, company: company1, name: "shared")
-
-      assert {:ok, _} = Invoices.create_tag(company2.id, %{name: "shared"})
-    end
-
-    test "allows same name with different types in same company" do
-      company = insert(:company)
-      insert(:tag, company: company, name: "shared", type: :expense)
-
-      assert {:ok, tag} = Invoices.create_tag(company.id, %{name: "shared", type: :income})
-      assert tag.type == :income
-    end
-
-    test "creates tag with type" do
-      company = insert(:company)
-
-      assert {:ok, tag} = Invoices.create_tag(company.id, %{name: "income-tag", type: :income})
-      assert tag.type == :income
-    end
-
-    test "defaults to expense type" do
-      company = insert(:company)
-
-      assert {:ok, tag} = Invoices.create_tag(company.id, %{name: "default-tag"})
-      assert tag.type == :expense
-    end
-  end
-
-  describe "update_tag/2" do
-    test "updates tag attributes" do
-      company = insert(:company)
-      tag = insert(:tag, company: company, name: "old")
-
-      assert {:ok, updated} = Invoices.update_tag(tag, %{name: "new"})
-      assert updated.name == "new"
-    end
-  end
-
-  describe "delete_tag/1" do
-    test "deletes a tag and its join records" do
-      company = insert(:company)
-      tag = insert(:tag, company: company)
+  describe "set_invoice_tags/2" do
+    test "sets tags on an invoice", %{company: company} do
       invoice = insert(:invoice, company: company)
-      insert(:invoice_tag, invoice: invoice, tag: tag)
 
-      assert {:ok, _} = Invoices.delete_tag(tag)
-      assert {:error, :not_found} = Invoices.get_tag(company.id, tag.id)
-
-      # join records are cascade deleted
-      assert KsefHub.Repo.all(KsefHub.Invoices.InvoiceTag) == []
-    end
-  end
-
-  describe "set_invoice_category/2" do
-    test "assigns a category to an expense invoice" do
-      company = insert(:company)
-      category = insert(:category, company: company)
-      invoice = insert(:invoice, company: company, type: :expense)
-
-      assert {:ok, updated} = Invoices.set_invoice_category(invoice, category.id)
-      assert updated.category_id == category.id
+      assert {:ok, updated} = Invoices.set_invoice_tags(invoice, ["alpha", "beta"])
+      assert updated.tags == ["alpha", "beta"]
     end
 
-    test "clears category when nil" do
-      company = insert(:company)
-      category = insert(:category, company: company)
-      invoice = insert(:invoice, company: company, type: :expense, category_id: category.id)
+    test "replaces existing tags", %{company: company} do
+      invoice = insert(:invoice, company: company, tags: ["old"])
 
-      assert {:ok, updated} = Invoices.set_invoice_category(invoice, nil)
-      assert is_nil(updated.category_id)
+      assert {:ok, updated} = Invoices.set_invoice_tags(invoice, ["new"])
+      assert updated.tags == ["new"]
     end
 
-    test "returns error when invoice is income type" do
-      company = insert(:company)
-      category = insert(:category, company: company)
-      invoice = insert(:invoice, company: company, type: :income)
+    test "clears tags with empty list", %{company: company} do
+      invoice = insert(:invoice, company: company, tags: ["alpha"])
 
-      assert {:error, :expense_only} = Invoices.set_invoice_category(invoice, category.id)
+      assert {:ok, updated} = Invoices.set_invoice_tags(invoice, [])
+      assert updated.tags == []
     end
 
-    test "allows clearing category on income invoice (no-op)" do
-      company = insert(:company)
-      invoice = insert(:invoice, company: company, type: :income)
+    test "trims whitespace", %{company: company} do
+      invoice = insert(:invoice, company: company)
 
-      assert {:ok, returned} = Invoices.set_invoice_category(invoice, nil)
-      assert returned.id == invoice.id
+      assert {:ok, updated} = Invoices.set_invoice_tags(invoice, ["  alpha  ", "beta "])
+      assert updated.tags == ["alpha", "beta"]
+    end
+
+    test "rejects blank strings", %{company: company} do
+      invoice = insert(:invoice, company: company)
+
+      assert {:ok, updated} = Invoices.set_invoice_tags(invoice, ["alpha", "", "  ", "beta"])
+      assert updated.tags == ["alpha", "beta"]
+    end
+
+    test "deduplicates tags", %{company: company} do
+      invoice = insert(:invoice, company: company)
+
+      assert {:ok, updated} = Invoices.set_invoice_tags(invoice, ["alpha", "alpha", "beta"])
+      assert updated.tags == ["alpha", "beta"]
+    end
+
+    test "rejects more than 50 tags", %{company: company} do
+      invoice = insert(:invoice, company: company)
+      tags = Enum.map(1..51, &"tag-#{&1}")
+
+      assert {:error, changeset} = Invoices.set_invoice_tags(invoice, tags)
+      assert errors_on(changeset).tags != []
+    end
+
+    test "rejects tags longer than 100 characters", %{company: company} do
+      invoice = insert(:invoice, company: company)
+      long_tag = String.duplicate("a", 101)
+
+      assert {:error, changeset} = Invoices.set_invoice_tags(invoice, [long_tag])
+      assert errors_on(changeset).tags != []
     end
   end
 
   describe "add_invoice_tag/2" do
-    test "adds a tag to an invoice" do
-      company = insert(:company)
-      tag = insert(:tag, company: company)
-      invoice = insert(:invoice, company: company)
+    test "adds a tag to an invoice", %{company: company} do
+      invoice = insert(:invoice, company: company, tags: ["existing"])
 
-      assert {:ok, _} = Invoices.add_invoice_tag(invoice.id, tag.id)
-
-      tags = Invoices.list_invoice_tags(invoice.id)
-      assert length(tags) == 1
-      assert hd(tags).id == tag.id
+      assert {:ok, updated} = Invoices.add_invoice_tag(invoice, "new")
+      assert "new" in updated.tags
+      assert "existing" in updated.tags
     end
 
-    test "is idempotent for duplicate association" do
-      company = insert(:company)
-      tag = insert(:tag, company: company)
-      invoice = insert(:invoice, company: company)
-      insert(:invoice_tag, invoice: invoice, tag: tag)
+    test "is idempotent for existing tags", %{company: company} do
+      invoice = insert(:invoice, company: company, tags: ["existing"])
 
-      assert {:ok, _} = Invoices.add_invoice_tag(invoice.id, tag.id)
-      assert length(Invoices.list_invoice_tags(invoice.id)) == 1
-    end
-  end
-
-  describe "remove_invoice_tag/2" do
-    test "removes a tag from an invoice" do
-      company = insert(:company)
-      tag = insert(:tag, company: company)
-      invoice = insert(:invoice, company: company)
-      insert(:invoice_tag, invoice: invoice, tag: tag)
-
-      assert {:ok, _} = Invoices.remove_invoice_tag(invoice.id, tag.id)
-      assert Invoices.list_invoice_tags(invoice.id) == []
+      assert {:ok, returned} = Invoices.add_invoice_tag(invoice, "existing")
+      assert returned.id == invoice.id
+      assert returned.tags == ["existing"]
     end
 
-    test "returns error when association does not exist" do
-      company = insert(:company)
-      tag = insert(:tag, company: company)
-      invoice = insert(:invoice, company: company)
+    test "trims whitespace", %{company: company} do
+      invoice = insert(:invoice, company: company, tags: [])
 
-      assert {:error, :not_found} = Invoices.remove_invoice_tag(invoice.id, tag.id)
+      assert {:ok, updated} = Invoices.add_invoice_tag(invoice, "  spaced  ")
+      assert updated.tags == ["spaced"]
+    end
+
+    test "no-ops for blank string", %{company: company} do
+      invoice = insert(:invoice, company: company, tags: ["existing"])
+
+      assert {:ok, returned} = Invoices.add_invoice_tag(invoice, "  ")
+      assert returned.tags == ["existing"]
     end
   end
 
-  describe "list_invoice_tags/1" do
-    test "returns tags for an invoice ordered by name" do
-      company = insert(:company)
-      tag_b = insert(:tag, company: company, name: "bravo")
-      tag_a = insert(:tag, company: company, name: "alpha")
-      invoice = insert(:invoice, company: company)
-      insert(:invoice_tag, invoice: invoice, tag: tag_b)
-      insert(:invoice_tag, invoice: invoice, tag: tag_a)
+  describe "list_distinct_tags/2" do
+    test "returns distinct tags across invoices", %{company: company} do
+      insert(:invoice, company: company, type: :expense, tags: ["alpha", "beta"])
+      insert(:invoice, company: company, type: :expense, tags: ["beta", "gamma"])
 
-      tags = Invoices.list_invoice_tags(invoice.id)
-
-      assert [%{name: "alpha"}, %{name: "bravo"}] = tags
-    end
-  end
-
-  describe "set_invoice_tags/2" do
-    test "replaces all tags on an invoice" do
-      company = insert(:company)
-      tag1 = insert(:tag, company: company, name: "alpha")
-      tag2 = insert(:tag, company: company, name: "beta")
-      tag3 = insert(:tag, company: company, name: "gamma")
-      invoice = insert(:invoice, company: company)
-      insert(:invoice_tag, invoice: invoice, tag: tag1)
-
-      assert {:ok, tags} = Invoices.set_invoice_tags(invoice.id, [tag2.id, tag3.id])
-      assert length(tags) == 2
-      assert Enum.map(tags, & &1.name) |> Enum.sort() == ["beta", "gamma"]
+      result = Invoices.list_distinct_tags(company.id)
+      assert Enum.sort(result) == ["alpha", "beta", "gamma"]
     end
 
-    test "clears all tags when given empty list" do
-      company = insert(:company)
-      tag = insert(:tag, company: company)
-      invoice = insert(:invoice, company: company)
-      insert(:invoice_tag, invoice: invoice, tag: tag)
+    test "filters by invoice type", %{company: company} do
+      insert(:invoice, company: company, type: :expense, tags: ["expense-tag"])
+      insert(:invoice, company: company, type: :income, tags: ["income-tag"])
 
-      assert {:ok, []} = Invoices.set_invoice_tags(invoice.id, [])
-    end
-  end
-
-  describe "invoice filtering by category_id" do
-    test "filters invoices by category_id" do
-      company = insert(:company)
-      category = insert(:category, company: company)
-      insert(:invoice, company: company, category_id: category.id)
-      insert(:invoice, company: company)
-
-      invoices = Invoices.list_invoices(company.id, %{category_id: category.id})
-
-      assert length(invoices) == 1
-      assert hd(invoices).category_id == category.id
-    end
-  end
-
-  describe "invoice filtering by tag_ids" do
-    test "filters invoices by tag_ids" do
-      company = insert(:company)
-      tag1 = insert(:tag, company: company)
-      tag2 = insert(:tag, company: company)
-      invoice1 = insert(:invoice, company: company)
-      invoice2 = insert(:invoice, company: company)
-      insert(:invoice, company: company)
-
-      insert(:invoice_tag, invoice: invoice1, tag: tag1)
-      insert(:invoice_tag, invoice: invoice2, tag: tag2)
-
-      invoices = Invoices.list_invoices(company.id, %{tag_ids: [tag1.id]})
-      assert length(invoices) == 1
-      assert hd(invoices).id == invoice1.id
+      assert Invoices.list_distinct_tags(company.id, :expense) == ["expense-tag"]
+      assert Invoices.list_distinct_tags(company.id, :income) == ["income-tag"]
     end
 
-    test "returns distinct invoices when matching multiple tags" do
-      company = insert(:company)
-      tag1 = insert(:tag, company: company)
-      tag2 = insert(:tag, company: company)
-      invoice = insert(:invoice, company: company)
+    test "returns empty list when no tags exist", %{company: company} do
+      insert(:invoice, company: company, tags: [])
 
-      insert(:invoice_tag, invoice: invoice, tag: tag1)
-      insert(:invoice_tag, invoice: invoice, tag: tag2)
+      assert Invoices.list_distinct_tags(company.id) == []
+    end
 
-      invoices = Invoices.list_invoices(company.id, %{tag_ids: [tag1.id, tag2.id]})
-      assert length(invoices) == 1
+    test "scoped to company", %{company: company} do
+      other = insert(:company)
+      insert(:invoice, company: company, tags: ["mine"])
+      insert(:invoice, company: other, tags: ["theirs"])
+
+      assert Invoices.list_distinct_tags(company.id) == ["mine"]
+    end
+
+    test "orders by most recently used", %{company: company} do
+      now = NaiveDateTime.utc_now()
+      earlier = NaiveDateTime.add(now, -60)
+
+      insert(:invoice, company: company, tags: ["old-tag"], updated_at: earlier)
+      insert(:invoice, company: company, tags: ["recent-tag"], updated_at: now)
+
+      assert Invoices.list_distinct_tags(company.id) == ["recent-tag", "old-tag"]
     end
   end
 end

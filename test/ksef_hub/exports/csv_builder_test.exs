@@ -2,7 +2,7 @@ defmodule KsefHub.Exports.CsvBuilderTest do
   use ExUnit.Case, async: true
 
   alias KsefHub.Exports.CsvBuilder
-  alias KsefHub.Invoices.{Category, Invoice, Tag}
+  alias KsefHub.Invoices.{Category, Invoice}
 
   describe "build/1" do
     test "returns CSV with BOM and headers for empty list" do
@@ -58,7 +58,7 @@ defmodule KsefHub.Exports.CsvBuilderTest do
     end
 
     test "formats tags as semicolon-separated" do
-      invoice = build_invoice(%{tags: [%Tag{name: "recurring"}, %Tag{name: "office"}]})
+      invoice = build_invoice(%{tags: ["recurring", "office"]})
       assert csv_content(invoice) =~ "recurring; office"
     end
 

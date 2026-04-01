@@ -7,9 +7,9 @@ defmodule KsefHub.InvoiceClassifier do
   - Category: default 71%, set via `CATEGORY_CONFIDENCE_THRESHOLD` env var
   - Tag: default 85%, set via `TAG_CONFIDENCE_THRESHOLD` env var
 
-  When confidence meets the threshold and a matching category/tag exists in
-  the company, the prediction is auto-applied. Below threshold, predictions
-  are stored for human review.
+  Categories require a matching record in the company to be auto-applied.
+  Tags are stored as free-form strings directly on the invoice.
+  Below threshold, predictions are stored for human review.
   """
 
   import Ecto.Query
@@ -17,7 +17,7 @@ defmodule KsefHub.InvoiceClassifier do
   require Logger
 
   alias KsefHub.Invoices
-  alias KsefHub.Invoices.{Category, Invoice, Tag}
+  alias KsefHub.Invoices.{Category, Invoice}
   alias KsefHub.Repo
 
   @doc "Returns the current category confidence threshold (0.0–1.0) from application config."
@@ -101,23 +101,32 @@ defmodule KsefHub.InvoiceClassifier do
   defp resolve_predictions(company_id, cat_result, tag_result) do
     cat_identifier = cat_result["predicted_label"]
     cat_confidence = cat_result["confidence"] || 0.0
-    tag_name = tag_result["predicted_label"]
+    tag_name = normalize_tag_label(tag_result["predicted_label"])
     tag_confidence = tag_result["confidence"] || 0.0
 
     matching_category = find_category_by_identifier(company_id, cat_identifier)
-    matching_tag = find_tag_by_name(company_id, tag_name)
 
     confident_category? =
       cat_confidence >= category_confidence_threshold() and matching_category != nil
 
-    confident_tag? = tag_confidence >= tag_confidence_threshold() and matching_tag != nil
+    confident_tag? = tag_confidence >= tag_confidence_threshold() and tag_name != nil
 
     %{
       attrs: build_prediction_attrs(cat_result, tag_result, confident_category?, confident_tag?),
       category: if(confident_category?, do: matching_category),
-      tag: if(confident_tag?, do: matching_tag)
+      tag_name: if(confident_tag?, do: tag_name)
     }
   end
+
+  @spec normalize_tag_label(String.t() | nil) :: String.t() | nil
+  defp normalize_tag_label(nil), do: nil
+
+  defp normalize_tag_label(label) when is_binary(label) do
+    trimmed = String.trim(label)
+    if trimmed != "" and String.length(trimmed) <= Invoice.max_tag_length(), do: trimmed
+  end
+
+  defp normalize_tag_label(_), do: nil
 
   @spec build_prediction_attrs(map(), map(), boolean(), boolean()) :: map()
   defp build_prediction_attrs(cat_result, tag_result, apply_category?, apply_tag?) do
@@ -137,12 +146,24 @@ defmodule KsefHub.InvoiceClassifier do
   end
 
   @spec persist_and_apply(Invoice.t(), map()) :: {:ok, Invoice.t()} | {:error, term()}
-  defp persist_and_apply(invoice, %{attrs: attrs, category: category, tag: tag}) do
+  defp persist_and_apply(invoice, %{attrs: attrs, category: category, tag_name: tag_name}) do
     Repo.transaction(fn ->
       updated = update_prediction_fields!(invoice, attrs)
-      if category, do: apply_category_safely(updated, category)
-      if tag, do: apply_tag_safely(updated, tag)
-      Repo.reload!(updated)
+      cat_applied = if category, do: apply_category_safely(updated, category), else: false
+      tag_applied = if tag_name, do: apply_tag_safely(updated, tag_name), else: false
+
+      final = Repo.reload!(updated)
+
+      # Recompute status based on what actually applied
+      actual_status = if cat_applied or tag_applied, do: :predicted, else: :needs_review
+
+      if actual_status != attrs[:prediction_status] do
+        final
+        |> Invoice.prediction_changeset(%{prediction_status: actual_status})
+        |> Repo.update!()
+      else
+        final
+      end
     end)
   end
 
@@ -153,20 +174,23 @@ defmodule KsefHub.InvoiceClassifier do
     |> Repo.update!()
   end
 
-  @spec apply_category_safely(Invoice.t(), Category.t()) :: :ok
+  @spec apply_category_safely(Invoice.t(), Category.t()) :: boolean()
   defp apply_category_safely(invoice, category) do
     case Invoices.set_invoice_category(invoice, category.id) do
-      {:ok, _} -> :ok
-      {:error, reason} -> Logger.warning("Failed to apply predicted category: #{inspect(reason)}")
+      {:ok, _} ->
+        true
+
+      {:error, reason} ->
+        Logger.warning("Failed to apply predicted category: #{inspect(reason)}")
+        false
     end
   end
 
-  @spec apply_tag_safely(Invoice.t(), Tag.t()) :: :ok
-  defp apply_tag_safely(invoice, tag) do
-    case Invoices.add_invoice_tag(invoice.id, tag.id) do
-      {:ok, _} -> :ok
-      {:error, reason} -> Logger.warning("Failed to apply predicted tag: #{inspect(reason)}")
-    end
+  @spec apply_tag_safely(Invoice.t(), String.t()) :: boolean()
+  defp apply_tag_safely(invoice, tag_name) do
+    {:ok, updated} = Invoices.add_invoice_tag(invoice, tag_name)
+    # Tag was applied if it's now present on the invoice
+    tag_name in (updated.tags || [])
   end
 
   @spec find_category_by_identifier(Ecto.UUID.t(), String.t() | nil) :: Category.t() | nil
@@ -175,15 +199,6 @@ defmodule KsefHub.InvoiceClassifier do
   defp find_category_by_identifier(company_id, identifier) do
     Category
     |> where([c], c.company_id == ^company_id and c.identifier == ^identifier)
-    |> Repo.one()
-  end
-
-  @spec find_tag_by_name(Ecto.UUID.t(), String.t() | nil) :: Tag.t() | nil
-  defp find_tag_by_name(_company_id, nil), do: nil
-
-  defp find_tag_by_name(company_id, name) do
-    Tag
-    |> where([t], t.company_id == ^company_id and t.name == ^name and t.type == :expense)
     |> Repo.one()
   end
 

@@ -52,7 +52,10 @@ defmodule KsefHubWeb.InvoiceLive.Index do
 
     all_tags =
       if company_id do
-        Invoices.list_tags(company_id, filters[:type])
+        Invoices.list_distinct_tags(company_id, filters[:type],
+          role: role,
+          user_id: socket.assigns[:current_user] && socket.assigns.current_user.id
+        )
       else
         []
       end
@@ -78,11 +81,7 @@ defmodule KsefHubWeb.InvoiceLive.Index do
     form = build_filters_form(filters)
 
     active_filters =
-      build_active_filters(
-        filters,
-        Map.get(assigns, :categories, []),
-        Map.get(assigns, :all_tags, [])
-      )
+      build_active_filters(filters, Map.get(assigns, :categories, []))
 
     invoice_ids = Enum.map(result.entries, & &1.id)
     payment_statuses = PaymentRequests.payment_statuses_for_invoices(invoice_ids)
@@ -111,7 +110,7 @@ defmodule KsefHubWeb.InvoiceLive.Index do
       "date_to" => (filters[:date_to] && Date.to_iso8601(filters[:date_to])) || "",
       "query" => filters[:query] || "",
       "category_id" => filters[:category_id] || "",
-      "tag_id" => first_tag_id(filters) || ""
+      "tag" => first_tag(filters) || ""
     }
     |> to_form(as: :filters)
   end
@@ -128,7 +127,7 @@ defmodule KsefHubWeb.InvoiceLive.Index do
       |> maybe_put("date_to", params["date_to"])
       |> maybe_put("query", params["query"])
       |> maybe_put("category_id", params["category_id"])
-      |> maybe_put("tag_id", params["tag_id"])
+      |> maybe_put("tag", params["tag"])
 
     company_id = socket.assigns.current_company.id
     {:noreply, push_patch(socket, to: ~p"/c/#{company_id}/invoices?#{query_params}")}
@@ -160,8 +159,8 @@ defmodule KsefHubWeb.InvoiceLive.Index do
     ~p"/c/#{company_id}/invoices?#{params}"
   end
 
-  @spec build_active_filters(map(), list(), list()) :: [map()]
-  defp build_active_filters(filters, categories, tags) do
+  @spec build_active_filters(map(), list()) :: [map()]
+  defp build_active_filters(filters, categories) do
     []
     |> maybe_add_chip(filters[:status], "status", "Status", &status_display/1)
     |> maybe_add_chip(filters[:category_id], "category_id", "Category", fn id ->
@@ -170,12 +169,7 @@ defmodule KsefHubWeb.InvoiceLive.Index do
         cat -> cat.name || cat.identifier
       end
     end)
-    |> maybe_add_chip(first_tag_id(filters), "tag_id", "Tag", fn id ->
-      case Enum.find(tags, &(&1.id == id)) do
-        nil -> id
-        tag -> tag.name
-      end
-    end)
+    |> maybe_add_chip(first_tag(filters), "tag", "Tag", & &1)
     |> maybe_add_chip(filters[:date_from], "date_from", "From", &Date.to_iso8601/1)
     |> maybe_add_chip(filters[:date_to], "date_to", "To", &Date.to_iso8601/1)
     |> Enum.reverse()
@@ -221,7 +215,7 @@ defmodule KsefHubWeb.InvoiceLive.Index do
     |> maybe_put("date_to", filters[:date_to] && Date.to_iso8601(filters[:date_to]))
     |> maybe_put("query", filters[:query])
     |> maybe_put("category_id", filters[:category_id])
-    |> maybe_put("tag_id", first_tag_id(filters))
+    |> maybe_put("tag", first_tag(filters))
   end
 
   @spec parse_filters(map()) :: map()
@@ -233,7 +227,7 @@ defmodule KsefHubWeb.InvoiceLive.Index do
     |> maybe_put_date(:date_to, params["date_to"])
     |> maybe_put_search(:query, params["query"])
     |> maybe_put_uuid(:category_id, params["category_id"])
-    |> maybe_put_tag_ids(params["tag_id"])
+    |> maybe_put_tag(params["tag"])
     |> maybe_put_page(:page, params["page"])
   end
 
@@ -288,24 +282,18 @@ defmodule KsefHubWeb.InvoiceLive.Index do
     end
   end
 
-  @spec maybe_put_tag_ids(map(), String.t() | nil) :: map()
-  defp maybe_put_tag_ids(map, nil), do: map
-  defp maybe_put_tag_ids(map, ""), do: map
-
-  defp maybe_put_tag_ids(map, tag_id) do
-    case Ecto.UUID.cast(tag_id) do
-      {:ok, uuid} -> Map.put(map, :tag_ids, [uuid])
-      :error -> map
-    end
-  end
+  @spec maybe_put_tag(map(), String.t() | nil) :: map()
+  defp maybe_put_tag(map, nil), do: map
+  defp maybe_put_tag(map, ""), do: map
+  defp maybe_put_tag(map, tag), do: Map.put(map, :tags, [tag])
 
   @spec maybe_put(map(), String.t(), String.t() | nil) :: map()
   defp maybe_put(map, _key, nil), do: map
   defp maybe_put(map, _key, ""), do: map
   defp maybe_put(map, key, value), do: Map.put(map, key, value)
 
-  @spec first_tag_id(map()) :: Ecto.UUID.t() | nil
-  defp first_tag_id(filters), do: filters[:tag_ids] |> List.wrap() |> List.first()
+  @spec first_tag(map()) :: String.t() | nil
+  defp first_tag(filters), do: filters[:tags] |> List.wrap() |> List.first()
 
   @spec to_string_or_empty(atom() | String.t() | nil) :: String.t()
   defp to_string_or_empty(nil), do: ""
@@ -412,16 +400,16 @@ defmodule KsefHubWeb.InvoiceLive.Index do
           <div class="space-y-1">
             <label class="block text-xs font-medium text-muted-foreground">Tag</label>
             <select
-              name={@form[:tag_id].name}
+              name={@form[:tag].name}
               class="w-full h-9 rounded-md border border-input bg-background px-2 text-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
             >
               <option value="">All</option>
               <option
                 :for={tag <- @all_tags}
-                value={tag.id}
-                selected={@form[:tag_id].value == tag.id}
+                value={tag}
+                selected={@form[:tag].value == tag}
               >
-                {tag.name}
+                {tag}
               </option>
             </select>
           </div>
@@ -489,7 +477,7 @@ defmodule KsefHubWeb.InvoiceLive.Index do
           </:col>
           <:col :let={inv} label="Tags">
             <div class="flex flex-wrap gap-1">
-              <.badge :for={tag <- inv.tags} variant="info">{tag.name}</.badge>
+              <.badge :for={tag <- inv.tags} variant="info">{tag}</.badge>
               <.badge :if={inv.project_tag} variant="success">{inv.project_tag}</.badge>
             </div>
             <span

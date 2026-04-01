@@ -148,7 +148,7 @@ defmodule KsefHub.Exports.CsvBuilder do
 
   @spec format_tags(Invoice.t()) :: String.t()
   defp format_tags(%{tags: tags}) when is_list(tags) do
-    Enum.map_join(tags, "; ", & &1.name)
+    Enum.join(tags, "; ")
   end
 
   defp format_tags(_), do: ""

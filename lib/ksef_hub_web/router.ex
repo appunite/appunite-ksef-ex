@@ -171,16 +171,6 @@ defmodule KsefHubWeb.Router do
       live "/settings/categories/:id/edit", CategoryLive.Form, :edit
     end
 
-    live_session :require_manage_tags,
-      on_mount: [
-        {KsefHubWeb.LiveAuth, :default},
-        {KsefHubWeb.LiveAuth, {:require_permission, :manage_tags}}
-      ] do
-      live "/settings/tags", TagLive.Index, :index
-      live "/settings/tags/new", TagLive.Form, :new
-      live "/settings/tags/:id/edit", TagLive.Form, :edit
-    end
-
     live_session :require_manage_team,
       on_mount: [
         {KsefHubWeb.LiveAuth, :default},
@@ -255,7 +245,7 @@ defmodule KsefHubWeb.Router do
     delete "/invoices/:id/access/grants/:user_id", InvoiceController, :revoke_access
 
     resources "/categories", CategoryController, except: [:new, :edit]
-    resources "/tags", TagController, except: [:new, :edit]
+    get "/tags", InvoiceController, :list_tags
 
     resources "/payment-requests", PaymentRequestController, only: [:index, :create]
     post "/payment-requests/:id/mark-paid", PaymentRequestController, :mark_paid

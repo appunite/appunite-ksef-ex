@@ -65,8 +65,7 @@ defmodule KsefHub.Invoices.Invoice do
     belongs_to :category, KsefHub.Invoices.Category
     belongs_to :xml_file, KsefHub.Files.File
     belongs_to :pdf_file, KsefHub.Files.File
-    has_many :invoice_tags, KsefHub.Invoices.InvoiceTag
-    many_to_many :tags, KsefHub.Invoices.Tag, join_through: KsefHub.Invoices.InvoiceTag
+    field :tags, {:array, :string}, default: []
     has_many :comments, KsefHub.Invoices.InvoiceComment
     belongs_to :created_by, KsefHub.Accounts.User
     has_one :inbound_email, KsefHub.InboundEmail.InboundEmail
@@ -224,6 +223,41 @@ defmodule KsefHub.Invoices.Invoice do
     invoice
     |> cast(attrs, [:project_tag])
     |> validate_length(:project_tag, max: 255)
+  end
+
+  @max_tags 50
+  @max_tag_length 100
+
+  @doc "Returns the maximum number of tags allowed per invoice."
+  @spec max_tags() :: pos_integer()
+  def max_tags, do: @max_tags
+
+  @doc "Returns the maximum length of a single tag string."
+  @spec max_tag_length() :: pos_integer()
+  def max_tag_length, do: @max_tag_length
+
+  @doc "Builds a changeset for setting tags as a string array."
+  @spec tags_changeset(t(), map()) :: Ecto.Changeset.t()
+  def tags_changeset(invoice, attrs) do
+    invoice
+    |> cast(attrs, [:tags])
+    |> validate_tags()
+  end
+
+  @spec validate_tags(Ecto.Changeset.t()) :: Ecto.Changeset.t()
+  defp validate_tags(changeset) do
+    validate_change(changeset, :tags, fn :tags, tags ->
+      cond do
+        length(tags) > @max_tags ->
+          [tags: "cannot have more than #{@max_tags} tags"]
+
+        Enum.any?(tags, &(String.length(&1) > @max_tag_length)) ->
+          [tags: "each tag must be at most #{@max_tag_length} characters"]
+
+        true ->
+          []
+      end
+    end)
   end
 
   @all_edit_fields [

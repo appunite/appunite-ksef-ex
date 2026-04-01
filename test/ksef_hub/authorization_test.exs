@@ -15,7 +15,6 @@ defmodule KsefHub.AuthorizationTest do
     :view_syncs,
     :trigger_sync,
     :manage_categories,
-    :manage_tags,
     :view_exports,
     :create_export,
     :manage_company,

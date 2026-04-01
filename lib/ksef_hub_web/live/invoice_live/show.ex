@@ -65,7 +65,6 @@ defmodule KsefHubWeb.InvoiceLive.Show do
         can_approve = Authorization.can?(role, :approve_invoice)
         can_set_category = Authorization.can?(role, :set_invoice_category)
         can_set_tags = Authorization.can?(role, :set_invoice_tags)
-        can_manage_tags = Authorization.can?(role, :manage_tags)
         can_manage_payment_requests = Authorization.can?(role, :manage_payment_requests)
         can_view_payment_requests = Authorization.can?(role, :view_payment_requests)
         can_manage_access = Authorization.can?(role, :manage_team)
@@ -82,7 +81,6 @@ defmodule KsefHubWeb.InvoiceLive.Show do
            can_approve: can_approve,
            can_set_category: can_set_category,
            can_set_tags: can_set_tags,
-           can_manage_tags: can_manage_tags,
            can_manage_payment_requests: can_manage_payment_requests,
            can_view_payment_requests: can_view_payment_requests,
            can_manage_access: can_manage_access,
@@ -1048,7 +1046,7 @@ defmodule KsefHubWeb.InvoiceLive.Show do
                 :if={@invoice.tags != [] || @invoice.project_tag}
                 class="flex flex-wrap gap-1"
               >
-                <.badge :for={tag <- @invoice.tags} variant="info">{tag.name}</.badge>
+                <.badge :for={tag <- @invoice.tags} variant="info">{tag}</.badge>
                 <.badge
                   :if={@invoice.project_tag}
                   variant="success"

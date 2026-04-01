@@ -27,7 +27,7 @@ defmodule KsefHubWeb.SettingsLive.GeneralTest do
 
       assert has_element?(view, "nav[aria-label='Settings']")
 
-      for tab <- ~w(General Exports Syncs Categories Tags Team Certificates) ++ ["API Tokens"] do
+      for tab <- ~w(General Exports Syncs Categories Team Certificates) ++ ["API Tokens"] do
         assert has_element?(view, "nav[aria-label='Settings'] a", tab)
       end
     end
@@ -49,7 +49,7 @@ defmodule KsefHubWeb.SettingsLive.GeneralTest do
       assert has_element?(view, "nav[aria-label='Settings'] a", "API Tokens")
       refute has_element?(view, "nav[aria-label='Settings'] a", "Certificates")
       refute has_element?(view, "nav[aria-label='Settings'] a", "Categories")
-      refute has_element?(view, "nav[aria-label='Settings'] a", "Tags")
+
       refute has_element?(view, "nav[aria-label='Settings'] a", "Team")
       refute has_element?(view, "nav[aria-label='Settings'] a", "Exports")
     end
@@ -66,7 +66,7 @@ defmodule KsefHubWeb.SettingsLive.GeneralTest do
       assert has_element?(view, "nav[aria-label='Settings'] a", "API Tokens")
       refute has_element?(view, "nav[aria-label='Settings'] a", "Certificates")
       refute has_element?(view, "nav[aria-label='Settings'] a", "Categories")
-      refute has_element?(view, "nav[aria-label='Settings'] a", "Tags")
+
       refute has_element?(view, "nav[aria-label='Settings'] a", "Team")
       refute has_element?(view, "nav[aria-label='Settings'] a", "Syncs")
     end

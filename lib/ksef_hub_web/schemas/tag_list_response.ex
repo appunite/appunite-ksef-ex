@@ -1,6 +1,6 @@
 defmodule KsefHubWeb.Schemas.TagListResponse do
   @moduledoc """
-  OpenAPI response schema wrapping a list of tags in a `data` key.
+  OpenAPI response schema wrapping a list of tag strings in a `data` key.
   """
 
   require OpenApiSpex
@@ -9,10 +9,10 @@ defmodule KsefHubWeb.Schemas.TagListResponse do
 
   OpenApiSpex.schema(%{
     title: "TagListResponse",
-    description: "List of tags response.",
+    description: "List of distinct tag values used on invoices.",
     type: :object,
     properties: %{
-      data: %Schema{type: :array, items: KsefHubWeb.Schemas.Tag}
+      data: %Schema{type: :array, items: %Schema{type: :string}}
     },
     required: [:data]
   })

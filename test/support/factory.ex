@@ -15,7 +15,7 @@ defmodule KsefHub.Factory do
   alias KsefHub.Files.File, as: FileRecord
   alias KsefHub.InboundEmail.InboundEmail, as: InboundEmailRecord
   alias KsefHub.Invitations.Invitation
-  alias KsefHub.Invoices.{Category, Invoice, InvoiceAccessGrant, InvoiceComment, InvoiceTag, Tag}
+  alias KsefHub.Invoices.{Category, Invoice, InvoiceAccessGrant, InvoiceComment}
   alias KsefHub.PaymentRequests.PaymentRequest
   alias KsefHub.Sync.Checkpoint
 
@@ -206,26 +206,6 @@ defmodule KsefHub.Factory do
       description: "Test category",
       sort_order: 0,
       company: build(:company)
-    }
-  end
-
-  @doc "Builds a `Tag` with sequenced name and associated company."
-  @spec tag_factory() :: Tag.t()
-  def tag_factory do
-    %Tag{
-      name: sequence(:tag_name, &"tag-#{&1}"),
-      description: "Test tag",
-      type: :expense,
-      company: build(:company)
-    }
-  end
-
-  @doc "Builds an `InvoiceTag` linking an invoice to a tag."
-  @spec invoice_tag_factory() :: InvoiceTag.t()
-  def invoice_tag_factory do
-    %InvoiceTag{
-      invoice: build(:invoice),
-      tag: build(:tag)
     }
   end
 
