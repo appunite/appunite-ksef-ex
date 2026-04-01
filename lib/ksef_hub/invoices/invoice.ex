@@ -42,7 +42,8 @@ defmodule KsefHub.Invoices.Invoice do
     field :prediction_tag_name, :string
     field :prediction_category_confidence, :float
     field :prediction_tag_confidence, :float
-    field :prediction_model_version, :string
+    field :prediction_category_model_version, :string
+    field :prediction_tag_model_version, :string
     field :prediction_category_probabilities, :map
     field :prediction_tag_probabilities, :map
     field :prediction_predicted_at, :utc_datetime_usec
@@ -315,7 +316,8 @@ defmodule KsefHub.Invoices.Invoice do
     :prediction_tag_name,
     :prediction_category_confidence,
     :prediction_tag_confidence,
-    :prediction_model_version,
+    :prediction_category_model_version,
+    :prediction_tag_model_version,
     :prediction_category_probabilities,
     :prediction_tag_probabilities,
     :prediction_predicted_at

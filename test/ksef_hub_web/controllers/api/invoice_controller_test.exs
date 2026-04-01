@@ -924,6 +924,36 @@ defmodule KsefHubWeb.Api.InvoiceControllerTest do
     end
   end
 
+  describe "response fields" do
+    test "includes company_id, note, and is_excluded in show response", %{conn: conn} do
+      %{company: company, token: token} = create_user_with_token(:owner)
+
+      invoice =
+        insert(:invoice,
+          company: company,
+          note: "test note",
+          is_excluded: true
+        )
+
+      conn = conn |> api_conn(token) |> get("/api/invoices/#{invoice.id}")
+
+      data = Jason.decode!(conn.resp_body)["data"]
+      assert data["company_id"] == company.id
+      assert data["note"] == "test note"
+      assert data["is_excluded"] == true
+    end
+
+    test "includes company_id in list response", %{conn: conn} do
+      %{company: company, token: token} = create_user_with_token(:owner)
+      insert(:invoice, company: company)
+
+      conn = conn |> api_conn(token) |> get("/api/invoices")
+
+      data = Jason.decode!(conn.resp_body)["data"]
+      assert hd(data)["company_id"] == company.id
+    end
+  end
+
   describe "show with category and tags" do
     test "includes category and tags in show response", %{conn: conn} do
       %{company: company, token: token} = create_user_with_token(:owner)
@@ -933,12 +963,12 @@ defmodule KsefHubWeb.Api.InvoiceControllerTest do
       conn = conn |> api_conn(token) |> get("/api/invoices/#{invoice.id}")
 
       data = Jason.decode!(conn.resp_body)["data"]
-      assert data["category_id"] == category.id
+      assert data["category"]["id"] == category.id
       assert data["category"]["identifier"] == "ops:test"
       assert data["tags"] == ["urgent"]
     end
 
-    test "includes category_id in list response", %{conn: conn} do
+    test "includes category in list response", %{conn: conn} do
       %{company: company, token: token} = create_user_with_token(:owner)
       category = insert(:category, company: company)
       insert(:invoice, company: company, category_id: category.id)
@@ -946,7 +976,7 @@ defmodule KsefHubWeb.Api.InvoiceControllerTest do
       conn = conn |> api_conn(token) |> get("/api/invoices")
 
       data = Jason.decode!(conn.resp_body)["data"]
-      assert hd(data)["category_id"] == category.id
+      assert hd(data)["category"]["id"] == category.id
     end
   end
 
@@ -960,7 +990,7 @@ defmodule KsefHubWeb.Api.InvoiceControllerTest do
       conn = conn |> api_conn(token) |> put("/api/invoices/#{invoice.id}/category", body)
 
       assert conn.status == 200
-      assert Jason.decode!(conn.resp_body)["data"]["category_id"] == category.id
+      assert Jason.decode!(conn.resp_body)["data"]["category"]["id"] == category.id
     end
 
     test "clears category with null", %{conn: conn} do
@@ -972,7 +1002,7 @@ defmodule KsefHubWeb.Api.InvoiceControllerTest do
       conn = conn |> api_conn(token) |> put("/api/invoices/#{invoice.id}/category", body)
 
       assert conn.status == 200
-      assert is_nil(Jason.decode!(conn.resp_body)["data"]["category_id"])
+      assert is_nil(Jason.decode!(conn.resp_body)["data"]["category"])
     end
 
     test "returns 422 when assigning category to income invoice", %{conn: conn} do

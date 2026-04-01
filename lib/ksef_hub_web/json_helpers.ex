@@ -14,6 +14,7 @@ defmodule KsefHubWeb.JsonHelpers do
   def category_json(category) do
     %{
       id: category.id,
+      company_id: category.company_id,
       identifier: category.identifier,
       name: category.name,
       emoji: category.emoji,
@@ -31,6 +32,7 @@ defmodule KsefHubWeb.JsonHelpers do
   def payment_request_json(pr) do
     %{
       id: pr.id,
+      company_id: pr.company_id,
       recipient_name: pr.recipient_name,
       recipient_nip: pr.recipient_nip,
       recipient_address: pr.recipient_address,

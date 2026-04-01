@@ -13,6 +13,7 @@ defmodule KsefHubWeb.Schemas.Invoice do
     type: :object,
     properties: %{
       id: %Schema{type: :string, format: :uuid, description: "Invoice UUID."},
+      company_id: %Schema{type: :string, format: :uuid, description: "Company UUID."},
       ksef_number: %Schema{
         type: :string,
         nullable: true,
@@ -129,12 +130,6 @@ defmodule KsefHubWeb.Schemas.Invoice do
           country: %Schema{type: :string, nullable: true}
         }
       },
-      category_id: %Schema{
-        type: :string,
-        format: :uuid,
-        nullable: true,
-        description: "ID of the assigned category."
-      },
       category: %Schema{
         nullable: true,
         description: "Category details (included in show response).",
@@ -198,16 +193,26 @@ defmodule KsefHubWeb.Schemas.Invoice do
         nullable: true,
         description: "Confidence score (0.0-1.0) for the predicted tag."
       },
-      prediction_model_version: %Schema{
+      prediction_category_model_version: %Schema{
         type: :string,
         nullable: true,
-        description: "Version of the ML model that generated the prediction."
+        description: "Version of the category ML model that generated the prediction."
+      },
+      prediction_tag_model_version: %Schema{
+        type: :string,
+        nullable: true,
+        description: "Version of the tag ML model that generated the prediction."
       },
       prediction_predicted_at: %Schema{
         type: :string,
         format: :"date-time",
         nullable: true,
         description: "When the ML prediction was generated."
+      },
+      note: %Schema{
+        type: :string,
+        nullable: true,
+        description: "Free-form note attached to the invoice."
       },
       cost_line: %Schema{
         type: :string,
@@ -223,6 +228,10 @@ defmodule KsefHubWeb.Schemas.Invoice do
         description:
           "Free-form project tag for expense allocation and project tracking. Available on both income and expense invoices."
       },
+      is_excluded: %Schema{
+        type: :boolean,
+        description: "Whether this invoice is excluded from reports and summaries."
+      },
       access_restricted: %Schema{
         type: :boolean,
         description:
@@ -234,6 +243,7 @@ defmodule KsefHubWeb.Schemas.Invoice do
     required: [:id, :type, :status],
     example: %{
       id: "a1b2c3d4-e5f6-7890-abcd-ef1234567890",
+      company_id: "c1d2e3f4-a5b6-7890-cdef-ab1234567890",
       ksef_number: "1234567890-20240101-ABC123DEF456-78",
       type: "income",
       seller_nip: "1234567890",
@@ -247,7 +257,6 @@ defmodule KsefHubWeb.Schemas.Invoice do
       currency: "PLN",
       status: "pending",
       source: "ksef",
-      category_id: "d4c3b2a1-9876-5432-fedc-ba0987654321",
       category: %{
         id: "d4c3b2a1-9876-5432-fedc-ba0987654321",
         name: "finance:invoices",
@@ -260,6 +269,8 @@ defmodule KsefHubWeb.Schemas.Invoice do
       duplicate_status: nil,
       ksef_acquisition_date: "2024-01-15T10:30:00Z",
       ksef_permanent_storage_date: "2024-01-16T00:00:00Z",
+      note: nil,
+      is_excluded: false,
       inserted_at: "2024-01-15T10:35:00Z",
       updated_at: "2024-01-15T10:35:00Z"
     },

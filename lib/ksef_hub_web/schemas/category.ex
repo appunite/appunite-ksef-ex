@@ -14,6 +14,7 @@ defmodule KsefHubWeb.Schemas.Category do
     type: :object,
     properties: %{
       id: %Schema{type: :string, format: :uuid, description: "Category UUID."},
+      company_id: %Schema{type: :string, format: :uuid, description: "Company UUID."},
       identifier: %Schema{
         type: :string,
         description: "Category identifier in group:target format (ML model key).",

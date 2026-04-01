@@ -206,7 +206,8 @@ defmodule KsefHub.InvoicesTest do
           prediction_category_confidence: 0.92,
           prediction_tag_name: "monthly",
           prediction_tag_confidence: 0.85,
-          prediction_model_version: "v1.0",
+          prediction_category_model_version: "v1.0",
+          prediction_tag_model_version: "v1.0",
           inserted_at: NaiveDateTime.add(NaiveDateTime.utc_now(), -60)
         )
 

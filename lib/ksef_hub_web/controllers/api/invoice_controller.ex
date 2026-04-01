@@ -1467,6 +1467,7 @@ defmodule KsefHubWeb.Api.InvoiceController do
   defp invoice_json(invoice) do
     base = %{
       id: invoice.id,
+      company_id: invoice.company_id,
       ksef_number: invoice.ksef_number,
       type: invoice.type,
       seller_nip: invoice.seller_nip,
@@ -1480,7 +1481,6 @@ defmodule KsefHubWeb.Api.InvoiceController do
       currency: invoice.currency,
       status: invoice.status,
       source: invoice.source,
-      category_id: invoice.category_id,
       duplicate_of_id: invoice.duplicate_of_id,
       duplicate_status: invoice.duplicate_status,
       ksef_acquisition_date: invoice.ksef_acquisition_date,
@@ -1490,7 +1490,8 @@ defmodule KsefHubWeb.Api.InvoiceController do
       prediction_tag_name: invoice.prediction_tag_name,
       prediction_category_confidence: invoice.prediction_category_confidence,
       prediction_tag_confidence: invoice.prediction_tag_confidence,
-      prediction_model_version: invoice.prediction_model_version,
+      prediction_category_model_version: invoice.prediction_category_model_version,
+      prediction_tag_model_version: invoice.prediction_tag_model_version,
       prediction_predicted_at: invoice.prediction_predicted_at,
       extraction_status: invoice.extraction_status,
       original_filename: invoice.original_filename,
@@ -1502,8 +1503,10 @@ defmodule KsefHubWeb.Api.InvoiceController do
       iban: invoice.iban,
       seller_address: invoice.seller_address,
       buyer_address: invoice.buyer_address,
+      note: invoice.note,
       cost_line: invoice.cost_line,
       project_tag: invoice.project_tag,
+      is_excluded: invoice.is_excluded,
       access_restricted: invoice.access_restricted,
       inserted_at: invoice.inserted_at,
       updated_at: invoice.updated_at
