@@ -174,10 +174,8 @@ defmodule KsefHub.InvoiceClassifier do
 
   @spec apply_tag_safely(Invoice.t(), String.t()) :: :ok
   defp apply_tag_safely(invoice, tag_name) do
-    case Invoices.add_invoice_tag(invoice, tag_name) do
-      {:ok, _} -> :ok
-      {:error, reason} -> Logger.warning("Failed to apply predicted tag: #{inspect(reason)}")
-    end
+    {:ok, _} = Invoices.add_invoice_tag(invoice, tag_name)
+    :ok
   end
 
   @spec find_category_by_identifier(Ecto.UUID.t(), String.t() | nil) :: Category.t() | nil

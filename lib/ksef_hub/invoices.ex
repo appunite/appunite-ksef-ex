@@ -1403,17 +1403,22 @@ defmodule KsefHub.Invoices do
     |> Repo.update()
   end
 
-  @doc "Adds a single tag to an invoice (idempotent). Trims whitespace."
-  @spec add_invoice_tag(Invoice.t(), String.t()) ::
-          {:ok, Invoice.t()} | {:error, Ecto.Changeset.t()}
+  @doc "Adds a single tag to an invoice (idempotent). Trims whitespace. Uses atomic DB update to avoid stale-read races."
+  @spec add_invoice_tag(Invoice.t(), String.t()) :: {:ok, Invoice.t()}
   def add_invoice_tag(%Invoice{} = invoice, tag_name) when is_binary(tag_name) do
     trimmed = String.trim(tag_name)
-    current = invoice.tags || []
 
-    if trimmed == "" or trimmed in current do
+    if trimmed == "" do
       {:ok, invoice}
     else
-      set_invoice_tags(invoice, [trimmed | current])
+      Invoice
+      |> where([i], i.id == ^invoice.id)
+      |> where([i], fragment("NOT ? = ANY(?)", ^trimmed, i.tags))
+      |> Repo.update_all(
+        set: [tags: dynamic([i], fragment("array_append(?, ?)", i.tags, ^trimmed))]
+      )
+
+      {:ok, Repo.reload!(invoice)}
     end
   end
 
