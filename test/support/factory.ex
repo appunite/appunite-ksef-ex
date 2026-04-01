@@ -9,7 +9,7 @@ defmodule KsefHub.Factory do
   use ExMachina.Ecto, repo: KsefHub.Repo
 
   alias KsefHub.Accounts.{ApiToken, User}
-  alias KsefHub.Companies.{Company, Membership}
+  alias KsefHub.Companies.{Company, CompanyBankAccount, Membership}
   alias KsefHub.Credentials.{Credential, UserCertificate}
   alias KsefHub.Exports.{ExportBatch, InvoiceDownload}
   alias KsefHub.Files.File, as: FileRecord
@@ -315,6 +315,7 @@ defmodule KsefHub.Factory do
   def payment_request_factory do
     %PaymentRequest{
       recipient_name: "Dostawca Sp. z o.o.",
+      recipient_nip: "1234567890",
       recipient_address: %{
         street: "ul. Testowa 1",
         city: "Warszawa",
@@ -328,6 +329,17 @@ defmodule KsefHub.Factory do
       status: :pending,
       company: build(:company),
       created_by: build(:user)
+    }
+  end
+
+  @doc "Builds a `CompanyBankAccount` with PLN currency."
+  @spec company_bank_account_factory() :: CompanyBankAccount.t()
+  def company_bank_account_factory do
+    %CompanyBankAccount{
+      currency: "PLN",
+      iban: "PL12105015201000009032123698",
+      label: "Main PLN account",
+      company: build(:company)
     }
   end
 

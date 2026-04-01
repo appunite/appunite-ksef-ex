@@ -12,6 +12,11 @@ defmodule KsefHubWeb.Schemas.PaymentRequest do
     properties: %{
       id: %Schema{type: :string, format: :uuid, description: "Payment Request UUID."},
       recipient_name: %Schema{type: :string, description: "Name of the payment recipient."},
+      recipient_nip: %Schema{
+        type: :string,
+        nullable: true,
+        description: "Recipient NIP (tax identification number)."
+      },
       recipient_address: %Schema{
         type: :object,
         nullable: true,

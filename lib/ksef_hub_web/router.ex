@@ -209,6 +209,14 @@ defmodule KsefHubWeb.Router do
       live "/payment-requests/:id/edit", PaymentRequestLive.Form, :edit
     end
 
+    live_session :require_manage_bank_accounts,
+      on_mount: [
+        {KsefHubWeb.LiveAuth, :default},
+        {KsefHubWeb.LiveAuth, {:require_permission, :manage_bank_accounts}}
+      ] do
+      live "/settings/bank-accounts", BankAccountLive
+    end
+
     get "/payment-requests/csv", PaymentRequestCsvController, :download
     get "/invoices/:id/pdf", InvoicePdfController, :show
     get "/invoices/:id/xml", InvoicePdfController, :xml

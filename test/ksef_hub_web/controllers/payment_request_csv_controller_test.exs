@@ -15,6 +15,7 @@ defmodule KsefHubWeb.PaymentRequestCsvControllerTest do
 
     company = insert(:company, name: "CSV Corp")
     insert(:membership, user: user, company: company, role: :owner)
+    insert(:company_bank_account, company: company, currency: "PLN")
     conn = log_in_user(conn, user, %{current_company_id: company.id})
     %{conn: conn, user: user, company: company}
   end
@@ -32,6 +33,7 @@ defmodule KsefHubWeb.PaymentRequestCsvControllerTest do
       assert get_resp_header(conn, "content-type") |> hd() =~ "text/csv"
       assert get_resp_header(conn, "content-disposition") |> hd() =~ "attachment"
       assert conn.resp_body =~ "Test Co"
+      assert conn.resp_body =~ "kwota"
     end
 
     test "redirects with flash when no IDs provided", %{conn: conn, company: company} do
@@ -43,6 +45,47 @@ defmodule KsefHubWeb.PaymentRequestCsvControllerTest do
       fake_id = Ecto.UUID.generate()
       conn = get(conn, ~p"/c/#{company.id}/payment-requests/csv?ids=#{fake_id}")
       assert redirected_to(conn) =~ "/payment-requests"
+      assert Phoenix.Flash.get(conn.assigns.flash, :error) =~ "not found"
+    end
+
+    test "redirects with error when IDs contain invalid UUIDs", %{conn: conn, company: company} do
+      conn = get(conn, ~p"/c/#{company.id}/payment-requests/csv?ids=not-a-uuid")
+      assert redirected_to(conn) =~ "/payment-requests"
+      assert Phoenix.Flash.get(conn.assigns.flash, :error) =~ "invalid"
+    end
+
+    test "redirects with error when no bank account for currency", %{
+      conn: conn,
+      company: company,
+      user: user
+    } do
+      pr =
+        insert(:payment_request,
+          company: company,
+          created_by: user,
+          currency: "EUR"
+        )
+
+      conn = get(conn, ~p"/c/#{company.id}/payment-requests/csv?ids=#{pr.id}")
+      assert redirected_to(conn) =~ "/payment-requests"
+      assert Phoenix.Flash.get(conn.assigns.flash, :error) =~ "No bank account configured"
+    end
+
+    test "redirects with error when mixed currencies", %{
+      conn: conn,
+      company: company,
+      user: user
+    } do
+      pr1 = insert(:payment_request, company: company, created_by: user, currency: "PLN")
+      pr2 = insert(:payment_request, company: company, created_by: user, currency: "EUR")
+
+      ids = "#{pr1.id},#{pr2.id}"
+
+      conn =
+        get(conn, ~p"/c/#{company.id}/payment-requests/csv?ids=#{ids}")
+
+      assert redirected_to(conn) =~ "/payment-requests"
+      assert Phoenix.Flash.get(conn.assigns.flash, :error) =~ "same currency"
     end
 
     test "accountant cannot download CSV", %{company: company} do

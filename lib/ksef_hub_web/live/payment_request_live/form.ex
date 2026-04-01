@@ -186,6 +186,7 @@ defmodule KsefHubWeb.PaymentRequestLive.Form do
 
   @allowed_keys %{
     "recipient_name" => :recipient_name,
+    "recipient_nip" => :recipient_nip,
     "recipient_address" => :recipient_address,
     "amount" => :amount,
     "currency" => :currency,
@@ -232,6 +233,7 @@ defmodule KsefHubWeb.PaymentRequestLive.Form do
   defp editing?(live_action), do: live_action == :edit
 
   @impl true
+  @spec render(map()) :: Phoenix.LiveView.Rendered.t()
   def render(assigns) do
     ~H"""
     <.header>
@@ -353,6 +355,23 @@ defmodule KsefHubWeb.PaymentRequestLive.Form do
           disabled={@readonly}
         />
         <.error :for={msg <- Enum.map(@form[:recipient_name].errors, &translate_error/1)}>
+          {msg}
+        </.error>
+      </div>
+
+      <div class="space-y-1">
+        <label for={@form[:recipient_nip].id} class="block text-sm font-medium">
+          Recipient NIP <span class="text-muted-foreground font-normal">(optional)</span>
+        </label>
+        <input
+          type="text"
+          id={@form[:recipient_nip].id}
+          name={@form[:recipient_nip].name}
+          value={@form[:recipient_nip].value}
+          class="w-full h-9 rounded-md border border-input bg-background px-3 text-sm font-mono focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+          disabled={@readonly}
+        />
+        <.error :for={msg <- Enum.map(@form[:recipient_nip].errors, &translate_error/1)}>
           {msg}
         </.error>
       </div>

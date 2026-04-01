@@ -11,6 +11,12 @@ defmodule KsefHubWeb.Schemas.CreatePaymentRequestRequest do
     type: :object,
     properties: %{
       recipient_name: %Schema{type: :string, description: "Name of the payment recipient."},
+      recipient_nip: %Schema{
+        type: :string,
+        nullable: true,
+        description: "Recipient NIP (tax identification number).",
+        maxLength: 50
+      },
       recipient_address: %Schema{
         type: :object,
         nullable: true,

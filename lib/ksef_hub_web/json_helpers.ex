@@ -46,6 +46,7 @@ defmodule KsefHubWeb.JsonHelpers do
     %{
       id: pr.id,
       recipient_name: pr.recipient_name,
+      recipient_nip: pr.recipient_nip,
       recipient_address: pr.recipient_address,
       amount: pr.amount && Decimal.to_string(pr.amount),
       currency: pr.currency,

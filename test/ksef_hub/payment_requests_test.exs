@@ -230,6 +230,7 @@ defmodule KsefHub.PaymentRequestsTest do
         id: Ecto.UUID.generate(),
         type: :expense,
         seller_name: "Seller Co",
+        seller_nip: "1234567890",
         seller_address: %{street: "ul. Testowa 1", city: "Warszawa"},
         gross_amount: Decimal.new("1230.00"),
         currency: "PLN",
@@ -239,6 +240,7 @@ defmodule KsefHub.PaymentRequestsTest do
 
       attrs = PaymentRequests.prefill_attrs_from_invoice(invoice)
       assert attrs.recipient_name == "Seller Co"
+      assert attrs.recipient_nip == "1234567890"
       assert attrs.amount == Decimal.new("1230.00")
       assert attrs.iban == "PL12345678901234567890123456"
       assert attrs.title == "FV/2026/001"
@@ -250,6 +252,7 @@ defmodule KsefHub.PaymentRequestsTest do
         id: Ecto.UUID.generate(),
         type: :income,
         buyer_name: "Buyer Co",
+        buyer_nip: "9876543210",
         buyer_address: %{city: "Krakow"},
         gross_amount: Decimal.new("500.00"),
         currency: "EUR",
@@ -259,6 +262,7 @@ defmodule KsefHub.PaymentRequestsTest do
 
       attrs = PaymentRequests.prefill_attrs_from_invoice(invoice)
       assert attrs.recipient_name == "Buyer Co"
+      assert attrs.recipient_nip == "9876543210"
       assert attrs.iban == ""
     end
   end

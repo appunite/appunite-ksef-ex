@@ -20,6 +20,7 @@ defmodule KsefHub.PaymentRequests.PaymentRequest do
     field :currency, :string, default: "PLN"
     field :title, :string
     field :iban, :string
+    field :recipient_nip, :string
     field :note, :string
     field :paid_at, :utc_datetime_usec
     field :voided_at, :utc_datetime_usec
@@ -43,6 +44,7 @@ defmodule KsefHub.PaymentRequests.PaymentRequest do
     payment_request
     |> cast(attrs, [
       :recipient_name,
+      :recipient_nip,
       :recipient_address,
       :amount,
       :currency,
@@ -58,6 +60,8 @@ defmodule KsefHub.PaymentRequests.PaymentRequest do
     |> validate_number(:amount, greater_than: 0)
     |> validate_length(:iban, min: 15, max: 34)
     |> validate_length(:recipient_name, max: 256)
+    |> validate_length(:recipient_nip, max: 50)
+    |> validate_format(:recipient_nip, ~r/^\d+$/, message: "must contain only digits")
     |> validate_length(:title, max: 256)
     |> normalize_address()
     |> foreign_key_constraint(:invoice_id)

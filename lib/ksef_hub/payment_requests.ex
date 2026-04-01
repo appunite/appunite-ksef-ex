@@ -5,6 +5,7 @@ defmodule KsefHub.PaymentRequests do
   """
 
   import Ecto.Query
+  require Logger
 
   alias KsefHub.Invoices.Invoice
   alias KsefHub.PaymentRequests.{CsvBuilder, CsvDownload, PaymentRequest}
@@ -133,6 +134,7 @@ defmodule KsefHub.PaymentRequests do
   def prefill_attrs_from_invoice(%Invoice{type: :expense} = invoice) do
     %{
       recipient_name: invoice.seller_name || "",
+      recipient_nip: invoice.seller_nip,
       recipient_address: invoice.seller_address,
       amount: invoice.gross_amount,
       currency: invoice.currency || "PLN",
@@ -145,6 +147,7 @@ defmodule KsefHub.PaymentRequests do
   def prefill_attrs_from_invoice(%Invoice{type: :income} = invoice) do
     %{
       recipient_name: invoice.buyer_name || "",
+      recipient_nip: invoice.buyer_nip,
       recipient_address: invoice.buyer_address,
       amount: invoice.gross_amount,
       currency: invoice.currency || "PLN",
@@ -154,7 +157,13 @@ defmodule KsefHub.PaymentRequests do
     }
   end
 
-  def prefill_attrs_from_invoice(_invoice), do: %{}
+  def prefill_attrs_from_invoice(%Invoice{type: type}) do
+    Logger.warning(
+      "prefill_attrs_from_invoice called with unsupported invoice type: #{inspect(type)}"
+    )
+
+    %{}
+  end
 
   # --- Mark as paid ---
 
@@ -196,9 +205,9 @@ defmodule KsefHub.PaymentRequests do
   # --- CSV ---
 
   @doc "Builds CSV binary from a list of payment requests. Delegates to CsvBuilder."
-  @spec build_csv([PaymentRequest.t()]) :: binary()
-  def build_csv(payment_requests) do
-    CsvBuilder.build(payment_requests)
+  @spec build_csv([PaymentRequest.t()], String.t()) :: binary()
+  def build_csv(payment_requests, orderer_iban) do
+    CsvBuilder.build(payment_requests, orderer_iban)
   end
 
   @doc "Records a CSV download event."
@@ -290,7 +299,7 @@ defmodule KsefHub.PaymentRequests do
     {page, per_page}
   end
 
-  @spec to_integer(integer()) :: integer()
+  @spec to_integer(term()) :: integer()
   defp to_integer(v) when is_integer(v), do: v
   defp to_integer(v) when is_binary(v), do: String.to_integer(v)
   defp to_integer(_), do: 1

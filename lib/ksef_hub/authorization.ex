@@ -39,6 +39,7 @@ defmodule KsefHub.Authorization do
           | :manage_team
           | :view_payment_requests
           | :manage_payment_requests
+          | :manage_bank_accounts
 
   @admin_denied MapSet.new([:delete_company, :transfer_ownership])
 
