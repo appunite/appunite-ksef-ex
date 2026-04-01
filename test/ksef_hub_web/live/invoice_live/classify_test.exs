@@ -468,5 +468,77 @@ defmodule KsefHubWeb.InvoiceLive.ClassifyTest do
       updated = Invoices.get_invoice!(company.id, invoice.id)
       assert updated.project_tag == "Revenue Project"
     end
+
+    test "shows only 8 project tags by default with show more button", %{
+      conn: conn,
+      company: company
+    } do
+      for i <- 1..12,
+          do: insert(:invoice, company: company, type: :expense, project_tag: "P-#{i}")
+
+      invoice = insert(:invoice, type: :expense, company: company)
+
+      {:ok, view, _html} = live(conn, ~p"/c/#{company.id}/invoices/#{invoice.id}/classify")
+
+      html = render(view)
+
+      # Count rendered project tag radio buttons (excluding the "None" option with value="")
+      visible_count =
+        ~r/input[^>]*name="project_tag"[^>]*value="(?!")[^"]+"/
+        |> Regex.scan(html)
+        |> length()
+
+      assert visible_count == 8
+
+      assert has_element?(view, ~s([data-testid="toggle-show-all-project-tags"]))
+      assert html =~ "Show more (4 more)"
+    end
+
+    test "toggle show all project tags reveals hidden tags", %{conn: conn, company: company} do
+      tags = for i <- 1..12, do: "Project-#{String.pad_leading("#{i}", 2, "0")}"
+      for tag <- tags, do: insert(:invoice, company: company, type: :expense, project_tag: tag)
+      invoice = insert(:invoice, type: :expense, company: company)
+
+      {:ok, view, _html} = live(conn, ~p"/c/#{company.id}/invoices/#{invoice.id}/classify")
+
+      render_click(view, "toggle_show_all_project_tags")
+
+      html = render(view)
+
+      for tag <- tags do
+        assert html =~ tag
+      end
+
+      assert html =~ "Show less"
+    end
+
+    test "selected project tag beyond top 8 is still visible", %{conn: conn, company: company} do
+      tags = for i <- 1..12, do: "Project-#{String.pad_leading("#{i}", 2, "0")}"
+      for tag <- tags, do: insert(:invoice, company: company, type: :expense, project_tag: tag)
+
+      # Recency-descending: Project-12 at position 1, Project-09 at position 4 (visible),
+      # Project-04 at position 9 (hidden). Project-01 is beyond the top 8 but remains
+      # visible because it is the selected tag on the invoice being classified.
+      invoice = insert(:invoice, type: :expense, company: company, project_tag: "Project-01")
+
+      {:ok, view, _html} = live(conn, ~p"/c/#{company.id}/invoices/#{invoice.id}/classify")
+
+      html = render(view)
+      assert html =~ "Project-01"
+    end
+
+    test "does not show toggle button when 8 or fewer project tags", %{
+      conn: conn,
+      company: company
+    } do
+      for i <- 1..8,
+          do: insert(:invoice, company: company, type: :expense, project_tag: "Tag-#{i}")
+
+      invoice = insert(:invoice, type: :expense, company: company)
+
+      {:ok, view, _html} = live(conn, ~p"/c/#{company.id}/invoices/#{invoice.id}/classify")
+
+      refute has_element?(view, ~s([data-testid="toggle-show-all-project-tags"]))
+    end
   end
 end
