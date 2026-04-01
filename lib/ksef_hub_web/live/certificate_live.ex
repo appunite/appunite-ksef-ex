@@ -220,7 +220,7 @@ defmodule KsefHubWeb.CertificateLive do
     |> Enum.each(fn company ->
       case Credentials.ensure_credential_for_company(company.id) do
         {:ok, _credential} ->
-          enqueue_auth(company.id)
+          AuthWorker.enqueue(company.id)
 
         {:error, _changeset} ->
           Logger.warning("Failed to create credential for company #{company.id}")
@@ -270,18 +270,6 @@ defmodule KsefHubWeb.CertificateLive do
   @spec certificate_info() :: module()
   defp certificate_info do
     Application.get_env(:ksef_hub, :certificate_info, KsefHub.Credentials.CertificateInfo.Openssl)
-  end
-
-  @spec enqueue_auth(Ecto.UUID.t()) :: :ok
-  defp enqueue_auth(company_id) do
-    case %{company_id: company_id} |> AuthWorker.new() |> Oban.insert() do
-      {:ok, _job} ->
-        :ok
-
-      {:error, _reason} ->
-        Logger.error("Failed to enqueue auth job for company #{company_id}")
-        :ok
-    end
   end
 
   @spec load_certificate_data(Phoenix.LiveView.Socket.t()) :: Phoenix.LiveView.Socket.t()
