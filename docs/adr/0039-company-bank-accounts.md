@@ -36,7 +36,7 @@ Add a nullable `recipient_nip` string field to `payment_requests`. Pre-filled fr
 
 The CSV builder now produces 7 columns:
 
-```
+```csv
 kwota,nazwa_kontrahenta,rachunek_kontrahenta,rachunek_zleceniodawcy,szczegóły_płatności,adres_1,adres_2
 ```
 

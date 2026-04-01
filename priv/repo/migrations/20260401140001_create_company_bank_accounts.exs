@@ -1,6 +1,10 @@
 defmodule KsefHub.Repo.Migrations.CreateCompanyBankAccounts do
+  @moduledoc "Creates company_bank_accounts table for per-currency orderer bank accounts used in payment CSV exports."
+
   use Ecto.Migration
 
+  @doc "Creates company_bank_accounts table with unique index on (company_id, currency)."
+  @spec change() :: term()
   def change do
     create table(:company_bank_accounts, primary_key: false) do
       add :id, :binary_id, primary_key: true

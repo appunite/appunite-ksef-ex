@@ -45,6 +45,13 @@ defmodule KsefHubWeb.PaymentRequestCsvControllerTest do
       fake_id = Ecto.UUID.generate()
       conn = get(conn, ~p"/c/#{company.id}/payment-requests/csv?ids=#{fake_id}")
       assert redirected_to(conn) =~ "/payment-requests"
+      assert Phoenix.Flash.get(conn.assigns.flash, :error) =~ "not found"
+    end
+
+    test "redirects with error when IDs contain invalid UUIDs", %{conn: conn, company: company} do
+      conn = get(conn, ~p"/c/#{company.id}/payment-requests/csv?ids=not-a-uuid")
+      assert redirected_to(conn) =~ "/payment-requests"
+      assert Phoenix.Flash.get(conn.assigns.flash, :error) =~ "invalid"
     end
 
     test "redirects with error when no bank account for currency", %{

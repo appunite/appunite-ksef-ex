@@ -33,5 +33,13 @@ defmodule KsefHub.Companies.CompanyBankAccount do
       message: "a bank account for this currency already exists"
     )
     |> foreign_key_constraint(:company_id)
+    |> check_constraint(:currency,
+      name: :company_bank_accounts_currency_check,
+      message: "must be a 3-letter uppercase code"
+    )
+    |> check_constraint(:iban,
+      name: :company_bank_accounts_iban_check,
+      message: "must be 15-34 alphanumeric characters"
+    )
   end
 end

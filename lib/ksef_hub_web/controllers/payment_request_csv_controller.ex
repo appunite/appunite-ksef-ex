@@ -3,6 +3,8 @@ defmodule KsefHubWeb.PaymentRequestCsvController do
 
   use KsefHubWeb, :controller
 
+  require Logger
+
   alias KsefHub.Authorization
   alias KsefHub.Companies
   alias KsefHub.PaymentRequests
@@ -16,30 +18,36 @@ defmodule KsefHubWeb.PaymentRequestCsvController do
     company_id = conn.assigns.company_id
     user_id = conn.assigns.current_user.id
 
-    ids =
-      ids_param
-      |> String.split(",")
-      |> Enum.filter(&valid_uuid?/1)
+    raw_ids = ids_param |> String.split(",") |> Enum.reject(&(&1 == ""))
+    ids = Enum.filter(raw_ids, &valid_uuid?/1)
 
-    payment_requests = PaymentRequests.get_payment_requests_by_ids(company_id, ids)
+    if length(ids) != length(raw_ids) do
+      conn
+      |> put_flash(:error, "Some payment request IDs are invalid.")
+      |> redirect(to: ~p"/c/#{company_id}/payment-requests")
+    else
+      payment_requests = PaymentRequests.get_payment_requests_by_ids(company_id, ids)
+      found_ids = MapSet.new(payment_requests, & &1.id)
+      requested_ids = MapSet.new(ids)
 
-    cond do
-      payment_requests == [] ->
-        conn
-        |> put_flash(:error, "No payment requests found.")
-        |> redirect(to: ~p"/c/#{company_id}/payment-requests")
+      cond do
+        MapSet.size(found_ids) != MapSet.size(requested_ids) ->
+          conn
+          |> put_flash(:error, "Some payment request IDs were not found.")
+          |> redirect(to: ~p"/c/#{company_id}/payment-requests")
 
-      mixed_currencies?(payment_requests) ->
-        conn
-        |> put_flash(
-          :error,
-          "Select payment requests of the same currency for CSV export."
-        )
-        |> redirect(to: ~p"/c/#{company_id}/payment-requests")
+        mixed_currencies?(payment_requests) ->
+          conn
+          |> put_flash(
+            :error,
+            "Select payment requests of the same currency for CSV export."
+          )
+          |> redirect(to: ~p"/c/#{company_id}/payment-requests")
 
-      true ->
-        currency = hd(payment_requests).currency
-        export_csv(conn, company_id, user_id, payment_requests, currency)
+        true ->
+          currency = hd(payment_requests).currency
+          export_csv(conn, company_id, user_id, payment_requests, currency)
+      end
     end
   end
 
@@ -65,19 +73,26 @@ defmodule KsefHubWeb.PaymentRequestCsvController do
 
       bank_account ->
         csv = PaymentRequests.build_csv(payment_requests, bank_account.iban)
+        pr_ids = Enum.map(payment_requests, & &1.id)
 
-        PaymentRequests.record_csv_download(
-          company_id,
-          user_id,
-          Enum.map(payment_requests, & &1.id)
-        )
+        case PaymentRequests.record_csv_download(company_id, user_id, pr_ids) do
+          {:ok, _record} ->
+            filename = "payment_requests_#{Date.to_iso8601(Date.utc_today())}.csv"
 
-        filename = "payment_requests_#{Date.to_iso8601(Date.utc_today())}.csv"
+            conn
+            |> put_resp_content_type("text/csv")
+            |> put_resp_header("content-disposition", ~s(attachment; filename="#{filename}"))
+            |> send_resp(200, csv)
 
-        conn
-        |> put_resp_content_type("text/csv")
-        |> put_resp_header("content-disposition", ~s(attachment; filename="#{filename}"))
-        |> send_resp(200, csv)
+          {:error, reason} ->
+            Logger.error(
+              "Failed to record CSV download for company=#{company_id} user=#{user_id}: #{inspect(reason)}"
+            )
+
+            conn
+            |> put_flash(:error, "Failed to process CSV download. Please try again.")
+            |> redirect(to: ~p"/c/#{company_id}/payment-requests")
+        end
     end
   end
 
