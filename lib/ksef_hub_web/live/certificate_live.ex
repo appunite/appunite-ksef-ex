@@ -17,6 +17,7 @@ defmodule KsefHubWeb.CertificateLive do
 
   require Logger
 
+  alias KsefHub.Companies
   alias KsefHub.Credentials
   alias KsefHub.Credentials.{Encryption, UserCertificate}
   alias KsefHub.KsefClient.AuthWorker
@@ -181,7 +182,6 @@ defmodule KsefHubWeb.CertificateLive do
 
   defp save_certificate(socket, cert_data, password) do
     user = socket.assigns.current_user
-    company = socket.assigns.current_company
     cert_meta = extract_certificate_info(cert_data, password)
 
     with {:ok, encrypted_cert} <- Encryption.encrypt(cert_data),
@@ -195,8 +195,7 @@ defmodule KsefHubWeb.CertificateLive do
 
       case Credentials.replace_active_user_certificate(user.id, attrs) do
         {:ok, _user_cert} ->
-          ensure_credential_exists(company)
-          enqueue_auth(company.id)
+          ensure_credentials_and_auth_for_user(user)
 
           {:noreply,
            socket
@@ -214,25 +213,19 @@ defmodule KsefHubWeb.CertificateLive do
     end
   end
 
-  @spec ensure_credential_exists(KsefHub.Companies.Company.t()) :: :ok
-  defp ensure_credential_exists(company) do
-    case Credentials.get_active_credential(company.id) do
-      nil ->
-        case Credentials.replace_active_credential(company.id, %{}) do
-          {:ok, _credential} ->
-            :ok
+  @spec ensure_credentials_and_auth_for_user(KsefHub.Accounts.User.t()) :: :ok
+  defp ensure_credentials_and_auth_for_user(user) do
+    user.id
+    |> Companies.list_owned_companies_for_user()
+    |> Enum.each(fn company ->
+      case Credentials.ensure_credential_for_company(company.id) do
+        {:ok, _credential} ->
+          AuthWorker.enqueue(company.id)
 
-          {:error, changeset} ->
-            Logger.warning(
-              "Failed to create credential for company #{company.id}: #{inspect(changeset.errors)}"
-            )
-
-            :ok
-        end
-
-      _credential ->
-        :ok
-    end
+        {:error, _changeset} ->
+          Logger.warning("Failed to create credential for company #{company.id}")
+      end
+    end)
   end
 
   @spec non_empty_or_nil(String.t() | nil) :: String.t() | nil
@@ -277,18 +270,6 @@ defmodule KsefHubWeb.CertificateLive do
   @spec certificate_info() :: module()
   defp certificate_info do
     Application.get_env(:ksef_hub, :certificate_info, KsefHub.Credentials.CertificateInfo.Openssl)
-  end
-
-  @spec enqueue_auth(Ecto.UUID.t()) :: :ok
-  defp enqueue_auth(company_id) do
-    case %{company_id: company_id} |> AuthWorker.new() |> Oban.insert() do
-      {:ok, _job} ->
-        :ok
-
-      {:error, _reason} ->
-        Logger.error("Failed to enqueue auth job for company #{company_id}")
-        :ok
-    end
   end
 
   @spec load_certificate_data(Phoenix.LiveView.Socket.t()) :: Phoenix.LiveView.Socket.t()

@@ -137,6 +137,19 @@ defmodule KsefHub.Credentials do
     update_credential(credential, attrs)
   end
 
+  @doc """
+  Ensures an active credential exists for the given company.
+  Returns `{:ok, credential}` — either existing or newly created.
+  """
+  @spec ensure_credential_for_company(Ecto.UUID.t()) ::
+          {:ok, Credential.t()} | {:error, Ecto.Changeset.t()}
+  def ensure_credential_for_company(company_id) do
+    case get_active_credential(company_id) do
+      nil -> replace_active_credential(company_id, %{})
+      credential -> {:ok, credential}
+    end
+  end
+
   # ---------------------------------------------------------------------------
   # User Certificates
   # ---------------------------------------------------------------------------

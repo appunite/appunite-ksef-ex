@@ -12,6 +12,19 @@ defmodule KsefHub.KsefClient.AuthWorker do
 
   alias KsefHub.KsefClient.Authenticator
 
+  @doc "Enqueues an auth job for the given company. Returns `:ok` always."
+  @spec enqueue(Ecto.UUID.t()) :: :ok
+  def enqueue(company_id) do
+    case %{company_id: company_id} |> new() |> Oban.insert() do
+      {:ok, _job} ->
+        :ok
+
+      {:error, reason} ->
+        Logger.error("Failed to enqueue auth job for company #{company_id}: #{inspect(reason)}")
+        :ok
+    end
+  end
+
   @impl Oban.Worker
   @spec perform(Oban.Job.t()) :: :ok | {:error, term()} | {:cancel, term()}
   def perform(%Oban.Job{args: %{"company_id" => company_id}}) do
