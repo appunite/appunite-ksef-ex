@@ -107,7 +107,8 @@ defmodule KsefHub.Invoices.TagsTest do
       insert(:invoice, company: company, type: :expense, tags: ["alpha", "beta"])
       insert(:invoice, company: company, type: :expense, tags: ["beta", "gamma"])
 
-      assert Invoices.list_distinct_tags(company.id) == ["alpha", "beta", "gamma"]
+      result = Invoices.list_distinct_tags(company.id)
+      assert Enum.sort(result) == ["alpha", "beta", "gamma"]
     end
 
     test "filters by invoice type", %{company: company} do
@@ -132,10 +133,14 @@ defmodule KsefHub.Invoices.TagsTest do
       assert Invoices.list_distinct_tags(company.id) == ["mine"]
     end
 
-    test "returns alphabetically sorted results", %{company: company} do
-      insert(:invoice, company: company, tags: ["zebra", "alpha", "mango"])
+    test "orders by most recently used", %{company: company} do
+      now = NaiveDateTime.utc_now()
+      earlier = NaiveDateTime.add(now, -60)
 
-      assert Invoices.list_distinct_tags(company.id) == ["alpha", "mango", "zebra"]
+      insert(:invoice, company: company, tags: ["old-tag"], updated_at: earlier)
+      insert(:invoice, company: company, tags: ["recent-tag"], updated_at: now)
+
+      assert Invoices.list_distinct_tags(company.id) == ["recent-tag", "old-tag"]
     end
   end
 end

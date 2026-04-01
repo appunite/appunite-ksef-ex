@@ -191,10 +191,7 @@ defmodule KsefHubWeb.InvoiceLive.ClassifyTest do
 
   describe "tag visibility (show more / show less)" do
     test "with >8 tags, only first 8 are visible initially", %{conn: conn, company: company} do
-      tag_names =
-        for i <- 1..12 do
-          "tag-#{String.pad_leading("#{i}", 2, "0")}"
-        end
+      tag_names = for i <- 1..12, do: "tag-#{i}"
 
       # Create invoices with these tags so list_distinct_tags returns them
       for name <- tag_names do
@@ -203,30 +200,22 @@ defmodule KsefHubWeb.InvoiceLive.ClassifyTest do
 
       invoice = insert(:invoice, type: :expense, company: company)
 
-      {:ok, view, _html} = live(conn, ~p"/c/#{company.id}/invoices/#{invoice.id}/classify")
+      {:ok, view, html} = live(conn, ~p"/c/#{company.id}/invoices/#{invoice.id}/classify")
 
-      # First 8 should be visible (sorted alphabetically)
-      sorted = Enum.sort(tag_names)
+      visible_count =
+        Enum.count(tag_names, fn name ->
+          has_element?(view, ~s(input[phx-value-tag-name="#{name}"]))
+        end)
 
-      for name <- Enum.take(sorted, 8) do
-        assert has_element?(view, ~s(input[phx-value-tag-name="#{name}"]))
-      end
-
-      # Tags 9-12 should be hidden
-      for name <- Enum.drop(sorted, 8) do
-        refute has_element?(view, ~s(input[phx-value-tag-name="#{name}"]))
-      end
+      assert visible_count == 8
 
       # "Show more" button should be present
       assert has_element?(view, ~s([data-testid="toggle-show-all-tags"]))
-      assert render(view) =~ "Show more (4 more)"
+      assert html =~ "Show more (4 more)"
     end
 
     test "clicking 'Show more' reveals all tags", %{conn: conn, company: company} do
-      tag_names =
-        for i <- 1..10 do
-          "tag-#{String.pad_leading("#{i}", 2, "0")}"
-        end
+      tag_names = for i <- 1..10, do: "tag-#{i}"
 
       for name <- tag_names do
         insert(:invoice, type: :expense, company: company, tags: [name])
@@ -248,28 +237,22 @@ defmodule KsefHubWeb.InvoiceLive.ClassifyTest do
     end
 
     test "selected tags beyond top 8 are always visible", %{conn: conn, company: company} do
-      tag_names =
-        for i <- 1..10 do
-          "tag-#{String.pad_leading("#{i}", 2, "0")}"
-        end
+      tag_names = for i <- 1..10, do: "tag-#{i}"
 
       for name <- tag_names do
         insert(:invoice, type: :expense, company: company, tags: [name])
       end
 
-      sorted = Enum.sort(tag_names)
-      tag_9 = Enum.at(sorted, 8)
+      # Pick a tag that will be beyond the top 8 — use the oldest one
+      # (list_distinct_tags orders by most recently used, so first-inserted is last)
+      oldest_tag = "tag-1"
 
-      invoice = insert(:invoice, type: :expense, company: company, tags: [tag_9])
+      invoice = insert(:invoice, type: :expense, company: company, tags: [oldest_tag])
 
       {:ok, view, _html} = live(conn, ~p"/c/#{company.id}/invoices/#{invoice.id}/classify")
 
-      # Tag 9 should be visible because it's selected
-      assert has_element?(view, ~s(input[phx-value-tag-name="#{tag_9}"][checked]))
-
-      # Tag 10 should still be hidden (not selected)
-      tag_10 = Enum.at(sorted, 9)
-      refute has_element?(view, ~s(input[phx-value-tag-name="#{tag_10}"]))
+      # The selected tag should be visible even if it's beyond the top 8
+      assert has_element?(view, ~s(input[phx-value-tag-name="#{oldest_tag}"][checked]))
     end
   end
 

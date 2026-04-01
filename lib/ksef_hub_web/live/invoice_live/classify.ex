@@ -66,8 +66,9 @@ defmodule KsefHubWeb.InvoiceLive.Classify do
     grouped = group_categories(categories)
     distinct_tags = Invoices.list_distinct_tags(company.id, invoice.type)
     current_tags = MapSet.new(invoice.tags)
-    # Merge invoice's own tags into the list so they always appear as checkboxes
-    all_tags = Enum.sort(Enum.uniq(distinct_tags ++ invoice.tags))
+    # Merge invoice's own tags into the list so they always appear as checkboxes.
+    # Preserves recency order from list_distinct_tags, appending any missing invoice tags at the end.
+    all_tags = Enum.uniq(distinct_tags ++ invoice.tags)
     project_tags = Invoices.list_project_tags(company.id)
 
     category_cost_line_map =
@@ -223,7 +224,7 @@ defmodule KsefHubWeb.InvoiceLive.Classify do
         all_tags =
           if trimmed in socket.assigns.all_tags,
             do: socket.assigns.all_tags,
-            else: Enum.sort([trimmed | socket.assigns.all_tags])
+            else: [trimmed | socket.assigns.all_tags]
 
         {:noreply,
          socket

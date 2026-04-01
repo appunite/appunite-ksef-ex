@@ -1419,17 +1419,30 @@ defmodule KsefHub.Invoices do
 
   @doc """
   Lists distinct tag values used on invoices for a company,
-  optionally filtered by invoice type. Ordered alphabetically.
+  optionally filtered by invoice type. Ordered by most recently used.
   """
   @spec list_distinct_tags(Ecto.UUID.t(), atom() | nil) :: [String.t()]
   def list_distinct_tags(company_id, type \\ nil) do
-    Invoice
-    |> where([i], i.company_id == ^company_id)
-    |> then(fn q -> if type, do: where(q, [i], i.type == ^type), else: q end)
-    |> where([i], fragment("array_length(?, 1) > 0", i.tags))
-    |> select([i], fragment("DISTINCT unnest(?)", i.tags))
+    base =
+      Invoice
+      |> where([i], i.company_id == ^company_id)
+      |> then(fn q -> if type, do: where(q, [i], i.type == ^type), else: q end)
+      |> where([i], fragment("array_length(?, 1) > 0", i.tags))
+
+    from(
+      t in subquery(
+        from(i in base,
+          select: %{
+            tag: fragment("unnest(?)", i.tags),
+            updated_at: i.updated_at
+          }
+        )
+      ),
+      group_by: t.tag,
+      order_by: [desc: max(t.updated_at)],
+      select: t.tag
+    )
     |> Repo.all()
-    |> Enum.sort()
   end
 
   # --- Invoice-Category Assignment ---
