@@ -1728,4 +1728,74 @@ defmodule KsefHubWeb.Api.InvoiceControllerTest do
       assert hd(data)["access_restricted"] == true
     end
   end
+
+  describe "set_project_tag" do
+    test "sets project tag on expense invoice", %{conn: conn} do
+      %{company: company, token: token} = create_user_with_token(:owner)
+      invoice = insert(:invoice, type: :expense, company: company)
+
+      body = Jason.encode!(%{project_tag: "Project Alpha"})
+      conn = conn |> api_conn(token) |> put("/api/invoices/#{invoice.id}/project-tag", body)
+
+      assert conn.status == 200
+      assert Jason.decode!(conn.resp_body)["data"]["project_tag"] == "Project Alpha"
+    end
+
+    test "sets project tag on income invoice", %{conn: conn} do
+      %{company: company, token: token} = create_user_with_token(:owner)
+      invoice = insert(:invoice, type: :income, company: company)
+
+      body = Jason.encode!(%{project_tag: "Revenue Stream"})
+      conn = conn |> api_conn(token) |> put("/api/invoices/#{invoice.id}/project-tag", body)
+
+      assert conn.status == 200
+      assert Jason.decode!(conn.resp_body)["data"]["project_tag"] == "Revenue Stream"
+    end
+
+    test "clears project tag with null", %{conn: conn} do
+      %{company: company, token: token} = create_user_with_token(:owner)
+      invoice = insert(:invoice, type: :expense, company: company, project_tag: "Old Tag")
+
+      body = Jason.encode!(%{project_tag: nil})
+      conn = conn |> api_conn(token) |> put("/api/invoices/#{invoice.id}/project-tag", body)
+
+      assert conn.status == 200
+      assert is_nil(Jason.decode!(conn.resp_body)["data"]["project_tag"])
+    end
+
+    test "includes project_tag in invoice JSON response", %{conn: conn} do
+      %{company: company, token: token} = create_user_with_token(:owner)
+      invoice = insert(:invoice, type: :expense, company: company, project_tag: "My Project")
+
+      conn = conn |> api_conn(token) |> get("/api/invoices/#{invoice.id}")
+
+      assert conn.status == 200
+      assert Jason.decode!(conn.resp_body)["data"]["project_tag"] == "My Project"
+    end
+  end
+
+  describe "list_project_tags" do
+    test "returns distinct project tags", %{conn: conn} do
+      %{company: company, token: token} = create_user_with_token(:owner)
+      insert(:invoice, company: company, type: :expense, project_tag: "Alpha")
+      insert(:invoice, company: company, type: :income, project_tag: "Beta")
+
+      conn = conn |> api_conn(token) |> get("/api/project-tags")
+
+      assert conn.status == 200
+      data = Jason.decode!(conn.resp_body)["data"]
+      assert is_list(data)
+      assert "Alpha" in data
+      assert "Beta" in data
+    end
+
+    test "returns empty list when no tags set", %{conn: conn} do
+      %{company: _company, token: token} = create_user_with_token(:owner)
+
+      conn = conn |> api_conn(token) |> get("/api/project-tags")
+
+      assert conn.status == 200
+      assert Jason.decode!(conn.resp_body)["data"] == []
+    end
+  end
 end

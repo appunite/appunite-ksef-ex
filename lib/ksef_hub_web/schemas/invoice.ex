@@ -216,6 +216,13 @@ defmodule KsefHubWeb.Schemas.Invoice do
         description:
           "Cost line classification mapping to a business cost center. Can be auto-set from category default or manually overridden."
       },
+      project_tag: %Schema{
+        type: :string,
+        nullable: true,
+        maxLength: 255,
+        description:
+          "Free-form project tag for expense allocation and project tracking. Available on both income and expense invoices."
+      },
       access_restricted: %Schema{
         type: :boolean,
         description:

@@ -1175,4 +1175,34 @@ defmodule KsefHubWeb.InvoiceLive.ShowTest do
       refute has_element?(view, ~s([data-testid="cost-line-display"]))
     end
   end
+
+  describe "project tag display" do
+    setup :stub_pdf
+
+    test "shows project tag for expense invoice", %{conn: conn, company: company} do
+      invoice = insert(:invoice, type: :expense, company: company, project_tag: "Alpha")
+
+      {:ok, view, _html} = live(conn, ~p"/c/#{company.id}/invoices/#{invoice.id}")
+
+      assert has_element?(view, ~s([data-testid="project-tag-display"]))
+      assert render(view) =~ "Alpha"
+    end
+
+    test "shows project tag for income invoice", %{conn: conn, company: company} do
+      invoice = insert(:invoice, type: :income, company: company, project_tag: "Beta")
+
+      {:ok, view, _html} = live(conn, ~p"/c/#{company.id}/invoices/#{invoice.id}")
+
+      assert has_element?(view, ~s([data-testid="project-tag-display"]))
+      assert render(view) =~ "Beta"
+    end
+
+    test "does not show project tag badge when nil", %{conn: conn, company: company} do
+      invoice = insert(:invoice, type: :expense, company: company, project_tag: nil)
+
+      {:ok, view, _html} = live(conn, ~p"/c/#{company.id}/invoices/#{invoice.id}")
+
+      refute has_element?(view, ~s([data-testid="project-tag-display"]))
+    end
+  end
 end

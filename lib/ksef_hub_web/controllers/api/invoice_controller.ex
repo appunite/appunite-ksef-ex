@@ -32,6 +32,9 @@ defmodule KsefHubWeb.Api.InvoiceController do
   plug KsefHubWeb.Plugs.RequirePermission, :set_invoice_tags when action == :set_tags
 
   plug KsefHubWeb.Plugs.RequirePermission,
+       :set_invoice_tags when action in [:set_project_tag, :list_project_tags]
+
+  plug KsefHubWeb.Plugs.RequirePermission,
        :manage_team when action in [:get_access, :set_access, :grant_access, :revoke_access]
 
   @create_allowed_keys ~w(type ksef_number seller_nip seller_name buyer_nip buyer_name
@@ -923,6 +926,72 @@ defmodule KsefHubWeb.Api.InvoiceController do
     end
   end
 
+  # --- Project Tags ---
+
+  operation(:set_project_tag,
+    summary: "Set invoice project tag",
+    description:
+      "Sets or clears the project tag on an invoice. Works for both income and expense invoices.",
+    parameters: [
+      id: [
+        in: :path,
+        description: "Invoice UUID.",
+        schema: %Schema{type: :string, format: :uuid}
+      ]
+    ],
+    request_body: {"Project tag assignment", "application/json", Schemas.SetProjectTagRequest},
+    responses: %{
+      200 => {"Updated invoice", "application/json", Schemas.InvoiceResponse},
+      401 =>
+        {"Unauthorized — missing or invalid API token", "application/json", Schemas.ErrorResponse},
+      403 => {"Forbidden — insufficient permissions", "application/json", Schemas.ErrorResponse},
+      404 => {"Invoice not found", "application/json", Schemas.ErrorResponse},
+      422 => {"Validation error", "application/json", Schemas.ErrorResponse}
+    }
+  )
+
+  @doc "Sets or clears the project tag on an invoice."
+  @spec set_project_tag(Plug.Conn.t(), map()) :: Plug.Conn.t()
+  def set_project_tag(conn, %{"id" => id} = params) do
+    company_id = conn.assigns.current_company.id
+    role = conn.assigns[:current_role]
+    user_id = conn.assigns.api_token.created_by_id
+    invoice = Invoices.get_invoice!(company_id, id, role: role, user_id: user_id)
+
+    project_tag = params["project_tag"]
+
+    with {:ok, _updated} <- Invoices.set_invoice_project_tag(invoice, project_tag),
+         {:ok, _} <- Invoices.mark_prediction_manual(invoice) do
+      invoice = Invoices.get_invoice_with_details!(company_id, id, role: role, user_id: user_id)
+      json(conn, %{data: invoice_json(invoice)})
+    else
+      {:error, changeset} ->
+        conn
+        |> put_status(:unprocessable_entity)
+        |> json(%{error: changeset_errors(changeset)})
+    end
+  end
+
+  operation(:list_project_tags,
+    summary: "List available project tags",
+    description:
+      "Returns distinct project tag values used on invoices in the last year, ordered by most recently used.",
+    responses: %{
+      200 => {"List of project tags", "application/json", Schemas.ProjectTagListResponse},
+      401 =>
+        {"Unauthorized — missing or invalid API token", "application/json", Schemas.ErrorResponse},
+      403 => {"Forbidden — insufficient permissions", "application/json", Schemas.ErrorResponse}
+    }
+  )
+
+  @doc "Lists distinct project tag values for the company."
+  @spec list_project_tags(Plug.Conn.t(), map()) :: Plug.Conn.t()
+  def list_project_tags(conn, _params) do
+    company_id = conn.assigns.current_company.id
+    tags = Invoices.list_project_tags(company_id)
+    json(conn, %{data: tags})
+  end
+
   # --- Access Control ---
 
   operation(:get_access,
@@ -1417,6 +1486,7 @@ defmodule KsefHubWeb.Api.InvoiceController do
       seller_address: invoice.seller_address,
       buyer_address: invoice.buyer_address,
       cost_line: invoice.cost_line,
+      project_tag: invoice.project_tag,
       access_restricted: invoice.access_restricted,
       inserted_at: invoice.inserted_at,
       updated_at: invoice.updated_at

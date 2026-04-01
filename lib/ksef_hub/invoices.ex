@@ -1543,6 +1543,38 @@ defmodule KsefHub.Invoices do
   end
 
   @doc """
+  Sets the project tag on an invoice. Works for both income and expense invoices.
+
+  Pass `nil` to clear the project tag.
+  """
+  @spec set_invoice_project_tag(Invoice.t(), String.t() | nil) ::
+          {:ok, Invoice.t()} | {:error, Ecto.Changeset.t()}
+  def set_invoice_project_tag(%Invoice{} = invoice, project_tag) do
+    invoice
+    |> Invoice.project_tag_changeset(%{project_tag: project_tag})
+    |> Repo.update()
+  end
+
+  @doc """
+  Lists distinct project tag values used on invoices for a company within the last year,
+  ordered by most recently used.
+  """
+  @spec list_project_tags(Ecto.UUID.t()) :: [String.t()]
+  def list_project_tags(company_id) do
+    one_year_ago = DateTime.utc_now() |> DateTime.add(-365, :day)
+
+    from(i in Invoice,
+      where: i.company_id == ^company_id,
+      where: not is_nil(i.project_tag),
+      where: i.inserted_at >= ^one_year_ago,
+      group_by: i.project_tag,
+      order_by: [desc: max(i.inserted_at)],
+      select: i.project_tag
+    )
+    |> Repo.all()
+  end
+
+  @doc """
   Marks an invoice's prediction status as `:manual`, indicating the user
   overrode or manually set the category/tags.
 

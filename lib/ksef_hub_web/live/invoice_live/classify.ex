@@ -12,7 +12,7 @@ defmodule KsefHubWeb.InvoiceLive.Classify do
   alias KsefHub.Authorization
   alias KsefHub.InvoiceClassifier
   alias KsefHub.Invoices
-  alias KsefHub.Invoices.CostLine
+  alias KsefHub.Invoices.{CostLine, Invoice}
 
   # --- Mount ---
 
@@ -67,6 +67,7 @@ defmodule KsefHubWeb.InvoiceLive.Classify do
     grouped = group_categories(categories)
     all_tags = Invoices.list_tags(company.id, invoice.type)
     current_tag_ids = MapSet.new(invoice.tags, & &1.id)
+    project_tags = Invoices.list_project_tags(company.id)
 
     category_cost_line_map =
       Map.new(categories, fn c -> {c.id, c.default_cost_line} end)
@@ -82,12 +83,16 @@ defmodule KsefHubWeb.InvoiceLive.Classify do
        selected_category_id: invoice.category_id,
        selected_tag_ids: current_tag_ids,
        selected_cost_line: invoice.cost_line,
+       selected_project_tag: invoice.project_tag,
+       project_tags: project_tags,
        category_cost_line_map: category_cost_line_map,
        can_set_category: can_set_category,
        can_set_tags: can_set_tags,
        can_manage_tags: can_manage_tags,
        new_tag_form: to_form(%{"name" => ""}),
+       new_project_tag_form: to_form(%{"name" => ""}),
        tag_form_key: 0,
+       project_tag_form_key: 0,
        show_all_tags: false,
        category_confidence_threshold: InvoiceClassifier.category_confidence_threshold(),
        tag_confidence_threshold: InvoiceClassifier.tag_confidence_threshold(),
@@ -167,6 +172,23 @@ defmodule KsefHubWeb.InvoiceLive.Classify do
     {:noreply, assign(socket, :show_all_tags, !socket.assigns.show_all_tags)}
   end
 
+  def handle_event("select_project_tag", %{"value" => value}, socket) do
+    if socket.assigns.can_set_tags do
+      tag = if value == "", do: nil, else: value
+      {:noreply, assign(socket, :selected_project_tag, tag)}
+    else
+      {:noreply, put_flash(socket, :error, "You don't have permission to set project tags.")}
+    end
+  end
+
+  def handle_event("set_custom_project_tag", %{"name" => name}, socket) do
+    if socket.assigns.can_set_tags do
+      apply_custom_project_tag(socket, String.trim(name))
+    else
+      {:noreply, put_flash(socket, :error, "You don't have permission to set project tags.")}
+    end
+  end
+
   def handle_event("create_tag", %{"name" => name}, socket) do
     if socket.assigns.can_manage_tags do
       create_tag(socket, name)
@@ -240,6 +262,7 @@ defmodule KsefHubWeb.InvoiceLive.Classify do
     company = socket.assigns.current_company
 
     cost_line = socket.assigns.selected_cost_line
+    project_tag = socket.assigns.selected_project_tag
 
     result =
       Invoices.with_manual_prediction(invoice, fn ->
@@ -251,7 +274,7 @@ defmodule KsefHubWeb.InvoiceLive.Classify do
                  can_set_category
                ),
              {:ok, _tags} <- maybe_set_tags(updated.id, tag_ids, can_set_tags) do
-          {:ok, updated}
+          maybe_set_project_tag(updated, project_tag, can_set_tags)
         end
       end)
 
@@ -292,6 +315,33 @@ defmodule KsefHubWeb.InvoiceLive.Classify do
 
   defp maybe_set_tags(invoice_id, tag_ids, true),
     do: Invoices.set_invoice_tags(invoice_id, tag_ids)
+
+  @spec apply_custom_project_tag(Phoenix.LiveView.Socket.t(), String.t()) ::
+          {:noreply, Phoenix.LiveView.Socket.t()}
+  defp apply_custom_project_tag(socket, ""), do: {:noreply, socket}
+
+  defp apply_custom_project_tag(socket, trimmed) do
+    project_tags =
+      if trimmed in socket.assigns.project_tags,
+        do: socket.assigns.project_tags,
+        else: [trimmed | socket.assigns.project_tags]
+
+    {:noreply,
+     socket
+     |> assign(
+       selected_project_tag: trimmed,
+       project_tags: project_tags,
+       new_project_tag_form: to_form(%{"name" => ""}),
+       project_tag_form_key: socket.assigns.project_tag_form_key + 1
+     )}
+  end
+
+  @spec maybe_set_project_tag(Invoice.t(), String.t() | nil, boolean()) ::
+          {:ok, Invoice.t()} | {:error, term()}
+  defp maybe_set_project_tag(invoice, _project_tag, false), do: {:ok, invoice}
+
+  defp maybe_set_project_tag(invoice, project_tag, true),
+    do: Invoices.set_invoice_project_tag(invoice, project_tag)
 
   # --- Render ---
 
@@ -470,6 +520,63 @@ defmodule KsefHubWeb.InvoiceLive.Classify do
             data-testid="new-tag-input"
           />
           <.button type="submit" size="sm">Add</.button>
+        </.form>
+      </section>
+
+      <%!-- Project Tag Section --%>
+      <section :if={@can_set_tags} class="mb-8" data-testid="project-tag-section">
+        <h2 class="text-base font-semibold mb-3">Project Tag</h2>
+        <p class="text-xs text-muted-foreground mb-3">
+          Assign the invoice to a project for expense allocation and project tracking.
+        </p>
+
+        <div class="space-y-1">
+          <label class="flex items-center gap-2 cursor-pointer hover:bg-muted rounded px-2 py-1.5">
+            <input
+              type="radio"
+              name="project_tag"
+              value=""
+              checked={is_nil(@selected_project_tag)}
+              phx-click="select_project_tag"
+              phx-value-value=""
+              class="size-3.5 accent-shad-primary"
+            />
+            <span class="text-sm text-muted-foreground">None</span>
+          </label>
+
+          <label
+            :for={tag <- @project_tags}
+            class="flex items-center gap-2 cursor-pointer hover:bg-muted rounded px-2 py-1.5"
+          >
+            <input
+              type="radio"
+              name="project_tag"
+              value={tag}
+              checked={@selected_project_tag == tag}
+              phx-click="select_project_tag"
+              phx-value-value={tag}
+              class="size-3.5 accent-shad-primary"
+            />
+            <span class="text-sm">{tag}</span>
+          </label>
+        </div>
+
+        <.form
+          :if={@can_set_tags}
+          for={@new_project_tag_form}
+          phx-submit="set_custom_project_tag"
+          id={"new-project-tag-form-#{@project_tag_form_key}"}
+          class="flex gap-2 mt-3"
+        >
+          <input
+            type="text"
+            name={@new_project_tag_form[:name].name}
+            value={@new_project_tag_form[:name].value}
+            placeholder="Custom project tag..."
+            class="h-8 w-full rounded-md border border-input bg-background px-3 text-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring flex-1"
+            data-testid="new-project-tag-input"
+          />
+          <.button type="submit" size="sm">Set</.button>
         </.form>
       </section>
 
