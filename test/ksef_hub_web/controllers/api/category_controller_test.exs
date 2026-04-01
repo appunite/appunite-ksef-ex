@@ -50,7 +50,9 @@ defmodule KsefHubWeb.Api.CategoryControllerTest do
       conn = conn |> api_conn(token) |> get("/api/categories/#{category.id}")
 
       assert conn.status == 200
-      assert Jason.decode!(conn.resp_body)["data"]["id"] == category.id
+      data = Jason.decode!(conn.resp_body)["data"]
+      assert data["id"] == category.id
+      assert data["company_id"] == company.id
     end
 
     test "returns 404 for category from different company", %{conn: conn} do

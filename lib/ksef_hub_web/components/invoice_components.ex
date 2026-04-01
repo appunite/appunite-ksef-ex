@@ -227,6 +227,50 @@ defmodule KsefHubWeb.InvoiceComponents do
   def format_datetime(%DateTime{utc_offset: 0, std_offset: 0} = dt),
     do: Calendar.strftime(dt, "%Y-%m-%d %H:%M UTC")
 
+  @doc "Renders a datetime in the user's local timezone via a JS hook. Falls back to UTC format in the server-rendered HTML."
+  @spec local_datetime(map()) :: Phoenix.LiveView.Rendered.t()
+  attr :at, :any, required: true, doc: "A DateTime or NaiveDateTime value"
+  attr :id, :string, required: true, doc: "Stable DOM id for LiveView diffing"
+
+  def local_datetime(%{at: nil} = assigns) do
+    ~H"-"
+  end
+
+  def local_datetime(assigns) do
+    iso =
+      case assigns.at do
+        %DateTime{} -> DateTime.to_iso8601(assigns.at)
+        %NaiveDateTime{} -> NaiveDateTime.to_iso8601(assigns.at) <> "Z"
+      end
+
+    assigns = assign(assigns, :iso, iso)
+
+    ~H"""
+    <time id={@id} datetime={@iso} phx-hook="LocalTime">
+      {format_datetime(@at)}
+    </time>
+    """
+  end
+
+  @doc "Renders an inline lock icon for access-restricted invoices."
+  @spec restricted_icon(map()) :: Phoenix.LiveView.Rendered.t()
+  def restricted_icon(assigns) do
+    ~H"""
+    <span
+      class="inline-flex items-center ml-1.5 text-muted-foreground align-middle"
+      title="Access restricted to invited reviewers"
+    >
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16" fill="currentColor" class="size-3.5">
+        <path
+          fill-rule="evenodd"
+          d="M8 1a3.5 3.5 0 0 0-3.5 3.5V7A1.5 1.5 0 0 0 3 8.5v4A1.5 1.5 0 0 0 4.5 14h7a1.5 1.5 0 0 0 1.5-1.5v-4A1.5 1.5 0 0 0 11.5 7V4.5A3.5 3.5 0 0 0 8 1Zm2 6V4.5a2 2 0 1 0-4 0V7h4Z"
+          clip-rule="evenodd"
+        />
+      </svg>
+    </span>
+    """
+  end
+
   @doc "Returns a human-readable label for who added an invoice, combining source and creator info. Delegates to `Invoice.added_by_label/1`."
   @spec added_by_label(Invoice.t()) :: String.t()
   defdelegate added_by_label(invoice), to: Invoice

@@ -29,6 +29,7 @@ defmodule KsefHubWeb.Api.PaymentRequestControllerTest do
       body = Jason.decode!(conn.resp_body)
       assert length(body["data"]) == 1
       assert hd(body["data"])["recipient_name"] == "Mine"
+      assert hd(body["data"])["company_id"] == company.id
     end
 
     test "filters by status", %{conn: conn} do

@@ -326,7 +326,7 @@ defmodule KsefHub.Invoices do
     :gross_amount,
     :currency,
     :ksef_acquisition_date,
-    :permanent_storage_date,
+    :ksef_permanent_storage_date,
     :extraction_status,
     :purchase_order,
     :sales_date,
@@ -638,8 +638,8 @@ defmodule KsefHub.Invoices do
 
     attrs =
       attrs
-      |> Map.drop([:ksef_acquisition_date, :permanent_storage_date])
-      |> Map.drop(["ksef_acquisition_date", "permanent_storage_date"])
+      |> Map.drop([:ksef_acquisition_date, :ksef_permanent_storage_date])
+      |> Map.drop(["ksef_acquisition_date", "ksef_permanent_storage_date"])
       |> Map.merge(%{source: :manual, company_id: company_id})
       |> populate_company_fields(company)
 
@@ -1915,6 +1915,9 @@ defmodule KsefHub.Invoices do
       {:tags, tags}, q when is_list(tags) and tags != [] ->
         where(q, [i], fragment("? && ?", i.tags, ^tags))
 
+      {:is_excluded, is_excluded}, q when is_boolean(is_excluded) ->
+        where(q, [i], i.is_excluded == ^is_excluded)
+
       _, q ->
         q
     end)
@@ -1937,7 +1940,10 @@ defmodule KsefHub.Invoices do
         fragment("? ILIKE ? ESCAPE '\\'", i.seller_name, ^pattern) or
         fragment("? ILIKE ? ESCAPE '\\'", i.buyer_name, ^pattern) or
         fragment("? ILIKE ? ESCAPE '\\'", i.purchase_order, ^pattern) or
-        fragment("? ILIKE ? ESCAPE '\\'", i.iban, ^pattern)
+        fragment("? ILIKE ? ESCAPE '\\'", i.iban, ^pattern) or
+        fragment("? ILIKE ? ESCAPE '\\'", i.ksef_number, ^pattern) or
+        fragment("CAST(? AS TEXT) ILIKE ? ESCAPE '\\'", i.net_amount, ^pattern) or
+        fragment("CAST(? AS TEXT) ILIKE ? ESCAPE '\\'", i.gross_amount, ^pattern)
     )
   end
 

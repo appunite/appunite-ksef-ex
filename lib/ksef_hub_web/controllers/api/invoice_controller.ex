@@ -124,6 +124,11 @@ defmodule KsefHubWeb.Api.InvoiceController do
         in: :query,
         description: "Filter by one or more tag names.",
         schema: %Schema{type: :array, items: %Schema{type: :string}}
+      ],
+      is_excluded: [
+        in: :query,
+        description: "Filter by exclusion status.",
+        schema: %Schema{type: :boolean}
       ]
     ],
     responses: %{
@@ -1351,6 +1356,7 @@ defmodule KsefHubWeb.Api.InvoiceController do
     |> maybe_put_integer(:per_page, params["per_page"])
     |> maybe_put(:category_id, params["category_id"])
     |> maybe_put_list(:tags, params["tags[]"] || params["tags"])
+    |> maybe_put_boolean(:is_excluded, params["is_excluded"])
   end
 
   @spec maybe_put(map(), atom(), String.t() | nil) :: map()
@@ -1390,6 +1396,13 @@ defmodule KsefHubWeb.Api.InvoiceController do
   defp maybe_put_list(map, key, values) when is_list(values), do: Map.put(map, key, values)
   defp maybe_put_list(map, key, value) when is_binary(value), do: Map.put(map, key, [value])
   defp maybe_put_list(map, _key, _invalid), do: map
+
+  @spec maybe_put_boolean(map(), atom(), String.t() | nil) :: map()
+  defp maybe_put_boolean(map, _key, nil), do: map
+  defp maybe_put_boolean(map, _key, ""), do: map
+  defp maybe_put_boolean(map, key, "true"), do: Map.put(map, key, true)
+  defp maybe_put_boolean(map, key, "false"), do: Map.put(map, key, false)
+  defp maybe_put_boolean(map, _key, _), do: map
 
   @spec validate_category_company(String.t() | nil, Ecto.UUID.t()) ::
           :ok | {:error, :category_not_found | :invalid_uuid}
@@ -1467,6 +1480,7 @@ defmodule KsefHubWeb.Api.InvoiceController do
   defp invoice_json(invoice) do
     base = %{
       id: invoice.id,
+      company_id: invoice.company_id,
       ksef_number: invoice.ksef_number,
       type: invoice.type,
       seller_nip: invoice.seller_nip,
@@ -1480,17 +1494,17 @@ defmodule KsefHubWeb.Api.InvoiceController do
       currency: invoice.currency,
       status: invoice.status,
       source: invoice.source,
-      category_id: invoice.category_id,
       duplicate_of_id: invoice.duplicate_of_id,
       duplicate_status: invoice.duplicate_status,
       ksef_acquisition_date: invoice.ksef_acquisition_date,
-      permanent_storage_date: invoice.permanent_storage_date,
+      ksef_permanent_storage_date: invoice.ksef_permanent_storage_date,
       prediction_status: invoice.prediction_status,
       prediction_category_name: invoice.prediction_category_name,
       prediction_tag_name: invoice.prediction_tag_name,
       prediction_category_confidence: invoice.prediction_category_confidence,
       prediction_tag_confidence: invoice.prediction_tag_confidence,
-      prediction_model_version: invoice.prediction_model_version,
+      prediction_category_model_version: invoice.prediction_category_model_version,
+      prediction_tag_model_version: invoice.prediction_tag_model_version,
       prediction_predicted_at: invoice.prediction_predicted_at,
       extraction_status: invoice.extraction_status,
       original_filename: invoice.original_filename,
@@ -1502,8 +1516,10 @@ defmodule KsefHubWeb.Api.InvoiceController do
       iban: invoice.iban,
       seller_address: invoice.seller_address,
       buyer_address: invoice.buyer_address,
+      note: invoice.note,
       cost_line: invoice.cost_line,
       project_tag: invoice.project_tag,
+      is_excluded: invoice.is_excluded,
       access_restricted: invoice.access_restricted,
       inserted_at: invoice.inserted_at,
       updated_at: invoice.updated_at

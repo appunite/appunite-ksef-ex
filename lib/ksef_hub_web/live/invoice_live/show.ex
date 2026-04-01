@@ -776,6 +776,11 @@ defmodule KsefHubWeb.InvoiceLive.Show do
     <div class="breadcrumbs text-sm mb-2">
       <ul>
         <li><.link navigate={~p"/c/#{@current_company.id}/invoices"}>Invoices</.link></li>
+        <li>
+          <.link navigate={~p"/c/#{@current_company.id}/invoices?type=#{@invoice.type}"}>
+            {if @invoice.type == :income, do: "Income", else: "Expense"}
+          </.link>
+        </li>
         <li>{@invoice.invoice_number}</li>
       </ul>
     </div>
@@ -797,6 +802,7 @@ defmodule KsefHubWeb.InvoiceLive.Show do
         <.extraction_badge status={@invoice.extraction_status} />
         <.payment_badge status={@payment_status} label={header_payment_label(@payment_status)} />
         <.excluded_badge is_excluded={@invoice.is_excluded} />
+        <.badge :if={@invoice.access_restricted} variant="error">restricted</.badge>
       </:subtitle>
       <:actions>
         <div class="flex gap-2">
@@ -1289,7 +1295,7 @@ defmodule KsefHubWeb.InvoiceLive.Show do
                 <.payment_badge status={pr.status} />
               </td>
               <td class="py-2 px-2">
-                {if pr.paid_at, do: format_date(pr.paid_at), else: "-"}
+                <.local_datetime at={pr.paid_at} id={"inv-pr-paid-#{pr.id}"} />
               </td>
               <td class="py-2 px-2 font-mono break-all">
                 {pr.iban || "-"}

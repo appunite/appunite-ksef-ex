@@ -206,7 +206,8 @@ defmodule KsefHub.InvoicesTest do
           prediction_category_confidence: 0.92,
           prediction_tag_name: "monthly",
           prediction_tag_confidence: 0.85,
-          prediction_model_version: "v1.0",
+          prediction_category_model_version: "v1.0",
+          prediction_tag_model_version: "v1.0",
           inserted_at: NaiveDateTime.add(NaiveDateTime.utc_now(), -60)
         )
 
@@ -222,6 +223,8 @@ defmodule KsefHub.InvoicesTest do
       assert updated.prediction_status == :predicted
       assert updated.prediction_category_name == "finance:invoices"
       assert updated.prediction_category_confidence == 0.92
+      assert updated.prediction_category_model_version == original.prediction_category_model_version
+      assert updated.prediction_tag_model_version == original.prediction_tag_model_version
     end
   end
 
@@ -388,7 +391,7 @@ defmodule KsefHub.InvoicesTest do
 
     test "preloads category and tags on entries", %{company: company} do
       category = insert(:category, company: company)
-      invoice = insert(:invoice, company: company, category: category, tags: ["monthly"])
+      _invoice = insert(:invoice, company: company, category: category, tags: ["monthly"])
 
       result = Invoices.list_invoices_paginated(company.id)
 
@@ -725,7 +728,7 @@ defmodule KsefHub.InvoicesTest do
       assert is_nil(invoice.duplicate_of_id)
     end
 
-    test "strips ksef_acquisition_date and permanent_storage_date", %{company: company} do
+    test "strips ksef_acquisition_date and ksef_permanent_storage_date", %{company: company} do
       attrs = %{
         type: :expense,
         seller_nip: "1234567890",
@@ -737,12 +740,12 @@ defmodule KsefHub.InvoicesTest do
         net_amount: Decimal.new("1000.00"),
         gross_amount: Decimal.new("1230.00"),
         ksef_acquisition_date: DateTime.utc_now(),
-        permanent_storage_date: DateTime.utc_now()
+        ksef_permanent_storage_date: DateTime.utc_now()
       }
 
       assert {:ok, %Invoice{} = invoice} = Invoices.create_manual_invoice(company.id, attrs)
       assert is_nil(invoice.ksef_acquisition_date)
-      assert is_nil(invoice.permanent_storage_date)
+      assert is_nil(invoice.ksef_permanent_storage_date)
     end
 
     test "creates manual invoice with income type", %{company: company} do
@@ -2185,6 +2188,33 @@ defmodule KsefHub.InvoicesTest do
       results = Invoices.list_invoices(company.id, %{query: "PL611090"})
       assert length(results) == 1
       assert hd(results).iban == "PL61109010140000071219812874"
+    end
+
+    test "search matches ksef_number", %{company: company} do
+      insert(:invoice, ksef_number: "KSEF-2025-UNIQUE-999", company: company)
+      insert(:invoice, ksef_number: "KSEF-2025-OTHER-001", company: company)
+
+      results = Invoices.list_invoices(company.id, %{query: "UNIQUE-999"})
+      assert length(results) == 1
+      assert hd(results).ksef_number == "KSEF-2025-UNIQUE-999"
+    end
+
+    test "search matches gross_amount as substring", %{company: company} do
+      insert(:invoice, gross_amount: Decimal.new("1234.56"), company: company)
+      insert(:invoice, gross_amount: Decimal.new("9999.00"), company: company)
+
+      results = Invoices.list_invoices(company.id, %{query: "1234"})
+      assert length(results) == 1
+      assert Decimal.equal?(hd(results).gross_amount, Decimal.new("1234.56"))
+    end
+
+    test "search matches net_amount as substring", %{company: company} do
+      insert(:invoice, net_amount: Decimal.new("5678.90"), company: company)
+      insert(:invoice, net_amount: Decimal.new("1111.00"), company: company)
+
+      results = Invoices.list_invoices(company.id, %{query: "5678"})
+      assert length(results) == 1
+      assert Decimal.equal?(hd(results).net_amount, Decimal.new("5678.90"))
     end
 
     test "edit_changeset validates iban max length" do

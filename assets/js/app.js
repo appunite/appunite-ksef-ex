@@ -142,11 +142,29 @@ const CategoryDonutChart = {
   },
 }
 
+const LocalTime = {
+  mounted() { this.formatTime() },
+  updated() { this.formatTime() },
+  formatTime() {
+    const dt = this.el.getAttribute("datetime")
+    if (!dt) return
+    const date = new Date(dt)
+    if (isNaN(date)) return
+    const fmt = this.el.dataset.format || "datetime"
+    if (fmt === "date") {
+      this.el.textContent = date.toLocaleDateString(undefined, {year: "numeric", month: "2-digit", day: "2-digit"})
+    } else {
+      this.el.textContent = date.toLocaleDateString(undefined, {year: "numeric", month: "2-digit", day: "2-digit"}) +
+        " " + date.toLocaleTimeString(undefined, {hour: "2-digit", minute: "2-digit"})
+    }
+  }
+}
+
 const csrfToken = document.querySelector("meta[name='csrf-token']").getAttribute("content")
 const liveSocket = new LiveSocket("/live", Socket, {
   longPollFallbackMs: 2500,
   params: {_csrf_token: csrfToken},
-  hooks: {...colocatedHooks, ExpenseBarChart, CategoryDonutChart},
+  hooks: {...colocatedHooks, ExpenseBarChart, CategoryDonutChart, LocalTime},
 })
 
 // Show progress bar on live navigation and form submits

@@ -35,14 +35,15 @@ defmodule KsefHub.Invoices.Invoice do
     field :source, Ecto.Enum, values: [:ksef, :manual, :pdf_upload, :email], default: :ksef
     field :duplicate_status, Ecto.Enum, values: [:suspected, :confirmed, :dismissed]
     field :ksef_acquisition_date, :utc_datetime_usec
-    field :permanent_storage_date, :utc_datetime_usec
+    field :ksef_permanent_storage_date, :utc_datetime_usec
 
     field :prediction_status, Ecto.Enum, values: [:pending, :predicted, :needs_review, :manual]
     field :prediction_category_name, :string
     field :prediction_tag_name, :string
     field :prediction_category_confidence, :float
     field :prediction_tag_confidence, :float
-    field :prediction_model_version, :string
+    field :prediction_category_model_version, :string
+    field :prediction_tag_model_version, :string
     field :prediction_category_probabilities, :map
     field :prediction_tag_probabilities, :map
     field :prediction_predicted_at, :utc_datetime_usec
@@ -170,7 +171,7 @@ defmodule KsefHub.Invoices.Invoice do
       :duplicate_of_id,
       :duplicate_status,
       :ksef_acquisition_date,
-      :permanent_storage_date,
+      :ksef_permanent_storage_date,
       :extraction_status,
       :original_filename,
       :purchase_order,
@@ -315,7 +316,8 @@ defmodule KsefHub.Invoices.Invoice do
     :prediction_tag_name,
     :prediction_category_confidence,
     :prediction_tag_confidence,
-    :prediction_model_version,
+    :prediction_category_model_version,
+    :prediction_tag_model_version,
     :prediction_category_probabilities,
     :prediction_tag_probabilities,
     :prediction_predicted_at

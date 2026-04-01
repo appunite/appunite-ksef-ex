@@ -64,7 +64,8 @@ defmodule KsefHub.InvoiceClassifierTest do
       assert updated.prediction_tag_name == "monthly"
       assert updated.prediction_category_confidence == 0.92
       assert updated.prediction_tag_confidence == 0.95
-      assert updated.prediction_model_version == "v1.0"
+      assert updated.prediction_category_model_version == "v1.0"
+      assert updated.prediction_tag_model_version == "v1.0"
       assert updated.prediction_predicted_at != nil
 
       # Verify category and tag were actually applied
@@ -384,7 +385,8 @@ defmodule KsefHub.InvoiceClassifierTest do
       assert updated.prediction_status == :needs_review
       assert updated.prediction_category_probabilities == cat_probs
       assert updated.prediction_tag_probabilities == tag_probs
-      assert updated.prediction_model_version == "v2.1"
+      assert updated.prediction_category_model_version == "v2.1"
+      assert updated.prediction_tag_model_version == "v2.1"
     end
   end
 
