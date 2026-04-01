@@ -22,7 +22,7 @@ defmodule KsefHubWeb.Api.PaymentRequestController do
   plug KsefHubWeb.Plugs.RequirePermission,
        :manage_payment_requests when action in [:create, :mark_paid, :void]
 
-  @create_allowed_keys ~w(recipient_name amount currency title iban note invoice_id
+  @create_allowed_keys ~w(recipient_name recipient_nip amount currency title iban note invoice_id
     recipient_address)
 
   tags(["Payment Requests"])

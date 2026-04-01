@@ -8,7 +8,7 @@ defmodule KsefHub.Companies do
 
   alias Ecto.Multi
   alias KsefHub.Accounts.User
-  alias KsefHub.Companies.{Company, Membership}
+  alias KsefHub.Companies.{Company, CompanyBankAccount, Membership}
   alias KsefHub.Repo
 
   # ---------------------------------------------------------------------------
@@ -225,6 +225,52 @@ defmodule KsefHub.Companies do
   defp hash_inbound_token(token) do
     :crypto.hash(:sha256, token)
     |> Base.encode16(case: :lower)
+  end
+
+  # ---------------------------------------------------------------------------
+  # Bank accounts
+  # ---------------------------------------------------------------------------
+
+  @doc "Lists all bank accounts for a company, ordered by currency."
+  @spec list_bank_accounts(Ecto.UUID.t()) :: [CompanyBankAccount.t()]
+  def list_bank_accounts(company_id) do
+    CompanyBankAccount
+    |> where([ba], ba.company_id == ^company_id)
+    |> order_by([ba], asc: ba.currency)
+    |> Repo.all()
+  end
+
+  @doc "Returns the bank account for a company and currency, or nil if not found."
+  @spec get_bank_account_for_currency(Ecto.UUID.t(), String.t()) :: CompanyBankAccount.t() | nil
+  def get_bank_account_for_currency(company_id, currency) do
+    CompanyBankAccount
+    |> where([ba], ba.company_id == ^company_id and ba.currency == ^currency)
+    |> Repo.one()
+  end
+
+  @doc "Creates a bank account for a company."
+  @spec create_bank_account(Ecto.UUID.t(), map()) ::
+          {:ok, CompanyBankAccount.t()} | {:error, Ecto.Changeset.t()}
+  def create_bank_account(company_id, attrs) do
+    %CompanyBankAccount{}
+    |> CompanyBankAccount.changeset(Map.put(attrs, :company_id, company_id))
+    |> Repo.insert()
+  end
+
+  @doc "Updates a bank account."
+  @spec update_bank_account(CompanyBankAccount.t(), map()) ::
+          {:ok, CompanyBankAccount.t()} | {:error, Ecto.Changeset.t()}
+  def update_bank_account(%CompanyBankAccount{} = bank_account, attrs) do
+    bank_account
+    |> CompanyBankAccount.changeset(attrs)
+    |> Repo.update()
+  end
+
+  @doc "Deletes a bank account."
+  @spec delete_bank_account(CompanyBankAccount.t()) ::
+          {:ok, CompanyBankAccount.t()} | {:error, Ecto.Changeset.t()}
+  def delete_bank_account(%CompanyBankAccount{} = bank_account) do
+    Repo.delete(bank_account)
   end
 
   # ---------------------------------------------------------------------------

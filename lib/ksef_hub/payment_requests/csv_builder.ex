@@ -1,21 +1,37 @@
 defmodule KsefHub.PaymentRequests.CsvBuilder do
-  @moduledoc "Builds Polish bank CSV from a list of payment requests. Pure function, no side effects."
+  @moduledoc """
+  Builds Polish bank transfer CSV from a list of payment requests.
+
+  Output format matches the standard Polish bank batch import layout:
+
+      kwota,nazwa_kontrahenta,rachunek_kontrahenta,rachunek_zleceniodawcy,szczegóły_płatności,adres_1,adres_2
+
+  - `kwota` — gross amount in grosz (cents), i.e. PLN × 100
+  - `rachunek_zleceniodawcy` — orderer (company) IBAN, resolved per currency
+  - `szczegóły_płatności` — `/NIP/<nip>/<transfer title>` when NIP is present
+  - `adres_1` / `adres_2` — street / postal code + city
+
+  Encoding: UTF-8 with BOM, CRLF line endings (required by Polish bank systems).
+
+  Pure function, no side effects. See ADR 0039 for design rationale.
+  """
 
   alias KsefHub.PaymentRequests.PaymentRequest
 
   @headers [
-    "Nazwa odbiorcy",
-    "Adres odbiorcy",
-    "Nr rachunku (IBAN)",
-    "Kwota",
-    "Waluta",
-    "Tytul"
+    "kwota",
+    "nazwa_kontrahenta",
+    "rachunek_kontrahenta",
+    "rachunek_zleceniodawcy",
+    "szczegóły_płatności",
+    "adres_1",
+    "adres_2"
   ]
 
-  @doc "Builds a CSV binary (UTF-8 with BOM, CRLF line endings) from payment requests."
-  @spec build([PaymentRequest.t()]) :: binary()
-  def build(payment_requests) do
-    rows = Enum.map(payment_requests, &payment_request_to_row/1)
+  @doc "Builds a CSV binary (UTF-8 with BOM, CRLF line endings) from payment requests and an orderer IBAN."
+  @spec build([PaymentRequest.t()], String.t()) :: binary()
+  def build(payment_requests, orderer_iban) do
+    rows = Enum.map(payment_requests, &payment_request_to_row(&1, orderer_iban))
 
     csv =
       [@headers | rows]
@@ -24,16 +40,48 @@ defmodule KsefHub.PaymentRequests.CsvBuilder do
     <<0xEF, 0xBB, 0xBF>> <> csv <> "\r\n"
   end
 
-  @spec payment_request_to_row(PaymentRequest.t()) :: [String.t()]
-  defp payment_request_to_row(pr) do
+  @spec payment_request_to_row(PaymentRequest.t(), String.t()) :: [String.t()]
+  defp payment_request_to_row(pr, orderer_iban) do
     [
+      amount_to_cents(pr.amount),
       s(pr.recipient_name),
-      PaymentRequest.format_address(pr.recipient_address),
       s(pr.iban),
-      format_decimal(pr.amount),
-      s(pr.currency),
-      s(pr.title)
+      s(orderer_iban),
+      format_payment_details(pr.recipient_nip, pr.title),
+      address_line_1(pr.recipient_address),
+      address_line_2(pr.recipient_address)
     ]
+  end
+
+  @spec amount_to_cents(Decimal.t() | nil) :: String.t()
+  defp amount_to_cents(nil), do: ""
+
+  defp amount_to_cents(%Decimal{} = d) do
+    d |> Decimal.mult(100) |> Decimal.round(0) |> Decimal.to_integer() |> Integer.to_string()
+  end
+
+  @spec format_payment_details(String.t() | nil, String.t() | nil) :: String.t()
+  defp format_payment_details(nil, title), do: s(title)
+  defp format_payment_details("", title), do: s(title)
+  defp format_payment_details(nip, title), do: "/NIP/#{nip}/#{s(title)}"
+
+  @spec address_line_1(map() | nil) :: String.t()
+  defp address_line_1(nil), do: ""
+  defp address_line_1(addr), do: s(addr[:street] || addr["street"])
+
+  @spec address_line_2(map() | nil) :: String.t()
+  defp address_line_2(nil), do: ""
+
+  defp address_line_2(addr) do
+    postal = s(addr[:postal_code] || addr["postal_code"])
+    city = s(addr[:city] || addr["city"])
+
+    case {postal, city} do
+      {"", ""} -> ""
+      {"", c} -> c
+      {p, ""} -> p
+      {p, c} -> "#{p} #{c}"
+    end
   end
 
   @spec s(term()) :: String.t()
@@ -69,8 +117,4 @@ defmodule KsefHub.PaymentRequests.CsvBuilder do
   defp needs_quoting?(value) do
     String.contains?(value, [",", "\"", "\n", "\r"])
   end
-
-  @spec format_decimal(Decimal.t() | nil) :: String.t()
-  defp format_decimal(nil), do: ""
-  defp format_decimal(%Decimal{} = d), do: Decimal.to_string(d)
 end
