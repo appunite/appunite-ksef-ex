@@ -1484,7 +1484,7 @@ defmodule KsefHubWeb.Api.InvoiceController do
       duplicate_of_id: invoice.duplicate_of_id,
       duplicate_status: invoice.duplicate_status,
       ksef_acquisition_date: invoice.ksef_acquisition_date,
-      permanent_storage_date: invoice.permanent_storage_date,
+      ksef_permanent_storage_date: invoice.ksef_permanent_storage_date,
       prediction_status: invoice.prediction_status,
       prediction_category_name: invoice.prediction_category_name,
       prediction_tag_name: invoice.prediction_tag_name,

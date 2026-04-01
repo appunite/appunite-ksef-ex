@@ -725,7 +725,7 @@ defmodule KsefHub.InvoicesTest do
       assert is_nil(invoice.duplicate_of_id)
     end
 
-    test "strips ksef_acquisition_date and permanent_storage_date", %{company: company} do
+    test "strips ksef_acquisition_date and ksef_permanent_storage_date", %{company: company} do
       attrs = %{
         type: :expense,
         seller_nip: "1234567890",
@@ -737,12 +737,12 @@ defmodule KsefHub.InvoicesTest do
         net_amount: Decimal.new("1000.00"),
         gross_amount: Decimal.new("1230.00"),
         ksef_acquisition_date: DateTime.utc_now(),
-        permanent_storage_date: DateTime.utc_now()
+        ksef_permanent_storage_date: DateTime.utc_now()
       }
 
       assert {:ok, %Invoice{} = invoice} = Invoices.create_manual_invoice(company.id, attrs)
       assert is_nil(invoice.ksef_acquisition_date)
-      assert is_nil(invoice.permanent_storage_date)
+      assert is_nil(invoice.ksef_permanent_storage_date)
     end
 
     test "creates manual invoice with income type", %{company: company} do

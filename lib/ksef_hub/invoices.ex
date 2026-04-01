@@ -326,7 +326,7 @@ defmodule KsefHub.Invoices do
     :gross_amount,
     :currency,
     :ksef_acquisition_date,
-    :permanent_storage_date,
+    :ksef_permanent_storage_date,
     :extraction_status,
     :purchase_order,
     :sales_date,
@@ -638,8 +638,8 @@ defmodule KsefHub.Invoices do
 
     attrs =
       attrs
-      |> Map.drop([:ksef_acquisition_date, :permanent_storage_date])
-      |> Map.drop(["ksef_acquisition_date", "permanent_storage_date"])
+      |> Map.drop([:ksef_acquisition_date, :ksef_permanent_storage_date])
+      |> Map.drop(["ksef_acquisition_date", "ksef_permanent_storage_date"])
       |> Map.merge(%{source: :manual, company_id: company_id})
       |> populate_company_fields(company)
 

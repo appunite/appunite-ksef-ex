@@ -35,7 +35,7 @@ defmodule KsefHub.Invoices.Invoice do
     field :source, Ecto.Enum, values: [:ksef, :manual, :pdf_upload, :email], default: :ksef
     field :duplicate_status, Ecto.Enum, values: [:suspected, :confirmed, :dismissed]
     field :ksef_acquisition_date, :utc_datetime_usec
-    field :permanent_storage_date, :utc_datetime_usec
+    field :ksef_permanent_storage_date, :utc_datetime_usec
 
     field :prediction_status, Ecto.Enum, values: [:pending, :predicted, :needs_review, :manual]
     field :prediction_category_name, :string
@@ -170,7 +170,7 @@ defmodule KsefHub.Invoices.Invoice do
       :duplicate_of_id,
       :duplicate_status,
       :ksef_acquisition_date,
-      :permanent_storage_date,
+      :ksef_permanent_storage_date,
       :extraction_status,
       :original_filename,
       :purchase_order,

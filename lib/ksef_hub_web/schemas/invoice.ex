@@ -163,7 +163,7 @@ defmodule KsefHubWeb.Schemas.Invoice do
         nullable: true,
         description: "When KSeF received the invoice."
       },
-      permanent_storage_date: %Schema{
+      ksef_permanent_storage_date: %Schema{
         type: :string,
         format: :"date-time",
         nullable: true,
@@ -259,7 +259,7 @@ defmodule KsefHubWeb.Schemas.Invoice do
       duplicate_of_id: nil,
       duplicate_status: nil,
       ksef_acquisition_date: "2024-01-15T10:30:00Z",
-      permanent_storage_date: "2024-01-16T00:00:00Z",
+      ksef_permanent_storage_date: "2024-01-16T00:00:00Z",
       inserted_at: "2024-01-15T10:35:00Z",
       updated_at: "2024-01-15T10:35:00Z"
     },

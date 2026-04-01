@@ -136,11 +136,11 @@ defmodule KsefHub.Sync.InvoiceFetcher do
 
       case download_and_upsert(ctx, ksef_number, header) do
         {:ok, invoice, :inserted} ->
-          new_max = pick_max_timestamp(acc_max_ts, invoice.permanent_storage_date)
+          new_max = pick_max_timestamp(acc_max_ts, invoice.ksef_permanent_storage_date)
           {acc_count + 1, acc_failed, new_max}
 
         {:ok, invoice, :updated} ->
-          new_max = pick_max_timestamp(acc_max_ts, invoice.permanent_storage_date)
+          new_max = pick_max_timestamp(acc_max_ts, invoice.ksef_permanent_storage_date)
           {acc_count, acc_failed, new_max}
 
         {:error, reason} ->
@@ -164,7 +164,7 @@ defmodule KsefHub.Sync.InvoiceFetcher do
           xml_content: xml,
           company_id: ctx.company_id,
           ksef_acquisition_date: parse_header_date(header["acquisitionDate"]),
-          permanent_storage_date: parse_header_date(header["permanentStorageDate"])
+          ksef_permanent_storage_date: parse_header_date(header["permanentStorageDate"])
         })
         |> Map.drop([:line_items])
 
