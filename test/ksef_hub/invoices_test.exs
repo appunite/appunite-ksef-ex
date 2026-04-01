@@ -2187,6 +2187,33 @@ defmodule KsefHub.InvoicesTest do
       assert hd(results).iban == "PL61109010140000071219812874"
     end
 
+    test "search matches ksef_number", %{company: company} do
+      insert(:invoice, ksef_number: "KSEF-2025-UNIQUE-999", company: company)
+      insert(:invoice, ksef_number: "KSEF-2025-OTHER-001", company: company)
+
+      results = Invoices.list_invoices(company.id, %{query: "UNIQUE-999"})
+      assert length(results) == 1
+      assert hd(results).ksef_number == "KSEF-2025-UNIQUE-999"
+    end
+
+    test "search matches gross_amount as substring", %{company: company} do
+      insert(:invoice, gross_amount: Decimal.new("1234.56"), company: company)
+      insert(:invoice, gross_amount: Decimal.new("9999.00"), company: company)
+
+      results = Invoices.list_invoices(company.id, %{query: "1234"})
+      assert length(results) == 1
+      assert Decimal.equal?(hd(results).gross_amount, Decimal.new("1234.56"))
+    end
+
+    test "search matches net_amount as substring", %{company: company} do
+      insert(:invoice, net_amount: Decimal.new("5678.90"), company: company)
+      insert(:invoice, net_amount: Decimal.new("1111.00"), company: company)
+
+      results = Invoices.list_invoices(company.id, %{query: "5678"})
+      assert length(results) == 1
+      assert Decimal.equal?(hd(results).net_amount, Decimal.new("5678.90"))
+    end
+
     test "edit_changeset validates iban max length" do
       invoice = %Invoice{type: :expense, source: :pdf_upload}
 

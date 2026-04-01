@@ -1937,7 +1937,10 @@ defmodule KsefHub.Invoices do
         fragment("? ILIKE ? ESCAPE '\\'", i.seller_name, ^pattern) or
         fragment("? ILIKE ? ESCAPE '\\'", i.buyer_name, ^pattern) or
         fragment("? ILIKE ? ESCAPE '\\'", i.purchase_order, ^pattern) or
-        fragment("? ILIKE ? ESCAPE '\\'", i.iban, ^pattern)
+        fragment("? ILIKE ? ESCAPE '\\'", i.iban, ^pattern) or
+        fragment("? ILIKE ? ESCAPE '\\'", i.ksef_number, ^pattern) or
+        fragment("CAST(? AS TEXT) ILIKE ? ESCAPE '\\'", i.net_amount, ^pattern) or
+        fragment("CAST(? AS TEXT) ILIKE ? ESCAPE '\\'", i.gross_amount, ^pattern)
     )
   end
 

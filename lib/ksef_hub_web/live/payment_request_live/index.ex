@@ -9,7 +9,7 @@ defmodule KsefHubWeb.PaymentRequestLive.Index do
   alias KsefHub.PaymentRequests.PaymentRequest
 
   import KsefHubWeb.InvoiceComponents,
-    only: [format_amount: 1, format_datetime: 1]
+    only: [format_amount: 1, local_datetime: 1]
 
   @impl true
   @doc "Assigns page title on mount."
@@ -392,7 +392,9 @@ defmodule KsefHubWeb.PaymentRequestLive.Index do
                 />
               </td>
               <td class="hidden lg:table-cell py-3.5 px-4">
-                <span class="whitespace-nowrap">{format_datetime(pr.inserted_at)}</span>
+                <span class="whitespace-nowrap">
+                  <.local_datetime at={pr.inserted_at} id={"pr-created-#{pr.id}"} />
+                </span>
               </td>
               <td class="py-3.5 px-4">
                 <.link
@@ -415,7 +417,7 @@ defmodule KsefHubWeb.PaymentRequestLive.Index do
               </td>
               <td class="hidden lg:table-cell py-3.5 px-4">
                 <span :if={pr.paid_at} class="whitespace-nowrap text-xs">
-                  {format_datetime(pr.paid_at)}
+                  <.local_datetime at={pr.paid_at} id={"pr-paid-#{pr.id}"} />
                 </span>
                 <span :if={!pr.paid_at} class="text-muted-foreground">-</span>
               </td>

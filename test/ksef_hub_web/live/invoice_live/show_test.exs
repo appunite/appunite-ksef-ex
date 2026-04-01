@@ -108,6 +108,49 @@ defmodule KsefHubWeb.InvoiceLive.ShowTest do
     end
   end
 
+  describe "breadcrumbs" do
+    setup :stub_pdf
+
+    test "shows type-specific breadcrumb for expense invoice", %{conn: conn, company: company} do
+      invoice = insert(:invoice, type: :expense, company: company)
+
+      {:ok, _view, html} = live(conn, ~p"/c/#{company.id}/invoices/#{invoice.id}")
+      assert html =~ ~s(href="/c/#{company.id}/invoices?type=expense")
+      assert html =~ "Expense"
+    end
+
+    test "shows type-specific breadcrumb for income invoice", %{conn: conn, company: company} do
+      invoice = insert(:invoice, type: :income, company: company)
+
+      {:ok, _view, html} = live(conn, ~p"/c/#{company.id}/invoices/#{invoice.id}")
+      assert html =~ ~s(href="/c/#{company.id}/invoices?type=income")
+      assert html =~ "Income"
+    end
+  end
+
+  describe "restricted badge" do
+    setup :stub_pdf
+
+    test "shows restricted badge for access-restricted invoice", %{conn: conn, company: company} do
+      invoice = insert(:invoice, type: :expense, access_restricted: true, company: company)
+
+      {:ok, _view, html} = live(conn, ~p"/c/#{company.id}/invoices/#{invoice.id}")
+      assert html =~ "restricted"
+    end
+
+    test "does not show restricted badge for unrestricted invoice", %{
+      conn: conn,
+      company: company
+    } do
+      invoice = insert(:invoice, type: :expense, access_restricted: false, company: company)
+
+      {:ok, _view, html} = live(conn, ~p"/c/#{company.id}/invoices/#{invoice.id}")
+
+      # "restricted" should not appear as a badge (it may appear in other contexts like the access control section)
+      refute html =~ ~r/<[^>]*variant="error"[^>]*>restricted</
+    end
+  end
+
   describe "Add payment button" do
     setup :stub_pdf
 

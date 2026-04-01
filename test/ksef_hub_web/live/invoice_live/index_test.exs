@@ -365,6 +365,40 @@ defmodule KsefHubWeb.InvoiceLive.IndexTest do
     end
   end
 
+  describe "access-restricted indicator" do
+    test "shows lock icon for restricted invoices", %{conn: conn, company: company} do
+      insert(:invoice,
+        type: :expense,
+        seller_name: "Restricted Seller",
+        company: company,
+        access_restricted: true
+      )
+
+      insert(:invoice,
+        type: :expense,
+        seller_name: "Open Seller",
+        company: company,
+        access_restricted: false
+      )
+
+      {:ok, _view, html} = live(conn, ~p"/c/#{company.id}/invoices")
+      # The restricted invoice row should contain the lock icon title
+      assert html =~ "Access restricted to invited reviewers"
+    end
+
+    test "does not show lock icon for unrestricted invoices", %{conn: conn, company: company} do
+      insert(:invoice,
+        type: :expense,
+        seller_name: "Open Seller",
+        company: company,
+        access_restricted: false
+      )
+
+      {:ok, _view, html} = live(conn, ~p"/c/#{company.id}/invoices")
+      refute html =~ "Access restricted to invited reviewers"
+    end
+  end
+
   describe "reviewer role" do
     setup %{conn: _conn} do
       {:ok, reviewer} =

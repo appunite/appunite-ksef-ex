@@ -360,7 +360,7 @@ defmodule KsefHubWeb.InvoiceLive.Index do
         filter_count={@filter_count}
         search_name={@form[:query].name}
         search_value={@form[:query].value}
-        search_placeholder="Invoice number, seller, buyer..."
+        search_placeholder="Search invoices..."
       >
         <:filter_fields>
           <div class="space-y-1">
@@ -451,6 +451,7 @@ defmodule KsefHubWeb.InvoiceLive.Index do
             >
               {counterparty_name(inv, @filters[:type])}
             </.link>
+            <.restricted_icon :if={inv.access_restricted} />
           </:col>
           <:col :let={inv} :if={@filters[:type] == :income} label="Net" class="w-36 text-right">
             <span class="font-mono">{format_amount(inv.net_amount)}</span>
