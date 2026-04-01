@@ -124,19 +124,19 @@ defmodule KsefHubWeb.BankAccountLiveTest do
       refute render(view) =~ "New Bank Account"
     end
 
-    test "accountant cannot access bank accounts", %{company: company} do
-      {:ok, accountant} =
+    test "admin cannot access bank accounts", %{company: company} do
+      {:ok, admin} =
         Accounts.get_or_create_google_user(%{
-          uid: "g-ba-accountant",
-          email: "ba-acc@example.com",
-          name: "Accountant"
+          uid: "g-ba-admin",
+          email: "ba-admin@example.com",
+          name: "Admin"
         })
 
-      insert(:membership, user: accountant, company: company, role: :accountant)
+      insert(:membership, user: admin, company: company, role: :admin)
 
       conn =
         build_conn()
-        |> log_in_user(accountant, %{current_company_id: company.id})
+        |> log_in_user(admin, %{current_company_id: company.id})
 
       {:error, {:redirect, %{flash: flash}}} =
         live(conn, ~p"/c/#{company.id}/settings/bank-accounts")

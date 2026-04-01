@@ -66,7 +66,7 @@ defmodule KsefHubWeb.SettingsComponents do
       {:view_syncs, "Syncs", ~p"/c/#{id}/settings/syncs", "hero-arrow-path"},
       {:manage_categories, "Categories", ~p"/c/#{id}/settings/categories", "hero-squares-2x2"},
       {:manage_tags, "Tags", ~p"/c/#{id}/settings/tags", "hero-tag"},
-      {:manage_payment_requests, "Bank Accounts", ~p"/c/#{id}/settings/bank-accounts",
+      {:manage_bank_accounts, "Bank Accounts", ~p"/c/#{id}/settings/bank-accounts",
        "hero-building-library"},
       {:manage_team, "Team", ~p"/c/#{id}/settings/team", "hero-user-group"},
       {:manage_tokens, "API Tokens", ~p"/c/#{id}/settings/tokens", "hero-key"},

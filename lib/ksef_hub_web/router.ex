@@ -207,6 +207,13 @@ defmodule KsefHubWeb.Router do
       ] do
       live "/payment-requests/new", PaymentRequestLive.Form, :new
       live "/payment-requests/:id/edit", PaymentRequestLive.Form, :edit
+    end
+
+    live_session :require_manage_bank_accounts,
+      on_mount: [
+        {KsefHubWeb.LiveAuth, :default},
+        {KsefHubWeb.LiveAuth, {:require_permission, :manage_bank_accounts}}
+      ] do
       live "/settings/bank-accounts", BankAccountLive
     end
 
