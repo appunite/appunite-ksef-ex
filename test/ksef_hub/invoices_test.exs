@@ -3600,9 +3600,7 @@ defmodule KsefHub.InvoicesTest do
       |> KsefHub.Repo.update_all(set: [inserted_at: DateTime.utc_now()])
 
       tags = Invoices.list_project_tags(company.id)
-      assert "Newer" in tags
-      assert "Older" in tags
-      assert hd(tags) == "Newer"
+      assert tags == ["Newer", "Older"]
     end
 
     test "list_project_tags returns empty list when none set", %{company: company} do

@@ -411,8 +411,7 @@ defmodule KsefHubWeb.InvoiceLive.ClassifyTest do
 
       {:ok, view, _html} = live(conn, ~p"/c/#{company.id}/invoices/#{invoice.id}/classify")
 
-      html = render(view)
-      assert html =~ "Alpha"
+      assert has_element?(view, ~s(input[type="radio"][value="Alpha"]))
     end
 
     test "selecting a project tag updates selection", %{conn: conn, company: company} do

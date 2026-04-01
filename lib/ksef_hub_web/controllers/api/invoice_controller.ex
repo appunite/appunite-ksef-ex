@@ -960,8 +960,8 @@ defmodule KsefHubWeb.Api.InvoiceController do
 
     project_tag = params["project_tag"]
 
-    with {:ok, _updated} <- Invoices.set_invoice_project_tag(invoice, project_tag),
-         {:ok, _} <- Invoices.mark_prediction_manual(invoice) do
+    with {:ok, updated} <- Invoices.set_invoice_project_tag(invoice, project_tag),
+         {:ok, _} <- Invoices.mark_prediction_manual(updated) do
       invoice = Invoices.get_invoice_with_details!(company_id, id, role: role, user_id: user_id)
       json(conn, %{data: invoice_json(invoice)})
     else

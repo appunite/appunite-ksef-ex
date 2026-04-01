@@ -20,8 +20,9 @@ defmodule KsefHubWeb.Schemas.SetProjectTagRequest do
       }
     },
     required: [:project_tag],
-    example: %{
-      project_tag: "Project Alpha"
-    }
+    examples: [
+      %{project_tag: "Project Alpha"},
+      %{project_tag: nil}
+    ]
   })
 end

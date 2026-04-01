@@ -1763,6 +1763,26 @@ defmodule KsefHubWeb.Api.InvoiceControllerTest do
       assert is_nil(Jason.decode!(conn.resp_body)["data"]["project_tag"])
     end
 
+    test "returns 403 for accountant", %{conn: conn} do
+      {:ok, %{company: company, token: token}} = create_user_with_token(:accountant)
+      invoice = insert(:invoice, type: :expense, company: company)
+
+      body = Jason.encode!(%{project_tag: "Forbidden"})
+      conn = conn |> api_conn(token) |> put("/api/invoices/#{invoice.id}/project-tag", body)
+
+      assert conn.status == 403
+    end
+
+    test "returns 403 for accountant when clearing", %{conn: conn} do
+      {:ok, %{company: company, token: token}} = create_user_with_token(:accountant)
+      invoice = insert(:invoice, type: :expense, company: company, project_tag: "Existing")
+
+      body = Jason.encode!(%{project_tag: nil})
+      conn = conn |> api_conn(token) |> put("/api/invoices/#{invoice.id}/project-tag", body)
+
+      assert conn.status == 403
+    end
+
     test "includes project_tag in invoice JSON response", %{conn: conn} do
       %{company: company, token: token} = create_user_with_token(:owner)
       invoice = insert(:invoice, type: :expense, company: company, project_tag: "My Project")
