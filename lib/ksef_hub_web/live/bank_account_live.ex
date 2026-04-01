@@ -65,6 +65,7 @@ defmodule KsefHubWeb.BankAccountLive do
     case socket.assigns.editing do
       :new -> do_create(socket, params)
       %CompanyBankAccount{} = ba -> do_update(socket, ba, params)
+      nil -> {:noreply, socket}
     end
   end
 
