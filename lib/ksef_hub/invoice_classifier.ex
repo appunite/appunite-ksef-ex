@@ -177,7 +177,9 @@ defmodule KsefHub.InvoiceClassifier do
   @spec apply_category_safely(Invoice.t(), Category.t()) :: boolean()
   defp apply_category_safely(invoice, category) do
     case Invoices.set_invoice_category(invoice, category.id) do
-      {:ok, _} -> true
+      {:ok, _} ->
+        true
+
       {:error, reason} ->
         Logger.warning("Failed to apply predicted category: #{inspect(reason)}")
         false
