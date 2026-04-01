@@ -3548,11 +3548,6 @@ defmodule KsefHub.InvoicesTest do
   end
 
   describe "project tags" do
-    setup do
-      company = insert(:company)
-      %{company: company}
-    end
-
     test "set_invoice_project_tag sets tag on expense invoice", %{company: company} do
       invoice = insert(:invoice, company: company, type: :expense)
 
