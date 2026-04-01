@@ -86,7 +86,7 @@ defmodule KsefHub.Companies.CompanyBankAccountTest do
                  iban: "PL99999999999999999999999999"
                })
 
-      assert "a bank account for this currency already exists" in errors_on(changeset).company_id
+      assert "a bank account for this currency already exists" in errors_on(changeset).currency
     end
 
     test "update bank account", %{company: company} do

@@ -260,8 +260,8 @@ defmodule KsefHub.Companies do
   @spec create_bank_account(Ecto.UUID.t(), map()) ::
           {:ok, CompanyBankAccount.t()} | {:error, Ecto.Changeset.t()}
   def create_bank_account(company_id, attrs) do
-    %CompanyBankAccount{}
-    |> CompanyBankAccount.changeset(Map.put(attrs, :company_id, company_id))
+    %CompanyBankAccount{company_id: company_id}
+    |> CompanyBankAccount.changeset(attrs)
     |> Repo.insert()
   end
 

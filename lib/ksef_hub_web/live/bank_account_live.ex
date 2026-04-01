@@ -77,14 +77,18 @@ defmodule KsefHubWeb.BankAccountLive do
         {:noreply, put_flash(socket, :error, "Bank account not found.")}
 
       ba ->
-        {:ok, _} = Companies.delete_bank_account(ba)
+        case Companies.delete_bank_account(ba) do
+          {:ok, _} ->
+            {:noreply,
+             socket
+             |> stream_delete(:bank_accounts, ba)
+             |> update(:accounts_count, &(&1 - 1))
+             |> assign(editing: nil, form: nil)
+             |> put_flash(:info, "Bank account for #{ba.currency} deleted.")}
 
-        {:noreply,
-         socket
-         |> stream_delete(:bank_accounts, ba)
-         |> update(:accounts_count, &(&1 - 1))
-         |> assign(editing: nil, form: nil)
-         |> put_flash(:info, "Bank account for #{ba.currency} deleted.")}
+          {:error, _} ->
+            {:noreply, put_flash(socket, :error, "Could not delete bank account.")}
+        end
     end
   end
 
@@ -92,7 +96,7 @@ defmodule KsefHubWeb.BankAccountLive do
   defp do_create(socket, params) do
     company_id = socket.assigns.current_company.id
 
-    case Companies.create_bank_account(company_id, atomize(params)) do
+    case Companies.create_bank_account(company_id, params) do
       {:ok, ba} ->
         {:noreply,
          socket
@@ -109,7 +113,7 @@ defmodule KsefHubWeb.BankAccountLive do
   @spec do_update(Phoenix.LiveView.Socket.t(), CompanyBankAccount.t(), map()) ::
           {:noreply, Phoenix.LiveView.Socket.t()}
   defp do_update(socket, ba, params) do
-    case Companies.update_bank_account(ba, atomize(params)) do
+    case Companies.update_bank_account(ba, params) do
       {:ok, updated} ->
         {:noreply,
          socket
@@ -128,20 +132,6 @@ defmodule KsefHubWeb.BankAccountLive do
       {:ok, uuid} -> Companies.get_bank_account(company_id, uuid)
       :error -> nil
     end
-  end
-
-  @allowed_keys ~w(currency iban label)a
-
-  @spec atomize(map()) :: map()
-  defp atomize(params) do
-    Map.new(params, fn
-      {k, v} when is_binary(k) ->
-        atom = String.to_existing_atom(k)
-        if atom in @allowed_keys, do: {atom, v}, else: {k, v}
-
-      pair ->
-        pair
-    end)
   end
 
   @impl true
@@ -242,7 +232,7 @@ defmodule KsefHubWeb.BankAccountLive do
       </div>
 
       <%!-- Table of existing accounts --%>
-      <div class="rounded-lg border border-border overflow-hidden mt-6">
+      <div :if={@accounts_count > 0} class="rounded-lg border border-border overflow-hidden mt-6">
         <div class="overflow-x-auto">
           <.table
             id="bank-accounts"

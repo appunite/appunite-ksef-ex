@@ -98,6 +98,22 @@ defmodule KsefHubWeb.BankAccountLiveTest do
       assert html =~ "Bank account for PLN deleted."
     end
 
+    test "shows error when creating duplicate currency", %{conn: conn, company: company} do
+      insert(:company_bank_account, company: company, currency: "PLN")
+      {:ok, view, _html} = live(conn, ~p"/c/#{company.id}/settings/bank-accounts")
+
+      view |> element("button", "Add Account") |> render_click()
+
+      view
+      |> form("form[phx-submit='save']",
+        bank_account: %{currency: "PLN", iban: "PL99999999999999999999999999"}
+      )
+      |> render_submit()
+
+      html = render(view)
+      assert html =~ "a bank account for this currency already exists"
+    end
+
     test "cancels form", %{conn: conn, company: company} do
       {:ok, view, _html} = live(conn, ~p"/c/#{company.id}/settings/bank-accounts")
 

@@ -23,12 +23,12 @@ defmodule KsefHub.Companies.CompanyBankAccount do
   @spec changeset(t() | Ecto.Changeset.t(), map()) :: Ecto.Changeset.t()
   def changeset(bank_account, attrs) do
     bank_account
-    |> cast(attrs, [:currency, :iban, :label, :company_id])
+    |> cast(attrs, [:currency, :iban, :label])
     |> validate_required([:currency, :iban])
     |> validate_format(:currency, ~r/^[A-Z]{3}$/, message: "must be a 3-letter uppercase code")
     |> validate_length(:iban, min: 15, max: 34)
     |> validate_length(:label, max: 256)
-    |> unique_constraint([:company_id, :currency],
+    |> unique_constraint(:currency,
       name: :company_bank_accounts_company_id_currency_index,
       message: "a bank account for this currency already exists"
     )
