@@ -1834,4 +1834,137 @@ defmodule KsefHubWeb.Api.InvoiceControllerTest do
       assert Jason.decode!(conn.resp_body)["data"] == []
     end
   end
+
+  describe "is_excluded and status fields in responses" do
+    test "index returns is_excluded field", %{conn: conn} do
+      %{company: company, token: token} = create_user_with_token(:owner)
+      insert(:invoice, company: company, is_excluded: true)
+
+      conn = conn |> api_conn(token) |> get("/api/invoices")
+
+      assert conn.status == 200
+      data = Jason.decode!(conn.resp_body)["data"]
+      assert hd(data)["is_excluded"] == true
+    end
+
+    test "index returns status field for rejected invoice", %{conn: conn} do
+      %{company: company, token: token} = create_user_with_token(:owner)
+      insert(:invoice, company: company, type: :expense, status: :rejected)
+
+      conn = conn |> api_conn(token) |> get("/api/invoices")
+
+      assert conn.status == 200
+      data = Jason.decode!(conn.resp_body)["data"]
+      assert hd(data)["status"] == "rejected"
+    end
+
+    test "index includes rejected and excluded invoices with correct marking", %{conn: conn} do
+      %{company: company, token: token} = create_user_with_token(:owner)
+
+      insert(:invoice,
+        company: company,
+        type: :expense,
+        status: :approved,
+        seller_name: "Approved"
+      )
+
+      insert(:invoice,
+        company: company,
+        type: :expense,
+        status: :rejected,
+        seller_name: "Rejected"
+      )
+
+      insert(:invoice,
+        company: company,
+        type: :expense,
+        status: :approved,
+        is_excluded: true,
+        seller_name: "Excluded"
+      )
+
+      conn = conn |> api_conn(token) |> get("/api/invoices")
+
+      assert conn.status == 200
+      data = Jason.decode!(conn.resp_body)["data"]
+      assert length(data) == 3
+
+      rejected = Enum.find(data, &(&1["seller_name"] == "Rejected"))
+      assert rejected["status"] == "rejected"
+      assert rejected["is_excluded"] == false
+
+      excluded = Enum.find(data, &(&1["seller_name"] == "Excluded"))
+      assert excluded["status"] == "approved"
+      assert excluded["is_excluded"] == true
+    end
+  end
+
+  describe "status filter" do
+    test "filters invoices by status=rejected", %{conn: conn} do
+      %{company: company, token: token} = create_user_with_token(:owner)
+      insert(:invoice, company: company, type: :expense, status: :pending)
+      insert(:invoice, company: company, type: :expense, status: :approved)
+      insert(:invoice, company: company, type: :expense, status: :rejected)
+
+      conn = conn |> api_conn(token) |> get("/api/invoices?status=rejected")
+
+      body = Jason.decode!(conn.resp_body)
+      assert length(body["data"]) == 1
+      assert hd(body["data"])["status"] == "rejected"
+    end
+
+    test "filters invoices by status=approved", %{conn: conn} do
+      %{company: company, token: token} = create_user_with_token(:owner)
+      insert(:invoice, company: company, type: :expense, status: :pending)
+      insert(:invoice, company: company, type: :expense, status: :approved)
+      insert(:invoice, company: company, type: :expense, status: :rejected)
+
+      conn = conn |> api_conn(token) |> get("/api/invoices?status=approved")
+
+      body = Jason.decode!(conn.resp_body)
+      assert length(body["data"]) == 1
+      assert hd(body["data"])["status"] == "approved"
+    end
+
+    test "filters invoices by status=pending", %{conn: conn} do
+      %{company: company, token: token} = create_user_with_token(:owner)
+      insert(:invoice, company: company, type: :expense, status: :pending)
+      insert(:invoice, company: company, type: :expense, status: :approved)
+      insert(:invoice, company: company, type: :expense, status: :rejected)
+
+      conn = conn |> api_conn(token) |> get("/api/invoices?status=pending")
+
+      body = Jason.decode!(conn.resp_body)
+      assert length(body["data"]) == 1
+      assert hd(body["data"])["status"] == "pending"
+    end
+  end
+
+  describe "is_excluded filter" do
+    test "filters invoices by is_excluded=true", %{conn: conn} do
+      %{company: company, token: token} = create_user_with_token(:owner)
+      insert(:invoice, company: company, is_excluded: false, seller_name: "Normal")
+      insert(:invoice, company: company, is_excluded: true, seller_name: "Excluded")
+
+      conn = conn |> api_conn(token) |> get("/api/invoices?is_excluded=true")
+
+      body = Jason.decode!(conn.resp_body)
+      assert length(body["data"]) == 1
+      assert hd(body["data"])["seller_name"] == "Excluded"
+      assert hd(body["data"])["is_excluded"] == true
+    end
+
+    test "filters invoices by is_excluded=false", %{conn: conn} do
+      %{company: company, token: token} = create_user_with_token(:owner)
+      insert(:invoice, company: company, is_excluded: false, seller_name: "Normal")
+      insert(:invoice, company: company, is_excluded: true, seller_name: "Excluded")
+
+      conn = conn |> api_conn(token) |> get("/api/invoices?is_excluded=false")
+
+      body = Jason.decode!(conn.resp_body)
+      assert length(body["data"]) == 1
+      assert hd(body["data"])["seller_name"] == "Normal"
+      assert hd(body["data"])["is_excluded"] == false
+    end
+  end
 end

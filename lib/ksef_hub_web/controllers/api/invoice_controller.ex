@@ -124,6 +124,11 @@ defmodule KsefHubWeb.Api.InvoiceController do
         in: :query,
         description: "Filter by one or more tag names.",
         schema: %Schema{type: :array, items: %Schema{type: :string}}
+      ],
+      is_excluded: [
+        in: :query,
+        description: "Filter by exclusion status.",
+        schema: %Schema{type: :boolean}
       ]
     ],
     responses: %{
@@ -1351,6 +1356,7 @@ defmodule KsefHubWeb.Api.InvoiceController do
     |> maybe_put_integer(:per_page, params["per_page"])
     |> maybe_put(:category_id, params["category_id"])
     |> maybe_put_list(:tags, params["tags[]"] || params["tags"])
+    |> maybe_put_boolean(:is_excluded, params["is_excluded"])
   end
 
   @spec maybe_put(map(), atom(), String.t() | nil) :: map()
@@ -1390,6 +1396,13 @@ defmodule KsefHubWeb.Api.InvoiceController do
   defp maybe_put_list(map, key, values) when is_list(values), do: Map.put(map, key, values)
   defp maybe_put_list(map, key, value) when is_binary(value), do: Map.put(map, key, [value])
   defp maybe_put_list(map, _key, _invalid), do: map
+
+  @spec maybe_put_boolean(map(), atom(), String.t() | nil) :: map()
+  defp maybe_put_boolean(map, _key, nil), do: map
+  defp maybe_put_boolean(map, _key, ""), do: map
+  defp maybe_put_boolean(map, key, "true"), do: Map.put(map, key, true)
+  defp maybe_put_boolean(map, key, "false"), do: Map.put(map, key, false)
+  defp maybe_put_boolean(map, _key, _), do: map
 
   @spec validate_category_company(String.t() | nil, Ecto.UUID.t()) ::
           :ok | {:error, :category_not_found | :invalid_uuid}

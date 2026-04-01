@@ -1915,6 +1915,9 @@ defmodule KsefHub.Invoices do
       {:tags, tags}, q when is_list(tags) and tags != [] ->
         where(q, [i], fragment("? && ?", i.tags, ^tags))
 
+      {:is_excluded, is_excluded}, q when is_boolean(is_excluded) ->
+        where(q, [i], i.is_excluded == ^is_excluded)
+
       _, q ->
         q
     end)
