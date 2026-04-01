@@ -88,6 +88,35 @@ defmodule KsefHubWeb.BankAccountLiveTest do
       assert html =~ "Bank account for PLN updated."
     end
 
+    test "editing cannot change currency even with tampered payload", %{
+      conn: conn,
+      company: company
+    } do
+      ba = insert(:company_bank_account, company: company, currency: "PLN")
+      {:ok, view, _html} = live(conn, ~p"/c/#{company.id}/settings/bank-accounts")
+
+      view |> element("button[phx-value-id='#{ba.id}']", "Edit") |> render_click()
+
+      # Simulate tampered payload — currency field is disabled in UI but a
+      # malicious client could send it anyway
+      render_submit(view, "save", %{
+        "bank_account" => %{
+          "currency" => "EUR",
+          "iban" => "PL99999999999999999999999999",
+          "label" => "Tampered"
+        }
+      })
+
+      html = render(view)
+      assert html =~ "Bank account for PLN updated."
+      refute html =~ "Bank account for EUR"
+
+      # Verify in DB
+      updated = KsefHub.Companies.get_bank_account(company.id, ba.id)
+      assert updated.currency == "PLN"
+      assert updated.label == "Tampered"
+    end
+
     test "deletes a bank account", %{conn: conn, company: company} do
       ba = insert(:company_bank_account, company: company, currency: "PLN")
       {:ok, view, _html} = live(conn, ~p"/c/#{company.id}/settings/bank-accounts")

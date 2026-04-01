@@ -41,7 +41,7 @@ defmodule KsefHubWeb.BankAccountLive do
         {:noreply, put_flash(socket, :error, "Bank account not found.")}
 
       ba ->
-        changeset = CompanyBankAccount.changeset(ba, %{})
+        changeset = CompanyBankAccount.update_changeset(ba, %{})
         {:noreply, assign(socket, editing: ba, form: to_form(changeset, as: :bank_account))}
     end
   end
@@ -51,12 +51,11 @@ defmodule KsefHubWeb.BankAccountLive do
   end
 
   def handle_event("validate", %{"bank_account" => params}, socket) do
-    target =
-      if socket.assigns.editing == :new, do: %CompanyBankAccount{}, else: socket.assigns.editing
-
     changeset =
-      target
-      |> CompanyBankAccount.changeset(params)
+      case socket.assigns.editing do
+        :new -> CompanyBankAccount.changeset(%CompanyBankAccount{}, params)
+        ba -> CompanyBankAccount.update_changeset(ba, params)
+      end
       |> Map.put(:action, :validate)
 
     {:noreply, assign(socket, form: to_form(changeset, as: :bank_account))}

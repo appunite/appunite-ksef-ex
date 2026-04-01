@@ -19,11 +19,25 @@ defmodule KsefHub.Companies.CompanyBankAccount do
     timestamps()
   end
 
-  @doc "Builds a changeset for creating or updating a company bank account."
+  @doc "Builds a changeset for creating a company bank account."
   @spec changeset(t() | Ecto.Changeset.t(), map()) :: Ecto.Changeset.t()
   def changeset(bank_account, attrs) do
     bank_account
     |> cast(attrs, [:currency, :iban, :label])
+    |> common_validations()
+  end
+
+  @doc "Builds a changeset for updating a company bank account. Currency is immutable."
+  @spec update_changeset(t(), map()) :: Ecto.Changeset.t()
+  def update_changeset(bank_account, attrs) do
+    bank_account
+    |> cast(attrs, [:iban, :label])
+    |> common_validations()
+  end
+
+  @spec common_validations(Ecto.Changeset.t()) :: Ecto.Changeset.t()
+  defp common_validations(changeset) do
+    changeset
     |> validate_required([:currency, :iban])
     |> validate_format(:currency, ~r/^[A-Z]{3}$/, message: "must be a 3-letter uppercase code")
     |> validate_length(:iban, min: 15, max: 34)

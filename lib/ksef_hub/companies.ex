@@ -270,7 +270,7 @@ defmodule KsefHub.Companies do
           {:ok, CompanyBankAccount.t()} | {:error, Ecto.Changeset.t()}
   def update_bank_account(%CompanyBankAccount{} = bank_account, attrs) do
     bank_account
-    |> CompanyBankAccount.changeset(attrs)
+    |> CompanyBankAccount.update_changeset(attrs)
     |> Repo.update()
   end
 
