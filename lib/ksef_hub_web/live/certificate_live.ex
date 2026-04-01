@@ -182,7 +182,6 @@ defmodule KsefHubWeb.CertificateLive do
 
   defp save_certificate(socket, cert_data, password) do
     user = socket.assigns.current_user
-    company = socket.assigns.current_company
     cert_meta = extract_certificate_info(cert_data, password)
 
     with {:ok, encrypted_cert} <- Encryption.encrypt(cert_data),
