@@ -118,6 +118,9 @@ make test.integration
 # Format code (check)
 mix format --check-formatted
 
+# Compile with warnings as errors (CI enforces this)
+mix compile --warnings-as-errors
+
 # Static analysis
 mix credo --strict
 

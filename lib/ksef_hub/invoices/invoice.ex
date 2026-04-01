@@ -74,6 +74,7 @@ defmodule KsefHub.Invoices.Invoice do
 
     field :public_token, :string
     field :cost_line, Ecto.Enum, values: CostLine.values()
+    field :project_tag, :string
     field :is_excluded, :boolean, default: false
     field :access_restricted, :boolean, default: false
 
@@ -215,6 +216,14 @@ defmodule KsefHub.Invoices.Invoice do
     invoice
     |> cast(attrs, [:category_id, :cost_line])
     |> foreign_key_constraint(:category_id)
+  end
+
+  @doc "Builds a changeset for setting or clearing the project tag."
+  @spec project_tag_changeset(t(), map()) :: Ecto.Changeset.t()
+  def project_tag_changeset(invoice, attrs) do
+    invoice
+    |> cast(attrs, [:project_tag])
+    |> validate_length(:project_tag, max: 255)
   end
 
   @all_edit_fields [

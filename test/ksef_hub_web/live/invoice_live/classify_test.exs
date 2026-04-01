@@ -387,4 +387,86 @@ defmodule KsefHubWeb.InvoiceLive.ClassifyTest do
       refute has_element?(view, ~s([data-testid="cost-line-section"]))
     end
   end
+
+  describe "project tag" do
+    test "renders project tag section for expense invoice", %{conn: conn, company: company} do
+      invoice = insert(:invoice, type: :expense, company: company)
+
+      {:ok, view, _html} = live(conn, ~p"/c/#{company.id}/invoices/#{invoice.id}/classify")
+
+      assert has_element?(view, ~s([data-testid="project-tag-section"]))
+    end
+
+    test "renders project tag section for income invoice", %{conn: conn, company: company} do
+      invoice = insert(:invoice, type: :income, company: company)
+
+      {:ok, view, _html} = live(conn, ~p"/c/#{company.id}/invoices/#{invoice.id}/classify")
+
+      assert has_element?(view, ~s([data-testid="project-tag-section"]))
+    end
+
+    test "shows existing project tags as radio buttons", %{conn: conn, company: company} do
+      insert(:invoice, company: company, type: :expense, project_tag: "Alpha")
+      invoice = insert(:invoice, type: :expense, company: company)
+
+      {:ok, view, _html} = live(conn, ~p"/c/#{company.id}/invoices/#{invoice.id}/classify")
+
+      assert has_element?(view, ~s(input[type="radio"][value="Alpha"]))
+    end
+
+    test "selecting a project tag updates selection", %{conn: conn, company: company} do
+      insert(:invoice, company: company, type: :expense, project_tag: "Alpha")
+      invoice = insert(:invoice, type: :expense, company: company)
+
+      {:ok, view, _html} = live(conn, ~p"/c/#{company.id}/invoices/#{invoice.id}/classify")
+
+      render_click(view, "select_project_tag", %{"value" => "Alpha"})
+
+      assert has_element?(
+               view,
+               ~s(input[type="radio"][value="Alpha"][checked])
+             )
+    end
+
+    test "custom project tag adds to list and selects it", %{conn: conn, company: company} do
+      invoice = insert(:invoice, type: :expense, company: company)
+
+      {:ok, view, _html} = live(conn, ~p"/c/#{company.id}/invoices/#{invoice.id}/classify")
+
+      view
+      |> element("form[phx-submit=set_custom_project_tag]")
+      |> render_submit(%{"name" => "New Project"})
+
+      html = render(view)
+      assert html =~ "New Project"
+    end
+
+    test "persists project tag on save", %{conn: conn, company: company} do
+      insert(:invoice, company: company, type: :expense, project_tag: "Alpha")
+      invoice = insert(:invoice, type: :expense, company: company)
+
+      {:ok, view, _html} = live(conn, ~p"/c/#{company.id}/invoices/#{invoice.id}/classify")
+
+      render_click(view, "select_project_tag", %{"value" => "Alpha"})
+      render_click(view, "save")
+
+      updated = Invoices.get_invoice!(company.id, invoice.id)
+      assert updated.project_tag == "Alpha"
+    end
+
+    test "persists project tag on income invoice", %{conn: conn, company: company} do
+      invoice = insert(:invoice, type: :income, company: company)
+
+      {:ok, view, _html} = live(conn, ~p"/c/#{company.id}/invoices/#{invoice.id}/classify")
+
+      view
+      |> element("form[phx-submit=set_custom_project_tag]")
+      |> render_submit(%{"name" => "Revenue Project"})
+
+      render_click(view, "save")
+
+      updated = Invoices.get_invoice!(company.id, invoice.id)
+      assert updated.project_tag == "Revenue Project"
+    end
+  end
 end

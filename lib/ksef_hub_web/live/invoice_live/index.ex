@@ -488,7 +488,16 @@ defmodule KsefHubWeb.InvoiceLive.Index do
             <.category_badge category={inv.category} />
           </:col>
           <:col :let={inv} label="Tags">
-            <.tag_list tags={inv.tags} />
+            <div class="flex flex-wrap gap-1">
+              <.badge :for={tag <- inv.tags} variant="info">{tag.name}</.badge>
+              <.badge :if={inv.project_tag} variant="success">{inv.project_tag}</.badge>
+            </div>
+            <span
+              :if={inv.tags == [] && is_nil(inv.project_tag)}
+              class="text-muted-foreground"
+            >
+              -
+            </span>
           </:col>
           <:col :let={inv} :if={@filters[:type] != :income} label="Payment" class="w-28">
             <.payment_badge status={@payment_statuses[inv.id]} />

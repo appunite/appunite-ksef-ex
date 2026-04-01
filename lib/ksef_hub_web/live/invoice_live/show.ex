@@ -1041,20 +1041,28 @@ defmodule KsefHubWeb.InvoiceLive.Show do
             />
           </div>
 
-          <div :if={@invoice.type == :expense} class="mb-3">
-            <label class="text-sm text-muted-foreground">Cost Line</label>
-            <div class="mt-1" data-testid="cost-line-display">
-              <.badge :if={@invoice.cost_line} variant="info">
-                {CostLine.label(@invoice.cost_line)}
-              </.badge>
-              <span :if={is_nil(@invoice.cost_line)} class="text-muted-foreground">-</span>
-            </div>
-          </div>
-
-          <div>
+          <div class="mb-3">
             <label class="text-sm text-muted-foreground">Tags</label>
             <div class="mt-1" data-testid="tags-display">
-              <.tag_list tags={@invoice.tags} />
+              <div
+                :if={@invoice.tags != [] || @invoice.project_tag}
+                class="flex flex-wrap gap-1"
+              >
+                <.badge :for={tag <- @invoice.tags} variant="info">{tag.name}</.badge>
+                <.badge
+                  :if={@invoice.project_tag}
+                  variant="success"
+                  data-testid="project-tag-display"
+                >
+                  {@invoice.project_tag}
+                </.badge>
+              </div>
+              <span
+                :if={@invoice.tags == [] && is_nil(@invoice.project_tag)}
+                class="text-muted-foreground"
+              >
+                -
+              </span>
             </div>
             <.prediction_hint
               predicted_at={@invoice.prediction_predicted_at}
@@ -1064,6 +1072,16 @@ defmodule KsefHubWeb.InvoiceLive.Show do
               label="tag"
               testid="prediction-tag-hint"
             />
+          </div>
+
+          <div :if={@invoice.type == :expense} class="mb-3">
+            <label class="text-sm text-muted-foreground">Cost Line</label>
+            <div class="mt-1" data-testid="cost-line-display">
+              <.badge :if={@invoice.cost_line} variant="info">
+                {CostLine.label(@invoice.cost_line)}
+              </.badge>
+              <span :if={is_nil(@invoice.cost_line)} class="text-muted-foreground">-</span>
+            </div>
           </div>
         </.card>
         <!-- Billing Period Card -->
