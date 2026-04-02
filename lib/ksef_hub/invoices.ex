@@ -274,6 +274,17 @@ defmodule KsefHub.Invoices do
     end
   end
 
+  # Like maybe_default_billing_date/1, but for updates — only fills in billing dates
+  # when the existing invoice doesn't already have them set (preserves manual edits).
+  @spec maybe_default_billing_date_for_update(map(), Invoice.t()) :: map()
+  defp maybe_default_billing_date_for_update(attrs, %Invoice{} = invoice) do
+    if is_nil(invoice.billing_date_from) and is_nil(invoice.billing_date_to) do
+      maybe_default_billing_date(attrs)
+    else
+      attrs
+    end
+  end
+
   @doc """
   Creates an invoice.
   """
@@ -513,6 +524,7 @@ defmodule KsefHub.Invoices do
       |> Map.put(:extraction_status, extraction_status)
       |> Map.put(:type, invoice.type)
       |> populate_company_fields(company)
+      |> maybe_default_billing_date_for_update(invoice)
 
     # Preserve existing currency if extraction didn't provide one
     attrs =
@@ -1030,7 +1042,7 @@ defmodule KsefHub.Invoices do
 
   @spec parse_date(String.t()) :: Date.t() | nil
   defp parse_date(value) do
-    with :error <- Date.from_iso8601(value),
+    with {:error, _} <- Date.from_iso8601(value),
          :error <- parse_datetime_as_date(value),
          :error <- parse_naive_datetime_as_date(value) do
       nil
