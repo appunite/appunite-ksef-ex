@@ -195,7 +195,7 @@ defmodule KsefHub.InvoicesTest do
       assert updated.seller_name == "Updated Name"
     end
 
-    test "marks business field duplicate when ksef sync inserts invoice matching uploaded one",
+    test "marks uploaded invoice as duplicate when ksef sync inserts matching invoice",
          %{company: company} do
       # Simulate a manually uploaded invoice (no ksef_number)
       uploaded =
@@ -223,9 +223,14 @@ defmodule KsefHub.InvoicesTest do
         )
         |> Map.put(:xml_content, @sample_xml)
 
-      assert {:ok, %Invoice{} = invoice, :inserted} = Invoices.upsert_invoice(attrs)
-      assert invoice.duplicate_of_id == uploaded.id
-      assert invoice.duplicate_status == :suspected
+      # KSeF invoice stays canonical (duplicate_of_id == nil)
+      assert {:ok, %Invoice{} = ksef_invoice, :inserted} = Invoices.upsert_invoice(attrs)
+      assert is_nil(ksef_invoice.duplicate_of_id)
+
+      # The older uploaded invoice is marked as duplicate of the KSeF one
+      updated_uploaded = Repo.get!(Invoice, uploaded.id)
+      assert updated_uploaded.duplicate_of_id == ksef_invoice.id
+      assert updated_uploaded.duplicate_status == :suspected
     end
 
     test "upsert does not self-match as duplicate", %{company: company} do

@@ -1988,8 +1988,11 @@ defmodule KsefHub.Invoices do
 
   defp format_error_reason(reason), do: inspect(reason)
 
-  # When a KSeF sync inserts a new invoice (not an upsert update), check if a
-  # manually uploaded invoice already exists with matching business fields.
+  # When a KSeF sync inserts a new invoice, check if a manually uploaded invoice
+  # already exists with matching business fields. The KSeF invoice is authoritative,
+  # so mark the older manual/PDF invoice as the duplicate (pointing at the new KSeF
+  # row). This preserves the KSeF invoice's duplicate_of_id as NULL, which is
+  # required by the upsert conflict target and find_original_by_ksef_number/2.
   @spec maybe_mark_business_field_duplicate(Invoice.t(), :inserted | :updated) :: Invoice.t()
   defp maybe_mark_business_field_duplicate(invoice, :updated), do: invoice
 
@@ -2000,22 +2003,24 @@ defmodule KsefHub.Invoices do
       nil ->
         invoice
 
-      original_id ->
-        case invoice
+      older_id ->
+        older_invoice = Repo.get!(Invoice, older_id)
+
+        case older_invoice
              |> Invoice.duplicate_changeset(%{
-               duplicate_of_id: original_id,
+               duplicate_of_id: invoice.id,
                duplicate_status: :suspected
              })
              |> Repo.update() do
-          {:ok, updated} ->
-            updated
+          {:ok, _updated} ->
+            invoice
 
           {:error, reason} ->
             error_detail = format_error_reason(reason)
 
             Logger.warning(
-              "Failed to mark invoice #{invoice.id} (company #{invoice.company_id}) " <>
-                "as duplicate of #{original_id}: #{error_detail}"
+              "Failed to mark invoice #{older_id} (company #{invoice.company_id}) " <>
+                "as duplicate of #{invoice.id}: #{error_detail}"
             )
 
             invoice
