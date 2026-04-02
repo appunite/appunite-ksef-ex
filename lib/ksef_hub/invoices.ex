@@ -21,6 +21,11 @@ defmodule KsefHub.Invoices do
   @default_per_page 25
   @critical_extraction_fields ~w(seller_nip seller_name invoice_number issue_date net_amount gross_amount)a
 
+  # Placeholder values the LLM may return when a field is not found on the invoice.
+  # All fields are required in the extraction schema (for API performance), so the
+  # model outputs these instead of null.
+  @extraction_placeholders ~w(- -- N/A n/a `)
+
   @doc """
   Returns a list of invoices for a company matching the given filters.
 
@@ -849,7 +854,12 @@ defmodule KsefHub.Invoices do
 
   @spec present_value?(term()) :: boolean()
   defp present_value?(nil), do: false
-  defp present_value?(s) when is_binary(s), do: String.trim(s) != ""
+
+  defp present_value?(s) when is_binary(s) do
+    trimmed = String.trim(s)
+    trimmed != "" and trimmed not in @extraction_placeholders
+  end
+
   defp present_value?(_), do: true
 
   @spec build_pdf_upload_attrs(
@@ -929,11 +939,6 @@ defmodule KsefHub.Invoices do
 
     if map_size(cleaned) == 0, do: nil, else: cleaned
   end
-
-  # Placeholder values the LLM may return when a field is not found on the invoice.
-  # All fields are required in the extraction schema (for API performance), so the
-  # model outputs these instead of null.
-  @extraction_placeholders ~w(- -- N/A n/a `)
 
   @spec get_extracted_string(map(), String.t()) :: String.t() | nil
   defp get_extracted_string(data, key) do
