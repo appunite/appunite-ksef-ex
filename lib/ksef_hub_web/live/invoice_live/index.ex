@@ -453,13 +453,11 @@ defmodule KsefHubWeb.InvoiceLive.Index do
             </.link>
             <.restricted_icon :if={inv.access_restricted} />
           </:col>
-          <:col :let={inv} label="Net" class="w-36 text-right">
-            <span class="font-mono">{format_amount(inv.net_amount)}</span>
-            <span class="text-xs text-muted-foreground">{inv.currency}</span>
-          </:col>
-          <:col :let={inv} label="Gross" class="w-36 text-right">
-            <span class="font-mono">{format_amount(inv.gross_amount)}</span>
-            <span class="text-xs text-muted-foreground">{inv.currency}</span>
+          <:col :let={inv} label="Amount" class="w-36 text-right">
+            <div class="font-mono">{format_amount(inv.net_amount)}</div>
+            <div class="font-mono text-xs text-muted-foreground">
+              {format_amount(inv.gross_amount)} {inv.currency}
+            </div>
           </:col>
           <:col :let={inv} :if={@filters[:type] != :income} label="Status" class="w-28">
             <div class="flex flex-wrap gap-1">
@@ -471,6 +469,9 @@ defmodule KsefHubWeb.InvoiceLive.Index do
                 status={inv.status}
               />
               <.extraction_badge status={inv.extraction_status} />
+            </div>
+            <div class="mt-1">
+              <.payment_badge status={@payment_statuses[inv.id]} />
             </div>
           </:col>
           <:col :let={inv} :if={@filters[:type] != :income} label="Category">
@@ -487,9 +488,6 @@ defmodule KsefHubWeb.InvoiceLive.Index do
             >
               -
             </span>
-          </:col>
-          <:col :let={inv} :if={@filters[:type] != :income} label="Payment" class="w-28">
-            <.payment_badge status={@payment_statuses[inv.id]} />
           </:col>
         </.table>
       </div>
