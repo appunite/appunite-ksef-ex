@@ -14,7 +14,7 @@ defmodule KsefHub.Invoices do
   alias KsefHub.Files
   alias KsefHub.InvoiceClassifier.Worker, as: ClassifierWorker
   alias KsefHub.InvoiceExtractor.ContextBuilder
-  alias KsefHub.Invoices.{Category, Invoice, InvoiceAccessGrant, InvoiceComment}
+  alias KsefHub.Invoices.{Category, Invoice, InvoiceAccessGrant, InvoiceComment, PurchaseOrder}
   alias KsefHub.Repo
 
   @max_per_page 100
@@ -887,6 +887,8 @@ defmodule KsefHub.Invoices do
   # Used by both initial PDF upload creation and re-extraction.
   @spec extracted_to_invoice_attrs(map()) :: map()
   defp extracted_to_invoice_attrs(extracted) do
+    bd = extracted["bank_details"]
+
     %{
       seller_nip: get_extracted_nip(extracted, "seller_nip"),
       seller_name: get_extracted_string(extracted, "seller_name"),
@@ -898,10 +900,16 @@ defmodule KsefHub.Invoices do
       gross_amount: get_extracted_decimal(extracted, "gross_amount"),
       currency: get_extracted_string(extracted, "currency"),
       ksef_number: get_extracted_string(extracted, "ksef_number"),
-      purchase_order: get_extracted_string(extracted, "purchase_order"),
+      purchase_order: get_extracted_purchase_order(extracted, "purchase_order"),
       sales_date: get_extracted_date(extracted, "sales_date"),
       due_date: get_extracted_date(extracted, "due_date"),
-      iban: get_extracted_string(extracted, "iban"),
+      iban: extract_iban(bd, extracted),
+      swift_bic: get_bank_string(bd, "swift_bic"),
+      bank_name: get_bank_string(bd, "bank_name"),
+      bank_address: get_bank_string(bd, "bank_address"),
+      routing_number: get_bank_string(bd, "routing_number"),
+      account_number: get_bank_string(bd, "account_number"),
+      payment_instructions: get_bank_string(bd, "notes"),
       seller_address: get_extracted_address(extracted, "seller_address"),
       buyer_address: get_extracted_address(extracted, "buyer_address")
     }
@@ -935,6 +943,34 @@ defmodule KsefHub.Invoices do
       nil -> nil
       value -> normalize_nip(value)
     end
+  end
+
+  @spec get_extracted_purchase_order(map(), String.t()) :: String.t() | nil
+  defp get_extracted_purchase_order(data, key) do
+    case get_extracted_string(data, key) do
+      nil -> nil
+      value -> PurchaseOrder.extract(value)
+    end
+  end
+
+  # Reads a string field from the bank_details nested object.
+  @spec get_bank_string(map() | nil, String.t()) :: String.t() | nil
+  defp get_bank_string(%{} = bd, key), do: get_extracted_string(bd, key)
+  defp get_bank_string(_, _), do: nil
+
+  # Extracts IBAN: prefers bank_details.iban, falls back to legacy flat "iban" key.
+  @spec extract_iban(map() | nil, map()) :: String.t() | nil
+  defp extract_iban(bd, extracted) do
+    raw = get_bank_string(bd, "iban") || get_extracted_string(extracted, "iban")
+    if raw, do: maybe_normalize_iban(raw), else: nil
+  end
+
+  # Strips spaces/dashes and uppercases only when the value looks like an IBAN
+  # (2-letter country code + 2 check digits). Non-IBAN account numbers are kept as-is.
+  @spec maybe_normalize_iban(String.t()) :: String.t()
+  defp maybe_normalize_iban(value) do
+    stripped = value |> String.replace(~r/[\s\-]/, "") |> String.upcase()
+    if Regex.match?(~r/^[A-Z]{2}\d{2}/, stripped), do: stripped, else: value
   end
 
   @spec normalize_nip(String.t()) :: String.t()

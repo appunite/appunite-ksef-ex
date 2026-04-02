@@ -247,6 +247,48 @@ defmodule KsefHub.PaymentRequestsTest do
       assert attrs.invoice_id == invoice.id
     end
 
+    test "prefills note from bank details on expense invoice" do
+      invoice = %KsefHub.Invoices.Invoice{
+        id: Ecto.UUID.generate(),
+        type: :expense,
+        seller_name: "US Vendor",
+        seller_nip: "1234567890",
+        gross_amount: Decimal.new("500.00"),
+        currency: "USD",
+        invoice_number: "INV-001",
+        iban: "US12345678901234",
+        swift_bic: "CITIUS33",
+        bank_name: "JPMorgan Chase",
+        routing_number: "021000021",
+        account_number: "123456789012",
+        payment_instructions: "Reference: INV-001"
+      }
+
+      attrs = PaymentRequests.prefill_attrs_from_invoice(invoice)
+
+      assert attrs.note =~ "SWIFT/BIC: CITIUS33"
+      assert attrs.note =~ "Bank: JPMorgan Chase"
+      assert attrs.note =~ "Routing number: 021000021"
+      assert attrs.note =~ "Account number: 123456789012"
+      assert attrs.note =~ "Reference: INV-001"
+    end
+
+    test "prefills empty note when no bank details" do
+      invoice = %KsefHub.Invoices.Invoice{
+        id: Ecto.UUID.generate(),
+        type: :expense,
+        seller_name: "Simple Seller",
+        seller_nip: "1234567890",
+        gross_amount: Decimal.new("100.00"),
+        currency: "PLN",
+        invoice_number: "FV/001",
+        iban: "PL12345678901234567890123456"
+      }
+
+      attrs = PaymentRequests.prefill_attrs_from_invoice(invoice)
+      assert attrs.note == ""
+    end
+
     test "prefills from income invoice" do
       invoice = %KsefHub.Invoices.Invoice{
         id: Ecto.UUID.generate(),

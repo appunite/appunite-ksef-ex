@@ -140,6 +140,7 @@ defmodule KsefHub.PaymentRequests do
       currency: invoice.currency || "PLN",
       title: invoice.invoice_number,
       iban: invoice.iban || "",
+      note: build_bank_note(invoice),
       invoice_id: invoice.id
     }
   end
@@ -153,6 +154,7 @@ defmodule KsefHub.PaymentRequests do
       currency: invoice.currency || "PLN",
       title: invoice.invoice_number,
       iban: "",
+      note: "",
       invoice_id: invoice.id
     }
   end
@@ -163,6 +165,33 @@ defmodule KsefHub.PaymentRequests do
     )
 
     %{}
+  end
+
+  @bank_note_fields [
+    {"SWIFT/BIC", :swift_bic},
+    {"Bank", :bank_name},
+    {"Bank address", :bank_address},
+    {"Routing number", :routing_number},
+    {"Account number", :account_number}
+  ]
+
+  @spec build_bank_note(Invoice.t()) :: String.t()
+  defp build_bank_note(invoice) do
+    labeled =
+      Enum.flat_map(@bank_note_fields, fn {label, field} ->
+        case Map.get(invoice, field) do
+          val when is_binary(val) and val != "" -> ["#{label}: #{val}"]
+          _ -> []
+        end
+      end)
+
+    instructions =
+      case invoice.payment_instructions do
+        val when is_binary(val) and val != "" -> [val]
+        _ -> []
+      end
+
+    Enum.join(labeled ++ instructions, "\n")
   end
 
   # --- Mark as paid ---

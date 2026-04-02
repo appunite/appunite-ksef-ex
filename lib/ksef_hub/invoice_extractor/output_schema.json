@@ -1,0 +1,183 @@
+{
+  "type": "object",
+  "properties": {
+    "ksef_number": {
+      "type": ["string", "null"],
+      "description": "KSeF reference number assigned by the National e-Invoice System (e.g. 1234567890-20250115-AABBCCDD-01)"
+    },
+    "invoice_number": {
+      "type": "string",
+      "description": "Sequential invoice identifier (FA(3) field P_2, e.g. FV/2025/01/001)"
+    },
+    "issue_date": {
+      "type": "string",
+      "description": "Invoice issue date in YYYY-MM-DD format (FA(3) field P_1)"
+    },
+    "sales_date": {
+      "type": ["string", "null"],
+      "description": "Date of sale/service delivery in YYYY-MM-DD format (FA(3) field P_6)"
+    },
+    "due_date": {
+      "type": ["string", "null"],
+      "description": "Payment due date in YYYY-MM-DD format (FA(3) field TerminPlatnosci)"
+    },
+    "seller_nip": {
+      "type": "string",
+      "description": "Seller's tax ID. EU VAT number with country prefix (e.g. PL7831812212, DE123456789) or US EIN/TIN"
+    },
+    "seller_name": {
+      "type": "string",
+      "description": "Full name of the selling company or person"
+    },
+    "seller_address": {
+      "type": ["object", "null"],
+      "description": "Seller's address",
+      "properties": {
+        "street": {
+          "type": ["string", "null"],
+          "description": "Street name and building/apartment number"
+        },
+        "city": {
+          "type": ["string", "null"],
+          "description": "City or town name"
+        },
+        "postal_code": {
+          "type": ["string", "null"],
+          "description": "Postal or ZIP code"
+        },
+        "country": {
+          "type": ["string", "null"],
+          "description": "Country name or ISO 3166-1 alpha-2 code (e.g. PL, US, DE)"
+        }
+      },
+      "additionalProperties": false
+    },
+    "buyer_nip": {
+      "type": ["string", "null"],
+      "description": "Buyer's tax ID. EU VAT number with country prefix (e.g. PL7831812212, DE123456789) or US EIN/TIN"
+    },
+    "buyer_name": {
+      "type": ["string", "null"],
+      "description": "Full name of the buying company or person"
+    },
+    "buyer_address": {
+      "type": ["object", "null"],
+      "description": "Buyer's address",
+      "properties": {
+        "street": {
+          "type": ["string", "null"],
+          "description": "Street name and building/apartment number"
+        },
+        "city": {
+          "type": ["string", "null"],
+          "description": "City or town name"
+        },
+        "postal_code": {
+          "type": ["string", "null"],
+          "description": "Postal or ZIP code"
+        },
+        "country": {
+          "type": ["string", "null"],
+          "description": "Country name or ISO 3166-1 alpha-2 code (e.g. PL, US, DE)"
+        }
+      },
+      "additionalProperties": false
+    },
+    "purchase_order": {
+      "type": ["string", "null"],
+      "description": "AppUnite purchase order code. Look for the pattern 'PO: AU_CON_XXXXXXXXX' or just 'AU_CON_XXXXXXXXX' (where XXXXXXXXX is exactly 9 alphanumeric characters, e.g. AU_CON_NW9BBJ4VJ). May appear in notes, payment references, or description fields. Return only the AU_CON_XXXXXXXXX part without the 'PO: ' prefix. Return null if no matching code is found."
+    },
+    "bank_details": {
+      "type": ["object", "null"],
+      "description": "Seller's bank and payment details",
+      "properties": {
+        "iban": {
+          "type": ["string", "null"],
+          "description": "IBAN (EU) or full account number (FA(3) field NrRachunkuBankowego)"
+        },
+        "swift_bic": {
+          "type": ["string", "null"],
+          "description": "SWIFT/BIC code (e.g. BPKOPLPW, CITIUS33)"
+        },
+        "bank_name": {
+          "type": ["string", "null"],
+          "description": "Name of the bank"
+        },
+        "bank_address": {
+          "type": ["string", "null"],
+          "description": "Bank branch address as printed on the invoice"
+        },
+        "routing_number": {
+          "type": ["string", "null"],
+          "description": "ABA routing number for US domestic wires (9 digits)"
+        },
+        "account_number": {
+          "type": ["string", "null"],
+          "description": "Bank account number for US wires (when separate from IBAN)"
+        },
+        "notes": {
+          "type": ["string", "null"],
+          "description": "Explicit payment instructions printed on the invoice"
+        }
+      },
+      "additionalProperties": false
+    },
+    "net_amount": {
+      "type": ["number", "null"],
+      "description": "Total net amount excluding VAT (FA(3) field P_13_1)"
+    },
+    "vat_amount": {
+      "type": ["number", "null"],
+      "description": "Total VAT amount (FA(3) field P_14_1)"
+    },
+    "gross_amount": {
+      "type": ["number", "null"],
+      "description": "Total gross amount including VAT (FA(3) field P_15)"
+    },
+    "currency": {
+      "type": "string",
+      "description": "ISO 4217 currency code (e.g. PLN, EUR, USD). Defaults to PLN if not specified on invoice."
+    },
+    "line_items": {
+      "type": "array",
+      "description": "Individual invoice line items",
+      "items": {
+        "type": "object",
+        "properties": {
+          "line_number": {
+            "type": "integer",
+            "description": "Sequential line number (NrWierszaFa)"
+          },
+          "description": {
+            "type": "string",
+            "description": "Product or service description (FA(3) field P_7)"
+          },
+          "unit": {
+            "type": ["string", "null"],
+            "description": "Unit of measure, e.g. szt., kg, godz. (FA(3) field P_8A)"
+          },
+          "quantity": {
+            "type": ["number", "null"],
+            "description": "Quantity of items (FA(3) field P_8B)"
+          },
+          "unit_price": {
+            "type": ["number", "null"],
+            "description": "Price per unit net of VAT (FA(3) field P_9A)"
+          },
+          "net_amount": {
+            "type": ["number", "null"],
+            "description": "Line net amount (FA(3) field P_11)"
+          },
+          "vat_rate": {
+            "type": ["number", "null"],
+            "description": "VAT rate as percentage, e.g. 23, 8, 5, 0 (FA(3) field P_12)"
+          }
+        },
+        "required": ["line_number", "description"],
+        "additionalProperties": false
+      }
+    }
+  },
+  "required": ["invoice_number", "issue_date", "seller_nip", "seller_name", "currency", "line_items"],
+  "additionalProperties": false
+}

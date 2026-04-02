@@ -57,6 +57,12 @@ defmodule KsefHub.Invoices.Invoice do
     field :billing_date_from, :date
     field :billing_date_to, :date
     field :iban, :string
+    field :swift_bic, :string
+    field :bank_name, :string
+    field :bank_address, :string
+    field :routing_number, :string
+    field :account_number, :string
+    field :payment_instructions, :string
     field :seller_address, :map
     field :buyer_address, :map
 
@@ -180,6 +186,12 @@ defmodule KsefHub.Invoices.Invoice do
       :billing_date_from,
       :billing_date_to,
       :iban,
+      :swift_bic,
+      :bank_name,
+      :bank_address,
+      :routing_number,
+      :account_number,
+      :payment_instructions,
       :seller_address,
       :buyer_address,
       :is_excluded
@@ -190,6 +202,11 @@ defmodule KsefHub.Invoices.Invoice do
     |> validate_length(:original_filename, max: 255)
     |> validate_length(:purchase_order, max: 256)
     |> validate_length(:iban, min: 15, max: 34)
+    |> validate_length(:swift_bic, max: 11)
+    |> validate_length(:bank_name, max: 255)
+    |> validate_length(:bank_address, max: 500)
+    |> validate_length(:routing_number, is: 9)
+    |> validate_length(:account_number, max: 34)
     |> normalize_address_fields()
     |> validate_source_requirements()
     |> foreign_key_constraint(:company_id)
@@ -277,6 +294,12 @@ defmodule KsefHub.Invoices.Invoice do
     :currency,
     :purchase_order,
     :iban,
+    :swift_bic,
+    :bank_name,
+    :bank_address,
+    :routing_number,
+    :account_number,
+    :payment_instructions,
     :seller_address,
     :buyer_address
   ]
@@ -297,6 +320,11 @@ defmodule KsefHub.Invoices.Invoice do
     |> validate_number(:gross_amount, greater_than_or_equal_to: 0)
     |> validate_length(:purchase_order, max: 256)
     |> validate_length(:iban, min: 15, max: 34)
+    |> validate_length(:swift_bic, max: 11)
+    |> validate_length(:bank_name, max: 255)
+    |> validate_length(:bank_address, max: 500)
+    |> validate_length(:routing_number, is: 9)
+    |> validate_length(:account_number, max: 34)
     |> normalize_address_fields()
   end
 

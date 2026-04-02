@@ -98,18 +98,18 @@ defmodule KsefHub.Invoices.ParserTest do
       assert invoice.purchase_order == nil
     end
 
-    test "extracts purchase_order from NrZamowienia" do
+    test "extracts AU_CON purchase_order from NrZamowienia with PO prefix" do
       xml = File.read!(Path.join(@fixtures_path, "sample_income_with_po.xml"))
 
       assert {:ok, invoice} = Parser.parse(xml)
-      assert invoice.purchase_order == "PO-2025-001"
+      assert invoice.purchase_order == "AU_CON_NW9BBJ4VJ"
     end
 
-    test "extracts purchase_order from DodatkowyOpis key match" do
+    test "extracts AU_CON purchase_order from DodatkowyOpis value" do
       xml = File.read!(Path.join(@fixtures_path, "sample_expense_with_dodatkowy_opis_po.xml"))
 
       assert {:ok, invoice} = Parser.parse(xml)
-      assert invoice.purchase_order == "PO-2025-002"
+      assert invoice.purchase_order == "AU_CON_X7KLM2P9Q"
     end
 
     test "NrZamowienia takes precedence over DodatkowyOpis" do
@@ -128,10 +128,10 @@ defmodule KsefHub.Invoices.ParserTest do
           <KodWaluty>PLN</KodWaluty>
           <P_1>2025-01-15</P_1>
           <P_2>FV/2025/001</P_2>
-          <NrZamowienia>PO-PRIMARY</NrZamowienia>
+          <NrZamowienia>PO: AU_CON_AAABBB111</NrZamowienia>
           <DodatkowyOpis>
             <Klucz>Numer zamowienia</Klucz>
-            <Wartosc>PO-SECONDARY</Wartosc>
+            <Wartosc>AU_CON_CCCDDDEEE</Wartosc>
           </DodatkowyOpis>
           <P_13_1>1000.00</P_13_1>
           <P_15>1230.00</P_15>
@@ -142,32 +142,75 @@ defmodule KsefHub.Invoices.ParserTest do
       """
 
       assert {:ok, invoice} = Parser.parse(xml)
-      assert invoice.purchase_order == "PO-PRIMARY"
+      assert invoice.purchase_order == "AU_CON_AAABBB111"
     end
 
-    test "extracts purchase_order from DodatkowyOpis value regex (PO:)" do
-      xml = dodatkowy_opis_xml("Uwagi", "PO: AU_12345")
+    test "extracts AU_CON from DodatkowyOpis key field" do
+      xml = dodatkowy_opis_xml("AU_CON_R4TYU8P2L", "some value")
 
       assert {:ok, invoice} = Parser.parse(xml)
-      assert invoice.purchase_order == "AU_12345"
+      assert invoice.purchase_order == "AU_CON_R4TYU8P2L"
     end
 
-    test "extracts purchase_order from DodatkowyOpis value regex (P.O.)" do
-      xml = dodatkowy_opis_xml("Notes", "P.O. XYZ-789")
+    test "extracts AU_CON from DodatkowyOpis value with PO prefix" do
+      xml = dodatkowy_opis_xml("Uwagi", "PO: AU_CON_H5JKL9M3N")
 
       assert {:ok, invoice} = Parser.parse(xml)
-      assert invoice.purchase_order == "XYZ-789"
+      assert invoice.purchase_order == "AU_CON_H5JKL9M3N"
     end
 
-    test "extracts purchase_order from DodatkowyOpis value regex (Purchase Order)" do
-      xml = dodatkowy_opis_xml("Description", "Purchase Order: ORD-2025-100")
+    test "extracts AU_CON from DodatkowyOpis value without prefix" do
+      xml = dodatkowy_opis_xml("Notes", "AU_CON_W2XYZ6Q8V")
 
       assert {:ok, invoice} = Parser.parse(xml)
-      assert invoice.purchase_order == "ORD-2025-100"
+      assert invoice.purchase_order == "AU_CON_W2XYZ6Q8V"
+    end
+
+    test "uppercases lowercase AU_CON code" do
+      xml = dodatkowy_opis_xml("Notes", "au_con_nw9bbj4vj")
+
+      assert {:ok, invoice} = Parser.parse(xml)
+      assert invoice.purchase_order == "AU_CON_NW9BBJ4VJ"
+    end
+
+    test "ignores non-AU_CON purchase orders" do
+      xml = dodatkowy_opis_xml("Purchase Order", "PO-2025-100")
+
+      assert {:ok, invoice} = Parser.parse(xml)
+      assert invoice.purchase_order == nil
     end
 
     test "returns nil when DodatkowyOpis has unrelated content" do
       xml = dodatkowy_opis_xml("Termin platnosci", "30 dni")
+
+      assert {:ok, invoice} = Parser.parse(xml)
+      assert invoice.purchase_order == nil
+    end
+
+    test "returns nil when NrZamowienia has non-AU_CON value" do
+      xml = """
+      <?xml version="1.0" encoding="UTF-8"?>
+      <Faktura xmlns="http://crd.gov.pl/wzor/2025/06/25/13775/">
+        <Naglowek>
+          <KodFormularza kodSystemowy="FA (3)" wersjaSchemy="1-0E">FA</KodFormularza>
+          <WariantFormularza>3</WariantFormularza>
+          <DataWytworzeniaFa>2025-01-15T10:30:00</DataWytworzeniaFa>
+          <SystemInfo>Test</SystemInfo>
+        </Naglowek>
+        <Podmiot1><DaneIdentyfikacyjne><NIP>1234567890</NIP><Nazwa>Seller</Nazwa></DaneIdentyfikacyjne></Podmiot1>
+        <Podmiot2><DaneIdentyfikacyjne><NIP>0987654321</NIP><Nazwa>Buyer</Nazwa></DaneIdentyfikacyjne></Podmiot2>
+        <Fa>
+          <KodWaluty>PLN</KodWaluty>
+          <P_1>2025-01-15</P_1>
+          <P_2>FV/2025/001</P_2>
+          <NrZamowienia>ZAM/2025/001</NrZamowienia>
+          <P_13_1>1000.00</P_13_1>
+          <P_15>1230.00</P_15>
+          <Adnotacje><P_16>2</P_16><P_17>2</P_17><P_18>2</P_18><P_18A>2</P_18A><Zwolnienie><P_19N>1</P_19N></Zwolnienie><NoweSrodkiTransportu><P_22N>1</P_22N></NoweSrodkiTransportu><P_23>2</P_23><PMarzy><P_PMarzyN>1</P_PMarzyN></PMarzy></Adnotacje>
+          <FaWiersz><NrWierszaFa>1</NrWierszaFa><P_7>Item</P_7><P_11>1000.00</P_11><P_12>23</P_12></FaWiersz>
+        </Fa>
+      </Faktura>
+      """
 
       assert {:ok, invoice} = Parser.parse(xml)
       assert invoice.purchase_order == nil
