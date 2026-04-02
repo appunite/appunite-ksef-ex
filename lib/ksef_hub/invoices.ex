@@ -1020,15 +1020,21 @@ defmodule KsefHub.Invoices do
     end
   end
 
+  # Returns nil for zero values since the extraction schema uses all-required fields,
+  # so the LLM returns 0 for amounts not found on the invoice. Treating 0 as nil
+  # ensures determine_extraction_status correctly marks these as :partial.
   @spec get_extracted_decimal(map(), String.t()) :: Decimal.t() | nil
   defp get_extracted_decimal(data, key) do
-    case data[key] do
-      nil -> nil
-      value when is_integer(value) -> Decimal.new(value)
-      value when is_float(value) -> Decimal.from_float(value)
-      value when is_binary(value) -> parse_decimal(value)
-      _ -> nil
-    end
+    result =
+      case data[key] do
+        nil -> nil
+        value when is_integer(value) -> Decimal.new(value)
+        value when is_float(value) -> Decimal.from_float(value)
+        value when is_binary(value) -> parse_decimal(value)
+        _ -> nil
+      end
+
+    if result && not Decimal.equal?(result, 0), do: result, else: nil
   end
 
   @spec parse_decimal(String.t()) :: Decimal.t() | nil
