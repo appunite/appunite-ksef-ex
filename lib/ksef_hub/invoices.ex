@@ -311,6 +311,7 @@ defmodule KsefHub.Invoices do
       {:ok, invoice} ->
         action = if invoice.inserted_at == invoice.updated_at, do: :inserted, else: :updated
         if action == :inserted, do: enqueue_prediction(invoice)
+        invoice = maybe_mark_business_field_duplicate(invoice, action)
         {:ok, invoice, action}
 
       {:error, changeset} ->
@@ -1859,16 +1860,89 @@ defmodule KsefHub.Invoices do
 
   @spec find_original_id(Ecto.UUID.t(), map()) :: Ecto.UUID.t() | nil
   defp find_original_id(company_id, attrs) do
+    find_original_by_ksef_number(company_id, attrs) ||
+      find_original_by_business_fields(company_id, attrs)
+  end
+
+  @spec find_original_by_ksef_number(Ecto.UUID.t(), map()) :: Ecto.UUID.t() | nil
+  defp find_original_by_ksef_number(company_id, attrs) do
     ksef_number = attrs[:ksef_number] || attrs["ksef_number"]
 
-    if ksef_number && ksef_number != "" do
+    if present?(ksef_number) do
       Invoice
       |> where([i], i.company_id == ^company_id and i.ksef_number == ^ksef_number)
       |> where([i], is_nil(i.duplicate_of_id))
       |> select([i], i.id)
       |> Repo.one()
-    else
+    end
+  end
+
+  # Fallback: match on (invoice_number + seller_nip + issue_date) OR
+  # (invoice_number + issue_date + net_amount) to catch cross-source duplicates
+  # (e.g. PDF uploaded before KSeF sync).
+  @spec find_original_by_business_fields(Ecto.UUID.t(), map(), keyword()) :: Ecto.UUID.t() | nil
+  defp find_original_by_business_fields(company_id, attrs, opts \\ []) do
+    invoice_number = attrs[:invoice_number] || attrs["invoice_number"]
+    issue_date = attrs[:issue_date] || attrs["issue_date"]
+
+    unless present?(invoice_number) && issue_date do
       nil
+    else
+      seller_nip = attrs[:seller_nip] || attrs["seller_nip"]
+      net_amount = attrs[:net_amount] || attrs["net_amount"]
+      exclude_id = opts[:exclude_id]
+
+      base =
+        Invoice
+        |> where([i], i.company_id == ^company_id)
+        |> where([i], i.invoice_number == ^invoice_number and i.issue_date == ^issue_date)
+        |> where([i], is_nil(i.duplicate_of_id))
+        |> then(fn q ->
+          if exclude_id, do: where(q, [i], i.id != ^exclude_id), else: q
+        end)
+
+      query =
+        cond do
+          present?(seller_nip) && net_amount ->
+            base
+            |> where([i], i.seller_nip == ^seller_nip or i.net_amount == ^net_amount)
+
+          present?(seller_nip) ->
+            base |> where([i], i.seller_nip == ^seller_nip)
+
+          net_amount ->
+            base |> where([i], i.net_amount == ^net_amount)
+
+          true ->
+            nil
+        end
+
+      if query, do: query |> select([i], i.id) |> limit(1) |> Repo.one()
+    end
+  end
+
+  @spec present?(term()) :: boolean()
+  defp present?(nil), do: false
+  defp present?(""), do: false
+  defp present?(_), do: true
+
+  # When a KSeF sync inserts a new invoice (not an upsert update), check if a
+  # manually uploaded invoice already exists with matching business fields.
+  @spec maybe_mark_business_field_duplicate(Invoice.t(), :inserted | :updated) :: Invoice.t()
+  defp maybe_mark_business_field_duplicate(invoice, :updated), do: invoice
+
+  defp maybe_mark_business_field_duplicate(invoice, :inserted) do
+    attrs = Map.from_struct(invoice)
+
+    case find_original_by_business_fields(invoice.company_id, attrs, exclude_id: invoice.id) do
+      nil ->
+        invoice
+
+      original_id ->
+        case update_invoice(invoice, %{duplicate_of_id: original_id, duplicate_status: :suspected}) do
+          {:ok, updated} -> updated
+          {:error, _} -> invoice
+        end
     end
   end
 
