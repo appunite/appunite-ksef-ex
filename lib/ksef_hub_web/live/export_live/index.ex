@@ -38,7 +38,7 @@ defmodule KsefHubWeb.ExportLive.Index do
        date_from: Date.to_iso8601(first_of_month),
        date_to: Date.to_iso8601(today),
        invoice_type: "expense",
-       only_new: false,
+       only_new: true,
        preview_count: nil,
        batches_count: length(batches)
      )
@@ -257,6 +257,12 @@ defmodule KsefHubWeb.ExportLive.Index do
                 <.icon name="hero-arrow-down-tray" class="size-4" /> Export
               </.button>
             </div>
+
+            <p class="text-xs text-muted-foreground">
+              Exports include all approved invoices matching your filters.
+              Pending and rejected invoices are excluded. Invoices marked as
+              excluded (for analytics) are still included in exports.
+            </p>
           </form>
         </.card>
 
