@@ -1,11 +1,10 @@
+
 {
+  "additionalProperties": false,
   "properties": {
     "ksef_number": {
-      "description": "Polish KSeF (Krajowy System e-Faktur) reference number, if present. Null for non-Polish invoices",
-      "type": [
-        "string",
-        "null"
-      ]
+      "description": "Polish KSeF (Krajowy System e-Faktur) reference number",
+      "type": "string"
     },
     "invoice_number": {
       "description": "Invoice identifier. Look for labels like Invoice No, Faktura nr, Invoice #, Numer faktury",
@@ -17,17 +16,11 @@
     },
     "sales_date": {
       "description": "Date when the sale or service was delivered, in YYYY-MM-DD format. Look for labels like Service Date, Data sprzedazy, Delivery Date",
-      "type": [
-        "string",
-        "null"
-      ]
+      "type": "string"
     },
     "due_date": {
       "description": "Payment due date in YYYY-MM-DD format. Look for labels like Due Date, Payment Due, Termin platnosci",
-      "type": [
-        "string",
-        "null"
-      ]
+      "type": "string"
     },
     "seller_nip": {
       "description": "Seller's tax ID. EU VAT number with country prefix (e.g. PL7831812212, DE123456789) or US EIN/TIN. Include the country prefix if present",
@@ -37,176 +30,89 @@
       "description": "Full legal name of the seller/vendor as printed on the invoice",
       "type": "string"
     },
-    "seller_address": {
-      "description": "Seller's address. Look for labels like Address, Adres, Siedziba",
-      "properties": {
-        "street": {
-          "description": "Street name and building/apartment number (e.g. ul. Grunwaldzka 12/3, 123 Main St)",
-          "type": [
-            "string",
-            "null"
-          ]
-        },
-        "city": {
-          "description": "City or town name",
-          "type": [
-            "string",
-            "null"
-          ]
-        },
-        "postal_code": {
-          "description": "Postal or ZIP code (e.g. 60-311, 10001, SW1A 1AA)",
-          "type": [
-            "string",
-            "null"
-          ]
-        },
-        "country": {
-          "description": "Country name or ISO 3166-1 alpha-2 code (e.g. PL, US, DE)",
-          "type": [
-            "string",
-            "null"
-          ]
-        }
-      },
-      "type": [
-        "object",
-        "null"
-      ]
+    "seller_address_street": {
+      "description": "Seller's street name and building/apartment number (e.g. ul. Grunwaldzka 12/3, 123 Main St)",
+      "type": "string"
+    },
+    "seller_address_city": {
+      "description": "Seller's city or town name",
+      "type": "string"
+    },
+    "seller_address_postal_code": {
+      "description": "Seller's postal or ZIP code (e.g. 60-311, 10001)",
+      "type": "string"
+    },
+    "seller_address_country": {
+      "description": "Seller's country name or ISO 3166-1 alpha-2 code (e.g. PL, US, DE)",
+      "type": "string"
     },
     "buyer_nip": {
-      "description": "Buyer's tax ID. EU VAT number with country prefix (e.g. PL7831812212, DE123456789) or US EIN/TIN. Include the country prefix if present",
-      "type": [
-        "string",
-        "null"
-      ]
+      "description": "Buyer's tax ID. EU VAT number with country prefix (e.g. PL7831812212, DE123456789) or US EIN/TIN",
+      "type": "string"
     },
     "buyer_name": {
       "description": "Full legal name of the buyer/customer as printed on the invoice",
-      "type": [
-        "string",
-        "null"
-      ]
+      "type": "string"
     },
-    "buyer_address": {
-      "description": "Buyer's address. Look for labels like Address, Adres, Bill To, Nabywca",
-      "properties": {
-        "street": {
-          "description": "Street name and building/apartment number (e.g. ul. Grunwaldzka 12/3, 123 Main St)",
-          "type": [
-            "string",
-            "null"
-          ]
-        },
-        "city": {
-          "description": "City or town name",
-          "type": [
-            "string",
-            "null"
-          ]
-        },
-        "postal_code": {
-          "description": "Postal or ZIP code (e.g. 60-311, 10001, SW1A 1AA)",
-          "type": [
-            "string",
-            "null"
-          ]
-        },
-        "country": {
-          "description": "Country name or ISO 3166-1 alpha-2 code (e.g. PL, US, DE)",
-          "type": [
-            "string",
-            "null"
-          ]
-        }
-      },
-      "type": [
-        "object",
-        "null"
-      ]
+    "buyer_address_street": {
+      "description": "Buyer's street name and building/apartment number",
+      "type": "string"
+    },
+    "buyer_address_city": {
+      "description": "Buyer's city or town name",
+      "type": "string"
+    },
+    "buyer_address_postal_code": {
+      "description": "Buyer's postal or ZIP code",
+      "type": "string"
+    },
+    "buyer_address_country": {
+      "description": "Buyer's country name or ISO 3166-1 alpha-2 code",
+      "type": "string"
     },
     "purchase_order": {
-      "type": ["string", "null"],
-      "description": "AppUnite purchase order code. Look for the pattern 'PO: AU_CON_XXXXXXXXX' or just 'AU_CON_XXXXXXXXX' (where XXXXXXXXX is exactly 9 alphanumeric characters, e.g. AU_CON_NW9BBJ4VJ). May appear in notes, payment references, or description fields. Return only the AU_CON_XXXXXXXXX part without the 'PO: ' prefix. Return null if no matching code is found."
+      "description": "AppUnite purchase order code. Look for the pattern 'PO: AU_CON_XXXXXXXXX' or just 'AU_CON_XXXXXXXXX' (where XXXXXXXXX is exactly 9 alphanumeric characters, e.g. AU_CON_NW9BBJ4VJ). May appear in notes, payment references, or description fields. Return only the AU_CON_XXXXXXXXX part without the 'PO: ' prefix.",
+      "type": "string"
     },
-    "bank_details": {
-      "description": "Seller's bank and payment details: IBAN, SWIFT/BIC, bank name, routing/account numbers, and any wire transfer instructions",
-      "properties": {
-        "iban": {
-          "description": "IBAN (EU) or full account number",
-          "type": [
-            "string",
-            "null"
-          ]
-        },
-        "swift_bic": {
-          "description": "SWIFT/BIC code (e.g. BPKOPLPW, CITIUS33)",
-          "type": [
-            "string",
-            "null"
-          ]
-        },
-        "bank_name": {
-          "description": "Name of the bank (e.g. PKO Bank Polski, Citibank N.A.)",
-          "type": [
-            "string",
-            "null"
-          ]
-        },
-        "bank_address": {
-          "description": "Bank branch address as printed on the invoice",
-          "type": [
-            "string",
-            "null"
-          ]
-        },
-        "routing_number": {
-          "description": "ABA routing number for US domestic wires (9 digits)",
-          "type": [
-            "string",
-            "null"
-          ]
-        },
-        "account_number": {
-          "description": "Bank account number for US wires (when separate from IBAN)",
-          "type": [
-            "string",
-            "null"
-          ]
-        },
-        "notes": {
-          "description": "Explicit payment instructions printed on the invoice, e.g. 'Reference: INV-2025-042', 'Include invoice number in memo', 'Intermediary bank: ...'. Null if no such instructions are present",
-          "type": [
-            "string",
-            "null"
-          ]
-        }
-      },
-      "type": [
-        "object",
-        "null"
-      ]
+    "bank_iban": {
+      "description": "Seller's IBAN (EU) or full bank account number",
+      "type": "string"
+    },
+    "bank_swift_bic": {
+      "description": "Seller's SWIFT/BIC code (e.g. BPKOPLPW, CITIUS33)",
+      "type": "string"
+    },
+    "bank_name": {
+      "description": "Name of the seller's bank (e.g. PKO Bank Polski, Citibank N.A.)",
+      "type": "string"
+    },
+    "bank_routing_number": {
+      "description": "ABA routing number for US domestic wires (9 digits)",
+      "type": "string"
+    },
+    "bank_account_number": {
+      "description": "Bank account number for US wires (when separate from IBAN)",
+      "type": "string"
+    },
+    "bank_address": {
+      "description": "Bank branch address as printed on the invoice",
+      "type": "string"
+    },
+    "bank_notes": {
+      "description": "Explicit payment instructions printed on the invoice, e.g. 'Reference: INV-2025-042', 'Include invoice number in memo', 'Intermediary bank: ...'",
+      "type": "string"
     },
     "net_amount": {
-      "description": "Invoice total before tax. Look for labels like Net Total, Subtotal, Razem netto, Amount Due before tax",
-      "type": [
-        "number",
-        "null"
-      ]
+      "description": "Invoice total before tax. Look for labels like Net Total, Subtotal, Razem netto",
+      "type": "number"
     },
     "vat_amount": {
-      "description": "Total tax amount. Look for labels like VAT, Tax, Kwota VAT, Sales Tax",
-      "type": [
-        "number",
-        "null"
-      ]
+      "description": "Total tax amount. Look for labels like VAT, Tax, Kwota VAT",
+      "type": "number"
     },
     "gross_amount": {
-      "description": "Invoice total including tax. Look for labels like Total, Amount Due, Razem brutto, Balance Due",
-      "type": [
-        "number",
-        "null"
-      ]
+      "description": "Invoice total including tax. Look for labels like Total, Amount Due, Razem brutto",
+      "type": "number"
     },
     "currency": {
       "description": "ISO 4217 currency code (e.g. PLN, EUR, USD). Infer from currency symbols ($, zl, EUR) if not explicitly stated",
@@ -215,6 +121,7 @@
     "line_items": {
       "description": "Individual line items from the invoice table. Extract only product/service rows, skip subtotals and summaries",
       "items": {
+        "additionalProperties": false,
         "properties": {
           "line_number": {
             "description": "Sequential position of this line in the invoice (1-based)",
@@ -226,43 +133,33 @@
           },
           "unit": {
             "description": "Unit of measure (e.g. szt., kg, godz., hrs, pcs, ea)",
-            "type": [
-              "string",
-              "null"
-            ]
+            "type": "string"
           },
           "quantity": {
             "description": "Number of units for this line item",
-            "type": [
-              "number",
-              "null"
-            ]
+            "type": "number"
           },
           "unit_price": {
             "description": "Unit price before tax",
-            "type": [
-              "number",
-              "null"
-            ]
+            "type": "number"
           },
           "net_amount": {
             "description": "Line total before tax (quantity x unit price)",
-            "type": [
-              "number",
-              "null"
-            ]
+            "type": "number"
           },
           "vat_rate": {
             "description": "Tax/VAT rate as a percentage (e.g. 23, 8, 5, 0). Look for labels like VAT, Tax Rate, Stawka VAT",
-            "type": [
-              "number",
-              "null"
-            ]
+            "type": "number"
           }
         },
         "required": [
           "line_number",
-          "description"
+          "description",
+          "unit",
+          "quantity",
+          "unit_price",
+          "net_amount",
+          "vat_rate"
         ],
         "type": "object"
       },
@@ -270,13 +167,36 @@
     }
   },
   "required": [
+    "ksef_number",
     "invoice_number",
     "issue_date",
+    "sales_date",
+    "due_date",
     "seller_nip",
     "seller_name",
-    "currency",
+    "seller_address_street",
+    "seller_address_city",
+    "seller_address_postal_code",
+    "seller_address_country",
+    "buyer_nip",
+    "buyer_name",
+    "buyer_address_street",
+    "buyer_address_city",
+    "buyer_address_postal_code",
+    "buyer_address_country",
+    "purchase_order",
+    "bank_iban",
+    "bank_swift_bic",
+    "bank_name",
+    "bank_routing_number",
+    "bank_account_number",
+    "bank_address",
+    "bank_notes",
     "net_amount",
-    "gross_amount"
+    "vat_amount",
+    "gross_amount",
+    "currency",
+    "line_items"
   ],
   "type": "object"
 }

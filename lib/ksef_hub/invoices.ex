@@ -887,8 +887,6 @@ defmodule KsefHub.Invoices do
   # Used by both initial PDF upload creation and re-extraction.
   @spec extracted_to_invoice_attrs(map()) :: map()
   defp extracted_to_invoice_attrs(extracted) do
-    bd = extracted["bank_details"]
-
     %{
       seller_nip: get_extracted_nip(extracted, "seller_nip"),
       seller_name: get_extracted_string(extracted, "seller_name"),
@@ -903,38 +901,50 @@ defmodule KsefHub.Invoices do
       purchase_order: get_extracted_purchase_order(extracted, "purchase_order"),
       sales_date: get_extracted_date(extracted, "sales_date"),
       due_date: get_extracted_date(extracted, "due_date"),
-      iban: extract_iban(bd, extracted),
-      swift_bic: get_bank_string(bd, "swift_bic"),
-      bank_name: get_bank_string(bd, "bank_name"),
-      bank_address: get_bank_string(bd, "bank_address"),
-      routing_number: get_bank_string(bd, "routing_number"),
-      account_number: get_bank_string(bd, "account_number"),
-      payment_instructions: get_bank_string(bd, "notes"),
-      seller_address: get_extracted_address(extracted, "seller_address"),
-      buyer_address: get_extracted_address(extracted, "buyer_address")
+      iban: extract_iban(extracted),
+      swift_bic: get_extracted_string(extracted, "bank_swift_bic"),
+      bank_name: get_extracted_string(extracted, "bank_name"),
+      bank_address: get_extracted_string(extracted, "bank_address"),
+      routing_number: get_extracted_string(extracted, "bank_routing_number"),
+      account_number: get_extracted_string(extracted, "bank_account_number"),
+      payment_instructions: get_extracted_string(extracted, "bank_notes"),
+      seller_address: get_extracted_address(extracted, "seller_address_"),
+      buyer_address: get_extracted_address(extracted, "buyer_address_")
     }
   end
 
-  @spec get_extracted_address(map(), String.t()) :: map() | nil
-  defp get_extracted_address(data, key) do
-    case data[key] do
-      %{} = addr ->
-        cleaned =
-          addr
-          |> Enum.reject(fn {_k, v} -> is_nil(v) or v == "" end)
-          |> Map.new()
+  @address_fields ~w(street city postal_code country)
 
-        if map_size(cleaned) == 0, do: nil, else: cleaned
+  @spec get_extracted_address(map(), String.t()) :: map() | nil
+  defp get_extracted_address(data, prefix) do
+    addr =
+      Map.new(@address_fields, fn field ->
+        {field, get_extracted_string(data, prefix <> field)}
+      end)
+
+    cleaned =
+      addr
+      |> Enum.reject(fn {_k, v} -> is_nil(v) end)
+      |> Map.new()
+
+    if map_size(cleaned) == 0, do: nil, else: cleaned
+  end
+
+  # Placeholder values the LLM may return when a field is not found on the invoice.
+  # All fields are required in the extraction schema (for API performance), so the
+  # model outputs these instead of null.
+  @extraction_placeholders ~w(- -- N/A n/a `)
+
+  @spec get_extracted_string(map(), String.t()) :: String.t() | nil
+  defp get_extracted_string(data, key) do
+    case data[key] do
+      value when is_binary(value) ->
+        trimmed = String.trim(value)
+        if trimmed == "" or trimmed in @extraction_placeholders, do: nil, else: trimmed
 
       _ ->
         nil
     end
-  end
-
-  @spec get_extracted_string(map(), String.t()) :: String.t() | nil
-  defp get_extracted_string(data, key) do
-    value = data[key]
-    if is_binary(value) && value != "", do: value, else: nil
   end
 
   @spec get_extracted_nip(map(), String.t()) :: String.t() | nil
@@ -953,24 +963,23 @@ defmodule KsefHub.Invoices do
     end
   end
 
-  # Reads a string field from the bank_details nested object.
-  @spec get_bank_string(map() | nil, String.t()) :: String.t() | nil
-  defp get_bank_string(%{} = bd, key), do: get_extracted_string(bd, key)
-  defp get_bank_string(_, _), do: nil
-
-  # Extracts IBAN: prefers bank_details.iban, falls back to legacy flat "iban" key.
-  @spec extract_iban(map() | nil, map()) :: String.t() | nil
-  defp extract_iban(bd, extracted) do
-    raw = get_bank_string(bd, "iban") || get_extracted_string(extracted, "iban")
-    if raw, do: maybe_normalize_iban(raw), else: nil
+  @spec extract_iban(map()) :: String.t() | nil
+  defp extract_iban(extracted) do
+    case get_extracted_string(extracted, "bank_iban") do
+      nil -> nil
+      raw -> maybe_normalize_iban(raw)
+    end
   end
 
-  # Strips spaces/dashes and uppercases only when the value looks like an IBAN
-  # (2-letter country code + 2 check digits). Non-IBAN account numbers are kept as-is.
+  # Strips spaces, dashes, and trims whitespace from IBAN/account number values.
+  # Uppercases values that look like IBANs (country prefix + check digits).
   @spec maybe_normalize_iban(String.t()) :: String.t()
   defp maybe_normalize_iban(value) do
-    stripped = value |> String.replace(~r/[\s\-]/, "") |> String.upcase()
-    if Regex.match?(~r/^[A-Z]{2}\d{2}/, stripped), do: stripped, else: value
+    stripped = value |> String.trim() |> String.replace(~r/[\s\-]/, "")
+
+    if Regex.match?(~r/^[A-Za-z]{2}\d{2}/, stripped),
+      do: String.upcase(stripped),
+      else: stripped
   end
 
   @spec normalize_nip(String.t()) :: String.t()
