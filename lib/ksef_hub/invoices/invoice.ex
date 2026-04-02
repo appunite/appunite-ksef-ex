@@ -41,6 +41,7 @@ defmodule KsefHub.Invoices.Invoice do
     field :prediction_category_name, :string
     field :prediction_tag_name, :string
     field :prediction_category_confidence, :float
+    # Confidence of the top predicted tag; per-tag confidences live in prediction_tag_probabilities
     field :prediction_tag_confidence, :float
     field :prediction_category_model_version, :string
     field :prediction_tag_model_version, :string
