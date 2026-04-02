@@ -1948,7 +1948,12 @@ defmodule KsefHub.Invoices do
         invoice
 
       original_id ->
-        case update_invoice(invoice, %{duplicate_of_id: original_id, duplicate_status: :suspected}) do
+        case invoice
+             |> Invoice.duplicate_changeset(%{
+               duplicate_of_id: original_id,
+               duplicate_status: :suspected
+             })
+             |> Repo.update() do
           {:ok, updated} -> updated
           {:error, _} -> invoice
         end
