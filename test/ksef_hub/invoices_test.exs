@@ -856,6 +856,36 @@ defmodule KsefHub.InvoicesTest do
       assert is_nil(invoice.duplicate_of_id)
     end
 
+    test "does not detect duplicate when invoice_number or issue_date is blank/whitespace", %{
+      company: company
+    } do
+      insert(:invoice,
+        company: company,
+        invoice_number: "FV/2026/300",
+        seller_nip: "5555555555",
+        issue_date: ~D[2026-03-10],
+        net_amount: Decimal.new("1000.00")
+      )
+
+      base_attrs = %{
+        type: :expense,
+        seller_nip: "5555555555",
+        seller_name: "Seller Sp. z o.o.",
+        buyer_nip: "0987654321",
+        buyer_name: "Buyer S.A.",
+        net_amount: Decimal.new("1000.00"),
+        gross_amount: Decimal.new("1230.00")
+      }
+
+      # Blank issue_date string
+      attrs = Map.merge(base_attrs, %{invoice_number: "FV/2026/300", issue_date: ""})
+      assert {:error, _} = Invoices.create_manual_invoice(company.id, attrs)
+
+      # Whitespace-only invoice_number — rejected by changeset validation
+      attrs = Map.merge(base_attrs, %{invoice_number: "   ", issue_date: ~D[2026-03-10]})
+      assert {:error, _} = Invoices.create_manual_invoice(company.id, attrs)
+    end
+
     test "ksef_number match takes precedence over business field match", %{company: company} do
       ksef_original =
         insert(:invoice,

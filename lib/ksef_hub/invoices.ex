@@ -1926,7 +1926,7 @@ defmodule KsefHub.Invoices do
     invoice_number = attrs[:invoice_number] || attrs["invoice_number"]
     issue_date = attrs[:issue_date] || attrs["issue_date"]
 
-    if present?(invoice_number) && issue_date do
+    if present?(invoice_number) && present?(issue_date) do
       base = business_field_base_query(company_id, invoice_number, issue_date, opts[:exclude_id])
 
       base
@@ -1974,7 +1974,19 @@ defmodule KsefHub.Invoices do
   @spec present?(term()) :: boolean()
   defp present?(nil), do: false
   defp present?(""), do: false
+
+  defp present?(s) when is_binary(s), do: String.trim(s) != ""
+
   defp present?(_), do: true
+
+  @spec format_error_reason(term()) :: String.t()
+  defp format_error_reason(%Ecto.Changeset{} = changeset) do
+    changeset
+    |> Ecto.Changeset.traverse_errors(fn {msg, _opts} -> msg end)
+    |> inspect()
+  end
+
+  defp format_error_reason(reason), do: inspect(reason)
 
   # When a KSeF sync inserts a new invoice (not an upsert update), check if a
   # manually uploaded invoice already exists with matching business fields.
@@ -1999,9 +2011,11 @@ defmodule KsefHub.Invoices do
             updated
 
           {:error, reason} ->
+            error_detail = format_error_reason(reason)
+
             Logger.warning(
               "Failed to mark invoice #{invoice.id} (company #{invoice.company_id}) " <>
-                "as duplicate of #{original_id}: #{inspect(reason)}"
+                "as duplicate of #{original_id}: #{error_detail}"
             )
 
             invoice
