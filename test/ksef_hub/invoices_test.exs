@@ -1800,6 +1800,35 @@ defmodule KsefHub.InvoicesTest do
       assert updated.extraction_status == :complete
     end
 
+    test "defaults billing dates from extracted issue_date when not already set", %{
+      company: company
+    } do
+      invoice =
+        insert(:pdf_upload_invoice,
+          company: company,
+          extraction_status: :partial,
+          billing_date_from: nil,
+          billing_date_to: nil
+        )
+
+      KsefHub.InvoiceExtractor.Mock
+      |> expect(:extract, fn _pdf, _opts ->
+        {:ok,
+         %{
+           "seller_nip" => "5555555555",
+           "seller_name" => "Some Seller",
+           "invoice_number" => "FV/RE/002",
+           "issue_date" => "2026-03-15",
+           "net_amount" => "1000.00",
+           "gross_amount" => "1230.00"
+         }}
+      end)
+
+      assert {:ok, updated} = Invoices.re_extract_invoice(invoice, company)
+      assert updated.billing_date_from == ~D[2026-03-01]
+      assert updated.billing_date_to == ~D[2026-03-01]
+    end
+
     test "returns error when invoice has no PDF", %{company: company} do
       invoice = insert(:invoice, company: company, pdf_file_id: nil)
 
@@ -1843,6 +1872,31 @@ defmodule KsefHub.InvoicesTest do
       # Extraction status recalculated from the new extraction result (partial),
       # not from the merged invoice state
       assert updated.extraction_status == :partial
+    end
+
+    test "preserves manually-set billing dates on re-extraction", %{company: company} do
+      invoice =
+        insert(:pdf_upload_invoice,
+          company: company,
+          extraction_status: :complete,
+          billing_date_from: ~D[2026-01-01],
+          billing_date_to: ~D[2026-02-01]
+        )
+
+      KsefHub.InvoiceExtractor.Mock
+      |> expect(:extract, fn _pdf, _opts ->
+        {:ok,
+         %{
+           "seller_name" => "New Seller",
+           "issue_date" => "2026-05-15"
+         }}
+      end)
+
+      assert {:ok, updated} = Invoices.re_extract_invoice(invoice, company)
+      assert updated.seller_name == "New Seller"
+      # Billing dates should NOT be overwritten despite new issue_date
+      assert updated.billing_date_from == ~D[2026-01-01]
+      assert updated.billing_date_to == ~D[2026-02-01]
     end
 
     test "returns error when extraction service fails", %{company: company} do
