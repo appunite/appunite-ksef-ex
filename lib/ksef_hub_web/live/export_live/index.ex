@@ -259,7 +259,7 @@ defmodule KsefHubWeb.ExportLive.Index do
             </div>
 
             <p class="text-xs text-muted-foreground">
-              Exports include all approved invoices matching your filters.
+              Includes all approved invoices that fit your filters.
               Pending and rejected invoices are excluded. Invoices marked as
               excluded (for analytics) are still included in exports.
             </p>
