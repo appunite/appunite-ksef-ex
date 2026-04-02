@@ -1,183 +1,282 @@
 {
-  "type": "object",
   "properties": {
     "ksef_number": {
-      "type": ["string", "null"],
-      "description": "KSeF reference number assigned by the National e-Invoice System (e.g. 1234567890-20250115-AABBCCDD-01)"
+      "description": "Polish KSeF (Krajowy System e-Faktur) reference number, if present. Null for non-Polish invoices",
+      "type": [
+        "string",
+        "null"
+      ]
     },
     "invoice_number": {
-      "type": "string",
-      "description": "Sequential invoice identifier (FA(3) field P_2, e.g. FV/2025/01/001)"
+      "description": "Invoice identifier. Look for labels like Invoice No, Faktura nr, Invoice #, Numer faktury",
+      "type": "string"
     },
     "issue_date": {
-      "type": "string",
-      "description": "Invoice issue date in YYYY-MM-DD format (FA(3) field P_1)"
+      "description": "Invoice issue date in YYYY-MM-DD format. Look for labels like Date, Issue Date, Data wystawienia",
+      "type": "string"
     },
     "sales_date": {
-      "type": ["string", "null"],
-      "description": "Date of sale/service delivery in YYYY-MM-DD format (FA(3) field P_6)"
+      "description": "Date when the sale or service was delivered, in YYYY-MM-DD format. Look for labels like Service Date, Data sprzedazy, Delivery Date",
+      "type": [
+        "string",
+        "null"
+      ]
     },
     "due_date": {
-      "type": ["string", "null"],
-      "description": "Payment due date in YYYY-MM-DD format (FA(3) field TerminPlatnosci)"
+      "description": "Payment due date in YYYY-MM-DD format. Look for labels like Due Date, Payment Due, Termin platnosci",
+      "type": [
+        "string",
+        "null"
+      ]
     },
     "seller_nip": {
-      "type": "string",
-      "description": "Seller's tax ID. EU VAT number with country prefix (e.g. PL7831812212, DE123456789) or US EIN/TIN"
+      "description": "Seller's tax ID. EU VAT number with country prefix (e.g. PL7831812212, DE123456789) or US EIN/TIN. Include the country prefix if present",
+      "type": "string"
     },
     "seller_name": {
-      "type": "string",
-      "description": "Full name of the selling company or person"
+      "description": "Full legal name of the seller/vendor as printed on the invoice",
+      "type": "string"
     },
     "seller_address": {
-      "type": ["object", "null"],
-      "description": "Seller's address",
+      "description": "Seller's address. Look for labels like Address, Adres, Siedziba",
       "properties": {
         "street": {
-          "type": ["string", "null"],
-          "description": "Street name and building/apartment number"
+          "description": "Street name and building/apartment number (e.g. ul. Grunwaldzka 12/3, 123 Main St)",
+          "type": [
+            "string",
+            "null"
+          ]
         },
         "city": {
-          "type": ["string", "null"],
-          "description": "City or town name"
+          "description": "City or town name",
+          "type": [
+            "string",
+            "null"
+          ]
         },
         "postal_code": {
-          "type": ["string", "null"],
-          "description": "Postal or ZIP code"
+          "description": "Postal or ZIP code (e.g. 60-311, 10001, SW1A 1AA)",
+          "type": [
+            "string",
+            "null"
+          ]
         },
         "country": {
-          "type": ["string", "null"],
-          "description": "Country name or ISO 3166-1 alpha-2 code (e.g. PL, US, DE)"
+          "description": "Country name or ISO 3166-1 alpha-2 code (e.g. PL, US, DE)",
+          "type": [
+            "string",
+            "null"
+          ]
         }
       },
-      "additionalProperties": false
+      "type": [
+        "object",
+        "null"
+      ]
     },
     "buyer_nip": {
-      "type": ["string", "null"],
-      "description": "Buyer's tax ID. EU VAT number with country prefix (e.g. PL7831812212, DE123456789) or US EIN/TIN"
+      "description": "Buyer's tax ID. EU VAT number with country prefix (e.g. PL7831812212, DE123456789) or US EIN/TIN. Include the country prefix if present",
+      "type": [
+        "string",
+        "null"
+      ]
     },
     "buyer_name": {
-      "type": ["string", "null"],
-      "description": "Full name of the buying company or person"
+      "description": "Full legal name of the buyer/customer as printed on the invoice",
+      "type": [
+        "string",
+        "null"
+      ]
     },
     "buyer_address": {
-      "type": ["object", "null"],
-      "description": "Buyer's address",
+      "description": "Buyer's address. Look for labels like Address, Adres, Bill To, Nabywca",
       "properties": {
         "street": {
-          "type": ["string", "null"],
-          "description": "Street name and building/apartment number"
+          "description": "Street name and building/apartment number (e.g. ul. Grunwaldzka 12/3, 123 Main St)",
+          "type": [
+            "string",
+            "null"
+          ]
         },
         "city": {
-          "type": ["string", "null"],
-          "description": "City or town name"
+          "description": "City or town name",
+          "type": [
+            "string",
+            "null"
+          ]
         },
         "postal_code": {
-          "type": ["string", "null"],
-          "description": "Postal or ZIP code"
+          "description": "Postal or ZIP code (e.g. 60-311, 10001, SW1A 1AA)",
+          "type": [
+            "string",
+            "null"
+          ]
         },
         "country": {
-          "type": ["string", "null"],
-          "description": "Country name or ISO 3166-1 alpha-2 code (e.g. PL, US, DE)"
+          "description": "Country name or ISO 3166-1 alpha-2 code (e.g. PL, US, DE)",
+          "type": [
+            "string",
+            "null"
+          ]
         }
       },
-      "additionalProperties": false
+      "type": [
+        "object",
+        "null"
+      ]
     },
     "purchase_order": {
       "type": ["string", "null"],
       "description": "AppUnite purchase order code. Look for the pattern 'PO: AU_CON_XXXXXXXXX' or just 'AU_CON_XXXXXXXXX' (where XXXXXXXXX is exactly 9 alphanumeric characters, e.g. AU_CON_NW9BBJ4VJ). May appear in notes, payment references, or description fields. Return only the AU_CON_XXXXXXXXX part without the 'PO: ' prefix. Return null if no matching code is found."
     },
     "bank_details": {
-      "type": ["object", "null"],
-      "description": "Seller's bank and payment details",
+      "description": "Seller's bank and payment details: IBAN, SWIFT/BIC, bank name, routing/account numbers, and any wire transfer instructions",
       "properties": {
         "iban": {
-          "type": ["string", "null"],
-          "description": "IBAN (EU) or full account number (FA(3) field NrRachunkuBankowego)"
+          "description": "IBAN (EU) or full account number",
+          "type": [
+            "string",
+            "null"
+          ]
         },
         "swift_bic": {
-          "type": ["string", "null"],
-          "description": "SWIFT/BIC code (e.g. BPKOPLPW, CITIUS33)"
+          "description": "SWIFT/BIC code (e.g. BPKOPLPW, CITIUS33)",
+          "type": [
+            "string",
+            "null"
+          ]
         },
         "bank_name": {
-          "type": ["string", "null"],
-          "description": "Name of the bank"
+          "description": "Name of the bank (e.g. PKO Bank Polski, Citibank N.A.)",
+          "type": [
+            "string",
+            "null"
+          ]
         },
         "bank_address": {
-          "type": ["string", "null"],
-          "description": "Bank branch address as printed on the invoice"
+          "description": "Bank branch address as printed on the invoice",
+          "type": [
+            "string",
+            "null"
+          ]
         },
         "routing_number": {
-          "type": ["string", "null"],
-          "description": "ABA routing number for US domestic wires (9 digits)"
+          "description": "ABA routing number for US domestic wires (9 digits)",
+          "type": [
+            "string",
+            "null"
+          ]
         },
         "account_number": {
-          "type": ["string", "null"],
-          "description": "Bank account number for US wires (when separate from IBAN)"
+          "description": "Bank account number for US wires (when separate from IBAN)",
+          "type": [
+            "string",
+            "null"
+          ]
         },
         "notes": {
-          "type": ["string", "null"],
-          "description": "Explicit payment instructions printed on the invoice"
+          "description": "Explicit payment instructions printed on the invoice, e.g. 'Reference: INV-2025-042', 'Include invoice number in memo', 'Intermediary bank: ...'. Null if no such instructions are present",
+          "type": [
+            "string",
+            "null"
+          ]
         }
       },
-      "additionalProperties": false
+      "type": [
+        "object",
+        "null"
+      ]
     },
     "net_amount": {
-      "type": ["number", "null"],
-      "description": "Total net amount excluding VAT (FA(3) field P_13_1)"
+      "description": "Invoice total before tax. Look for labels like Net Total, Subtotal, Razem netto, Amount Due before tax",
+      "type": [
+        "number",
+        "null"
+      ]
     },
     "vat_amount": {
-      "type": ["number", "null"],
-      "description": "Total VAT amount (FA(3) field P_14_1)"
+      "description": "Total tax amount. Look for labels like VAT, Tax, Kwota VAT, Sales Tax",
+      "type": [
+        "number",
+        "null"
+      ]
     },
     "gross_amount": {
-      "type": ["number", "null"],
-      "description": "Total gross amount including VAT (FA(3) field P_15)"
+      "description": "Invoice total including tax. Look for labels like Total, Amount Due, Razem brutto, Balance Due",
+      "type": [
+        "number",
+        "null"
+      ]
     },
     "currency": {
-      "type": "string",
-      "description": "ISO 4217 currency code (e.g. PLN, EUR, USD). Defaults to PLN if not specified on invoice."
+      "description": "ISO 4217 currency code (e.g. PLN, EUR, USD). Infer from currency symbols ($, zl, EUR) if not explicitly stated",
+      "type": "string"
     },
     "line_items": {
-      "type": "array",
-      "description": "Individual invoice line items",
+      "description": "Individual line items from the invoice table. Extract only product/service rows, skip subtotals and summaries",
       "items": {
-        "type": "object",
         "properties": {
           "line_number": {
-            "type": "integer",
-            "description": "Sequential line number (NrWierszaFa)"
+            "description": "Sequential position of this line in the invoice (1-based)",
+            "type": "integer"
           },
           "description": {
-            "type": "string",
-            "description": "Product or service description (FA(3) field P_7)"
+            "description": "Product or service description as printed on the invoice line",
+            "type": "string"
           },
           "unit": {
-            "type": ["string", "null"],
-            "description": "Unit of measure, e.g. szt., kg, godz. (FA(3) field P_8A)"
+            "description": "Unit of measure (e.g. szt., kg, godz., hrs, pcs, ea)",
+            "type": [
+              "string",
+              "null"
+            ]
           },
           "quantity": {
-            "type": ["number", "null"],
-            "description": "Quantity of items (FA(3) field P_8B)"
+            "description": "Number of units for this line item",
+            "type": [
+              "number",
+              "null"
+            ]
           },
           "unit_price": {
-            "type": ["number", "null"],
-            "description": "Price per unit net of VAT (FA(3) field P_9A)"
+            "description": "Unit price before tax",
+            "type": [
+              "number",
+              "null"
+            ]
           },
           "net_amount": {
-            "type": ["number", "null"],
-            "description": "Line net amount (FA(3) field P_11)"
+            "description": "Line total before tax (quantity x unit price)",
+            "type": [
+              "number",
+              "null"
+            ]
           },
           "vat_rate": {
-            "type": ["number", "null"],
-            "description": "VAT rate as percentage, e.g. 23, 8, 5, 0 (FA(3) field P_12)"
+            "description": "Tax/VAT rate as a percentage (e.g. 23, 8, 5, 0). Look for labels like VAT, Tax Rate, Stawka VAT",
+            "type": [
+              "number",
+              "null"
+            ]
           }
         },
-        "required": ["line_number", "description"],
-        "additionalProperties": false
-      }
+        "required": [
+          "line_number",
+          "description"
+        ],
+        "type": "object"
+      },
+      "type": "array"
     }
   },
-  "required": ["invoice_number", "issue_date", "seller_nip", "seller_name", "currency", "line_items"],
-  "additionalProperties": false
+  "required": [
+    "invoice_number",
+    "issue_date",
+    "seller_nip",
+    "seller_name",
+    "currency",
+    "net_amount",
+    "gross_amount"
+  ],
+  "type": "object"
 }

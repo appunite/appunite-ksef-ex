@@ -945,7 +945,8 @@ defmodule KsefHub.InvoicesTest do
            "bank_details" => %{
              "iban" => "PL61109010140000071219812874",
              "swift_bic" => "BPKOPLPW",
-             "bank_name" => "PKO BP"
+             "bank_name" => "PKO BP",
+             "notes" => "Reference: FV/PDF/ADDR"
            },
            "seller_address" => %{
              "street" => "ul. Sprzedawcy 10",
@@ -973,6 +974,7 @@ defmodule KsefHub.InvoicesTest do
       assert invoice.iban == "PL61109010140000071219812874"
       assert invoice.swift_bic == "BPKOPLPW"
       assert invoice.bank_name == "PKO BP"
+      assert invoice.payment_instructions == "Reference: FV/PDF/ADDR"
 
       assert invoice.seller_address["street"] == "ul. Sprzedawcy 10"
       assert invoice.seller_address["postal_code"] == "00-001"

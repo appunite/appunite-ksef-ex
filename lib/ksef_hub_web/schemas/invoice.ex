@@ -122,6 +122,7 @@ defmodule KsefHubWeb.Schemas.Invoice do
       bank_address: %Schema{
         type: :string,
         nullable: true,
+        maxLength: 500,
         description: "Bank branch address."
       },
       routing_number: %Schema{
@@ -133,6 +134,7 @@ defmodule KsefHubWeb.Schemas.Invoice do
       account_number: %Schema{
         type: :string,
         nullable: true,
+        maxLength: 34,
         description: "Bank account number (when separate from IBAN)."
       },
       payment_instructions: %Schema{
