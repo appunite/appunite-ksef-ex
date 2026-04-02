@@ -260,8 +260,8 @@ defmodule KsefHubWeb.ExportLive.Index do
 
             <p class="text-xs text-muted-foreground">
               Includes all approved invoices that fit your filters.
-              Pending and rejected invoices are excluded. Invoices marked as
-              excluded (for analytics) are still included in exports.
+              Pending, rejected, and duplicate invoices are excluded. Invoices
+              marked as excluded (for analytics) are still included in exports.
             </p>
           </form>
         </.card>
