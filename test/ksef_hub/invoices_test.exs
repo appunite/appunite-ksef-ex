@@ -223,7 +223,10 @@ defmodule KsefHub.InvoicesTest do
       assert updated.prediction_status == :predicted
       assert updated.prediction_category_name == "finance:invoices"
       assert updated.prediction_category_confidence == 0.92
-      assert updated.prediction_category_model_version == original.prediction_category_model_version
+
+      assert updated.prediction_category_model_version ==
+               original.prediction_category_model_version
+
       assert updated.prediction_tag_model_version == original.prediction_tag_model_version
     end
   end
@@ -924,7 +927,7 @@ defmodule KsefHub.InvoicesTest do
                Invoices.create_pdf_upload_invoice(company, "pdf-data", %{type: :expense})
     end
 
-    test "stores addresses, dates, and iban from extraction", %{company: company} do
+    test "stores addresses, dates, and bank details from extraction", %{company: company} do
       Mox.expect(KsefHub.InvoiceExtractor.Mock, :extract, fn _pdf, _opts ->
         {:ok,
          %{
@@ -939,7 +942,12 @@ defmodule KsefHub.InvoicesTest do
            "net_amount" => "1000.00",
            "gross_amount" => "1230.00",
            "currency" => "PLN",
-           "iban" => "PL61109010140000071219812874",
+           "bank_details" => %{
+             "iban" => "PL61109010140000071219812874",
+             "swift_bic" => "BPKOPLPW",
+             "bank_name" => "PKO BP",
+             "notes" => "Reference: FV/PDF/ADDR"
+           },
            "seller_address" => %{
              "street" => "ul. Sprzedawcy 10",
              "city" => "Warszawa",
@@ -964,11 +972,106 @@ defmodule KsefHub.InvoicesTest do
       assert invoice.sales_date == ~D[2026-02-15]
       assert invoice.due_date == ~D[2026-03-20]
       assert invoice.iban == "PL61109010140000071219812874"
+      assert invoice.swift_bic == "BPKOPLPW"
+      assert invoice.bank_name == "PKO BP"
+      assert invoice.payment_instructions == "Reference: FV/PDF/ADDR"
 
       assert invoice.seller_address["street"] == "ul. Sprzedawcy 10"
       assert invoice.seller_address["postal_code"] == "00-001"
       assert invoice.buyer_address["city"] == "Kraków"
       assert invoice.buyer_address["country"] == "PL"
+    end
+
+    test "stores US wire details from extraction", %{company: company} do
+      Mox.expect(KsefHub.InvoiceExtractor.Mock, :extract, fn _pdf, _opts ->
+        {:ok,
+         %{
+           "seller_nip" => "1234567890",
+           "seller_name" => "US Vendor Inc.",
+           "invoice_number" => "INV-US-001",
+           "issue_date" => "2026-02-20",
+           "net_amount" => "500.00",
+           "gross_amount" => "500.00",
+           "currency" => "USD",
+           "bank_details" => %{
+             "routing_number" => "021000021",
+             "account_number" => "123456789012",
+             "swift_bic" => "CITIUS33",
+             "bank_name" => "JPMorgan Chase"
+           }
+         }}
+      end)
+
+      assert {:ok, %Invoice{} = invoice} =
+               Invoices.create_pdf_upload_invoice(company, "pdf-data", %{type: :expense})
+
+      assert invoice.iban == nil
+      assert invoice.routing_number == "021000021"
+      assert invoice.account_number == "123456789012"
+      assert invoice.swift_bic == "CITIUS33"
+      assert invoice.bank_name == "JPMorgan Chase"
+    end
+
+    test "normalizes IBAN with spaces in bank_details from extraction", %{company: company} do
+      Mox.expect(KsefHub.InvoiceExtractor.Mock, :extract, fn _pdf, _opts ->
+        {:ok,
+         %{
+           "seller_nip" => "1234567890",
+           "seller_name" => "Test Seller",
+           "invoice_number" => "FV/IBAN/SPACES",
+           "issue_date" => "2026-02-20",
+           "net_amount" => "100.00",
+           "gross_amount" => "123.00",
+           "bank_details" => %{
+             "iban" => "PL 61 1090 1014 0000 0712 1981 2874"
+           }
+         }}
+      end)
+
+      assert {:ok, %Invoice{} = invoice} =
+               Invoices.create_pdf_upload_invoice(company, "pdf-data", %{type: :expense})
+
+      assert invoice.iban == "PL61109010140000071219812874"
+    end
+
+    test "falls back to legacy flat iban field from extraction", %{company: company} do
+      Mox.expect(KsefHub.InvoiceExtractor.Mock, :extract, fn _pdf, _opts ->
+        {:ok,
+         %{
+           "seller_nip" => "1234567890",
+           "seller_name" => "Test Seller",
+           "invoice_number" => "FV/IBAN/LEGACY",
+           "issue_date" => "2026-02-20",
+           "net_amount" => "100.00",
+           "gross_amount" => "123.00",
+           "iban" => "DE89370400440532013000"
+         }}
+      end)
+
+      assert {:ok, %Invoice{} = invoice} =
+               Invoices.create_pdf_upload_invoice(company, "pdf-data", %{type: :expense})
+
+      assert invoice.iban == "DE89370400440532013000"
+    end
+
+    test "keeps non-IBAN account numbers as-is from extraction", %{company: company} do
+      Mox.expect(KsefHub.InvoiceExtractor.Mock, :extract, fn _pdf, _opts ->
+        {:ok,
+         %{
+           "seller_nip" => "1234567890",
+           "seller_name" => "Test Seller",
+           "invoice_number" => "FV/IBAN/DOMESTIC",
+           "issue_date" => "2026-02-20",
+           "net_amount" => "100.00",
+           "gross_amount" => "123.00",
+           "iban" => "61109010140000071219812874"
+         }}
+      end)
+
+      assert {:ok, %Invoice{} = invoice} =
+               Invoices.create_pdf_upload_invoice(company, "pdf-data", %{type: :expense})
+
+      assert invoice.iban == "61109010140000071219812874"
     end
 
     test "stores created_by_id when provided in opts", %{company: company} do

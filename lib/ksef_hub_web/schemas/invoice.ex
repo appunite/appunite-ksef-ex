@@ -108,6 +108,40 @@ defmodule KsefHubWeb.Schemas.Invoice do
         description:
           "Seller's bank account number (IBAN). From KSeF Rachunek/NrRB or PDF extraction."
       },
+      swift_bic: %Schema{
+        type: :string,
+        nullable: true,
+        maxLength: 11,
+        description: "SWIFT/BIC code."
+      },
+      bank_name: %Schema{
+        type: :string,
+        nullable: true,
+        description: "Name of the bank."
+      },
+      bank_address: %Schema{
+        type: :string,
+        nullable: true,
+        maxLength: 500,
+        description: "Bank branch address."
+      },
+      routing_number: %Schema{
+        type: :string,
+        nullable: true,
+        maxLength: 9,
+        description: "ABA routing number for US domestic wires."
+      },
+      account_number: %Schema{
+        type: :string,
+        nullable: true,
+        maxLength: 34,
+        description: "Bank account number (when separate from IBAN)."
+      },
+      payment_instructions: %Schema{
+        type: :string,
+        nullable: true,
+        description: "Payment or wire transfer instructions from the invoice."
+      },
       seller_address: %Schema{
         type: :object,
         nullable: true,

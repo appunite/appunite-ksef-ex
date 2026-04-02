@@ -11,6 +11,10 @@ defmodule KsefHub.InvoiceExtractor.Client do
   require Logger
 
   @receive_timeout 120_000
+  @output_schema Path.join(__DIR__, "output_schema.json")
+                 |> File.read!()
+                 |> Jason.decode!()
+                 |> Jason.encode!()
 
   @doc "Extracts structured invoice data from a PDF binary."
   @spec extract(binary(), keyword()) :: {:ok, map()} | {:error, term()}
@@ -84,19 +88,14 @@ defmodule KsefHub.InvoiceExtractor.Client do
   @pdf_settings Jason.encode!(%{strategy: "auto", languages: ["pol", "eng"]})
 
   @spec build_form_parts(binary(), String.t(), String.t() | nil) :: keyword()
-  defp build_form_parts(pdf_binary, filename, nil) do
-    [
-      file: {pdf_binary, filename: filename, content_type: "application/pdf"},
-      pdf_settings_json: @pdf_settings
-    ]
-  end
-
   defp build_form_parts(pdf_binary, filename, context) do
-    [
+    base = [
       file: {pdf_binary, filename: filename, content_type: "application/pdf"},
-      context: context,
-      pdf_settings_json: @pdf_settings
+      pdf_settings_json: @pdf_settings,
+      output_schema: @output_schema
     ]
+
+    if context, do: [{:context, context} | base], else: base
   end
 
   @spec build_req(String.t()) :: Req.Request.t()

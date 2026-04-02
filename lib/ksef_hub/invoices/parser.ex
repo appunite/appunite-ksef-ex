@@ -152,16 +152,13 @@ defmodule KsefHub.Invoices.Parser do
     end
   end
 
-  @po_key_substrings ~w(zamowien zamówien purchase order.number)
-  @po_key_regex ~r/\bpo\b/i
-  @po_value_regex ~r/(?:PO|P\.O\.|Purchase\s*Order)[:#\s]*\s*(\S+)/i
+  alias KsefHub.Invoices.PurchaseOrder
 
   @spec extract_purchase_order(term()) :: String.t() | nil
   defp extract_purchase_order(doc) do
-    case xpath(doc, ~x"//*[local-name()='Fa']//*[local-name()='NrZamowienia']/text()"s) do
-      "" -> extract_po_from_dodatkowy_opis(doc)
-      nr_zamowienia -> nr_zamowienia
-    end
+    PurchaseOrder.extract(
+      xpath(doc, ~x"//*[local-name()='Fa']//*[local-name()='NrZamowienia']/text()"s)
+    ) || extract_po_from_dodatkowy_opis(doc)
   end
 
   @spec extract_po_from_dodatkowy_opis(term()) :: String.t() | nil
@@ -172,28 +169,8 @@ defmodule KsefHub.Invoices.Parser do
       key = xpath(entry, ~x"./*[local-name()='Klucz']/text()"s)
       value = xpath(entry, ~x"./*[local-name()='Wartosc']/text()"s)
 
-      cond do
-        po_key_match?(key) && value != "" -> value
-        value != "" -> extract_po_from_value(value)
-        true -> nil
-      end
+      PurchaseOrder.extract(key) || PurchaseOrder.extract(value)
     end)
-  end
-
-  @spec po_key_match?(String.t()) :: boolean()
-  defp po_key_match?(key) do
-    downcased = String.downcase(key)
-
-    Enum.any?(@po_key_substrings, &String.contains?(downcased, &1)) ||
-      Regex.match?(@po_key_regex, key)
-  end
-
-  @spec extract_po_from_value(String.t()) :: String.t() | nil
-  defp extract_po_from_value(value) do
-    case Regex.run(@po_value_regex, value) do
-      [_, captured] -> captured
-      _ -> nil
-    end
   end
 
   @spec parse_line_items(term()) :: [map()]
