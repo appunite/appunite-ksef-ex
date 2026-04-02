@@ -424,11 +424,40 @@ defmodule KsefHub.Invoices do
         changeset
       end
 
+    changeset = maybe_backfill_billing_date(changeset, invoice)
+
     with {:ok, updated} <- Repo.update(changeset) do
       if old_status in [:partial, :failed] and updated.extraction_status == :complete,
         do: enqueue_prediction(updated)
 
       {:ok, updated}
+    end
+  end
+
+  # When issue_date or sales_date changes and billing dates are still nil,
+  # backfill them from the new date.
+  @spec maybe_backfill_billing_date(Ecto.Changeset.t(), Invoice.t()) :: Ecto.Changeset.t()
+  defp maybe_backfill_billing_date(changeset, invoice) do
+    date_changed? =
+      Map.has_key?(changeset.changes, :issue_date) or
+        Map.has_key?(changeset.changes, :sales_date)
+
+    billing_missing? = is_nil(invoice.billing_date_from) and is_nil(invoice.billing_date_to)
+
+    if date_changed? and billing_missing? do
+      merged = invoice |> Map.from_struct() |> Map.merge(changeset.changes)
+
+      case compute_billing_date(merged) do
+        nil ->
+          changeset
+
+        date ->
+          changeset
+          |> Ecto.Changeset.put_change(:billing_date_from, date)
+          |> Ecto.Changeset.put_change(:billing_date_to, date)
+      end
+    else
+      changeset
     end
   end
 

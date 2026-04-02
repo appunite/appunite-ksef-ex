@@ -1622,6 +1622,62 @@ defmodule KsefHub.InvoicesTest do
       assert updated.buyer_nip == company.nip
       assert updated.buyer_name == company.name
     end
+
+    test "backfills billing_date when issue_date is set on invoice with nil billing dates", %{
+      company: company
+    } do
+      invoice =
+        insert(:pdf_upload_invoice,
+          company: company,
+          extraction_status: :partial,
+          issue_date: nil,
+          billing_date_from: nil,
+          billing_date_to: nil
+        )
+
+      attrs = %{"issue_date" => "2026-03-15"}
+
+      assert {:ok, updated} = Invoices.update_invoice_fields(invoice, attrs)
+      assert updated.issue_date == ~D[2026-03-15]
+      assert updated.billing_date_from == ~D[2026-03-01]
+      assert updated.billing_date_to == ~D[2026-03-01]
+    end
+
+    test "does not overwrite existing billing_date when issue_date changes", %{
+      company: company
+    } do
+      invoice =
+        insert(:pdf_upload_invoice,
+          company: company,
+          issue_date: ~D[2026-02-10],
+          billing_date_from: ~D[2026-01-01],
+          billing_date_to: ~D[2026-01-31]
+        )
+
+      attrs = %{"issue_date" => "2026-03-15"}
+
+      assert {:ok, updated} = Invoices.update_invoice_fields(invoice, attrs)
+      assert updated.issue_date == ~D[2026-03-15]
+      assert updated.billing_date_from == ~D[2026-01-01]
+      assert updated.billing_date_to == ~D[2026-01-31]
+    end
+
+    test "backfills billing_date from sales_date when issue_date is nil", %{company: company} do
+      invoice =
+        insert(:pdf_upload_invoice,
+          company: company,
+          extraction_status: :partial,
+          issue_date: nil,
+          billing_date_from: nil,
+          billing_date_to: nil
+        )
+
+      attrs = %{"sales_date" => "2026-04-20"}
+
+      assert {:ok, updated} = Invoices.update_invoice_fields(invoice, attrs)
+      assert updated.billing_date_from == ~D[2026-04-01]
+      assert updated.billing_date_to == ~D[2026-04-01]
+    end
   end
 
   describe "list_invoices source filter with pdf_upload" do
