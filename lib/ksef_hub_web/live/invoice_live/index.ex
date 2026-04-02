@@ -453,7 +453,7 @@ defmodule KsefHubWeb.InvoiceLive.Index do
             </.link>
             <.restricted_icon :if={inv.access_restricted} />
           </:col>
-          <:col :let={inv} :if={@filters[:type] == :income} label="Net" class="w-36 text-right">
+          <:col :let={inv} label="Net" class="w-36 text-right">
             <span class="font-mono">{format_amount(inv.net_amount)}</span>
             <span class="text-xs text-muted-foreground">{inv.currency}</span>
           </:col>

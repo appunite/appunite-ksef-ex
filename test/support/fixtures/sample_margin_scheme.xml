@@ -1,0 +1,57 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<Faktura xmlns="http://crd.gov.pl/wzor/2025/06/25/13775/">
+  <Naglowek>
+    <KodFormularza kodSystemowy="FA (3)" wersjaSchemy="1-0E">FA</KodFormularza>
+    <WariantFormularza>3</WariantFormularza>
+    <DataWytworzeniaFa>2026-04-02T14:09:53Z</DataWytworzeniaFa>
+    <SystemInfo>Test</SystemInfo>
+  </Naglowek>
+  <Podmiot1>
+    <DaneIdentyfikacyjne>
+      <NIP>1111111111</NIP>
+      <Nazwa>Airline Sp. z o.o.</Nazwa>
+    </DaneIdentyfikacyjne>
+    <Adres><KodKraju>PL</KodKraju><AdresL1>ul. Lotnicza 1, 00-001 Warszawa</AdresL1></Adres>
+  </Podmiot1>
+  <Podmiot2>
+    <DaneIdentyfikacyjne>
+      <NIP>2222222222</NIP>
+      <Nazwa>Buyer Sp. z o.o.</Nazwa>
+    </DaneIdentyfikacyjne>
+    <Adres><KodKraju>PL</KodKraju><AdresL1>ul. B 2</AdresL1><AdresL2>00-002 Warszawa</AdresL2></Adres>
+  </Podmiot2>
+  <Fa>
+    <KodWaluty>PLN</KodWaluty>
+    <P_1>2026-04-02</P_1>
+    <P_2>285/04/2026</P_2>
+    <P_6>2026-02-27</P_6>
+    <P_13_6_1>3773.38</P_13_6_1>
+    <P_15>3773.38</P_15>
+    <Adnotacje>
+      <P_16>2</P_16><P_17>2</P_17><P_18>2</P_18><P_18A>2</P_18A>
+      <Zwolnienie><P_19N>1</P_19N></Zwolnienie>
+      <NoweSrodkiTransportu><P_22N>1</P_22N></NoweSrodkiTransportu>
+      <P_23>2</P_23>
+      <PMarzy><P_PMarzyN>1</P_PMarzyN></PMarzy>
+    </Adnotacje>
+    <RodzajFaktury>VAT</RodzajFaktury>
+    <FaWiersz>
+      <NrWierszaFa>1</NrWierszaFa>
+      <P_7>Flight ticket POZ-MUC</P_7>
+      <P_8A>szt.</P_8A>
+      <P_8B>1</P_8B>
+      <P_9A>3296.65</P_9A>
+      <P_11>3296.65</P_11>
+      <P_12>0 KR</P_12>
+    </FaWiersz>
+    <FaWiersz>
+      <NrWierszaFa>2</NrWierszaFa>
+      <P_7>Seat reservation MUC-MIA</P_7>
+      <P_8A>szt.</P_8A>
+      <P_8B>1</P_8B>
+      <P_9A>476.73</P_9A>
+      <P_11>476.73</P_11>
+      <P_12>0 KR</P_12>
+    </FaWiersz>
+  </Fa>
+</Faktura>

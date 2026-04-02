@@ -83,6 +83,47 @@ defmodule KsefHub.Invoices.ParserTest do
       assert Decimal.equal?(invoice.gross_amount, Decimal.new("864.00"))
     end
 
+    test "parses invoice with margin scheme P_13_6_1 (e.g. airline tickets)" do
+      xml = File.read!(Path.join(@fixtures_path, "sample_margin_scheme.xml"))
+
+      assert {:ok, invoice} = Parser.parse(xml)
+      assert Decimal.equal?(invoice.net_amount, Decimal.new("3773.38"))
+      assert Decimal.equal?(invoice.gross_amount, Decimal.new("3773.38"))
+      assert invoice.invoice_number == "285/04/2026"
+      assert length(invoice.line_items) == 2
+    end
+
+    test "sums all P_13_6 sub-fields (domestic 0%, intra-EU, export)" do
+      xml = """
+      <?xml version="1.0" encoding="UTF-8"?>
+      <Faktura xmlns="http://crd.gov.pl/wzor/2025/06/25/13775/">
+        <Naglowek>
+          <KodFormularza kodSystemowy="FA (3)" wersjaSchemy="1-0E">FA</KodFormularza>
+          <WariantFormularza>3</WariantFormularza>
+          <DataWytworzeniaFa>2025-01-15T10:30:00</DataWytworzeniaFa>
+          <SystemInfo>Test</SystemInfo>
+        </Naglowek>
+        <Podmiot1><DaneIdentyfikacyjne><NIP>1234567890</NIP><Nazwa>Seller</Nazwa></DaneIdentyfikacyjne></Podmiot1>
+        <Podmiot2><DaneIdentyfikacyjne><NIP>0987654321</NIP><Nazwa>Buyer</Nazwa></DaneIdentyfikacyjne></Podmiot2>
+        <Fa>
+          <KodWaluty>PLN</KodWaluty>
+          <P_1>2025-01-15</P_1>
+          <P_2>FV/2025/001</P_2>
+          <P_13_6_1>1000.00</P_13_6_1>
+          <P_13_6_2>2000.00</P_13_6_2>
+          <P_13_6_3>3000.00</P_13_6_3>
+          <P_15>6000.00</P_15>
+          <Adnotacje><P_16>2</P_16><P_17>2</P_17><P_18>2</P_18><P_18A>2</P_18A><Zwolnienie><P_19N>1</P_19N></Zwolnienie><NoweSrodkiTransportu><P_22N>1</P_22N></NoweSrodkiTransportu><P_23>2</P_23><PMarzy><P_PMarzyN>1</P_PMarzyN></PMarzy></Adnotacje>
+          <FaWiersz><NrWierszaFa>1</NrWierszaFa><P_7>Item</P_7><P_11>6000.00</P_11><P_12>0</P_12></FaWiersz>
+        </Fa>
+      </Faktura>
+      """
+
+      assert {:ok, invoice} = Parser.parse(xml)
+      # 1000 + 2000 + 3000 = 6000
+      assert Decimal.equal?(invoice.net_amount, Decimal.new("6000.00"))
+    end
+
     test "returns error for invalid XML" do
       assert {:error, {:invalid_xml, _}} = Parser.parse("<not-valid>")
     end

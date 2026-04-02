@@ -72,7 +72,12 @@ defmodule KsefHub.Exports do
     end
   end
 
-  @doc "Returns a list of invoices matching the export batch filters."
+  @doc """
+  Returns a list of invoices matching the export batch filters.
+
+  Includes all approved invoices (including ones marked as excluded —
+  the excluded flag is for analytics only, not for export filtering).
+  """
   @spec list_exportable_invoices(ExportBatch.t()) :: [Invoice.t()]
   def list_exportable_invoices(%ExportBatch{} = batch) do
     batch
@@ -269,7 +274,6 @@ defmodule KsefHub.Exports do
     Invoice
     |> where([i], i.company_id == ^company_id)
     |> where([i], i.status == :approved)
-    |> where([i], i.is_excluded == false)
     |> where([i], i.issue_date >= ^date_from and i.issue_date <= ^date_to)
     |> maybe_filter_type(invoice_type)
     |> maybe_filter_only_new(only_new, user_id)

@@ -196,7 +196,8 @@ defmodule KsefHub.ExportsTest do
       assert count == 1
     end
 
-    test "excludes invoices marked as is_excluded", %{user: user, company: company} do
+    test "includes invoices marked as is_excluded (excluded is for analytics only)",
+         %{user: user, company: company} do
       insert(:invoice,
         company: company,
         issue_date: ~D[2026-01-15],
@@ -221,7 +222,7 @@ defmodule KsefHub.ExportsTest do
           user_id: user.id
         })
 
-      assert count == 1
+      assert count == 2
     end
 
     test "only_new is per-user", %{user: user, company: company} do

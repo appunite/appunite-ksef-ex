@@ -195,6 +195,59 @@ defmodule KsefHub.InvoicesTest do
       assert updated.seller_name == "Updated Name"
     end
 
+    test "marks uploaded invoice as duplicate when ksef sync inserts matching invoice",
+         %{company: company} do
+      # Simulate a manually uploaded invoice (no ksef_number)
+      uploaded =
+        insert(:invoice,
+          company: company,
+          ksef_number: nil,
+          source: :pdf_upload,
+          invoice_number: "LH-285/04/2026",
+          seller_nip: "5260003819",
+          issue_date: ~D[2026-04-02],
+          net_amount: Decimal.new("3773.38"),
+          gross_amount: Decimal.new("3773.38")
+        )
+
+      # KSeF sync inserts the same invoice with a ksef_number
+      attrs =
+        params_for(:invoice,
+          ksef_number: "ksef-lh-285",
+          company_id: company.id,
+          invoice_number: "LH-285/04/2026",
+          seller_nip: "5260003819",
+          issue_date: ~D[2026-04-02],
+          net_amount: Decimal.new("3773.38"),
+          gross_amount: Decimal.new("3773.38")
+        )
+        |> Map.put(:xml_content, @sample_xml)
+
+      # KSeF invoice stays canonical (duplicate_of_id == nil)
+      assert {:ok, %Invoice{} = ksef_invoice, :inserted} = Invoices.upsert_invoice(attrs)
+      assert is_nil(ksef_invoice.duplicate_of_id)
+
+      # The older uploaded invoice is marked as duplicate of the KSeF one
+      updated_uploaded = Repo.get!(Invoice, uploaded.id)
+      assert updated_uploaded.duplicate_of_id == ksef_invoice.id
+      assert updated_uploaded.duplicate_status == :suspected
+    end
+
+    test "upsert does not self-match as duplicate", %{company: company} do
+      attrs =
+        params_for(:invoice,
+          ksef_number: "ksef-no-self-match",
+          company_id: company.id,
+          invoice_number: "FV/2026/SELF",
+          seller_nip: "1234567890",
+          issue_date: ~D[2026-04-01]
+        )
+        |> Map.put(:xml_content, @sample_xml)
+
+      assert {:ok, %Invoice{} = invoice, :inserted} = Invoices.upsert_invoice(attrs)
+      assert is_nil(invoice.duplicate_of_id)
+    end
+
     test "preserves prediction fields on re-sync update", %{company: company} do
       original =
         insert(:invoice,
@@ -729,6 +782,149 @@ defmodule KsefHub.InvoicesTest do
 
       assert {:ok, %Invoice{} = invoice} = Invoices.create_manual_invoice(company.id, attrs)
       assert is_nil(invoice.duplicate_of_id)
+    end
+
+    test "detects duplicate by invoice_number + seller_nip + issue_date when ksef_number is absent",
+         %{company: company} do
+      insert(:invoice,
+        company: company,
+        invoice_number: "FV/2026/100",
+        seller_nip: "5555555555",
+        issue_date: ~D[2026-03-15]
+      )
+
+      attrs = %{
+        type: :expense,
+        invoice_number: "FV/2026/100",
+        seller_nip: "5555555555",
+        seller_name: "Seller Sp. z o.o.",
+        buyer_nip: "0987654321",
+        buyer_name: "Buyer S.A.",
+        issue_date: ~D[2026-03-15],
+        net_amount: Decimal.new("2000.00"),
+        gross_amount: Decimal.new("2460.00")
+      }
+
+      assert {:ok, %Invoice{} = invoice} = Invoices.create_manual_invoice(company.id, attrs)
+      assert invoice.duplicate_status == :suspected
+      assert invoice.duplicate_of_id
+    end
+
+    test "detects duplicate by invoice_number + issue_date + net_amount when seller_nip differs",
+         %{company: company} do
+      insert(:invoice,
+        company: company,
+        invoice_number: "FV/2026/200",
+        issue_date: ~D[2026-03-20],
+        net_amount: Decimal.new("3000.00"),
+        seller_nip: "1111111111"
+      )
+
+      attrs = %{
+        type: :expense,
+        invoice_number: "FV/2026/200",
+        seller_nip: "2222222222",
+        seller_name: "Seller Sp. z o.o.",
+        buyer_nip: "0987654321",
+        buyer_name: "Buyer S.A.",
+        issue_date: ~D[2026-03-20],
+        net_amount: Decimal.new("3000.00"),
+        gross_amount: Decimal.new("3690.00")
+      }
+
+      assert {:ok, %Invoice{} = invoice} = Invoices.create_manual_invoice(company.id, attrs)
+      assert invoice.duplicate_status == :suspected
+      assert invoice.duplicate_of_id
+    end
+
+    test "does not detect duplicate when only invoice_number matches", %{company: company} do
+      insert(:invoice,
+        company: company,
+        invoice_number: "FV/2026/300",
+        seller_nip: "5555555555",
+        issue_date: ~D[2026-03-10]
+      )
+
+      attrs = %{
+        type: :expense,
+        invoice_number: "FV/2026/300",
+        seller_nip: "9999999999",
+        seller_name: "Other Seller",
+        buyer_nip: "0987654321",
+        buyer_name: "Buyer S.A.",
+        issue_date: ~D[2026-04-10],
+        net_amount: Decimal.new("5000.00"),
+        gross_amount: Decimal.new("6150.00")
+      }
+
+      assert {:ok, %Invoice{} = invoice} = Invoices.create_manual_invoice(company.id, attrs)
+      assert is_nil(invoice.duplicate_of_id)
+    end
+
+    test "does not detect duplicate when invoice_number or issue_date is blank/whitespace", %{
+      company: company
+    } do
+      insert(:invoice,
+        company: company,
+        invoice_number: "FV/2026/300",
+        seller_nip: "5555555555",
+        issue_date: ~D[2026-03-10],
+        net_amount: Decimal.new("1000.00")
+      )
+
+      base_attrs = %{
+        type: :expense,
+        seller_nip: "5555555555",
+        seller_name: "Seller Sp. z o.o.",
+        buyer_nip: "0987654321",
+        buyer_name: "Buyer S.A.",
+        net_amount: Decimal.new("1000.00"),
+        gross_amount: Decimal.new("1230.00")
+      }
+
+      # Blank issue_date string
+      attrs = Map.merge(base_attrs, %{invoice_number: "FV/2026/300", issue_date: ""})
+      assert {:error, _} = Invoices.create_manual_invoice(company.id, attrs)
+
+      # Whitespace-only invoice_number — rejected by changeset validation
+      attrs = Map.merge(base_attrs, %{invoice_number: "   ", issue_date: ~D[2026-03-10]})
+      assert {:error, _} = Invoices.create_manual_invoice(company.id, attrs)
+    end
+
+    test "ksef_number match takes precedence over business field match", %{company: company} do
+      ksef_original =
+        insert(:invoice,
+          company: company,
+          ksef_number: "priority-123",
+          invoice_number: "FV/2026/400",
+          seller_nip: "5555555555",
+          issue_date: ~D[2026-03-25]
+        )
+
+      # Another invoice with same business fields but no ksef_number
+      insert(:invoice,
+        company: company,
+        ksef_number: nil,
+        invoice_number: "FV/2026/400",
+        seller_nip: "5555555555",
+        issue_date: ~D[2026-03-25]
+      )
+
+      attrs = %{
+        type: :expense,
+        ksef_number: "priority-123",
+        invoice_number: "FV/2026/400",
+        seller_nip: "5555555555",
+        seller_name: "Seller Sp. z o.o.",
+        buyer_nip: "0987654321",
+        buyer_name: "Buyer S.A.",
+        issue_date: ~D[2026-03-25],
+        net_amount: Decimal.new("1000.00"),
+        gross_amount: Decimal.new("1230.00")
+      }
+
+      assert {:ok, %Invoice{} = invoice} = Invoices.create_manual_invoice(company.id, attrs)
+      assert invoice.duplicate_of_id == ksef_original.id
     end
 
     test "strips ksef_acquisition_date and ksef_permanent_storage_date", %{company: company} do
@@ -1461,6 +1657,62 @@ defmodule KsefHub.InvoicesTest do
       assert updated.buyer_nip == company.nip
       assert updated.buyer_name == company.name
     end
+
+    test "backfills billing_date when issue_date is set on invoice with nil billing dates", %{
+      company: company
+    } do
+      invoice =
+        insert(:pdf_upload_invoice,
+          company: company,
+          extraction_status: :partial,
+          issue_date: nil,
+          billing_date_from: nil,
+          billing_date_to: nil
+        )
+
+      attrs = %{"issue_date" => "2026-03-15"}
+
+      assert {:ok, updated} = Invoices.update_invoice_fields(invoice, attrs)
+      assert updated.issue_date == ~D[2026-03-15]
+      assert updated.billing_date_from == ~D[2026-03-01]
+      assert updated.billing_date_to == ~D[2026-03-01]
+    end
+
+    test "does not overwrite existing billing_date when issue_date changes", %{
+      company: company
+    } do
+      invoice =
+        insert(:pdf_upload_invoice,
+          company: company,
+          issue_date: ~D[2026-02-10],
+          billing_date_from: ~D[2026-01-01],
+          billing_date_to: ~D[2026-01-31]
+        )
+
+      attrs = %{"issue_date" => "2026-03-15"}
+
+      assert {:ok, updated} = Invoices.update_invoice_fields(invoice, attrs)
+      assert updated.issue_date == ~D[2026-03-15]
+      assert updated.billing_date_from == ~D[2026-01-01]
+      assert updated.billing_date_to == ~D[2026-01-31]
+    end
+
+    test "backfills billing_date from sales_date when issue_date is nil", %{company: company} do
+      invoice =
+        insert(:pdf_upload_invoice,
+          company: company,
+          extraction_status: :partial,
+          issue_date: nil,
+          billing_date_from: nil,
+          billing_date_to: nil
+        )
+
+      attrs = %{"sales_date" => "2026-04-20"}
+
+      assert {:ok, updated} = Invoices.update_invoice_fields(invoice, attrs)
+      assert updated.billing_date_from == ~D[2026-04-01]
+      assert updated.billing_date_to == ~D[2026-04-01]
+    end
   end
 
   describe "list_invoices source filter with pdf_upload" do
@@ -1583,6 +1835,35 @@ defmodule KsefHub.InvoicesTest do
       assert updated.extraction_status == :complete
     end
 
+    test "defaults billing dates from extracted issue_date when not already set", %{
+      company: company
+    } do
+      invoice =
+        insert(:pdf_upload_invoice,
+          company: company,
+          extraction_status: :partial,
+          billing_date_from: nil,
+          billing_date_to: nil
+        )
+
+      KsefHub.InvoiceExtractor.Mock
+      |> expect(:extract, fn _pdf, _opts ->
+        {:ok,
+         %{
+           "seller_nip" => "5555555555",
+           "seller_name" => "Some Seller",
+           "invoice_number" => "FV/RE/002",
+           "issue_date" => "2026-03-15",
+           "net_amount" => "1000.00",
+           "gross_amount" => "1230.00"
+         }}
+      end)
+
+      assert {:ok, updated} = Invoices.re_extract_invoice(invoice, company)
+      assert updated.billing_date_from == ~D[2026-03-01]
+      assert updated.billing_date_to == ~D[2026-03-01]
+    end
+
     test "returns error when invoice has no PDF", %{company: company} do
       invoice = insert(:invoice, company: company, pdf_file_id: nil)
 
@@ -1626,6 +1907,31 @@ defmodule KsefHub.InvoicesTest do
       # Extraction status recalculated from the new extraction result (partial),
       # not from the merged invoice state
       assert updated.extraction_status == :partial
+    end
+
+    test "preserves manually-set billing dates on re-extraction", %{company: company} do
+      invoice =
+        insert(:pdf_upload_invoice,
+          company: company,
+          extraction_status: :complete,
+          billing_date_from: ~D[2026-01-01],
+          billing_date_to: ~D[2026-02-01]
+        )
+
+      KsefHub.InvoiceExtractor.Mock
+      |> expect(:extract, fn _pdf, _opts ->
+        {:ok,
+         %{
+           "seller_name" => "New Seller",
+           "issue_date" => "2026-05-15"
+         }}
+      end)
+
+      assert {:ok, updated} = Invoices.re_extract_invoice(invoice, company)
+      assert updated.seller_name == "New Seller"
+      # Billing dates should NOT be overwritten despite new issue_date
+      assert updated.billing_date_from == ~D[2026-01-01]
+      assert updated.billing_date_to == ~D[2026-02-01]
     end
 
     test "returns error when extraction service fails", %{company: company} do

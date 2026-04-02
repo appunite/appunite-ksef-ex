@@ -27,10 +27,19 @@ defmodule KsefHub.Invoices.Parser do
        seller_name: extract_name(doc, "Podmiot1"),
        buyer_nip: xpath(doc, ~x"//*[local-name()='Podmiot2']//*[local-name()='NIP']/text()"s),
        buyer_name: extract_name(doc, "Podmiot2"),
+       # FA(3) net amount summary fields (all optional, sum whichever are present):
+       #   P_13_1  — 23% VAT          P_13_6_1 — 0% (domestic, excl. intra-EU & export)
+       #   P_13_2  — 8% VAT           P_13_6_2 — 0% intra-EU delivery
+       #   P_13_3  — 5% VAT           P_13_6_3 — 0% export
+       #   P_13_4  — taxi flat rate    P_13_7   — VAT exempt
+       #   P_13_5  — special proc.     P_13_8   — supply outside PL
+       #   P_13_9  — EU services       P_13_10  — reverse charge
+       #   P_13_11 — margin scheme
        net_amount:
          sum_decimal_fields(
            doc,
-           ~w[P_13_1 P_13_2 P_13_3 P_13_4 P_13_5 P_13_6 P_13_7 P_13_8 P_13_9 P_13_10 P_13_11]
+           ~w[P_13_1 P_13_2 P_13_3 P_13_4 P_13_5 P_13_6_1 P_13_6_2 P_13_6_3
+              P_13_7 P_13_8 P_13_9 P_13_10 P_13_11]
          ),
        gross_amount: xpath(doc, ~x"//*[local-name()='P_15']/text()"s) |> parse_decimal(),
        currency: xpath(doc, ~x"//*[local-name()='KodWaluty']/text()"s) |> default_currency(),

@@ -274,6 +274,17 @@ defmodule KsefHub.Invoices do
     end
   end
 
+  # Like maybe_default_billing_date/1, but for updates — only fills in billing dates
+  # when the existing invoice doesn't already have them set (preserves manual edits).
+  @spec maybe_default_billing_date_for_update(map(), Invoice.t()) :: map()
+  defp maybe_default_billing_date_for_update(attrs, %Invoice{} = invoice) do
+    if is_nil(invoice.billing_date_from) and is_nil(invoice.billing_date_to) do
+      maybe_default_billing_date(attrs)
+    else
+      attrs
+    end
+  end
+
   @doc """
   Creates an invoice.
   """
@@ -311,6 +322,7 @@ defmodule KsefHub.Invoices do
       {:ok, invoice} ->
         action = if invoice.inserted_at == invoice.updated_at, do: :inserted, else: :updated
         if action == :inserted, do: enqueue_prediction(invoice)
+        invoice = maybe_mark_business_field_duplicate(invoice, action)
         {:ok, invoice, action}
 
       {:error, changeset} ->
@@ -423,11 +435,40 @@ defmodule KsefHub.Invoices do
         changeset
       end
 
+    changeset = maybe_backfill_billing_date(changeset, invoice)
+
     with {:ok, updated} <- Repo.update(changeset) do
       if old_status in [:partial, :failed] and updated.extraction_status == :complete,
         do: enqueue_prediction(updated)
 
       {:ok, updated}
+    end
+  end
+
+  # When issue_date or sales_date changes and billing dates are still nil,
+  # backfill them from the new date.
+  @spec maybe_backfill_billing_date(Ecto.Changeset.t(), Invoice.t()) :: Ecto.Changeset.t()
+  defp maybe_backfill_billing_date(changeset, invoice) do
+    date_changed? =
+      Map.has_key?(changeset.changes, :issue_date) or
+        Map.has_key?(changeset.changes, :sales_date)
+
+    billing_missing? = is_nil(invoice.billing_date_from) and is_nil(invoice.billing_date_to)
+
+    if date_changed? and billing_missing? do
+      merged = invoice |> Map.from_struct() |> Map.merge(changeset.changes)
+
+      case compute_billing_date(merged) do
+        nil ->
+          changeset
+
+        date ->
+          changeset
+          |> Ecto.Changeset.put_change(:billing_date_from, date)
+          |> Ecto.Changeset.put_change(:billing_date_to, date)
+      end
+    else
+      changeset
     end
   end
 
@@ -483,6 +524,7 @@ defmodule KsefHub.Invoices do
       |> Map.put(:extraction_status, extraction_status)
       |> Map.put(:type, invoice.type)
       |> populate_company_fields(company)
+      |> maybe_default_billing_date_for_update(invoice)
 
     # Preserve existing currency if extraction didn't provide one
     attrs =
@@ -1000,7 +1042,7 @@ defmodule KsefHub.Invoices do
 
   @spec parse_date(String.t()) :: Date.t() | nil
   defp parse_date(value) do
-    with :error <- Date.from_iso8601(value),
+    with {:error, _} <- Date.from_iso8601(value),
          :error <- parse_datetime_as_date(value),
          :error <- parse_naive_datetime_as_date(value) do
       nil
@@ -1859,16 +1901,130 @@ defmodule KsefHub.Invoices do
 
   @spec find_original_id(Ecto.UUID.t(), map()) :: Ecto.UUID.t() | nil
   defp find_original_id(company_id, attrs) do
+    find_original_by_ksef_number(company_id, attrs) ||
+      find_original_by_business_fields(company_id, attrs)
+  end
+
+  @spec find_original_by_ksef_number(Ecto.UUID.t(), map()) :: Ecto.UUID.t() | nil
+  defp find_original_by_ksef_number(company_id, attrs) do
     ksef_number = attrs[:ksef_number] || attrs["ksef_number"]
 
-    if ksef_number && ksef_number != "" do
+    if present?(ksef_number) do
       Invoice
       |> where([i], i.company_id == ^company_id and i.ksef_number == ^ksef_number)
       |> where([i], is_nil(i.duplicate_of_id))
       |> select([i], i.id)
       |> Repo.one()
-    else
-      nil
+    end
+  end
+
+  # Fallback: match on (invoice_number + seller_nip + issue_date) OR
+  # (invoice_number + issue_date + net_amount) to catch cross-source duplicates
+  # (e.g. PDF uploaded before KSeF sync).
+  @spec find_original_by_business_fields(Ecto.UUID.t(), map(), keyword()) :: Ecto.UUID.t() | nil
+  defp find_original_by_business_fields(company_id, attrs, opts \\ []) do
+    invoice_number = attrs[:invoice_number] || attrs["invoice_number"]
+    issue_date = attrs[:issue_date] || attrs["issue_date"]
+
+    if present?(invoice_number) && present?(issue_date) do
+      base = business_field_base_query(company_id, invoice_number, issue_date, opts[:exclude_id])
+
+      base
+      |> apply_business_field_filter(attrs)
+      |> run_duplicate_query()
+    end
+  end
+
+  @spec business_field_base_query(Ecto.UUID.t(), String.t(), Date.t(), Ecto.UUID.t() | nil) ::
+          Ecto.Query.t()
+  defp business_field_base_query(company_id, invoice_number, issue_date, exclude_id) do
+    Invoice
+    |> where([i], i.company_id == ^company_id)
+    |> where([i], i.invoice_number == ^invoice_number and i.issue_date == ^issue_date)
+    |> where([i], is_nil(i.duplicate_of_id))
+    |> then(fn q ->
+      if exclude_id, do: where(q, [i], i.id != ^exclude_id), else: q
+    end)
+  end
+
+  @spec apply_business_field_filter(Ecto.Query.t(), map()) :: Ecto.Query.t() | nil
+  defp apply_business_field_filter(base, attrs) do
+    seller_nip = attrs[:seller_nip] || attrs["seller_nip"]
+    net_amount = attrs[:net_amount] || attrs["net_amount"]
+
+    cond do
+      present?(seller_nip) && net_amount ->
+        where(base, [i], i.seller_nip == ^seller_nip or i.net_amount == ^net_amount)
+
+      present?(seller_nip) ->
+        where(base, [i], i.seller_nip == ^seller_nip)
+
+      net_amount ->
+        where(base, [i], i.net_amount == ^net_amount)
+
+      true ->
+        nil
+    end
+  end
+
+  @spec run_duplicate_query(Ecto.Query.t() | nil) :: Ecto.UUID.t() | nil
+  defp run_duplicate_query(nil), do: nil
+  defp run_duplicate_query(query), do: query |> select([i], i.id) |> limit(1) |> Repo.one()
+
+  @spec present?(term()) :: boolean()
+  defp present?(nil), do: false
+  defp present?(""), do: false
+
+  defp present?(s) when is_binary(s), do: String.trim(s) != ""
+
+  defp present?(_), do: true
+
+  @spec format_error_reason(term()) :: String.t()
+  defp format_error_reason(%Ecto.Changeset{} = changeset) do
+    changeset
+    |> Ecto.Changeset.traverse_errors(fn {msg, _opts} -> msg end)
+    |> inspect()
+  end
+
+  defp format_error_reason(reason), do: inspect(reason)
+
+  # When a KSeF sync inserts a new invoice, check if a manually uploaded invoice
+  # already exists with matching business fields. The KSeF invoice is authoritative,
+  # so mark the older manual/PDF invoice as the duplicate (pointing at the new KSeF
+  # row). This preserves the KSeF invoice's duplicate_of_id as NULL, which is
+  # required by the upsert conflict target and find_original_by_ksef_number/2.
+  @spec maybe_mark_business_field_duplicate(Invoice.t(), :inserted | :updated) :: Invoice.t()
+  defp maybe_mark_business_field_duplicate(invoice, :updated), do: invoice
+
+  defp maybe_mark_business_field_duplicate(invoice, :inserted) do
+    attrs = Map.from_struct(invoice)
+
+    case find_original_by_business_fields(invoice.company_id, attrs, exclude_id: invoice.id) do
+      nil ->
+        invoice
+
+      older_id ->
+        older_invoice = Repo.get!(Invoice, older_id)
+
+        case older_invoice
+             |> Invoice.duplicate_changeset(%{
+               duplicate_of_id: invoice.id,
+               duplicate_status: :suspected
+             })
+             |> Repo.update() do
+          {:ok, _updated} ->
+            invoice
+
+          {:error, reason} ->
+            error_detail = format_error_reason(reason)
+
+            Logger.warning(
+              "Failed to mark invoice #{older_id} (company #{invoice.company_id}) " <>
+                "as duplicate of #{invoice.id}: #{error_detail}"
+            )
+
+            invoice
+        end
     end
   end
 

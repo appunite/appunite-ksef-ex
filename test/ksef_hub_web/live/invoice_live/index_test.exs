@@ -139,7 +139,7 @@ defmodule KsefHubWeb.InvoiceLive.IndexTest do
       assert html =~ "Expense Seller"
       assert has_element?(view, "th", "Seller")
       refute has_element?(view, "th", "Buyer")
-      refute has_element?(view, "th", "Net")
+      assert has_element?(view, "th", "Net")
       assert has_element?(view, "th", "Status")
       assert has_element?(view, "th", "Category")
       assert has_element?(view, "th", "Payment")
