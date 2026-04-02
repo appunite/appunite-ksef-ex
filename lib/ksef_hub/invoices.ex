@@ -1954,8 +1954,16 @@ defmodule KsefHub.Invoices do
                duplicate_status: :suspected
              })
              |> Repo.update() do
-          {:ok, updated} -> updated
-          {:error, _} -> invoice
+          {:ok, updated} ->
+            updated
+
+          {:error, reason} ->
+            Logger.warning(
+              "Failed to mark invoice #{invoice.id} (company #{invoice.company_id}) " <>
+                "as duplicate of #{original_id}: #{inspect(reason)}"
+            )
+
+            invoice
         end
     end
   end
