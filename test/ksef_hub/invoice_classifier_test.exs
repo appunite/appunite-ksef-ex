@@ -334,7 +334,7 @@ defmodule KsefHub.InvoiceClassifierTest do
 
       invoice = insert(:manual_invoice, company: company, type: :expense)
 
-      # Exactly at category threshold (0.71) and tag threshold (0.85)
+      # Exactly at category threshold (0.71) and tag threshold (0.95)
       expect_predictions(
         category: %{
           "predicted_label" => "finance:invoices",

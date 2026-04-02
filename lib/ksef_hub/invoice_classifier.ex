@@ -29,7 +29,7 @@ defmodule KsefHub.InvoiceClassifier do
   @doc "Returns the current tag confidence threshold (0.0–1.0) from application config."
   @spec tag_confidence_threshold() :: float()
   def tag_confidence_threshold,
-    do: Application.get_env(:ksef_hub, :tag_confidence_threshold, 0.85)
+    do: Application.get_env(:ksef_hub, :tag_confidence_threshold, 0.95)
 
   @doc """
   Runs category and tag prediction for an expense invoice, then applies
