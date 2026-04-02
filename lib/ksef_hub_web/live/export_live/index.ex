@@ -190,7 +190,7 @@ defmodule KsefHubWeb.ExportLive.Index do
 
           <form phx-change="update_form" phx-submit="export" class="space-y-4">
             <div class="space-y-1">
-              <label class="label"><span class="text-sm font-medium">From</span></label>
+              <label class="label"><span class="text-sm font-medium">Issue Date From</span></label>
               <input
                 type="date"
                 name="date_from"
@@ -200,7 +200,7 @@ defmodule KsefHubWeb.ExportLive.Index do
             </div>
 
             <div class="space-y-1">
-              <label class="label"><span class="text-sm font-medium">To</span></label>
+              <label class="label"><span class="text-sm font-medium">Issue Date To</span></label>
               <input
                 type="date"
                 name="date_to"
@@ -222,14 +222,14 @@ defmodule KsefHubWeb.ExportLive.Index do
             </div>
 
             <div class="space-y-1">
-              <label class="label cursor-pointer justify-start gap-2">
+              <label class="label cursor-pointer justify-start gap-2 items-start whitespace-normal">
                 <input type="hidden" name="only_new" value="false" />
                 <input
                   type="checkbox"
                   name="only_new"
                   value="true"
                   checked={@only_new}
-                  class="size-4 rounded border border-input bg-background accent-shad-primary"
+                  class="size-4 shrink-0 mt-0.5 rounded border border-input bg-background accent-shad-primary"
                 />
                 <span class="text-sm font-medium">
                   Only new invoices (not previously exported by me)

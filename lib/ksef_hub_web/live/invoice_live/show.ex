@@ -671,16 +671,19 @@ defmodule KsefHubWeb.InvoiceLive.Show do
 
     case result do
       {:ok, updated} ->
+        reloaded = reload_details(updated, socket)
+
         {:noreply,
          socket
          |> assign(
            extracting: false,
            extract_ref: nil,
-           invoice: reload_details(updated, socket),
+           invoice: reloaded,
            editing:
-             Invoice.data_editable?(updated) and updated.extraction_status in [:partial, :failed]
+             Invoice.data_editable?(reloaded) and
+               reloaded.extraction_status in [:partial, :failed]
          )
-         |> assign_new_edit_form(updated)
+         |> assign_new_edit_form(reloaded)
          |> put_flash(:info, "Invoice data re-extracted successfully.")}
 
       {:error, :no_pdf} ->
