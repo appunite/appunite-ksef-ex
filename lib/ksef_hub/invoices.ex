@@ -1885,41 +1885,50 @@ defmodule KsefHub.Invoices do
     invoice_number = attrs[:invoice_number] || attrs["invoice_number"]
     issue_date = attrs[:issue_date] || attrs["issue_date"]
 
-    unless present?(invoice_number) && issue_date do
-      nil
-    else
-      seller_nip = attrs[:seller_nip] || attrs["seller_nip"]
-      net_amount = attrs[:net_amount] || attrs["net_amount"]
-      exclude_id = opts[:exclude_id]
+    if present?(invoice_number) && issue_date do
+      base = business_field_base_query(company_id, invoice_number, issue_date, opts[:exclude_id])
 
-      base =
-        Invoice
-        |> where([i], i.company_id == ^company_id)
-        |> where([i], i.invoice_number == ^invoice_number and i.issue_date == ^issue_date)
-        |> where([i], is_nil(i.duplicate_of_id))
-        |> then(fn q ->
-          if exclude_id, do: where(q, [i], i.id != ^exclude_id), else: q
-        end)
-
-      query =
-        cond do
-          present?(seller_nip) && net_amount ->
-            base
-            |> where([i], i.seller_nip == ^seller_nip or i.net_amount == ^net_amount)
-
-          present?(seller_nip) ->
-            base |> where([i], i.seller_nip == ^seller_nip)
-
-          net_amount ->
-            base |> where([i], i.net_amount == ^net_amount)
-
-          true ->
-            nil
-        end
-
-      if query, do: query |> select([i], i.id) |> limit(1) |> Repo.one()
+      base
+      |> apply_business_field_filter(attrs)
+      |> run_duplicate_query()
     end
   end
+
+  @spec business_field_base_query(Ecto.UUID.t(), String.t(), Date.t(), Ecto.UUID.t() | nil) ::
+          Ecto.Query.t()
+  defp business_field_base_query(company_id, invoice_number, issue_date, exclude_id) do
+    Invoice
+    |> where([i], i.company_id == ^company_id)
+    |> where([i], i.invoice_number == ^invoice_number and i.issue_date == ^issue_date)
+    |> where([i], is_nil(i.duplicate_of_id))
+    |> then(fn q ->
+      if exclude_id, do: where(q, [i], i.id != ^exclude_id), else: q
+    end)
+  end
+
+  @spec apply_business_field_filter(Ecto.Query.t(), map()) :: Ecto.Query.t() | nil
+  defp apply_business_field_filter(base, attrs) do
+    seller_nip = attrs[:seller_nip] || attrs["seller_nip"]
+    net_amount = attrs[:net_amount] || attrs["net_amount"]
+
+    cond do
+      present?(seller_nip) && net_amount ->
+        where(base, [i], i.seller_nip == ^seller_nip or i.net_amount == ^net_amount)
+
+      present?(seller_nip) ->
+        where(base, [i], i.seller_nip == ^seller_nip)
+
+      net_amount ->
+        where(base, [i], i.net_amount == ^net_amount)
+
+      true ->
+        nil
+    end
+  end
+
+  @spec run_duplicate_query(Ecto.Query.t() | nil) :: Ecto.UUID.t() | nil
+  defp run_duplicate_query(nil), do: nil
+  defp run_duplicate_query(query), do: query |> select([i], i.id) |> limit(1) |> Repo.one()
 
   @spec present?(term()) :: boolean()
   defp present?(nil), do: false
