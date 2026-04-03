@@ -5,10 +5,11 @@ defmodule KsefHub.InvoiceClassifier do
 
   Auto-applies predictions when confidence meets configurable thresholds:
   - Category: default 71%, set via `CATEGORY_CONFIDENCE_THRESHOLD` env var
-  - Tag: default 85%, set via `TAG_CONFIDENCE_THRESHOLD` env var
+  - Tag: default 95%, set via `TAG_CONFIDENCE_THRESHOLD` env var
 
   Categories require a matching record in the company to be auto-applied.
-  Tags are stored as free-form strings directly on the invoice.
+  Tags are free-form strings — all tags from the probability distribution
+  that meet the threshold are applied (multi-label), not just the top one.
   Below threshold, predictions are stored for human review.
   """
 
@@ -28,7 +29,7 @@ defmodule KsefHub.InvoiceClassifier do
   @doc "Returns the current tag confidence threshold (0.0–1.0) from application config."
   @spec tag_confidence_threshold() :: float()
   def tag_confidence_threshold,
-    do: Application.get_env(:ksef_hub, :tag_confidence_threshold, 0.85)
+    do: Application.get_env(:ksef_hub, :tag_confidence_threshold, 0.95)
 
   @doc """
   Runs category and tag prediction for an expense invoice, then applies
@@ -101,21 +102,37 @@ defmodule KsefHub.InvoiceClassifier do
   defp resolve_predictions(company_id, cat_result, tag_result) do
     cat_identifier = cat_result["predicted_label"]
     cat_confidence = cat_result["confidence"] || 0.0
-    tag_name = normalize_tag_label(tag_result["predicted_label"])
-    tag_confidence = tag_result["confidence"] || 0.0
 
     matching_category = find_category_by_identifier(company_id, cat_identifier)
 
     confident_category? =
       cat_confidence >= category_confidence_threshold() and matching_category != nil
 
-    confident_tag? = tag_confidence >= tag_confidence_threshold() and tag_name != nil
+    confident_tags = extract_confident_tags(tag_result)
 
     %{
-      attrs: build_prediction_attrs(cat_result, tag_result, confident_category?, confident_tag?),
+      attrs:
+        build_prediction_attrs(
+          cat_result,
+          tag_result,
+          confident_category?,
+          confident_tags != []
+        ),
       category: if(confident_category?, do: matching_category),
-      tag_name: if(confident_tag?, do: tag_name)
+      tag_names: confident_tags
     }
+  end
+
+  @spec extract_confident_tags(map()) :: [String.t()]
+  defp extract_confident_tags(tag_result) do
+    threshold = tag_confidence_threshold()
+
+    (tag_result["probabilities"] || %{})
+    |> Enum.filter(fn {_tag, prob} -> prob >= threshold end)
+    |> Enum.sort_by(fn {_tag, prob} -> prob end, :desc)
+    |> Enum.map(fn {tag, _prob} -> tag end)
+    |> Enum.map(&normalize_tag_label/1)
+    |> Enum.reject(&is_nil/1)
   end
 
   @spec normalize_tag_label(String.t() | nil) :: String.t() | nil
@@ -147,16 +164,16 @@ defmodule KsefHub.InvoiceClassifier do
   end
 
   @spec persist_and_apply(Invoice.t(), map()) :: {:ok, Invoice.t()} | {:error, term()}
-  defp persist_and_apply(invoice, %{attrs: attrs, category: category, tag_name: tag_name}) do
+  defp persist_and_apply(invoice, %{attrs: attrs, category: category, tag_names: tag_names}) do
     Repo.transaction(fn ->
       updated = update_prediction_fields!(invoice, attrs)
       cat_applied = if category, do: apply_category_safely(updated, category), else: false
-      tag_applied = if tag_name, do: apply_tag_safely(updated, tag_name), else: false
+      tags_applied = tag_names |> Enum.map(&apply_tag_safely(updated, &1)) |> Enum.any?()
 
       final = Repo.reload!(updated)
 
       # Recompute status based on what actually applied
-      actual_status = if cat_applied or tag_applied, do: :predicted, else: :needs_review
+      actual_status = if cat_applied or tags_applied, do: :predicted, else: :needs_review
 
       if actual_status != attrs[:prediction_status] do
         final
@@ -190,8 +207,11 @@ defmodule KsefHub.InvoiceClassifier do
   @spec apply_tag_safely(Invoice.t(), String.t()) :: boolean()
   defp apply_tag_safely(invoice, tag_name) do
     {:ok, updated} = Invoices.add_invoice_tag(invoice, tag_name)
-    # Tag was applied if it's now present on the invoice
     tag_name in (updated.tags || [])
+  rescue
+    e ->
+      Logger.warning("Failed to apply predicted tag: #{Exception.message(e)}")
+      false
   end
 
   @spec find_category_by_identifier(Ecto.UUID.t(), String.t() | nil) :: Category.t() | nil

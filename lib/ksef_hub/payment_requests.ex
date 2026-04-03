@@ -337,6 +337,7 @@ defmodule KsefHub.PaymentRequests do
   defp apply_filters(query, filters) do
     query
     |> filter_by_status(filters[:status])
+    |> filter_by_statuses(filters[:statuses])
     |> filter_by_date_from(filters[:date_from])
     |> filter_by_date_to(filters[:date_to])
     |> filter_by_query(filters[:query])
@@ -345,6 +346,11 @@ defmodule KsefHub.PaymentRequests do
   @spec filter_by_status(Ecto.Queryable.t(), atom() | nil) :: Ecto.Queryable.t()
   defp filter_by_status(query, nil), do: query
   defp filter_by_status(query, status), do: where(query, [p], p.status == ^status)
+
+  @spec filter_by_statuses(Ecto.Queryable.t(), [atom()] | nil) :: Ecto.Queryable.t()
+  defp filter_by_statuses(query, nil), do: query
+  defp filter_by_statuses(query, []), do: query
+  defp filter_by_statuses(query, statuses), do: where(query, [p], p.status in ^statuses)
 
   @spec filter_by_date_from(Ecto.Queryable.t(), Date.t() | nil) :: Ecto.Queryable.t()
   defp filter_by_date_from(query, nil), do: query

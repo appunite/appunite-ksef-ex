@@ -24,7 +24,7 @@ config :ksef_hub,
   invoice_classifier: KsefHub.InvoiceClassifier.Client,
   invoice_extractor: KsefHub.InvoiceExtractor.Client,
   category_confidence_threshold: 0.71,
-  tag_confidence_threshold: 0.85,
+  tag_confidence_threshold: 0.95,
   emoji_generator: KsefHub.EmojiGenerator.Client
 
 # Oban background jobs (sync interval overridable via SYNC_INTERVAL_MINUTES in runtime.exs)

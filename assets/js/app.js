@@ -142,6 +142,18 @@ const CategoryDonutChart = {
   },
 }
 
+const MultiSelectSearch = {
+  mounted() {
+    const list = document.getElementById(this.el.dataset.list)
+    this.el.addEventListener("input", () => {
+      const query = this.el.value.toLowerCase()
+      list.querySelectorAll("[data-label]").forEach(label => {
+        label.style.display = label.dataset.label.includes(query) ? "" : "none"
+      })
+    })
+  }
+}
+
 const LocalTime = {
   mounted() { this.formatTime() },
   updated() { this.formatTime() },
@@ -164,7 +176,7 @@ const csrfToken = document.querySelector("meta[name='csrf-token']").getAttribute
 const liveSocket = new LiveSocket("/live", Socket, {
   longPollFallbackMs: 2500,
   params: {_csrf_token: csrfToken},
-  hooks: {...colocatedHooks, ExpenseBarChart, CategoryDonutChart, LocalTime},
+  hooks: {...colocatedHooks, ExpenseBarChart, CategoryDonutChart, MultiSelectSearch, LocalTime},
 })
 
 // Show progress bar on live navigation and form submits

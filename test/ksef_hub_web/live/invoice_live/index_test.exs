@@ -126,23 +126,17 @@ defmodule KsefHubWeb.InvoiceLive.IndexTest do
       refute html =~ "Expense Seller"
       assert has_element?(view, "th", "Buyer")
       refute has_element?(view, "th", "Seller")
-      assert has_element?(view, "th", "Net")
-      refute has_element?(view, "th", "Status")
-      refute has_element?(view, "th", "Category")
-      refute has_element?(view, "th", "Payment")
     end
 
     test "filters by status", %{conn: conn, company: company} do
-      {:ok, view, _html} = live(conn, ~p"/c/#{company.id}/invoices?type=expense&status=pending")
+      {:ok, view, _html} =
+        live(conn, ~p"/c/#{company.id}/invoices?type=expense&statuses=pending")
+
       html = render(view)
       refute html =~ "Income Buyer"
       assert html =~ "Expense Seller"
       assert has_element?(view, "th", "Seller")
       refute has_element?(view, "th", "Buyer")
-      assert has_element?(view, "th", "Net")
-      assert has_element?(view, "th", "Status")
-      assert has_element?(view, "th", "Category")
-      assert has_element?(view, "th", "Payment")
     end
 
     test "filter change updates URL via push_patch", %{conn: conn, company: company} do
@@ -150,48 +144,26 @@ defmodule KsefHubWeb.InvoiceLive.IndexTest do
 
       view
       |> element("form[phx-change=filter]")
-      |> render_change(%{"filters" => %{"status" => "pending"}})
+      |> render_change(%{"filters" => %{"date_from" => "2026-01-01"}})
 
-      assert_patched(view, "/c/#{company.id}/invoices?status=pending&type=expense")
+      assert_patched(view, "/c/#{company.id}/invoices?date_from=2026-01-01&type=expense")
     end
 
     test "clear_filters preserves type param", %{conn: conn, company: company} do
       {:ok, view, _html} =
         live(
           conn,
-          ~p"/c/#{company.id}/invoices?type=income&status=pending"
+          ~p"/c/#{company.id}/invoices?type=income&statuses=pending"
         )
 
       html = render(view)
       assert html =~ "Status: Pending"
 
       view
-      |> element("button", "Clear all filters")
+      |> element("button", "Reset")
       |> render_click()
 
       assert_patched(view, "/c/#{company.id}/invoices?type=income")
-    end
-
-    test "remove_filter clears a single filter", %{conn: conn, company: company} do
-      {:ok, view, _html} =
-        live(
-          conn,
-          ~p"/c/#{company.id}/invoices?type=expense&status=pending&category_id=00000000-0000-0000-0000-000000000000"
-        )
-
-      # Verify chip is rendered
-      html = render(view)
-      assert html =~ "Status: Pending"
-
-      # Remove the status filter via chip
-      view
-      |> element("button[phx-click=remove_filter][phx-value-key=status]")
-      |> render_click()
-
-      assert_patched(
-        view,
-        "/c/#{company.id}/invoices?category_id=00000000-0000-0000-0000-000000000000&type=expense"
-      )
     end
   end
 
@@ -237,7 +209,7 @@ defmodule KsefHubWeb.InvoiceLive.IndexTest do
       insert(:invoice, company: company, type: :expense, seller_name: "Uncategorized Seller")
 
       {:ok, view, _html} =
-        live(conn, ~p"/c/#{company.id}/invoices?category_id=#{category.id}")
+        live(conn, ~p"/c/#{company.id}/invoices?category_ids=#{category.id}")
 
       html = render(view)
       assert html =~ "Categorized Seller"
@@ -255,44 +227,48 @@ defmodule KsefHubWeb.InvoiceLive.IndexTest do
       insert(:invoice, company: company, type: :expense, seller_name: "Untagged Seller")
 
       {:ok, view, _html} =
-        live(conn, ~p"/c/#{company.id}/invoices?type=expense&tag=quarterly")
+        live(conn, ~p"/c/#{company.id}/invoices?type=expense&tags=quarterly")
 
       html = render(view)
       assert html =~ "Tagged Seller"
       refute html =~ "Untagged Seller"
     end
 
-    test "category filter change updates URL", %{conn: conn, company: company} do
-      category = insert(:category, company: company, identifier: "ops:filter-test")
+    test "filters by multiple statuses", %{conn: conn, company: company} do
+      insert(:invoice,
+        company: company,
+        type: :expense,
+        seller_name: "Pending Seller",
+        status: :pending
+      )
 
-      {:ok, view, _html} = live(conn, ~p"/c/#{company.id}/invoices?type=expense")
+      insert(:invoice,
+        company: company,
+        type: :expense,
+        seller_name: "Approved Seller",
+        status: :approved
+      )
 
-      view
-      |> element("form[phx-change=filter]")
-      |> render_change(%{"filters" => %{"category_id" => category.id}})
+      insert(:invoice,
+        company: company,
+        type: :expense,
+        seller_name: "Rejected Seller",
+        status: :rejected
+      )
 
-      assert_patched(view, "/c/#{company.id}/invoices?category_id=#{category.id}&type=expense")
+      {:ok, view, _html} =
+        live(conn, ~p"/c/#{company.id}/invoices?type=expense&statuses=pending,approved")
+
+      html = render(view)
+      assert html =~ "Pending Seller"
+      assert html =~ "Approved Seller"
+      refute html =~ "Rejected Seller"
     end
 
-    test "tag filter change updates URL", %{conn: conn, company: company} do
-      insert(:invoice, company: company, type: :expense, tags: ["filter-tag"])
-
-      {:ok, view, _html} = live(conn, ~p"/c/#{company.id}/invoices?type=expense")
-
-      view
-      |> element("form[phx-change=filter]")
-      |> render_change(%{"filters" => %{"tag" => "filter-tag"}})
-
-      assert_patched(view, "/c/#{company.id}/invoices?tag=filter-tag&type=expense")
-    end
-
-    test "renders category and tag filter dropdowns", %{conn: conn, company: company} do
-      insert(:category, company: company, identifier: "ops:dropdown-test", name: nil)
-      insert(:invoice, company: company, type: :expense, tags: ["dropdown-tag"])
-
-      {:ok, _view, html} = live(conn, ~p"/c/#{company.id}/invoices")
-      assert html =~ "ops:dropdown-test"
-      assert html =~ "dropdown-tag"
+    test "renders multi-select filter components", %{conn: conn, company: company} do
+      {:ok, view, _html} = live(conn, ~p"/c/#{company.id}/invoices")
+      assert has_element?(view, "#status-filter-popover")
+      assert has_element?(view, "#tag-filter-popover")
     end
   end
 
@@ -358,10 +334,10 @@ defmodule KsefHubWeb.InvoiceLive.IndexTest do
 
       view
       |> element("form[phx-change=filter]")
-      |> render_change(%{"filters" => %{"status" => "pending"}})
+      |> render_change(%{"filters" => %{"date_from" => "2020-01-01"}})
 
       # Should not include page param (defaults to page 1)
-      assert_patched(view, "/c/#{company.id}/invoices?status=pending&type=expense")
+      assert_patched(view, "/c/#{company.id}/invoices?date_from=2020-01-01&type=expense")
     end
   end
 

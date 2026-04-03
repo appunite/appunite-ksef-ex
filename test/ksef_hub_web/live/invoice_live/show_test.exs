@@ -499,7 +499,7 @@ defmodule KsefHubWeb.InvoiceLive.ShowTest do
           company: company,
           prediction_status: :predicted,
           prediction_category_confidence: 0.92,
-          prediction_tag_confidence: 0.85,
+          prediction_tag_confidence: 0.96,
           prediction_predicted_at: ~U[2026-03-11 12:00:00Z]
         )
 
@@ -507,7 +507,7 @@ defmodule KsefHubWeb.InvoiceLive.ShowTest do
       assert has_element?(view, ~s([data-testid="prediction-category-hint"]))
       assert has_element?(view, ~s([data-testid="prediction-tag-hint"]))
       assert render(view) =~ "Predicted with 92.0% probability"
-      assert render(view) =~ "Predicted with 85.0% probability"
+      assert render(view) =~ "Predicted with 96.0% probability"
     end
 
     test "shows low-confidence hint when below threshold", %{conn: conn, company: company} do

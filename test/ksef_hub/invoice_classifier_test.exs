@@ -13,7 +13,7 @@ defmodule KsefHub.InvoiceClassifierTest do
   setup :verify_on_exit!
 
   @category_threshold 0.71
-  @tag_threshold 0.85
+  @tag_threshold 0.95
 
   setup do
     prev_cat = Application.get_env(:ksef_hub, :category_confidence_threshold)
@@ -72,6 +72,35 @@ defmodule KsefHub.InvoiceClassifierTest do
       updated = Invoices.get_invoice_with_details!(company.id, updated.id)
       assert updated.category_id == category.id
       assert "monthly" in updated.tags
+    end
+
+    test "applies multiple tags when several exceed threshold in probabilities", %{
+      company: company
+    } do
+      invoice = insert(:manual_invoice, company: company, type: :expense)
+
+      expect_predictions(
+        category: %{
+          "predicted_label" => "nonexistent:cat",
+          "confidence" => 0.30,
+          "model_version" => "v1.0",
+          "probabilities" => %{"nonexistent:cat" => 0.30}
+        },
+        tag: %{
+          "predicted_label" => "monthly",
+          "confidence" => 0.97,
+          "model_version" => "v1.0",
+          "probabilities" => %{"monthly" => 0.97, "recurring" => 0.96, "one-off" => 0.50}
+        }
+      )
+
+      assert {:ok, updated} = InvoiceClassifier.predict_and_apply(invoice)
+
+      assert updated.prediction_status == :predicted
+      updated = Invoices.get_invoice_with_details!(company.id, updated.id)
+      assert "monthly" in updated.tags
+      assert "recurring" in updated.tags
+      refute "one-off" in updated.tags
     end
 
     test "stores predictions as needs_review when confidence below both thresholds",
@@ -154,9 +183,9 @@ defmodule KsefHub.InvoiceClassifierTest do
         },
         tag: %{
           "predicted_label" => "nonexistent-tag",
-          "confidence" => 0.90,
+          "confidence" => 0.96,
           "model_version" => "v1.0",
-          "probabilities" => %{"nonexistent-tag" => 0.90}
+          "probabilities" => %{"nonexistent-tag" => 0.96}
         }
       )
 
@@ -202,9 +231,9 @@ defmodule KsefHub.InvoiceClassifierTest do
         },
         tag: %{
           "predicted_label" => "monthly",
-          "confidence" => 0.90,
+          "confidence" => 0.96,
           "model_version" => "v1.0",
-          "probabilities" => %{"monthly" => 0.90}
+          "probabilities" => %{"monthly" => 0.96}
         }
       )
 
@@ -252,7 +281,7 @@ defmodule KsefHub.InvoiceClassifierTest do
 
       invoice = insert(:manual_invoice, company: company, type: :expense)
 
-      # 0.80 is above category threshold (0.71) but below tag threshold (0.85)
+      # 0.80 is above category threshold (0.71) but below tag threshold (0.95)
       expect_predictions(
         category: %{
           "predicted_label" => "finance:invoices",
@@ -305,7 +334,7 @@ defmodule KsefHub.InvoiceClassifierTest do
 
       invoice = insert(:manual_invoice, company: company, type: :expense)
 
-      # Exactly at category threshold (0.71) and tag threshold (0.85)
+      # Exactly at category threshold (0.71) and tag threshold (0.95)
       expect_predictions(
         category: %{
           "predicted_label" => "finance:invoices",

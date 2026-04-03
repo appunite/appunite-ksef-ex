@@ -1293,7 +1293,7 @@ defmodule KsefHub.Invoices do
     |> apply_filters(filters)
     |> join(:left, [i], c in Category, on: i.category_id == c.id)
     |> select([i, ..., c], %{
-      category_name: coalesce(c.name, "Uncategorized"),
+      category_name: coalesce(c.name, coalesce(c.identifier, "Uncategorized")),
       emoji: c.emoji,
       billing_date_from: i.billing_date_from,
       billing_date_to: i.billing_date_to,
@@ -2097,6 +2097,15 @@ defmodule KsefHub.Invoices do
       {:status, status}, q when status in [:pending, :approved, :rejected] ->
         where(q, [i], i.status == ^status)
 
+      {:statuses, statuses}, q when is_list(statuses) and statuses != [] ->
+        where(q, [i], i.status in ^statuses)
+
+      {:category_ids, ids}, q when is_list(ids) and ids != [] ->
+        where(q, [i], i.category_id in ^ids)
+
+      {:payment_statuses, ps}, q when is_list(ps) and ps != [] ->
+        apply_payment_status_filter(q, ps)
+
       {:date_from, %Date{} = date}, q ->
         where(q, [i], i.issue_date >= ^date)
 
@@ -2133,6 +2142,61 @@ defmodule KsefHub.Invoices do
       _, q ->
         q
     end)
+  end
+
+  @spec apply_payment_status_filter(Ecto.Queryable.t(), [String.t()]) :: Ecto.Query.t()
+  defp apply_payment_status_filter(query, statuses) do
+    has_paid = "paid" in statuses
+    has_pending = "pending" in statuses
+    has_none = "none" in statuses
+
+    paid_condition =
+      if has_paid,
+        do:
+          dynamic(
+            [i],
+            fragment(
+              "EXISTS (SELECT 1 FROM payment_requests p WHERE p.invoice_id = ? AND p.status = 'paid')",
+              i.id
+            )
+          )
+
+    pending_condition =
+      if has_pending,
+        do:
+          dynamic(
+            [i],
+            fragment(
+              """
+              EXISTS (SELECT 1 FROM payment_requests p WHERE p.invoice_id = ? AND p.status != 'voided')
+              AND NOT EXISTS (SELECT 1 FROM payment_requests p WHERE p.invoice_id = ? AND p.status = 'paid')
+              """,
+              i.id,
+              i.id
+            )
+          )
+
+    none_condition =
+      if has_none,
+        do:
+          dynamic(
+            [i],
+            fragment(
+              "NOT EXISTS (SELECT 1 FROM payment_requests p WHERE p.invoice_id = ? AND p.status != 'voided')",
+              i.id
+            )
+          )
+
+    conditions = Enum.reject([paid_condition, pending_condition, none_condition], &is_nil/1)
+
+    case conditions do
+      [] ->
+        query
+
+      [first | rest] ->
+        combined = Enum.reduce(rest, first, fn cond, acc -> dynamic(^acc or ^cond) end)
+        where(query, ^combined)
+    end
   end
 
   @spec apply_text_search(Ecto.Queryable.t(), String.t()) :: Ecto.Query.t()

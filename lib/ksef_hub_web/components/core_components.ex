@@ -727,135 +727,99 @@ defmodule KsefHubWeb.CoreComponents do
   end
 
   @doc """
-  Renders a removable filter chip/pill showing an active filter.
+  Renders a multi-select checkbox picker (Linear-style).
+
+  Shows a popover with a search input and a scrollable checkbox list. Checking or
+  unchecking an option fires the `on_toggle` event with `field` and `value` params.
 
   ## Examples
 
-      <.filter_chip key="status" label="Status" value="Pending" />
+      <.multi_select
+        id="status-filter"
+        label="Status"
+        options={[{"Pending", "pending"}, {"Approved", "approved"}, {"Rejected", "rejected"}]}
+        selected={@filters[:statuses] || []}
+        on_toggle="toggle_filter"
+        field="statuses"
+      />
   """
-  attr :key, :string, required: true, doc: "phx-value-key for the remove event"
-  attr :label, :string, required: true, doc: "filter label, e.g. \"Status\""
-  attr :value, :string, required: true, doc: "filter value, e.g. \"Pending\""
+  attr :id, :string, required: true, doc: "unique ID for the popover"
+  attr :label, :string, required: true, doc: "button label"
+  attr :options, :list, required: true, doc: "list of {label, value} tuples"
+  attr :selected, :list, default: [], doc: "list of currently selected values"
+  attr :on_toggle, :string, default: "toggle_filter", doc: "event name for check/uncheck"
+  attr :field, :string, required: true, doc: "filter field name sent in event"
+  attr :searchable, :boolean, default: false, doc: "show search input for long lists"
+  attr :open, :boolean, default: false, doc: "whether the popover is currently open"
 
-  @spec filter_chip(map()) :: Phoenix.LiveView.Rendered.t()
-  def filter_chip(assigns) do
+  @spec multi_select(map()) :: Phoenix.LiveView.Rendered.t()
+  def multi_select(assigns) do
+    selected_labels =
+      assigns.options
+      |> Enum.filter(fn {_label, value} -> value in assigns.selected end)
+      |> Enum.map(fn {label, _value} -> label end)
+
+    assigns =
+      assigns
+      |> assign(:count, length(assigns.selected))
+      |> assign(:selected_labels, selected_labels)
+
     ~H"""
-    <span class="inline-flex items-center gap-1 rounded-md border border-border bg-muted px-2 py-0.5 text-xs font-medium text-muted-foreground">
-      {@label}: {@value}
+    <div class="relative">
       <button
         type="button"
-        phx-click="remove_filter"
-        phx-value-key={@key}
-        class="ml-0.5 hover:text-foreground cursor-pointer"
-        aria-label={"Remove #{@label} filter"}
+        phx-click={JS.toggle(to: "##{@id}-popover") |> JS.push("open_filter", value: %{id: @id})}
+        class={[
+          "inline-flex items-center gap-1.5 h-8 px-3 text-xs font-medium rounded-md border transition-colors cursor-pointer max-w-48",
+          if(@count > 0,
+            do:
+              "border-shad-primary/50 bg-shad-primary/10 text-shad-primary hover:bg-shad-primary/20",
+            else:
+              "border-input bg-background text-muted-foreground hover:bg-shad-accent hover:text-shad-accent-foreground"
+          )
+        ]}
       >
-        <.icon name="hero-x-mark" class="size-3" />
+        <span class="truncate">
+          {if @count > 0, do: "#{@label}: #{Enum.join(@selected_labels, ", ")}", else: @label}
+        </span>
+        <.icon name="hero-chevron-down" class="size-3 opacity-50 shrink-0" />
       </button>
-    </span>
-    """
-  end
-
-  @doc """
-  Renders a filter toolbar with a "Filters N" popover button and optional search input.
-
-  Filter fields are rendered inside a JS-toggled popover via the `:filter_fields` slot.
-  The parent LiveView should wrap this component in a `<.form>` with `phx-change="filter"`.
-  The popover stays open across LiveView patches so users can tweak multiple filters
-  and see results update in real-time. Click away or use the toggle button to close.
-
-  ## Examples
-
-      <.form for={@form} phx-change="filter" class="contents">
-        <.filter_bar
-          active_filters={@active_filters}
-          filter_count={@filter_count}
-          search_name={@form[:query].name}
-          search_value={@form[:query].value}
-        >
-          <:filter_fields>
-            <!-- filter selects here -->
-          </:filter_fields>
-        </.filter_bar>
-      </.form>
-  """
-  attr :active_filters, :list,
-    default: [],
-    doc: "list of %{key, label, value} for active filter chips"
-
-  attr :filter_count, :integer, default: 0, doc: "number of active filters"
-  attr :search_name, :string, default: nil, doc: "form field name for search input; nil hides it"
-  attr :search_value, :string, default: "", doc: "current search value"
-  attr :search_placeholder, :string, default: "Search..."
-
-  slot :filter_fields, required: true, doc: "rendered inside the popover"
-
-  @spec filter_bar(map()) :: Phoenix.LiveView.Rendered.t()
-  def filter_bar(assigns) do
-    ~H"""
-    <div class="space-y-2 mt-4 mb-6">
-      <div class="flex items-center gap-3">
-        <%!-- Filters popover --%>
-        <div class="relative">
-          <button
-            type="button"
-            phx-click={JS.toggle(to: "#filter-popover")}
-            class="inline-flex items-center gap-2 h-9 px-4 text-sm font-medium rounded-md border border-input bg-background hover:bg-shad-accent hover:text-shad-accent-foreground transition-colors cursor-pointer"
-          >
-            <.icon name="hero-funnel" class="size-4" /> Filters
-            <span
-              :if={@filter_count > 0}
-              class="inline-flex items-center justify-center size-5 rounded-full bg-shad-primary text-shad-primary-foreground text-xs font-medium"
-            >
-              {@filter_count}
-            </span>
-          </button>
+      <div
+        id={"#{@id}-popover"}
+        class={[
+          "absolute left-0 top-full z-20 mt-1 w-56 rounded-md border border-border bg-background shadow-md",
+          !@open && "hidden"
+        ]}
+        phx-click-away={JS.hide(to: "##{@id}-popover") |> JS.push("close_filter")}
+      >
+        <div :if={@searchable} class="p-2 border-b border-border">
+          <input
+            type="text"
+            placeholder="Search..."
+            id={"#{@id}-search"}
+            aria-label={"Filter #{@label} options"}
+            phx-hook="MultiSelectSearch"
+            data-list={"#{@id}-list"}
+            class="w-full h-7 rounded-md border border-input bg-background px-2 text-xs focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+          />
+        </div>
+        <div id={"#{@id}-list"} class="max-h-48 overflow-y-auto p-1">
           <div
-            id="filter-popover"
-            class="hidden absolute left-0 top-full z-10 mt-1 w-72 rounded-md border border-border bg-background p-4 shadow-md"
-            phx-click-away={JS.hide(to: "#filter-popover")}
+            :for={{label, value} <- @options}
+            phx-click={@on_toggle}
+            phx-value-field={@field}
+            phx-value-value={value}
+            class="flex items-center gap-2 px-2 py-1.5 rounded-sm text-sm cursor-pointer hover:bg-shad-accent"
+            data-label={String.downcase(label)}
           >
-            <div class="space-y-3">
-              {render_slot(@filter_fields)}
-            </div>
-            <div class="mt-3 pt-3 border-t border-border">
-              <button
-                type="button"
-                phx-click={JS.push("clear_filters") |> JS.hide(to: "#filter-popover")}
-                class="inline-flex items-center justify-center h-9 px-3 text-sm font-medium rounded-md hover:bg-shad-accent hover:text-shad-accent-foreground transition-colors cursor-pointer w-full"
-              >
-                Clear all filters
-              </button>
-            </div>
-          </div>
-        </div>
-
-        <%!-- Search input --%>
-        <div :if={@search_name} class="ml-auto w-72">
-          <div class="relative">
-            <.icon
-              name="hero-magnifying-glass"
-              class="absolute left-2.5 top-2.5 size-4 text-muted-foreground"
-            />
             <input
-              type="text"
-              name={@search_name}
-              value={@search_value}
-              placeholder={@search_placeholder}
-              phx-debounce="300"
-              class="w-full h-9 rounded-md border border-input bg-background pl-8 pr-3 text-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+              type="checkbox"
+              checked={value in @selected}
+              class="rounded border-input pointer-events-none"
             />
+            <span class="truncate">{label}</span>
           </div>
         </div>
-      </div>
-
-      <%!-- Active filter chips --%>
-      <div :if={@active_filters != []} class="flex flex-wrap gap-1.5">
-        <.filter_chip
-          :for={filter <- @active_filters}
-          key={filter.key}
-          label={filter.label}
-          value={filter.value}
-        />
       </div>
     </div>
     """

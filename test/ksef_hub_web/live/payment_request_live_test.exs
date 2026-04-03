@@ -48,7 +48,7 @@ defmodule KsefHubWeb.PaymentRequestLiveTest do
         recipient_name: "Paid Co"
       )
 
-      {:ok, view, _html} = live(conn, ~p"/c/#{company.id}/payment-requests?status=paid")
+      {:ok, view, _html} = live(conn, ~p"/c/#{company.id}/payment-requests?statuses=paid")
       assert has_element?(view, "td", "Paid Co")
       refute has_element?(view, "td", "Pending Co")
     end

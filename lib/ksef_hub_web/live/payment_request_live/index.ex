@@ -11,11 +11,13 @@ defmodule KsefHubWeb.PaymentRequestLive.Index do
   import KsefHubWeb.InvoiceComponents,
     only: [format_amount: 1, local_datetime: 1]
 
+  import KsefHubWeb.FilterHelpers
+
   @impl true
   @doc "Assigns page title on mount."
   @spec mount(map(), map(), Phoenix.LiveView.Socket.t()) :: {:ok, Phoenix.LiveView.Socket.t()}
   def mount(_params, _session, socket) do
-    {:ok, assign(socket, page_title: "Payment Requests")}
+    {:ok, assign(socket, page_title: "Payment Requests", open_filter: nil)}
   end
 
   @impl true
@@ -38,11 +40,18 @@ defmodule KsefHubWeb.PaymentRequestLive.Index do
     form = build_filters_form(filters)
     can_manage = Authorization.can?(role, :manage_payment_requests)
 
+    filter_count =
+      length(filters[:statuses] || []) +
+        if(filters[:date_from], do: 1, else: 0) +
+        if(filters[:date_to], do: 1, else: 0) +
+        if(filters[:query] && String.trim(filters[:query]) != "", do: 1, else: 0)
+
     {:noreply,
      assign(socket,
        payment_requests: result.entries,
        filters: filters,
        form: form,
+       filter_count: filter_count,
        page: result.page,
        per_page: result.per_page,
        total_count: result.total_count,
@@ -57,15 +66,25 @@ defmodule KsefHubWeb.PaymentRequestLive.Index do
   @spec handle_event(String.t(), map(), Phoenix.LiveView.Socket.t()) ::
           {:noreply, Phoenix.LiveView.Socket.t()}
   def handle_event("filter", %{"filters" => params}, socket) do
-    query_params =
-      %{}
-      |> maybe_put("status", params["status"])
-      |> maybe_put("date_from", params["date_from"])
-      |> maybe_put("date_to", params["date_to"])
-      |> maybe_put("query", params["query"])
-
+    query_params = build_query_params(socket.assigns.filters, params)
     company_id = socket.assigns.current_company.id
     {:noreply, push_patch(socket, to: ~p"/c/#{company_id}/payment-requests?#{query_params}")}
+  end
+
+  def handle_event("toggle_filter", %{"field" => field, "value" => value}, socket) do
+    filters = toggle_filter_value(socket.assigns.filters, field, value)
+    query_params = build_query_params(filters, %{})
+    company_id = socket.assigns.current_company.id
+    {:noreply, push_patch(socket, to: ~p"/c/#{company_id}/payment-requests?#{query_params}")}
+  end
+
+  def handle_event("open_filter", %{"id" => id}, socket) do
+    current = socket.assigns.open_filter
+    {:noreply, assign(socket, :open_filter, if(current == id, do: nil, else: id))}
+  end
+
+  def handle_event("close_filter", _params, socket) do
+    {:noreply, assign(socket, :open_filter, nil)}
   end
 
   def handle_event("clear_filters", _params, socket) do
@@ -158,7 +177,10 @@ defmodule KsefHubWeb.PaymentRequestLive.Index do
   @spec parse_filters(map()) :: map()
   defp parse_filters(params) do
     %{}
-    |> maybe_put_enum(:status, params["status"], PaymentRequest, :status)
+    |> maybe_put_csv(:statuses, params["statuses"],
+      valid: ~w(pending paid voided),
+      transform: &String.to_existing_atom/1
+    )
     |> maybe_put_date(:date_from, params["date_from"])
     |> maybe_put_date(:date_to, params["date_to"])
     |> maybe_put_search(:query, params["query"])
@@ -168,7 +190,6 @@ defmodule KsefHubWeb.PaymentRequestLive.Index do
   @spec build_filters_form(map()) :: Phoenix.HTML.Form.t()
   defp build_filters_form(filters) do
     %{
-      "status" => to_string_or_empty(filters[:status]),
       "date_from" => (filters[:date_from] && Date.to_iso8601(filters[:date_from])) || "",
       "date_to" => (filters[:date_to] && Date.to_iso8601(filters[:date_to])) || "",
       "query" => filters[:query] || ""
@@ -176,64 +197,19 @@ defmodule KsefHubWeb.PaymentRequestLive.Index do
     |> to_form(as: :filters)
   end
 
+  @spec build_query_params(map(), map()) :: map()
+  defp build_query_params(filters, form_params) do
+    %{}
+    |> maybe_put("statuses", join_list(filters[:statuses]))
+    |> maybe_put("date_from", form_params["date_from"] || date_to_string(filters[:date_from]))
+    |> maybe_put("date_to", form_params["date_to"] || date_to_string(filters[:date_to]))
+    |> maybe_put("query", form_params["query"] || filters[:query])
+  end
+
   @spec filter_params_without_page(map()) :: map()
   defp filter_params_without_page(filters) do
-    %{}
-    |> maybe_put("status", to_string_or_empty(filters[:status]))
-    |> maybe_put("date_from", filters[:date_from] && Date.to_iso8601(filters[:date_from]))
-    |> maybe_put("date_to", filters[:date_to] && Date.to_iso8601(filters[:date_to]))
-    |> maybe_put("query", filters[:query])
+    build_query_params(filters, %{})
   end
-
-  @spec maybe_put_enum(map(), atom(), String.t() | nil, module(), atom()) :: map()
-  defp maybe_put_enum(map, _key, nil, _schema, _field), do: map
-  defp maybe_put_enum(map, _key, "", _schema, _field), do: map
-
-  defp maybe_put_enum(map, key, value, schema, field) do
-    type = schema.__schema__(:type, field)
-
-    case Ecto.Type.cast(type, value) do
-      {:ok, atom} -> Map.put(map, key, atom)
-      :error -> map
-    end
-  end
-
-  @spec maybe_put_date(map(), atom(), String.t() | nil) :: map()
-  defp maybe_put_date(map, _key, nil), do: map
-  defp maybe_put_date(map, _key, ""), do: map
-
-  defp maybe_put_date(map, key, value) do
-    case Date.from_iso8601(value) do
-      {:ok, date} -> Map.put(map, key, date)
-      _ -> map
-    end
-  end
-
-  @spec maybe_put_search(map(), atom(), String.t() | nil) :: map()
-  defp maybe_put_search(map, _key, nil), do: map
-  defp maybe_put_search(map, _key, ""), do: map
-  defp maybe_put_search(map, key, value), do: Map.put(map, key, value)
-
-  @spec maybe_put_page(map(), atom(), String.t() | nil) :: map()
-  defp maybe_put_page(map, _key, nil), do: map
-  defp maybe_put_page(map, _key, ""), do: map
-
-  defp maybe_put_page(map, key, value) do
-    case Integer.parse(value) do
-      {int, ""} when int > 0 -> Map.put(map, key, int)
-      _ -> map
-    end
-  end
-
-  @spec maybe_put(map(), String.t(), String.t() | nil) :: map()
-  defp maybe_put(map, _key, nil), do: map
-  defp maybe_put(map, _key, ""), do: map
-  defp maybe_put(map, key, value), do: Map.put(map, key, value)
-
-  @spec to_string_or_empty(atom() | String.t() | nil) :: String.t()
-  defp to_string_or_empty(nil), do: ""
-  defp to_string_or_empty(value) when is_atom(value), do: Atom.to_string(value)
-  defp to_string_or_empty(value) when is_binary(value), do: value
 
   @spec selected_totals_text([PaymentRequest.t()], MapSet.t()) :: String.t()
   defp selected_totals_text(payment_requests, selected_ids) do
@@ -271,50 +247,64 @@ defmodule KsefHubWeb.PaymentRequestLive.Index do
       </:actions>
     </.header>
 
-    <.form for={@form} phx-change="filter" class="contents">
-      <.filter_bar
-        active_filters={[]}
-        filter_count={0}
-        search_name={@form[:query].name}
-        search_value={@form[:query].value}
-        search_placeholder="Recipient, title, IBAN..."
-      >
-        <:filter_fields>
-          <div class="space-y-1">
-            <label class="block text-xs font-medium text-muted-foreground">Status</label>
-            <select
-              name={@form[:status].name}
-              class="w-full h-9 rounded-md border border-input bg-background px-2 text-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
-            >
-              <option value="">All</option>
-              <option value="pending" selected={@form[:status].value == "pending"}>Pending</option>
-              <option value="paid" selected={@form[:status].value == "paid"}>Paid</option>
-              <option value="voided" selected={@form[:status].value == "voided"}>Voided</option>
-            </select>
-          </div>
+    <div class="space-y-2 mt-4 mb-6">
+      <div class="flex items-center gap-2 flex-wrap">
+        <.multi_select
+          id="status-filter"
+          label="Status"
+          field="statuses"
+          options={[{"Pending", "pending"}, {"Paid", "paid"}, {"Voided", "voided"}]}
+          selected={Enum.map(@filters[:statuses] || [], &to_string/1)}
+          open={@open_filter == "status-filter"}
+        />
 
-          <div class="space-y-1">
-            <label class="block text-xs font-medium text-muted-foreground">From</label>
-            <input
-              type="date"
-              name={@form[:date_from].name}
-              value={@form[:date_from].value}
-              class="w-full h-9 rounded-md border border-input bg-background px-3 text-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
-            />
-          </div>
+        <.form for={@form} id="pr-date-search-form" phx-change="filter" class="contents">
+          <input
+            type="date"
+            name={@form[:date_from].name}
+            value={@form[:date_from].value}
+            placeholder="From"
+            phx-debounce="300"
+            class="h-8 rounded-md border border-input bg-background px-2 text-xs focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+          />
+          <span class="text-xs text-muted-foreground">&ndash;</span>
+          <input
+            type="date"
+            name={@form[:date_to].name}
+            value={@form[:date_to].value}
+            placeholder="To"
+            phx-debounce="300"
+            class="h-8 rounded-md border border-input bg-background px-2 text-xs focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+          />
 
-          <div class="space-y-1">
-            <label class="block text-xs font-medium text-muted-foreground">To</label>
-            <input
-              type="date"
-              name={@form[:date_to].name}
-              value={@form[:date_to].value}
-              class="w-full h-9 rounded-md border border-input bg-background px-3 text-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
-            />
+          <button
+            :if={@filter_count > 0}
+            type="button"
+            phx-click="clear_filters"
+            class="text-xs text-muted-foreground hover:text-foreground cursor-pointer"
+          >
+            Reset
+          </button>
+
+          <div class="ml-auto w-64">
+            <div class="relative">
+              <.icon
+                name="hero-magnifying-glass"
+                class="absolute left-2.5 top-2 size-4 text-muted-foreground"
+              />
+              <input
+                type="text"
+                name={@form[:query].name}
+                value={@form[:query].value}
+                placeholder="Recipient, title, IBAN..."
+                phx-debounce="300"
+                class="w-full h-8 rounded-md border border-input bg-background pl-8 pr-3 text-xs focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+              />
+            </div>
           </div>
-        </:filter_fields>
-      </.filter_bar>
-    </.form>
+        </.form>
+      </div>
+    </div>
 
     <!-- Bulk actions bar -->
     <div
