@@ -113,7 +113,7 @@ defmodule KsefHubWeb.FilterHelpers do
   @spec toggle_filter_value(map(), String.t(), String.t()) :: map()
   def toggle_filter_value(filters, field, value) do
     key = Enum.find(@allowed_filter_fields, fn k -> Atom.to_string(k) == field end)
-    if is_nil(key), do: throw({:invalid_filter_field, field})
+    if is_nil(key), do: raise("Invalid filter field: #{inspect(field)}")
     current = Enum.map(Map.get(filters, key, []), &to_string/1)
 
     updated =

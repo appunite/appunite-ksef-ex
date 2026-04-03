@@ -207,8 +207,11 @@ defmodule KsefHub.InvoiceClassifier do
   @spec apply_tag_safely(Invoice.t(), String.t()) :: boolean()
   defp apply_tag_safely(invoice, tag_name) do
     {:ok, updated} = Invoices.add_invoice_tag(invoice, tag_name)
-    # Tag was applied if it's now present on the invoice
     tag_name in (updated.tags || [])
+  rescue
+    e ->
+      Logger.warning("Failed to apply predicted tag: #{Exception.message(e)}")
+      false
   end
 
   @spec find_category_by_identifier(Ecto.UUID.t(), String.t() | nil) :: Category.t() | nil
