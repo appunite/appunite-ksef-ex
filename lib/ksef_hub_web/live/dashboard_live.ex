@@ -6,6 +6,7 @@ defmodule KsefHubWeb.DashboardLive do
   use KsefHubWeb, :live_view
 
   import KsefHubWeb.InvoiceComponents, only: [format_datetime: 1, format_date: 1]
+  import KsefHubWeb.FilterHelpers
 
   alias KsefHub.Authorization
   alias KsefHub.Credentials
@@ -63,17 +64,29 @@ defmodule KsefHubWeb.DashboardLive do
   @spec handle_event(String.t(), map(), Phoenix.LiveView.Socket.t()) ::
           {:noreply, Phoenix.LiveView.Socket.t()}
   def handle_event("filter", %{"filters" => params}, socket) do
-    query_params =
-      %{}
-      |> put_non_empty("billing_date_from", params["billing_date_from"])
-      |> put_non_empty("billing_date_to", params["billing_date_to"])
-      |> put_non_empty("category_id", params["category_id"])
-      |> put_non_empty("tag", params["tag"])
-
+    query_params = build_query_params(socket.assigns.filters, params)
     company_id = socket.assigns.current_company.id
 
     {:noreply,
      push_patch(socket, to: ~p"/c/#{company_id}/dashboard?#{query_params}", replace: true)}
+  end
+
+  def handle_event("toggle_filter", %{"field" => field, "value" => value}, socket) do
+    filters = toggle_filter_value(socket.assigns.filters, field, value)
+    query_params = build_query_params(filters, %{})
+    company_id = socket.assigns.current_company.id
+
+    {:noreply,
+     push_patch(socket, to: ~p"/c/#{company_id}/dashboard?#{query_params}", replace: true)}
+  end
+
+  def handle_event("open_filter", %{"id" => id}, socket) do
+    current = socket.assigns.open_filter
+    {:noreply, assign(socket, :open_filter, if(current == id, do: nil, else: id))}
+  end
+
+  def handle_event("close_filter", _params, socket) do
+    {:noreply, assign(socket, :open_filter, nil)}
   end
 
   def handle_event("clear_filters", _params, socket) do
@@ -81,24 +94,13 @@ defmodule KsefHubWeb.DashboardLive do
     {:noreply, push_patch(socket, to: ~p"/c/#{company_id}/dashboard", replace: true)}
   end
 
-  def handle_event("remove_filter", %{"key" => key}, socket) do
-    query_params =
-      filter_query_params(socket.assigns.filters)
-      |> Map.delete(key)
-
-    company_id = socket.assigns.current_company.id
-
-    {:noreply,
-     push_patch(socket, to: ~p"/c/#{company_id}/dashboard?#{query_params}", replace: true)}
-  end
-
   @spec assign_defaults(Phoenix.LiveView.Socket.t()) :: Phoenix.LiveView.Socket.t()
   defp assign_defaults(socket) do
     assign(socket,
       filters: %{},
       form: build_filters_form(%{}),
-      active_filters: [],
       filter_count: 0,
+      open_filter: nil,
       categories: [],
       tags: [],
       expense_monthly: [],
@@ -109,14 +111,16 @@ defmodule KsefHubWeb.DashboardLive do
 
   @spec assign_filter_state(Phoenix.LiveView.Socket.t(), map()) :: Phoenix.LiveView.Socket.t()
   defp assign_filter_state(socket, filters) do
-    categories = socket.assigns[:categories] || []
-    active_filters = build_active_filters(filters, categories)
+    filter_count =
+      length(filters[:category_ids] || []) +
+        length(filters[:tags] || []) +
+        if(filters[:billing_date_from], do: 1, else: 0) +
+        if(filters[:billing_date_to], do: 1, else: 0)
 
     assign(socket,
       filters: filters,
       form: build_filters_form(filters),
-      active_filters: active_filters,
-      filter_count: length(active_filters)
+      filter_count: filter_count
     )
   end
 
@@ -126,43 +130,10 @@ defmodule KsefHubWeb.DashboardLive do
       "billing_date_from" =>
         (filters[:billing_date_from] && Date.to_iso8601(filters[:billing_date_from])) || "",
       "billing_date_to" =>
-        (filters[:billing_date_to] && Date.to_iso8601(filters[:billing_date_to])) || "",
-      "category_id" => filters[:category_id] || "",
-      "tag" => first_tag(filters) || ""
+        (filters[:billing_date_to] && Date.to_iso8601(filters[:billing_date_to])) || ""
     }
     |> to_form(as: :filters)
   end
-
-  @spec build_active_filters(map(), list()) :: [map()]
-  defp build_active_filters(filters, categories) do
-    []
-    |> maybe_add_chip(filters[:category_id], "category_id", "Category", fn id ->
-      case Enum.find(categories, &(&1.id == id)) do
-        nil -> id
-        cat -> cat.name || cat.identifier
-      end
-    end)
-    |> maybe_add_chip(first_tag(filters), "tag", "Tag", & &1)
-    |> maybe_add_chip(
-      filters[:billing_date_from],
-      "billing_date_from",
-      "From",
-      &Date.to_iso8601/1
-    )
-    |> maybe_add_chip(filters[:billing_date_to], "billing_date_to", "To", &Date.to_iso8601/1)
-    |> Enum.reverse()
-  end
-
-  @spec maybe_add_chip(list(), any(), String.t(), String.t(), (any() -> String.t())) :: list()
-  defp maybe_add_chip(acc, nil, _key, _label, _formatter), do: acc
-
-  defp maybe_add_chip(acc, value, key, label, formatter) do
-    [%{key: key, label: label, value: formatter.(value)} | acc]
-  end
-
-  @spec first_tag(map()) :: String.t() | nil
-  defp first_tag(%{tags: [tag | _]}), do: tag
-  defp first_tag(_), do: nil
 
   @spec load_data(Phoenix.LiveView.Socket.t()) :: Phoenix.LiveView.Socket.t()
   defp load_data(socket) do
@@ -293,52 +264,28 @@ defmodule KsefHubWeb.DashboardLive do
   @spec parse_filters(map()) :: map()
   defp parse_filters(params) do
     %{}
-    |> maybe_parse_date(:billing_date_from, params["billing_date_from"])
-    |> maybe_parse_date(:billing_date_to, params["billing_date_to"])
-    |> maybe_parse_string(:category_id, params["category_id"])
-    |> maybe_parse_tag(params["tag"])
+    |> maybe_put_date(:billing_date_from, params["billing_date_from"])
+    |> maybe_put_date(:billing_date_to, params["billing_date_to"])
+    |> maybe_put_csv(:category_ids, params["category_ids"],
+      validate: fn id -> match?({:ok, _}, Ecto.UUID.cast(id)) end
+    )
+    |> maybe_put_csv(:tags, params["tags"])
   end
 
-  @spec maybe_parse_date(map(), atom(), String.t() | nil) :: map()
-  defp maybe_parse_date(filters, _key, nil), do: filters
-  defp maybe_parse_date(filters, _key, ""), do: filters
-
-  defp maybe_parse_date(filters, key, value) do
-    case Date.from_iso8601(value) do
-      {:ok, date} -> Map.put(filters, key, date)
-      _ -> filters
-    end
-  end
-
-  @spec maybe_parse_string(map(), atom(), String.t() | nil) :: map()
-  defp maybe_parse_string(filters, _key, nil), do: filters
-  defp maybe_parse_string(filters, _key, ""), do: filters
-  defp maybe_parse_string(filters, key, value), do: Map.put(filters, key, value)
-
-  @spec maybe_parse_tag(map(), String.t() | nil) :: map()
-  defp maybe_parse_tag(filters, nil), do: filters
-  defp maybe_parse_tag(filters, ""), do: filters
-  defp maybe_parse_tag(filters, tag), do: Map.put(filters, :tags, [tag])
-
-  @spec filter_query_params(map()) :: map()
-  defp filter_query_params(filters) do
+  @spec build_query_params(map(), map()) :: map()
+  defp build_query_params(filters, form_params) do
     %{}
-    |> put_non_empty(
+    |> maybe_put(
       "billing_date_from",
-      filters[:billing_date_from] && Date.to_iso8601(filters[:billing_date_from])
+      form_params["billing_date_from"] || date_to_string(filters[:billing_date_from])
     )
-    |> put_non_empty(
+    |> maybe_put(
       "billing_date_to",
-      filters[:billing_date_to] && Date.to_iso8601(filters[:billing_date_to])
+      form_params["billing_date_to"] || date_to_string(filters[:billing_date_to])
     )
-    |> put_non_empty("category_id", filters[:category_id])
-    |> put_non_empty("tag", first_tag(filters))
+    |> maybe_put("category_ids", join_list(filters[:category_ids]))
+    |> maybe_put("tags", join_list(filters[:tags]))
   end
-
-  @spec put_non_empty(map(), String.t(), String.t() | nil) :: map()
-  defp put_non_empty(map, _key, nil), do: map
-  defp put_non_empty(map, _key, ""), do: map
-  defp put_non_empty(map, key, value), do: Map.put(map, key, value)
 
   @spec count_type(map(), atom()) :: non_neg_integer()
   defp count_type(counts, type) do
@@ -384,67 +331,58 @@ defmodule KsefHubWeb.DashboardLive do
     </div>
 
     <!-- Filters -->
-    <.form :if={@current_company} for={@form} phx-change="filter" class="contents">
-      <.filter_bar active_filters={@active_filters} filter_count={@filter_count}>
-        <:filter_fields>
-          <div class="space-y-1">
-            <label class="block text-xs font-medium text-muted-foreground">Category</label>
-            <select
-              name={@form[:category_id].name}
-              class="w-full h-9 rounded-md border border-input bg-background px-2 text-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
-            >
-              <option value="">All</option>
-              <option
-                :for={cat <- @categories}
-                value={cat.id}
-                selected={@form[:category_id].value == cat.id}
-              >
-                {if(cat.emoji, do: "#{cat.emoji} ", else: "")}{cat.name || cat.identifier}
-              </option>
-            </select>
-          </div>
+    <div :if={@current_company} class="space-y-2 mt-4 mb-6">
+      <div class="flex items-center gap-2 flex-wrap">
+        <.multi_select
+          id="category-filter"
+          label="Category"
+          field="category_ids"
+          options={Enum.map(@categories, &{category_label(&1), &1.id})}
+          selected={@filters[:category_ids] || []}
+          searchable={length(@categories) > 6}
+          open={@open_filter == "category-filter"}
+        />
+        <.multi_select
+          :if={@tags != []}
+          id="tag-filter"
+          label="Tag"
+          field="tags"
+          options={Enum.map(@tags, &{&1, &1})}
+          selected={@filters[:tags] || []}
+          searchable={length(@tags) > 6}
+          open={@open_filter == "tag-filter"}
+        />
 
-          <div :if={@tags != []} class="space-y-1">
-            <label class="block text-xs font-medium text-muted-foreground">Tag</label>
-            <select
-              name={@form[:tag].name}
-              class="w-full h-9 rounded-md border border-input bg-background px-2 text-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
-            >
-              <option value="">All</option>
-              <option
-                :for={tag <- @tags}
-                value={tag}
-                selected={@form[:tag].value == tag}
-              >
-                {tag}
-              </option>
-            </select>
-          </div>
+        <.form for={@form} id="dashboard-date-form" phx-change="filter" class="contents">
+          <input
+            type="date"
+            name={@form[:billing_date_from].name}
+            value={@form[:billing_date_from].value}
+            placeholder="From"
+            phx-debounce="300"
+            class="h-8 rounded-md border border-input bg-background px-2 text-xs focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+          />
+          <span class="text-xs text-muted-foreground">&ndash;</span>
+          <input
+            type="date"
+            name={@form[:billing_date_to].name}
+            value={@form[:billing_date_to].value}
+            placeholder="To"
+            phx-debounce="300"
+            class="h-8 rounded-md border border-input bg-background px-2 text-xs focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+          />
+        </.form>
 
-          <div class="space-y-1">
-            <label class="block text-xs font-medium text-muted-foreground">From</label>
-            <input
-              type="date"
-              name={@form[:billing_date_from].name}
-              value={@form[:billing_date_from].value}
-              phx-debounce="blur"
-              class="w-full h-9 rounded-md border border-input bg-background px-3 text-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
-            />
-          </div>
-
-          <div class="space-y-1">
-            <label class="block text-xs font-medium text-muted-foreground">To</label>
-            <input
-              type="date"
-              name={@form[:billing_date_to].name}
-              value={@form[:billing_date_to].value}
-              phx-debounce="blur"
-              class="w-full h-9 rounded-md border border-input bg-background px-3 text-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
-            />
-          </div>
-        </:filter_fields>
-      </.filter_bar>
-    </.form>
+        <button
+          :if={@filter_count > 0}
+          type="button"
+          phx-click="clear_filters"
+          class="text-xs text-muted-foreground hover:text-foreground cursor-pointer"
+        >
+          Reset
+        </button>
+      </div>
+    </div>
 
     <!-- Charts -->
     <div :if={@current_company} class="grid grid-cols-1 lg:grid-cols-2 gap-6 mt-6">
