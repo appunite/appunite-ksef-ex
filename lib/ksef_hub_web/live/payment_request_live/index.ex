@@ -43,7 +43,8 @@ defmodule KsefHubWeb.PaymentRequestLive.Index do
     filter_count =
       length(filters[:statuses] || []) +
         if(filters[:date_from], do: 1, else: 0) +
-        if(filters[:date_to], do: 1, else: 0)
+        if(filters[:date_to], do: 1, else: 0) +
+        if(filters[:query] && String.trim(filters[:query]) != "", do: 1, else: 0)
 
     {:noreply,
      assign(socket,

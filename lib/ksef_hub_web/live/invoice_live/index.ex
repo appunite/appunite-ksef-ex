@@ -91,7 +91,8 @@ defmodule KsefHubWeb.InvoiceLive.Index do
         length(filters[:tags] || []) +
         length(filters[:payment_statuses] || []) +
         if(filters[:date_from], do: 1, else: 0) +
-        if(filters[:date_to], do: 1, else: 0)
+        if(filters[:date_to], do: 1, else: 0) +
+        if(filters[:query] && String.trim(filters[:query]) != "", do: 1, else: 0)
 
     [
       invoices: result.entries,
@@ -157,7 +158,7 @@ defmodule KsefHubWeb.InvoiceLive.Index do
     |> maybe_put("date_to", form_params["date_to"] || date_to_string(filters[:date_to]))
     |> maybe_put("query", form_params["query"] || filters[:query])
     |> maybe_put("category_ids", join_list(filters[:category_ids]))
-    |> maybe_put("tags", join_list(filters[:tags]))
+    |> maybe_put_list("tags[]", filters[:tags])
     |> maybe_put("payment_statuses", join_list(filters[:payment_statuses]))
   end
 
@@ -196,6 +197,8 @@ defmodule KsefHubWeb.InvoiceLive.Index do
 
   @spec parse_filters(map()) :: map()
   defp parse_filters(params) do
+    is_income = params["type"] == "income"
+
     %{}
     |> maybe_put_enum(:type, params["type"], Invoice, :type)
     |> maybe_put_csv(:statuses, params["statuses"],
@@ -205,11 +208,20 @@ defmodule KsefHubWeb.InvoiceLive.Index do
     |> maybe_put_date(:date_from, params["date_from"])
     |> maybe_put_date(:date_to, params["date_to"])
     |> maybe_put_search(:query, params["query"])
-    |> maybe_put_csv(:category_ids, params["category_ids"],
-      validate: fn id -> match?({:ok, _}, Ecto.UUID.cast(id)) end
-    )
-    |> maybe_put_csv(:tags, params["tags"])
-    |> maybe_put_csv(:payment_statuses, params["payment_statuses"], valid: ~w(paid pending none))
+    |> then(fn map ->
+      if is_income do
+        map
+      else
+        map
+        |> maybe_put_csv(:category_ids, params["category_ids"],
+          validate: fn id -> match?({:ok, _}, Ecto.UUID.cast(id)) end
+        )
+        |> maybe_put_csv(:payment_statuses, params["payment_statuses"],
+          valid: ~w(paid pending none)
+        )
+      end
+    end)
+    |> maybe_put_tags(:tags, params["tags[]"] || params["tags"])
     |> maybe_put_page(:page, params["page"])
   end
 

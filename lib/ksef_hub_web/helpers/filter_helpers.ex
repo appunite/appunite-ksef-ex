@@ -108,9 +108,12 @@ defmodule KsefHubWeb.FilterHelpers do
   Returns the updated filters map with the value added or removed from the list at `key`.
   Normalizes existing values to strings for comparison.
   """
+  @allowed_filter_fields ~w(statuses category_ids tags payment_statuses)a
+
   @spec toggle_filter_value(map(), String.t(), String.t()) :: map()
   def toggle_filter_value(filters, field, value) do
-    key = String.to_existing_atom(field)
+    key = Enum.find(@allowed_filter_fields, fn k -> Atom.to_string(k) == field end)
+    if is_nil(key), do: throw({:invalid_filter_field, field})
     current = Enum.map(Map.get(filters, key, []), &to_string/1)
 
     updated =
@@ -126,6 +129,24 @@ defmodule KsefHubWeb.FilterHelpers do
   def to_string_or_empty(nil), do: ""
   def to_string_or_empty(value) when is_atom(value), do: Atom.to_string(value)
   def to_string_or_empty(value) when is_binary(value), do: value
+
+  @doc "Parses tags from a list param or CSV fallback into the map."
+  @spec maybe_put_tags(map(), atom(), list() | String.t() | nil) :: map()
+  def maybe_put_tags(map, _key, nil), do: map
+  def maybe_put_tags(map, _key, []), do: map
+  def maybe_put_tags(map, key, tags) when is_list(tags), do: Map.put(map, key, tags)
+  def maybe_put_tags(map, _key, ""), do: map
+
+  def maybe_put_tags(map, key, value) when is_binary(value) do
+    tags = String.split(value, ",", trim: true)
+    if tags == [], do: map, else: Map.put(map, key, tags)
+  end
+
+  @doc "Puts a list as repeated query params, returns map unchanged for nil or empty list."
+  @spec maybe_put_list(map(), String.t(), list() | nil) :: map()
+  def maybe_put_list(map, _key, nil), do: map
+  def maybe_put_list(map, _key, []), do: map
+  def maybe_put_list(map, key, list), do: Map.put(map, key, list)
 
   @doc "Joins a list into a comma-separated string, returns nil for nil or empty list."
   @spec join_list(list() | nil) :: String.t() | nil

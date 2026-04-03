@@ -797,6 +797,7 @@ defmodule KsefHubWeb.CoreComponents do
             type="text"
             placeholder="Search..."
             id={"#{@id}-search"}
+            aria-label={"Filter #{@label} options"}
             phx-hook="MultiSelectSearch"
             data-list={"#{@id}-list"}
             class="w-full h-7 rounded-md border border-input bg-background px-2 text-xs focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"

@@ -147,7 +147,7 @@ const MultiSelectSearch = {
     const list = document.getElementById(this.el.dataset.list)
     this.el.addEventListener("input", () => {
       const query = this.el.value.toLowerCase()
-      list.querySelectorAll("label[data-label]").forEach(label => {
+      list.querySelectorAll("[data-label]").forEach(label => {
         label.style.display = label.dataset.label.includes(query) ? "" : "none"
       })
     })
