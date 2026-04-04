@@ -14,7 +14,16 @@ defmodule KsefHub.Invoices do
   alias KsefHub.Files
   alias KsefHub.InvoiceClassifier.Worker, as: ClassifierWorker
   alias KsefHub.InvoiceExtractor.ContextBuilder
-  alias KsefHub.Invoices.{Category, Invoice, InvoiceAccessGrant, InvoiceComment, PurchaseOrder}
+
+  alias KsefHub.Invoices.{
+    AutoApproval,
+    Category,
+    Invoice,
+    InvoiceAccessGrant,
+    InvoiceComment,
+    PurchaseOrder
+  }
+
   alias KsefHub.Repo
 
   @max_per_page 100
@@ -596,6 +605,21 @@ defmodule KsefHub.Invoices do
 
   def approve_invoice(%Invoice{type: type}), do: {:error, {:invalid_type, type}}
 
+  # Auto-approves an invoice if the company setting and source/extraction rules allow it.
+  # Delegates to approve_invoice/1 so all approval preconditions stay in one place.
+  # Returns the (possibly updated) invoice — never fails, silently skips on error.
+  @spec maybe_auto_approve(Company.t(), Invoice.t(), keyword()) :: Invoice.t()
+  defp maybe_auto_approve(company, invoice, opts \\ []) do
+    if AutoApproval.should_auto_approve?(company, invoice, opts) do
+      case approve_invoice(invoice) do
+        {:ok, approved} -> approved
+        _ -> invoice
+      end
+    else
+      invoice
+    end
+  end
+
   @doc """
   Rejects an expense invoice.
   """
@@ -693,7 +717,7 @@ defmodule KsefHub.Invoices do
     case create_or_retry_duplicate(company_id, attrs) do
       {:ok, invoice} ->
         enqueue_prediction(invoice)
-        {:ok, invoice}
+        {:ok, maybe_auto_approve(company, invoice)}
 
       error ->
         error
@@ -816,12 +840,21 @@ defmodule KsefHub.Invoices do
           {:ok, Invoice.t()} | {:error, term()}
   def create_email_invoice(company_id, pdf_binary, :extraction_failed, opts) do
     company = Companies.get_company!(company_id)
-    do_create_pdf_failed(company, pdf_binary, :expense, opts[:filename], :email)
+    do_create_pdf_failed(company, pdf_binary, :expense, opts[:filename], :email, opts)
   end
 
   def create_email_invoice(company_id, pdf_binary, extracted, opts) when is_map(extracted) do
     company = Companies.get_company!(company_id)
-    do_create_pdf_extracted(company, pdf_binary, :expense, opts[:filename], extracted, :email)
+
+    do_create_pdf_extracted(
+      company,
+      pdf_binary,
+      :expense,
+      opts[:filename],
+      extracted,
+      :email,
+      opts
+    )
   end
 
   # Shared: create invoice from extracted fields with duplicate detection + prediction
@@ -834,7 +867,7 @@ defmodule KsefHub.Invoices do
           Invoice.invoice_source(),
           keyword()
         ) :: {:ok, Invoice.t()} | {:error, term()}
-  defp do_create_pdf_extracted(company, pdf_binary, type, filename, extracted, source, opts \\ []) do
+  defp do_create_pdf_extracted(company, pdf_binary, type, filename, extracted, source, opts) do
     extraction_status = determine_extraction_status(extracted)
 
     invoice_attrs =
@@ -846,7 +879,7 @@ defmodule KsefHub.Invoices do
     case create_or_retry_duplicate(company.id, invoice_attrs) do
       {:ok, invoice} ->
         maybe_enqueue_prediction(extraction_status, invoice)
-        {:ok, invoice}
+        {:ok, maybe_auto_approve(company, invoice, opts)}
 
       error ->
         error
@@ -862,7 +895,7 @@ defmodule KsefHub.Invoices do
           Invoice.invoice_source(),
           keyword()
         ) :: {:ok, Invoice.t()} | {:error, term()}
-  defp do_create_pdf_failed(company, pdf_binary, type, filename, source, opts \\ []) do
+  defp do_create_pdf_failed(company, pdf_binary, type, filename, source, opts) do
     attrs =
       %{
         source: source,

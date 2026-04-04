@@ -284,6 +284,18 @@ defmodule KsefHubWeb.CompanyLive.Form do
       />
       <.input field={@form[:address]} label="Address" placeholder="ul. Testowa 1, Warszawa" />
 
+      <div :if={@live_action == :edit} class="pt-2 space-y-1">
+        <.input
+          field={@form[:auto_approve_trusted_invoices]}
+          type="checkbox"
+          label="Auto-approve invoices from trusted sources"
+        />
+        <p class="text-xs text-muted-foreground ml-6">
+          Automatically approve expense invoices uploaded or emailed by company members.
+          KSeF invoices and emails from unknown senders always require manual review.
+        </p>
+      </div>
+
       <div class="flex items-center gap-3 pt-2">
         <.button type="submit">
           {if @live_action == :new, do: "Create Company", else: "Save"}

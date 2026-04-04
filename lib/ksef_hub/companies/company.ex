@@ -18,6 +18,7 @@ defmodule KsefHub.Companies.Company do
     field :inbound_email_token_hash, :string
     field :inbound_allowed_sender_domain, :string
     field :inbound_cc_email, :string
+    field :auto_approve_trusted_invoices, :boolean, default: false
     field :has_active_credential, :boolean, virtual: true
 
     timestamps()
@@ -27,7 +28,7 @@ defmodule KsefHub.Companies.Company do
   @spec changeset(t(), map()) :: Ecto.Changeset.t()
   def changeset(company, attrs) do
     company
-    |> cast(attrs, [:name, :nip, :address, :is_active])
+    |> cast(attrs, [:name, :nip, :address, :is_active, :auto_approve_trusted_invoices])
     |> validate_required([:name, :nip])
     |> validate_format(:nip, ~r/^\d{10}$/, message: "must be a 10-digit NIP")
   end

@@ -24,10 +24,18 @@ defmodule KsefHub.InboundEmail.ReplyNotifierTest do
       assert email.text_body =~ "/c/company-456/invoices/abc-123"
     end
 
-    test "includes CC when configured" do
+    test "includes CC when configured as list of tuples" do
       invoice = %{id: "abc", company_id: "c1", invoice_number: "FV/1", seller_name: "Seller"}
-      email = ReplyNotifier.success(@sender, invoice, cc: "team@appunite.com")
-      assert email.cc == [{"team@appunite.com", "team@appunite.com"}]
+
+      cc_list = [{"Alice", "alice@co.com"}, {"bob@co.com", "bob@co.com"}]
+      email = ReplyNotifier.success(@sender, invoice, cc: cc_list)
+      assert email.cc == cc_list
+    end
+
+    test "omits CC when list is empty" do
+      invoice = %{id: "abc", company_id: "c1", invoice_number: "FV/1", seller_name: "Seller"}
+      email = ReplyNotifier.success(@sender, invoice, cc: [])
+      assert email.cc == []
     end
 
     test "sets In-Reply-To and References headers when in_reply_to is provided" do
