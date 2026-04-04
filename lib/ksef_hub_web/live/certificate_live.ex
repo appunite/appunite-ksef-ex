@@ -12,6 +12,7 @@ defmodule KsefHubWeb.CertificateLive do
   """
   use KsefHubWeb, :live_view
 
+  import KsefHubWeb.CertificateComponents, only: [cert_expiry_alert: 1]
   import KsefHubWeb.InvoiceComponents, only: [format_date: 1]
   import KsefHubWeb.SettingsComponents, only: [settings_layout: 1]
 
@@ -275,7 +276,12 @@ defmodule KsefHubWeb.CertificateLive do
   @spec load_certificate_data(Phoenix.LiveView.Socket.t()) :: Phoenix.LiveView.Socket.t()
   defp load_certificate_data(%{assigns: %{current_company: nil}} = socket) do
     socket
-    |> assign(user_certificate: nil, active_credential: nil, show_upload_form: true)
+    |> assign(
+      user_certificate: nil,
+      active_credential: nil,
+      show_upload_form: true,
+      cert_expiry_status: :no_certificate
+    )
   end
 
   defp load_certificate_data(socket) do
@@ -284,12 +290,14 @@ defmodule KsefHubWeb.CertificateLive do
     user_cert = Credentials.get_active_user_certificate(user.id)
     credential = Credentials.get_active_credential(company.id)
     show_form = socket.assigns[:show_upload_form] || is_nil(user_cert)
+    cert_expiry = Credentials.certificate_expiry_status(company.id)
 
     socket
     |> assign(
       user_certificate: user_cert,
       active_credential: credential,
-      show_upload_form: show_form
+      show_upload_form: show_form,
+      cert_expiry_status: cert_expiry
     )
   end
 
@@ -307,6 +315,8 @@ defmodule KsefHubWeb.CertificateLive do
         Certificate
         <:subtitle>Your personal KSeF certificate — used for all your companies</:subtitle>
       </.header>
+
+      <.cert_expiry_alert status={@cert_expiry_status} class="mt-6" />
       
     <!-- Current Certificate -->
       <.card :if={@user_certificate} id="current-certificate" class="mt-6">

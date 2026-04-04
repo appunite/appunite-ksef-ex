@@ -328,4 +328,99 @@ defmodule KsefHub.CredentialsTest do
       assert is_nil(Credentials.get_certificate_for_company(unrelated_company.id))
     end
   end
+
+  describe "certificate_expiry_status/1" do
+    test "returns :no_certificate when company has no certificate", %{company: company} do
+      assert Credentials.certificate_expiry_status(company.id) == :no_certificate
+    end
+
+    test "returns :ok when certificate is valid and not expiring soon", %{
+      company: company,
+      user: user
+    } do
+      insert(:membership, user: user, company: company, role: :owner)
+
+      insert(:user_certificate,
+        user: user,
+        is_active: true,
+        not_after: Date.add(Date.utc_today(), 30)
+      )
+
+      assert Credentials.certificate_expiry_status(company.id) == :ok
+    end
+
+    test "returns :ok when not_after is nil", %{company: company, user: user} do
+      insert(:membership, user: user, company: company, role: :owner)
+      insert(:user_certificate, user: user, is_active: true, not_after: nil)
+
+      assert Credentials.certificate_expiry_status(company.id) == :ok
+    end
+
+    test "returns {:expiring_soon, days} when certificate expires within 7 days", %{
+      company: company,
+      user: user
+    } do
+      insert(:membership, user: user, company: company, role: :owner)
+
+      insert(:user_certificate,
+        user: user,
+        is_active: true,
+        not_after: Date.add(Date.utc_today(), 5)
+      )
+
+      assert Credentials.certificate_expiry_status(company.id) == {:expiring_soon, 5}
+    end
+
+    test "returns {:expiring_soon, 0} on the expiration day", %{
+      company: company,
+      user: user
+    } do
+      insert(:membership, user: user, company: company, role: :owner)
+      insert(:user_certificate, user: user, is_active: true, not_after: Date.utc_today())
+
+      assert Credentials.certificate_expiry_status(company.id) == {:expiring_soon, 0}
+    end
+
+    test "returns {:expiring_soon, 7} when exactly 7 days left", %{
+      company: company,
+      user: user
+    } do
+      insert(:membership, user: user, company: company, role: :owner)
+
+      insert(:user_certificate,
+        user: user,
+        is_active: true,
+        not_after: Date.add(Date.utc_today(), 7)
+      )
+
+      assert Credentials.certificate_expiry_status(company.id) == {:expiring_soon, 7}
+    end
+
+    test "returns :ok when 8 days left", %{company: company, user: user} do
+      insert(:membership, user: user, company: company, role: :owner)
+
+      insert(:user_certificate,
+        user: user,
+        is_active: true,
+        not_after: Date.add(Date.utc_today(), 8)
+      )
+
+      assert Credentials.certificate_expiry_status(company.id) == :ok
+    end
+
+    test "returns {:expired, days} when certificate has expired", %{
+      company: company,
+      user: user
+    } do
+      insert(:membership, user: user, company: company, role: :owner)
+
+      insert(:user_certificate,
+        user: user,
+        is_active: true,
+        not_after: Date.add(Date.utc_today(), -3)
+      )
+
+      assert Credentials.certificate_expiry_status(company.id) == {:expired, 3}
+    end
+  end
 end

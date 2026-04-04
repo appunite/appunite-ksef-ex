@@ -10,6 +10,7 @@ defmodule KsefHubWeb.InvoiceLive.Index do
   alias KsefHub.Invoices.Invoice
   alias KsefHub.PaymentRequests
 
+  import KsefHubWeb.CertificateComponents, only: [cert_expiry_alert: 1]
   import KsefHubWeb.InvoiceComponents
   import KsefHubWeb.FilterHelpers
 
@@ -24,15 +25,15 @@ defmodule KsefHubWeb.InvoiceLive.Index do
         _ -> nil
       end
 
-    has_certificate =
-      if company_id, do: Credentials.get_certificate_for_company(company_id) != nil, else: false
+    cert_status =
+      if company_id, do: Credentials.certificate_expiry_status(company_id), else: :no_certificate
 
     {:ok,
      assign(socket,
        page_title: "Invoices",
        categories: if(company_id, do: Invoices.list_categories(company_id), else: []),
        all_tags: [],
-       has_certificate: has_certificate,
+       cert_status: cert_status,
        open_filter: nil
      )}
   end
@@ -241,7 +242,7 @@ defmodule KsefHubWeb.InvoiceLive.Index do
     </.header>
 
     <div
-      :if={!@has_certificate}
+      :if={@cert_status == :no_certificate}
       data-testid="certificate-warning-banner"
       class="rounded-lg border border-warning/50 bg-warning/10 p-4 mb-4 flex items-start gap-3"
     >
@@ -260,6 +261,12 @@ defmodule KsefHubWeb.InvoiceLive.Index do
         </p>
       </div>
     </div>
+
+    <.cert_expiry_alert
+      status={@cert_status}
+      link_target={~p"/c/#{@current_company.id}/settings/certificates"}
+      class="mb-4"
+    />
 
     <!-- Type Tabs -->
     <div class="flex border-b border-border mb-4">
