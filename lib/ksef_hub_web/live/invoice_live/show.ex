@@ -802,7 +802,10 @@ defmodule KsefHubWeb.InvoiceLive.Show do
           extraction_status={@invoice.extraction_status}
           status={@invoice.status}
         />
-        <.extraction_badge status={@invoice.extraction_status} />
+        <.extraction_badge
+          status={@invoice.extraction_status}
+          duplicate_status={@invoice.duplicate_status}
+        />
         <.payment_badge status={@payment_status} label={header_payment_label(@payment_status)} />
         <.excluded_badge is_excluded={@invoice.is_excluded} />
         <.badge :if={@invoice.access_restricted} variant="error">restricted</.badge>
@@ -916,7 +919,9 @@ defmodule KsefHubWeb.InvoiceLive.Show do
     </.header>
 
     <div
-      :if={@invoice.extraction_status in [:partial, :failed]}
+      :if={
+        @invoice.extraction_status in [:partial, :failed] && @invoice.duplicate_status != :confirmed
+      }
       class="flex items-center gap-3 rounded-md border border-warning/20 bg-warning/5 p-4 mt-4"
       role="alert"
       data-testid="extraction-warning"

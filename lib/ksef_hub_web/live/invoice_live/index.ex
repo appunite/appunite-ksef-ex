@@ -399,7 +399,10 @@ defmodule KsefHubWeb.InvoiceLive.Index do
                 extraction_status={inv.extraction_status}
                 status={inv.status}
               />
-              <.extraction_badge status={inv.extraction_status} />
+              <.extraction_badge
+                status={inv.extraction_status}
+                duplicate_status={inv.duplicate_status}
+              />
             </div>
             <div class="mt-1">
               <.payment_badge status={@payment_statuses[inv.id]} />

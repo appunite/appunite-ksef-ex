@@ -134,7 +134,9 @@ defmodule KsefHubWeb.InvoiceComponents do
   """
   @spec extraction_badge(map()) :: Phoenix.LiveView.Rendered.t()
   attr :status, :atom, required: true
+  attr :duplicate_status, :atom, default: nil
 
+  def extraction_badge(%{duplicate_status: :confirmed} = assigns), do: ~H""
   def extraction_badge(%{status: status} = assigns) when status in [nil, :complete], do: ~H""
 
   def extraction_badge(%{status: :partial} = assigns) do
