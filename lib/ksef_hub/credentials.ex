@@ -7,6 +7,7 @@ defmodule KsefHub.Credentials do
 
   alias Ecto.Multi
   alias KsefHub.Accounts.User
+  alias KsefHub.ActivityLog.Events
   alias KsefHub.Companies.Membership
   alias KsefHub.Credentials.{Credential, UserCertificate}
   alias KsefHub.Repo
@@ -74,9 +75,10 @@ defmodule KsefHub.Credentials do
   """
   @spec replace_active_credential(Ecto.UUID.t(), map()) ::
           {:ok, Credential.t()} | {:error, Ecto.Changeset.t()}
-  def replace_active_credential(company_id, attrs) do
+  def replace_active_credential(company_id, attrs, opts \\ []) do
     company = KsefHub.Companies.get_company!(company_id)
     attrs = Map.merge(attrs, %{nip: company.nip})
+    old_credential = get_active_credential(company_id)
 
     changeset =
       %Credential{}
@@ -86,7 +88,7 @@ defmodule KsefHub.Credentials do
     multi =
       Multi.new()
       |> Multi.run(:deactivate, fn _repo, _changes ->
-        case get_active_credential(company_id) do
+        case old_credential do
           nil -> {:ok, nil}
           existing -> deactivate_credential(existing)
         end
@@ -94,9 +96,20 @@ defmodule KsefHub.Credentials do
       |> Multi.insert(:credential, changeset)
 
     case Repo.transaction(multi) do
-      {:ok, %{credential: credential}} -> {:ok, credential}
-      {:error, :credential, changeset, _changes} -> {:error, changeset}
-      {:error, :deactivate, changeset, _changes} -> {:error, changeset}
+      {:ok, %{credential: credential}} ->
+        if old_credential do
+          Events.credential_replaced(old_credential, credential, opts)
+        else
+          Events.credential_uploaded(credential, opts)
+        end
+
+        {:ok, credential}
+
+      {:error, :credential, changeset, _changes} ->
+        {:error, changeset}
+
+      {:error, :deactivate, changeset, _changes} ->
+        {:error, changeset}
     end
   end
 
@@ -116,8 +129,15 @@ defmodule KsefHub.Credentials do
   """
   @spec deactivate_credential(Credential.t()) ::
           {:ok, Credential.t()} | {:error, Ecto.Changeset.t()}
-  def deactivate_credential(%Credential{} = credential) do
-    update_credential(credential, %{is_active: false})
+  def deactivate_credential(%Credential{} = credential, opts \\ []) do
+    case update_credential(credential, %{is_active: false}) do
+      {:ok, deactivated} ->
+        Events.credential_invalidated(deactivated, opts)
+        {:ok, deactivated}
+
+      error ->
+        error
+    end
   end
 
   @doc """

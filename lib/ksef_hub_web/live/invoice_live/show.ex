@@ -7,6 +7,8 @@ defmodule KsefHubWeb.InvoiceLive.Show do
 
   require Logger
 
+  alias KsefHub.ActivityLog
+  alias KsefHub.ActivityLog.Events
   alias KsefHub.Authorization
   alias KsefHub.Companies
   alias KsefHub.InvoiceClassifier
@@ -59,6 +61,10 @@ defmodule KsefHubWeb.InvoiceLive.Show do
          |> redirect(to: ~p"/c/#{company.id}/invoices")}
 
       invoice ->
+        if connected?(socket) do
+          Phoenix.PubSub.subscribe(KsefHub.PubSub, "activity:invoice:#{invoice.id}")
+        end
+
         data_editable = Invoice.data_editable?(invoice)
         auto_edit = data_editable and invoice.extraction_status in [:partial, :failed]
         can_mutate = Authorization.can?(role, :update_invoice)
@@ -98,6 +104,7 @@ defmodule KsefHubWeb.InvoiceLive.Show do
            billing_date_form: billing_date_form(invoice),
            editing_note: false,
            note_form: note_form(invoice),
+           activity_log: ActivityLog.list_invoice_timeline(company.id, invoice.id),
            comments: Invoices.list_invoice_comments(company.id, invoice.id),
            comment_form: comment_form(),
            extracting: false,
@@ -143,6 +150,8 @@ defmodule KsefHubWeb.InvoiceLive.Show do
     if invoice.source in [:pdf_upload, :email] and not socket.assigns.extracting do
       company = socket.assigns.current_company
 
+      Events.invoice_re_extraction_triggered(invoice, actor_opts(socket))
+
       task =
         Task.Supervisor.async_nolink(KsefHub.TaskSupervisor, fn ->
           Invoices.re_extract_invoice(invoice, company)
@@ -164,7 +173,7 @@ defmodule KsefHubWeb.InvoiceLive.Show do
   end
 
   def handle_event("approve", _params, socket) do
-    case Invoices.approve_invoice(socket.assigns.invoice) do
+    case Invoices.approve_invoice(socket.assigns.invoice, actor_opts(socket)) do
       {:ok, updated} ->
         {:noreply,
          socket
@@ -197,7 +206,7 @@ defmodule KsefHubWeb.InvoiceLive.Show do
   end
 
   def handle_event("reject", _params, socket) do
-    case Invoices.reject_invoice(socket.assigns.invoice) do
+    case Invoices.reject_invoice(socket.assigns.invoice, actor_opts(socket)) do
       {:ok, updated} ->
         {:noreply,
          socket
@@ -213,7 +222,7 @@ defmodule KsefHubWeb.InvoiceLive.Show do
   end
 
   def handle_event("reset_status", _params, socket) do
-    case Invoices.reset_invoice_status(socket.assigns.invoice) do
+    case Invoices.reset_invoice_status(socket.assigns.invoice, actor_opts(socket)) do
       {:ok, updated} ->
         {:noreply,
          socket
@@ -241,7 +250,7 @@ defmodule KsefHubWeb.InvoiceLive.Show do
     invoice = socket.assigns.invoice
 
     if invoice.duplicate_of_id && invoice.duplicate_status == :suspected do
-      case Invoices.dismiss_duplicate(invoice) do
+      case Invoices.dismiss_duplicate(invoice, actor_opts(socket)) do
         {:ok, updated} ->
           {:noreply,
            socket
@@ -267,7 +276,7 @@ defmodule KsefHubWeb.InvoiceLive.Show do
     invoice = socket.assigns.invoice
 
     if invoice.duplicate_of_id && invoice.duplicate_status == :suspected do
-      case Invoices.confirm_duplicate(invoice) do
+      case Invoices.confirm_duplicate(invoice, actor_opts(socket)) do
         {:ok, updated} ->
           {:noreply,
            socket
@@ -368,6 +377,8 @@ defmodule KsefHubWeb.InvoiceLive.Show do
     {:ok, updated} = Invoices.ensure_public_token(invoice)
     url = url(~p"/public/invoices/#{updated.id}?token=#{updated.public_token}")
 
+    Events.invoice_public_link_generated(invoice, actor_opts(socket))
+
     {:noreply,
      socket
      |> assign(:invoice, %{invoice | public_token: updated.public_token})
@@ -387,13 +398,15 @@ defmodule KsefHubWeb.InvoiceLive.Show do
   end
 
   def handle_event(action, _params, socket) when action in ~w(exclude include) do
+    opts = actor_opts(socket)
+
     {fun, ok_msg, err_msg} =
       case action do
         "exclude" ->
-          {&Invoices.exclude_invoice/1, "Invoice excluded.", "Failed to exclude invoice."}
+          {&Invoices.exclude_invoice(&1, opts), "Invoice excluded.", "Failed to exclude invoice."}
 
         "include" ->
-          {&Invoices.include_invoice/1, "Invoice included.", "Failed to include invoice."}
+          {&Invoices.include_invoice(&1, opts), "Invoice included.", "Failed to include invoice."}
       end
 
     case fun.(socket.assigns.invoice) do
@@ -708,12 +721,22 @@ defmodule KsefHubWeb.InvoiceLive.Show do
      |> put_flash(:error, "Re-extraction crashed. Please try again.")}
   end
 
+  def handle_info({:new_activity, audit_log}, socket) do
+    {:noreply, update(socket, :activity_log, fn entries -> [audit_log | entries] end)}
+  end
+
   def handle_info(msg, socket) do
     Logger.debug("InvoiceLive.Show received unexpected message: #{inspect(msg)}")
     {:noreply, socket}
   end
 
   # --- Private ---
+
+  @spec actor_opts(Phoenix.LiveView.Socket.t()) :: keyword()
+  defp actor_opts(socket) do
+    user = socket.assigns.current_user
+    [user_id: user.id, actor_label: user.name || user.email]
+  end
 
   @spec note_form(Invoice.t()) :: Phoenix.HTML.Form.t()
   defp note_form(invoice) do
@@ -1334,6 +1357,11 @@ defmodule KsefHubWeb.InvoiceLive.Show do
         invoice={@invoice}
       />
     </div>
+
+    <!-- Activity Log Timeline -->
+    <div class="mt-6" id="activity-log-section">
+      <.activity_timeline entries={@activity_log} />
+    </div>
     """
   end
 
@@ -1428,6 +1456,143 @@ defmodule KsefHubWeb.InvoiceLive.Show do
       </.form>
     </.card>
     """
+  end
+
+  attr :entries, :list, required: true
+
+  @spec activity_timeline(map()) :: Phoenix.LiveView.Rendered.t()
+  defp activity_timeline(assigns) do
+    ~H"""
+    <.card padding="p-4">
+      <h2 class="text-base font-semibold mb-4">Activity</h2>
+
+      <div :if={@entries == []} class="text-sm text-muted-foreground italic">
+        No activity recorded yet
+      </div>
+
+      <ul :if={@entries != []} class="timeline timeline-vertical timeline-compact">
+        <li :for={{entry, idx} <- Enum.with_index(@entries)}>
+          <hr :if={idx > 0} />
+          <div class="timeline-start text-xs text-muted-foreground whitespace-nowrap">
+            {relative_time(entry.inserted_at)}
+          </div>
+          <div class="timeline-middle">
+            <.activity_icon action={entry.action} />
+          </div>
+          <div class="timeline-end timeline-box py-1.5 px-3 text-sm border-border bg-background">
+            <span class="font-medium">{entry.actor_label || "System"}</span>
+            <span class="text-muted-foreground ml-1">{describe_action(entry)}</span>
+          </div>
+          <hr :if={idx < length(@entries) - 1} />
+        </li>
+      </ul>
+    </.card>
+    """
+  end
+
+  @action_icons %{
+    "invoice.created" => "hero-plus-circle",
+    "invoice.status_changed" => "hero-check-circle",
+    "invoice.classification_changed" => "hero-tag",
+    "invoice.excluded" => "hero-eye-slash",
+    "invoice.included" => "hero-eye",
+    "invoice.access_changed" => "hero-lock-closed",
+    "invoice.public_link_generated" => "hero-link",
+    "invoice.downloaded" => "hero-arrow-down-tray",
+    "invoice.note_updated" => "hero-pencil",
+    "invoice.billing_date_changed" => "hero-calendar",
+    "invoice.updated" => "hero-pencil-square"
+  }
+
+  @action_prefix_icons [
+    {"invoice.comment_", "hero-chat-bubble-left"},
+    {"invoice.duplicate_", "hero-document-duplicate"},
+    {"invoice.extraction_", "hero-document-magnifying-glass"},
+    {"payment_request.", "hero-banknotes"}
+  ]
+
+  attr :action, :string, required: true
+
+  @spec activity_icon(map()) :: Phoenix.LiveView.Rendered.t()
+  defp activity_icon(assigns) do
+    assigns = assign(assigns, :icon_name, icon_for_action(assigns.action))
+
+    ~H"""
+    <.icon name={@icon_name} class="size-4 text-muted-foreground" />
+    """
+  end
+
+  @spec icon_for_action(String.t()) :: String.t()
+  defp icon_for_action(action) do
+    Map.get(@action_icons, action) || icon_for_action_prefix(action)
+  end
+
+  @spec icon_for_action_prefix(String.t()) :: String.t()
+  defp icon_for_action_prefix(action) do
+    @action_prefix_icons
+    |> Enum.find_value(fn {prefix, icon} ->
+      if String.starts_with?(action, prefix), do: icon
+    end)
+    |> Kernel.||("hero-information-circle")
+  end
+
+  @static_descriptions %{
+    "invoice.comment_added" => "added a comment",
+    "invoice.comment_edited" => "edited a comment",
+    "invoice.comment_deleted" => "deleted a comment",
+    "invoice.excluded" => "excluded invoice",
+    "invoice.included" => "included invoice",
+    "invoice.public_link_generated" => "generated public link",
+    "invoice.duplicate_detected" => "duplicate detected",
+    "invoice.duplicate_confirmed" => "confirmed as duplicate",
+    "invoice.duplicate_dismissed" => "dismissed duplicate",
+    "invoice.note_updated" => "updated note",
+    "invoice.billing_date_changed" => "changed billing date",
+    "invoice.extraction_completed" => "extraction completed",
+    "invoice.re_extraction_triggered" => "triggered re-extraction",
+    "invoice.updated" => "updated invoice fields",
+    "payment_request.created" => "created payment request",
+    "payment_request.paid" => "marked payment as paid",
+    "payment_request.voided" => "voided payment request"
+  }
+
+  @spec describe_action(map()) :: String.t()
+  defp describe_action(%{action: action, metadata: metadata}) do
+    case Map.fetch(@static_descriptions, action) do
+      {:ok, desc} ->
+        desc
+
+      :error ->
+        describe_dynamic_action(action, metadata)
+    end
+  end
+
+  @spec describe_dynamic_action(String.t(), map()) :: String.t()
+  defp describe_dynamic_action("invoice.created", metadata) do
+    case metadata["source"] do
+      nil -> "added invoice"
+      source -> "added invoice via #{source}"
+    end
+  end
+
+  defp describe_dynamic_action("invoice.status_changed", metadata) do
+    "changed status to #{metadata["new_status"] || "unknown"}"
+  end
+
+  defp describe_dynamic_action("invoice.classification_changed", metadata) do
+    "updated #{metadata["field"] || "classification"}"
+  end
+
+  defp describe_dynamic_action("invoice.access_changed", metadata) do
+    "changed access to #{metadata["change_type"] || "access"}"
+  end
+
+  defp describe_dynamic_action("invoice.downloaded", metadata) do
+    "downloaded #{metadata["format"] || "file"}"
+  end
+
+  defp describe_dynamic_action(action, _metadata) do
+    action |> String.replace(".", " ") |> String.replace("_", " ")
   end
 
   @spec list_company_reviewers(Ecto.UUID.t()) :: [map()]

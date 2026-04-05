@@ -8,6 +8,7 @@ defmodule KsefHub.Companies do
 
   alias Ecto.Multi
   alias KsefHub.Accounts.User
+  alias KsefHub.ActivityLog.Events
   alias KsefHub.Companies.{Company, CompanyBankAccount, Membership}
   alias KsefHub.Repo
 
@@ -259,26 +260,47 @@ defmodule KsefHub.Companies do
   @doc "Creates a bank account for a company."
   @spec create_bank_account(Ecto.UUID.t(), map()) ::
           {:ok, CompanyBankAccount.t()} | {:error, Ecto.Changeset.t()}
-  def create_bank_account(company_id, attrs) do
-    %CompanyBankAccount{company_id: company_id}
-    |> CompanyBankAccount.changeset(attrs)
-    |> Repo.insert()
+  def create_bank_account(company_id, attrs, opts \\ []) do
+    case %CompanyBankAccount{company_id: company_id}
+         |> CompanyBankAccount.changeset(attrs)
+         |> Repo.insert() do
+      {:ok, account} ->
+        Events.bank_account_created(account, opts)
+        {:ok, account}
+
+      error ->
+        error
+    end
   end
 
   @doc "Updates a bank account."
-  @spec update_bank_account(CompanyBankAccount.t(), map()) ::
+  @spec update_bank_account(CompanyBankAccount.t(), map(), keyword()) ::
           {:ok, CompanyBankAccount.t()} | {:error, Ecto.Changeset.t()}
-  def update_bank_account(%CompanyBankAccount{} = bank_account, attrs) do
-    bank_account
-    |> CompanyBankAccount.update_changeset(attrs)
-    |> Repo.update()
+  def update_bank_account(%CompanyBankAccount{} = bank_account, attrs, opts \\ []) do
+    case bank_account
+         |> CompanyBankAccount.update_changeset(attrs)
+         |> Repo.update() do
+      {:ok, updated} ->
+        Events.bank_account_updated(updated, opts)
+        {:ok, updated}
+
+      error ->
+        error
+    end
   end
 
   @doc "Deletes a bank account."
-  @spec delete_bank_account(CompanyBankAccount.t()) ::
+  @spec delete_bank_account(CompanyBankAccount.t(), keyword()) ::
           {:ok, CompanyBankAccount.t()} | {:error, Ecto.Changeset.t()}
-  def delete_bank_account(%CompanyBankAccount{} = bank_account) do
-    Repo.delete(bank_account)
+  def delete_bank_account(%CompanyBankAccount{} = bank_account, opts \\ []) do
+    case Repo.delete(bank_account) do
+      {:ok, deleted} ->
+        Events.bank_account_deleted(deleted, opts)
+        {:ok, deleted}
+
+      error ->
+        error
+    end
   end
 
   # ---------------------------------------------------------------------------
@@ -305,10 +327,22 @@ defmodule KsefHub.Companies do
   @doc "Updates the role of a membership."
   @spec update_membership_role(Membership.t(), Membership.role()) ::
           {:ok, Membership.t()} | {:error, Ecto.Changeset.t()}
-  def update_membership_role(%Membership{} = membership, role) do
-    membership
-    |> Membership.changeset(%{role: role})
-    |> Repo.update()
+  def update_membership_role(%Membership{} = membership, role, opts \\ []) do
+    old_role = membership.role
+
+    case membership
+         |> Membership.changeset(%{role: role})
+         |> Repo.update() do
+      {:ok, updated} ->
+        if old_role != role do
+          Events.team_role_changed(updated, old_role, role, opts)
+        end
+
+        {:ok, updated}
+
+      error ->
+        error
+    end
   end
 
   @doc """
@@ -349,18 +383,33 @@ defmodule KsefHub.Companies do
 
   @doc "Blocks a membership (soft delete)."
   @spec block_member(Membership.t()) :: {:ok, Membership.t()} | {:error, Ecto.Changeset.t()}
-  def block_member(%Membership{} = membership) do
-    membership
-    |> Membership.status_changeset(%{status: :blocked})
-    |> Repo.update()
+  def block_member(%Membership{} = membership, opts \\ []) do
+    case membership
+         |> Membership.status_changeset(%{status: :blocked})
+         |> Repo.update() do
+      {:ok, updated} ->
+        Events.team_member_blocked(updated, opts)
+        {:ok, updated}
+
+      error ->
+        error
+    end
   end
 
   @doc "Unblocks a membership, restoring active status."
-  @spec unblock_member(Membership.t()) :: {:ok, Membership.t()} | {:error, Ecto.Changeset.t()}
-  def unblock_member(%Membership{} = membership) do
-    membership
-    |> Membership.status_changeset(%{status: :active})
-    |> Repo.update()
+  @spec unblock_member(Membership.t(), keyword()) ::
+          {:ok, Membership.t()} | {:error, Ecto.Changeset.t()}
+  def unblock_member(%Membership{} = membership, opts \\ []) do
+    case membership
+         |> Membership.status_changeset(%{status: :active})
+         |> Repo.update() do
+      {:ok, updated} ->
+        Events.team_member_unblocked(updated, opts)
+        {:ok, updated}
+
+      error ->
+        error
+    end
   end
 
   @doc "Fetches the active membership for a user+company pair, returning nil if none exists or blocked."

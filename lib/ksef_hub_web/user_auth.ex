@@ -12,6 +12,7 @@ defmodule KsefHubWeb.UserAuth do
   import Phoenix.Controller
 
   alias KsefHub.Accounts
+  alias KsefHub.ActivityLog.Events
   alias KsefHub.Companies
 
   import KsefHubWeb.UrlHelpers, only: [default_path: 1, sanitize_return_to: 1]
@@ -24,6 +25,9 @@ defmodule KsefHubWeb.UserAuth do
   def log_in_user(conn, user, params \\ %{}) do
     token = Accounts.generate_user_session_token(user)
     return_to = sanitize_return_to(params[:return_to] || params["return_to"])
+
+    ip = conn.remote_ip |> :inet.ntoa() |> to_string()
+    Events.user_logged_in(user, ip_address: ip)
 
     conn
     |> configure_session(renew: true)
@@ -40,12 +44,18 @@ defmodule KsefHubWeb.UserAuth do
   @spec log_out_user(Plug.Conn.t()) :: Plug.Conn.t()
   def log_out_user(conn) do
     user_token = get_session(conn, :user_token)
+    user = conn.assigns[:current_user]
 
     if live_socket_id = get_session(conn, :live_socket_id) do
       KsefHubWeb.Endpoint.broadcast(live_socket_id, "disconnect", %{})
     end
 
     user_token && Accounts.delete_user_session_token(user_token)
+
+    if user do
+      ip = conn.remote_ip |> :inet.ntoa() |> to_string()
+      Events.user_logged_out(user, ip_address: ip)
+    end
 
     conn
     |> configure_session(renew: true)

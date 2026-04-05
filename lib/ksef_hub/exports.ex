@@ -8,6 +8,7 @@ defmodule KsefHub.Exports do
 
   require Logger
 
+  alias KsefHub.ActivityLog.Events
   alias KsefHub.Exports.{CsvBuilder, ExportBatch, ExportWorker, InvoiceDownload, ZipBuilder}
   alias KsefHub.Files
   alias KsefHub.Invoices.Invoice
@@ -36,9 +37,15 @@ defmodule KsefHub.Exports do
     |> Ecto.Multi.run(:job, fn _repo, %{batch: batch} -> enqueue_worker(batch) end)
     |> Repo.transaction()
     |> case do
-      {:ok, %{batch: batch}} -> {:ok, batch}
-      {:error, :batch, changeset, _} -> {:error, changeset}
-      {:error, :job, reason, _} -> {:error, reason}
+      {:ok, %{batch: batch}} ->
+        Events.export_created(batch, user_id: user_id)
+        {:ok, batch}
+
+      {:error, :batch, changeset, _} ->
+        {:error, changeset}
+
+      {:error, :job, reason, _} ->
+        {:error, reason}
     end
   end
 

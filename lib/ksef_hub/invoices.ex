@@ -15,6 +15,8 @@ defmodule KsefHub.Invoices do
   alias KsefHub.InvoiceClassifier.Worker, as: ClassifierWorker
   alias KsefHub.InvoiceExtractor.ContextBuilder
 
+  alias KsefHub.ActivityLog.Events
+
   alias KsefHub.Invoices.{
     AutoApproval,
     Category,
@@ -594,23 +596,34 @@ defmodule KsefHub.Invoices do
           | {:error, Ecto.Changeset.t()}
           | {:error, {:invalid_type, Invoice.invoice_type()}}
           | {:error, :incomplete_extraction}
-  def approve_invoice(%Invoice{type: :expense, extraction_status: status})
+  def approve_invoice(invoice, opts \\ [])
+
+  def approve_invoice(%Invoice{type: :expense, extraction_status: status}, _opts)
       when status in [:partial, :failed] do
     {:error, :incomplete_extraction}
   end
 
-  def approve_invoice(%Invoice{type: :expense} = invoice) do
-    update_invoice(invoice, %{status: :approved})
+  def approve_invoice(%Invoice{type: :expense} = invoice, opts) do
+    old_status = invoice.status
+
+    case update_invoice(invoice, %{status: :approved}) do
+      {:ok, updated} ->
+        Events.invoice_status_changed(updated, old_status, :approved, opts)
+        {:ok, updated}
+
+      error ->
+        error
+    end
   end
 
-  def approve_invoice(%Invoice{type: type}), do: {:error, {:invalid_type, type}}
+  def approve_invoice(%Invoice{type: type}, _opts), do: {:error, {:invalid_type, type}}
 
   # Auto-approves an invoice if the company setting and source/extraction rules allow it.
   # Delegates to approve_invoice/1 so all approval preconditions stay in one place.
   @spec maybe_auto_approve(Company.t(), Invoice.t(), keyword()) :: Invoice.t()
   defp maybe_auto_approve(company, invoice, opts \\ []) do
     if AutoApproval.should_auto_approve?(company, invoice, opts) do
-      case approve_invoice(invoice) do
+      case approve_invoice(invoice, actor_type: "system", actor_label: "Auto-approval") do
         {:ok, approved} ->
           approved
 
@@ -634,11 +647,22 @@ defmodule KsefHub.Invoices do
           {:ok, Invoice.t()}
           | {:error, Ecto.Changeset.t()}
           | {:error, {:invalid_type, Invoice.invoice_type()}}
-  def reject_invoice(%Invoice{type: :expense} = invoice) do
-    update_invoice(invoice, %{status: :rejected})
+  def reject_invoice(invoice, opts \\ [])
+
+  def reject_invoice(%Invoice{type: :expense} = invoice, opts) do
+    old_status = invoice.status
+
+    case update_invoice(invoice, %{status: :rejected}) do
+      {:ok, updated} ->
+        Events.invoice_status_changed(updated, old_status, :rejected, opts)
+        {:ok, updated}
+
+      error ->
+        error
+    end
   end
 
-  def reject_invoice(%Invoice{type: type}), do: {:error, {:invalid_type, type}}
+  def reject_invoice(%Invoice{type: type}, _opts), do: {:error, {:invalid_type, type}}
 
   @doc """
   Resets an expense invoice status back to pending.
@@ -650,30 +674,57 @@ defmodule KsefHub.Invoices do
           | {:error, Ecto.Changeset.t()}
           | {:error, :already_pending}
           | {:error, {:invalid_type, Invoice.invoice_type()}}
-  def reset_invoice_status(%Invoice{type: :expense, status: :pending}) do
+  def reset_invoice_status(invoice, opts \\ [])
+
+  def reset_invoice_status(%Invoice{type: :expense, status: :pending}, _opts) do
     {:error, :already_pending}
   end
 
-  def reset_invoice_status(%Invoice{type: :expense, duplicate_status: :confirmed}) do
+  def reset_invoice_status(%Invoice{type: :expense, duplicate_status: :confirmed}, _opts) do
     {:error, :confirmed_duplicate}
   end
 
-  def reset_invoice_status(%Invoice{type: :expense} = invoice) do
-    update_invoice(invoice, %{status: :pending})
+  def reset_invoice_status(%Invoice{type: :expense} = invoice, opts) do
+    old_status = invoice.status
+
+    case update_invoice(invoice, %{status: :pending}) do
+      {:ok, updated} ->
+        Events.invoice_status_changed(updated, old_status, :pending, opts)
+        {:ok, updated}
+
+      error ->
+        error
+    end
   end
 
-  def reset_invoice_status(%Invoice{type: type}), do: {:error, {:invalid_type, type}}
+  def reset_invoice_status(%Invoice{type: type}, _opts), do: {:error, {:invalid_type, type}}
 
   @doc "Marks an invoice as excluded."
-  @spec exclude_invoice(Invoice.t()) :: {:ok, Invoice.t()} | {:error, Ecto.Changeset.t()}
-  def exclude_invoice(%Invoice{} = invoice) do
-    update_invoice(invoice, %{is_excluded: true})
+  @spec exclude_invoice(Invoice.t(), keyword()) ::
+          {:ok, Invoice.t()} | {:error, Ecto.Changeset.t()}
+  def exclude_invoice(%Invoice{} = invoice, opts \\ []) do
+    case update_invoice(invoice, %{is_excluded: true}) do
+      {:ok, updated} ->
+        Events.invoice_excluded(updated, opts)
+        {:ok, updated}
+
+      error ->
+        error
+    end
   end
 
   @doc "Marks an invoice as included (removes exclusion)."
-  @spec include_invoice(Invoice.t()) :: {:ok, Invoice.t()} | {:error, Ecto.Changeset.t()}
-  def include_invoice(%Invoice{} = invoice) do
-    update_invoice(invoice, %{is_excluded: false})
+  @spec include_invoice(Invoice.t(), keyword()) ::
+          {:ok, Invoice.t()} | {:error, Ecto.Changeset.t()}
+  def include_invoice(%Invoice{} = invoice, opts \\ []) do
+    case update_invoice(invoice, %{is_excluded: false}) do
+      {:ok, updated} ->
+        Events.invoice_included(updated, opts)
+        {:ok, updated}
+
+      error ->
+        error
+    end
   end
 
   @doc """
@@ -1241,15 +1292,25 @@ defmodule KsefHub.Invoices do
   """
   @spec confirm_duplicate(Invoice.t()) ::
           {:ok, Invoice.t()} | {:error, Ecto.Changeset.t() | :not_a_duplicate | :invalid_status}
-  def confirm_duplicate(%Invoice{duplicate_of_id: nil}), do: {:error, :not_a_duplicate}
+  def confirm_duplicate(invoice, opts \\ [])
 
-  def confirm_duplicate(%Invoice{duplicate_status: :suspected} = invoice) do
-    invoice
-    |> Invoice.duplicate_changeset(%{duplicate_status: :confirmed})
-    |> Repo.update()
+  def confirm_duplicate(%Invoice{duplicate_of_id: nil}, _opts),
+    do: {:error, :not_a_duplicate}
+
+  def confirm_duplicate(%Invoice{duplicate_status: :suspected} = invoice, opts) do
+    case invoice
+         |> Invoice.duplicate_changeset(%{duplicate_status: :confirmed})
+         |> Repo.update() do
+      {:ok, updated} ->
+        Events.invoice_duplicate_confirmed(updated, opts)
+        {:ok, updated}
+
+      error ->
+        error
+    end
   end
 
-  def confirm_duplicate(%Invoice{}), do: {:error, :invalid_status}
+  def confirm_duplicate(%Invoice{}, _opts), do: {:error, :invalid_status}
 
   @doc """
   Dismisses a duplicate invoice.
@@ -1260,16 +1321,26 @@ defmodule KsefHub.Invoices do
   """
   @spec dismiss_duplicate(Invoice.t()) ::
           {:ok, Invoice.t()} | {:error, Ecto.Changeset.t() | :not_a_duplicate | :invalid_status}
-  def dismiss_duplicate(%Invoice{duplicate_of_id: nil}), do: {:error, :not_a_duplicate}
+  def dismiss_duplicate(invoice, opts \\ [])
 
-  def dismiss_duplicate(%Invoice{duplicate_status: status} = invoice)
+  def dismiss_duplicate(%Invoice{duplicate_of_id: nil}, _opts),
+    do: {:error, :not_a_duplicate}
+
+  def dismiss_duplicate(%Invoice{duplicate_status: status} = invoice, opts)
       when status in [:suspected, :confirmed] do
-    invoice
-    |> Invoice.duplicate_changeset(%{duplicate_status: :dismissed})
-    |> Repo.update()
+    case invoice
+         |> Invoice.duplicate_changeset(%{duplicate_status: :dismissed})
+         |> Repo.update() do
+      {:ok, updated} ->
+        Events.invoice_duplicate_dismissed(updated, opts)
+        {:ok, updated}
+
+      error ->
+        error
+    end
   end
 
-  def dismiss_duplicate(%Invoice{}), do: {:error, :invalid_status}
+  def dismiss_duplicate(%Invoice{}, _opts), do: {:error, :invalid_status}
 
   @doc """
   Returns invoice counts grouped by type and status for a company.
@@ -1506,26 +1577,48 @@ defmodule KsefHub.Invoices do
   @doc "Creates a category for a company."
   @spec create_category(Ecto.UUID.t(), map()) ::
           {:ok, Category.t()} | {:error, Ecto.Changeset.t()}
-  def create_category(company_id, attrs) do
-    %Category{}
-    |> Ecto.Changeset.change(%{company_id: company_id})
-    |> Category.changeset(attrs)
-    |> Repo.insert()
+  def create_category(company_id, attrs, opts \\ []) do
+    case %Category{}
+         |> Ecto.Changeset.change(%{company_id: company_id})
+         |> Category.changeset(attrs)
+         |> Repo.insert() do
+      {:ok, category} ->
+        Events.category_created(category, opts)
+        {:ok, category}
+
+      error ->
+        error
+    end
   end
 
   @doc "Updates a category."
-  @spec update_category(Category.t(), map()) ::
+  @spec update_category(Category.t(), map(), keyword()) ::
           {:ok, Category.t()} | {:error, Ecto.Changeset.t()}
-  def update_category(%Category{} = category, attrs) do
-    category
-    |> Category.changeset(attrs)
-    |> Repo.update()
+  def update_category(%Category{} = category, attrs, opts \\ []) do
+    case category
+         |> Category.changeset(attrs)
+         |> Repo.update() do
+      {:ok, updated} ->
+        Events.category_updated(updated, opts)
+        {:ok, updated}
+
+      error ->
+        error
+    end
   end
 
   @doc "Deletes a category. Associated invoices get category_id nilified."
-  @spec delete_category(Category.t()) :: {:ok, Category.t()} | {:error, Ecto.Changeset.t()}
-  def delete_category(%Category{} = category) do
-    Repo.delete(category)
+  @spec delete_category(Category.t(), keyword()) ::
+          {:ok, Category.t()} | {:error, Ecto.Changeset.t()}
+  def delete_category(%Category{} = category, opts \\ []) do
+    case Repo.delete(category) do
+      {:ok, deleted} ->
+        Events.category_deleted(deleted, opts)
+        {:ok, deleted}
+
+      error ->
+        error
+    end
   end
 
   # --- Tags ---
@@ -1533,13 +1626,11 @@ defmodule KsefHub.Invoices do
   @doc "Sets the tags on an invoice, replacing any existing tags."
   @spec set_invoice_tags(Invoice.t(), [String.t()]) ::
           {:ok, Invoice.t()} | {:error, Ecto.Changeset.t()}
-  def set_invoice_tags(%Invoice{} = invoice, tags) when is_list(tags) do
-    if Enum.all?(tags, &is_binary/1) do
-      normalized = tags |> Enum.map(&String.trim/1) |> Enum.reject(&(&1 == "")) |> Enum.uniq()
+  def set_invoice_tags(invoice, tags, opts \\ [])
 
-      invoice
-      |> Invoice.tags_changeset(%{tags: normalized})
-      |> Repo.update()
+  def set_invoice_tags(%Invoice{} = invoice, tags, opts) when is_list(tags) do
+    if Enum.all?(tags, &is_binary/1) do
+      do_set_invoice_tags(invoice, tags, opts)
     else
       changeset =
         invoice
@@ -1550,13 +1641,29 @@ defmodule KsefHub.Invoices do
     end
   end
 
-  def set_invoice_tags(%Invoice{} = invoice, _tags) do
+  def set_invoice_tags(%Invoice{} = invoice, _tags, _opts) do
     changeset =
       invoice
       |> Ecto.Changeset.change()
       |> Ecto.Changeset.add_error(:tags, "must be a list")
 
     {:error, changeset}
+  end
+
+  @spec do_set_invoice_tags(Invoice.t(), [String.t()], keyword()) ::
+          {:ok, Invoice.t()} | {:error, Ecto.Changeset.t()}
+  defp do_set_invoice_tags(invoice, tags, opts) do
+    normalized = tags |> Enum.map(&String.trim/1) |> Enum.reject(&(&1 == "")) |> Enum.uniq()
+    old_tags = invoice.tags || []
+
+    case invoice |> Invoice.tags_changeset(%{tags: normalized}) |> Repo.update() do
+      {:ok, updated} ->
+        maybe_log_tags_change(updated, old_tags, normalized, opts)
+        {:ok, updated}
+
+      error ->
+        error
+    end
   end
 
   @doc "Adds a single tag to an invoice (idempotent). Trims whitespace. Uses atomic DB update with validation guards."
@@ -1620,34 +1727,47 @@ defmodule KsefHub.Invoices do
   @spec set_invoice_category(Invoice.t(), Ecto.UUID.t() | nil) ::
           {:ok, Invoice.t()}
           | {:error, Ecto.Changeset.t() | :category_not_in_company | :expense_only}
-  def set_invoice_category(%Invoice{type: :income} = invoice, nil), do: {:ok, invoice}
+  def set_invoice_category(invoice, category_id, opts \\ [])
 
-  def set_invoice_category(%Invoice{type: :income}, _category_id), do: {:error, :expense_only}
+  def set_invoice_category(%Invoice{type: :income} = invoice, nil, _opts),
+    do: {:ok, invoice}
 
-  def set_invoice_category(%Invoice{} = invoice, nil) do
-    invoice
-    |> Invoice.category_changeset(%{category_id: nil})
-    |> Repo.update()
+  def set_invoice_category(%Invoice{type: :income}, _category_id, _opts),
+    do: {:error, :expense_only}
+
+  def set_invoice_category(%Invoice{} = invoice, nil, opts) do
+    old_category_id = invoice.category_id
+
+    case invoice
+         |> Invoice.category_changeset(%{category_id: nil})
+         |> Repo.update() do
+      {:ok, updated} ->
+        if old_category_id do
+          Events.invoice_classification_changed(
+            updated,
+            %{field: "category", old_value: old_category_id, new_value: nil},
+            opts
+          )
+        end
+
+        {:ok, updated}
+
+      error ->
+        error
+    end
   end
 
-  def set_invoice_category(%Invoice{} = invoice, category_id) do
-    case Category
-         |> where([c], c.id == ^category_id and c.company_id == ^invoice.company_id)
-         |> Repo.one() do
-      %Category{} = category ->
-        attrs = %{category_id: category_id}
+  def set_invoice_category(%Invoice{} = invoice, category_id, opts) do
+    old_category_id = invoice.category_id
 
-        attrs =
-          if category.default_cost_line,
-            do: Map.put(attrs, :cost_line, category.default_cost_line),
-            else: attrs
-
-        invoice
-        |> Invoice.category_changeset(attrs)
-        |> Repo.update()
-
-      nil ->
-        {:error, :category_not_in_company}
+    with %Category{} = category <- fetch_company_category(invoice.company_id, category_id),
+         attrs <- build_category_attrs(category_id, category),
+         {:ok, updated} <- invoice |> Invoice.category_changeset(attrs) |> Repo.update() do
+      maybe_log_category_change(updated, old_category_id, category_id, opts)
+      {:ok, updated}
+    else
+      nil -> {:error, :category_not_in_company}
+      {:error, _} = error -> error
     end
   end
 
@@ -1658,12 +1778,35 @@ defmodule KsefHub.Invoices do
   """
   @spec set_invoice_cost_line(Invoice.t(), atom() | nil) ::
           {:ok, Invoice.t()} | {:error, Ecto.Changeset.t() | :expense_only}
-  def set_invoice_cost_line(%Invoice{type: :income}, _cost_line), do: {:error, :expense_only}
+  def set_invoice_cost_line(invoice, cost_line, opts \\ [])
 
-  def set_invoice_cost_line(%Invoice{} = invoice, cost_line) do
-    invoice
-    |> Invoice.category_changeset(%{cost_line: cost_line})
-    |> Repo.update()
+  def set_invoice_cost_line(%Invoice{type: :income}, _cost_line, _opts),
+    do: {:error, :expense_only}
+
+  def set_invoice_cost_line(%Invoice{} = invoice, cost_line, opts) do
+    old_cost_line = invoice.cost_line
+
+    case invoice
+         |> Invoice.category_changeset(%{cost_line: cost_line})
+         |> Repo.update() do
+      {:ok, updated} ->
+        if old_cost_line != cost_line do
+          Events.invoice_classification_changed(
+            updated,
+            %{
+              field: "cost_line",
+              old_value: to_string(old_cost_line),
+              new_value: to_string(cost_line)
+            },
+            opts
+          )
+        end
+
+        {:ok, updated}
+
+      error ->
+        error
+    end
   end
 
   @doc """
@@ -1673,10 +1816,26 @@ defmodule KsefHub.Invoices do
   """
   @spec set_invoice_project_tag(Invoice.t(), String.t() | nil) ::
           {:ok, Invoice.t()} | {:error, Ecto.Changeset.t()}
-  def set_invoice_project_tag(%Invoice{} = invoice, project_tag) do
-    invoice
-    |> Invoice.project_tag_changeset(%{project_tag: project_tag})
-    |> Repo.update()
+  def set_invoice_project_tag(%Invoice{} = invoice, project_tag, opts \\ []) do
+    old_project_tag = invoice.project_tag
+
+    case invoice
+         |> Invoice.project_tag_changeset(%{project_tag: project_tag})
+         |> Repo.update() do
+      {:ok, updated} ->
+        if old_project_tag != project_tag do
+          Events.invoice_classification_changed(
+            updated,
+            %{field: "project_tag", old_value: old_project_tag, new_value: project_tag},
+            opts
+          )
+        end
+
+        {:ok, updated}
+
+      error ->
+        error
+    end
   end
 
   @doc """
@@ -1753,19 +1912,33 @@ defmodule KsefHub.Invoices do
   @doc "Updates the note on an invoice."
   @spec update_invoice_note(Invoice.t(), map()) ::
           {:ok, Invoice.t()} | {:error, Ecto.Changeset.t()}
-  def update_invoice_note(%Invoice{} = invoice, attrs) do
-    invoice
-    |> Invoice.note_changeset(attrs)
-    |> Repo.update()
+  def update_invoice_note(%Invoice{} = invoice, attrs, opts \\ []) do
+    changeset = Invoice.note_changeset(invoice, attrs)
+
+    case Repo.update(changeset) do
+      {:ok, updated} ->
+        if changeset.changes != %{}, do: Events.invoice_note_updated(updated, opts)
+        {:ok, updated}
+
+      error ->
+        error
+    end
   end
 
   @doc "Updates the billing date range on any invoice, regardless of source."
-  @spec update_billing_date(Invoice.t(), map()) ::
+  @spec update_billing_date(Invoice.t(), map(), keyword()) ::
           {:ok, Invoice.t()} | {:error, Ecto.Changeset.t()}
-  def update_billing_date(%Invoice{} = invoice, attrs) do
-    invoice
-    |> Invoice.billing_date_changeset(attrs)
-    |> Repo.update()
+  def update_billing_date(%Invoice{} = invoice, attrs, opts \\ []) do
+    changeset = Invoice.billing_date_changeset(invoice, attrs)
+
+    case Repo.update(changeset) do
+      {:ok, updated} ->
+        if changeset.changes != %{}, do: Events.invoice_billing_date_changed(updated, opts)
+        {:ok, updated}
+
+      error ->
+        error
+    end
   end
 
   # --- Invoice Comments ---
@@ -1784,7 +1957,7 @@ defmodule KsefHub.Invoices do
   @doc "Creates a comment on an invoice and returns it with user preloaded. Verifies invoice belongs to company."
   @spec create_invoice_comment(Ecto.UUID.t(), Ecto.UUID.t(), Ecto.UUID.t(), map()) ::
           {:ok, InvoiceComment.t()} | {:error, :not_found} | {:error, Ecto.Changeset.t()}
-  def create_invoice_comment(company_id, invoice_id, user_id, attrs) do
+  def create_invoice_comment(company_id, invoice_id, user_id, attrs, opts \\ []) do
     case Repo.get_by(Invoice, id: invoice_id, company_id: company_id) do
       nil ->
         {:error, :not_found}
@@ -1795,16 +1968,22 @@ defmodule KsefHub.Invoices do
         |> InvoiceComment.changeset(attrs)
         |> Repo.insert()
         |> case do
-          {:ok, comment} -> {:ok, Repo.preload(comment, :user)}
-          error -> error
+          {:ok, comment} ->
+            comment = Repo.preload(comment, :user)
+            invoice_ref = %{id: invoice_id, company_id: company_id}
+            Events.invoice_comment_added(invoice_ref, comment, opts)
+            {:ok, comment}
+
+          error ->
+            error
         end
     end
   end
 
   @doc "Updates an existing comment's body. Returns {:error, :unauthorized} if the user doesn't own the comment."
-  @spec update_invoice_comment(InvoiceComment.t(), User.t(), map()) ::
+  @spec update_invoice_comment(InvoiceComment.t(), User.t(), map(), keyword()) ::
           {:ok, InvoiceComment.t()} | {:error, :unauthorized} | {:error, Ecto.Changeset.t()}
-  def update_invoice_comment(%InvoiceComment{} = comment, %User{} = user, attrs) do
+  def update_invoice_comment(%InvoiceComment{} = comment, %User{} = user, attrs, opts \\ []) do
     if comment.user_id != user.id do
       {:error, :unauthorized}
     else
@@ -1812,20 +1991,58 @@ defmodule KsefHub.Invoices do
       |> InvoiceComment.changeset(attrs)
       |> Repo.update()
       |> case do
-        {:ok, comment} -> {:ok, Repo.preload(comment, :user)}
-        error -> error
+        {:ok, updated} ->
+          updated = Repo.preload(updated, :user)
+          emit_comment_event(updated, "invoice.comment_edited", opts)
+          {:ok, updated}
+
+        error ->
+          error
       end
     end
   end
 
   @doc "Deletes a comment. Returns {:error, :unauthorized} if the user doesn't own the comment."
-  @spec delete_invoice_comment(InvoiceComment.t(), User.t()) ::
+  @spec delete_invoice_comment(InvoiceComment.t(), User.t(), keyword()) ::
           {:ok, InvoiceComment.t()} | {:error, :unauthorized} | {:error, Ecto.Changeset.t()}
-  def delete_invoice_comment(%InvoiceComment{} = comment, %User{} = user) do
+  def delete_invoice_comment(%InvoiceComment{} = comment, %User{} = user, opts \\ []) do
     if comment.user_id != user.id do
       {:error, :unauthorized}
     else
-      Repo.delete(comment)
+      case Repo.delete(comment) do
+        {:ok, deleted} ->
+          emit_comment_event(deleted, "invoice.comment_deleted", opts)
+          {:ok, deleted}
+
+        error ->
+          error
+      end
+    end
+  end
+
+  @spec emit_comment_event(InvoiceComment.t(), String.t(), keyword()) :: :ok
+  defp emit_comment_event(comment, action, opts) do
+    # Look up company_id from the invoice for the event
+    case Repo.get(Invoice, comment.invoice_id) do
+      %Invoice{} = invoice ->
+        case action do
+          "invoice.comment_edited" ->
+            Events.invoice_comment_edited(
+              %{id: invoice.id, company_id: invoice.company_id},
+              comment,
+              opts
+            )
+
+          "invoice.comment_deleted" ->
+            Events.invoice_comment_deleted(
+              %{id: invoice.id, company_id: invoice.company_id},
+              comment.id,
+              opts
+            )
+        end
+
+      nil ->
+        :ok
     end
   end
 
@@ -1917,18 +2134,72 @@ defmodule KsefHub.Invoices do
   """
   @spec set_access_restricted(Invoice.t(), boolean()) ::
           {:ok, Invoice.t()} | {:error, :income_always_restricted | Ecto.Changeset.t()}
-  def set_access_restricted(%Invoice{type: :income}, false),
+  def set_access_restricted(invoice, restricted, opts \\ [])
+
+  def set_access_restricted(%Invoice{type: :income}, false, _opts),
     do: {:error, :income_always_restricted}
 
-  def set_access_restricted(%Invoice{} = invoice, restricted) when is_boolean(restricted) do
-    invoice
-    |> Ecto.Changeset.change(%{access_restricted: restricted})
-    |> Repo.update()
+  def set_access_restricted(%Invoice{} = invoice, restricted, opts) when is_boolean(restricted) do
+    change_type = if restricted, do: "restricted", else: "unrestricted"
+
+    case invoice
+         |> Ecto.Changeset.change(%{access_restricted: restricted})
+         |> Repo.update() do
+      {:ok, updated} ->
+        Events.invoice_access_changed(updated, change_type, opts)
+        {:ok, updated}
+
+      error ->
+        error
+    end
   end
 
   # --- Private ---
 
   @spec detect_duplicate(Ecto.UUID.t(), map()) :: map()
+  @spec maybe_log_tags_change(Invoice.t(), [String.t()], [String.t()], keyword()) :: :ok
+  defp maybe_log_tags_change(_invoice, same, same, _opts), do: :ok
+
+  defp maybe_log_tags_change(invoice, old_tags, new_tags, opts) do
+    Events.invoice_classification_changed(
+      invoice,
+      %{field: "tags", old_value: old_tags, new_value: new_tags},
+      opts
+    )
+  end
+
+  @spec fetch_company_category(Ecto.UUID.t(), Ecto.UUID.t()) :: Category.t() | nil
+  defp fetch_company_category(company_id, category_id) do
+    Category
+    |> where([c], c.id == ^category_id and c.company_id == ^company_id)
+    |> Repo.one()
+  end
+
+  @spec build_category_attrs(Ecto.UUID.t(), Category.t()) :: map()
+  defp build_category_attrs(category_id, category) do
+    attrs = %{category_id: category_id}
+
+    if category.default_cost_line,
+      do: Map.put(attrs, :cost_line, category.default_cost_line),
+      else: attrs
+  end
+
+  @spec maybe_log_category_change(
+          Invoice.t(),
+          Ecto.UUID.t() | nil,
+          Ecto.UUID.t() | nil,
+          keyword()
+        ) :: :ok
+  defp maybe_log_category_change(_invoice, same, same, _opts), do: :ok
+
+  defp maybe_log_category_change(invoice, old_id, new_id, opts) do
+    Events.invoice_classification_changed(
+      invoice,
+      %{field: "category", old_value: old_id, new_value: new_id},
+      opts
+    )
+  end
+
   defp detect_duplicate(company_id, attrs) do
     case find_original_id(company_id, attrs) do
       nil ->
