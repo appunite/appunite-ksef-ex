@@ -45,7 +45,7 @@ defmodule KsefHub.ActivityLog.TrackedRepo do
   def insert(changeset, opts \\ []) do
     case Repo.insert(changeset) do
       {:ok, struct} ->
-        maybe_emit(changeset, struct, opts)
+        maybe_emit(%{changeset | action: :insert}, struct, opts)
         {:ok, struct}
 
       error ->

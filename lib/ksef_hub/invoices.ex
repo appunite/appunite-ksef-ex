@@ -605,16 +605,9 @@ defmodule KsefHub.Invoices do
   end
 
   def approve_invoice(%Invoice{type: :expense} = invoice, opts) do
-    old_status = invoice.status
-
-    case update_invoice(invoice, %{status: :approved}) do
-      {:ok, updated} ->
-        Events.invoice_status_changed(updated, old_status, :approved, opts)
-        {:ok, updated}
-
-      error ->
-        error
-    end
+    invoice
+    |> Invoice.changeset(%{status: :approved})
+    |> TrackedRepo.update(opts)
   end
 
   def approve_invoice(%Invoice{type: type}, _opts), do: {:error, {:invalid_type, type}}
@@ -651,16 +644,9 @@ defmodule KsefHub.Invoices do
   def reject_invoice(invoice, opts \\ [])
 
   def reject_invoice(%Invoice{type: :expense} = invoice, opts) do
-    old_status = invoice.status
-
-    case update_invoice(invoice, %{status: :rejected}) do
-      {:ok, updated} ->
-        Events.invoice_status_changed(updated, old_status, :rejected, opts)
-        {:ok, updated}
-
-      error ->
-        error
-    end
+    invoice
+    |> Invoice.changeset(%{status: :rejected})
+    |> TrackedRepo.update(opts)
   end
 
   def reject_invoice(%Invoice{type: type}, _opts), do: {:error, {:invalid_type, type}}
@@ -686,16 +672,9 @@ defmodule KsefHub.Invoices do
   end
 
   def reset_invoice_status(%Invoice{type: :expense} = invoice, opts) do
-    old_status = invoice.status
-
-    case update_invoice(invoice, %{status: :pending}) do
-      {:ok, updated} ->
-        Events.invoice_status_changed(updated, old_status, :pending, opts)
-        {:ok, updated}
-
-      error ->
-        error
-    end
+    invoice
+    |> Invoice.changeset(%{status: :pending})
+    |> TrackedRepo.update(opts)
   end
 
   def reset_invoice_status(%Invoice{type: type}, _opts), do: {:error, {:invalid_type, type}}
@@ -1289,16 +1268,9 @@ defmodule KsefHub.Invoices do
     do: {:error, :not_a_duplicate}
 
   def confirm_duplicate(%Invoice{duplicate_status: :suspected} = invoice, opts) do
-    case invoice
-         |> Invoice.duplicate_changeset(%{duplicate_status: :confirmed})
-         |> Repo.update() do
-      {:ok, updated} ->
-        Events.invoice_duplicate_confirmed(updated, opts)
-        {:ok, updated}
-
-      error ->
-        error
-    end
+    invoice
+    |> Invoice.duplicate_changeset(%{duplicate_status: :confirmed})
+    |> TrackedRepo.update(opts)
   end
 
   def confirm_duplicate(%Invoice{}, _opts), do: {:error, :invalid_status}
@@ -1319,16 +1291,9 @@ defmodule KsefHub.Invoices do
 
   def dismiss_duplicate(%Invoice{duplicate_status: status} = invoice, opts)
       when status in [:suspected, :confirmed] do
-    case invoice
-         |> Invoice.duplicate_changeset(%{duplicate_status: :dismissed})
-         |> Repo.update() do
-      {:ok, updated} ->
-        Events.invoice_duplicate_dismissed(updated, opts)
-        {:ok, updated}
-
-      error ->
-        error
-    end
+    invoice
+    |> Invoice.duplicate_changeset(%{duplicate_status: :dismissed})
+    |> TrackedRepo.update(opts)
   end
 
   def dismiss_duplicate(%Invoice{}, _opts), do: {:error, :invalid_status}
@@ -1569,33 +1534,19 @@ defmodule KsefHub.Invoices do
   @spec create_category(Ecto.UUID.t(), map()) ::
           {:ok, Category.t()} | {:error, Ecto.Changeset.t()}
   def create_category(company_id, attrs, opts \\ []) do
-    case %Category{}
-         |> Ecto.Changeset.change(%{company_id: company_id})
-         |> Category.changeset(attrs)
-         |> Repo.insert() do
-      {:ok, category} ->
-        Events.category_created(category, opts)
-        {:ok, category}
-
-      error ->
-        error
-    end
+    %Category{}
+    |> Ecto.Changeset.change(%{company_id: company_id})
+    |> Category.changeset(attrs)
+    |> TrackedRepo.insert(opts)
   end
 
   @doc "Updates a category."
   @spec update_category(Category.t(), map(), keyword()) ::
           {:ok, Category.t()} | {:error, Ecto.Changeset.t()}
   def update_category(%Category{} = category, attrs, opts \\ []) do
-    case category
-         |> Category.changeset(attrs)
-         |> Repo.update() do
-      {:ok, updated} ->
-        Events.category_updated(updated, opts)
-        {:ok, updated}
-
-      error ->
-        error
-    end
+    category
+    |> Category.changeset(attrs)
+    |> TrackedRepo.update(opts)
   end
 
   @doc "Deletes a category. Associated invoices get category_id nilified."
@@ -1638,16 +1589,10 @@ defmodule KsefHub.Invoices do
           {:ok, Invoice.t()} | {:error, Ecto.Changeset.t()}
   defp do_set_invoice_tags(invoice, tags, opts) do
     normalized = tags |> Enum.map(&String.trim/1) |> Enum.reject(&(&1 == "")) |> Enum.uniq()
-    old_tags = invoice.tags || []
 
-    case invoice |> Invoice.tags_changeset(%{tags: normalized}) |> Repo.update() do
-      {:ok, updated} ->
-        maybe_log_tags_change(updated, old_tags, normalized, opts)
-        {:ok, updated}
-
-      error ->
-        error
-    end
+    invoice
+    |> Invoice.tags_changeset(%{tags: normalized})
+    |> TrackedRepo.update(opts)
   end
 
   @doc "Adds a single tag to an invoice (idempotent). Trims whitespace. Uses atomic DB update with validation guards."
@@ -1720,38 +1665,19 @@ defmodule KsefHub.Invoices do
     do: {:error, :expense_only}
 
   def set_invoice_category(%Invoice{} = invoice, nil, opts) do
-    old_category_id = invoice.category_id
-
-    case invoice
-         |> Invoice.category_changeset(%{category_id: nil})
-         |> Repo.update() do
-      {:ok, updated} ->
-        if old_category_id do
-          Events.invoice_classification_changed(
-            updated,
-            %{field: "category", old_value: old_category_id, new_value: nil},
-            opts
-          )
-        end
-
-        {:ok, updated}
-
-      error ->
-        error
-    end
+    invoice
+    |> Invoice.category_changeset(%{category_id: nil})
+    |> TrackedRepo.update(opts)
   end
 
   def set_invoice_category(%Invoice{} = invoice, category_id, opts) do
-    old_category_id = invoice.category_id
-
     with %Category{} = category <- fetch_company_category(invoice.company_id, category_id),
-         attrs <- build_category_attrs(category_id, category),
-         {:ok, updated} <- invoice |> Invoice.category_changeset(attrs) |> Repo.update() do
-      maybe_log_category_change(updated, old_category_id, category_id, opts)
-      {:ok, updated}
+         attrs <- build_category_attrs(category_id, category) do
+      invoice
+      |> Invoice.category_changeset(attrs)
+      |> TrackedRepo.update(opts)
     else
       nil -> {:error, :category_not_in_company}
-      {:error, _} = error -> error
     end
   end
 
@@ -1768,29 +1694,9 @@ defmodule KsefHub.Invoices do
     do: {:error, :expense_only}
 
   def set_invoice_cost_line(%Invoice{} = invoice, cost_line, opts) do
-    old_cost_line = invoice.cost_line
-
-    case invoice
-         |> Invoice.category_changeset(%{cost_line: cost_line})
-         |> Repo.update() do
-      {:ok, updated} ->
-        if old_cost_line != cost_line do
-          Events.invoice_classification_changed(
-            updated,
-            %{
-              field: "cost_line",
-              old_value: to_string(old_cost_line),
-              new_value: to_string(cost_line)
-            },
-            opts
-          )
-        end
-
-        {:ok, updated}
-
-      error ->
-        error
-    end
+    invoice
+    |> Invoice.category_changeset(%{cost_line: cost_line})
+    |> TrackedRepo.update(opts)
   end
 
   @doc """
@@ -1801,25 +1707,9 @@ defmodule KsefHub.Invoices do
   @spec set_invoice_project_tag(Invoice.t(), String.t() | nil) ::
           {:ok, Invoice.t()} | {:error, Ecto.Changeset.t()}
   def set_invoice_project_tag(%Invoice{} = invoice, project_tag, opts \\ []) do
-    old_project_tag = invoice.project_tag
-
-    case invoice
-         |> Invoice.project_tag_changeset(%{project_tag: project_tag})
-         |> Repo.update() do
-      {:ok, updated} ->
-        if old_project_tag != project_tag do
-          Events.invoice_classification_changed(
-            updated,
-            %{field: "project_tag", old_value: old_project_tag, new_value: project_tag},
-            opts
-          )
-        end
-
-        {:ok, updated}
-
-      error ->
-        error
-    end
+    invoice
+    |> Invoice.project_tag_changeset(%{project_tag: project_tag})
+    |> TrackedRepo.update(opts)
   end
 
   @doc """
@@ -2110,33 +2000,14 @@ defmodule KsefHub.Invoices do
     do: {:error, :income_always_restricted}
 
   def set_access_restricted(%Invoice{} = invoice, restricted, opts) when is_boolean(restricted) do
-    change_type = if restricted, do: "restricted", else: "unrestricted"
-
-    case invoice
-         |> Ecto.Changeset.change(%{access_restricted: restricted})
-         |> Repo.update() do
-      {:ok, updated} ->
-        Events.invoice_access_changed(updated, change_type, opts)
-        {:ok, updated}
-
-      error ->
-        error
-    end
+    invoice
+    |> Ecto.Changeset.change(%{access_restricted: restricted})
+    |> TrackedRepo.update(opts)
   end
 
   # --- Private ---
 
   @spec detect_duplicate(Ecto.UUID.t(), map()) :: map()
-  @spec maybe_log_tags_change(Invoice.t(), [String.t()], [String.t()], keyword()) :: :ok
-  defp maybe_log_tags_change(_invoice, same, same, _opts), do: :ok
-
-  defp maybe_log_tags_change(invoice, old_tags, new_tags, opts) do
-    Events.invoice_classification_changed(
-      invoice,
-      %{field: "tags", old_value: old_tags, new_value: new_tags},
-      opts
-    )
-  end
 
   @spec fetch_company_category(Ecto.UUID.t(), Ecto.UUID.t()) :: Category.t() | nil
   defp fetch_company_category(company_id, category_id) do
@@ -2152,22 +2023,6 @@ defmodule KsefHub.Invoices do
     if category.default_cost_line,
       do: Map.put(attrs, :cost_line, category.default_cost_line),
       else: attrs
-  end
-
-  @spec maybe_log_category_change(
-          Invoice.t(),
-          Ecto.UUID.t() | nil,
-          Ecto.UUID.t() | nil,
-          keyword()
-        ) :: :ok
-  defp maybe_log_category_change(_invoice, same, same, _opts), do: :ok
-
-  defp maybe_log_category_change(invoice, old_id, new_id, opts) do
-    Events.invoice_classification_changed(
-      invoice,
-      %{field: "category", old_value: old_id, new_value: new_id},
-      opts
-    )
   end
 
   defp detect_duplicate(company_id, attrs) do

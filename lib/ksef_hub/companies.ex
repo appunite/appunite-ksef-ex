@@ -262,32 +262,18 @@ defmodule KsefHub.Companies do
   @spec create_bank_account(Ecto.UUID.t(), map()) ::
           {:ok, CompanyBankAccount.t()} | {:error, Ecto.Changeset.t()}
   def create_bank_account(company_id, attrs, opts \\ []) do
-    case %CompanyBankAccount{company_id: company_id}
-         |> CompanyBankAccount.changeset(attrs)
-         |> Repo.insert() do
-      {:ok, account} ->
-        Events.bank_account_created(account, opts)
-        {:ok, account}
-
-      error ->
-        error
-    end
+    %CompanyBankAccount{company_id: company_id}
+    |> CompanyBankAccount.changeset(attrs)
+    |> TrackedRepo.insert(opts)
   end
 
   @doc "Updates a bank account."
   @spec update_bank_account(CompanyBankAccount.t(), map(), keyword()) ::
           {:ok, CompanyBankAccount.t()} | {:error, Ecto.Changeset.t()}
   def update_bank_account(%CompanyBankAccount{} = bank_account, attrs, opts \\ []) do
-    case bank_account
-         |> CompanyBankAccount.update_changeset(attrs)
-         |> Repo.update() do
-      {:ok, updated} ->
-        Events.bank_account_updated(updated, opts)
-        {:ok, updated}
-
-      error ->
-        error
-    end
+    bank_account
+    |> CompanyBankAccount.update_changeset(attrs)
+    |> TrackedRepo.update(opts)
   end
 
   @doc "Deletes a bank account."
