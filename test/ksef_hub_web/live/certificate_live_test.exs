@@ -445,7 +445,13 @@ defmodule KsefHubWeb.CertificateLiveTest do
 
       {:ok, view, _html} = live(conn, ~p"/c/#{company.id}/settings/certificates")
       assert has_element?(view, "[data-testid='certificate-expired-banner']")
-      assert has_element?(view, "[data-testid='certificate-expired-banner']", "Certificate expired")
+
+      assert has_element?(
+               view,
+               "[data-testid='certificate-expired-banner']",
+               "Certificate expired"
+             )
+
       assert has_element?(view, "[data-testid='certificate-expired-banner']", "no longer working")
     end
 
@@ -462,7 +468,13 @@ defmodule KsefHubWeb.CertificateLiveTest do
 
       {:ok, view, _html} = live(conn, ~p"/c/#{company.id}/settings/certificates")
       assert has_element?(view, "[data-testid='certificate-expiring-banner']")
-      assert has_element?(view, "[data-testid='certificate-expiring-banner']", "Certificate expiring soon")
+
+      assert has_element?(
+               view,
+               "[data-testid='certificate-expiring-banner']",
+               "Certificate expiring soon"
+             )
+
       assert has_element?(view, "[data-testid='certificate-expiring-banner']", "3 days")
     end
 
