@@ -387,11 +387,12 @@ defmodule KsefHub.Invoices do
   @doc """
   Updates an invoice.
   """
-  @spec update_invoice(Invoice.t(), map()) :: {:ok, Invoice.t()} | {:error, Ecto.Changeset.t()}
-  def update_invoice(%Invoice{} = invoice, attrs) do
+  @spec update_invoice(Invoice.t(), map(), keyword()) ::
+          {:ok, Invoice.t()} | {:error, Ecto.Changeset.t()}
+  def update_invoice(%Invoice{} = invoice, attrs, opts \\ []) do
     invoice
     |> Invoice.changeset(attrs)
-    |> Repo.update()
+    |> TrackedRepo.update(opts)
   end
 
   @doc """
@@ -1955,22 +1956,33 @@ defmodule KsefHub.Invoices do
   Validates that the target user is a member of the same company as the invoice
   and does not have full invoice visibility (i.e. is a reviewer, not admin/owner/accountant).
   """
-  @spec grant_access(Ecto.UUID.t(), Ecto.UUID.t(), Ecto.UUID.t() | nil) ::
+  @spec grant_access(Ecto.UUID.t(), Ecto.UUID.t(), Ecto.UUID.t() | nil, keyword()) ::
           {:ok, InvoiceAccessGrant.t()} | {:error, Ecto.Changeset.t()}
-  def grant_access(invoice_id, user_id, granted_by_id \\ nil) do
+  def grant_access(invoice_id, user_id, granted_by_id \\ nil, opts \\ []) do
     with {:ok, company_id} <- fetch_invoice_company_id(invoice_id),
          {:ok, _membership} <- validate_grantable_member(company_id, user_id) do
-      %InvoiceAccessGrant{}
-      |> Ecto.Changeset.change(%{
-        invoice_id: invoice_id,
-        user_id: user_id,
-        granted_by_id: granted_by_id
-      })
-      |> Ecto.Changeset.unique_constraint([:invoice_id, :user_id])
-      |> Ecto.Changeset.foreign_key_constraint(:invoice_id)
-      |> Ecto.Changeset.foreign_key_constraint(:user_id)
-      |> Ecto.Changeset.foreign_key_constraint(:granted_by_id)
-      |> Repo.insert(on_conflict: :nothing, conflict_target: [:invoice_id, :user_id])
+      result =
+        %InvoiceAccessGrant{}
+        |> Ecto.Changeset.change(%{
+          invoice_id: invoice_id,
+          user_id: user_id,
+          granted_by_id: granted_by_id
+        })
+        |> Ecto.Changeset.unique_constraint([:invoice_id, :user_id])
+        |> Ecto.Changeset.foreign_key_constraint(:invoice_id)
+        |> Ecto.Changeset.foreign_key_constraint(:user_id)
+        |> Ecto.Changeset.foreign_key_constraint(:granted_by_id)
+        |> Repo.insert(on_conflict: :nothing, conflict_target: [:invoice_id, :user_id])
+
+      case result do
+        {:ok, grant} ->
+          invoice_ref = %{id: invoice_id, company_id: company_id}
+          Events.invoice_access_granted(invoice_ref, user_id, opts)
+          {:ok, grant}
+
+        error ->
+          error
+      end
     end
   end
 
@@ -2005,15 +2017,32 @@ defmodule KsefHub.Invoices do
   end
 
   @doc "Revokes a user's access to a restricted invoice."
-  @spec revoke_access(Ecto.UUID.t(), Ecto.UUID.t()) ::
+  @spec revoke_access(Ecto.UUID.t(), Ecto.UUID.t(), keyword()) ::
           {:ok, InvoiceAccessGrant.t()} | {:error, :not_found}
-  def revoke_access(invoice_id, user_id) do
+  def revoke_access(invoice_id, user_id, opts \\ []) do
     InvoiceAccessGrant
     |> where([g], g.invoice_id == ^invoice_id and g.user_id == ^user_id)
     |> Repo.one()
     |> case do
-      nil -> {:error, :not_found}
-      grant -> Repo.delete(grant)
+      nil ->
+        {:error, :not_found}
+
+      grant ->
+        case Repo.delete(grant) do
+          {:ok, deleted} ->
+            with %Invoice{company_id: company_id} <- Repo.get(Invoice, invoice_id) do
+              Events.invoice_access_revoked(
+                %{id: invoice_id, company_id: company_id},
+                user_id,
+                opts
+              )
+            end
+
+            {:ok, deleted}
+
+          error ->
+            error
+        end
     end
   end
 

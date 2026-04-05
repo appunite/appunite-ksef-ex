@@ -15,6 +15,7 @@ defmodule KsefHubWeb.Api.InvoiceController do
   import KsefHubWeb.FilenameHelpers, only: [send_attachment: 4]
   import KsefHubWeb.JsonHelpers, only: [category_json: 1, atomize_keys: 2]
 
+  alias KsefHub.ActivityLog.Events
   alias KsefHub.Invoices
   alias KsefHub.Invoices.{CostLine, Invoice}
   alias KsefHubWeb.Schemas
@@ -738,6 +739,8 @@ defmodule KsefHubWeb.Api.InvoiceController do
       |> put_status(:unprocessable_entity)
       |> json(%{error: "Invoice has no XML content"})
     else
+      emit_download_event(conn, invoice, "xml")
+
       send_attachment(
         conn,
         "application/xml",
@@ -782,6 +785,7 @@ defmodule KsefHubWeb.Api.InvoiceController do
         user_id: conn.assigns.api_token.created_by_id
       )
 
+    emit_download_event(conn, invoice, "pdf")
     serve_pdf(conn, invoice)
   end
 
@@ -1216,7 +1220,9 @@ defmodule KsefHubWeb.Api.InvoiceController do
             user_id: granted_by_id
           )
 
-        case Invoices.grant_access(invoice.id, user_id, granted_by_id) do
+        api_actor_opts = api_actor_opts(conn)
+
+        case Invoices.grant_access(invoice.id, user_id, granted_by_id, api_actor_opts) do
           {:ok, _grant} ->
             grants = Invoices.list_access_grants(invoice.id)
 
@@ -1287,7 +1293,7 @@ defmodule KsefHubWeb.Api.InvoiceController do
             user_id: conn.assigns.api_token.created_by_id
           )
 
-        case Invoices.revoke_access(invoice.id, user_id) do
+        case Invoices.revoke_access(invoice.id, user_id, api_actor_opts(conn)) do
           {:ok, _} ->
             grants = Invoices.list_access_grants(invoice.id)
 
@@ -1546,4 +1552,16 @@ defmodule KsefHubWeb.Api.InvoiceController do
   @spec maybe_add_tags(map(), Invoice.t()) :: map()
   defp maybe_add_tags(json, %{tags: tags}) when is_list(tags), do: Map.put(json, :tags, tags)
   defp maybe_add_tags(json, _), do: json
+
+  @spec api_actor_opts(Plug.Conn.t()) :: keyword()
+  defp api_actor_opts(conn) do
+    token = conn.assigns.api_token
+    [user_id: token.created_by_id, actor_type: "api", actor_label: "API: #{token.name}"]
+  end
+
+  @spec emit_download_event(Plug.Conn.t(), Invoice.t(), String.t()) :: :ok
+  defp emit_download_event(conn, invoice, format) do
+    invoice_ref = %{id: invoice.id, company_id: invoice.company_id}
+    Events.invoice_downloaded(invoice_ref, format, api_actor_opts(conn))
+  end
 end

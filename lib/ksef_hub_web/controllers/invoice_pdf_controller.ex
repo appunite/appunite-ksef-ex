@@ -13,14 +13,23 @@ defmodule KsefHubWeb.InvoicePdfController do
 
   import KsefHubWeb.AuthHelpers, only: [resolve_role: 2]
 
+  alias KsefHub.ActivityLog.Events
   alias KsefHub.Invoices
 
   @doc "Downloads the raw FA(3) XML of the invoice."
   @spec xml(Plug.Conn.t(), map()) :: Plug.Conn.t()
-  def xml(%{assigns: %{current_user: %{id: _}}} = conn, %{"company_id" => company_id, "id" => id}) do
+  def xml(%{assigns: %{current_user: user}} = conn, %{"company_id" => company_id, "id" => id}) do
     with_invoice(conn, company_id, id, fn conn, invoice ->
       case invoice do
         %{xml_file: %{content: content}} when is_binary(content) and content != "" ->
+          actor_opts = [user_id: user.id, actor_label: user.name || user.email]
+
+          Events.invoice_downloaded(
+            %{id: invoice.id, company_id: company_id},
+            "xml",
+            actor_opts
+          )
+
           send_attachment(conn, "application/xml", "#{invoice.invoice_number}.xml", content)
 
         _ ->
@@ -36,12 +45,22 @@ defmodule KsefHubWeb.InvoicePdfController do
   @doc "Downloads a PDF for the invoice — serves the stored PDF for pdf_upload invoices, or generates one from XML. Pass `?inline=1` to use Content-Disposition: inline (for iframe previews)."
   @spec show(Plug.Conn.t(), map()) :: Plug.Conn.t()
   def show(
-        %{assigns: %{current_user: %{id: _}}} = conn,
+        %{assigns: %{current_user: user}} = conn,
         %{"company_id" => company_id, "id" => id} = params
       ) do
     inline? = params["inline"] == "1"
 
     with_invoice(conn, company_id, id, inline?, fn conn, invoice ->
+      unless inline? do
+        actor_opts = [user_id: user.id, actor_label: user.name || user.email]
+
+        Events.invoice_downloaded(
+          %{id: invoice.id, company_id: company_id},
+          "pdf",
+          actor_opts
+        )
+      end
+
       send_pdf(conn, company_id, invoice, inline?)
     end)
   end

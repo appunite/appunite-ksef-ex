@@ -87,7 +87,7 @@ end
 | `Invoice` | created, status_changed, excluded/included, duplicate_*, classification_changed (category/tags/cost_line/project_tag), note_updated, billing_date_changed, access_changed, updated (catch-all) |
 | `Category` | created, updated, deleted |
 | `CompanyBankAccount` | created, updated, deleted |
-| `Membership` | role_changed, member_blocked/unblocked |
+| `Membership` | role_changed, member_blocked/unblocked, member_removed |
 | `PaymentRequest` | created, paid, voided, updated |
 | `ApiToken` | generated, revoked |
 | `Credential` | uploaded (insert), invalidated (deactivation) |
@@ -99,10 +99,14 @@ Some events can't use TrackedRepo because they have no changeset or involve Mult
 | Event | Why manual |
 |-------|-----------|
 | `invoice.comment_added/edited/deleted` | InvoiceComment lacks `company_id`, needs cross-entity lookup |
+| `invoice.access_granted/access_revoked` | `on_conflict: :nothing` makes TrackedRepo awkward |
+| `invoice.downloaded` | Controller-level, no changeset |
 | `invoice.public_link_generated` | Atomic `update_all` in generate_public_token, no changeset |
 | `invoice.re_extraction_triggered` | Triggered from LiveView, no DB mutation |
 | `credential.uploaded` (in replace) | Multi.insert bypasses TrackedRepo |
 | `export.created` | Multi transaction |
+| `export.downloaded` | Controller-level, no changeset |
+| `team.invitation_sent/invitation_accepted` | Multi transaction |
 | `sync.triggered/completed` | Oban job, no changeset |
 | `user.logged_in/logged_out` | Session management, no Ecto mutation |
 
@@ -150,5 +154,5 @@ The Recorder GenServer wraps persistence in `try/rescue` so Ecto errors are logg
 
 - **Retention policy** — Oban cron job to prune entries older than 12 months
 - **Table partitioning** — range partitioning by `inserted_at` if >10M rows
-- **Download tracking** — requires wiring in the controller layer
 - **Multi-aware TrackedRepo** — extend TrackedRepo to wrap Ecto.Multi steps, eliminating the remaining manual Events calls
+- **Deferred emission** — defer `maybe_emit` until after transaction commit (requires Ecto `after_transaction` from a future version or a custom wrapper)

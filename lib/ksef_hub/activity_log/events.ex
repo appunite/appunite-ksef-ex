@@ -96,8 +96,55 @@ defmodule KsefHub.ActivityLog.Events do
   end
 
   # ---------------------------------------------------------------------------
+  # Invoice access grant events (on_conflict makes TrackedRepo awkward)
+  # ---------------------------------------------------------------------------
+
+  @doc "Access was granted to a restricted invoice."
+  @spec invoice_access_granted(map(), Ecto.UUID.t(), keyword()) :: :ok
+  def invoice_access_granted(invoice, grantee_user_id, opts \\ []) do
+    emit(
+      build_invoice_event("invoice.access_granted", invoice, opts,
+        grantee_user_id: grantee_user_id
+      )
+    )
+  end
+
+  @doc "Access was revoked from a restricted invoice."
+  @spec invoice_access_revoked(map(), Ecto.UUID.t(), keyword()) :: :ok
+  def invoice_access_revoked(invoice, revoked_user_id, opts \\ []) do
+    emit(
+      build_invoice_event("invoice.access_revoked", invoice, opts,
+        revoked_user_id: revoked_user_id
+      )
+    )
+  end
+
+  # ---------------------------------------------------------------------------
+  # Invoice download events (controller-level, no changeset)
+  # ---------------------------------------------------------------------------
+
+  @doc "Invoice file was downloaded (PDF or XML)."
+  @spec invoice_downloaded(map(), String.t(), keyword()) :: :ok
+  def invoice_downloaded(invoice, format, opts \\ []) do
+    emit(build_invoice_event("invoice.downloaded", invoice, opts, format: format))
+  end
+
+  # ---------------------------------------------------------------------------
   # Export events (Multi transaction)
   # ---------------------------------------------------------------------------
+
+  @doc "Export batch was downloaded."
+  @spec export_downloaded(map(), keyword()) :: :ok
+  def export_downloaded(export_batch, opts \\ []) do
+    emit(
+      build_event("export.downloaded",
+        resource_type: "export",
+        resource_id: export_batch.id,
+        company_id: export_batch.company_id,
+        opts: opts
+      )
+    )
+  end
 
   @doc "Export batch was created."
   @spec export_created(map(), keyword()) :: :ok
@@ -108,6 +155,38 @@ defmodule KsefHub.ActivityLog.Events do
         resource_id: export_batch.id,
         company_id: export_batch.company_id,
         opts: opts
+      )
+    )
+  end
+
+  # ---------------------------------------------------------------------------
+  # Invitation events (Multi transaction — bypasses TrackedRepo)
+  # ---------------------------------------------------------------------------
+
+  @doc "Team invitation was sent."
+  @spec invitation_sent(map(), String.t(), keyword()) :: :ok
+  def invitation_sent(invitation, email, opts \\ []) do
+    emit(
+      build_event("team.invitation_sent",
+        resource_type: "invitation",
+        resource_id: invitation.id,
+        company_id: invitation.company_id,
+        opts: opts,
+        extra_metadata: %{email: email, role: to_string(invitation.role)}
+      )
+    )
+  end
+
+  @doc "Team invitation was accepted."
+  @spec invitation_accepted(map(), map(), keyword()) :: :ok
+  def invitation_accepted(invitation, user, opts \\ []) do
+    emit(
+      build_event("team.invitation_accepted",
+        resource_type: "invitation",
+        resource_id: invitation.id,
+        company_id: invitation.company_id,
+        opts: Keyword.merge([user_id: user.id, actor_label: user.name || user.email], opts),
+        extra_metadata: %{email: invitation.email, role: to_string(invitation.role)}
       )
     )
   end

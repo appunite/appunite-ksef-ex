@@ -126,6 +126,8 @@ defmodule KsefHub.Companies.Membership do
   end
 
   @impl KsefHub.ActivityLog.Trackable
-  @spec track_delete(t()) :: :skip
-  def track_delete(_membership), do: :skip
+  @spec track_delete(t()) :: {String.t(), map()}
+  def track_delete(%__MODULE__{} = m) do
+    {"team.member_removed", %{member_user_id: m.user_id}}
+  end
 end

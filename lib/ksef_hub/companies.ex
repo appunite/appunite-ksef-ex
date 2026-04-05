@@ -298,9 +298,10 @@ defmodule KsefHub.Companies do
   end
 
   @doc "Deletes a membership."
-  @spec delete_membership(Membership.t()) :: {:ok, Membership.t()} | {:error, Ecto.Changeset.t()}
-  def delete_membership(%Membership{} = membership) do
-    Repo.delete(membership)
+  @spec delete_membership(Membership.t(), keyword()) ::
+          {:ok, Membership.t()} | {:error, Ecto.Changeset.t()}
+  def delete_membership(%Membership{} = membership, opts \\ []) do
+    TrackedRepo.delete(membership, opts)
   end
 
   @doc "Updates the role of a membership."

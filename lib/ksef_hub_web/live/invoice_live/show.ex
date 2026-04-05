@@ -659,7 +659,7 @@ defmodule KsefHubWeb.InvoiceLive.Show do
     invoice = socket.assigns.invoice
     granted_by_id = socket.assigns.current_user.id
 
-    case Invoices.grant_access(invoice.id, user_id, granted_by_id) do
+    case Invoices.grant_access(invoice.id, user_id, granted_by_id, actor_opts(socket)) do
       {:ok, _grant} ->
         {:noreply, assign(socket, access_grants: Invoices.list_access_grants(invoice.id))}
 
@@ -676,7 +676,7 @@ defmodule KsefHubWeb.InvoiceLive.Show do
   def handle_event("revoke_access", %{"user_id" => user_id}, socket) do
     invoice = socket.assigns.invoice
 
-    case Invoices.revoke_access(invoice.id, user_id) do
+    case Invoices.revoke_access(invoice.id, user_id, actor_opts(socket)) do
       {:ok, _} ->
         {:noreply, assign(socket, access_grants: Invoices.list_access_grants(invoice.id))}
 
