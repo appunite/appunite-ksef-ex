@@ -1175,7 +1175,7 @@ defmodule KsefHub.Invoices do
     %Invoice{}
     |> Ecto.Changeset.change(trusted_fields)
     |> Invoice.changeset(attrs)
-    |> Repo.insert()
+    |> TrackedRepo.insert()
   end
 
   @spec do_upsert_invoice(Ecto.UUID.t(), map()) ::

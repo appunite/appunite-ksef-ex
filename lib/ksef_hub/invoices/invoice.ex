@@ -514,6 +514,11 @@ defmodule KsefHub.Invoices.Invoice do
 
   @impl KsefHub.ActivityLog.Trackable
   @spec track_change(Ecto.Changeset.t()) :: {String.t(), map()} | :skip
+  def track_change(%Ecto.Changeset{action: :insert} = cs) do
+    source = get_change(cs, :source) || get_field(cs, :source)
+    {"invoice.created", %{source: to_string(source)}}
+  end
+
   def track_change(%Ecto.Changeset{} = changeset) do
     case Enum.find(@tracked_fields, &Map.has_key?(changeset.changes, &1)) do
       nil -> classify_generic(changeset)
