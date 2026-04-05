@@ -51,7 +51,9 @@ defmodule KsefHubWeb.InvoicePdfController do
     inline? = params["inline"] == "1"
 
     with_invoice(conn, company_id, id, inline?, fn conn, invoice ->
-      unless inline? do
+      result_conn = send_pdf(conn, company_id, invoice, inline?)
+
+      if result_conn.status == 200 and not inline? do
         actor_opts = [user_id: user.id, actor_label: user.name || user.email]
 
         Events.invoice_downloaded(
@@ -61,7 +63,7 @@ defmodule KsefHubWeb.InvoicePdfController do
         )
       end
 
-      send_pdf(conn, company_id, invoice, inline?)
+      result_conn
     end)
   end
 

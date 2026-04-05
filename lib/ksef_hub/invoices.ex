@@ -300,8 +300,9 @@ defmodule KsefHub.Invoices do
   @doc """
   Creates an invoice.
   """
-  @spec create_invoice(map()) :: {:ok, Invoice.t()} | {:error, Ecto.Changeset.t() | term()}
-  def create_invoice(attrs) do
+  @spec create_invoice(map(), keyword()) ::
+          {:ok, Invoice.t()} | {:error, Ecto.Changeset.t() | term()}
+  def create_invoice(attrs, opts \\ []) do
     company_id = attrs[:company_id] || attrs["company_id"]
     {pdf_content, attrs} = Map.pop(attrs, :pdf_content)
     {xml_content, attrs} = Map.pop(attrs, :xml_content)
@@ -310,7 +311,7 @@ defmodule KsefHub.Invoices do
     Repo.transaction(fn ->
       with {:ok, attrs} <- maybe_create_xml_file(attrs, xml_content),
            {:ok, attrs} <- maybe_create_pdf_file(attrs, pdf_content),
-           {:ok, invoice} <- do_insert_invoice(company_id, attrs) do
+           {:ok, invoice} <- do_insert_invoice(company_id, attrs, opts) do
         invoice
       else
         {:error, reason} -> Repo.rollback(reason)
@@ -731,9 +732,9 @@ defmodule KsefHub.Invoices do
   provided and an existing non-duplicate invoice with the same (company_id, ksef_number)
   exists, the new invoice is marked as a suspected duplicate.
   """
-  @spec create_manual_invoice(Ecto.UUID.t(), map()) ::
+  @spec create_manual_invoice(Ecto.UUID.t(), map(), keyword()) ::
           {:ok, Invoice.t()} | {:error, Ecto.Changeset.t()}
-  def create_manual_invoice(company_id, attrs) do
+  def create_manual_invoice(company_id, attrs, opts \\ []) do
     company = Companies.get_company!(company_id)
 
     attrs =
@@ -743,7 +744,7 @@ defmodule KsefHub.Invoices do
       |> Map.merge(%{source: :manual, company_id: company_id})
       |> populate_company_fields(company)
 
-    case create_or_retry_duplicate(company_id, attrs) do
+    case create_or_retry_duplicate(company_id, attrs, opts) do
       {:ok, invoice} ->
         enqueue_prediction(invoice)
         {:ok, maybe_auto_approve(company, invoice)}
@@ -753,18 +754,18 @@ defmodule KsefHub.Invoices do
     end
   end
 
-  @spec create_or_retry_duplicate(Ecto.UUID.t(), map()) ::
+  @spec create_or_retry_duplicate(Ecto.UUID.t(), map(), keyword()) ::
           {:ok, Invoice.t()} | {:error, Ecto.Changeset.t() | term()}
-  defp create_or_retry_duplicate(company_id, attrs) do
+  defp create_or_retry_duplicate(company_id, attrs, opts) do
     attrs = detect_duplicate(company_id, attrs)
 
-    case create_invoice(attrs) do
+    case create_invoice(attrs, opts) do
       {:ok, invoice} ->
         {:ok, invoice}
 
       {:error, %Ecto.Changeset{} = changeset} ->
         if unique_ksef_number_conflict?(changeset),
-          do: retry_as_duplicate(company_id, attrs),
+          do: retry_as_duplicate(company_id, attrs, opts),
           else: {:error, changeset}
 
       {:error, reason} ->
@@ -772,15 +773,15 @@ defmodule KsefHub.Invoices do
     end
   end
 
-  @spec retry_as_duplicate(Ecto.UUID.t(), map()) ::
+  @spec retry_as_duplicate(Ecto.UUID.t(), map(), keyword()) ::
           {:ok, Invoice.t()} | {:error, Ecto.Changeset.t()}
-  defp retry_as_duplicate(company_id, attrs) do
+  defp retry_as_duplicate(company_id, attrs, opts) do
     attrs
     |> Map.merge(%{
       duplicate_of_id: find_original_id(company_id, attrs),
       duplicate_status: :suspected
     })
-    |> create_invoice()
+    |> create_invoice(opts)
   end
 
   @doc """
@@ -799,10 +800,10 @@ defmodule KsefHub.Invoices do
     * `pdf_binary` - raw PDF file content
     * `opts` - must include `:type` (`:income` or `:expense`), optionally `:filename`
   """
-  @spec create_pdf_upload_invoice(Company.t(), binary(), map()) ::
+  @spec create_pdf_upload_invoice(Company.t(), binary(), map(), keyword()) ::
           {:ok, Invoice.t()} | {:error, term()}
-  def create_pdf_upload_invoice(%Company{} = company, pdf_binary, opts) do
-    case extract_and_create_pdf(company, pdf_binary, opts) do
+  def create_pdf_upload_invoice(%Company{} = company, pdf_binary, opts, event_opts \\ []) do
+    case extract_and_create_pdf(company, pdf_binary, opts, event_opts) do
       {:ok, invoice, _meta} -> {:ok, invoice}
       {:error, reason} -> {:error, reason}
     end
@@ -814,15 +815,20 @@ defmodule KsefHub.Invoices do
   Same as `create_pdf_upload_invoice/3` but returns the original extracted buyer NIP
   so callers can warn users when it doesn't match the company.
   """
-  @spec create_pdf_upload_invoice_with_meta(Company.t(), binary(), map()) ::
+  @spec create_pdf_upload_invoice_with_meta(Company.t(), binary(), map(), keyword()) ::
           {:ok, Invoice.t(), keyword()} | {:error, term()}
-  def create_pdf_upload_invoice_with_meta(%Company{} = company, pdf_binary, opts) do
-    extract_and_create_pdf(company, pdf_binary, opts)
+  def create_pdf_upload_invoice_with_meta(
+        %Company{} = company,
+        pdf_binary,
+        opts,
+        event_opts \\ []
+      ) do
+    extract_and_create_pdf(company, pdf_binary, opts, event_opts)
   end
 
-  @spec extract_and_create_pdf(Company.t(), binary(), map()) ::
+  @spec extract_and_create_pdf(Company.t(), binary(), map(), keyword()) ::
           {:ok, Invoice.t(), keyword()} | {:error, term()}
-  defp extract_and_create_pdf(company, pdf_binary, opts) do
+  defp extract_and_create_pdf(company, pdf_binary, opts, event_opts) do
     type = opts[:type]
     filename = opts[:filename]
     created_by_id = opts[:created_by_id]
@@ -834,8 +840,15 @@ defmodule KsefHub.Invoices do
       {:ok, extracted} ->
         extracted_buyer_nip = get_extracted_nip(extracted, "buyer_nip")
 
-        case do_create_pdf_extracted(company, pdf_binary, type, filename, extracted, :pdf_upload,
-               created_by_id: created_by_id
+        case do_create_pdf_extracted(
+               company,
+               pdf_binary,
+               type,
+               filename,
+               extracted,
+               :pdf_upload,
+               [created_by_id: created_by_id],
+               event_opts
              ) do
           {:ok, invoice} -> {:ok, invoice, extracted_buyer_nip: extracted_buyer_nip}
           error -> error
@@ -844,8 +857,14 @@ defmodule KsefHub.Invoices do
       {:error, _reason} ->
         Logger.warning("PDF extraction failed for file: #{filename || "invoice.pdf"}")
 
-        case do_create_pdf_failed(company, pdf_binary, type, filename, :pdf_upload,
-               created_by_id: created_by_id
+        case do_create_pdf_failed(
+               company,
+               pdf_binary,
+               type,
+               filename,
+               :pdf_upload,
+               [created_by_id: created_by_id],
+               event_opts
              ) do
           {:ok, invoice} -> {:ok, invoice, extracted_buyer_nip: nil}
           error -> error
@@ -894,9 +913,19 @@ defmodule KsefHub.Invoices do
           String.t() | nil,
           map(),
           Invoice.invoice_source(),
+          keyword(),
           keyword()
         ) :: {:ok, Invoice.t()} | {:error, term()}
-  defp do_create_pdf_extracted(company, pdf_binary, type, filename, extracted, source, opts) do
+  defp do_create_pdf_extracted(
+         company,
+         pdf_binary,
+         type,
+         filename,
+         extracted,
+         source,
+         opts,
+         event_opts \\ []
+       ) do
     extraction_status = determine_extraction_status(extracted)
 
     invoice_attrs =
@@ -905,7 +934,7 @@ defmodule KsefHub.Invoices do
       |> maybe_put_created_by(opts[:created_by_id])
       |> populate_company_fields(company)
 
-    case create_or_retry_duplicate(company.id, invoice_attrs) do
+    case create_or_retry_duplicate(company.id, invoice_attrs, event_opts) do
       {:ok, invoice} ->
         maybe_enqueue_prediction(extraction_status, invoice)
         {:ok, maybe_auto_approve(company, invoice, opts)}
@@ -922,9 +951,10 @@ defmodule KsefHub.Invoices do
           atom(),
           String.t() | nil,
           Invoice.invoice_source(),
+          keyword(),
           keyword()
         ) :: {:ok, Invoice.t()} | {:error, term()}
-  defp do_create_pdf_failed(company, pdf_binary, type, filename, source, opts) do
+  defp do_create_pdf_failed(company, pdf_binary, type, filename, source, opts, event_opts \\ []) do
     attrs =
       %{
         source: source,
@@ -937,7 +967,7 @@ defmodule KsefHub.Invoices do
       |> maybe_put_created_by(opts[:created_by_id])
       |> populate_company_fields(company)
 
-    create_invoice(attrs)
+    create_invoice(attrs, event_opts)
   end
 
   @spec maybe_enqueue_prediction(atom(), Invoice.t()) :: :ok | :skip | :enqueue_failed
@@ -1154,9 +1184,9 @@ defmodule KsefHub.Invoices do
     end
   end
 
-  @spec do_insert_invoice(Ecto.UUID.t(), map()) ::
+  @spec do_insert_invoice(Ecto.UUID.t(), map(), keyword()) ::
           {:ok, Invoice.t()} | {:error, Ecto.Changeset.t()}
-  defp do_insert_invoice(company_id, attrs) do
+  defp do_insert_invoice(company_id, attrs, caller_opts) do
     {file_ids, attrs} = pop_file_ids(attrs)
     {created_by_id, attrs} = Map.pop(attrs, :created_by_id)
     {access_restricted, attrs} = Map.pop(attrs, :access_restricted)
@@ -1173,23 +1203,27 @@ defmodule KsefHub.Invoices do
           else: m
       end)
 
-    opts =
-      if created_by_id do
-        label =
-          case Repo.get(User, created_by_id) do
-            %User{name: name, email: email} -> name || email
-            nil -> nil
-          end
-
-        [user_id: created_by_id, actor_label: label]
-      else
-        []
-      end
+    opts = build_insert_opts(caller_opts, created_by_id)
 
     %Invoice{}
     |> Ecto.Changeset.change(trusted_fields)
     |> Invoice.changeset(attrs)
     |> TrackedRepo.insert(opts)
+  end
+
+  @spec build_insert_opts(keyword(), Ecto.UUID.t() | nil) :: keyword()
+  defp build_insert_opts(caller_opts, _created_by_id) when caller_opts != [], do: caller_opts
+
+  defp build_insert_opts(_caller_opts, nil), do: []
+
+  defp build_insert_opts(_caller_opts, created_by_id) do
+    label =
+      case Repo.get(User, created_by_id) do
+        %User{name: name, email: email} -> name || email
+        nil -> nil
+      end
+
+    [user_id: created_by_id, actor_label: label]
   end
 
   @spec do_upsert_invoice(Ecto.UUID.t(), map()) ::

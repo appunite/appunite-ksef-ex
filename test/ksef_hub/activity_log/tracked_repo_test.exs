@@ -102,8 +102,12 @@ defmodule KsefHub.ActivityLog.TrackedRepoTest do
       assert_received {:activity_event,
                        %Event{
                          action: "bank_account.deleted",
-                         resource_type: "company_bank_account"
+                         resource_type: "company_bank_account",
+                         metadata: metadata
                        }}
+
+      assert metadata.label == "Main"
+      assert metadata.currency == "PLN"
     end
 
     test "emits member_removed for membership deletion", %{company: company, user: user} do
@@ -133,6 +137,7 @@ defmodule KsefHub.ActivityLog.TrackedRepoTest do
     end
   end
 
+  @spec flush_activity_events() :: :ok
   defp flush_activity_events do
     receive do
       {:activity_event, _} -> flush_activity_events()
