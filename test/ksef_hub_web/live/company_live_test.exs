@@ -293,6 +293,23 @@ defmodule KsefHubWeb.CompanyLiveTest do
       assert updated.inbound_cc_email == "invoices@acme.com"
     end
 
+    test "auto-approve toggle is visible and saves via main company form", %{
+      conn: conn,
+      user: user,
+      company: company
+    } do
+      {:ok, view, _html} = live_edit(conn, user, company)
+
+      assert has_element?(view, "#company_auto_approve_trusted_invoices")
+
+      view
+      |> form("#company-form", company: %{auto_approve_trusted_invoices: true})
+      |> render_submit()
+
+      updated = Companies.get_company!(company.id)
+      assert updated.auto_approve_trusted_invoices == true
+    end
+
     test "validates invalid domain format in settings", %{
       conn: conn,
       user: user,

@@ -13,7 +13,7 @@ defmodule KsefHubWeb.WebhookController do
 
   alias KsefHub.Companies
   alias KsefHub.InboundEmail
-  alias KsefHub.InboundEmail.{InboundEmailWorker, ReplyNotifier, SignatureVerifier}
+  alias KsefHub.InboundEmail.{CcParser, InboundEmailWorker, ReplyNotifier, SignatureVerifier}
 
   @doc "Processes a Mailgun inbound email webhook."
   @spec inbound(Plug.Conn.t(), map()) :: Plug.Conn.t()
@@ -188,7 +188,8 @@ defmodule KsefHubWeb.WebhookController do
            status: :received,
            mailgun_message_id: params["Message-Id"],
            pdf_content: pdf_binary,
-           original_filename: filename
+           original_filename: filename,
+           original_cc: params["Cc"]
          }) do
       {:ok, record} ->
         case enqueue_processing(record, company) do
@@ -235,7 +236,7 @@ defmodule KsefHubWeb.WebhookController do
   @spec send_attachment_error_reply(String.t(), atom() | tuple(), Companies.Company.t(), map()) ::
           :ok
   defp send_attachment_error_reply(sender, reason, company, params) do
-    opts = cc_opts(company) ++ in_reply_to_opts(params)
+    opts = cc_opts(company, sender, params) ++ in_reply_to_opts(params)
     {rejection_reason, extra_opts} = normalize_attachment_error(reason)
 
     email = ReplyNotifier.rejection(sender, rejection_reason, opts ++ extra_opts)
@@ -249,10 +250,15 @@ defmodule KsefHubWeb.WebhookController do
     end
   end
 
-  @spec cc_opts(Companies.Company.t()) :: keyword()
-  defp cc_opts(%{inbound_cc_email: nil}), do: []
-  defp cc_opts(%{inbound_cc_email: ""}), do: []
-  defp cc_opts(%{inbound_cc_email: cc}), do: [cc: cc]
+  @spec cc_opts(Companies.Company.t(), String.t(), map()) :: keyword()
+  defp cc_opts(company, sender, params) do
+    recipient = params["recipient"] || ""
+
+    case CcParser.build_cc_list(params["Cc"], company.inbound_cc_email, [sender, recipient]) do
+      [] -> []
+      cc_list -> [cc: cc_list]
+    end
+  end
 
   @spec in_reply_to_opts(map()) :: keyword()
   defp in_reply_to_opts(%{"Message-Id" => msg_id}) when is_binary(msg_id),

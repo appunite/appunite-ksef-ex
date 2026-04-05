@@ -1810,6 +1810,101 @@ defmodule KsefHub.InvoicesTest do
     end
   end
 
+  describe "auto-approval on creation" do
+    test "auto-approves manual invoice when company setting is enabled", %{company: company} do
+      company
+      |> Ecto.Changeset.change(auto_approve_trusted_invoices: true)
+      |> Repo.update!()
+
+      attrs = params_for(:manual_invoice)
+
+      assert {:ok, invoice} = Invoices.create_manual_invoice(company.id, attrs)
+      assert invoice.status == :approved
+    end
+
+    test "leaves manual invoice as pending when company setting is disabled", %{
+      company: company
+    } do
+      attrs = params_for(:manual_invoice)
+
+      assert {:ok, invoice} = Invoices.create_manual_invoice(company.id, attrs)
+      assert invoice.status == :pending
+    end
+
+    test "auto-approves email invoice when sender is a company member", %{company: company} do
+      company =
+        company
+        |> Ecto.Changeset.change(auto_approve_trusted_invoices: true)
+        |> Repo.update!()
+
+      user = insert(:user, email: "member@appunite.com")
+      insert(:membership, user: user, company: company, status: :active)
+
+      extracted = %{
+        "seller_nip" => "1111111111",
+        "seller_name" => "Seller",
+        "buyer_nip" => company.nip,
+        "buyer_name" => "Buyer",
+        "invoice_number" => "FV/2026/EAUTO",
+        "issue_date" => "2026-02-25",
+        "net_amount" => "1000.00",
+        "gross_amount" => "1230.00"
+      }
+
+      assert {:ok, invoice} =
+               Invoices.create_email_invoice(company.id, "%PDF-1.4", extracted,
+                 filename: "inv.pdf",
+                 sender_email: "member@appunite.com"
+               )
+
+      assert invoice.status == :approved
+    end
+
+    test "leaves email invoice as pending when sender is not a company member", %{
+      company: company
+    } do
+      company
+      |> Ecto.Changeset.change(auto_approve_trusted_invoices: true)
+      |> Repo.update!()
+
+      extracted = %{
+        "seller_nip" => "1111111111",
+        "seller_name" => "Seller",
+        "buyer_nip" => company.nip,
+        "buyer_name" => "Buyer",
+        "invoice_number" => "FV/2026/ENOMEM",
+        "issue_date" => "2026-02-25",
+        "net_amount" => "1000.00",
+        "gross_amount" => "1230.00"
+      }
+
+      assert {:ok, invoice} =
+               Invoices.create_email_invoice(company.id, "%PDF-1.4", extracted,
+                 filename: "inv.pdf",
+                 sender_email: "stranger@example.com"
+               )
+
+      assert invoice.status == :pending
+    end
+
+    test "does not auto-approve KSeF invoices even when setting is enabled", %{company: company} do
+      company
+      |> Ecto.Changeset.change(auto_approve_trusted_invoices: true)
+      |> Repo.update!()
+
+      attrs =
+        params_for(:invoice,
+          company_id: company.id,
+          type: :expense,
+          ksef_number: "ksef-auto-test"
+        )
+        |> Map.put(:xml_content, @sample_xml)
+
+      assert {:ok, invoice, :inserted} = Invoices.upsert_invoice(attrs)
+      assert invoice.status == :pending
+    end
+  end
+
   describe "re_extract_invoice/2" do
     test "re-extracts data from stored PDF and updates invoice", %{company: company} do
       invoice = insert(:pdf_upload_invoice, company: company, extraction_status: :partial)

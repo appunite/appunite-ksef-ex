@@ -364,6 +364,84 @@ defmodule KsefHub.InboundEmail.InboundEmailWorkerTest do
       end)
     end
 
+    test "includes merged CC (original + company) in reply email", %{company: company} do
+      company =
+        company
+        |> Ecto.Changeset.change(inbound_cc_email: "boss@appunite.com")
+        |> KsefHub.Repo.update!()
+
+      {:ok, record} =
+        InboundEmail.create_inbound_email(company.id, %{
+          sender: "user@appunite.com",
+          recipient: "inv-test@inbound.ksef-hub.com",
+          status: :received,
+          pdf_content: "%PDF-1.4 test content",
+          original_filename: "invoice.pdf",
+          original_cc: "team@appunite.com, Alice <alice@other.com>"
+        })
+
+      KsefHub.InvoiceExtractor.Mock
+      |> expect(:extract, fn _pdf, _opts ->
+        {:ok,
+         %{
+           "seller_nip" => "9999999999",
+           "seller_name" => "Seller Sp. z o.o.",
+           "buyer_nip" => "1234567890",
+           "buyer_name" => "Buyer S.A.",
+           "invoice_number" => "FV/2026/CCMERGE",
+           "issue_date" => "2026-02-25",
+           "net_amount" => "1000.00",
+           "gross_amount" => "1230.00"
+         }}
+      end)
+
+      assert :ok = perform_job(record.id, company.id)
+
+      assert_email_sent(fn email ->
+        cc_emails = Enum.map(email.cc, fn {_name, addr} -> addr end)
+
+        "team@appunite.com" in cc_emails and
+          "alice@other.com" in cc_emails and
+          "boss@appunite.com" in cc_emails and
+          "user@appunite.com" not in cc_emails and
+          "inv-test@inbound.ksef-hub.com" not in cc_emails
+      end)
+    end
+
+    test "excludes sender and recipient from CC list in replies", %{company: company} do
+      {:ok, record} =
+        InboundEmail.create_inbound_email(company.id, %{
+          sender: "user@appunite.com",
+          recipient: "inv-test@inbound.ksef-hub.com",
+          status: :received,
+          pdf_content: "%PDF-1.4 test content",
+          original_filename: "invoice.pdf",
+          original_cc: "user@appunite.com, inv-test@inbound.ksef-hub.com, team@appunite.com"
+        })
+
+      KsefHub.InvoiceExtractor.Mock
+      |> expect(:extract, fn _pdf, _opts ->
+        {:ok,
+         %{
+           "seller_nip" => "9999999999",
+           "seller_name" => "Seller Sp. z o.o.",
+           "buyer_nip" => "1234567890",
+           "buyer_name" => "Buyer S.A.",
+           "invoice_number" => "FV/2026/EXCL",
+           "issue_date" => "2026-02-25",
+           "net_amount" => "1000.00",
+           "gross_amount" => "1230.00"
+         }}
+      end)
+
+      assert :ok = perform_job(record.id, company.id)
+
+      assert_email_sent(fn email ->
+        cc_emails = Enum.map(email.cc, fn {_name, addr} -> addr end)
+        cc_emails == ["team@appunite.com"]
+      end)
+    end
+
     test "sends needs_review email when extraction is partial", %{company: company} do
       record = create_inbound_email(company)
 

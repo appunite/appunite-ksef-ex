@@ -201,6 +201,62 @@ defmodule KsefHubWeb.WebhookControllerTest do
       assert json_response(conn, 200)["status"] == "ok"
     end
 
+    test "stores original CC from Mailgun params", %{conn: conn, inbound_token: token} do
+      KsefHub.InvoiceExtractor.Mock
+      |> expect(:extract, fn _pdf, _opts ->
+        {:ok,
+         %{
+           "seller_nip" => "9999999999",
+           "seller_name" => "Seller",
+           "buyer_nip" => "1234567890",
+           "buyer_name" => "Buyer",
+           "invoice_number" => "FV/2026/CC",
+           "issue_date" => "2026-02-25",
+           "net_amount" => "1000.00",
+           "gross_amount" => "1230.00"
+         }}
+      end)
+
+      cc_header = "team@appunite.com, Alice <alice@appunite.com>"
+
+      params =
+        build_valid_params(token)
+        |> Map.put("Cc", cc_header)
+
+      conn = post(conn, "/webhooks/mailgun/inbound", params)
+      assert json_response(conn, 200)["status"] == "ok"
+
+      # Verify original_cc was stored
+      [record] = KsefHub.Repo.all(KsefHub.InboundEmail.InboundEmail)
+      assert record.original_cc == cc_header
+    end
+
+    test "stores nil original_cc when no Cc param present", %{conn: conn, inbound_token: token} do
+      KsefHub.InvoiceExtractor.Mock
+      |> expect(:extract, fn _pdf, _opts ->
+        {:ok,
+         %{
+           "seller_nip" => "9999999999",
+           "seller_name" => "Seller",
+           "buyer_nip" => "1234567890",
+           "buyer_name" => "Buyer",
+           "invoice_number" => "FV/2026/NOCC",
+           "issue_date" => "2026-02-25",
+           "net_amount" => "1000.00",
+           "gross_amount" => "1230.00"
+         }}
+      end)
+
+      params = build_valid_params(token)
+      refute Map.has_key?(params, "Cc")
+
+      conn = post(conn, "/webhooks/mailgun/inbound", params)
+      assert json_response(conn, 200)["status"] == "ok"
+
+      [record] = KsefHub.Repo.all(KsefHub.InboundEmail.InboundEmail)
+      assert is_nil(record.original_cc)
+    end
+
     test "accepts any sender domain when company has no allowed domain configured", %{
       conn: conn
     } do

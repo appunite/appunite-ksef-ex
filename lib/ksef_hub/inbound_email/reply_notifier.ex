@@ -219,7 +219,8 @@ defmodule KsefHub.InboundEmail.ReplyNotifier do
     email =
       case Keyword.get(opts, :cc) do
         nil -> email
-        cc_addr -> cc(email, {cc_addr, cc_addr})
+        [] -> email
+        cc_list when is_list(cc_list) -> cc(email, cc_list)
       end
 
     case Keyword.get(opts, :in_reply_to) do

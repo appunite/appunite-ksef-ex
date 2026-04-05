@@ -12,7 +12,7 @@ defmodule KsefHub.InboundEmail.InboundEmailWorker do
 
   alias KsefHub.Companies
   alias KsefHub.InboundEmail
-  alias KsefHub.InboundEmail.{NipVerifier, ReplyNotifier}
+  alias KsefHub.InboundEmail.{CcParser, NipVerifier, ReplyNotifier}
   alias KsefHub.InvoiceExtractor.ContextBuilder
   alias KsefHub.Invoices
 
@@ -123,7 +123,7 @@ defmodule KsefHub.InboundEmail.InboundEmailWorker do
   end
 
   defp create_and_notify(record, company, extracted, reply_type) do
-    create_opts = [filename: record.original_filename]
+    create_opts = [filename: record.original_filename, sender_email: record.sender]
 
     case Invoices.create_email_invoice(
            company.id,
@@ -165,7 +165,7 @@ defmodule KsefHub.InboundEmail.InboundEmailWorker do
           reply_type()
         ) :: :ok
   defp fallback_create_and_notify(record, company, original_reason, reply_type) do
-    create_opts = [filename: record.original_filename]
+    create_opts = [filename: record.original_filename, sender_email: record.sender]
 
     case Invoices.create_email_invoice(
            company.id,
@@ -240,8 +240,16 @@ defmodule KsefHub.InboundEmail.InboundEmailWorker do
 
   @spec reply_opts(Companies.Company.t(), InboundEmail.InboundEmail.t()) :: keyword()
   defp reply_opts(company, record) do
-    []
-    |> maybe_add(:cc, company.inbound_cc_email)
+    cc_opts =
+      case CcParser.build_cc_list(record.original_cc, company.inbound_cc_email, [
+             record.sender,
+             record.recipient
+           ]) do
+        [] -> []
+        cc_list -> [cc: cc_list]
+      end
+
+    cc_opts
     |> maybe_add(:in_reply_to, record.mailgun_message_id)
     |> maybe_add(:original_subject, record.subject)
   end

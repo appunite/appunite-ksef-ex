@@ -18,6 +18,7 @@ defmodule KsefHub.InboundEmail.InboundEmail do
     field :status, Ecto.Enum, values: [:received, :processing, :completed, :failed, :rejected]
     field :error_message, :string
     field :original_filename, :string
+    field :original_cc, :string
 
     belongs_to :company, KsefHub.Companies.Company
     belongs_to :invoice, KsefHub.Invoices.Invoice
@@ -37,7 +38,8 @@ defmodule KsefHub.InboundEmail.InboundEmail do
       :subject,
       :status,
       :error_message,
-      :original_filename
+      :original_filename,
+      :original_cc
     ])
     |> validate_required([:sender, :recipient, :status])
     |> foreign_key_constraint(:company_id)
