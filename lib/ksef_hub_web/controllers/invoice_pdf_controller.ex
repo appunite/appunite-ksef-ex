@@ -26,6 +26,7 @@ defmodule KsefHubWeb.InvoicePdfController do
             send_attachment(conn, "application/xml", "#{invoice.invoice_number}.xml", content)
 
           maybe_emit_download(result_conn, invoice, company_id, user, "xml")
+          result_conn
 
         _ ->
           conn
