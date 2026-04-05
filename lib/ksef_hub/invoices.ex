@@ -1172,7 +1172,18 @@ defmodule KsefHub.Invoices do
           else: m
       end)
 
-    opts = if created_by_id, do: [user_id: created_by_id], else: []
+    opts =
+      if created_by_id do
+        label =
+          case Repo.get(User, created_by_id) do
+            %User{name: name, email: email} -> name || email
+            nil -> nil
+          end
+
+        [user_id: created_by_id, actor_label: label]
+      else
+        []
+      end
 
     %Invoice{}
     |> Ecto.Changeset.change(trusted_fields)
@@ -1817,7 +1828,7 @@ defmodule KsefHub.Invoices do
   end
 
   @doc "Creates a comment on an invoice and returns it with user preloaded. Verifies invoice belongs to company."
-  @spec create_invoice_comment(Ecto.UUID.t(), Ecto.UUID.t(), Ecto.UUID.t(), map()) ::
+  @spec create_invoice_comment(Ecto.UUID.t(), Ecto.UUID.t(), Ecto.UUID.t(), map(), keyword()) ::
           {:ok, InvoiceComment.t()} | {:error, :not_found} | {:error, Ecto.Changeset.t()}
   def create_invoice_comment(company_id, invoice_id, user_id, attrs, opts \\ []) do
     case Repo.get_by(Invoice, id: invoice_id, company_id: company_id) do
@@ -1833,7 +1844,15 @@ defmodule KsefHub.Invoices do
           {:ok, comment} ->
             comment = Repo.preload(comment, :user)
             invoice_ref = %{id: invoice_id, company_id: company_id}
-            Events.invoice_comment_added(invoice_ref, comment, opts)
+
+            event_opts =
+              opts
+              |> Keyword.put_new(:user_id, user_id)
+              |> Keyword.put_new_lazy(:actor_label, fn ->
+                comment.user && (comment.user.name || comment.user.email)
+              end)
+
+            Events.invoice_comment_added(invoice_ref, comment, event_opts)
             {:ok, comment}
 
           error ->
@@ -1849,6 +1868,11 @@ defmodule KsefHub.Invoices do
     if comment.user_id != user.id do
       {:error, :unauthorized}
     else
+      opts =
+        opts
+        |> Keyword.put_new(:user_id, user.id)
+        |> Keyword.put_new(:actor_label, user.name || user.email)
+
       comment
       |> InvoiceComment.changeset(attrs)
       |> Repo.update()
@@ -1871,6 +1895,11 @@ defmodule KsefHub.Invoices do
     if comment.user_id != user.id do
       {:error, :unauthorized}
     else
+      opts =
+        opts
+        |> Keyword.put_new(:user_id, user.id)
+        |> Keyword.put_new(:actor_label, user.name || user.email)
+
       case Repo.delete(comment) do
         {:ok, deleted} ->
           emit_comment_event(deleted, "invoice.comment_deleted", opts)

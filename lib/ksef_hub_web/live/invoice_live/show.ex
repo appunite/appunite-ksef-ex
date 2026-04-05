@@ -77,6 +77,8 @@ defmodule KsefHubWeb.InvoiceLive.Show do
         payment_status = PaymentRequests.payment_status_for_invoice(invoice.id)
         invoice_payment_requests = PaymentRequests.list_for_invoice(invoice.id)
 
+        activity_entries = ActivityLog.list_invoice_timeline(company.id, invoice.id)
+
         {:ok,
          socket
          |> assign(
@@ -104,7 +106,7 @@ defmodule KsefHubWeb.InvoiceLive.Show do
            billing_date_form: billing_date_form(invoice),
            editing_note: false,
            note_form: note_form(invoice),
-           activity_log: ActivityLog.list_invoice_timeline(company.id, invoice.id),
+           activity_log_empty: activity_entries == [],
            comments: Invoices.list_invoice_comments(company.id, invoice.id),
            comment_form: comment_form(),
            extracting: false,
@@ -114,7 +116,8 @@ defmodule KsefHubWeb.InvoiceLive.Show do
            edit_comment_form: nil,
            category_confidence_threshold: InvoiceClassifier.category_confidence_threshold(),
            tag_confidence_threshold: InvoiceClassifier.tag_confidence_threshold()
-         )}
+         )
+         |> stream(:activity_log, activity_entries)}
     end
   end
 
@@ -516,7 +519,13 @@ defmodule KsefHubWeb.InvoiceLive.Show do
         invoice_id = socket.assigns.invoice.id
         company_id = socket.assigns.current_company.id
 
-        case Invoices.create_invoice_comment(company_id, invoice_id, user_id, %{body: trimmed}, actor_opts(socket)) do
+        case Invoices.create_invoice_comment(
+               company_id,
+               invoice_id,
+               user_id,
+               %{body: trimmed},
+               actor_opts(socket)
+             ) do
           {:ok, _comment} ->
             {:noreply,
              socket
@@ -725,7 +734,10 @@ defmodule KsefHubWeb.InvoiceLive.Show do
   end
 
   def handle_info({:new_activity, audit_log}, socket) do
-    {:noreply, update(socket, :activity_log, fn entries -> [audit_log | entries] end)}
+    {:noreply,
+     socket
+     |> assign(:activity_log_empty, false)
+     |> stream_insert(:activity_log, audit_log, at: 0)}
   end
 
   def handle_info(msg, socket) do
@@ -1363,7 +1375,10 @@ defmodule KsefHubWeb.InvoiceLive.Show do
 
     <!-- Activity Log Timeline -->
     <div class="mt-6" id="activity-log-section">
-      <.activity_timeline entries={@activity_log} />
+      <.activity_timeline
+        activity_log={@streams.activity_log}
+        activity_log_empty={@activity_log_empty}
+      />
     </div>
     """
   end
@@ -1461,7 +1476,8 @@ defmodule KsefHubWeb.InvoiceLive.Show do
     """
   end
 
-  attr :entries, :list, required: true
+  attr :activity_log, :list, required: true
+  attr :activity_log_empty, :boolean, required: true
 
   @spec activity_timeline(map()) :: Phoenix.LiveView.Rendered.t()
   defp activity_timeline(assigns) do
@@ -1469,13 +1485,18 @@ defmodule KsefHubWeb.InvoiceLive.Show do
     <.card padding="p-4">
       <h2 class="text-base font-semibold mb-4">Activity</h2>
 
-      <div :if={@entries == []} class="text-sm text-muted-foreground italic">
+      <div :if={@activity_log_empty} class="text-sm text-muted-foreground italic">
         No activity recorded yet
       </div>
 
-      <ul :if={@entries != []} class="timeline timeline-vertical timeline-compact">
-        <li :for={{entry, idx} <- Enum.with_index(@entries)}>
-          <hr :if={idx > 0} />
+      <ul
+        :if={!@activity_log_empty}
+        id="activity-log-stream"
+        phx-update="stream"
+        class="timeline timeline-vertical timeline-compact"
+      >
+        <li :for={{dom_id, entry} <- @activity_log} id={dom_id}>
+          <hr class="first:hidden" />
           <div class="timeline-start text-xs text-muted-foreground whitespace-nowrap">
             {relative_time(entry.inserted_at)}
           </div>
@@ -1486,7 +1507,7 @@ defmodule KsefHubWeb.InvoiceLive.Show do
             <span class="font-medium">{entry.actor_label || "System"}</span>
             <span class="text-muted-foreground ml-1">{describe_action(entry)}</span>
           </div>
-          <hr :if={idx < length(@entries) - 1} />
+          <hr class="last:hidden" />
         </li>
       </ul>
     </.card>

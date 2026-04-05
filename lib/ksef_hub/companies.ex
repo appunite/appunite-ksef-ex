@@ -258,7 +258,7 @@ defmodule KsefHub.Companies do
   end
 
   @doc "Creates a bank account for a company."
-  @spec create_bank_account(Ecto.UUID.t(), map()) ::
+  @spec create_bank_account(Ecto.UUID.t(), map(), keyword()) ::
           {:ok, CompanyBankAccount.t()} | {:error, Ecto.Changeset.t()}
   def create_bank_account(company_id, attrs, opts \\ []) do
     %CompanyBankAccount{company_id: company_id}
@@ -304,7 +304,7 @@ defmodule KsefHub.Companies do
   end
 
   @doc "Updates the role of a membership."
-  @spec update_membership_role(Membership.t(), Membership.role()) ::
+  @spec update_membership_role(Membership.t(), Membership.role(), keyword()) ::
           {:ok, Membership.t()} | {:error, Ecto.Changeset.t()}
   def update_membership_role(%Membership{} = membership, role, opts \\ []) do
     membership
@@ -355,7 +355,8 @@ defmodule KsefHub.Companies do
   end
 
   @doc "Blocks a membership (soft delete)."
-  @spec block_member(Membership.t()) :: {:ok, Membership.t()} | {:error, Ecto.Changeset.t()}
+  @spec block_member(Membership.t(), keyword()) ::
+          {:ok, Membership.t()} | {:error, Ecto.Changeset.t()}
   def block_member(%Membership{} = membership, opts \\ []) do
     membership
     |> Membership.status_changeset(%{status: :blocked})
