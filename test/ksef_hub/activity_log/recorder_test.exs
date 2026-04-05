@@ -1,6 +1,7 @@
 defmodule RecorderTest do
   use KsefHub.DataCase, async: false
 
+  alias Ecto.Adapters.SQL.Sandbox
   alias KsefHub.ActivityLog.{Event, Recorder}
   alias KsefHub.AuditLog
   alias KsefHub.Repo
@@ -128,7 +129,7 @@ defmodule RecorderTest do
         name: Recorder
       )
 
-    Ecto.Adapters.SQL.Sandbox.allow(Repo, self(), pid)
+    Sandbox.allow(Repo, self(), pid)
     pid
   end
 end
