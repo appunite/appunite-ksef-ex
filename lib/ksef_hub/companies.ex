@@ -326,22 +326,10 @@ defmodule KsefHub.Companies do
     membership = Repo.preload(membership, :user)
     user = membership.user
 
-    role_changed? = role && role != membership.role
-
     multi =
       Multi.new()
       |> Multi.update(:user, User.changeset(user, %{name: name}))
-      |> then(fn multi ->
-        if role_changed? do
-          changeset = Membership.changeset(membership, %{role: role})
-
-          Multi.run(multi, :membership, fn _repo, _changes ->
-            TrackedRepo.update(changeset, opts)
-          end)
-        else
-          Multi.put(multi, :membership, membership)
-        end
-      end)
+      |> maybe_update_role(membership, role, opts)
 
     case Repo.transaction(multi) do
       {:ok, %{user: updated_user, membership: updated_membership}} ->
@@ -353,6 +341,21 @@ defmodule KsefHub.Companies do
       {:error, :membership, changeset, _} ->
         {:error, :membership, changeset, %{}}
     end
+  end
+
+  @spec maybe_update_role(Multi.t(), Membership.t(), Membership.role() | nil, keyword()) ::
+          Multi.t()
+  defp maybe_update_role(multi, membership, role, opts)
+       when not is_nil(role) and role != membership.role do
+    changeset = Membership.changeset(membership, %{role: role})
+
+    Multi.run(multi, :membership, fn _repo, _changes ->
+      TrackedRepo.update(changeset, opts)
+    end)
+  end
+
+  defp maybe_update_role(multi, membership, _role, _opts) do
+    Multi.put(multi, :membership, membership)
   end
 
   @doc "Blocks a membership (soft delete)."

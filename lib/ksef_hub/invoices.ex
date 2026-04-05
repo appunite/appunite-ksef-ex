@@ -2028,21 +2028,21 @@ defmodule KsefHub.Invoices do
         {:error, :not_found}
 
       grant ->
-        case Repo.delete(grant) do
-          {:ok, deleted} ->
-            with %Invoice{company_id: company_id} <- Repo.get(Invoice, invoice_id) do
-              Events.invoice_access_revoked(
-                %{id: invoice_id, company_id: company_id},
-                user_id,
-                opts
-              )
-            end
-
-            {:ok, deleted}
-
-          error ->
-            error
+        with {:ok, deleted} <- Repo.delete(grant) do
+          emit_access_revoked(invoice_id, user_id, opts)
+          {:ok, deleted}
         end
+    end
+  end
+
+  @spec emit_access_revoked(Ecto.UUID.t(), Ecto.UUID.t(), keyword()) :: :ok
+  defp emit_access_revoked(invoice_id, user_id, opts) do
+    case Repo.get(Invoice, invoice_id) do
+      %Invoice{company_id: company_id} ->
+        Events.invoice_access_revoked(%{id: invoice_id, company_id: company_id}, user_id, opts)
+
+      nil ->
+        :ok
     end
   end
 
