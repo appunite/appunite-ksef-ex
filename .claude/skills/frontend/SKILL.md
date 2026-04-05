@@ -60,7 +60,7 @@ Helpers: `format_date/1`, `format_amount/1`, `format_datetime/1`, `format_month/
 
 Use these semantic tokens — they auto-adapt to light/dark theme:
 
-```
+```text
 Backgrounds:  bg-background  bg-card  bg-popover  bg-muted  bg-shad-accent
 Text:         text-foreground  text-card-foreground  text-muted-foreground  text-popover-foreground
               text-shad-primary-foreground  text-shad-accent-foreground
@@ -83,7 +83,7 @@ Disabled:     disabled:pointer-events-none disabled:opacity-50
 
 Only reach for DaisyUI when building interactive behavior that custom components don't cover:
 
-```
+```text
 dropdown:    dropdown dropdown-content dropdown-end dropdown-start dropdown-top dropdown-hover dropdown-open
 loading:     loading loading-spinner loading-dots loading-ring loading-bars (loading-xs..xl)
 breadcrumbs: breadcrumbs > ul > li > a
@@ -145,5 +145,5 @@ end
 **Forms**: `<.simple_form>` wrapping `<.input>` fields, `<:actions>` slot for buttons
 **Filters**: Row of `<.multi_select>` pickers above table
 **Empty states**: Centered text in `text-muted-foreground` within a card
-**Loading states**: `<span class="loading loading-spinner loading-lg text-primary"></span>`
+**Loading states**: `<span class="loading loading-spinner loading-lg text-primary"></span>` (`text-primary` is DaisyUI here — correct for DaisyUI components)
 **Tab bar**: `flex border-b border-border` container with `tab_class(boolean)` helper
