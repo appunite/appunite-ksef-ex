@@ -568,7 +568,7 @@ defmodule KsefHubWeb.Api.InvoiceController do
         user_id: conn.assigns.api_token.created_by_id
       )
 
-    case Invoices.confirm_duplicate(invoice) do
+    case Invoices.confirm_duplicate(invoice, api_actor_opts(conn)) do
       {:ok, updated} ->
         json(conn, %{data: invoice_json(updated)})
 
@@ -622,7 +622,7 @@ defmodule KsefHubWeb.Api.InvoiceController do
         user_id: conn.assigns.api_token.created_by_id
       )
 
-    case Invoices.dismiss_duplicate(invoice) do
+    case Invoices.dismiss_duplicate(invoice, api_actor_opts(conn)) do
       {:ok, updated} ->
         json(conn, %{data: invoice_json(updated)})
 
@@ -744,14 +744,16 @@ defmodule KsefHubWeb.Api.InvoiceController do
       |> put_status(:unprocessable_entity)
       |> json(%{error: "Invoice has no XML content"})
     else
-      emit_download_event(conn, invoice, "xml")
+      result_conn =
+        send_attachment(
+          conn,
+          "application/xml",
+          "#{invoice.invoice_number}.xml",
+          invoice.xml_file.content
+        )
 
-      send_attachment(
-        conn,
-        "application/xml",
-        "#{invoice.invoice_number}.xml",
-        invoice.xml_file.content
-      )
+      if result_conn.status == 200, do: emit_download_event(conn, invoice, "xml")
+      result_conn
     end
   end
 

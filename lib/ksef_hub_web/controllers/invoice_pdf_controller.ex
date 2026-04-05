@@ -22,15 +22,10 @@ defmodule KsefHubWeb.InvoicePdfController do
     with_invoice(conn, company_id, id, fn conn, invoice ->
       case invoice do
         %{xml_file: %{content: content}} when is_binary(content) and content != "" ->
-          actor_opts = [user_id: user.id, actor_label: user.name || user.email]
+          result_conn =
+            send_attachment(conn, "application/xml", "#{invoice.invoice_number}.xml", content)
 
-          Events.invoice_downloaded(
-            %{id: invoice.id, company_id: company_id},
-            "xml",
-            actor_opts
-          )
-
-          send_attachment(conn, "application/xml", "#{invoice.invoice_number}.xml", content)
+          maybe_emit_download(result_conn, invoice, company_id, user, "xml")
 
         _ ->
           conn
@@ -52,17 +47,7 @@ defmodule KsefHubWeb.InvoicePdfController do
 
     with_invoice(conn, company_id, id, inline?, fn conn, invoice ->
       result_conn = send_pdf(conn, company_id, invoice, inline?)
-
-      if result_conn.status == 200 and not inline? do
-        actor_opts = [user_id: user.id, actor_label: user.name || user.email]
-
-        Events.invoice_downloaded(
-          %{id: invoice.id, company_id: company_id},
-          "pdf",
-          actor_opts
-        )
-      end
-
+      unless inline?, do: maybe_emit_download(result_conn, invoice, company_id, user, "pdf")
       result_conn
     end)
   end
@@ -171,4 +156,12 @@ defmodule KsefHubWeb.InvoicePdfController do
     |> put_flash(:error, message)
     |> redirect(to: ~p"/c/#{company_id}/invoices/#{invoice.id}")
   end
+
+  @spec maybe_emit_download(Plug.Conn.t(), map(), String.t(), map(), String.t()) :: :ok | nil
+  defp maybe_emit_download(%{status: 200} = _conn, invoice, company_id, user, format) do
+    actor_opts = [user_id: user.id, actor_label: user.name || user.email]
+    Events.invoice_downloaded(%{id: invoice.id, company_id: company_id}, format, actor_opts)
+  end
+
+  defp maybe_emit_download(_conn, _invoice, _company_id, _user, _format), do: nil
 end

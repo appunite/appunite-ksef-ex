@@ -629,7 +629,7 @@ defmodule KsefHubWeb.InvoiceLive.Show do
     invoice = socket.assigns.invoice
     new_value = !invoice.access_restricted
 
-    case Invoices.set_access_restricted(invoice, new_value) do
+    case Invoices.set_access_restricted(invoice, new_value, actor_opts(socket)) do
       {:ok, updated} ->
         {:noreply,
          socket
