@@ -91,7 +91,7 @@ defmodule KsefHub.Credentials do
       |> Multi.run(:deactivate, fn _repo, _changes ->
         case old_credential do
           nil -> {:ok, nil}
-          existing -> deactivate_credential(existing)
+          existing -> deactivate_credential(existing, opts)
         end
       end)
       |> Multi.insert(:credential, changeset)

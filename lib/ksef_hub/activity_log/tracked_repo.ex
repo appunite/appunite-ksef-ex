@@ -144,13 +144,15 @@ defmodule KsefHub.ActivityLog.TrackedRepo do
   defp emit_event(action, struct, opts, extra_metadata) do
     {resource_type, resource_id, company_id} = resource_info(struct)
 
+    user_id = Keyword.get(opts, :user_id)
+
     Events.emit(%Event{
       action: action,
       resource_type: resource_type,
       resource_id: resource_id,
       company_id: company_id,
-      user_id: stringify(Keyword.get(opts, :user_id)),
-      actor_type: Keyword.get(opts, :actor_type, "user"),
+      user_id: stringify(user_id),
+      actor_type: Keyword.get(opts, :actor_type, if(user_id, do: "user", else: "system")),
       actor_label: Keyword.get(opts, :actor_label),
       ip_address: Keyword.get(opts, :ip_address),
       metadata: extra_metadata

@@ -328,7 +328,7 @@ defmodule KsefHubWeb.InvoiceLive.Show do
   def handle_event("save_edit", %{"invoice" => params}, socket) do
     params = normalize_billing_date_param(params)
 
-    case Invoices.update_invoice_fields(socket.assigns.invoice, params) do
+    case Invoices.update_invoice_fields(socket.assigns.invoice, params, actor_opts(socket)) do
       {:ok, updated} ->
         reloaded = reload_details(updated, socket)
 
@@ -377,7 +377,9 @@ defmodule KsefHubWeb.InvoiceLive.Show do
     {:ok, updated} = Invoices.ensure_public_token(invoice)
     url = url(~p"/public/invoices/#{updated.id}?token=#{updated.public_token}")
 
-    Events.invoice_public_link_generated(invoice, actor_opts(socket))
+    if invoice.public_token != updated.public_token do
+      Events.invoice_public_link_generated(updated, actor_opts(socket))
+    end
 
     {:noreply,
      socket
@@ -430,7 +432,7 @@ defmodule KsefHubWeb.InvoiceLive.Show do
 
   @impl true
   def handle_event("save_note", %{"note" => note}, socket) do
-    case Invoices.update_invoice_note(socket.assigns.invoice, %{note: note}) do
+    case Invoices.update_invoice_note(socket.assigns.invoice, %{note: note}, actor_opts(socket)) do
       {:ok, updated} ->
         reloaded = reload_details(updated, socket)
 
@@ -469,10 +471,11 @@ defmodule KsefHubWeb.InvoiceLive.Show do
     billing_date_from = normalize_month_to_date(params["billing_date_from"] || "")
     billing_date_to = normalize_month_to_date(params["billing_date_to"] || "")
 
-    case Invoices.update_billing_date(socket.assigns.invoice, %{
-           billing_date_from: billing_date_from,
-           billing_date_to: billing_date_to
-         }) do
+    case Invoices.update_billing_date(
+           socket.assigns.invoice,
+           %{billing_date_from: billing_date_from, billing_date_to: billing_date_to},
+           actor_opts(socket)
+         ) do
       {:ok, updated} ->
         reloaded = reload_details(updated, socket)
 
@@ -513,7 +516,7 @@ defmodule KsefHubWeb.InvoiceLive.Show do
         invoice_id = socket.assigns.invoice.id
         company_id = socket.assigns.current_company.id
 
-        case Invoices.create_invoice_comment(company_id, invoice_id, user_id, %{body: trimmed}) do
+        case Invoices.create_invoice_comment(company_id, invoice_id, user_id, %{body: trimmed}, actor_opts(socket)) do
           {:ok, _comment} ->
             {:noreply,
              socket

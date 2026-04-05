@@ -71,6 +71,6 @@ defmodule KsefHub.ActivityLog.Trackable do
   """
   @spec trackable?(module()) :: boolean()
   def trackable?(module) do
-    function_exported?(module, :track_change, 1)
+    function_exported?(module, :track_change, 1) and function_exported?(module, :track_delete, 1)
   end
 end

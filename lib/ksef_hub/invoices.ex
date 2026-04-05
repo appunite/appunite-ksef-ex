@@ -399,9 +399,9 @@ defmodule KsefHub.Invoices do
   (when the invoice has one), and enqueues prediction if status changed from
   :partial or :failed to :complete.
   """
-  @spec update_invoice_fields(Invoice.t(), map()) ::
+  @spec update_invoice_fields(Invoice.t(), map(), keyword()) ::
           {:ok, Invoice.t()} | {:error, Ecto.Changeset.t() | :ksef_not_editable}
-  def update_invoice_fields(%Invoice{} = invoice, attrs) do
+  def update_invoice_fields(%Invoice{} = invoice, attrs, opts \\ []) do
     Repo.transaction(fn ->
       fresh_invoice =
         Invoice
@@ -411,16 +411,16 @@ defmodule KsefHub.Invoices do
 
       unless Invoice.data_editable?(fresh_invoice), do: Repo.rollback(:ksef_not_editable)
 
-      case do_update_invoice_fields(fresh_invoice, attrs) do
+      case do_update_invoice_fields(fresh_invoice, attrs, opts) do
         {:ok, updated} -> updated
         {:error, changeset} -> Repo.rollback(changeset)
       end
     end)
   end
 
-  @spec do_update_invoice_fields(Invoice.t(), map()) ::
+  @spec do_update_invoice_fields(Invoice.t(), map(), keyword()) ::
           {:ok, Invoice.t()} | {:error, Ecto.Changeset.t()}
-  defp do_update_invoice_fields(%Invoice{} = invoice, attrs) do
+  defp do_update_invoice_fields(%Invoice{} = invoice, attrs, opts) do
     old_status = invoice.extraction_status
 
     # Only consider fields that edit_changeset will actually apply (excludes company-side fields)
@@ -449,7 +449,7 @@ defmodule KsefHub.Invoices do
 
     changeset = maybe_backfill_billing_date(changeset, invoice)
 
-    with {:ok, updated} <- Repo.update(changeset) do
+    with {:ok, updated} <- TrackedRepo.update(changeset, opts) do
       if old_status in [:partial, :failed] and updated.extraction_status == :complete,
         do: enqueue_prediction(updated)
 
@@ -1172,10 +1172,12 @@ defmodule KsefHub.Invoices do
           else: m
       end)
 
+    opts = if created_by_id, do: [user_id: created_by_id], else: []
+
     %Invoice{}
     |> Ecto.Changeset.change(trusted_fields)
     |> Invoice.changeset(attrs)
-    |> TrackedRepo.insert()
+    |> TrackedRepo.insert(opts)
   end
 
   @spec do_upsert_invoice(Ecto.UUID.t(), map()) ::

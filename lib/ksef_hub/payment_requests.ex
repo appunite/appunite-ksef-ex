@@ -119,7 +119,7 @@ defmodule KsefHub.PaymentRequests do
   def update_payment_request(%PaymentRequest{status: :pending} = pr, user_id, attrs) do
     pr
     |> PaymentRequest.changeset(Map.put(attrs, :updated_by_id, user_id))
-    |> Repo.update()
+    |> TrackedRepo.update(user_id: user_id)
   end
 
   def update_payment_request(%PaymentRequest{}, _user_id, _attrs), do: {:error, :not_editable}

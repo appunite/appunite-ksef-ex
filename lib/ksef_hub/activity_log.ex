@@ -20,7 +20,7 @@ defmodule KsefHub.ActivityLog do
   """
   @spec list_for_invoice(Ecto.UUID.t(), Ecto.UUID.t(), keyword()) :: [AuditLog.t()]
   def list_for_invoice(company_id, invoice_id, opts \\ []) do
-    limit = opts |> Keyword.get(:limit, @default_per_page) |> min(@max_per_page)
+    limit = opts |> Keyword.get(:limit, @default_per_page) |> max(1) |> min(@max_per_page)
 
     AuditLog
     |> where([a], a.company_id == ^company_id)
@@ -49,7 +49,7 @@ defmodule KsefHub.ActivityLog do
         }
   def list_for_company(company_id, opts \\ []) do
     page = max(Keyword.get(opts, :page, 1), 1)
-    per_page = opts |> Keyword.get(:per_page, @default_per_page) |> min(@max_per_page)
+    per_page = opts |> Keyword.get(:per_page, @default_per_page) |> max(1) |> min(@max_per_page)
 
     base_query =
       AuditLog
@@ -82,7 +82,7 @@ defmodule KsefHub.ActivityLog do
   """
   @spec list_invoice_timeline(Ecto.UUID.t(), Ecto.UUID.t(), keyword()) :: [AuditLog.t()]
   def list_invoice_timeline(company_id, invoice_id, opts \\ []) do
-    limit = opts |> Keyword.get(:limit, @default_per_page) |> min(@max_per_page)
+    limit = opts |> Keyword.get(:limit, @default_per_page) |> max(1) |> min(@max_per_page)
 
     AuditLog
     |> where([a], a.company_id == ^company_id)

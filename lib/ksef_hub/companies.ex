@@ -318,19 +318,25 @@ defmodule KsefHub.Companies do
   If `role` matches the current role, only the name update is performed.
   Returns `{:ok, %{user: user, membership: membership}}` on success.
   """
-  @spec update_member(Membership.t(), String.t() | nil, Membership.role() | nil) ::
+  @spec update_member(Membership.t(), String.t() | nil, Membership.role() | nil, keyword()) ::
           {:ok, %{user: User.t(), membership: Membership.t()}}
           | {:error, atom(), Ecto.Changeset.t(), map()}
-  def update_member(%Membership{} = membership, name, role) do
+  def update_member(%Membership{} = membership, name, role, opts \\ []) do
     membership = Repo.preload(membership, :user)
     user = membership.user
+
+    role_changed? = role && role != membership.role
 
     multi =
       Multi.new()
       |> Multi.update(:user, User.changeset(user, %{name: name}))
       |> then(fn multi ->
-        if role && role != membership.role do
-          Multi.update(multi, :membership, Membership.changeset(membership, %{role: role}))
+        if role_changed? do
+          changeset = Membership.changeset(membership, %{role: role})
+
+          Multi.run(multi, :membership, fn _repo, _changes ->
+            TrackedRepo.update(changeset, opts)
+          end)
         else
           Multi.put(multi, :membership, membership)
         end

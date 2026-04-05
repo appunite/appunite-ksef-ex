@@ -188,15 +188,17 @@ defmodule KsefHub.ActivityLog.Events do
   defp build_event(action, params) do
     opts = Keyword.get(params, :opts, [])
     extra = params |> Keyword.get(:extra_metadata, %{}) |> Map.new()
-    caller_meta = Keyword.get(opts, :metadata, %{})
+    caller_meta = opts |> Keyword.get(:metadata, %{}) |> Map.new()
+
+    user_id = Keyword.get(opts, :user_id)
 
     %Event{
       action: action,
       resource_type: Keyword.get(params, :resource_type),
       resource_id: stringify(Keyword.get(params, :resource_id)),
       company_id: stringify(Keyword.get(params, :company_id)),
-      user_id: stringify(Keyword.get(opts, :user_id)),
-      actor_type: Keyword.get(opts, :actor_type, "user"),
+      user_id: stringify(user_id),
+      actor_type: Keyword.get(opts, :actor_type, if(user_id, do: "user", else: "system")),
       actor_label: Keyword.get(opts, :actor_label),
       ip_address: Keyword.get(opts, :ip_address),
       metadata: Map.merge(caller_meta, extra)
