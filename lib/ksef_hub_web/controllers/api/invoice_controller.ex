@@ -15,6 +15,7 @@ defmodule KsefHubWeb.Api.InvoiceController do
   import KsefHubWeb.FilenameHelpers, only: [send_attachment: 4]
   import KsefHubWeb.JsonHelpers, only: [category_json: 1, atomize_keys: 2]
 
+  alias KsefHub.ActivityLog.Events
   alias KsefHub.Invoices
   alias KsefHub.Invoices.{CostLine, Invoice}
   alias KsefHubWeb.Schemas
@@ -189,7 +190,7 @@ defmodule KsefHubWeb.Api.InvoiceController do
       |> atomize_keys(@create_allowed_keys)
       |> Map.put(:created_by_id, conn.assigns.api_token.created_by_id)
 
-    case Invoices.create_manual_invoice(company_id, attrs) do
+    case Invoices.create_manual_invoice(company_id, attrs, api_actor_opts(conn)) do
       {:ok, invoice} ->
         conn
         |> put_status(:created)
@@ -237,11 +238,16 @@ defmodule KsefHubWeb.Api.InvoiceController do
       type = params["type"]
       filename = upload.filename
 
-      case Invoices.create_pdf_upload_invoice(company, pdf_binary, %{
-             type: type,
-             filename: filename,
-             created_by_id: conn.assigns.api_token.created_by_id
-           }) do
+      case Invoices.create_pdf_upload_invoice(
+             company,
+             pdf_binary,
+             %{
+               type: type,
+               filename: filename,
+               created_by_id: conn.assigns.api_token.created_by_id
+             },
+             api_actor_opts(conn)
+           ) do
         {:ok, invoice} ->
           conn
           |> put_status(:created)
@@ -322,7 +328,7 @@ defmodule KsefHubWeb.Api.InvoiceController do
 
   @spec do_update(Plug.Conn.t(), Invoice.t(), map()) :: Plug.Conn.t()
   defp do_update(conn, %Invoice{} = invoice, params) do
-    case Invoices.update_invoice_fields(invoice, params) do
+    case Invoices.update_invoice_fields(invoice, params, api_actor_opts(conn)) do
       {:ok, updated} ->
         json(conn, %{data: invoice_json(updated)})
 
@@ -403,7 +409,7 @@ defmodule KsefHubWeb.Api.InvoiceController do
         user_id: conn.assigns.api_token.created_by_id
       )
 
-    case Invoices.approve_invoice(invoice) do
+    case Invoices.approve_invoice(invoice, api_actor_opts(conn)) do
       {:ok, updated} ->
         json(conn, %{data: invoice_json(updated)})
 
@@ -458,7 +464,7 @@ defmodule KsefHubWeb.Api.InvoiceController do
         user_id: conn.assigns.api_token.created_by_id
       )
 
-    case Invoices.reject_invoice(invoice) do
+    case Invoices.reject_invoice(invoice, api_actor_opts(conn)) do
       {:ok, updated} ->
         json(conn, %{data: invoice_json(updated)})
 
@@ -508,7 +514,7 @@ defmodule KsefHubWeb.Api.InvoiceController do
         user_id: conn.assigns.api_token.created_by_id
       )
 
-    case Invoices.reset_invoice_status(invoice) do
+    case Invoices.reset_invoice_status(invoice, api_actor_opts(conn)) do
       {:ok, updated} ->
         json(conn, %{data: invoice_json(updated)})
 
@@ -562,7 +568,7 @@ defmodule KsefHubWeb.Api.InvoiceController do
         user_id: conn.assigns.api_token.created_by_id
       )
 
-    case Invoices.confirm_duplicate(invoice) do
+    case Invoices.confirm_duplicate(invoice, api_actor_opts(conn)) do
       {:ok, updated} ->
         json(conn, %{data: invoice_json(updated)})
 
@@ -616,7 +622,7 @@ defmodule KsefHubWeb.Api.InvoiceController do
         user_id: conn.assigns.api_token.created_by_id
       )
 
-    case Invoices.dismiss_duplicate(invoice) do
+    case Invoices.dismiss_duplicate(invoice, api_actor_opts(conn)) do
       {:ok, updated} ->
         json(conn, %{data: invoice_json(updated)})
 
@@ -738,12 +744,16 @@ defmodule KsefHubWeb.Api.InvoiceController do
       |> put_status(:unprocessable_entity)
       |> json(%{error: "Invoice has no XML content"})
     else
-      send_attachment(
-        conn,
-        "application/xml",
-        "#{invoice.invoice_number}.xml",
-        invoice.xml_file.content
-      )
+      result_conn =
+        send_attachment(
+          conn,
+          "application/xml",
+          "#{invoice.invoice_number}.xml",
+          invoice.xml_file.content
+        )
+
+      if result_conn.status == 200, do: emit_download_event(conn, invoice, "xml")
+      result_conn
     end
   end
 
@@ -782,7 +792,9 @@ defmodule KsefHubWeb.Api.InvoiceController do
         user_id: conn.assigns.api_token.created_by_id
       )
 
-    serve_pdf(conn, invoice)
+    result_conn = serve_pdf(conn, invoice)
+    if result_conn.status == 200, do: emit_download_event(conn, invoice, "pdf")
+    result_conn
   end
 
   @spec serve_pdf(Plug.Conn.t(), Invoice.t()) :: Plug.Conn.t()
@@ -855,7 +867,8 @@ defmodule KsefHubWeb.Api.InvoiceController do
 
     with {:ok, cost_line} <- cast_cost_line_param(params),
          :ok <- validate_category_company(category_id, company_id),
-         {:ok, updated} <- Invoices.set_invoice_category(invoice, category_id),
+         {:ok, updated} <-
+           Invoices.set_invoice_category(invoice, category_id, api_actor_opts(conn)),
          {:ok, updated} <- maybe_set_api_cost_line(updated, cost_line),
          {:ok, _} <- Invoices.mark_prediction_manual(updated) do
       invoice = Invoices.get_invoice_with_details!(company_id, id, role: role, user_id: user_id)
@@ -922,7 +935,7 @@ defmodule KsefHubWeb.Api.InvoiceController do
 
     with {:ok, tags} <- Map.fetch(params, "tags"),
          true <- is_list(tags) and Enum.all?(tags, &is_binary/1),
-         {:ok, updated} <- Invoices.set_invoice_tags(invoice, tags),
+         {:ok, updated} <- Invoices.set_invoice_tags(invoice, tags, api_actor_opts(conn)),
          {:ok, _} <- Invoices.mark_prediction_manual(updated) do
       invoice = Invoices.get_invoice_with_details!(company_id, id, role: role, user_id: user_id)
       json(conn, %{data: invoice_json(invoice)})
@@ -1018,7 +1031,8 @@ defmodule KsefHubWeb.Api.InvoiceController do
 
     project_tag = params["project_tag"]
 
-    with {:ok, updated} <- Invoices.set_invoice_project_tag(invoice, project_tag),
+    with {:ok, updated} <-
+           Invoices.set_invoice_project_tag(invoice, project_tag, api_actor_opts(conn)),
          {:ok, _} <- Invoices.mark_prediction_manual(updated) do
       invoice = Invoices.get_invoice_with_details!(company_id, id, role: role, user_id: user_id)
       json(conn, %{data: invoice_json(invoice)})
@@ -1139,7 +1153,7 @@ defmodule KsefHubWeb.Api.InvoiceController do
         user_id: conn.assigns.api_token.created_by_id
       )
 
-    case Invoices.set_access_restricted(invoice, restricted) do
+    case Invoices.set_access_restricted(invoice, restricted, api_actor_opts(conn)) do
       {:ok, updated} ->
         grants = Invoices.list_access_grants(updated.id)
 
@@ -1216,7 +1230,9 @@ defmodule KsefHubWeb.Api.InvoiceController do
             user_id: granted_by_id
           )
 
-        case Invoices.grant_access(invoice.id, user_id, granted_by_id) do
+        api_actor_opts = api_actor_opts(conn)
+
+        case Invoices.grant_access(invoice.id, user_id, granted_by_id, api_actor_opts) do
           {:ok, _grant} ->
             grants = Invoices.list_access_grants(invoice.id)
 
@@ -1287,7 +1303,7 @@ defmodule KsefHubWeb.Api.InvoiceController do
             user_id: conn.assigns.api_token.created_by_id
           )
 
-        case Invoices.revoke_access(invoice.id, user_id) do
+        case Invoices.revoke_access(invoice.id, user_id, api_actor_opts(conn)) do
           {:ok, _} ->
             grants = Invoices.list_access_grants(invoice.id)
 
@@ -1546,4 +1562,16 @@ defmodule KsefHubWeb.Api.InvoiceController do
   @spec maybe_add_tags(map(), Invoice.t()) :: map()
   defp maybe_add_tags(json, %{tags: tags}) when is_list(tags), do: Map.put(json, :tags, tags)
   defp maybe_add_tags(json, _), do: json
+
+  @spec api_actor_opts(Plug.Conn.t()) :: keyword()
+  defp api_actor_opts(conn) do
+    token = conn.assigns.api_token
+    [user_id: token.created_by_id, actor_type: "api", actor_label: "API: #{token.name}"]
+  end
+
+  @spec emit_download_event(Plug.Conn.t(), Invoice.t(), String.t()) :: :ok
+  defp emit_download_event(conn, invoice, format) do
+    invoice_ref = %{id: invoice.id, company_id: invoice.company_id}
+    Events.invoice_downloaded(invoice_ref, format, api_actor_opts(conn))
+  end
 end

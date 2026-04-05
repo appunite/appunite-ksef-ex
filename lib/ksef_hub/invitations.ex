@@ -13,6 +13,7 @@ defmodule KsefHub.Invitations do
   require Logger
 
   alias KsefHub.Accounts.User
+  alias KsefHub.ActivityLog.Events
   alias KsefHub.Companies
   alias KsefHub.Companies.Membership
   alias KsefHub.Invitations.Invitation
@@ -72,6 +73,7 @@ defmodule KsefHub.Invitations do
     |> Repo.transaction()
     |> case do
       {:ok, %{invitation: invitation}} ->
+        Events.invitation_sent(invitation, email, user_id: user_id)
         {:ok, %{invitation: invitation, token: raw_token}}
 
       {:error, :authorize, :unauthorized, _changes} ->
@@ -142,6 +144,7 @@ defmodule KsefHub.Invitations do
     |> Repo.transaction()
     |> case do
       {:ok, %{invitation: invitation, membership: membership}} ->
+        Events.invitation_accepted(invitation, user)
         {:ok, %{invitation: invitation, membership: membership}}
 
       {:error, :check_membership, :already_member, _changes} ->

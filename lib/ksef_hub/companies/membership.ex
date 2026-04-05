@@ -18,6 +18,8 @@ defmodule KsefHub.Companies.Membership do
   use Ecto.Schema
   import Ecto.Changeset
 
+  @behaviour KsefHub.ActivityLog.Trackable
+
   @type t :: %__MODULE__{}
   @type role :: :owner | :admin | :accountant | :reviewer
   @type status :: :active | :blocked
@@ -92,5 +94,40 @@ defmodule KsefHub.Companies.Membership do
     membership
     |> cast(attrs, [:status])
     |> validate_required([:status])
+  end
+
+  # ---------------------------------------------------------------------------
+  # Trackable
+  # ---------------------------------------------------------------------------
+
+  @impl KsefHub.ActivityLog.Trackable
+  @spec track_change(Ecto.Changeset.t()) :: {String.t(), map()} | :skip
+  def track_change(%Ecto.Changeset{} = cs) do
+    changes = cs.changes
+
+    cond do
+      Map.has_key?(changes, :role) ->
+        {"team.role_changed",
+         %{
+           member_user_id: cs.data.user_id,
+           old_role: to_string(cs.data.role),
+           new_role: to_string(changes.role)
+         }}
+
+      Map.has_key?(changes, :status) ->
+        action =
+          if changes.status == :blocked, do: "team.member_blocked", else: "team.member_unblocked"
+
+        {action, %{member_user_id: cs.data.user_id}}
+
+      true ->
+        :skip
+    end
+  end
+
+  @impl KsefHub.ActivityLog.Trackable
+  @spec track_delete(t()) :: {String.t(), map()}
+  def track_delete(%__MODULE__{} = m) do
+    {"team.member_removed", %{member_user_id: m.user_id}}
   end
 end

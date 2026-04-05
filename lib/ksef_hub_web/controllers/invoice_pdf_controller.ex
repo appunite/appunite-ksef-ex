@@ -13,15 +13,20 @@ defmodule KsefHubWeb.InvoicePdfController do
 
   import KsefHubWeb.AuthHelpers, only: [resolve_role: 2]
 
+  alias KsefHub.ActivityLog.Events
   alias KsefHub.Invoices
 
   @doc "Downloads the raw FA(3) XML of the invoice."
   @spec xml(Plug.Conn.t(), map()) :: Plug.Conn.t()
-  def xml(%{assigns: %{current_user: %{id: _}}} = conn, %{"company_id" => company_id, "id" => id}) do
+  def xml(%{assigns: %{current_user: user}} = conn, %{"company_id" => company_id, "id" => id}) do
     with_invoice(conn, company_id, id, fn conn, invoice ->
       case invoice do
         %{xml_file: %{content: content}} when is_binary(content) and content != "" ->
-          send_attachment(conn, "application/xml", "#{invoice.invoice_number}.xml", content)
+          result_conn =
+            send_attachment(conn, "application/xml", "#{invoice.invoice_number}.xml", content)
+
+          maybe_emit_download(result_conn, invoice, company_id, user, "xml")
+          result_conn
 
         _ ->
           conn
@@ -36,13 +41,15 @@ defmodule KsefHubWeb.InvoicePdfController do
   @doc "Downloads a PDF for the invoice — serves the stored PDF for pdf_upload invoices, or generates one from XML. Pass `?inline=1` to use Content-Disposition: inline (for iframe previews)."
   @spec show(Plug.Conn.t(), map()) :: Plug.Conn.t()
   def show(
-        %{assigns: %{current_user: %{id: _}}} = conn,
+        %{assigns: %{current_user: user}} = conn,
         %{"company_id" => company_id, "id" => id} = params
       ) do
     inline? = params["inline"] == "1"
 
     with_invoice(conn, company_id, id, inline?, fn conn, invoice ->
-      send_pdf(conn, company_id, invoice, inline?)
+      result_conn = send_pdf(conn, company_id, invoice, inline?)
+      unless inline?, do: maybe_emit_download(result_conn, invoice, company_id, user, "pdf")
+      result_conn
     end)
   end
 
@@ -150,4 +157,12 @@ defmodule KsefHubWeb.InvoicePdfController do
     |> put_flash(:error, message)
     |> redirect(to: ~p"/c/#{company_id}/invoices/#{invoice.id}")
   end
+
+  @spec maybe_emit_download(Plug.Conn.t(), map(), String.t(), map(), String.t()) :: :ok | nil
+  defp maybe_emit_download(%{status: 200} = _conn, invoice, company_id, user, format) do
+    actor_opts = [user_id: user.id, actor_label: user.name || user.email]
+    Events.invoice_downloaded(%{id: invoice.id, company_id: company_id}, format, actor_opts)
+  end
+
+  defp maybe_emit_download(_conn, _invoice, _company_id, _user, _format), do: nil
 end

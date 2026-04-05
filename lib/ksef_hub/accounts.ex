@@ -6,6 +6,7 @@ defmodule KsefHub.Accounts do
   import Ecto.Query
 
   alias KsefHub.Accounts.{ApiToken, User, UserNotifier, UserToken}
+  alias KsefHub.ActivityLog.TrackedRepo
   alias KsefHub.Authorization
   alias KsefHub.Repo
 
@@ -365,7 +366,7 @@ defmodule KsefHub.Accounts do
       |> Ecto.Changeset.put_change(:token_hash, token_hash)
       |> Ecto.Changeset.put_change(:token_prefix, token_prefix)
 
-    case Repo.insert(changeset) do
+    case TrackedRepo.insert(changeset, user_id: user_id) do
       {:ok, api_token} ->
         {:ok, %{token: plain_token, api_token: api_token}}
 
@@ -425,7 +426,7 @@ defmodule KsefHub.Accounts do
       api_token ->
         api_token
         |> ApiToken.changeset(%{is_active: false})
-        |> Repo.update()
+        |> TrackedRepo.update(user_id: user_id)
     end
   end
 
@@ -466,7 +467,7 @@ defmodule KsefHub.Accounts do
       api_token ->
         api_token
         |> ApiToken.changeset(%{is_active: false})
-        |> Repo.update()
+        |> TrackedRepo.update(user_id: user_id)
     end
   end
 

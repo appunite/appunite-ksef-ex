@@ -9,6 +9,7 @@ defmodule KsefHub.Factory do
   use ExMachina.Ecto, repo: KsefHub.Repo
 
   alias KsefHub.Accounts.{ApiToken, User}
+  alias KsefHub.AuditLog
   alias KsefHub.Companies.{Company, CompanyBankAccount, Membership}
   alias KsefHub.Credentials.{Credential, UserCertificate}
   alias KsefHub.Exports.{ExportBatch, InvoiceDownload}
@@ -320,6 +321,21 @@ defmodule KsefHub.Factory do
       iban: "PL12105015201000009032123698",
       label: "Main PLN account",
       company: build(:company)
+    }
+  end
+
+  @doc "Builds an `AuditLog` entry for activity log tests."
+  @spec audit_log_factory() :: AuditLog.t()
+  def audit_log_factory do
+    %AuditLog{
+      action: "invoice.created",
+      resource_type: "invoice",
+      resource_id: Ecto.UUID.generate(),
+      actor_type: "user",
+      actor_label: "Test User",
+      metadata: %{},
+      company: build(:company),
+      user: build(:user)
     }
   end
 

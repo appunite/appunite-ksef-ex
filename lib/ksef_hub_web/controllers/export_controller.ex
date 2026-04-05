@@ -6,6 +6,7 @@ defmodule KsefHubWeb.ExportController do
   import KsefHubWeb.AuthHelpers, only: [resolve_role: 2]
   import KsefHubWeb.FilenameHelpers, only: [send_attachment: 4]
 
+  alias KsefHub.ActivityLog.Events
   alias KsefHub.Authorization
   alias KsefHub.Exports
 
@@ -38,6 +39,13 @@ defmodule KsefHubWeb.ExportController do
 
     case batch do
       %{status: :completed, zip_file: %{content: content}} when is_binary(content) ->
+        user = conn.assigns.current_user
+
+        Events.export_downloaded(batch,
+          user_id: user_id,
+          actor_label: user.name || user.email
+        )
+
         filename = "invoices_#{batch.date_from}_#{batch.date_to}.zip"
         send_attachment(conn, "application/zip", filename, content)
 

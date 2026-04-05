@@ -77,7 +77,7 @@ defmodule KsefHubWeb.BankAccountLive do
         {:noreply, put_flash(socket, :error, "Bank account not found.")}
 
       ba ->
-        case Companies.delete_bank_account(ba) do
+        case Companies.delete_bank_account(ba, actor_opts(socket)) do
           {:ok, _} ->
             {:noreply,
              socket
@@ -96,7 +96,7 @@ defmodule KsefHubWeb.BankAccountLive do
   defp do_create(socket, params) do
     company_id = socket.assigns.current_company.id
 
-    case Companies.create_bank_account(company_id, params) do
+    case Companies.create_bank_account(company_id, params, actor_opts(socket)) do
       {:ok, ba} ->
         {:noreply,
          socket
@@ -113,7 +113,7 @@ defmodule KsefHubWeb.BankAccountLive do
   @spec do_update(Phoenix.LiveView.Socket.t(), CompanyBankAccount.t(), map()) ::
           {:noreply, Phoenix.LiveView.Socket.t()}
   defp do_update(socket, ba, params) do
-    case Companies.update_bank_account(ba, params) do
+    case Companies.update_bank_account(ba, params, actor_opts(socket)) do
       {:ok, updated} ->
         {:noreply,
          socket
@@ -124,6 +124,12 @@ defmodule KsefHubWeb.BankAccountLive do
       {:error, changeset} ->
         {:noreply, assign(socket, form: to_form(changeset, as: :bank_account))}
     end
+  end
+
+  @spec actor_opts(Phoenix.LiveView.Socket.t()) :: keyword()
+  defp actor_opts(socket) do
+    user = socket.assigns.current_user
+    [user_id: user.id, actor_label: user.name || user.email]
   end
 
   @spec find_bank_account(Ecto.UUID.t(), String.t()) :: CompanyBankAccount.t() | nil

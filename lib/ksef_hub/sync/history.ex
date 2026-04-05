@@ -5,6 +5,7 @@ defmodule KsefHub.Sync.History do
 
   import Ecto.Query
 
+  alias KsefHub.ActivityLog.Events
   alias KsefHub.Repo
   alias KsefHub.Sync.SyncWorker
 
@@ -35,9 +36,9 @@ defmodule KsefHub.Sync.History do
 
   Returns `{:ok, job}` or `{:error, :already_running}`.
   """
-  @spec trigger_manual_sync(Ecto.UUID.t()) ::
+  @spec trigger_manual_sync(Ecto.UUID.t(), keyword()) ::
           {:ok, Oban.Job.t()} | {:error, :already_running | Ecto.Changeset.t()}
-  def trigger_manual_sync(company_id) do
+  def trigger_manual_sync(company_id, opts \\ []) do
     pending_or_running =
       Oban.Job
       |> where([j], j.worker == @worker and j.state in ["available", "scheduled", "executing"])
@@ -47,9 +48,16 @@ defmodule KsefHub.Sync.History do
     if pending_or_running do
       {:error, :already_running}
     else
-      %{company_id: company_id, manual: true}
-      |> SyncWorker.new()
-      |> Oban.insert()
+      case %{company_id: company_id, manual: true}
+           |> SyncWorker.new()
+           |> Oban.insert() do
+        {:ok, job} ->
+          Events.sync_triggered(company_id, opts)
+          {:ok, job}
+
+        error ->
+          error
+      end
     end
   end
 

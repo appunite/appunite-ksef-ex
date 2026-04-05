@@ -8,6 +8,7 @@ defmodule KsefHub.Companies do
 
   alias Ecto.Multi
   alias KsefHub.Accounts.User
+  alias KsefHub.ActivityLog.TrackedRepo
   alias KsefHub.Companies.{Company, CompanyBankAccount, Membership}
   alias KsefHub.Repo
 
@@ -257,28 +258,28 @@ defmodule KsefHub.Companies do
   end
 
   @doc "Creates a bank account for a company."
-  @spec create_bank_account(Ecto.UUID.t(), map()) ::
+  @spec create_bank_account(Ecto.UUID.t(), map(), keyword()) ::
           {:ok, CompanyBankAccount.t()} | {:error, Ecto.Changeset.t()}
-  def create_bank_account(company_id, attrs) do
+  def create_bank_account(company_id, attrs, opts \\ []) do
     %CompanyBankAccount{company_id: company_id}
     |> CompanyBankAccount.changeset(attrs)
-    |> Repo.insert()
+    |> TrackedRepo.insert(opts)
   end
 
   @doc "Updates a bank account."
-  @spec update_bank_account(CompanyBankAccount.t(), map()) ::
+  @spec update_bank_account(CompanyBankAccount.t(), map(), keyword()) ::
           {:ok, CompanyBankAccount.t()} | {:error, Ecto.Changeset.t()}
-  def update_bank_account(%CompanyBankAccount{} = bank_account, attrs) do
+  def update_bank_account(%CompanyBankAccount{} = bank_account, attrs, opts \\ []) do
     bank_account
     |> CompanyBankAccount.update_changeset(attrs)
-    |> Repo.update()
+    |> TrackedRepo.update(opts)
   end
 
   @doc "Deletes a bank account."
-  @spec delete_bank_account(CompanyBankAccount.t()) ::
+  @spec delete_bank_account(CompanyBankAccount.t(), keyword()) ::
           {:ok, CompanyBankAccount.t()} | {:error, Ecto.Changeset.t()}
-  def delete_bank_account(%CompanyBankAccount{} = bank_account) do
-    Repo.delete(bank_account)
+  def delete_bank_account(%CompanyBankAccount{} = bank_account, opts \\ []) do
+    TrackedRepo.delete(bank_account, opts)
   end
 
   # ---------------------------------------------------------------------------
@@ -297,18 +298,19 @@ defmodule KsefHub.Companies do
   end
 
   @doc "Deletes a membership."
-  @spec delete_membership(Membership.t()) :: {:ok, Membership.t()} | {:error, Ecto.Changeset.t()}
-  def delete_membership(%Membership{} = membership) do
-    Repo.delete(membership)
+  @spec delete_membership(Membership.t(), keyword()) ::
+          {:ok, Membership.t()} | {:error, Ecto.Changeset.t()}
+  def delete_membership(%Membership{} = membership, opts \\ []) do
+    TrackedRepo.delete(membership, opts)
   end
 
   @doc "Updates the role of a membership."
-  @spec update_membership_role(Membership.t(), Membership.role()) ::
+  @spec update_membership_role(Membership.t(), Membership.role(), keyword()) ::
           {:ok, Membership.t()} | {:error, Ecto.Changeset.t()}
-  def update_membership_role(%Membership{} = membership, role) do
+  def update_membership_role(%Membership{} = membership, role, opts \\ []) do
     membership
     |> Membership.changeset(%{role: role})
-    |> Repo.update()
+    |> TrackedRepo.update(opts)
   end
 
   @doc """
@@ -317,23 +319,17 @@ defmodule KsefHub.Companies do
   If `role` matches the current role, only the name update is performed.
   Returns `{:ok, %{user: user, membership: membership}}` on success.
   """
-  @spec update_member(Membership.t(), String.t() | nil, Membership.role() | nil) ::
+  @spec update_member(Membership.t(), String.t() | nil, Membership.role() | nil, keyword()) ::
           {:ok, %{user: User.t(), membership: Membership.t()}}
           | {:error, atom(), Ecto.Changeset.t(), map()}
-  def update_member(%Membership{} = membership, name, role) do
+  def update_member(%Membership{} = membership, name, role, opts \\ []) do
     membership = Repo.preload(membership, :user)
     user = membership.user
 
     multi =
       Multi.new()
       |> Multi.update(:user, User.changeset(user, %{name: name}))
-      |> then(fn multi ->
-        if role && role != membership.role do
-          Multi.update(multi, :membership, Membership.changeset(membership, %{role: role}))
-        else
-          Multi.put(multi, :membership, membership)
-        end
-      end)
+      |> maybe_update_role(membership, role, opts)
 
     case Repo.transaction(multi) do
       {:ok, %{user: updated_user, membership: updated_membership}} ->
@@ -347,20 +343,37 @@ defmodule KsefHub.Companies do
     end
   end
 
+  @spec maybe_update_role(Multi.t(), Membership.t(), Membership.role() | nil, keyword()) ::
+          Multi.t()
+  defp maybe_update_role(multi, membership, role, opts)
+       when not is_nil(role) and role != membership.role do
+    changeset = Membership.changeset(membership, %{role: role})
+
+    Multi.run(multi, :membership, fn _repo, _changes ->
+      TrackedRepo.update(changeset, opts)
+    end)
+  end
+
+  defp maybe_update_role(multi, membership, _role, _opts) do
+    Multi.put(multi, :membership, membership)
+  end
+
   @doc "Blocks a membership (soft delete)."
-  @spec block_member(Membership.t()) :: {:ok, Membership.t()} | {:error, Ecto.Changeset.t()}
-  def block_member(%Membership{} = membership) do
+  @spec block_member(Membership.t(), keyword()) ::
+          {:ok, Membership.t()} | {:error, Ecto.Changeset.t()}
+  def block_member(%Membership{} = membership, opts \\ []) do
     membership
     |> Membership.status_changeset(%{status: :blocked})
-    |> Repo.update()
+    |> TrackedRepo.update(opts)
   end
 
   @doc "Unblocks a membership, restoring active status."
-  @spec unblock_member(Membership.t()) :: {:ok, Membership.t()} | {:error, Ecto.Changeset.t()}
-  def unblock_member(%Membership{} = membership) do
+  @spec unblock_member(Membership.t(), keyword()) ::
+          {:ok, Membership.t()} | {:error, Ecto.Changeset.t()}
+  def unblock_member(%Membership{} = membership, opts \\ []) do
     membership
     |> Membership.status_changeset(%{status: :active})
-    |> Repo.update()
+    |> TrackedRepo.update(opts)
   end
 
   @doc "Fetches the active membership for a user+company pair, returning nil if none exists or blocked."

@@ -180,6 +180,7 @@ defmodule KsefHubWeb.Router do
       live "/settings/team/invite", TeamLive.Invite
       live "/settings/team/members/:id", TeamMemberLive.Show, :member
       live "/settings/team/invitations/:id", TeamMemberLive.Show, :invitation
+      live "/settings/activity-log", SettingsLive.ActivityLog
     end
 
     live_session :require_view_payment_requests,

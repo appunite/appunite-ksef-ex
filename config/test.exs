@@ -29,6 +29,12 @@ config :swoosh, :api_client, false
 # Oban testing mode
 config :ksef_hub, Oban, testing: :inline
 
+# Disable activity log recorder (tests that need it start it explicitly)
+config :ksef_hub, :activity_log_recorder, false
+
+# Use synchronous test emitter instead of PubSub broadcast
+config :ksef_hub, :activity_log_emitter, KsefHub.ActivityLog.TestEmitter
+
 # Use mock implementations in tests
 config :ksef_hub, :ksef_client, KsefHub.KsefClient.Mock
 config :ksef_hub, :xades_signer, KsefHub.XadesSigner.Mock

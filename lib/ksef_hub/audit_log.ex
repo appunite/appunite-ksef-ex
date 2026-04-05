@@ -1,5 +1,5 @@
 defmodule KsefHub.AuditLog do
-  @moduledoc "Audit log schema and helpers. Records security-relevant actions."
+  @moduledoc "Audit log schema and helpers. Records activity and security-relevant actions."
 
   use Ecto.Schema
   import Ecto.Changeset
@@ -17,8 +17,11 @@ defmodule KsefHub.AuditLog do
     field :resource_type, :string
     field :resource_id, :string
     field :metadata, :map, default: %{}
+    field :actor_type, :string, default: "user"
+    field :actor_label, :string
     field :ip_address, :string
 
+    belongs_to :company, KsefHub.Companies.Company
     belongs_to :user, KsefHub.Accounts.User
 
     timestamps(updated_at: false)
@@ -28,9 +31,21 @@ defmodule KsefHub.AuditLog do
   @spec changeset(t(), map()) :: Ecto.Changeset.t()
   def changeset(audit_log, attrs) do
     audit_log
-    |> cast(attrs, [:action, :resource_type, :resource_id, :metadata, :user_id, :ip_address])
+    |> cast(attrs, [
+      :action,
+      :resource_type,
+      :resource_id,
+      :metadata,
+      :actor_type,
+      :actor_label,
+      :user_id,
+      :company_id,
+      :ip_address
+    ])
     |> validate_required([:action])
+    |> validate_inclusion(:actor_type, ["user", "system", "api"])
     |> foreign_key_constraint(:user_id)
+    |> foreign_key_constraint(:company_id)
   end
 
   @doc """
@@ -44,7 +59,10 @@ defmodule KsefHub.AuditLog do
       resource_type: Keyword.get(opts, :resource_type),
       resource_id: Keyword.get(opts, :resource_id),
       metadata: Keyword.get(opts, :metadata, %{}),
+      actor_type: Keyword.get(opts, :actor_type, "user"),
+      actor_label: Keyword.get(opts, :actor_label),
       user_id: Keyword.get(opts, :user_id),
+      company_id: Keyword.get(opts, :company_id),
       ip_address: Keyword.get(opts, :ip_address)
     })
     |> Repo.insert()

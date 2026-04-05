@@ -7,6 +7,7 @@ defmodule KsefHub.PaymentRequests do
   import Ecto.Query
   require Logger
 
+  alias KsefHub.ActivityLog.TrackedRepo
   alias KsefHub.Invoices.Invoice
   alias KsefHub.PaymentRequests.{CsvBuilder, CsvDownload, PaymentRequest}
   alias KsefHub.Repo
@@ -97,14 +98,14 @@ defmodule KsefHub.PaymentRequests do
   @doc "Creates a new payment request."
   @spec create_payment_request(Ecto.UUID.t(), Ecto.UUID.t(), map()) ::
           {:ok, PaymentRequest.t()} | {:error, Ecto.Changeset.t()}
-  def create_payment_request(company_id, user_id, attrs) do
+  def create_payment_request(company_id, user_id, attrs, opts \\ []) do
     %PaymentRequest{}
     |> PaymentRequest.changeset(
       attrs
       |> Map.put(:company_id, company_id)
       |> Map.put(:created_by_id, user_id)
     )
-    |> Repo.insert()
+    |> TrackedRepo.insert(Keyword.put_new(opts, :user_id, user_id))
   end
 
   @doc """
@@ -118,7 +119,7 @@ defmodule KsefHub.PaymentRequests do
   def update_payment_request(%PaymentRequest{status: :pending} = pr, user_id, attrs) do
     pr
     |> PaymentRequest.changeset(Map.put(attrs, :updated_by_id, user_id))
-    |> Repo.update()
+    |> TrackedRepo.update(user_id: user_id)
   end
 
   def update_payment_request(%PaymentRequest{}, _user_id, _attrs), do: {:error, :not_editable}
@@ -199,11 +200,18 @@ defmodule KsefHub.PaymentRequests do
   @doc "Marks a single payment request as paid."
   @spec mark_as_paid(Ecto.UUID.t(), Ecto.UUID.t()) ::
           {:ok, PaymentRequest.t()} | {:error, :not_found | :already_paid}
-  def mark_as_paid(company_id, id) do
+  def mark_as_paid(company_id, id, opts \\ []) do
     case get_payment_request(company_id, id) do
-      nil -> {:error, :not_found}
-      %{status: :paid} = pr -> {:ok, pr}
-      pr -> pr |> PaymentRequest.mark_paid_changeset() |> Repo.update()
+      nil ->
+        {:error, :not_found}
+
+      %{status: :paid} = pr ->
+        {:ok, pr}
+
+      pr ->
+        pr
+        |> PaymentRequest.mark_paid_changeset()
+        |> TrackedRepo.update(opts)
     end
   end
 
@@ -222,12 +230,21 @@ defmodule KsefHub.PaymentRequests do
   @doc "Voids a pending payment request. Only pending requests can be voided."
   @spec void_payment_request(Ecto.UUID.t(), Ecto.UUID.t()) ::
           {:ok, PaymentRequest.t()} | {:error, :not_found | :already_voided | :already_paid}
-  def void_payment_request(company_id, id) do
+  def void_payment_request(company_id, id, opts \\ []) do
     case get_payment_request(company_id, id) do
-      nil -> {:error, :not_found}
-      %{status: :voided} -> {:error, :already_voided}
-      %{status: :paid} -> {:error, :already_paid}
-      pr -> pr |> PaymentRequest.void_changeset() |> Repo.update()
+      nil ->
+        {:error, :not_found}
+
+      %{status: :voided} ->
+        {:error, :already_voided}
+
+      %{status: :paid} ->
+        {:error, :already_paid}
+
+      pr ->
+        pr
+        |> PaymentRequest.void_changeset()
+        |> TrackedRepo.update(opts)
     end
   end
 
