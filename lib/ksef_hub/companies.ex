@@ -294,7 +294,7 @@ defmodule KsefHub.Companies do
   @spec delete_bank_account(CompanyBankAccount.t(), keyword()) ::
           {:ok, CompanyBankAccount.t()} | {:error, Ecto.Changeset.t()}
   def delete_bank_account(%CompanyBankAccount{} = bank_account, opts \\ []) do
-    TrackedRepo.delete(bank_account, "bank_account.deleted", opts, label: bank_account.label)
+    TrackedRepo.delete(bank_account, opts)
   end
 
   # ---------------------------------------------------------------------------

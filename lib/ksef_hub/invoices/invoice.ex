@@ -6,6 +6,8 @@ defmodule KsefHub.Invoices.Invoice do
 
   alias KsefHub.Invoices.CostLine
 
+  @behaviour KsefHub.ActivityLog.Trackable
+
   @type t :: %__MODULE__{}
   @type invoice_type :: :income | :expense
   @type invoice_status :: :pending | :approved | :rejected
@@ -488,4 +490,104 @@ defmodule KsefHub.Invoices.Invoice do
       if day == 1, do: [], else: [{field, "must be the first day of the month"}]
     end)
   end
+
+  # ---------------------------------------------------------------------------
+  # Trackable — automatic activity log event classification
+  # ---------------------------------------------------------------------------
+
+  # Priority-ordered list of fields that trigger specific events.
+  # First match wins. Fields not listed fall through to the generic "invoice.updated".
+  @tracked_fields [
+    :status,
+    :is_excluded,
+    :duplicate_status,
+    :category_id,
+    :cost_line,
+    :tags,
+    :project_tag,
+    :note,
+    :billing_date_from,
+    :billing_date_to,
+    :access_restricted,
+    :prediction_status
+  ]
+
+  @impl KsefHub.ActivityLog.Trackable
+  @spec track_change(Ecto.Changeset.t()) :: {String.t(), map()} | :skip
+  def track_change(%Ecto.Changeset{} = changeset) do
+    case Enum.find(@tracked_fields, &Map.has_key?(changeset.changes, &1)) do
+      nil -> classify_generic(changeset)
+      field -> classify_field(field, changeset)
+    end
+  end
+
+  @spec classify_field(atom(), Ecto.Changeset.t()) :: {String.t(), map()} | :skip
+  defp classify_field(:status, cs) do
+    {"invoice.status_changed",
+     %{old_status: to_string(cs.data.status), new_status: to_string(cs.changes.status)}}
+  end
+
+  defp classify_field(:is_excluded, cs) do
+    action = if cs.changes.is_excluded, do: "invoice.excluded", else: "invoice.included"
+    {action, %{}}
+  end
+
+  defp classify_field(:duplicate_status, cs) do
+    action =
+      case cs.changes.duplicate_status do
+        :confirmed -> "invoice.duplicate_confirmed"
+        :dismissed -> "invoice.duplicate_dismissed"
+        :suspected -> "invoice.duplicate_detected"
+      end
+
+    {action,
+     %{duplicate_of_id: to_string(cs.changes[:duplicate_of_id] || cs.data.duplicate_of_id)}}
+  end
+
+  defp classify_field(:category_id, cs) do
+    {"invoice.classification_changed",
+     %{field: "category", old_value: cs.data.category_id, new_value: cs.changes.category_id}}
+  end
+
+  defp classify_field(:cost_line, cs) do
+    {"invoice.classification_changed",
+     %{
+       field: "cost_line",
+       old_value: to_string(cs.data.cost_line),
+       new_value: to_string(cs.changes.cost_line)
+     }}
+  end
+
+  defp classify_field(:tags, cs) do
+    {"invoice.classification_changed",
+     %{field: "tags", old_value: cs.data.tags || [], new_value: cs.changes.tags}}
+  end
+
+  defp classify_field(:project_tag, cs) do
+    {"invoice.classification_changed",
+     %{field: "project_tag", old_value: cs.data.project_tag, new_value: cs.changes.project_tag}}
+  end
+
+  defp classify_field(:note, _cs), do: {"invoice.note_updated", %{}}
+
+  defp classify_field(field, _cs) when field in [:billing_date_from, :billing_date_to] do
+    {"invoice.billing_date_changed", %{}}
+  end
+
+  defp classify_field(:access_restricted, cs) do
+    change_type = if cs.changes.access_restricted, do: "restricted", else: "unrestricted"
+    {"invoice.access_changed", %{change_type: change_type}}
+  end
+
+  defp classify_field(:prediction_status, _cs), do: :skip
+
+  @spec classify_generic(Ecto.Changeset.t()) :: {String.t(), map()}
+  defp classify_generic(changeset) do
+    changed_fields = changeset.changes |> Map.keys() |> Enum.map(&to_string/1)
+    {"invoice.updated", %{changed_fields: changed_fields}}
+  end
+
+  @impl KsefHub.ActivityLog.Trackable
+  @spec track_delete(t()) :: {String.t(), map()} | :skip
+  def track_delete(_invoice), do: :skip
 end

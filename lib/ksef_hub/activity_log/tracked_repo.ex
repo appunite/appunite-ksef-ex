@@ -1,55 +1,51 @@
 defmodule KsefHub.ActivityLog.TrackedRepo do
   @moduledoc """
-  Wraps `Repo.insert/update/delete` with automatic activity log event emission.
+  Repo wrapper with automatic activity log event emission.
 
-  Use this instead of calling `Repo` directly in context functions to ensure
-  every mutation is tracked. The action name and metadata are explicit —
-  there's no magic inference.
+  Schemas that implement `KsefHub.ActivityLog.Trackable` get automatic
+  event classification — the schema inspects its own changeset and decides
+  what event to emit. No manual action names needed.
 
   ## Usage
 
-      # Instead of:
+      # The developer just does:
       invoice
       |> Invoice.changeset(%{status: :approved})
-      |> Repo.update()
-      |> case do
-        {:ok, updated} ->
-          Events.invoice_status_changed(updated, ...)
-          {:ok, updated}
-        error -> error
-      end
+      |> TrackedRepo.update(opts)
 
-      # Write:
-      invoice
-      |> Invoice.changeset(%{status: :approved})
-      |> TrackedRepo.update("invoice.status_changed", opts,
-        old_status: to_string(invoice.status),
-        new_status: "approved"
-      )
+      # Invoice.track_change/1 sees the :status change and returns:
+      # {"invoice.status_changed", %{old_status: "pending", new_status: "approved"}}
+
+      # TrackedRepo emits the event automatically.
+
+  ## Fallback for schemas without Trackable
+
+  If the schema doesn't implement `Trackable`, pass the action name explicitly:
+
+      TrackedRepo.update(changeset, opts, action: "some.action", metadata: %{...})
 
   ## When NOT to use
 
-  - Read-only queries (`Repo.all`, `Repo.one`, `Repo.get`) — no mutation, no event
+  - Read-only queries (`Repo.all`, `Repo.one`, `Repo.get`)
   - `Repo.update_all` / bulk operations — use `Events.emit/1` directly
-  - Internal helper updates (e.g., `update_last_sync`) that don't need audit trail —
-    use `Repo` directly and add a comment: `# no activity event: internal bookkeeping`
+  - Internal bookkeeping (`update_last_sync`) — use `Repo` directly
   """
 
-  alias KsefHub.ActivityLog.{Event, Events}
+  alias KsefHub.ActivityLog.{Event, Events, Trackable}
   alias KsefHub.Repo
 
   @doc """
   Inserts a changeset and emits an activity event on success.
 
-  The `resource_type` and `company_id` are extracted from the inserted struct
-  via `resource_info/1`.
+  Event action and metadata are derived from `schema.track_change(changeset)`,
+  or from `opts[:action]` if the schema doesn't implement `Trackable`.
   """
-  @spec insert(Ecto.Changeset.t(), String.t(), keyword(), keyword()) ::
+  @spec insert(Ecto.Changeset.t(), keyword()) ::
           {:ok, Ecto.Schema.t()} | {:error, Ecto.Changeset.t()}
-  def insert(changeset, action, opts \\ [], extra_metadata \\ []) do
+  def insert(changeset, opts \\ []) do
     case Repo.insert(changeset) do
       {:ok, struct} ->
-        emit_event(action, struct, opts, extra_metadata)
+        maybe_emit(changeset, struct, opts)
         {:ok, struct}
 
       error ->
@@ -62,15 +58,15 @@ defmodule KsefHub.ActivityLog.TrackedRepo do
 
   Skips event emission if the changeset has no changes (no-op detection).
   """
-  @spec update(Ecto.Changeset.t(), String.t(), keyword(), keyword()) ::
+  @spec update(Ecto.Changeset.t(), keyword()) ::
           {:ok, Ecto.Schema.t()} | {:error, Ecto.Changeset.t()}
-  def update(changeset, action, opts \\ [], extra_metadata \\ []) do
+  def update(changeset, opts \\ []) do
     if changeset.changes == %{} do
       Repo.update(changeset)
     else
       case Repo.update(changeset) do
         {:ok, struct} ->
-          emit_event(action, struct, opts, extra_metadata)
+          maybe_emit(changeset, struct, opts)
           {:ok, struct}
 
         error ->
@@ -81,13 +77,16 @@ defmodule KsefHub.ActivityLog.TrackedRepo do
 
   @doc """
   Deletes a struct and emits an activity event on success.
+
+  Event action and metadata are derived from `schema.track_delete(struct)`,
+  or from `opts[:action]` if the schema doesn't implement `Trackable`.
   """
-  @spec delete(Ecto.Schema.t(), String.t(), keyword(), keyword()) ::
+  @spec delete(Ecto.Schema.t(), keyword()) ::
           {:ok, Ecto.Schema.t()} | {:error, Ecto.Changeset.t()}
-  def delete(struct, action, opts \\ [], extra_metadata \\ []) do
+  def delete(struct, opts \\ []) do
     case Repo.delete(struct) do
       {:ok, deleted} ->
-        emit_event(action, deleted, opts, extra_metadata)
+        maybe_emit_delete(deleted, opts)
         {:ok, deleted}
 
       error ->
@@ -99,7 +98,49 @@ defmodule KsefHub.ActivityLog.TrackedRepo do
   # Private
   # ---------------------------------------------------------------------------
 
-  @spec emit_event(String.t(), Ecto.Schema.t(), keyword(), keyword()) :: :ok
+  @spec maybe_emit(Ecto.Changeset.t(), Ecto.Schema.t(), keyword()) :: :ok
+  defp maybe_emit(changeset, struct, opts) do
+    module = struct.__struct__
+
+    event_info =
+      if Trackable.trackable?(module) do
+        module.track_change(changeset)
+      else
+        explicit_event(opts)
+      end
+
+    case event_info do
+      {action, metadata} -> emit_event(action, struct, opts, metadata)
+      :skip -> :ok
+    end
+  end
+
+  @spec maybe_emit_delete(Ecto.Schema.t(), keyword()) :: :ok
+  defp maybe_emit_delete(struct, opts) do
+    module = struct.__struct__
+
+    event_info =
+      if Trackable.trackable?(module) and function_exported?(module, :track_delete, 1) do
+        module.track_delete(struct)
+      else
+        explicit_event(opts)
+      end
+
+    case event_info do
+      {action, metadata} -> emit_event(action, struct, opts, metadata)
+      :skip -> :ok
+    end
+  end
+
+  @spec explicit_event(keyword()) :: {String.t(), map()} | :skip
+  defp explicit_event(opts) do
+    case Keyword.get(opts, :action) do
+      nil -> :skip
+      action -> {action, Keyword.get(opts, :metadata, %{}) |> Map.new()}
+    end
+  end
+
+  @spec emit_event(String.t(), Ecto.Schema.t(), keyword(), map()) :: :ok
   defp emit_event(action, struct, opts, extra_metadata) do
     {resource_type, resource_id, company_id} = resource_info(struct)
 
@@ -112,7 +153,7 @@ defmodule KsefHub.ActivityLog.TrackedRepo do
       actor_type: Keyword.get(opts, :actor_type, "user"),
       actor_label: Keyword.get(opts, :actor_label),
       ip_address: Keyword.get(opts, :ip_address),
-      metadata: Map.new(extra_metadata)
+      metadata: extra_metadata
     })
   end
 

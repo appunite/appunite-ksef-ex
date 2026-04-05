@@ -6,6 +6,8 @@ defmodule KsefHub.Invoices.Category do
 
   alias KsefHub.Invoices.CostLine
 
+  @behaviour KsefHub.ActivityLog.Trackable
+
   @type t :: %__MODULE__{}
 
   @primary_key {:id, :binary_id, autogenerate: true}
@@ -43,5 +45,21 @@ defmodule KsefHub.Invoices.Category do
     |> validate_format(:identifier, ~r/^[^:]+:.+$/, message: "must be in group:target format")
     |> unique_constraint([:company_id, :identifier], error_key: :identifier)
     |> foreign_key_constraint(:company_id)
+  end
+
+  @impl KsefHub.ActivityLog.Trackable
+  @spec track_change(Ecto.Changeset.t()) :: {String.t(), map()}
+  def track_change(%Ecto.Changeset{action: :insert} = cs) do
+    {"category.created", %{name: get_change(cs, :name), identifier: get_change(cs, :identifier)}}
+  end
+
+  def track_change(%Ecto.Changeset{} = cs) do
+    {"category.updated", %{name: cs.data.name || get_change(cs, :name)}}
+  end
+
+  @impl KsefHub.ActivityLog.Trackable
+  @spec track_delete(t()) :: {String.t(), map()}
+  def track_delete(category) do
+    {"category.deleted", %{name: category.name, identifier: category.identifier}}
   end
 end

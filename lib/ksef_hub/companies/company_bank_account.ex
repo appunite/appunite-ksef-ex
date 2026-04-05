@@ -4,6 +4,8 @@ defmodule KsefHub.Companies.CompanyBankAccount do
   use Ecto.Schema
   import Ecto.Changeset
 
+  @behaviour KsefHub.ActivityLog.Trackable
+
   @type t :: %__MODULE__{}
 
   @primary_key {:id, :binary_id, autogenerate: true}
@@ -55,5 +57,22 @@ defmodule KsefHub.Companies.CompanyBankAccount do
       name: :company_bank_accounts_iban_check,
       message: "must be 15-34 alphanumeric characters"
     )
+  end
+
+  @impl KsefHub.ActivityLog.Trackable
+  @spec track_change(Ecto.Changeset.t()) :: {String.t(), map()}
+  def track_change(%Ecto.Changeset{action: :insert} = cs) do
+    {"bank_account.created",
+     %{label: get_change(cs, :label), currency: get_change(cs, :currency)}}
+  end
+
+  def track_change(%Ecto.Changeset{} = cs) do
+    {"bank_account.updated", %{label: cs.data.label || get_change(cs, :label)}}
+  end
+
+  @impl KsefHub.ActivityLog.Trackable
+  @spec track_delete(t()) :: {String.t(), map()}
+  def track_delete(account) do
+    {"bank_account.deleted", %{label: account.label, currency: account.currency}}
   end
 end

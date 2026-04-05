@@ -706,7 +706,7 @@ defmodule KsefHub.Invoices do
   def exclude_invoice(%Invoice{} = invoice, opts \\ []) do
     invoice
     |> Invoice.changeset(%{is_excluded: true})
-    |> TrackedRepo.update("invoice.excluded", opts)
+    |> TrackedRepo.update(opts)
   end
 
   @doc "Marks an invoice as included (removes exclusion)."
@@ -715,7 +715,7 @@ defmodule KsefHub.Invoices do
   def include_invoice(%Invoice{} = invoice, opts \\ []) do
     invoice
     |> Invoice.changeset(%{is_excluded: false})
-    |> TrackedRepo.update("invoice.included", opts)
+    |> TrackedRepo.update(opts)
   end
 
   @doc """
@@ -1602,10 +1602,7 @@ defmodule KsefHub.Invoices do
   @spec delete_category(Category.t(), keyword()) ::
           {:ok, Category.t()} | {:error, Ecto.Changeset.t()}
   def delete_category(%Category{} = category, opts \\ []) do
-    TrackedRepo.delete(category, "category.deleted", opts,
-      name: category.name,
-      identifier: category.identifier
-    )
+    TrackedRepo.delete(category, opts)
   end
 
   # --- Tags ---
@@ -1902,7 +1899,7 @@ defmodule KsefHub.Invoices do
   def update_invoice_note(%Invoice{} = invoice, attrs, opts \\ []) do
     invoice
     |> Invoice.note_changeset(attrs)
-    |> TrackedRepo.update("invoice.note_updated", opts)
+    |> TrackedRepo.update(opts)
   end
 
   @doc "Updates the billing date range on any invoice, regardless of source."
@@ -1911,7 +1908,7 @@ defmodule KsefHub.Invoices do
   def update_billing_date(%Invoice{} = invoice, attrs, opts \\ []) do
     invoice
     |> Invoice.billing_date_changeset(attrs)
-    |> TrackedRepo.update("invoice.billing_date_changed", opts)
+    |> TrackedRepo.update(opts)
   end
 
   # --- Invoice Comments ---
