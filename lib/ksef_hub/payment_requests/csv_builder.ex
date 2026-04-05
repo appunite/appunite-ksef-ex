@@ -110,8 +110,8 @@ defmodule KsefHub.PaymentRequests.CsvBuilder do
   @spec escape_field(String.t()) :: String.t()
   defp escape_field(value) do
     value
-    |> sanitize_formula()
     |> strip_csv_breakers()
+    |> sanitize_formula()
   end
 
   @spec sanitize_formula(String.t()) :: String.t()
@@ -126,8 +126,8 @@ defmodule KsefHub.PaymentRequests.CsvBuilder do
   @spec strip_csv_breakers(String.t()) :: String.t()
   defp strip_csv_breakers(value) do
     value
-    |> String.replace(",", " ")
-    |> String.replace(~r/["\r\n]/, "")
+    |> String.replace(~r/[,\r\n]/, " ")
+    |> String.replace(~r/["]/, "")
     |> String.replace(~r/\s+/, " ")
     |> String.trim()
   end

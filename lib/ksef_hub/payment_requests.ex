@@ -226,12 +226,25 @@ defmodule KsefHub.PaymentRequests do
         |> lock("FOR UPDATE")
         |> Repo.all()
 
-      Enum.count(pending, fn pr ->
-        match?({:ok, _}, pr |> PaymentRequest.mark_paid_changeset() |> TrackedRepo.update(opts))
-      end)
+      Enum.count(pending, &do_mark_paid(&1, opts))
     end)
     |> case do
       {:ok, count} -> {count, nil}
+    end
+  end
+
+  @spec do_mark_paid(PaymentRequest.t(), keyword()) :: boolean()
+  defp do_mark_paid(pr, opts) do
+    case pr |> PaymentRequest.mark_paid_changeset() |> TrackedRepo.update(opts) do
+      {:ok, _} ->
+        true
+
+      {:error, changeset} ->
+        Logger.error(
+          "Failed to mark payment request #{pr.id} as paid: #{inspect(changeset.errors)}"
+        )
+
+        false
     end
   end
 
