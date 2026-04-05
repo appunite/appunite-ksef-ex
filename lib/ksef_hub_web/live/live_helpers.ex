@@ -11,7 +11,9 @@ defmodule KsefHubWeb.LiveHelpers do
   """
   @spec actor_opts(Phoenix.LiveView.Socket.t()) :: keyword()
   def actor_opts(socket) do
-    user = socket.assigns.current_user
-    [user_id: user.id, actor_label: user.name || user.email]
+    case socket.assigns[:current_user] do
+      nil -> []
+      user -> [user_id: user.id, actor_label: user.name || user.email]
+    end
   end
 end

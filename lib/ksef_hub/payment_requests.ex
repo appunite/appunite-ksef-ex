@@ -219,17 +219,20 @@ defmodule KsefHub.PaymentRequests do
   @spec mark_many_as_paid(Ecto.UUID.t(), [Ecto.UUID.t()], keyword()) ::
           {non_neg_integer(), nil}
   def mark_many_as_paid(company_id, ids, opts \\ []) when is_list(ids) do
-    pending =
-      PaymentRequest
-      |> where([p], p.company_id == ^company_id and p.id in ^ids and p.status == :pending)
-      |> Repo.all()
+    Repo.transaction(fn ->
+      pending =
+        PaymentRequest
+        |> where([p], p.company_id == ^company_id and p.id in ^ids and p.status == :pending)
+        |> lock("FOR UPDATE")
+        |> Repo.all()
 
-    count =
       Enum.count(pending, fn pr ->
         match?({:ok, _}, pr |> PaymentRequest.mark_paid_changeset() |> TrackedRepo.update(opts))
       end)
-
-    {count, nil}
+    end)
+    |> case do
+      {:ok, count} -> {count, nil}
+    end
   end
 
   # --- Void ---

@@ -13,6 +13,20 @@ defmodule KsefHub.PaymentRequests.CsvBuilder do
 
   Encoding: UTF-8 with BOM, CRLF line endings (required by Polish bank systems).
 
+  ## Field sanitization
+
+  Unlike RFC-4180 CSV (which wraps problematic values in double quotes), this
+  builder **strips** characters that break Polish bank import parsers:
+
+  - Commas are replaced with spaces (e.g. `"Warszawa, Odrowąża 15"` → `"Warszawa Odrowąża 15"`)
+  - Double quotes and newlines (`\\r`, `\\n`) are removed entirely
+  - Consecutive whitespace is collapsed to a single space
+
+  This is intentional — Polish bank batch import systems do not support
+  RFC-4180 quoted fields and interpret double quotes as literal characters,
+  breaking column alignment. Do not change this to use quoting (see
+  `KsefHub.Exports.CsvBuilder` for a standard RFC-4180 implementation).
+
   Pure function, no side effects. See ADR 0039 for design rationale.
   """
 
@@ -111,6 +125,10 @@ defmodule KsefHub.PaymentRequests.CsvBuilder do
 
   @spec strip_csv_breakers(String.t()) :: String.t()
   defp strip_csv_breakers(value) do
-    String.replace(value, ~r/[,"\r\n]/, "")
+    value
+    |> String.replace(",", " ")
+    |> String.replace(~r/["\r\n]/, "")
+    |> String.replace(~r/\s+/, " ")
+    |> String.trim()
   end
 end
