@@ -6,7 +6,7 @@ defmodule KsefHub.Accounts do
   import Ecto.Query
 
   alias KsefHub.Accounts.{ApiToken, User, UserNotifier, UserToken}
-  alias KsefHub.ActivityLog.Events
+  alias KsefHub.ActivityLog.TrackedRepo
   alias KsefHub.Authorization
   alias KsefHub.Repo
 
@@ -366,9 +366,8 @@ defmodule KsefHub.Accounts do
       |> Ecto.Changeset.put_change(:token_hash, token_hash)
       |> Ecto.Changeset.put_change(:token_prefix, token_prefix)
 
-    case Repo.insert(changeset) do
+    case TrackedRepo.insert(changeset, user_id: user_id) do
       {:ok, api_token} ->
-        Events.api_token_generated(api_token, user_id: user_id)
         {:ok, %{token: plain_token, api_token: api_token}}
 
       {:error, changeset} ->
@@ -425,16 +424,9 @@ defmodule KsefHub.Accounts do
         {:error, :not_found}
 
       api_token ->
-        case api_token
-             |> ApiToken.changeset(%{is_active: false})
-             |> Repo.update() do
-          {:ok, revoked} ->
-            Events.api_token_revoked(revoked, user_id: user_id)
-            {:ok, revoked}
-
-          error ->
-            error
-        end
+        api_token
+        |> ApiToken.changeset(%{is_active: false})
+        |> TrackedRepo.update(user_id: user_id)
     end
   end
 
@@ -473,16 +465,9 @@ defmodule KsefHub.Accounts do
         {:error, :not_found}
 
       api_token ->
-        case api_token
-             |> ApiToken.changeset(%{is_active: false})
-             |> Repo.update() do
-          {:ok, revoked} ->
-            Events.api_token_revoked(revoked, user_id: user_id)
-            {:ok, revoked}
-
-          error ->
-            error
-        end
+        api_token
+        |> ApiToken.changeset(%{is_active: false})
+        |> TrackedRepo.update(user_id: user_id)
     end
   end
 

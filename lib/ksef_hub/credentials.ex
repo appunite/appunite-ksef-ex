@@ -8,6 +8,7 @@ defmodule KsefHub.Credentials do
   alias Ecto.Multi
   alias KsefHub.Accounts.User
   alias KsefHub.ActivityLog.Events
+  alias KsefHub.ActivityLog.TrackedRepo
   alias KsefHub.Companies.Membership
   alias KsefHub.Credentials.{Credential, UserCertificate}
   alias KsefHub.Repo
@@ -97,12 +98,9 @@ defmodule KsefHub.Credentials do
 
     case Repo.transaction(multi) do
       {:ok, %{credential: credential}} ->
-        if old_credential do
-          Events.credential_replaced(old_credential, credential, opts)
-        else
-          Events.credential_uploaded(credential, opts)
-        end
-
+        # deactivate_credential already emitted credential.invalidated via TrackedRepo.
+        # Emit credential.uploaded for the new one (Multi.insert bypasses TrackedRepo).
+        Events.credential_uploaded(credential, opts)
         {:ok, credential}
 
       {:error, :credential, changeset, _changes} ->
@@ -130,14 +128,9 @@ defmodule KsefHub.Credentials do
   @spec deactivate_credential(Credential.t()) ::
           {:ok, Credential.t()} | {:error, Ecto.Changeset.t()}
   def deactivate_credential(%Credential{} = credential, opts \\ []) do
-    case update_credential(credential, %{is_active: false}) do
-      {:ok, deactivated} ->
-        Events.credential_invalidated(deactivated, opts)
-        {:ok, deactivated}
-
-      error ->
-        error
-    end
+    credential
+    |> Credential.changeset(%{is_active: false})
+    |> TrackedRepo.update(opts)
   end
 
   @doc """

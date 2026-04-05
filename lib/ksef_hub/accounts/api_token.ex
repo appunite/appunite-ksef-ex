@@ -10,6 +10,8 @@ defmodule KsefHub.Accounts.ApiToken do
   use Ecto.Schema
   import Ecto.Changeset
 
+  @behaviour KsefHub.ActivityLog.Trackable
+
   @type t :: %__MODULE__{}
 
   @primary_key {:id, :binary_id, autogenerate: true}
@@ -39,4 +41,21 @@ defmodule KsefHub.Accounts.ApiToken do
     |> validate_required([:name])
     |> unique_constraint(:token_hash)
   end
+
+  @impl KsefHub.ActivityLog.Trackable
+  @spec track_change(Ecto.Changeset.t()) :: {String.t(), map()} | :skip
+  def track_change(%Ecto.Changeset{action: :insert} = cs) do
+    {"api_token.generated", %{token_name: get_field(cs, :name)}}
+  end
+
+  def track_change(%Ecto.Changeset{} = cs) do
+    case cs.changes do
+      %{is_active: false} -> {"api_token.revoked", %{token_name: cs.data.name}}
+      _ -> :skip
+    end
+  end
+
+  @impl KsefHub.ActivityLog.Trackable
+  @spec track_delete(t()) :: :skip
+  def track_delete(_token), do: :skip
 end

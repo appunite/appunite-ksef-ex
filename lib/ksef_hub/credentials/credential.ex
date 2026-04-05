@@ -9,6 +9,8 @@ defmodule KsefHub.Credentials.Credential do
   use Ecto.Schema
   import Ecto.Changeset
 
+  @behaviour KsefHub.ActivityLog.Trackable
+
   @type t :: %__MODULE__{}
 
   @primary_key {:id, :binary_id, autogenerate: true}
@@ -51,4 +53,20 @@ defmodule KsefHub.Credentials.Credential do
       message: "already has an active credential"
     )
   end
+
+  @impl KsefHub.ActivityLog.Trackable
+  @spec track_change(Ecto.Changeset.t()) :: {String.t(), map()} | :skip
+  def track_change(%Ecto.Changeset{action: :insert}), do: {"credential.uploaded", %{}}
+
+  def track_change(%Ecto.Changeset{} = cs) do
+    case cs.changes do
+      %{is_active: false} -> {"credential.invalidated", %{}}
+      # Token/sync updates are internal bookkeeping, not user-facing events
+      _ -> :skip
+    end
+  end
+
+  @impl KsefHub.ActivityLog.Trackable
+  @spec track_delete(t()) :: :skip
+  def track_delete(_credential), do: :skip
 end
