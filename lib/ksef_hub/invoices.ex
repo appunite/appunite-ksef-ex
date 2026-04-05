@@ -913,11 +913,13 @@ defmodule KsefHub.Invoices do
           {:ok, Invoice.t()} | {:error, term()}
   def create_email_invoice(company_id, pdf_binary, :extraction_failed, opts) do
     company = Companies.get_company!(company_id)
-    do_create_pdf_failed(company, pdf_binary, :expense, opts[:filename], :email, opts)
+    event_opts = email_actor_opts(opts[:sender_email])
+    do_create_pdf_failed(company, pdf_binary, :expense, opts[:filename], :email, opts, event_opts)
   end
 
   def create_email_invoice(company_id, pdf_binary, extracted, opts) when is_map(extracted) do
     company = Companies.get_company!(company_id)
+    event_opts = email_actor_opts(opts[:sender_email])
 
     do_create_pdf_extracted(
       company,
@@ -926,9 +928,14 @@ defmodule KsefHub.Invoices do
       opts[:filename],
       extracted,
       :email,
-      opts
+      opts,
+      event_opts
     )
   end
+
+  @spec email_actor_opts(String.t() | nil) :: keyword()
+  defp email_actor_opts(nil), do: []
+  defp email_actor_opts(sender), do: [actor_type: "email", actor_label: sender]
 
   # Shared: create invoice from extracted fields with duplicate detection + prediction
   @spec do_create_pdf_extracted(
@@ -949,7 +956,7 @@ defmodule KsefHub.Invoices do
          extracted,
          source,
          opts,
-         event_opts \\ []
+         event_opts
        ) do
     extraction_status = determine_extraction_status(extracted)
 
@@ -979,7 +986,7 @@ defmodule KsefHub.Invoices do
           keyword(),
           keyword()
         ) :: {:ok, Invoice.t()} | {:error, term()}
-  defp do_create_pdf_failed(company, pdf_binary, type, filename, source, opts, event_opts \\ []) do
+  defp do_create_pdf_failed(company, pdf_binary, type, filename, source, opts, event_opts) do
     attrs =
       %{
         source: source,
