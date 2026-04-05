@@ -4,6 +4,8 @@ defmodule KsefHub.PaymentRequests.PaymentRequest do
   use Ecto.Schema
   import Ecto.Changeset
 
+  @behaviour KsefHub.ActivityLog.Trackable
+
   @type t :: %__MODULE__{}
   @type status :: :pending | :paid | :voided
 
@@ -115,4 +117,26 @@ defmodule KsefHub.PaymentRequests.PaymentRequest do
   defp blank_value?(nil), do: true
   defp blank_value?(v) when is_binary(v), do: String.trim(v) == ""
   defp blank_value?(_), do: false
+
+  # ---------------------------------------------------------------------------
+  # Trackable
+  # ---------------------------------------------------------------------------
+
+  @impl KsefHub.ActivityLog.Trackable
+  @spec track_change(Ecto.Changeset.t()) :: {String.t(), map()} | :skip
+  def track_change(%Ecto.Changeset{action: :insert} = cs) do
+    {"payment_request.created", %{invoice_id: get_change(cs, :invoice_id)}}
+  end
+
+  def track_change(%Ecto.Changeset{} = cs) do
+    case cs.changes do
+      %{status: :paid} -> {"payment_request.paid", %{invoice_id: cs.data.invoice_id}}
+      %{status: :voided} -> {"payment_request.voided", %{invoice_id: cs.data.invoice_id}}
+      _ -> {"payment_request.updated", %{invoice_id: cs.data.invoice_id}}
+    end
+  end
+
+  @impl KsefHub.ActivityLog.Trackable
+  @spec track_delete(t()) :: :skip
+  def track_delete(_pr), do: :skip
 end

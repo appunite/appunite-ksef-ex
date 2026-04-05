@@ -7,7 +7,7 @@ defmodule KsefHub.PaymentRequests do
   import Ecto.Query
   require Logger
 
-  alias KsefHub.ActivityLog.Events
+  alias KsefHub.ActivityLog.TrackedRepo
   alias KsefHub.Invoices.Invoice
   alias KsefHub.PaymentRequests.{CsvBuilder, CsvDownload, PaymentRequest}
   alias KsefHub.Repo
@@ -99,20 +99,13 @@ defmodule KsefHub.PaymentRequests do
   @spec create_payment_request(Ecto.UUID.t(), Ecto.UUID.t(), map()) ::
           {:ok, PaymentRequest.t()} | {:error, Ecto.Changeset.t()}
   def create_payment_request(company_id, user_id, attrs, opts \\ []) do
-    case %PaymentRequest{}
-         |> PaymentRequest.changeset(
-           attrs
-           |> Map.put(:company_id, company_id)
-           |> Map.put(:created_by_id, user_id)
-         )
-         |> Repo.insert() do
-      {:ok, pr} ->
-        Events.payment_request_created(pr, Keyword.merge([user_id: user_id], opts))
-        {:ok, pr}
-
-      error ->
-        error
-    end
+    %PaymentRequest{}
+    |> PaymentRequest.changeset(
+      attrs
+      |> Map.put(:company_id, company_id)
+      |> Map.put(:created_by_id, user_id)
+    )
+    |> TrackedRepo.insert(Keyword.put_new(opts, :user_id, user_id))
   end
 
   @doc """
@@ -216,14 +209,9 @@ defmodule KsefHub.PaymentRequests do
         {:ok, pr}
 
       pr ->
-        case pr |> PaymentRequest.mark_paid_changeset() |> Repo.update() do
-          {:ok, paid} ->
-            Events.payment_request_paid(paid, opts)
-            {:ok, paid}
-
-          error ->
-            error
-        end
+        pr
+        |> PaymentRequest.mark_paid_changeset()
+        |> TrackedRepo.update(opts)
     end
   end
 
@@ -254,14 +242,9 @@ defmodule KsefHub.PaymentRequests do
         {:error, :already_paid}
 
       pr ->
-        case pr |> PaymentRequest.void_changeset() |> Repo.update() do
-          {:ok, voided} ->
-            Events.payment_request_voided(voided, opts)
-            {:ok, voided}
-
-          error ->
-            error
-        end
+        pr
+        |> PaymentRequest.void_changeset()
+        |> TrackedRepo.update(opts)
     end
   end
 

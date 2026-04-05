@@ -8,7 +8,6 @@ defmodule KsefHub.Companies do
 
   alias Ecto.Multi
   alias KsefHub.Accounts.User
-  alias KsefHub.ActivityLog.Events
   alias KsefHub.ActivityLog.TrackedRepo
   alias KsefHub.Companies.{Company, CompanyBankAccount, Membership}
   alias KsefHub.Repo
@@ -308,21 +307,9 @@ defmodule KsefHub.Companies do
   @spec update_membership_role(Membership.t(), Membership.role()) ::
           {:ok, Membership.t()} | {:error, Ecto.Changeset.t()}
   def update_membership_role(%Membership{} = membership, role, opts \\ []) do
-    old_role = membership.role
-
-    case membership
-         |> Membership.changeset(%{role: role})
-         |> Repo.update() do
-      {:ok, updated} ->
-        if old_role != role do
-          Events.team_role_changed(updated, old_role, role, opts)
-        end
-
-        {:ok, updated}
-
-      error ->
-        error
-    end
+    membership
+    |> Membership.changeset(%{role: role})
+    |> TrackedRepo.update(opts)
   end
 
   @doc """
@@ -364,32 +351,18 @@ defmodule KsefHub.Companies do
   @doc "Blocks a membership (soft delete)."
   @spec block_member(Membership.t()) :: {:ok, Membership.t()} | {:error, Ecto.Changeset.t()}
   def block_member(%Membership{} = membership, opts \\ []) do
-    case membership
-         |> Membership.status_changeset(%{status: :blocked})
-         |> Repo.update() do
-      {:ok, updated} ->
-        Events.team_member_blocked(updated, opts)
-        {:ok, updated}
-
-      error ->
-        error
-    end
+    membership
+    |> Membership.status_changeset(%{status: :blocked})
+    |> TrackedRepo.update(opts)
   end
 
   @doc "Unblocks a membership, restoring active status."
   @spec unblock_member(Membership.t(), keyword()) ::
           {:ok, Membership.t()} | {:error, Ecto.Changeset.t()}
   def unblock_member(%Membership{} = membership, opts \\ []) do
-    case membership
-         |> Membership.status_changeset(%{status: :active})
-         |> Repo.update() do
-      {:ok, updated} ->
-        Events.team_member_unblocked(updated, opts)
-        {:ok, updated}
-
-      error ->
-        error
-    end
+    membership
+    |> Membership.status_changeset(%{status: :active})
+    |> TrackedRepo.update(opts)
   end
 
   @doc "Fetches the active membership for a user+company pair, returning nil if none exists or blocked."
