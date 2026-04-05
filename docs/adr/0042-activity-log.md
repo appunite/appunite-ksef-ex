@@ -8,106 +8,147 @@ Accepted
 
 ## Context
 
-The platform had no audit trail for user and system actions. There was an unused `AuditLog` schema with basic fields (`action`, `resource_type`, `resource_id`, `metadata`, `user_id`, `ip_address`) but zero callers. Two distinct needs drove this work:
+The platform had no audit trail for user and system actions. Two needs drove this work:
 
 1. **Invoice activity timeline** — users want to see the full history of an invoice (who approved it, when classification changed, when a comment was added) directly on the invoice detail page.
 2. **Platform audit log** — admins need visibility into company-wide operations (team changes, credential uploads, API token management, sync triggers) for security and compliance.
 
-The main architectural challenge was **avoiding code pollution**. With 40+ operations to track across 8 contexts, naively sprinkling `AuditLog.log()` calls everywhere would create tight coupling, make contexts harder to read, and be easy to forget when adding new operations.
+The main architectural challenge was **making event emission automatic and hard to forget**. With 40+ operations to track across 8 contexts, any approach requiring developers to manually call logging functions would be error-prone and create code pollution.
 
 ### Approaches considered
 
 | Approach | Verdict |
 |----------|---------|
-| Direct `AuditLog.log()` calls in every context function | Rejected — pollutes business logic, tight coupling, easy to forget |
-| Ecto.Multi (wrap mutation + log in same transaction) | Rejected — forces every context function to know about logging, bloats already-large contexts |
-| Telemetry events | Rejected — designed for metrics, unergonomic for rich domain events with metadata |
-| Ecto repo callbacks | Rejected — too low-level, can't capture domain intent ("approved" vs "status changed to approved") |
-| **PubSub event bus + Recorder GenServer** | **Accepted** — clean separation, already used in the codebase for sync status |
+| Direct `AuditLog.log()` calls in context functions | Rejected — pollutes business logic, easy to forget |
+| Manual `Events.*` helper calls per operation | Rejected (initial approach, later replaced) — still requires developer to remember |
+| Ecto.Multi (wrap mutation + log in same transaction) | Rejected — forces every function to know about logging |
+| Telemetry events | Rejected — designed for metrics, unergonomic for domain events |
+| **Trackable behaviour + TrackedRepo wrapper** | **Accepted** — schema owns event classification, TrackedRepo handles emission automatically |
 
 ## Decision
 
-### Architecture: PubSub event bus with configurable emitter
+### Core pattern: Trackable behaviour on schemas
 
-Context functions emit domain events after successful operations. A Recorder GenServer subscribes to the PubSub topic and persists events to the `audit_logs` table asynchronously. The emission step is configurable via application config, allowing tests to use a synchronous `TestEmitter` instead of PubSub.
+Each Ecto schema that participates in activity logging implements the `Trackable` behaviour, defining a `track_change/1` callback that inspects the changeset and returns `{action, metadata}` or `:skip`. The schema **owns the mapping** from data changes to domain events.
+
+```elixir
+# In the schema module:
+@behaviour KsefHub.ActivityLog.Trackable
+
+@impl true
+def track_change(%Ecto.Changeset{action: :insert} = cs) do
+  {"invoice.created", %{source: to_string(get_field(cs, :source))}}
+end
+
+def track_change(%Ecto.Changeset{} = changeset) do
+  case Enum.find(@tracked_fields, &Map.has_key?(changeset.changes, &1)) do
+    :status -> {"invoice.status_changed", %{old: ..., new: ...}}
+    :is_excluded -> {if(cs.changes.is_excluded, do: "invoice.excluded", else: "invoice.included"), %{}}
+    nil -> {"invoice.updated", %{changed_fields: ...}}
+  end
+end
+```
+
+### TrackedRepo: automatic event emission
+
+`TrackedRepo` wraps `Repo.insert/update/delete`. On success, it calls `schema.track_change(changeset)` to derive the event. The developer doesn't specify action names — the schema figures it out from the changeset.
 
 ```
 Context function
-  → Events.invoice_status_changed(invoice, :pending, :approved, opts)
-    → Events.emit(event_struct)
-      → [prod] Phoenix.PubSub.broadcast("activity_log", {:activity_event, event})
-        → Recorder GenServer → AuditLog.log() → DB
-        → Recorder → PubSub.broadcast("activity:invoice:<id>", {:new_activity, log})
-          → LiveView handle_info → prepend to @activity_log assign
-      → [test] TestEmitter → send(test_pid, {:activity_event, event})
-        → assert_received in test (synchronous, no Process.sleep)
+  → build changeset
+  → TrackedRepo.update(changeset, opts)
+    → Repo.update(changeset)
+    → schema.track_change(changeset) → {action, metadata}
+    → Events.emit(event)
+      → [prod] PubSub.broadcast → Recorder GenServer → DB
+      → [test] TestEmitter → send(test_pid, event)
 ```
 
-### Schema: extend existing `audit_logs` table
+**No-op detection** is built into TrackedRepo: if `changeset.changes == %{}`, the update succeeds but no event is emitted.
 
-Added three columns to the existing unused table:
-- `company_id` — FK to companies, enables multi-tenant scoping
-- `actor_type` — `"user"` | `"system"` | `"api"`, distinguishes human from automated actions
-- `actor_label` — denormalized actor name (self-contained even if user is deleted)
-
-Composite indexes for the two primary query patterns:
-- `(company_id, resource_type, resource_id, inserted_at)` — invoice timeline
-- `(company_id, inserted_at)` — platform activity log
-
-### Integration pattern: context-side broadcasting with optional `opts`
-
-Events are broadcast **inside context functions** on success. Each function accepts an optional `opts \\ []` keyword list for caller-provided actor info (`user_id`, `actor_label`, `actor_type`, `ip_address`). LiveView handlers pass `actor_opts(socket)` to provide user context.
+### Context functions are 2-3 lines
 
 ```elixir
-# In context
-def approve_invoice(invoice, opts \\ []) do
-  case update_invoice(invoice, %{status: :approved}) do
-    {:ok, updated} ->
-      Events.invoice_status_changed(updated, old_status, :approved, opts)
-      {:ok, updated}
-    error -> error
-  end
+def approve_invoice(%Invoice{} = invoice, opts \\ []) do
+  invoice
+  |> Invoice.changeset(%{status: :approved})
+  |> TrackedRepo.update(opts)
 end
 
-# In LiveView
-Invoices.approve_invoice(invoice, actor_opts(socket))
+def delete_category(%Category{} = category, opts \\ []) do
+  TrackedRepo.delete(category, opts)
+end
 ```
 
-### No-op detection
+### Schemas implementing Trackable
 
-Events are suppressed when nothing actually changed:
-- `changeset.changes != %{}` check for note and billing date updates
-- Value comparison (`old_value != new_value`) for category, tags, cost_line, project_tag
-- Pattern-matched guards: `defp maybe_log_category_change(_, same, same, _), do: :ok`
+| Schema | Events classified |
+|--------|-------------------|
+| `Invoice` | created, status_changed, excluded/included, duplicate_*, classification_changed (category/tags/cost_line/project_tag), note_updated, billing_date_changed, access_changed, updated (catch-all) |
+| `Category` | created, updated, deleted |
+| `CompanyBankAccount` | created, updated, deleted |
+| `Membership` | role_changed, member_blocked/unblocked |
+| `PaymentRequest` | created, paid, voided, updated |
+| `ApiToken` | generated, revoked |
+| `Credential` | uploaded (insert), invalidated (deactivation) |
 
-### Crash resilience
+### Manual Events calls (structurally necessary)
 
-The Recorder GenServer wraps persistence in `try/rescue` so Ecto errors (e.g., invalid UUID types) are logged but never crash the process. The Recorder is supervised with automatic restart.
+Some events can't use TrackedRepo because they have no changeset or involve Multi transactions:
 
-### Test infrastructure
+| Event | Why manual |
+|-------|-----------|
+| `invoice.comment_added/edited/deleted` | InvoiceComment lacks `company_id`, needs cross-entity lookup |
+| `invoice.public_link_generated` | Atomic `update_all` in generate_public_token, no changeset |
+| `invoice.re_extraction_triggered` | Triggered from LiveView, no DB mutation |
+| `credential.uploaded` (in replace) | Multi.insert bypasses TrackedRepo |
+| `export.created` | Multi transaction |
+| `sync.triggered/completed` | Oban job, no changeset |
+| `user.logged_in/logged_out` | Session management, no Ecto mutation |
 
-A `TestEmitter` module replaces PubSub in test config. It stores the test process PID in the process dictionary and walks the `$callers` chain for async-safe delivery. Tests use `assert_received`/`refute_received` — fully synchronous, zero-delay, deterministic.
+These use `Events.*` helper functions directly. The `Events` module contains **only** these helpers plus the `emit/1` dispatch point — no dead code.
+
+### Schema: extended `audit_logs` table
+
+Added to the existing (previously unused) table:
+- `company_id` — FK to companies, multi-tenant scoping
+- `actor_type` — `"user"` | `"system"` | `"api"`
+- `actor_label` — denormalized actor name
+
+### Configurable emitter for testing
+
+`Events.emit/1` dispatches through `Application.get_env(:ksef_hub, :activity_log_emitter)`:
+- **Production**: PubSub broadcast (default) → Recorder GenServer → DB
+- **Test**: `TestEmitter` sends directly to test process → `assert_received` (synchronous, deterministic)
+
+The `TestEmitter` uses process dictionary + `$callers` chain for `async: true` safety.
+
+### Recorder crash resilience
+
+The Recorder GenServer wraps persistence in `try/rescue` so Ecto errors are logged but never crash the process. Supervised with automatic restart.
 
 ## Consequences
 
 ### Positive
 
-- **Clean separation** — contexts have minimal coupling to the activity log (one-line `Events.*` call per operation)
-- **Fire-and-forget** — no latency impact on user operations; persistence happens asynchronously
-- **Real-time UI** — invoice timeline updates via PubSub when another user makes changes
-- **Testable** — configurable emitter enables synchronous assertions without touching the DB
-- **No-op safe** — activity log isn't polluted with meaningless "changed X to same value" entries
-- **Multi-tenant** — all queries scoped by `company_id`
+- **Automatic** — developers use `TrackedRepo` and the schema handles events. No manual logging to forget.
+- **Schema owns classification** — adding a new tracked field means adding one `classify_field/2` clause. Single responsibility.
+- **Clean contexts** — most operations are 2-3 lines. No event boilerplate.
+- **No-op safe** — TrackedRepo skips events when changeset has no changes
+- **Testable** — `assert_received`/`refute_received` with zero delay
+- **Fire-and-forget** — no latency impact on user operations
+- **Real-time UI** — invoice timeline updates via PubSub
 
 ### Negative
 
-- **Eventual consistency** — brief window between operation and audit record appearing (PubSub delivery + DB insert)
-- **Event loss on node crash** — in-flight PubSub messages are lost if the BEAM VM crashes between emit and persist. Acceptable for an activity log (not a financial ledger)
-- **Schema coupling** — the `Events` module has knowledge of every domain resource's fields (id, company_id). Adding a new resource type requires a new event function
-- **Verbose Events module** — 44 public functions with similar patterns. Kept explicit over macros for greppability and per-function documentation
+- **Eventual consistency** — brief window between operation and audit record
+- **Event loss on crash** — in-flight PubSub messages lost if BEAM crashes. Acceptable for audit log.
+- **Multi gap** — `Repo.transaction` with `Ecto.Multi` bypasses TrackedRepo. These paths need manual `Events.*` calls.
+- **No compile-time enforcement** — a developer *can* use `Repo.update` directly and skip events. `TrackedRepo` makes the right thing easy but doesn't prevent the wrong thing. Code review catches this.
 
 ### Future considerations
 
-- **Retention policy** — add an Oban cron job to prune entries older than 12 months
-- **Table partitioning** — consider range partitioning by `inserted_at` if the table exceeds ~10M rows
-- **Download tracking** — requires wiring in the controller layer (file serving), not yet done
+- **Retention policy** — Oban cron job to prune entries older than 12 months
+- **Table partitioning** — range partitioning by `inserted_at` if >10M rows
+- **Download tracking** — requires wiring in the controller layer
+- **Multi-aware TrackedRepo** — extend TrackedRepo to wrap Ecto.Multi steps, eliminating the remaining manual Events calls

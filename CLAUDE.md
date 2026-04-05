@@ -144,43 +144,48 @@ Phoenix contexts are the primary boundaries. Each context owns its schema, queri
 | `KsefHub.InvoiceClassifier` | ML-based category/tag classification via invoice-classifier service |
 | `KsefHub.Accounts` | API token generation, validation, usage tracking |
 
-### Activity Log (TrackedRepo)
+### Activity Log (Trackable + TrackedRepo)
 
-Every context mutation that affects user-visible state **must** emit an activity event. Use `TrackedRepo` instead of `Repo` for insert/update/delete operations:
+Every context mutation that affects user-visible state **must** emit an activity event. Schemas implement the `Trackable` behaviour to classify their own changesets into events. Context functions use `TrackedRepo` instead of `Repo` — no manual event names needed.
 
 ```elixir
-alias KsefHub.ActivityLog.TrackedRepo
+# 1. Schema implements Trackable (defines what events its changes produce):
+@behaviour KsefHub.ActivityLog.Trackable
 
-# TrackedRepo wraps Repo + event emission in one call:
-def exclude_invoice(%Invoice{} = invoice, opts \\ []) do
-  invoice
-  |> Invoice.changeset(%{is_excluded: true})
-  |> TrackedRepo.update("invoice.excluded", opts)
+@impl true
+def track_change(%Ecto.Changeset{action: :insert} = cs) do
+  {"invoice.created", %{source: to_string(get_field(cs, :source))}}
 end
 
-# With extra metadata:
-def delete_category(%Category{} = category, opts \\ []) do
-  TrackedRepo.delete(category, "category.deleted", opts,
-    name: category.name,
-    identifier: category.identifier
-  )
+def track_change(%Ecto.Changeset{} = cs) do
+  case cs.changes do
+    %{status: new} -> {"invoice.status_changed", %{old: to_string(cs.data.status), new: to_string(new)}}
+    %{is_excluded: true} -> {"invoice.excluded", %{}}
+    _ -> {"invoice.updated", %{changed_fields: Map.keys(cs.changes)}}
+  end
+end
+
+# 2. Context function is 2-3 lines (TrackedRepo handles the rest):
+def approve_invoice(%Invoice{} = invoice, opts \\ []) do
+  invoice
+  |> Invoice.changeset(%{status: :approved})
+  |> TrackedRepo.update(opts)
 end
 ```
 
-**When NOT to use TrackedRepo:**
-- Read-only queries (`Repo.all`, `Repo.one`, `Repo.get`)
-- Internal bookkeeping (`update_last_sync`, `track_token_usage`) — add comment: `# no activity event: internal bookkeeping`
-- Bulk operations (`Repo.update_all`) — use `Events.emit/1` directly
-- Multi-step transactions — emit event after `Repo.transaction()` succeeds
-
-**Action naming:** `resource.verb_past` (e.g., `invoice.excluded`, `category.deleted`, `team.member_blocked`)
+**When to use `Events.*` directly** (no changeset available):
+- Login/logout (session management)
+- Sync triggers (Oban job, no schema mutation)
+- Multi transactions (insert after `Repo.transaction`)
+- Cross-entity events (invoice comments need invoice's company_id)
 
 **Actor context:** LiveView handlers pass `actor_opts(socket)` → `[user_id: ..., actor_label: ...]`. System operations pass `actor_type: "system", actor_label: "KSeF Sync"`.
 
 Key files:
-- `lib/ksef_hub/activity_log/tracked_repo.ex` — wrapper with auto no-op detection
-- `lib/ksef_hub/activity_log/events.ex` — lower-level emit + domain-specific helpers
-- `lib/ksef_hub/activity_log/recorder.ex` — GenServer that persists events
+- `lib/ksef_hub/activity_log/trackable.ex` — behaviour that schemas implement
+- `lib/ksef_hub/activity_log/tracked_repo.ex` — Repo wrapper with auto event emission + no-op detection
+- `lib/ksef_hub/activity_log/events.ex` — `emit/1` dispatch + manual helpers for non-changeset events
+- `lib/ksef_hub/activity_log/recorder.ex` — GenServer that persists events to DB
 - `docs/adr/0042-activity-log.md` — architecture decision record
 
 ### Dependency Injection with Behaviours
