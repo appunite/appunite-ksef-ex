@@ -397,6 +397,26 @@ defmodule KsefHub.Invoices do
   end
 
   @doc """
+  Dismisses the extraction warning by marking extraction_status as :complete.
+
+  Used when the user has reviewed the invoice and confirmed the data is
+  acceptable despite missing fields (e.g. foreign seller with no NIP).
+  Enqueues prediction if not already done.
+  """
+  @spec dismiss_extraction_warning(Invoice.t(), keyword()) ::
+          {:ok, Invoice.t()} | {:error, Ecto.Changeset.t()}
+  def dismiss_extraction_warning(%Invoice{} = invoice, opts \\ []) do
+    with {:ok, updated} <-
+           invoice
+           |> Ecto.Changeset.change(extraction_status: :complete)
+           |> Repo.update() do
+      Events.invoice_extraction_dismissed(updated, opts)
+      maybe_enqueue_prediction(:complete, updated)
+      {:ok, updated}
+    end
+  end
+
+  @doc """
   Updates invoice fields from a manual edit, recalculates extraction_status
   (when the invoice has one), and enqueues prediction if status changed from
   :partial or :failed to :complete.

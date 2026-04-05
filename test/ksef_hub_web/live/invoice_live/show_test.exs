@@ -571,6 +571,28 @@ defmodule KsefHubWeb.InvoiceLive.ShowTest do
       refute has_element?(view, ~s([data-testid="extraction-warning"]))
     end
 
+    test "dismiss_extraction_warning removes the warning banner", %{
+      conn: conn,
+      company: company
+    } do
+      invoice =
+        insert(:pdf_upload_invoice,
+          company: company,
+          extraction_status: :partial,
+          net_amount: nil
+        )
+
+      stub(KsefHub.PdfRenderer.Mock, :generate_html, fn _xml, _meta -> {:error, :no_xml} end)
+
+      {:ok, view, _html} = live(conn, ~p"/c/#{company.id}/invoices/#{invoice.id}")
+      assert has_element?(view, ~s([data-testid="extraction-warning"]))
+
+      view |> element("button", "Dismiss") |> render_click()
+
+      refute has_element?(view, ~s([data-testid="extraction-warning"]))
+      refute has_element?(view, "[class*=rounded-md]", "incomplete")
+    end
+
     test "approve shows specific error for partial extraction invoice", %{
       conn: conn,
       company: company

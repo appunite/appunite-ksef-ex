@@ -78,6 +78,12 @@ defmodule KsefHub.ActivityLog.Events do
     emit(build_invoice_event("invoice.re_extraction_triggered", invoice, opts))
   end
 
+  @doc "Extraction warning was dismissed by the user."
+  @spec invoice_extraction_dismissed(map(), keyword()) :: :ok
+  def invoice_extraction_dismissed(invoice, opts \\ []) do
+    emit(build_invoice_event("invoice.extraction_dismissed", invoice, opts))
+  end
+
   # ---------------------------------------------------------------------------
   # Credential events (Multi transaction — insert bypasses TrackedRepo)
   # ---------------------------------------------------------------------------

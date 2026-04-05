@@ -166,6 +166,19 @@ defmodule KsefHubWeb.InvoiceLive.Show do
     end
   end
 
+  # --- Events: Dismiss extraction warning ---
+
+  def handle_event("dismiss_extraction_warning", _params, socket) do
+    case Invoices.dismiss_extraction_warning(socket.assigns.invoice, actor_opts(socket)) do
+      {:ok, updated} ->
+        reloaded = reload_details(updated, socket)
+        {:noreply, assign(socket, invoice: reloaded)}
+
+      {:error, _changeset} ->
+        {:noreply, put_flash(socket, :error, "Failed to dismiss warning.")}
+    end
+  end
+
   # --- Events: Approve/Reject ---
   def handle_event(
         "approve",
@@ -971,16 +984,28 @@ defmodule KsefHubWeb.InvoiceLive.Show do
       <span :if={!@data_editable}>
         This invoice has missing data but cannot be edited because it originates from KSeF.
       </span>
-      <.button
-        :if={
-          @data_editable && @can_mutate && @invoice.source in [:pdf_upload, :email] && !@extracting
-        }
-        variant="warning"
-        phx-click="re_extract"
-      >
-        <.icon name="hero-arrow-path" class="size-4" /> Re-extract
-      </.button>
-      <span :if={@extracting} class="loading loading-spinner loading-sm" />
+      <div class="ml-auto flex items-center gap-2">
+        <.button
+          :if={
+            @data_editable && @can_mutate && @invoice.source in [:pdf_upload, :email] &&
+              !@extracting
+          }
+          variant="warning"
+          phx-click="re_extract"
+        >
+          <.icon name="hero-arrow-path" class="size-4" /> Re-extract
+        </.button>
+        <span :if={@extracting} class="loading loading-spinner loading-sm" />
+        <.button
+          :if={@can_mutate && !@extracting}
+          variant="ghost"
+          size="sm"
+          phx-click="dismiss_extraction_warning"
+          data-confirm="Mark this invoice as complete despite missing fields?"
+        >
+          Dismiss
+        </.button>
+      </div>
     </div>
 
     <div
