@@ -24,7 +24,7 @@ defmodule KsefHub.InboundEmail.CcParser do
 
   def parse_cc_header(header) when is_binary(header) do
     header
-    |> String.split(",")
+    |> split_addresses()
     |> Enum.map(&parse_address/1)
     |> Enum.reject(&is_nil/1)
   end
@@ -51,6 +51,29 @@ defmodule KsefHub.InboundEmail.CcParser do
     (original ++ company)
     |> deduplicate()
     |> Enum.reject(fn {_name, email} -> MapSet.member?(exclude_set, String.downcase(email)) end)
+  end
+
+  # Splits a CC header on commas that are outside quoted strings,
+  # so display names like "Doe, John" <john@example.com> are kept intact.
+  @spec split_addresses(String.t()) :: [String.t()]
+  defp split_addresses(header) do
+    header
+    |> String.graphemes()
+    |> Enum.reduce({[], [], false}, fn
+      "\"", {segments, current, in_quotes} ->
+        {segments, ["\"" | current], not in_quotes}
+
+      ",", {segments, current, false} ->
+        segment = current |> Enum.reverse() |> Enum.join()
+        {[segment | segments], [], false}
+
+      char, {segments, current, in_quotes} ->
+        {segments, [char | current], in_quotes}
+    end)
+    |> then(fn {segments, current, _} ->
+      last = current |> Enum.reverse() |> Enum.join()
+      Enum.reverse([last | segments])
+    end)
   end
 
   @spec parse_address(String.t()) :: {String.t(), String.t()} | nil

@@ -1811,31 +1811,23 @@ defmodule KsefHub.InvoicesTest do
   end
 
   describe "auto-approval on creation" do
-    @valid_manual_attrs %{
-      type: :expense,
-      seller_nip: "1234567890",
-      seller_name: "Seller Sp. z o.o.",
-      buyer_nip: "0987654321",
-      buyer_name: "Buyer S.A.",
-      invoice_number: "FV/2026/AUTO",
-      issue_date: ~D[2026-02-20],
-      net_amount: Decimal.new("1000.00"),
-      gross_amount: Decimal.new("1230.00")
-    }
-
     test "auto-approves manual invoice when company setting is enabled", %{company: company} do
       company
       |> Ecto.Changeset.change(auto_approve_trusted_invoices: true)
       |> Repo.update!()
 
-      assert {:ok, invoice} = Invoices.create_manual_invoice(company.id, @valid_manual_attrs)
+      attrs = params_for(:manual_invoice)
+
+      assert {:ok, invoice} = Invoices.create_manual_invoice(company.id, attrs)
       assert invoice.status == :approved
     end
 
     test "leaves manual invoice as pending when company setting is disabled", %{
       company: company
     } do
-      assert {:ok, invoice} = Invoices.create_manual_invoice(company.id, @valid_manual_attrs)
+      attrs = params_for(:manual_invoice)
+
+      assert {:ok, invoice} = Invoices.create_manual_invoice(company.id, attrs)
       assert invoice.status == :pending
     end
 
@@ -1900,9 +1892,15 @@ defmodule KsefHub.InvoicesTest do
       |> Ecto.Changeset.change(auto_approve_trusted_invoices: true)
       |> Repo.update!()
 
-      # KSeF invoices are created via upsert during sync — auto-approval is not
-      # injected in that path. Verify a KSeF invoice stays pending.
-      invoice = insert(:invoice, company: company, type: :expense, source: :ksef)
+      attrs =
+        params_for(:invoice,
+          company_id: company.id,
+          type: :expense,
+          ksef_number: "ksef-auto-test"
+        )
+        |> Map.put(:xml_content, @sample_xml)
+
+      assert {:ok, invoice, :inserted} = Invoices.upsert_invoice(attrs)
       assert invoice.status == :pending
     end
   end

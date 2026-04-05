@@ -64,6 +64,15 @@ defmodule KsefHub.InboundEmail.CcParserTest do
              ]
     end
 
+    test "handles quoted display names containing commas" do
+      header = "\"Doe, John\" <john@example.com>, alice@example.com"
+
+      assert CcParser.parse_cc_header(header) == [
+               {"Doe, John", "john@example.com"},
+               {"alice@example.com", "alice@example.com"}
+             ]
+    end
+
     test "skips entries without @ sign" do
       header = "alice@example.com, not-an-email, bob@example.com"
 

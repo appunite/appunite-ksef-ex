@@ -298,9 +298,9 @@ defmodule KsefHubWeb.CompanyLiveTest do
       user: user,
       company: company
     } do
-      {:ok, view, html} = live_edit(conn, user, company)
+      {:ok, view, _html} = live_edit(conn, user, company)
 
-      assert html =~ "Auto-approve invoices from trusted sources"
+      assert has_element?(view, "#company_auto_approve_trusted_invoices")
 
       view
       |> form("#company-form", company: %{auto_approve_trusted_invoices: true})

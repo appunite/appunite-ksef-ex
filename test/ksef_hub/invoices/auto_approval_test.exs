@@ -131,5 +131,29 @@ defmodule KsefHub.Invoices.AutoApprovalTest do
 
       refute AutoApproval.should_auto_approve?(company, invoice)
     end
+
+    test "returns false with partial extraction even when sender is a company member", %{
+      company: company
+    } do
+      user = insert(:user, email: "member-partial@appunite.com")
+      insert(:membership, user: user, company: company, status: :active)
+      invoice = build_invoice(%{source: :email, extraction_status: :partial})
+
+      refute AutoApproval.should_auto_approve?(company, invoice,
+               sender_email: "member-partial@appunite.com"
+             )
+    end
+
+    test "returns false with failed extraction even when sender is a company member", %{
+      company: company
+    } do
+      user = insert(:user, email: "member-failed@appunite.com")
+      insert(:membership, user: user, company: company, status: :active)
+      invoice = build_invoice(%{source: :email, extraction_status: :failed})
+
+      refute AutoApproval.should_auto_approve?(company, invoice,
+               sender_email: "member-failed@appunite.com"
+             )
+    end
   end
 end
