@@ -66,6 +66,74 @@ defmodule KsefHubWeb.InvoiceLive.IndexTest do
     end
   end
 
+  describe "certificate expiry alerts" do
+    test "shows expired banner when certificate has expired", %{
+      conn: conn,
+      user: user,
+      company: company
+    } do
+      insert(:user_certificate,
+        user: user,
+        is_active: true,
+        not_after: Date.add(Date.utc_today(), -1)
+      )
+
+      {:ok, view, _html} = live(conn, ~p"/c/#{company.id}/invoices")
+      assert has_element?(view, "[data-testid='certificate-expired-banner']")
+      assert render(view) =~ "Certificate expired"
+      refute has_element?(view, "[data-testid='certificate-warning-banner']")
+    end
+
+    test "shows expiring soon banner when certificate expires within 7 days", %{
+      conn: conn,
+      user: user,
+      company: company
+    } do
+      insert(:user_certificate,
+        user: user,
+        is_active: true,
+        not_after: Date.add(Date.utc_today(), 5)
+      )
+
+      {:ok, view, _html} = live(conn, ~p"/c/#{company.id}/invoices")
+      assert has_element?(view, "[data-testid='certificate-expiring-banner']")
+      assert render(view) =~ "Certificate expiring soon"
+      assert render(view) =~ "5 days"
+    end
+
+    test "does not show expiry banners when certificate is valid", %{
+      conn: conn,
+      user: user,
+      company: company
+    } do
+      insert(:user_certificate,
+        user: user,
+        is_active: true,
+        not_after: Date.add(Date.utc_today(), 30)
+      )
+
+      {:ok, view, _html} = live(conn, ~p"/c/#{company.id}/invoices")
+      refute has_element?(view, "[data-testid='certificate-expired-banner']")
+      refute has_element?(view, "[data-testid='certificate-expiring-banner']")
+    end
+
+    test "does not show no-certificate warning when certificate exists but expiring", %{
+      conn: conn,
+      user: user,
+      company: company
+    } do
+      insert(:user_certificate,
+        user: user,
+        is_active: true,
+        not_after: Date.add(Date.utc_today(), 3)
+      )
+
+      {:ok, view, _html} = live(conn, ~p"/c/#{company.id}/invoices")
+      refute has_element?(view, "[data-testid='certificate-warning-banner']")
+      assert has_element?(view, "[data-testid='certificate-expiring-banner']")
+    end
+  end
+
   describe "category and tag columns" do
     test "shows category name in table", %{conn: conn, company: company} do
       category =

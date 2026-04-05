@@ -230,4 +230,38 @@ defmodule KsefHub.Credentials do
     |> UserCertificate.changeset(%{is_active: false})
     |> Repo.update()
   end
+
+  @doc """
+  Returns the expiry status of the active certificate for a company.
+
+  - `:no_certificate` — no active certificate found
+  - `{:expired, days_ago}` — certificate has expired (days_ago >= 0)
+  - `{:expiring_soon, days_left}` — certificate expires within 7 days
+  - `:ok` — certificate is valid and not expiring soon
+  """
+  @type expiry_status ::
+          :no_certificate
+          | {:expired, non_neg_integer()}
+          | {:expiring_soon, non_neg_integer()}
+          | :ok
+
+  @spec certificate_expiry_status(Ecto.UUID.t()) :: expiry_status()
+  def certificate_expiry_status(company_id) do
+    case get_certificate_for_company(company_id) do
+      nil ->
+        :no_certificate
+
+      %UserCertificate{not_after: nil} ->
+        :ok
+
+      %UserCertificate{not_after: not_after} ->
+        days_left = Date.diff(not_after, Date.utc_today())
+
+        cond do
+          days_left < 0 -> {:expired, abs(days_left)}
+          days_left <= 7 -> {:expiring_soon, days_left}
+          true -> :ok
+        end
+    end
+  end
 end

@@ -431,6 +431,80 @@ defmodule KsefHubWeb.CertificateLiveTest do
     end
   end
 
+  describe "certificate expiry alerts" do
+    test "shows expired banner when certificate has expired", %{
+      conn: conn,
+      user: user,
+      company: company
+    } do
+      insert(:user_certificate,
+        user: user,
+        is_active: true,
+        not_after: Date.add(Date.utc_today(), -1)
+      )
+
+      {:ok, view, _html} = live(conn, ~p"/c/#{company.id}/settings/certificates")
+      assert has_element?(view, "[data-testid='certificate-expired-banner']")
+      assert has_element?(view, "[data-testid='certificate-expired-banner']", "Certificate expired")
+      assert has_element?(view, "[data-testid='certificate-expired-banner']", "no longer working")
+    end
+
+    test "shows expiring soon banner when certificate expires within 7 days", %{
+      conn: conn,
+      user: user,
+      company: company
+    } do
+      insert(:user_certificate,
+        user: user,
+        is_active: true,
+        not_after: Date.add(Date.utc_today(), 3)
+      )
+
+      {:ok, view, _html} = live(conn, ~p"/c/#{company.id}/settings/certificates")
+      assert has_element?(view, "[data-testid='certificate-expiring-banner']")
+      assert has_element?(view, "[data-testid='certificate-expiring-banner']", "Certificate expiring soon")
+      assert has_element?(view, "[data-testid='certificate-expiring-banner']", "3 days")
+    end
+
+    test "shows singular 'day' when 1 day left", %{
+      conn: conn,
+      user: user,
+      company: company
+    } do
+      insert(:user_certificate,
+        user: user,
+        is_active: true,
+        not_after: Date.add(Date.utc_today(), 1)
+      )
+
+      {:ok, view, _html} = live(conn, ~p"/c/#{company.id}/settings/certificates")
+      assert has_element?(view, "[data-testid='certificate-expiring-banner']")
+      assert has_element?(view, "[data-testid='certificate-expiring-banner']", "1 day")
+    end
+
+    test "does not show expiry banner when certificate is valid", %{
+      conn: conn,
+      user: user,
+      company: company
+    } do
+      insert(:user_certificate,
+        user: user,
+        is_active: true,
+        not_after: Date.add(Date.utc_today(), 30)
+      )
+
+      {:ok, view, _html} = live(conn, ~p"/c/#{company.id}/settings/certificates")
+      refute has_element?(view, "[data-testid='certificate-expired-banner']")
+      refute has_element?(view, "[data-testid='certificate-expiring-banner']")
+    end
+
+    test "does not show expiry banner when no certificate", %{conn: conn, company: company} do
+      {:ok, view, _html} = live(conn, ~p"/c/#{company.id}/settings/certificates")
+      refute has_element?(view, "[data-testid='certificate-expired-banner']")
+      refute has_element?(view, "[data-testid='certificate-expiring-banner']")
+    end
+  end
+
   describe "remove certificate" do
     test "deactivates the user certificate", %{conn: conn, user: user, company: company} do
       cert = insert(:user_certificate, user: user, is_active: true)
