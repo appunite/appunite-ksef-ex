@@ -144,6 +144,45 @@ Phoenix contexts are the primary boundaries. Each context owns its schema, queri
 | `KsefHub.InvoiceClassifier` | ML-based category/tag classification via invoice-classifier service |
 | `KsefHub.Accounts` | API token generation, validation, usage tracking |
 
+### Activity Log (TrackedRepo)
+
+Every context mutation that affects user-visible state **must** emit an activity event. Use `TrackedRepo` instead of `Repo` for insert/update/delete operations:
+
+```elixir
+alias KsefHub.ActivityLog.TrackedRepo
+
+# TrackedRepo wraps Repo + event emission in one call:
+def exclude_invoice(%Invoice{} = invoice, opts \\ []) do
+  invoice
+  |> Invoice.changeset(%{is_excluded: true})
+  |> TrackedRepo.update("invoice.excluded", opts)
+end
+
+# With extra metadata:
+def delete_category(%Category{} = category, opts \\ []) do
+  TrackedRepo.delete(category, "category.deleted", opts,
+    name: category.name,
+    identifier: category.identifier
+  )
+end
+```
+
+**When NOT to use TrackedRepo:**
+- Read-only queries (`Repo.all`, `Repo.one`, `Repo.get`)
+- Internal bookkeeping (`update_last_sync`, `track_token_usage`) — add comment: `# no activity event: internal bookkeeping`
+- Bulk operations (`Repo.update_all`) — use `Events.emit/1` directly
+- Multi-step transactions — emit event after `Repo.transaction()` succeeds
+
+**Action naming:** `resource.verb_past` (e.g., `invoice.excluded`, `category.deleted`, `team.member_blocked`)
+
+**Actor context:** LiveView handlers pass `actor_opts(socket)` → `[user_id: ..., actor_label: ...]`. System operations pass `actor_type: "system", actor_label: "KSeF Sync"`.
+
+Key files:
+- `lib/ksef_hub/activity_log/tracked_repo.ex` — wrapper with auto no-op detection
+- `lib/ksef_hub/activity_log/events.ex` — lower-level emit + domain-specific helpers
+- `lib/ksef_hub/activity_log/recorder.ex` — GenServer that persists events
+- `docs/adr/0042-activity-log.md` — architecture decision record
+
 ### Dependency Injection with Behaviours
 
 External services are accessed through behaviours so tests can use mocks (via Mox):

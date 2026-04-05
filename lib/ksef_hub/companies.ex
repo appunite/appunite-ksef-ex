@@ -9,6 +9,7 @@ defmodule KsefHub.Companies do
   alias Ecto.Multi
   alias KsefHub.Accounts.User
   alias KsefHub.ActivityLog.Events
+  alias KsefHub.ActivityLog.TrackedRepo
   alias KsefHub.Companies.{Company, CompanyBankAccount, Membership}
   alias KsefHub.Repo
 
@@ -293,14 +294,7 @@ defmodule KsefHub.Companies do
   @spec delete_bank_account(CompanyBankAccount.t(), keyword()) ::
           {:ok, CompanyBankAccount.t()} | {:error, Ecto.Changeset.t()}
   def delete_bank_account(%CompanyBankAccount{} = bank_account, opts \\ []) do
-    case Repo.delete(bank_account) do
-      {:ok, deleted} ->
-        Events.bank_account_deleted(deleted, opts)
-        {:ok, deleted}
-
-      error ->
-        error
-    end
+    TrackedRepo.delete(bank_account, "bank_account.deleted", opts, label: bank_account.label)
   end
 
   # ---------------------------------------------------------------------------

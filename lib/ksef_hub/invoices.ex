@@ -16,6 +16,7 @@ defmodule KsefHub.Invoices do
   alias KsefHub.InvoiceExtractor.ContextBuilder
 
   alias KsefHub.ActivityLog.Events
+  alias KsefHub.ActivityLog.TrackedRepo
 
   alias KsefHub.Invoices.{
     AutoApproval,
@@ -703,28 +704,18 @@ defmodule KsefHub.Invoices do
   @spec exclude_invoice(Invoice.t(), keyword()) ::
           {:ok, Invoice.t()} | {:error, Ecto.Changeset.t()}
   def exclude_invoice(%Invoice{} = invoice, opts \\ []) do
-    case update_invoice(invoice, %{is_excluded: true}) do
-      {:ok, updated} ->
-        Events.invoice_excluded(updated, opts)
-        {:ok, updated}
-
-      error ->
-        error
-    end
+    invoice
+    |> Invoice.changeset(%{is_excluded: true})
+    |> TrackedRepo.update("invoice.excluded", opts)
   end
 
   @doc "Marks an invoice as included (removes exclusion)."
   @spec include_invoice(Invoice.t(), keyword()) ::
           {:ok, Invoice.t()} | {:error, Ecto.Changeset.t()}
   def include_invoice(%Invoice{} = invoice, opts \\ []) do
-    case update_invoice(invoice, %{is_excluded: false}) do
-      {:ok, updated} ->
-        Events.invoice_included(updated, opts)
-        {:ok, updated}
-
-      error ->
-        error
-    end
+    invoice
+    |> Invoice.changeset(%{is_excluded: false})
+    |> TrackedRepo.update("invoice.included", opts)
   end
 
   @doc """
@@ -1611,14 +1602,10 @@ defmodule KsefHub.Invoices do
   @spec delete_category(Category.t(), keyword()) ::
           {:ok, Category.t()} | {:error, Ecto.Changeset.t()}
   def delete_category(%Category{} = category, opts \\ []) do
-    case Repo.delete(category) do
-      {:ok, deleted} ->
-        Events.category_deleted(deleted, opts)
-        {:ok, deleted}
-
-      error ->
-        error
-    end
+    TrackedRepo.delete(category, "category.deleted", opts,
+      name: category.name,
+      identifier: category.identifier
+    )
   end
 
   # --- Tags ---
@@ -1913,32 +1900,18 @@ defmodule KsefHub.Invoices do
   @spec update_invoice_note(Invoice.t(), map()) ::
           {:ok, Invoice.t()} | {:error, Ecto.Changeset.t()}
   def update_invoice_note(%Invoice{} = invoice, attrs, opts \\ []) do
-    changeset = Invoice.note_changeset(invoice, attrs)
-
-    case Repo.update(changeset) do
-      {:ok, updated} ->
-        if changeset.changes != %{}, do: Events.invoice_note_updated(updated, opts)
-        {:ok, updated}
-
-      error ->
-        error
-    end
+    invoice
+    |> Invoice.note_changeset(attrs)
+    |> TrackedRepo.update("invoice.note_updated", opts)
   end
 
   @doc "Updates the billing date range on any invoice, regardless of source."
   @spec update_billing_date(Invoice.t(), map(), keyword()) ::
           {:ok, Invoice.t()} | {:error, Ecto.Changeset.t()}
   def update_billing_date(%Invoice{} = invoice, attrs, opts \\ []) do
-    changeset = Invoice.billing_date_changeset(invoice, attrs)
-
-    case Repo.update(changeset) do
-      {:ok, updated} ->
-        if changeset.changes != %{}, do: Events.invoice_billing_date_changed(updated, opts)
-        {:ok, updated}
-
-      error ->
-        error
-    end
+    invoice
+    |> Invoice.billing_date_changeset(attrs)
+    |> TrackedRepo.update("invoice.billing_date_changed", opts)
   end
 
   # --- Invoice Comments ---
