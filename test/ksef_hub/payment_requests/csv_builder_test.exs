@@ -98,10 +98,24 @@ defmodule KsefHub.PaymentRequests.CsvBuilderTest do
       assert field(row, 6) == ""
     end
 
-    test "escapes fields with commas" do
+    test "strips commas and quotes from fields" do
       pr = build_pr(recipient_name: "Company, Inc.")
-      csv = CsvBuilder.build([pr], @orderer_iban)
-      assert csv =~ ~s("Company, Inc.")
+      [_header, row] = pr |> build_and_split()
+      assert field(row, 1) == "Company Inc."
+    end
+
+    test "strips commas from address fields" do
+      pr =
+        build_pr(
+          recipient_address: %{
+            street: "Warszawa, ODROWĄŻA 15",
+            city: "Warszawa",
+            postal_code: "03-310"
+          }
+        )
+
+      [_header, row] = pr |> build_and_split()
+      assert field(row, 5) == "Warszawa ODROWĄŻA 15"
     end
 
     test "sanitizes formula injection" do

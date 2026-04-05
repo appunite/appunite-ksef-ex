@@ -128,7 +128,7 @@ defmodule KsefHubWeb.ExportLive.Index do
       only_new: socket.assigns.only_new
     }
 
-    case Exports.create_export(user.id, company.id, params) do
+    case Exports.create_export(user.id, company.id, params, actor_opts(socket)) do
       {:ok, batch} ->
         {:noreply,
          socket

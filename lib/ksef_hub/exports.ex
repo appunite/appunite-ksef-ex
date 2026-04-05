@@ -24,9 +24,9 @@ defmodule KsefHub.Exports do
     * `company_id` - the company to export invoices for
     * `params` - map with :date_from, :date_to, optional :invoice_type, :only_new
   """
-  @spec create_export(Ecto.UUID.t(), Ecto.UUID.t(), map()) ::
+  @spec create_export(Ecto.UUID.t(), Ecto.UUID.t(), map(), keyword()) ::
           {:ok, ExportBatch.t()} | {:error, Ecto.Changeset.t()}
-  def create_export(user_id, company_id, params) do
+  def create_export(user_id, company_id, params, opts \\ []) do
     changeset =
       %ExportBatch{}
       |> Ecto.Changeset.change(%{user_id: user_id, company_id: company_id})
@@ -38,7 +38,7 @@ defmodule KsefHub.Exports do
     |> Repo.transaction()
     |> case do
       {:ok, %{batch: batch}} ->
-        Events.export_created(batch, user_id: user_id)
+        Events.export_created(batch, Keyword.put(opts, :user_id, user_id))
         {:ok, batch}
 
       {:error, :batch, changeset, _} ->

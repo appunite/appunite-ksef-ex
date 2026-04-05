@@ -58,7 +58,7 @@ defmodule KsefHubWeb.SyncLive do
   defp do_trigger_sync(socket) do
     company = socket.assigns.current_company
 
-    case History.trigger_manual_sync(company.id) do
+    case History.trigger_manual_sync(company.id, actor_opts(socket)) do
       {:ok, _job} ->
         jobs = History.list_sync_jobs(company.id)
 

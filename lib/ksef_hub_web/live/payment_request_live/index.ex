@@ -145,7 +145,7 @@ defmodule KsefHubWeb.PaymentRequestLive.Index do
       company_id = socket.assigns.current_company.id
       ids = MapSet.to_list(socket.assigns.selected_ids)
 
-      {count, _} = PaymentRequests.mark_many_as_paid(company_id, ids)
+      {count, _} = PaymentRequests.mark_many_as_paid(company_id, ids, actor_opts(socket))
 
       {:noreply,
        socket
@@ -224,7 +224,7 @@ defmodule KsefHubWeb.PaymentRequestLive.Index do
   end
 
   @spec selectable?(PaymentRequest.t()) :: boolean()
-  defp selectable?(%{status: :voided}), do: false
+  defp selectable?(%{status: status}) when status in [:voided, :paid], do: false
   defp selectable?(_), do: true
 
   @spec status_variant(atom()) :: String.t()

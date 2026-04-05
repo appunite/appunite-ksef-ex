@@ -7,6 +7,7 @@ defmodule KsefHub.ActivityLog do
   import Ecto.Query
 
   alias KsefHub.AuditLog
+  alias KsefHub.Companies.Membership
   alias KsefHub.Repo
 
   @max_per_page 100
@@ -53,7 +54,11 @@ defmodule KsefHub.ActivityLog do
 
     base_query =
       AuditLog
-      |> where([a], a.company_id == ^company_id)
+      |> where(
+        [a],
+        a.company_id == ^company_id or
+          (is_nil(a.company_id) and a.user_id in subquery(member_user_ids_query(company_id)))
+      )
       |> maybe_filter_action_prefix(Keyword.get(opts, :action_prefix))
       |> maybe_filter_resource_type(Keyword.get(opts, :resource_type))
 
@@ -115,5 +120,12 @@ defmodule KsefHub.ActivityLog do
 
   defp maybe_filter_resource_type(query, type) do
     where(query, [a], a.resource_type == ^type)
+  end
+
+  @spec member_user_ids_query(Ecto.UUID.t()) :: Ecto.Query.t()
+  defp member_user_ids_query(company_id) do
+    Membership
+    |> where([m], m.company_id == ^company_id and m.status == :active)
+    |> select([m], m.user_id)
   end
 end

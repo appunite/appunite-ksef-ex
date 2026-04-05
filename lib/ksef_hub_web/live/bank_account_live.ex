@@ -126,12 +126,6 @@ defmodule KsefHubWeb.BankAccountLive do
     end
   end
 
-  @spec actor_opts(Phoenix.LiveView.Socket.t()) :: keyword()
-  defp actor_opts(socket) do
-    user = socket.assigns.current_user
-    [user_id: user.id, actor_label: user.name || user.email]
-  end
-
   @spec find_bank_account(Ecto.UUID.t(), String.t()) :: CompanyBankAccount.t() | nil
   defp find_bank_account(company_id, id) do
     case Ecto.UUID.cast(id) do
