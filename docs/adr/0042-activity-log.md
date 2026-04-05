@@ -110,5 +110,4 @@ A `TestEmitter` module replaces PubSub in test config. It stores the test proces
 
 - **Retention policy** — add an Oban cron job to prune entries older than 12 months
 - **Table partitioning** — consider range partitioning by `inserted_at` if the table exceeds ~10M rows
-- **Invoice creation events** — not yet wired due to multiple complex code paths (KSeF sync, manual, PDF upload, email). Should be added per-path when those areas are next touched
 - **Download tracking** — requires wiring in the controller layer (file serving), not yet done
