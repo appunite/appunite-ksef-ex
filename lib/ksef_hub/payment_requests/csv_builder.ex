@@ -18,8 +18,9 @@ defmodule KsefHub.PaymentRequests.CsvBuilder do
   Unlike RFC-4180 CSV (which wraps problematic values in double quotes), this
   builder **strips** characters that break Polish bank import parsers:
 
-  - Commas are replaced with spaces (e.g. `"Warszawa, Odrowąża 15"` → `"Warszawa Odrowąża 15"`)
-  - Double quotes and newlines (`\\r`, `\\n`) are removed entirely
+  - Commas and newlines (`\\r`, `\\n`) are replaced with spaces
+    (e.g. `"Warszawa, Odrowąża 15"` → `"Warszawa Odrowąża 15"`)
+  - Double quotes are removed entirely
   - Consecutive whitespace is collapsed to a single space
 
   This is intentional — Polish bank batch import systems do not support

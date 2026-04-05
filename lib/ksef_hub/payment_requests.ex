@@ -230,6 +230,7 @@ defmodule KsefHub.PaymentRequests do
     end)
     |> case do
       {:ok, count} -> {count, nil}
+      {:error, reason} -> {0, reason}
     end
   end
 
