@@ -405,7 +405,12 @@ defmodule KsefHub.Invoices do
   """
   @spec dismiss_extraction_warning(Invoice.t(), keyword()) ::
           {:ok, Invoice.t()} | {:error, Ecto.Changeset.t()}
-  def dismiss_extraction_warning(%Invoice{} = invoice, opts \\ []) do
+  def dismiss_extraction_warning(invoice, opts \\ [])
+
+  def dismiss_extraction_warning(%Invoice{extraction_status: :complete} = invoice, _opts),
+    do: {:ok, invoice}
+
+  def dismiss_extraction_warning(%Invoice{} = invoice, opts) do
     with {:ok, updated} <-
            invoice
            |> Ecto.Changeset.change(extraction_status: :complete)
