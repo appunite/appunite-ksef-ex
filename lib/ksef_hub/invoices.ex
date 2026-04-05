@@ -397,6 +397,31 @@ defmodule KsefHub.Invoices do
   end
 
   @doc """
+  Dismisses the extraction warning by marking extraction_status as :complete.
+
+  Used when the user has reviewed the invoice and confirmed the data is
+  acceptable despite missing fields (e.g. foreign seller with no NIP).
+  Enqueues prediction if not already done.
+  """
+  @spec dismiss_extraction_warning(Invoice.t(), keyword()) ::
+          {:ok, Invoice.t()} | {:error, Ecto.Changeset.t()}
+  def dismiss_extraction_warning(invoice, opts \\ [])
+
+  def dismiss_extraction_warning(%Invoice{extraction_status: :complete} = invoice, _opts),
+    do: {:ok, invoice}
+
+  def dismiss_extraction_warning(%Invoice{} = invoice, opts) do
+    with {:ok, updated} <-
+           invoice
+           |> Ecto.Changeset.change(extraction_status: :complete)
+           |> Repo.update() do
+      Events.invoice_extraction_dismissed(updated, opts)
+      maybe_enqueue_prediction(:complete, updated)
+      {:ok, updated}
+    end
+  end
+
+  @doc """
   Updates invoice fields from a manual edit, recalculates extraction_status
   (when the invoice has one), and enqueues prediction if status changed from
   :partial or :failed to :complete.
@@ -495,12 +520,12 @@ defmodule KsefHub.Invoices do
 
   Returns `{:ok, updated_invoice}` on success, `{:error, reason}` on failure.
   """
-  @spec re_extract_invoice(Invoice.t(), Company.t()) ::
+  @spec re_extract_invoice(Invoice.t(), Company.t(), keyword()) ::
           {:ok, Invoice.t()} | {:error, term()}
-  def re_extract_invoice(%Invoice{} = invoice, %Company{} = company) do
+  def re_extract_invoice(%Invoice{} = invoice, %Company{} = company, opts \\ []) do
     with {:ok, pdf_binary} <- load_pdf_content(invoice),
          {:ok, extracted} <- do_re_extract(company, invoice, pdf_binary) do
-      apply_extraction_results(invoice, extracted, company)
+      apply_extraction_results(invoice, extracted, company, opts)
     end
   end
 
@@ -525,9 +550,9 @@ defmodule KsefHub.Invoices do
     invoice_extractor().extract(pdf_binary, filename: filename, context: context)
   end
 
-  @spec apply_extraction_results(Invoice.t(), map(), Company.t()) ::
+  @spec apply_extraction_results(Invoice.t(), map(), Company.t(), keyword()) ::
           {:ok, Invoice.t()} | {:error, Ecto.Changeset.t()}
-  defp apply_extraction_results(invoice, extracted, company) do
+  defp apply_extraction_results(invoice, extracted, company, opts) do
     extraction_status = determine_extraction_status(extracted)
 
     # For re-extraction, only overwrite fields that have non-nil extracted values.
@@ -546,7 +571,7 @@ defmodule KsefHub.Invoices do
         do: attrs,
         else: Map.put(attrs, :currency, invoice.currency || "PLN")
 
-    with {:ok, updated} <- update_invoice(invoice, attrs) do
+    with {:ok, updated} <- update_invoice(invoice, attrs, opts) do
       maybe_enqueue_prediction(extraction_status, updated)
       {:ok, updated}
     end

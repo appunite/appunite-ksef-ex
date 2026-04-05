@@ -2240,6 +2240,32 @@ defmodule KsefHub.InvoicesTest do
     end
   end
 
+  describe "dismiss_extraction_warning/2" do
+    test "sets extraction_status to :complete", %{company: company} do
+      invoice =
+        insert(:pdf_upload_invoice, company: company, extraction_status: :partial)
+
+      assert {:ok, updated} = Invoices.dismiss_extraction_warning(invoice)
+      assert updated.extraction_status == :complete
+    end
+
+    test "is a no-op when already complete", %{company: company} do
+      invoice =
+        insert(:pdf_upload_invoice, company: company, extraction_status: :complete)
+
+      assert {:ok, updated} = Invoices.dismiss_extraction_warning(invoice)
+      assert updated.extraction_status == :complete
+    end
+
+    test "works for failed extraction_status", %{company: company} do
+      invoice =
+        insert(:pdf_upload_invoice, company: company, extraction_status: :failed)
+
+      assert {:ok, updated} = Invoices.dismiss_extraction_warning(invoice)
+      assert updated.extraction_status == :complete
+    end
+  end
+
   describe "source filter" do
     test "filters invoices by source", %{company: company} do
       insert(:invoice, company: company, source: :ksef)

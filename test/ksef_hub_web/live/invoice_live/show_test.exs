@@ -8,6 +8,7 @@ defmodule KsefHubWeb.InvoiceLive.ShowTest do
 
   alias KsefHub.Accounts
   alias KsefHub.Invoices
+  alias KsefHub.Repo
 
   setup :set_mox_from_context
   setup :verify_on_exit!
@@ -77,34 +78,6 @@ defmodule KsefHubWeb.InvoiceLive.ShowTest do
 
       {:ok, _view, html} = live(conn, ~p"/c/#{company.id}/invoices/#{invoice.id}")
       assert html =~ "preview"
-    end
-
-    test "shows 'Added by' row with creator name for pdf_upload invoice", %{
-      conn: conn,
-      company: company,
-      user: user
-    } do
-      stub(KsefHub.PdfRenderer.Mock, :generate_html, fn _xml, _meta -> {:error, :no_xml} end)
-
-      invoice =
-        insert(:pdf_upload_invoice, company: company, created_by: user)
-
-      {:ok, view, _html} = live(conn, ~p"/c/#{company.id}/invoices/#{invoice.id}")
-      assert has_element?(view, "#added-by-row")
-      assert has_element?(view, "#added-by-row", user.name)
-    end
-
-    test "shows 'Added by' row with KSeF label for ksef invoice", %{
-      conn: conn,
-      company: company
-    } do
-      stub(KsefHub.PdfRenderer.Mock, :generate_html, fn _xml, _meta -> {:error, :no_xml} end)
-
-      invoice = insert(:invoice, company: company, source: :ksef)
-
-      {:ok, view, _html} = live(conn, ~p"/c/#{company.id}/invoices/#{invoice.id}")
-      assert has_element?(view, "#added-by-row")
-      assert has_element?(view, "#added-by-row", "KSeF (automatic sync)")
     end
   end
 
@@ -571,6 +544,28 @@ defmodule KsefHubWeb.InvoiceLive.ShowTest do
       refute has_element?(view, ~s([data-testid="extraction-warning"]))
     end
 
+    test "dismiss_extraction_warning removes the warning banner", %{
+      conn: conn,
+      company: company
+    } do
+      invoice =
+        insert(:pdf_upload_invoice,
+          company: company,
+          extraction_status: :partial,
+          net_amount: nil
+        )
+
+      stub(KsefHub.PdfRenderer.Mock, :generate_html, fn _xml, _meta -> {:error, :no_xml} end)
+
+      {:ok, view, _html} = live(conn, ~p"/c/#{company.id}/invoices/#{invoice.id}")
+      assert has_element?(view, ~s([data-testid="extraction-warning"]))
+
+      view |> element("button", "Dismiss") |> render_click()
+
+      refute has_element?(view, ~s([data-testid="extraction-warning"]))
+      refute has_element?(view, "[class*=rounded-md]", "incomplete")
+    end
+
     test "approve shows specific error for partial extraction invoice", %{
       conn: conn,
       company: company
@@ -589,6 +584,40 @@ defmodule KsefHubWeb.InvoiceLive.ShowTest do
 
       html = view |> element("button", "Approve") |> render_click()
       assert html =~ "extraction is incomplete"
+    end
+
+    test "accountant cannot dismiss extraction warning", %{conn: _conn} do
+      {:ok, accountant} =
+        Accounts.get_or_create_google_user(%{
+          uid: "g-acct-dismiss-1",
+          email: "accountant-dismiss@example.com",
+          name: "Accountant"
+        })
+
+      company = insert(:company)
+      insert(:membership, user: accountant, company: company, role: :accountant)
+
+      invoice =
+        insert(:pdf_upload_invoice,
+          company: company,
+          extraction_status: :partial,
+          net_amount: nil
+        )
+
+      stub(KsefHub.PdfRenderer.Mock, :generate_html, fn _xml, _meta -> {:error, :no_xml} end)
+
+      conn =
+        build_conn() |> log_in_user(accountant, %{current_company_id: company.id})
+
+      {:ok, view, _html} = live(conn, ~p"/c/#{company.id}/invoices/#{invoice.id}")
+      assert has_element?(view, ~s([data-testid="extraction-warning"]))
+      refute has_element?(view, "button", "Dismiss")
+
+      # Forged event should be rejected by auth guard
+      render_click(view, "dismiss_extraction_warning")
+
+      assert has_element?(view, ~s([data-testid="extraction-warning"]))
+      assert Repo.get!(KsefHub.Invoices.Invoice, invoice.id).extraction_status == :partial
     end
   end
 

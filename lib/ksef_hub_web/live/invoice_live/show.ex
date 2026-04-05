@@ -124,7 +124,7 @@ defmodule KsefHubWeb.InvoiceLive.Show do
   # --- Authorization guard ---
   # Catch-all for mutation events when the user lacks permission.
 
-  @mutation_events ~w(re_extract dismiss_duplicate confirm_duplicate
+  @mutation_events ~w(re_extract dismiss_extraction_warning dismiss_duplicate confirm_duplicate
     toggle_edit save_edit edit_note save_note
     edit_billing_date save_billing_date cancel_billing_date copy_public_link
     exclude include)
@@ -153,16 +153,30 @@ defmodule KsefHubWeb.InvoiceLive.Show do
     if invoice.source in [:pdf_upload, :email] and not socket.assigns.extracting do
       company = socket.assigns.current_company
 
-      Events.invoice_re_extraction_triggered(invoice, actor_opts(socket))
+      opts = actor_opts(socket)
+      Events.invoice_re_extraction_triggered(invoice, opts)
 
       task =
         Task.Supervisor.async_nolink(KsefHub.TaskSupervisor, fn ->
-          Invoices.re_extract_invoice(invoice, company)
+          Invoices.re_extract_invoice(invoice, company, opts)
         end)
 
       {:noreply, assign(socket, extracting: true, extract_ref: task.ref)}
     else
       {:noreply, socket}
+    end
+  end
+
+  # --- Events: Dismiss extraction warning ---
+
+  def handle_event("dismiss_extraction_warning", _params, socket) do
+    case Invoices.dismiss_extraction_warning(socket.assigns.invoice, actor_opts(socket)) do
+      {:ok, updated} ->
+        reloaded = reload_details(updated, socket)
+        {:noreply, assign(socket, invoice: reloaded)}
+
+      {:error, _changeset} ->
+        {:noreply, put_flash(socket, :error, "Failed to dismiss warning.")}
     end
   end
 
@@ -317,8 +331,6 @@ defmodule KsefHubWeb.InvoiceLive.Show do
 
   @impl true
   def handle_event("validate_edit", %{"invoice" => params}, socket) do
-    params = normalize_billing_date_param(params)
-
     changeset =
       socket.assigns.invoice
       |> Invoice.edit_changeset(params)
@@ -329,8 +341,6 @@ defmodule KsefHubWeb.InvoiceLive.Show do
 
   @impl true
   def handle_event("save_edit", %{"invoice" => params}, socket) do
-    params = normalize_billing_date_param(params)
-
     case Invoices.update_invoice_fields(socket.assigns.invoice, params, actor_opts(socket)) do
       {:ok, updated} ->
         reloaded = reload_details(updated, socket)
@@ -971,16 +981,28 @@ defmodule KsefHubWeb.InvoiceLive.Show do
       <span :if={!@data_editable}>
         This invoice has missing data but cannot be edited because it originates from KSeF.
       </span>
-      <.button
-        :if={
-          @data_editable && @can_mutate && @invoice.source in [:pdf_upload, :email] && !@extracting
-        }
-        variant="warning"
-        phx-click="re_extract"
-      >
-        <.icon name="hero-arrow-path" class="size-4" /> Re-extract
-      </.button>
-      <span :if={@extracting} class="loading loading-spinner loading-sm" />
+      <div class="ml-auto flex items-center gap-2">
+        <.button
+          :if={
+            @data_editable && @can_mutate && @invoice.source in [:pdf_upload, :email] &&
+              !@extracting
+          }
+          variant="warning"
+          phx-click="re_extract"
+        >
+          <.icon name="hero-arrow-path" class="size-4" /> Re-extract
+        </.button>
+        <span :if={@extracting} class="loading loading-spinner loading-sm" />
+        <.button
+          :if={@can_mutate && !@extracting}
+          variant="ghost"
+          size="sm"
+          phx-click="dismiss_extraction_warning"
+          data-confirm="Mark this invoice as complete despite missing fields?"
+        >
+          Dismiss
+        </.button>
+      </div>
     </div>
 
     <div
@@ -1059,7 +1081,7 @@ defmodule KsefHubWeb.InvoiceLive.Show do
             />
           </div>
           <div :if={!@editing}>
-            <.invoice_details_table invoice={@invoice} show_added_by={true} />
+            <.invoice_details_table invoice={@invoice} />
           </div>
         </.card>
         <!-- Category & Tags Card -->
@@ -1574,7 +1596,7 @@ defmodule KsefHubWeb.InvoiceLive.Show do
     "invoice.billing_date_changed" => "changed billing date",
     "invoice.extraction_completed" => "extraction completed",
     "invoice.re_extraction_triggered" => "triggered re-extraction",
-    "invoice.updated" => "updated invoice fields",
+    "invoice.extraction_dismissed" => "dismissed extraction warning",
     "payment_request.created" => "created payment request",
     "payment_request.paid" => "marked payment as paid",
     "payment_request.voided" => "voided payment request"
@@ -1615,9 +1637,42 @@ defmodule KsefHubWeb.InvoiceLive.Show do
     "downloaded #{metadata["format"] || "file"}"
   end
 
+  defp describe_dynamic_action("invoice.updated", metadata) do
+    case metadata["changed_fields"] do
+      fields when is_list(fields) and fields != [] ->
+        humanized = Enum.map_join(fields, ", ", &humanize_field/1)
+        "updated #{humanized}"
+
+      _ ->
+        "updated invoice fields"
+    end
+  end
+
   defp describe_dynamic_action(action, _metadata) do
     action |> String.replace(".", " ") |> String.replace("_", " ")
   end
+
+  @field_labels %{
+    "seller_name" => "seller name",
+    "seller_nip" => "seller NIP",
+    "buyer_name" => "buyer name",
+    "buyer_nip" => "buyer NIP",
+    "invoice_number" => "invoice number",
+    "issue_date" => "issue date",
+    "sales_date" => "sales date",
+    "due_date" => "due date",
+    "net_amount" => "net amount",
+    "gross_amount" => "gross amount",
+    "extraction_status" => "extraction status",
+    "billing_date_from" => "billing from",
+    "billing_date_to" => "billing to",
+    "seller_address" => "seller address",
+    "buyer_address" => "buyer address",
+    "purchase_order" => "PO number"
+  }
+
+  @spec humanize_field(String.t()) :: String.t()
+  defp humanize_field(field), do: Map.get(@field_labels, field, String.replace(field, "_", " "))
 
   @spec list_company_reviewers(Ecto.UUID.t()) :: [map()]
   defp list_company_reviewers(company_id) do
@@ -1860,36 +1915,6 @@ defmodule KsefHubWeb.InvoiceLive.Show do
             class="h-9 w-full rounded-md border border-input bg-background px-3 text-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
           />
           <.field_error errors={@edit_form[:due_date].errors} />
-        </div>
-
-        <div class="space-y-1">
-          <label for="edit-billing-date-from" class="label">
-            <span class="text-sm font-medium text-xs">Billing From</span>
-          </label>
-          <input
-            type="month"
-            id="edit-billing-date-from"
-            name={@edit_form[:billing_date_from].name}
-            value={format_month_value(@edit_form[:billing_date_from].value)}
-            class="h-9 w-full rounded-md border border-input bg-background px-3 text-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
-          />
-          <.field_error errors={@edit_form[:billing_date_from].errors} />
-        </div>
-      </div>
-
-      <div class="grid grid-cols-2 gap-3">
-        <div class="space-y-1">
-          <label for="edit-billing-date-to" class="label">
-            <span class="text-sm font-medium text-xs">Billing To</span>
-          </label>
-          <input
-            type="month"
-            id="edit-billing-date-to"
-            name={@edit_form[:billing_date_to].name}
-            value={format_month_value(@edit_form[:billing_date_to].value)}
-            class="h-9 w-full rounded-md border border-input bg-background px-3 text-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
-          />
-          <.field_error errors={@edit_form[:billing_date_to].errors} />
         </div>
       </div>
 
@@ -2233,21 +2258,6 @@ defmodule KsefHubWeb.InvoiceLive.Show do
     case Regex.run(~r/^(\d{4})-(\d{2})$/, val) do
       [_, year, month] -> "#{year}-#{month}-01"
       _ -> val
-    end
-  end
-
-  @spec normalize_billing_date_param(map()) :: map()
-  defp normalize_billing_date_param(params) do
-    params
-    |> maybe_normalize_month_field("billing_date_from")
-    |> maybe_normalize_month_field("billing_date_to")
-  end
-
-  @spec maybe_normalize_month_field(map(), String.t()) :: map()
-  defp maybe_normalize_month_field(%{} = params, key) do
-    case params[key] do
-      val when is_binary(val) and val != "" -> Map.put(params, key, normalize_month_to_date(val))
-      _ -> params
     end
   end
 
