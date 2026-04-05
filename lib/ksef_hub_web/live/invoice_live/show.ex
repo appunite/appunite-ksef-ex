@@ -757,12 +757,6 @@ defmodule KsefHubWeb.InvoiceLive.Show do
 
   # --- Private ---
 
-  @spec actor_opts(Phoenix.LiveView.Socket.t()) :: keyword()
-  defp actor_opts(socket) do
-    user = socket.assigns.current_user
-    [user_id: user.id, actor_label: user.name || user.email]
-  end
-
   @spec note_form(Invoice.t()) :: Phoenix.HTML.Form.t()
   defp note_form(invoice) do
     to_form(%{"note" => invoice.note || ""})

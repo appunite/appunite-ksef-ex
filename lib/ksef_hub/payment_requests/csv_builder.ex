@@ -95,13 +95,9 @@ defmodule KsefHub.PaymentRequests.CsvBuilder do
 
   @spec escape_field(String.t()) :: String.t()
   defp escape_field(value) do
-    value = sanitize_formula(value)
-
-    if needs_quoting?(value) do
-      ~s("#{String.replace(value, ~s("), ~s(""))}")
-    else
-      value
-    end
+    value
+    |> sanitize_formula()
+    |> strip_csv_breakers()
   end
 
   @spec sanitize_formula(String.t()) :: String.t()
@@ -113,8 +109,8 @@ defmodule KsefHub.PaymentRequests.CsvBuilder do
     end
   end
 
-  @spec needs_quoting?(String.t()) :: boolean()
-  defp needs_quoting?(value) do
-    String.contains?(value, [",", "\"", "\n", "\r"])
+  @spec strip_csv_breakers(String.t()) :: String.t()
+  defp strip_csv_breakers(value) do
+    String.replace(value, ~r/[,"\r\n]/, "")
   end
 end

@@ -53,6 +53,8 @@ defmodule KsefHubWeb do
       use Phoenix.LiveView,
         layout: {KsefHubWeb.Layouts, :app}
 
+      import KsefHubWeb.LiveHelpers, only: [actor_opts: 1]
+
       unquote(html_helpers())
     end
   end
