@@ -38,7 +38,7 @@ defmodule KsefHub.Exports do
     |> Repo.transaction()
     |> case do
       {:ok, %{batch: batch}} ->
-        Events.export_created(batch, opts)
+        Events.export_created(batch, Keyword.put(opts, :user_id, user_id))
         {:ok, batch}
 
       {:error, :batch, changeset, _} ->

@@ -217,7 +217,7 @@ defmodule KsefHub.PaymentRequests do
 
   @doc "Marks multiple payment requests as paid. Returns the number of updated records."
   @spec mark_many_as_paid(Ecto.UUID.t(), [Ecto.UUID.t()], keyword()) ::
-          {non_neg_integer(), nil}
+          {non_neg_integer(), term()}
   def mark_many_as_paid(company_id, ids, opts \\ []) when is_list(ids) do
     Repo.transaction(fn ->
       pending =
