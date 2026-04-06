@@ -934,7 +934,7 @@ defmodule KsefHub.Invoices do
   end
 
   @spec email_actor_opts(String.t() | nil) :: keyword()
-  defp email_actor_opts(nil), do: []
+  defp email_actor_opts(nil), do: [actor_type: :email]
   defp email_actor_opts(sender), do: [actor_type: :email, actor_label: sender]
 
   # Shared: create invoice from extracted fields with duplicate detection + prediction

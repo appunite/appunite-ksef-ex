@@ -63,7 +63,7 @@ defmodule KsefHub.AuditLog do
       resource_type: Keyword.get(opts, :resource_type),
       resource_id: Keyword.get(opts, :resource_id),
       metadata: Keyword.get(opts, :metadata, %{}),
-      actor_type: Keyword.get(opts, :actor_type, :user),
+      actor_type: Event.resolve_actor_type(opts),
       actor_label: Keyword.get(opts, :actor_label),
       user_id: Keyword.get(opts, :user_id),
       company_id: Keyword.get(opts, :company_id),
