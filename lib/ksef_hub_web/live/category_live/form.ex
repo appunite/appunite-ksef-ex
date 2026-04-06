@@ -151,7 +151,7 @@ defmodule KsefHubWeb.CategoryLive.Form do
   defp create_category(socket, params) do
     company_id = socket.assigns.company_id
 
-    case Invoices.create_category(company_id, atomize_params(params)) do
+    case Invoices.create_category(company_id, atomize_params(params), actor_opts(socket)) do
       {:ok, _category} ->
         {:noreply,
          socket
@@ -166,7 +166,7 @@ defmodule KsefHubWeb.CategoryLive.Form do
   @spec update_category(Phoenix.LiveView.Socket.t(), Category.t(), map()) ::
           {:noreply, Phoenix.LiveView.Socket.t()}
   defp update_category(socket, category, params) do
-    case Invoices.update_category(category, atomize_params(params)) do
+    case Invoices.update_category(category, atomize_params(params), actor_opts(socket)) do
       {:ok, _updated} ->
         {:noreply,
          socket

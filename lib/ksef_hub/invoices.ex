@@ -644,7 +644,7 @@ defmodule KsefHub.Invoices do
   @spec maybe_auto_approve(Company.t(), Invoice.t(), keyword()) :: Invoice.t()
   defp maybe_auto_approve(company, invoice, opts \\ []) do
     if AutoApproval.should_auto_approve?(company, invoice, opts) do
-      case approve_invoice(invoice, actor_type: "system", actor_label: "Auto-approval") do
+      case approve_invoice(invoice, actor_type: :system, actor_label: "Auto-approval") do
         {:ok, approved} ->
           approved
 
@@ -935,7 +935,7 @@ defmodule KsefHub.Invoices do
 
   @spec email_actor_opts(String.t() | nil) :: keyword()
   defp email_actor_opts(nil), do: []
-  defp email_actor_opts(sender), do: [actor_type: "email", actor_label: sender]
+  defp email_actor_opts(sender), do: [actor_type: :email, actor_label: sender]
 
   # Shared: create invoice from extracted fields with duplicate detection + prediction
   @spec do_create_pdf_extracted(

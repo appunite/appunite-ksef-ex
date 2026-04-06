@@ -8,6 +8,8 @@ defmodule KsefHubWeb.Api.CategoryController do
   use KsefHubWeb, :controller
   use OpenApiSpex.ControllerSpecs
 
+  import KsefHubWeb.Api.ApiHelpers, only: [api_actor_opts: 1]
+
   import KsefHubWeb.ChangesetHelpers
   import KsefHubWeb.JsonHelpers, only: [category_json: 1, atomize_keys: 2]
 
@@ -102,7 +104,11 @@ defmodule KsefHubWeb.Api.CategoryController do
   def create(conn, params) do
     company_id = conn.assigns.current_company.id
 
-    case Invoices.create_category(company_id, atomize_keys(params, @category_allowed_keys)) do
+    case Invoices.create_category(
+           company_id,
+           atomize_keys(params, @category_allowed_keys),
+           api_actor_opts(conn)
+         ) do
       {:ok, category} ->
         conn
         |> put_status(:created)
@@ -145,7 +151,11 @@ defmodule KsefHubWeb.Api.CategoryController do
 
     with {:ok, category} <- Invoices.get_category(company_id, id),
          {:ok, updated} <-
-           Invoices.update_category(category, atomize_keys(params, @category_allowed_keys)) do
+           Invoices.update_category(
+             category,
+             atomize_keys(params, @category_allowed_keys),
+             api_actor_opts(conn)
+           ) do
       json(conn, %{data: category_json(updated)})
     else
       {:error, :not_found} ->
@@ -188,7 +198,7 @@ defmodule KsefHubWeb.Api.CategoryController do
     company_id = conn.assigns.current_company.id
 
     with {:ok, category} <- Invoices.get_category(company_id, id),
-         {:ok, _} <- Invoices.delete_category(category) do
+         {:ok, _} <- Invoices.delete_category(category, api_actor_opts(conn)) do
       json(conn, %{message: "Category deleted"})
     else
       {:error, :not_found} ->

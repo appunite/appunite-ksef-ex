@@ -4,6 +4,8 @@ defmodule KsefHubWeb.Api.CategoryControllerTest do
   import KsefHub.Factory
   import KsefHubWeb.ApiTestHelpers
 
+  alias KsefHub.ActivityLog.{Event, TestEmitter}
+
   describe "index" do
     test "returns categories for the token's company", %{conn: conn} do
       %{company: company, token: token} = create_user_with_token(:owner)
@@ -96,6 +98,22 @@ defmodule KsefHubWeb.Api.CategoryControllerTest do
       conn = conn |> api_conn(token) |> post("/api/categories", body)
 
       assert conn.status == 422
+    end
+
+    test "records activity event with api actor on create", %{conn: conn} do
+      TestEmitter.attach(self())
+
+      %{token: token} = create_user_with_token(:owner)
+
+      body = Jason.encode!(%{identifier: "ops:tracked", emoji: "T"})
+      conn |> api_conn(token) |> post("/api/categories", body)
+
+      assert_received {:activity_event,
+                       %Event{
+                         action: "category.created",
+                         actor_type: :api,
+                         actor_label: "API: " <> _
+                       }}
     end
 
     test "returns 422 for duplicate identifier in same company", %{conn: conn} do

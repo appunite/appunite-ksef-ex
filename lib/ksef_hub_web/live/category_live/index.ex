@@ -28,7 +28,7 @@ defmodule KsefHubWeb.CategoryLive.Index do
   def handle_event("delete", %{"id" => id}, socket) do
     with {:ok, uuid} <- Ecto.UUID.cast(id),
          {:ok, category} <- Invoices.get_category(socket.assigns.company_id, uuid),
-         {:ok, _} <- Invoices.delete_category(category) do
+         {:ok, _} <- Invoices.delete_category(category, actor_opts(socket)) do
       {:noreply,
        socket
        |> stream_delete(:categories, category)

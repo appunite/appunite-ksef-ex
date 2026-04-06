@@ -6,6 +6,7 @@ defmodule KsefHubWeb.CategoryLiveTest do
   import KsefHub.Factory
 
   alias KsefHub.Accounts
+  alias KsefHub.ActivityLog.{Event, TestEmitter}
 
   setup :set_mox_from_context
   setup :verify_on_exit!
@@ -53,6 +54,28 @@ defmodule KsefHubWeb.CategoryLiveTest do
       refute html =~ "delete:me"
     end
 
+    test "records activity event with user actor on delete", %{
+      conn: conn,
+      user: user,
+      company: company
+    } do
+      TestEmitter.attach(self())
+
+      cat = insert(:category, company: company, identifier: "del:tracked")
+      {:ok, view, _html} = live(conn, ~p"/c/#{company.id}/settings/categories")
+
+      view |> element("button", "Delete") |> render_click(%{"id" => cat.id})
+
+      user_id = user.id
+
+      assert_received {:activity_event,
+                       %Event{
+                         action: "category.deleted",
+                         user_id: ^user_id,
+                         actor_type: :user
+                       }}
+    end
+
     test "does not show categories from other companies", %{conn: conn, company: company} do
       other_company = insert(:company)
       insert(:category, company: other_company, identifier: "other:secret")
@@ -86,6 +109,37 @@ defmodule KsefHubWeb.CategoryLiveTest do
 
       flash = assert_redirect(view, ~p"/c/#{company.id}/settings/categories")
       assert flash["info"] == "Category created."
+    end
+
+    test "records activity event with user actor on create", %{
+      conn: conn,
+      user: user,
+      company: company
+    } do
+      TestEmitter.attach(self())
+
+      {:ok, view, _html} = live(conn, ~p"/c/#{company.id}/settings/categories/new")
+
+      view
+      |> element("form#category-form")
+      |> render_submit(%{
+        category: %{
+          identifier: "ops:tracked",
+          name: "Tracked",
+          emoji: "T",
+          description: "",
+          sort_order: "0"
+        }
+      })
+
+      user_id = user.id
+
+      assert_received {:activity_event,
+                       %Event{
+                         action: "category.created",
+                         user_id: ^user_id,
+                         actor_type: :user
+                       }}
     end
 
     test "shows error for invalid identifier format", %{conn: conn, company: company} do

@@ -10,6 +10,7 @@ defmodule KsefHubWeb.Api.InvoiceController do
 
   require Logger
 
+  import KsefHubWeb.Api.ApiHelpers, only: [api_actor_opts: 1]
   import KsefHubWeb.ChangesetHelpers
   import KsefHubWeb.ErrorHelpers, only: [sanitize_error: 1]
   import KsefHubWeb.FilenameHelpers, only: [send_attachment: 4]
@@ -1562,12 +1563,6 @@ defmodule KsefHubWeb.Api.InvoiceController do
   @spec maybe_add_tags(map(), Invoice.t()) :: map()
   defp maybe_add_tags(json, %{tags: tags}) when is_list(tags), do: Map.put(json, :tags, tags)
   defp maybe_add_tags(json, _), do: json
-
-  @spec api_actor_opts(Plug.Conn.t()) :: keyword()
-  defp api_actor_opts(conn) do
-    token = conn.assigns.api_token
-    [user_id: token.created_by_id, actor_type: "api", actor_label: "API: #{token.name}"]
-  end
 
   @spec emit_download_event(Plug.Conn.t(), Invoice.t(), String.t()) :: :ok
   defp emit_download_event(conn, invoice, format) do
