@@ -24,6 +24,7 @@ defmodule KsefHub.Invoices do
     Invoice,
     InvoiceAccessGrant,
     InvoiceComment,
+    NipVerifier,
     PurchaseOrder
   }
 
@@ -524,7 +525,8 @@ defmodule KsefHub.Invoices do
           {:ok, Invoice.t()} | {:error, term()}
   def re_extract_invoice(%Invoice{} = invoice, %Company{} = company, opts \\ []) do
     with {:ok, pdf_binary} <- load_pdf_content(invoice),
-         {:ok, extracted} <- do_re_extract(company, invoice, pdf_binary) do
+         {:ok, extracted} <- do_re_extract(company, invoice, pdf_binary),
+         :ok <- verify_nip_for_type(extracted, company.nip, invoice.type) do
       apply_extraction_results(invoice, extracted, company, opts)
     end
   end
@@ -727,8 +729,9 @@ defmodule KsefHub.Invoices do
   @doc """
   Populates company-side fields on invoice attrs based on type.
 
-  For expense invoices, sets buyer_nip and buyer_name from the company.
-  For income invoices, sets seller_nip and seller_name from the company.
+  For expense invoices, sets buyer_nip and buyer_name from the company
+  only when extraction didn't provide them. For income invoices, does
+  the same for seller_nip and seller_name.
   """
   @spec populate_company_fields(map(), Company.t()) :: map()
   def populate_company_fields(attrs, %Company{} = company) do
@@ -736,13 +739,28 @@ defmodule KsefHub.Invoices do
 
     case type do
       t when t in [:expense, "expense"] ->
-        Map.merge(attrs, %{buyer_nip: company.nip, buyer_name: company.name})
+        attrs
+        |> put_if_blank(:buyer_nip, company.nip)
+        |> put_if_blank(:buyer_name, company.name)
 
       t when t in [:income, "income"] ->
-        Map.merge(attrs, %{seller_nip: company.nip, seller_name: company.name})
+        attrs
+        |> put_if_blank(:seller_nip, company.nip)
+        |> put_if_blank(:seller_name, company.name)
 
       _ ->
         attrs
+    end
+  end
+
+  @spec put_if_blank(map(), atom(), String.t() | nil) :: map()
+  defp put_if_blank(attrs, key, value) do
+    existing = Map.get(attrs, key) || Map.get(attrs, Atom.to_string(key))
+
+    if is_nil(existing) or existing == "" do
+      Map.put(attrs, key, value)
+    else
+      attrs
     end
   end
 
@@ -835,10 +853,10 @@ defmodule KsefHub.Invoices do
   end
 
   @doc """
-  Creates a PDF upload invoice and returns the extracted buyer NIP for NIP mismatch detection.
+  Creates a PDF upload invoice with NIP verification.
 
-  Same as `create_pdf_upload_invoice/3` but returns the original extracted buyer NIP
-  so callers can warn users when it doesn't match the company.
+  Rejects the invoice if the extracted buyer NIP doesn't match the company NIP.
+  When buyer NIP cannot be extracted, the invoice is accepted with company fields as fallback.
   """
   @spec create_pdf_upload_invoice_with_meta(Company.t(), binary(), map(), keyword()) ::
           {:ok, Invoice.t(), keyword()} | {:error, term()}
@@ -863,37 +881,93 @@ defmodule KsefHub.Invoices do
 
     case invoice_extractor().extract(pdf_binary, extract_opts) do
       {:ok, extracted} ->
-        extracted_buyer_nip = get_extracted_nip(extracted, "buyer_nip")
-
-        case do_create_pdf_extracted(
-               company,
-               pdf_binary,
-               type,
-               filename,
-               extracted,
-               :pdf_upload,
-               [created_by_id: created_by_id],
-               event_opts
-             ) do
-          {:ok, invoice} -> {:ok, invoice, extracted_buyer_nip: extracted_buyer_nip}
-          error -> error
-        end
+        create_from_extraction(
+          company,
+          pdf_binary,
+          type,
+          filename,
+          extracted,
+          created_by_id,
+          event_opts
+        )
 
       {:error, _reason} ->
         Logger.warning("PDF extraction failed for file: #{filename || "invoice.pdf"}")
 
-        case do_create_pdf_failed(
-               company,
-               pdf_binary,
-               type,
-               filename,
-               :pdf_upload,
-               [created_by_id: created_by_id],
-               event_opts
-             ) do
-          {:ok, invoice} -> {:ok, invoice, extracted_buyer_nip: nil}
-          error -> error
-        end
+        create_from_failed_extraction(
+          company,
+          pdf_binary,
+          type,
+          filename,
+          created_by_id,
+          event_opts
+        )
+    end
+  end
+
+  @spec create_from_extraction(
+          Company.t(),
+          binary(),
+          atom(),
+          String.t() | nil,
+          map(),
+          Ecto.UUID.t() | nil,
+          keyword()
+        ) ::
+          {:ok, Invoice.t(), keyword()} | {:error, term()}
+  defp create_from_extraction(
+         company,
+         pdf_binary,
+         type,
+         filename,
+         extracted,
+         created_by_id,
+         event_opts
+       ) do
+    with :ok <- verify_nip_for_type(extracted, company.nip, type),
+         {:ok, invoice} <-
+           do_create_pdf_extracted(
+             company,
+             pdf_binary,
+             type,
+             filename,
+             extracted,
+             :pdf_upload,
+             [created_by_id: created_by_id],
+             event_opts
+           ) do
+      {:ok, invoice, []}
+    end
+  end
+
+  @spec create_from_failed_extraction(
+          Company.t(),
+          binary(),
+          atom(),
+          String.t() | nil,
+          Ecto.UUID.t() | nil,
+          keyword()
+        ) ::
+          {:ok, Invoice.t(), keyword()} | {:error, term()}
+  defp create_from_failed_extraction(
+         company,
+         pdf_binary,
+         type,
+         filename,
+         created_by_id,
+         event_opts
+       ) do
+    case do_create_pdf_failed(
+           company,
+           pdf_binary,
+           type,
+           filename,
+           :pdf_upload,
+           [created_by_id: created_by_id],
+           event_opts
+         ) do
+      {:ok, invoice} -> {:ok, invoice, []}
+      error -> error
     end
   end
 
@@ -1125,6 +1199,9 @@ defmodule KsefHub.Invoices do
       value -> normalize_nip(value)
     end
   end
+
+  defp verify_nip_for_type(extracted, company_nip, type),
+    do: NipVerifier.verify_for_type(extracted, company_nip, type)
 
   @spec get_extracted_purchase_order(map(), String.t()) :: String.t() | nil
   defp get_extracted_purchase_order(data, key) do

@@ -86,7 +86,7 @@ defmodule KsefHubWeb.InvoiceLive.UploadTest do
          %{
            "seller_nip" => "1234567890",
            "seller_name" => "Test Seller",
-           "buyer_nip" => "0987654321",
+           "buyer_nip" => company.nip,
            "buyer_name" => "Test Buyer",
            "invoice_number" => "FV/2025/1",
            "issue_date" => "2025-01-15",
@@ -155,6 +155,41 @@ defmodule KsefHubWeb.InvoiceLive.UploadTest do
       invoice = Invoices.get_invoice!(company.id, invoice_id)
       assert invoice.extraction_status == :failed
       assert invoice.source == :pdf_upload
+    end
+
+    test "NIP mismatch shows rejection error", %{conn: conn, company: company} do
+      stub(KsefHub.InvoiceExtractor.Mock, :extract, fn _binary, _opts ->
+        {:ok,
+         %{
+           "seller_nip" => "1234567890",
+           "seller_name" => "Seller",
+           "buyer_nip" => "9999999999",
+           "buyer_name" => "Wrong Company",
+           "invoice_number" => "FV/MISMATCH/001",
+           "issue_date" => "2026-02-20",
+           "net_amount" => "1000.00",
+           "gross_amount" => "1230.00"
+         }}
+      end)
+
+      {:ok, view, _html} = live(conn, ~p"/c/#{company.id}/invoices/upload")
+
+      view
+      |> file_input("#upload-form", :invoice_pdf, [
+        %{
+          name: "mismatch.pdf",
+          content: "%PDF-1.4 test content",
+          type: "application/pdf"
+        }
+      ])
+      |> render_upload("mismatch.pdf")
+
+      render_submit(view, "upload", %{})
+
+      # The async task returns {:error, :buyer_nip_mismatch},
+      # which the handle_info renders as a flash error (no redirect).
+      html = render(view)
+      assert html =~ "buyer NIP"
     end
 
     test "upload without file shows error", %{conn: conn, company: company} do

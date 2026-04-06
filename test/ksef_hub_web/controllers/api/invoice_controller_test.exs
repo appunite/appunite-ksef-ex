@@ -526,14 +526,14 @@ defmodule KsefHubWeb.Api.InvoiceControllerTest do
 
   describe "upload" do
     test "returns 201 with extracted data", %{conn: conn} do
-      %{token: token} = create_user_with_token(:owner)
+      %{company: company, token: token} = create_user_with_token(:owner)
 
       Mox.expect(KsefHub.InvoiceExtractor.Mock, :extract, fn _pdf, _opts ->
         {:ok,
          %{
            "seller_nip" => "1234567890",
            "seller_name" => "Upload Seller Sp. z o.o.",
-           "buyer_nip" => "0987654321",
+           "buyer_nip" => company.nip,
            "buyer_name" => "Upload Buyer S.A.",
            "invoice_number" => "FV/UPLOAD/001",
            "issue_date" => "2026-02-20",
@@ -616,6 +616,38 @@ defmodule KsefHubWeb.Api.InvoiceControllerTest do
       assert Jason.decode!(conn.resp_body)["error"] =~ "Missing or invalid type"
     end
 
+    test "returns 422 when buyer NIP doesn't match company", %{conn: conn} do
+      %{token: token} = create_user_with_token(:owner)
+
+      Mox.expect(KsefHub.InvoiceExtractor.Mock, :extract, fn _pdf, _opts ->
+        {:ok,
+         %{
+           "seller_nip" => "1234567890",
+           "seller_name" => "Seller",
+           "buyer_nip" => "9999999999",
+           "buyer_name" => "Wrong Company",
+           "invoice_number" => "FV/MISMATCH/001",
+           "issue_date" => "2026-02-20",
+           "net_amount" => "1000.00",
+           "gross_amount" => "1230.00"
+         }}
+      end)
+
+      upload = %Plug.Upload{
+        path: create_temp_pdf(),
+        content_type: "application/pdf",
+        filename: "mismatch.pdf"
+      }
+
+      conn =
+        conn
+        |> api_conn_multipart(token)
+        |> post("/api/invoices/upload", %{"file" => upload, "type" => "expense"})
+
+      assert conn.status == 422
+      assert Jason.decode!(conn.resp_body)["error"] =~ "Buyer NIP"
+    end
+
     test "returns 415 for non-PDF file", %{conn: conn} do
       %{token: token} = create_user_with_token(:owner)
 
@@ -663,7 +695,21 @@ defmodule KsefHubWeb.Api.InvoiceControllerTest do
     end
 
     test "returns 201 for income-type upload", %{conn: conn} do
-      %{token: token} = create_user_with_token(:owner)
+      %{company: company, token: token} = create_user_with_token(:owner)
+
+      Mox.expect(KsefHub.InvoiceExtractor.Mock, :extract, fn _pdf, _opts ->
+        {:ok,
+         %{
+           "seller_nip" => company.nip,
+           "seller_name" => "Our Company",
+           "buyer_nip" => "9999999999",
+           "buyer_name" => "Customer",
+           "invoice_number" => "FV/INCOME/001",
+           "issue_date" => "2026-02-20",
+           "net_amount" => "1000.00",
+           "gross_amount" => "1230.00"
+         }}
+      end)
 
       upload = %Plug.Upload{
         path: create_temp_pdf(),
