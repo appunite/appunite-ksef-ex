@@ -257,6 +257,8 @@ defmodule KsefHubWeb.InvoiceLive.Classify do
     cost_line = socket.assigns.selected_cost_line
     project_tag = socket.assigns.selected_project_tag
 
+    opts = actor_opts(socket)
+
     result =
       Invoices.with_manual_prediction(invoice, fn ->
         with {:ok, updated} <-
@@ -264,10 +266,11 @@ defmodule KsefHubWeb.InvoiceLive.Classify do
                  invoice,
                  category_id,
                  cost_line,
-                 can_set_category
+                 can_set_category,
+                 opts
                ),
-             {:ok, updated} <- maybe_set_tags(updated, tag_names, can_set_tags) do
-          maybe_set_project_tag(updated, project_tag, can_set_tags)
+             {:ok, updated} <- maybe_set_tags(updated, tag_names, can_set_tags, opts) do
+          maybe_set_project_tag(updated, project_tag, can_set_tags, opts)
         end
       end)
 
@@ -291,23 +294,24 @@ defmodule KsefHubWeb.InvoiceLive.Classify do
           KsefHub.Invoices.Invoice.t(),
           Ecto.UUID.t() | nil,
           atom() | nil,
-          boolean()
+          boolean(),
+          keyword()
         ) :: {:ok, KsefHub.Invoices.Invoice.t()} | {:error, term()}
-  defp maybe_set_category_and_cost_line(invoice, _category_id, _cost_line, false),
+  defp maybe_set_category_and_cost_line(invoice, _category_id, _cost_line, false, _opts),
     do: {:ok, invoice}
 
-  defp maybe_set_category_and_cost_line(invoice, category_id, cost_line, true) do
-    with {:ok, updated} <- Invoices.set_invoice_category(invoice, category_id) do
-      Invoices.set_invoice_cost_line(updated, cost_line)
+  defp maybe_set_category_and_cost_line(invoice, category_id, cost_line, true, opts) do
+    with {:ok, updated} <- Invoices.set_invoice_category(invoice, category_id, opts) do
+      Invoices.set_invoice_cost_line(updated, cost_line, opts)
     end
   end
 
-  @spec maybe_set_tags(Invoice.t(), [String.t()], boolean()) ::
+  @spec maybe_set_tags(Invoice.t(), [String.t()], boolean(), keyword()) ::
           {:ok, Invoice.t()} | {:error, term()}
-  defp maybe_set_tags(invoice, _tags, false), do: {:ok, invoice}
+  defp maybe_set_tags(invoice, _tags, false, _opts), do: {:ok, invoice}
 
-  defp maybe_set_tags(invoice, tags, true),
-    do: Invoices.set_invoice_tags(invoice, tags)
+  defp maybe_set_tags(invoice, tags, true, opts),
+    do: Invoices.set_invoice_tags(invoice, tags, opts)
 
   @spec apply_custom_project_tag(Phoenix.LiveView.Socket.t(), String.t()) ::
           {:noreply, Phoenix.LiveView.Socket.t()}
@@ -329,12 +333,12 @@ defmodule KsefHubWeb.InvoiceLive.Classify do
      )}
   end
 
-  @spec maybe_set_project_tag(Invoice.t(), String.t() | nil, boolean()) ::
+  @spec maybe_set_project_tag(Invoice.t(), String.t() | nil, boolean(), keyword()) ::
           {:ok, Invoice.t()} | {:error, term()}
-  defp maybe_set_project_tag(invoice, _project_tag, false), do: {:ok, invoice}
+  defp maybe_set_project_tag(invoice, _project_tag, false, _opts), do: {:ok, invoice}
 
-  defp maybe_set_project_tag(invoice, project_tag, true),
-    do: Invoices.set_invoice_project_tag(invoice, project_tag)
+  defp maybe_set_project_tag(invoice, project_tag, true, opts),
+    do: Invoices.set_invoice_project_tag(invoice, project_tag, opts)
 
   # --- Render ---
 

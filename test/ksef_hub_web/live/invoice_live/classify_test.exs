@@ -7,6 +7,7 @@ defmodule KsefHubWeb.InvoiceLive.ClassifyTest do
   import KsefHub.Factory
 
   alias KsefHub.Accounts
+  alias KsefHub.ActivityLog.{Event, TestEmitter}
   alias KsefHub.Invoices
 
   setup :set_mox_from_context
@@ -129,6 +130,33 @@ defmodule KsefHubWeb.InvoiceLive.ClassifyTest do
       updated = Invoices.get_invoice_with_details!(company.id, invoice.id)
       assert updated.category_id == cat.id
       assert "monthly" in updated.tags
+    end
+
+    test "records activity events with the current user as actor", %{
+      conn: conn,
+      user: user,
+      company: company
+    } do
+      TestEmitter.attach(self())
+
+      cat = insert(:category, company: company, identifier: "finance:invoices")
+      invoice = insert(:invoice, type: :expense, company: company)
+
+      {:ok, view, _html} = live(conn, ~p"/c/#{company.id}/invoices/#{invoice.id}/classify")
+
+      view |> element(~s([data-testid="group-finance"])) |> render_click()
+      view |> element(~s([data-testid="category-#{cat.id}"])) |> render_click()
+      view |> element(~s([data-testid="save-classification"])) |> render_click()
+
+      user_id = user.id
+
+      assert_received {:activity_event,
+                       %Event{
+                         action: "invoice.classification_changed",
+                         user_id: ^user_id,
+                         actor_type: "user",
+                         actor_label: "Classifier"
+                       }}
     end
 
     test "marks predicted invoice as manual on save", %{conn: conn, company: company} do
