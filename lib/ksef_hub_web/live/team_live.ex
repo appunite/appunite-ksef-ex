@@ -101,6 +101,10 @@ defmodule KsefHubWeb.TeamLive do
                     >
                       {member.user.email}
                     </.link>
+                  </td>
+                  <td class="py-3.5 px-4">{member.user.name || "-"}</td>
+                  <td class="py-3.5 px-4">
+                    <.badge variant="muted">{role_label(member.role)}</.badge>
                     <.badge
                       :if={member.status == :blocked}
                       variant="error"
@@ -109,10 +113,6 @@ defmodule KsefHubWeb.TeamLive do
                     >
                       Blocked
                     </.badge>
-                  </td>
-                  <td class="py-3.5 px-4">{member.user.name || "-"}</td>
-                  <td class="py-3.5 px-4">
-                    <.badge variant="muted">{role_label(member.role)}</.badge>
                   </td>
                 </tr>
               </tbody>
