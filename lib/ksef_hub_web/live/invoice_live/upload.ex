@@ -69,31 +69,31 @@ defmodule KsefHubWeb.InvoiceLive.Upload do
   @impl true
   @spec handle_info(term(), Phoenix.LiveView.Socket.t()) ::
           {:noreply, Phoenix.LiveView.Socket.t()}
-  def handle_info({ref, {:ok, invoice, meta}}, socket) when is_reference(ref) do
+  def handle_info({ref, {:ok, invoice, _meta}}, socket) when is_reference(ref) do
     if MapSet.member?(socket.assigns.upload_refs, ref) do
       Process.demonitor(ref, [:flush])
-
-      {flash_kind, flash_msg} = upload_flash(meta, socket.assigns.current_company)
 
       {:noreply,
        socket
        |> update(:upload_refs, &MapSet.delete(&1, ref))
-       |> put_flash(flash_kind, flash_msg)
+       |> put_flash(:info, "Invoice uploaded successfully.")
        |> redirect(to: ~p"/c/#{socket.assigns.current_company.id}/invoices/#{invoice.id}")}
     else
       {:noreply, socket}
     end
   end
 
-  def handle_info({ref, {:error, _reason}}, socket) when is_reference(ref) do
+  def handle_info({ref, {:error, reason}}, socket) when is_reference(ref) do
     if MapSet.member?(socket.assigns.upload_refs, ref) do
       Process.demonitor(ref, [:flush])
+
+      flash_msg = upload_error_message(reason)
 
       {:noreply,
        socket
        |> update(:upload_refs, &MapSet.delete(&1, ref))
        |> assign(uploading: false)
-       |> put_flash(:error, "Failed to process the PDF. Please try again.")}
+       |> put_flash(:error, flash_msg)}
     else
       {:noreply, socket}
     end
@@ -163,16 +163,15 @@ defmodule KsefHubWeb.InvoiceLive.Upload do
     )
   end
 
-  @spec upload_flash(keyword(), Company.t()) :: {atom(), String.t()}
-  defp upload_flash(meta, company) do
-    extracted_buyer_nip = Keyword.get(meta, :extracted_buyer_nip)
+  @spec upload_error_message(term()) :: String.t()
+  defp upload_error_message(:buyer_nip_mismatch),
+    do: "Invoice rejected: buyer NIP on the invoice doesn't match your company NIP."
 
-    if extracted_buyer_nip && company.nip && extracted_buyer_nip != company.nip do
-      {:warning, "Invoice uploaded but buyer NIP doesn't match your company. Please review."}
-    else
-      {:info, "Invoice uploaded successfully."}
-    end
-  end
+  defp upload_error_message(:seller_nip_mismatch),
+    do: "Invoice rejected: seller NIP on the invoice doesn't match your company NIP."
+
+  defp upload_error_message(_reason),
+    do: "Failed to process the PDF. Please try again."
 
   # --- Render ---
 

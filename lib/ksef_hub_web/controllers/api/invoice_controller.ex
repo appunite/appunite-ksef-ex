@@ -259,6 +259,16 @@ defmodule KsefHubWeb.Api.InvoiceController do
           |> put_status(:unprocessable_entity)
           |> json(%{error: changeset_errors(changeset)})
 
+        {:error, :buyer_nip_mismatch} ->
+          conn
+          |> put_status(:unprocessable_entity)
+          |> json(%{error: "Buyer NIP on the invoice doesn't match company NIP"})
+
+        {:error, :seller_nip_mismatch} ->
+          conn
+          |> put_status(:unprocessable_entity)
+          |> json(%{error: "Seller NIP on the invoice doesn't match company NIP"})
+
         {:error, reason} ->
           Logger.error("PDF upload failed: #{inspect(reason)}")
 
