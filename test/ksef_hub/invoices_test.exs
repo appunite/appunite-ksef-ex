@@ -2179,6 +2179,53 @@ defmodule KsefHub.InvoicesTest do
       assert {:error, :buyer_nip_mismatch} =
                Invoices.re_extract_invoice(invoice, company)
     end
+
+    test "succeeds when buyer NIP not extracted (fallback to company fields)", %{
+      company: company
+    } do
+      invoice = insert(:pdf_upload_invoice, company: company, extraction_status: :partial)
+
+      KsefHub.InvoiceExtractor.Mock
+      |> expect(:extract, fn _pdf, _opts ->
+        {:ok,
+         %{
+           "seller_nip" => "5555555555",
+           "seller_name" => "Re-extracted Seller",
+           "invoice_number" => "FV/RE/NO_NIP",
+           "issue_date" => "2026-03-01",
+           "net_amount" => "2000.00",
+           "gross_amount" => "2460.00"
+         }}
+      end)
+
+      assert {:ok, updated} = Invoices.re_extract_invoice(invoice, company)
+      assert updated.seller_name == "Re-extracted Seller"
+      assert updated.buyer_nip == company.nip
+      assert updated.buyer_name == company.name
+    end
+
+    test "succeeds when buyer NIP has PL prefix matching company", %{company: company} do
+      invoice = insert(:pdf_upload_invoice, company: company, extraction_status: :partial)
+
+      KsefHub.InvoiceExtractor.Mock
+      |> expect(:extract, fn _pdf, _opts ->
+        {:ok,
+         %{
+           "seller_nip" => "5555555555",
+           "seller_name" => "Re-extracted Seller",
+           "buyer_nip" => "PL#{company.nip}",
+           "buyer_name" => "Re-extracted Buyer",
+           "invoice_number" => "FV/RE/PL",
+           "issue_date" => "2026-03-01",
+           "net_amount" => "2000.00",
+           "gross_amount" => "2460.00"
+         }}
+      end)
+
+      assert {:ok, updated} = Invoices.re_extract_invoice(invoice, company)
+      assert updated.seller_name == "Re-extracted Seller"
+      assert updated.extraction_status == :complete
+    end
   end
 
   describe "list_invoices source filter with email" do
