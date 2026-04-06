@@ -154,7 +154,7 @@ defmodule KsefHubWeb.InvoiceLive.ClassifyTest do
                        %Event{
                          action: "invoice.classification_changed",
                          user_id: ^user_id,
-                         actor_type: "user",
+                         actor_type: :user,
                          actor_label: "Classifier"
                        }}
     end

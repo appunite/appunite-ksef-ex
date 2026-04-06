@@ -331,7 +331,7 @@ defmodule KsefHub.Factory do
       action: "invoice.created",
       resource_type: "invoice",
       resource_id: Ecto.UUID.generate(),
-      actor_type: "user",
+      actor_type: :user,
       actor_label: "Test User",
       metadata: %{},
       company: build(:company),

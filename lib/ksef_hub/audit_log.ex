@@ -5,6 +5,7 @@ defmodule KsefHub.AuditLog do
   import Ecto.Changeset
   import Ecto.Query
 
+  alias KsefHub.ActivityLog.Event
   alias KsefHub.Repo
 
   @type t :: %__MODULE__{}
@@ -17,7 +18,11 @@ defmodule KsefHub.AuditLog do
     field :resource_type, :string
     field :resource_id, :string
     field :metadata, :map, default: %{}
-    field :actor_type, :string, default: "user"
+
+    field :actor_type, Ecto.Enum,
+      values: Event.actor_types(),
+      default: :user
+
     field :actor_label, :string
     field :ip_address, :string
 
@@ -43,7 +48,6 @@ defmodule KsefHub.AuditLog do
       :ip_address
     ])
     |> validate_required([:action])
-    |> validate_inclusion(:actor_type, ["user", "system", "api"])
     |> foreign_key_constraint(:user_id)
     |> foreign_key_constraint(:company_id)
   end
@@ -59,7 +63,7 @@ defmodule KsefHub.AuditLog do
       resource_type: Keyword.get(opts, :resource_type),
       resource_id: Keyword.get(opts, :resource_id),
       metadata: Keyword.get(opts, :metadata, %{}),
-      actor_type: Keyword.get(opts, :actor_type, "user"),
+      actor_type: Event.resolve_actor_type(opts),
       actor_label: Keyword.get(opts, :actor_label),
       user_id: Keyword.get(opts, :user_id),
       company_id: Keyword.get(opts, :company_id),

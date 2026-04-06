@@ -152,7 +152,7 @@ defmodule KsefHub.ActivityLog.TrackedRepo do
       resource_id: resource_id,
       company_id: company_id,
       user_id: stringify(user_id),
-      actor_type: Keyword.get(opts, :actor_type, if(user_id, do: "user", else: "system")),
+      actor_type: Event.resolve_actor_type(opts),
       actor_label: Keyword.get(opts, :actor_label),
       ip_address: Keyword.get(opts, :ip_address),
       metadata: extra_metadata

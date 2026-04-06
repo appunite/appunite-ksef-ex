@@ -19,7 +19,7 @@ defmodule KsefHub.ActivityLog.EventsTest do
 
   describe "emit/1 dispatches through configured emitter" do
     test "event struct is sent to test process" do
-      event = %Event{action: "test.action", actor_type: "user", metadata: %{}}
+      event = %Event{action: "test.action", actor_type: :user, metadata: %{}}
       Events.emit(event)
 
       assert_received {:activity_event, ^event}
@@ -86,7 +86,7 @@ defmodule KsefHub.ActivityLog.EventsTest do
       assert_received {:activity_event,
                        %Event{
                          action: "sync.completed",
-                         actor_type: "system",
+                         actor_type: :system,
                          actor_label: "KSeF Sync",
                          metadata: %{income: 5}
                        }}
@@ -187,14 +187,14 @@ defmodule KsefHub.ActivityLog.EventsTest do
       invoice_ref = %{id: Ecto.UUID.generate(), company_id: company.id}
 
       Events.invoice_downloaded(invoice_ref, "xml",
-        actor_type: "api",
+        actor_type: :api,
         actor_label: "API: My Token"
       )
 
       assert_received {:activity_event,
                        %Event{
                          action: "invoice.downloaded",
-                         actor_type: "api",
+                         actor_type: :api,
                          actor_label: "API: My Token",
                          metadata: %{format: "xml"}
                        }}

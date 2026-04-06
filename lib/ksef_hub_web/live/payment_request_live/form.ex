@@ -95,7 +95,7 @@ defmodule KsefHubWeb.PaymentRequestLive.Form do
       company_id = socket.assigns.current_company.id
       pr = socket.assigns.payment_request
 
-      case PaymentRequests.void_payment_request(company_id, pr.id) do
+      case PaymentRequests.void_payment_request(company_id, pr.id, actor_opts(socket)) do
         {:ok, _pr} ->
           {:noreply,
            socket

@@ -97,7 +97,7 @@ defmodule KsefHubWeb.SettingsLive.ActivityLog do
           <:col :let={entry} label="Actor">
             <span class="text-sm font-medium">{entry.actor_label || "System"}</span>
             <span
-              :if={entry.actor_type != "user"}
+              :if={entry.actor_type != :user}
               class="ml-1 text-xs px-1 py-0.5 rounded bg-shad-accent text-shad-accent-foreground"
             >
               {entry.actor_type}

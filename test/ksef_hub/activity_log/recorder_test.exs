@@ -26,7 +26,7 @@ defmodule RecorderTest do
         resource_id: Ecto.UUID.generate(),
         company_id: company.id,
         user_id: user.id,
-        actor_type: "user",
+        actor_type: :user,
         actor_label: user.name,
         metadata: %{source: "ksef"}
       }
@@ -39,7 +39,7 @@ defmodule RecorderTest do
       assert log.resource_id == event.resource_id
       assert log.company_id == company.id
       assert log.user_id == user.id
-      assert log.actor_type == "user"
+      assert log.actor_type == :user
       assert log.actor_label == user.name
       assert log.metadata == %{"source" => "ksef"}
     end
@@ -51,7 +51,7 @@ defmodule RecorderTest do
         action: "sync.completed",
         resource_type: "sync",
         company_id: company.id,
-        actor_type: "system",
+        actor_type: :system,
         actor_label: "KSeF Sync",
         metadata: %{income: 5, expense: 3}
       }
@@ -60,7 +60,7 @@ defmodule RecorderTest do
 
       assert [log] = Repo.all(AuditLog)
       assert log.action == "sync.completed"
-      assert log.actor_type == "system"
+      assert log.actor_type == :system
       assert log.actor_label == "KSeF Sync"
       assert log.user_id == nil
     end
@@ -76,7 +76,7 @@ defmodule RecorderTest do
         resource_type: "invoice",
         resource_id: invoice_id,
         company_id: company.id,
-        actor_type: "user",
+        actor_type: :user,
         metadata: %{old_status: "pending", new_status: "approved"}
       }
 
@@ -88,7 +88,7 @@ defmodule RecorderTest do
     test "does not crash on events without resource info", %{recorder: recorder} do
       event = %Event{
         action: "user.logged_in",
-        actor_type: "user",
+        actor_type: :user,
         actor_label: "Jan Kowalski"
       }
 

@@ -252,7 +252,7 @@ defmodule KsefHub.PaymentRequests do
   # --- Void ---
 
   @doc "Voids a pending payment request. Only pending requests can be voided."
-  @spec void_payment_request(Ecto.UUID.t(), Ecto.UUID.t()) ::
+  @spec void_payment_request(Ecto.UUID.t(), Ecto.UUID.t(), keyword()) ::
           {:ok, PaymentRequest.t()} | {:error, :not_found | :already_voided | :already_paid}
   def void_payment_request(company_id, id, opts \\ []) do
     case get_payment_request(company_id, id) do

@@ -220,7 +220,7 @@ defmodule KsefHub.ActivityLog.Events do
       build_event("sync.completed",
         resource_type: "sync",
         company_id: company_id,
-        opts: Keyword.merge(opts, actor_type: "system", actor_label: "KSeF Sync"),
+        opts: Keyword.merge(opts, actor_type: :system, actor_label: "KSeF Sync"),
         extra_metadata: stats
       )
     )
@@ -283,7 +283,7 @@ defmodule KsefHub.ActivityLog.Events do
       resource_id: stringify(Keyword.get(params, :resource_id)),
       company_id: stringify(Keyword.get(params, :company_id)),
       user_id: stringify(user_id),
-      actor_type: Keyword.get(opts, :actor_type, if(user_id, do: "user", else: "system")),
+      actor_type: Event.resolve_actor_type(opts),
       actor_label: Keyword.get(opts, :actor_label),
       ip_address: Keyword.get(opts, :ip_address),
       metadata: Map.merge(caller_meta, extra)
