@@ -1424,6 +1424,64 @@ defmodule KsefHub.InvoicesTest do
       assert {:ok, %Invoice{}} =
                Invoices.create_pdf_upload_invoice(company, "pdf-data", %{type: :expense})
     end
+
+    # String type variants — covers the API path where type comes as a string from params
+    test "rejects expense (string type) when buyer NIP doesn't match", %{company: company} do
+      Mox.expect(KsefHub.InvoiceExtractor.Mock, :extract, fn _pdf, _opts ->
+        {:ok,
+         %{
+           "seller_nip" => "1234567890",
+           "seller_name" => "Seller",
+           "buyer_nip" => "9999999999",
+           "buyer_name" => "Wrong Company",
+           "invoice_number" => "FV/STR/001",
+           "issue_date" => "2026-02-20",
+           "net_amount" => "1000.00",
+           "gross_amount" => "1230.00"
+         }}
+      end)
+
+      assert {:error, :buyer_nip_mismatch} =
+               Invoices.create_pdf_upload_invoice(company, "pdf-data", %{type: "expense"})
+    end
+
+    test "accepts expense (string type) when buyer NIP not extracted", %{company: company} do
+      Mox.expect(KsefHub.InvoiceExtractor.Mock, :extract, fn _pdf, _opts ->
+        {:ok,
+         %{
+           "seller_nip" => "1234567890",
+           "seller_name" => "Seller",
+           "invoice_number" => "FV/STR/002",
+           "issue_date" => "2026-02-20",
+           "net_amount" => "1000.00",
+           "gross_amount" => "1230.00"
+         }}
+      end)
+
+      assert {:ok, %Invoice{} = invoice} =
+               Invoices.create_pdf_upload_invoice(company, "pdf-data", %{type: "expense"})
+
+      assert invoice.buyer_nip == company.nip
+    end
+
+    test "accepts expense (string type) with PL-prefixed buyer NIP", %{company: company} do
+      Mox.expect(KsefHub.InvoiceExtractor.Mock, :extract, fn _pdf, _opts ->
+        {:ok,
+         %{
+           "seller_nip" => "1234567890",
+           "seller_name" => "Seller",
+           "buyer_nip" => "PL#{company.nip}",
+           "buyer_name" => "Buyer",
+           "invoice_number" => "FV/STR/003",
+           "issue_date" => "2026-02-20",
+           "net_amount" => "1000.00",
+           "gross_amount" => "1230.00"
+         }}
+      end)
+
+      assert {:ok, %Invoice{}} =
+               Invoices.create_pdf_upload_invoice(company, "pdf-data", %{type: "expense"})
+    end
   end
 
   describe "approve_invoice/1 with extraction_status" do

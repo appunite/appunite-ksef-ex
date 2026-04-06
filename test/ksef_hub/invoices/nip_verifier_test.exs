@@ -55,9 +55,11 @@ defmodule KsefHub.Invoices.NipVerifierTest do
       assert :ok = NipVerifier.verify_for_type(extracted, @company_nip, :expense)
     end
 
-    test "returns :ok for unknown type" do
+    test "returns error for unknown type" do
       extracted = %{"buyer_nip" => "9999999999"}
-      assert :ok = NipVerifier.verify_for_type(extracted, @company_nip, :other)
+
+      assert {:error, :unknown_invoice_type} =
+               NipVerifier.verify_for_type(extracted, @company_nip, :other)
     end
 
     test "handles atom keys in extracted map" do

@@ -12,6 +12,7 @@ defmodule KsefHub.Invoices.NipVerifier do
           :ok
           | {:error, :buyer_nip_mismatch}
           | {:error, :seller_nip_mismatch}
+          | {:error, :unknown_invoice_type}
 
   @type expense_result ::
           {:ok, :expense}
@@ -29,26 +30,30 @@ defmodule KsefHub.Invoices.NipVerifier do
   def verify_for_type(_extracted, nil, _type), do: :ok
 
   def verify_for_type(extracted, company_nip, type) do
-    {nip_key, mismatch_error} =
-      case type do
-        t when t in [:expense, "expense"] -> {:buyer_nip, :buyer_nip_mismatch}
-        t when t in [:income, "income"] -> {:seller_nip, :seller_nip_mismatch}
-        _ -> {nil, nil}
-      end
+    case type_to_nip_key(type) do
+      {:ok, nip_key, mismatch_error} ->
+        extracted_nip = get_nip(extracted, nip_key) |> Nip.normalize()
+        normalized_company = Nip.normalize(company_nip)
 
-    if nip_key do
-      extracted_nip = get_nip(extracted, nip_key) |> Nip.normalize()
-      normalized_company = Nip.normalize(company_nip)
+        cond do
+          not present?(extracted_nip) -> :ok
+          extracted_nip == normalized_company -> :ok
+          true -> {:error, mismatch_error}
+        end
 
-      cond do
-        not present?(extracted_nip) -> :ok
-        extracted_nip == normalized_company -> :ok
-        true -> {:error, mismatch_error}
-      end
-    else
-      :ok
+      :error ->
+        {:error, :unknown_invoice_type}
     end
   end
+
+  @spec type_to_nip_key(atom() | String.t()) :: {:ok, atom(), atom()} | :error
+  defp type_to_nip_key(t) when t in [:expense, "expense"],
+    do: {:ok, :buyer_nip, :buyer_nip_mismatch}
+
+  defp type_to_nip_key(t) when t in [:income, "income"],
+    do: {:ok, :seller_nip, :seller_nip_mismatch}
+
+  defp type_to_nip_key(_), do: :error
 
   @doc """
   Verifies that the extracted invoice is an expense for the company.
