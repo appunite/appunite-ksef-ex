@@ -544,7 +544,7 @@ defmodule KsefHub.Invoices do
   @spec do_re_extract(Company.t(), Invoice.t(), binary()) ::
           {:ok, map()} | {:error, term()}
   defp do_re_extract(company, invoice, pdf_binary) do
-    context = ContextBuilder.build(company)
+    context = ContextBuilder.build(company, invoice.type)
     filename = invoice.original_filename || "invoice.pdf"
     invoice_extractor().extract(pdf_binary, filename: filename, context: context)
   end
@@ -872,7 +872,7 @@ defmodule KsefHub.Invoices do
     type = opts[:type]
     filename = opts[:filename]
     created_by_id = opts[:created_by_id]
-    context = ContextBuilder.build(company)
+    context = ContextBuilder.build(company, type)
 
     extract_opts = [filename: filename || "invoice.pdf", context: context]
 
