@@ -48,8 +48,8 @@ defmodule KsefHub.Invoices.NipVerifier do
 
           true ->
             Logger.warning(
-              "NIP mismatch on #{type}: extracted #{inspect(raw_nip)} " <>
-                "(normalized: #{inspect(extracted_nip)}) != company #{inspect(normalized_company)}"
+              "NIP mismatch on #{type}: extracted #{mask_nip(raw_nip)} " <>
+                "(normalized: #{mask_nip(extracted_nip)}) != company #{mask_nip(normalized_company)}"
             )
 
             {:error, mismatch_error}
@@ -98,6 +98,19 @@ defmodule KsefHub.Invoices.NipVerifier do
   @spec get_nip(map(), atom()) :: String.t() | nil
   defp get_nip(map, key) do
     Map.get(map, key) || Map.get(map, Atom.to_string(key))
+  end
+
+  @spec mask_nip(String.t() | nil) :: String.t()
+  defp mask_nip(nil), do: "nil"
+  defp mask_nip(""), do: "\"\""
+
+  defp mask_nip(value) when is_binary(value) do
+    digits = String.replace(value, ~r/[^0-9]/, "")
+
+    case String.length(digits) do
+      len when len >= 6 -> String.slice(digits, 0, 3) <> "***" <> String.slice(digits, -3, 3)
+      _ -> "***"
+    end
   end
 
   @spec present?(term()) :: boolean()
