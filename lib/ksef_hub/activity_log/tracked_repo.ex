@@ -40,12 +40,28 @@ defmodule KsefHub.ActivityLog.TrackedRepo do
   Event action and metadata are derived from `schema.track_change(changeset)`,
   or from `opts[:action]` if the schema doesn't implement `Trackable`.
   """
+  @repo_keys [
+    :on_conflict,
+    :conflict_target,
+    :returning,
+    :stale_error_field,
+    :stale_error_message,
+    :prefix,
+    :log,
+    :timeout,
+    :telemetry_event,
+    :telemetry_options,
+    :allow_stale
+  ]
+
   @spec insert(Ecto.Changeset.t(), keyword()) ::
           {:ok, Ecto.Schema.t()} | {:error, Ecto.Changeset.t()}
   def insert(changeset, opts \\ []) do
-    case Repo.insert(changeset) do
+    {repo_opts, event_opts} = Keyword.split(opts, @repo_keys)
+
+    case Repo.insert(changeset, repo_opts) do
       {:ok, struct} ->
-        maybe_emit(%{changeset | action: :insert}, struct, opts)
+        maybe_emit(%{changeset | action: :insert}, struct, event_opts)
         {:ok, struct}
 
       error ->
@@ -61,12 +77,14 @@ defmodule KsefHub.ActivityLog.TrackedRepo do
   @spec update(Ecto.Changeset.t(), keyword()) ::
           {:ok, Ecto.Schema.t()} | {:error, Ecto.Changeset.t()}
   def update(changeset, opts \\ []) do
+    {repo_opts, event_opts} = Keyword.split(opts, @repo_keys)
+
     if changeset.changes == %{} do
-      Repo.update(changeset)
+      Repo.update(changeset, repo_opts)
     else
-      case Repo.update(changeset) do
+      case Repo.update(changeset, repo_opts) do
         {:ok, struct} ->
-          maybe_emit(changeset, struct, opts)
+          maybe_emit(changeset, struct, event_opts)
           {:ok, struct}
 
         error ->
@@ -84,9 +102,11 @@ defmodule KsefHub.ActivityLog.TrackedRepo do
   @spec delete(Ecto.Schema.t(), keyword()) ::
           {:ok, Ecto.Schema.t()} | {:error, Ecto.Changeset.t()}
   def delete(struct, opts \\ []) do
-    case Repo.delete(struct) do
+    {repo_opts, event_opts} = Keyword.split(opts, @repo_keys)
+
+    case Repo.delete(struct, repo_opts) do
       {:ok, deleted} ->
-        maybe_emit_delete(deleted, opts)
+        maybe_emit_delete(deleted, event_opts)
         {:ok, deleted}
 
       error ->

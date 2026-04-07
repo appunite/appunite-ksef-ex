@@ -406,7 +406,7 @@ defmodule KsefHubWeb.PaymentRequestLive.Index do
                 <.badge variant={status_variant(pr.status)}>{pr.status}</.badge>
               </td>
               <td class="hidden lg:table-cell py-3.5 px-4">
-                <span :if={pr.paid_at} class="whitespace-nowrap text-xs">
+                <span :if={pr.paid_at} class="whitespace-nowrap">
                   <.local_datetime at={pr.paid_at} id={"pr-paid-#{pr.id}"} />
                 </span>
                 <span :if={!pr.paid_at} class="text-muted-foreground">-</span>

@@ -359,18 +359,6 @@ defmodule KsefHubWeb.InvoiceComponents do
             {@invoice.iban}
           </td>
         </tr>
-        <tr :if={@invoice.ksef_acquisition_date}>
-          <td class="py-1.5 pr-3 text-muted-foreground whitespace-nowrap">Acquired</td>
-          <td class="py-1.5 text-right">
-            {format_datetime(@invoice.ksef_acquisition_date)}
-          </td>
-        </tr>
-        <tr class="border-b border-border/50">
-          <td class="py-1.5 pr-3 text-muted-foreground whitespace-nowrap">Created</td>
-          <td class="py-1.5 text-right">
-            {format_datetime(@invoice.inserted_at)}
-          </td>
-        </tr>
       </tbody>
     </table>
     """

@@ -410,14 +410,15 @@ defmodule KsefHub.Companies do
   Creates a membership. The `user_id` and `company_id` must be provided in `attrs`
   and are set directly on the struct (not cast from user input).
   """
-  @spec create_membership(map()) :: {:ok, Membership.t()} | {:error, Ecto.Changeset.t()}
-  def create_membership(attrs) do
+  @spec create_membership(map(), keyword()) ::
+          {:ok, Membership.t()} | {:error, Ecto.Changeset.t()}
+  def create_membership(attrs, opts \\ []) do
     %Membership{
       user_id: attrs[:user_id] || attrs["user_id"],
       company_id: attrs[:company_id] || attrs["company_id"]
     }
     |> Membership.changeset(Map.take(attrs, [:role, "role"]))
-    |> Repo.insert()
+    |> TrackedRepo.insert(opts)
   end
 
   @doc """
