@@ -1039,7 +1039,7 @@ defmodule KsefHub.Invoices do
 
     case create_or_retry_duplicate(company.id, invoice_attrs, event_opts) do
       {:ok, invoice} ->
-        maybe_enqueue_prediction(extraction_status, invoice)
+        unless opts[:skip_prediction], do: maybe_enqueue_prediction(extraction_status, invoice)
         {:ok, maybe_auto_approve(company, invoice, opts)}
 
       error ->
