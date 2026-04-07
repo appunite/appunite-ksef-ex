@@ -87,22 +87,7 @@ defmodule KsefHubWeb.InvoiceLive.Index do
     invoice_ids = Enum.map(result.entries, & &1.id)
     payment_statuses = PaymentRequests.payment_statuses_for_invoices(invoice_ids)
 
-    default_statuses = MapSet.new([:pending, :approved])
-
-    statuses_count =
-      case filters[:statuses] || [] do
-        [] -> 0
-        list -> if MapSet.new(list) == default_statuses, do: 0, else: length(list)
-      end
-
-    filter_count =
-      statuses_count +
-        length(filters[:category_ids] || []) +
-        length(filters[:tags] || []) +
-        length(filters[:payment_statuses] || []) +
-        if(filters[:date_from], do: 1, else: 0) +
-        if(filters[:date_to], do: 1, else: 0) +
-        if(filters[:query] && String.trim(filters[:query]) != "", do: 1, else: 0)
+    filter_count = filter_count(filters)
 
     [
       invoices: result.entries,
@@ -116,6 +101,27 @@ defmodule KsefHubWeb.InvoiceLive.Index do
       can_create: Authorization.can?(role, :create_invoice),
       filter_count: filter_count
     ]
+  end
+
+  @spec statuses_count(map()) :: non_neg_integer()
+  defp statuses_count(filters) do
+    default_statuses = MapSet.new([:pending, :approved])
+
+    case filters[:statuses] || [] do
+      [] -> 0
+      list -> if MapSet.new(list) == default_statuses, do: 0, else: length(list)
+    end
+  end
+
+  @spec filter_count(map()) :: non_neg_integer()
+  defp filter_count(filters) do
+    statuses_count(filters) +
+      length(filters[:category_ids] || []) +
+      length(filters[:tags] || []) +
+      length(filters[:payment_statuses] || []) +
+      if(filters[:date_from], do: 1, else: 0) +
+      if(filters[:date_to], do: 1, else: 0) +
+      if(filters[:query] && String.trim(filters[:query]) != "", do: 1, else: 0)
   end
 
   @spec build_filters_form(map()) :: Phoenix.HTML.Form.t()

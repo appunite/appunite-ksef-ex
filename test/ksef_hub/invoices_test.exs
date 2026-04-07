@@ -367,6 +367,22 @@ defmodule KsefHub.InvoicesTest do
       assert is_nil(hd(result).duplicate_status)
     end
 
+    test "excludes confirmed duplicates when explicit statuses filter is an empty list", %{
+      company: company
+    } do
+      insert(:invoice, type: :expense, company: company)
+
+      insert(:invoice,
+        type: :expense,
+        company: company,
+        duplicate_status: :confirmed
+      )
+
+      result = Invoices.list_invoices(company.id, %{statuses: []})
+      assert length(result) == 1
+      assert is_nil(hd(result).duplicate_status)
+    end
+
     test "filters by date range", %{company: company} do
       insert(:invoice, issue_date: ~D[2025-01-01], company: company)
       insert(:invoice, issue_date: ~D[2025-06-15], company: company)
