@@ -26,7 +26,7 @@ defmodule KsefHub.ActivityLog do
     AuditLog
     |> where([a], a.company_id == ^company_id)
     |> where([a], a.resource_type == "invoice" and a.resource_id == ^invoice_id)
-    |> order_by([a], desc: a.inserted_at)
+    |> AuditLog.newest_first()
     |> limit(^limit)
     |> Repo.all()
   end
@@ -67,7 +67,7 @@ defmodule KsefHub.ActivityLog do
 
     entries =
       base_query
-      |> order_by([a], desc: a.inserted_at)
+      |> AuditLog.newest_first()
       |> offset(^((page - 1) * per_page))
       |> limit(^per_page)
       |> Repo.all()
@@ -96,7 +96,7 @@ defmodule KsefHub.ActivityLog do
       (a.resource_type == "invoice" and a.resource_id == ^invoice_id) or
         fragment("? ->> 'invoice_id' = ?", a.metadata, ^invoice_id)
     )
-    |> order_by([a], desc: a.inserted_at)
+    |> AuditLog.newest_first()
     |> limit(^limit)
     |> Repo.all()
   end

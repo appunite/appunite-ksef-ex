@@ -67,6 +67,44 @@ defmodule KsefHub.ActivityLogTest do
       assert NaiveDateTime.compare(first.inserted_at, second.inserted_at) in [:gt, :eq]
     end
 
+    test "orders by sequence when inserted_at is identical", %{company: company, user: user} do
+      invoice_id = Ecto.UUID.generate()
+      now = NaiveDateTime.utc_now()
+
+      first =
+        insert(:audit_log,
+          company: company,
+          user: user,
+          resource_type: "invoice",
+          resource_id: invoice_id,
+          action: "invoice.created",
+          inserted_at: now
+        )
+
+      second =
+        insert(:audit_log,
+          company: company,
+          user: user,
+          resource_type: "invoice",
+          resource_id: invoice_id,
+          action: "invoice.status_changed",
+          inserted_at: now
+        )
+
+      third =
+        insert(:audit_log,
+          company: company,
+          user: user,
+          resource_type: "invoice",
+          resource_id: invoice_id,
+          action: "invoice.category_updated",
+          inserted_at: now
+        )
+
+      entries = ActivityLog.list_for_invoice(company.id, invoice_id)
+      assert Enum.map(entries, & &1.id) == [third.id, second.id, first.id]
+    end
+
     test "respects limit option", %{company: company, user: user} do
       invoice_id = Ecto.UUID.generate()
 

@@ -26,6 +26,8 @@ defmodule KsefHub.AuditLog do
     field :actor_label, :string
     field :ip_address, :string
 
+    field :sequence, :integer, read_after_writes: true
+
     belongs_to :company, KsefHub.Companies.Company
     belongs_to :user, KsefHub.Accounts.User
 
@@ -96,6 +98,14 @@ defmodule KsefHub.AuditLog do
   end
 
   @doc """
+  Applies the canonical ordering (newest first, deterministic within same timestamp).
+  """
+  @spec newest_first(Ecto.Queryable.t()) :: Ecto.Query.t()
+  def newest_first(query) do
+    order_by(query, [a], desc: a.inserted_at, desc: a.sequence)
+  end
+
+  @doc """
   Lists recent audit log entries.
   """
   @max_limit 1000
@@ -109,7 +119,7 @@ defmodule KsefHub.AuditLog do
     clamped = min(limit, @max_limit)
 
     __MODULE__
-    |> order_by([a], desc: a.inserted_at)
+    |> newest_first()
     |> limit(^clamped)
     |> Repo.all()
   end
