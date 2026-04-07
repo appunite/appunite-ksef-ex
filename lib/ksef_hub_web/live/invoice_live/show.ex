@@ -729,7 +729,7 @@ defmodule KsefHubWeb.InvoiceLive.Show do
 
       {:error, reason} ->
         Logger.warning(
-          "Re-extraction failed for invoice #{socket.assigns.invoice.id}: #{inspect(reason)}"
+          "Re-extraction failed for invoice #{socket.assigns.invoice.id}: #{sanitize_error(reason)}"
         )
 
         {:noreply,
@@ -2256,6 +2256,23 @@ defmodule KsefHubWeb.InvoiceLive.Show do
 
   defp re_extraction_error_message(_reason),
     do: "Re-extraction failed. Please try again later."
+
+  @spec sanitize_error(term()) :: String.t()
+  defp sanitize_error(%Ecto.Changeset{} = cs),
+    do:
+      "changeset errors: #{inspect(Ecto.Changeset.traverse_errors(cs, fn {msg, _opts} -> msg end))}"
+
+  defp sanitize_error(%{__exception__: true} = exception),
+    do: Exception.message(exception)
+
+  defp sanitize_error(reason) when is_atom(reason),
+    do: Atom.to_string(reason)
+
+  defp sanitize_error(reason) when is_binary(reason),
+    do: reason
+
+  defp sanitize_error(_reason),
+    do: "unknown error"
 
   @spec dropdown_menu_class() :: String.t()
   defp dropdown_menu_class,

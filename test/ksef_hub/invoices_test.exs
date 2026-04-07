@@ -2139,7 +2139,8 @@ defmodule KsefHub.InvoicesTest do
           buyer_name: "Original Buyer",
           invoice_number: "FV/ORIG/001",
           net_amount: Decimal.new("1000.00"),
-          gross_amount: Decimal.new("1230.00")
+          gross_amount: Decimal.new("1230.00"),
+          iban: "PL61109010140000071219812874"
         )
 
       KsefHub.InvoiceExtractor.Mock
@@ -2161,6 +2162,9 @@ defmodule KsefHub.InvoicesTest do
       assert updated.invoice_number == "FV/ORIG/001"
       assert updated.net_amount == Decimal.new("1000.00")
       assert updated.gross_amount == Decimal.new("1230.00")
+
+      # IBAN preserved when extractor omits bank_iban entirely
+      assert updated.iban == "PL61109010140000071219812874"
 
       # Extraction status recalculated from the new extraction result (partial),
       # not from the merged invoice state
@@ -2270,6 +2274,43 @@ defmodule KsefHub.InvoicesTest do
       assert {:ok, updated} = Invoices.re_extract_invoice(invoice, company)
       assert updated.seller_name == "Re-extracted Seller"
       assert updated.extraction_status == :complete
+    end
+
+    test "clears stale iban when re-extraction routes bank_iban to account_number", %{
+      company: company
+    } do
+      # Invoice originally had a valid IBAN from first extraction
+      invoice =
+        insert(:pdf_upload_invoice,
+          company: company,
+          extraction_status: :complete,
+          iban: "PL61109010140000071219812874",
+          account_number: nil
+        )
+
+      # Re-extraction now returns a short non-IBAN value in bank_iban
+      KsefHub.InvoiceExtractor.Mock
+      |> expect(:extract, fn _pdf, _opts ->
+        {:ok,
+         %{
+           "seller_name" => "PT Jasa Informasi",
+           "buyer_nip" => company.nip,
+           "invoice_number" => "1/4/2026",
+           "issue_date" => "2026-04-07",
+           "net_amount" => "1000.00",
+           "gross_amount" => "1000.00",
+           "bank_iban" => "167800010537",
+           "bank_swift_bic" => "NISPIDJAXXX"
+         }}
+      end)
+
+      assert {:ok, updated} = Invoices.re_extract_invoice(invoice, company)
+
+      # Stale IBAN must be cleared, not preserved
+      assert updated.iban == nil
+      # Non-IBAN value routed to account_number
+      assert updated.account_number == "167800010537"
+      assert updated.swift_bic == "NISPIDJAXXX"
     end
   end
 

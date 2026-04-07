@@ -553,12 +553,21 @@ defmodule KsefHub.Invoices do
           {:ok, Invoice.t()} | {:error, Ecto.Changeset.t()}
   defp apply_extraction_results(invoice, extracted, company, opts) do
     extraction_status = determine_extraction_status(extracted)
+    extracted_attrs = extracted_to_invoice_attrs(extracted)
+
+    # When bank_iban was present but rejected as non-IBAN (e.g. short local
+    # account number), we must explicitly clear the iban field so a stale
+    # value from a previous extraction doesn't persist.
+    clear_iban? =
+      not is_nil(get_extracted_string(extracted, "bank_iban")) and
+        is_nil(Map.get(extracted_attrs, :iban))
 
     # For re-extraction, only overwrite fields that have non-nil extracted values.
     # This preserves manually-edited data when re-extraction returns partial results.
     attrs =
-      extracted_to_invoice_attrs(extracted)
+      extracted_attrs
       |> Map.reject(fn {_k, v} -> is_nil(v) end)
+      |> then(fn attrs -> if clear_iban?, do: Map.put(attrs, :iban, nil), else: attrs end)
       |> Map.put(:extraction_status, extraction_status)
       |> Map.put(:type, invoice.type)
       |> populate_company_fields(company)
