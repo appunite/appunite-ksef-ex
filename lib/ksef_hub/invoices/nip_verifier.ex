@@ -6,7 +6,10 @@ defmodule KsefHub.Invoices.NipVerifier do
   invoices that don't belong to the company.
   """
 
+  alias KsefHub.InvoiceExtractor.Placeholders
   alias KsefHub.Nip
+
+  require Logger
 
   @type verify_result ::
           :ok
@@ -32,13 +35,24 @@ defmodule KsefHub.Invoices.NipVerifier do
   def verify_for_type(extracted, company_nip, type) do
     case type_to_nip_key(type) do
       {:ok, nip_key, mismatch_error} ->
-        extracted_nip = get_nip(extracted, nip_key) |> Nip.normalize()
+        raw_nip = get_nip(extracted, nip_key)
+        extracted_nip = Nip.normalize(raw_nip)
         normalized_company = Nip.normalize(company_nip)
 
         cond do
-          not present?(extracted_nip) -> :ok
-          extracted_nip == normalized_company -> :ok
-          true -> {:error, mismatch_error}
+          not present?(extracted_nip) ->
+            :ok
+
+          extracted_nip == normalized_company ->
+            :ok
+
+          true ->
+            Logger.warning(
+              "NIP mismatch on #{type}: extracted #{inspect(raw_nip)} " <>
+                "(normalized: #{inspect(extracted_nip)}) != company #{inspect(normalized_company)}"
+            )
+
+            {:error, mismatch_error}
         end
 
       :error ->
@@ -89,5 +103,11 @@ defmodule KsefHub.Invoices.NipVerifier do
   @spec present?(term()) :: boolean()
   defp present?(nil), do: false
   defp present?(""), do: false
-  defp present?(_), do: true
+
+  defp present?(value) when is_binary(value) do
+    trimmed = String.trim(value)
+    trimmed != "" and not Placeholders.placeholder?(trimmed)
+  end
+
+  defp present?(_), do: false
 end
