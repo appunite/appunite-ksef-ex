@@ -35,6 +35,8 @@ defmodule KsefHub.AuditLog do
   @doc "Builds a changeset for an audit log entry."
   @spec changeset(t(), map()) :: Ecto.Changeset.t()
   def changeset(audit_log, attrs) do
+    attrs = normalize_metadata_keys(attrs)
+
     audit_log
     |> cast(attrs, [
       :action,
@@ -50,6 +52,27 @@ defmodule KsefHub.AuditLog do
     |> validate_required([:action])
     |> foreign_key_constraint(:user_id)
     |> foreign_key_constraint(:company_id)
+  end
+
+  # Ensure metadata map always has string keys so rendering can use
+  # metadata["key"] consistently — regardless of whether the entry was
+  # loaded from the DB (string keys via JSON) or broadcast in real-time
+  # via PubSub (atom keys from track_change).
+  @spec normalize_metadata_keys(map()) :: map()
+  defp normalize_metadata_keys(attrs) do
+    meta = Map.get(attrs, :metadata) || Map.get(attrs, "metadata")
+
+    case meta do
+      meta when is_map(meta) and meta != %{} ->
+        normalized = Map.new(meta, fn {k, v} -> {to_string(k), v} end)
+
+        attrs
+        |> Map.put(:metadata, normalized)
+        |> Map.delete("metadata")
+
+      _ ->
+        attrs
+    end
   end
 
   @doc """

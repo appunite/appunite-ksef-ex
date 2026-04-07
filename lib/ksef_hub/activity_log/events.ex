@@ -286,7 +286,7 @@ defmodule KsefHub.ActivityLog.Events do
       actor_type: Event.resolve_actor_type(opts),
       actor_label: Keyword.get(opts, :actor_label),
       ip_address: Keyword.get(opts, :ip_address),
-      metadata: Map.merge(caller_meta, extra)
+      metadata: Map.merge(caller_meta, extra) |> stringify_keys()
     }
   end
 
@@ -299,4 +299,9 @@ defmodule KsefHub.ActivityLog.Events do
   defp stringify(nil), do: nil
   defp stringify(val) when is_binary(val), do: val
   defp stringify(val), do: to_string(val)
+
+  @spec stringify_keys(map()) :: map()
+  defp stringify_keys(map) when is_map(map) do
+    Map.new(map, fn {k, v} -> {to_string(k), v} end)
+  end
 end

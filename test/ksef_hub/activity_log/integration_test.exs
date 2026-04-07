@@ -38,7 +38,7 @@ defmodule KsefHub.ActivityLog.IntegrationTest do
                        %Event{
                          action: "invoice.status_changed",
                          resource_type: "invoice",
-                         metadata: %{old_status: "pending", new_status: "approved"}
+                         metadata: %{"old_status" => "pending", "new_status" => "approved"}
                        }}
     end
 
@@ -51,7 +51,7 @@ defmodule KsefHub.ActivityLog.IntegrationTest do
       assert_received {:activity_event,
                        %Event{
                          action: "invoice.status_changed",
-                         metadata: %{new_status: "rejected"}
+                         metadata: %{"new_status" => "rejected"}
                        }}
     end
 
@@ -63,7 +63,7 @@ defmodule KsefHub.ActivityLog.IntegrationTest do
       assert_received {:activity_event,
                        %Event{
                          action: "invoice.status_changed",
-                         metadata: %{old_status: "approved", new_status: "pending"}
+                         metadata: %{"old_status" => "approved", "new_status" => "pending"}
                        }}
     end
   end
@@ -204,7 +204,7 @@ defmodule KsefHub.ActivityLog.IntegrationTest do
       assert_received {:activity_event,
                        %Event{
                          action: "bank_account.created",
-                         metadata: %{label: "Main", currency: "PLN"}
+                         metadata: %{"label" => "Main", "currency" => "PLN"}
                        }}
     end
 
@@ -254,7 +254,7 @@ defmodule KsefHub.ActivityLog.IntegrationTest do
                        %Event{
                          action: "api_token.generated",
                          resource_type: "api_token",
-                         metadata: %{token_name: ^token_name}
+                         metadata: %{"token_name" => ^token_name}
                        }}
     end
 
@@ -308,7 +308,7 @@ defmodule KsefHub.ActivityLog.IntegrationTest do
       assert_received {:activity_event,
                        %Event{
                          action: "invoice.access_granted",
-                         metadata: %{grantee_user_id: ^reviewer_id}
+                         metadata: %{"grantee_user_id" => ^reviewer_id}
                        }}
     end
 
@@ -333,7 +333,7 @@ defmodule KsefHub.ActivityLog.IntegrationTest do
       assert_received {:activity_event,
                        %Event{
                          action: "invoice.access_revoked",
-                         metadata: %{revoked_user_id: ^reviewer_id}
+                         metadata: %{"revoked_user_id" => ^reviewer_id}
                        }}
     end
   end
@@ -351,7 +351,7 @@ defmodule KsefHub.ActivityLog.IntegrationTest do
       assert_received {:activity_event,
                        %Event{
                          action: "team.member_removed",
-                         metadata: %{member_user_id: ^other_user_id}
+                         metadata: %{"member_user_id" => ^other_user_id}
                        }}
     end
   end
@@ -368,7 +368,7 @@ defmodule KsefHub.ActivityLog.IntegrationTest do
                        %Event{
                          action: "team.invitation_sent",
                          resource_type: "invitation",
-                         metadata: %{email: "newhire@example.com", role: "accountant"}
+                         metadata: %{"email" => "newhire@example.com", "role" => "accountant"}
                        }}
     end
 
@@ -390,7 +390,7 @@ defmodule KsefHub.ActivityLog.IntegrationTest do
                        %Event{
                          action: "team.invitation_accepted",
                          user_id: ^accepter_id,
-                         metadata: %{email: "joiner@example.com"}
+                         metadata: %{"email" => "joiner@example.com"}
                        }}
     end
   end
@@ -420,14 +420,32 @@ defmodule KsefHub.ActivityLog.IntegrationTest do
                        %Event{
                          action: "invoice.created",
                          actor_label: ^user_label,
-                         metadata: %{source: "manual"}
+                         metadata: %{"source" => "manual"}
                        }}
     end
   end
 
   describe "classification changes emit events" do
-    test "set_invoice_category emits classification_changed", %{company: company} do
-      category = insert(:category, company: company)
+    test "set_invoice_category emits classification_changed with names", %{company: company} do
+      old_cat = insert(:category, company: company, name: "Operations")
+      new_cat = insert(:category, company: company, name: "Growth")
+      invoice = insert(:invoice, company: company, type: :expense, category: old_cat)
+
+      {:ok, _updated} = Invoices.set_invoice_category(invoice, new_cat.id)
+
+      assert_received {:activity_event,
+                       %Event{
+                         action: "invoice.classification_changed",
+                         metadata: %{
+                           "field" => "category",
+                           "old_name" => "Operations",
+                           "new_name" => "Growth"
+                         }
+                       }}
+    end
+
+    test "set_invoice_category with nil old category includes nil old_name", %{company: company} do
+      category = insert(:category, company: company, name: "Payroll")
       invoice = insert(:invoice, company: company, type: :expense, category: nil)
 
       {:ok, _updated} = Invoices.set_invoice_category(invoice, category.id)
@@ -435,7 +453,28 @@ defmodule KsefHub.ActivityLog.IntegrationTest do
       assert_received {:activity_event,
                        %Event{
                          action: "invoice.classification_changed",
-                         metadata: %{field: "category"}
+                         metadata: %{
+                           "field" => "category",
+                           "old_name" => nil,
+                           "new_name" => "Payroll"
+                         }
+                       }}
+    end
+
+    test "clearing category includes old_name and nil new_name", %{company: company} do
+      category = insert(:category, company: company, name: "Marketing")
+      invoice = insert(:invoice, company: company, type: :expense, category: category)
+
+      {:ok, _updated} = Invoices.set_invoice_category(invoice, nil)
+
+      assert_received {:activity_event,
+                       %Event{
+                         action: "invoice.classification_changed",
+                         metadata: %{
+                           "field" => "category",
+                           "old_name" => "Marketing",
+                           "new_name" => nil
+                         }
                        }}
     end
 
@@ -447,7 +486,7 @@ defmodule KsefHub.ActivityLog.IntegrationTest do
       assert_received {:activity_event,
                        %Event{
                          action: "invoice.classification_changed",
-                         metadata: %{field: "tags"}
+                         metadata: %{"field" => "tags"}
                        }}
     end
 
@@ -459,7 +498,7 @@ defmodule KsefHub.ActivityLog.IntegrationTest do
       assert_received {:activity_event,
                        %Event{
                          action: "invoice.classification_changed",
-                         metadata: %{field: "cost_line"}
+                         metadata: %{"field" => "cost_line"}
                        }}
     end
 
@@ -471,7 +510,7 @@ defmodule KsefHub.ActivityLog.IntegrationTest do
       assert_received {:activity_event,
                        %Event{
                          action: "invoice.classification_changed",
-                         metadata: %{field: "project_tag"}
+                         metadata: %{"field" => "project_tag"}
                        }}
     end
   end

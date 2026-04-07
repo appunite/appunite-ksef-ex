@@ -1819,17 +1819,25 @@ defmodule KsefHub.Invoices do
     do: {:error, :expense_only}
 
   def set_invoice_category(%Invoice{} = invoice, nil, opts) do
+    old_name = current_category_name(invoice)
+    existing_meta = Keyword.get(opts, :metadata, %{})
+    merged_meta = Map.merge(existing_meta, %{old_name: old_name, new_name: nil})
+
     invoice
     |> Invoice.category_changeset(%{category_id: nil})
-    |> TrackedRepo.update(opts)
+    |> TrackedRepo.update(Keyword.put(opts, :metadata, merged_meta))
   end
 
   def set_invoice_category(%Invoice{} = invoice, category_id, opts) do
     with %Category{} = category <- fetch_company_category(invoice.company_id, category_id),
          attrs <- build_category_attrs(category_id, category) do
+      old_name = current_category_name(invoice)
+      existing_meta = Keyword.get(opts, :metadata, %{})
+      merged_meta = Map.merge(existing_meta, %{old_name: old_name, new_name: category.name})
+
       invoice
       |> Invoice.category_changeset(attrs)
-      |> TrackedRepo.update(opts)
+      |> TrackedRepo.update(Keyword.put(opts, :metadata, merged_meta))
     else
       nil -> {:error, :category_not_in_company}
     end
@@ -2215,6 +2223,15 @@ defmodule KsefHub.Invoices do
     |> where([c], c.id == ^category_id and c.company_id == ^company_id)
     |> Repo.one()
   end
+
+  @spec current_category_name(Invoice.t()) :: String.t() | nil
+  defp current_category_name(%Invoice{category: %Category{name: name}}), do: name
+
+  defp current_category_name(%Invoice{category_id: id}) when is_binary(id) do
+    Category |> where([c], c.id == ^id) |> select([c], c.name) |> Repo.one()
+  end
+
+  defp current_category_name(_invoice), do: nil
 
   @spec build_category_attrs(Ecto.UUID.t(), Category.t()) :: map()
   defp build_category_attrs(category_id, category) do

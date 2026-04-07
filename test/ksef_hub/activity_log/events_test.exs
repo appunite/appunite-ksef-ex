@@ -39,7 +39,7 @@ defmodule KsefHub.ActivityLog.EventsTest do
       assert_received {:activity_event,
                        %Event{
                          action: "invoice.comment_added",
-                         metadata: %{comment_id: ^comment_id}
+                         metadata: %{"comment_id" => ^comment_id}
                        }}
     end
 
@@ -88,7 +88,7 @@ defmodule KsefHub.ActivityLog.EventsTest do
                          action: "sync.completed",
                          actor_type: :system,
                          actor_label: "KSeF Sync",
-                         metadata: %{income: 5}
+                         metadata: %{"income" => 5}
                        }}
     end
 
@@ -148,7 +148,7 @@ defmodule KsefHub.ActivityLog.EventsTest do
                        %Event{
                          action: "invoice.access_granted",
                          resource_type: "invoice",
-                         metadata: %{grantee_user_id: ^grantee_id}
+                         metadata: %{"grantee_user_id" => ^grantee_id}
                        }}
     end
 
@@ -164,7 +164,7 @@ defmodule KsefHub.ActivityLog.EventsTest do
       assert_received {:activity_event,
                        %Event{
                          action: "invoice.access_revoked",
-                         metadata: %{revoked_user_id: ^revoked_id}
+                         metadata: %{"revoked_user_id" => ^revoked_id}
                        }}
     end
   end
@@ -179,7 +179,7 @@ defmodule KsefHub.ActivityLog.EventsTest do
                        %Event{
                          action: "invoice.downloaded",
                          resource_type: "invoice",
-                         metadata: %{format: "pdf"}
+                         metadata: %{"format" => "pdf"}
                        }}
     end
 
@@ -196,7 +196,7 @@ defmodule KsefHub.ActivityLog.EventsTest do
                          action: "invoice.downloaded",
                          actor_type: :api,
                          actor_label: "API: My Token",
-                         metadata: %{format: "xml"}
+                         metadata: %{"format" => "xml"}
                        }}
     end
   end
@@ -229,7 +229,7 @@ defmodule KsefHub.ActivityLog.EventsTest do
                        %Event{
                          action: "team.invitation_sent",
                          resource_type: "invitation",
-                         metadata: %{email: "new@example.com", role: "accountant"}
+                         metadata: %{"email" => "new@example.com", "role" => "accountant"}
                        }}
     end
 
@@ -252,7 +252,7 @@ defmodule KsefHub.ActivityLog.EventsTest do
                          action: "team.invitation_accepted",
                          user_id: ^user_id,
                          actor_label: "Accepter",
-                         metadata: %{email: "accepter@example.com", role: "reviewer"}
+                         metadata: %{"email" => "accepter@example.com", "role" => "reviewer"}
                        }}
     end
   end

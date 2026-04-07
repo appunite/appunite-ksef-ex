@@ -110,8 +110,11 @@ defmodule KsefHub.ActivityLog.TrackedRepo do
       end
 
     case event_info do
-      {action, metadata} -> emit_event(action, struct, opts, metadata)
-      :skip -> :ok
+      {action, metadata} ->
+        emit_event(action, struct, opts, merge_caller_metadata(metadata, opts))
+
+      :skip ->
+        :ok
     end
   end
 
@@ -127,9 +130,33 @@ defmodule KsefHub.ActivityLog.TrackedRepo do
       end
 
     case event_info do
-      {action, metadata} -> emit_event(action, struct, opts, metadata)
-      :skip -> :ok
+      {action, metadata} ->
+        emit_event(action, struct, opts, merge_caller_metadata(metadata, opts))
+
+      :skip ->
+        :ok
     end
+  end
+
+  # Merges any extra metadata passed via opts[:metadata] into the
+  # Trackable-derived metadata. This lets context functions enrich
+  # events with information the schema doesn't have (e.g. category names).
+  # Both maps are normalized to string keys before merging to prevent
+  # atom/string key coexistence.
+  @spec merge_caller_metadata(map(), keyword()) :: map()
+  defp merge_caller_metadata(metadata, opts) do
+    case Keyword.get(opts, :metadata) do
+      extra when is_map(extra) and extra != %{} ->
+        Map.merge(stringify_keys(metadata), stringify_keys(extra))
+
+      _ ->
+        stringify_keys(metadata)
+    end
+  end
+
+  @spec stringify_keys(map()) :: map()
+  defp stringify_keys(map) when is_map(map) do
+    Map.new(map, fn {k, v} -> {to_string(k), v} end)
   end
 
   @spec explicit_event(keyword()) :: {String.t(), map()} | :skip
