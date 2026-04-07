@@ -558,9 +558,15 @@ defmodule KsefHub.Invoices do
     # When bank_iban was present but rejected as non-IBAN (e.g. short local
     # account number), we must explicitly clear the iban field so a stale
     # value from a previous extraction doesn't persist.
+    # However, values that look like truncated IBANs (start with a country
+    # prefix like "PL") should NOT trigger clearing — they're partial IBANs,
+    # not a signal that the account is non-IBAN.
+    raw_bank_iban = get_extracted_string(extracted, "bank_iban")
+
     clear_iban? =
-      not is_nil(get_extracted_string(extracted, "bank_iban")) and
-        is_nil(Map.get(extracted_attrs, :iban))
+      not is_nil(raw_bank_iban) and
+        is_nil(Map.get(extracted_attrs, :iban)) and
+        not iban_candidate?(raw_bank_iban)
 
     # For re-extraction, only overwrite fields that have non-nil extracted values.
     # This preserves manually-edited data when re-extraction returns partial results.
@@ -1228,9 +1234,15 @@ defmodule KsefHub.Invoices do
 
   # Returns the raw bank_iban value when it was rejected as non-IBAN
   # (i.e. extract_iban returned nil), so it can populate account_number.
+  # Values that look like truncated IBANs (start with a country prefix)
+  # are NOT demoted — they're partial IBANs, not local account numbers.
   @spec non_iban_fallback(map(), String.t() | nil) :: String.t() | nil
   defp non_iban_fallback(_extracted, iban) when not is_nil(iban), do: nil
-  defp non_iban_fallback(extracted, nil), do: get_extracted_string(extracted, "bank_iban")
+
+  defp non_iban_fallback(extracted, nil) do
+    raw = get_extracted_string(extracted, "bank_iban")
+    if iban_candidate?(raw), do: nil, else: raw
+  end
 
   # Extracts and normalizes IBAN from the extracted data.
   # Returns nil when the value is shorter than 15 chars (minimum IBAN length),
@@ -1245,6 +1257,15 @@ defmodule KsefHub.Invoices do
 
   # IBANs are 15-34 characters. Values shorter than 15 chars are local
   # account numbers (e.g. Indonesian) that don't belong in the IBAN field.
+  # Matches values that start with a 2-letter country code followed by digits,
+  # indicating the value is a (possibly truncated) IBAN rather than a local
+  # account number. Used to avoid demoting partial IBANs to account_number.
+  @iban_prefix_pattern ~r/^[A-Za-z]{2}\d/
+
+  @spec iban_candidate?(String.t() | nil) :: boolean()
+  defp iban_candidate?(nil), do: false
+  defp iban_candidate?(value), do: Regex.match?(@iban_prefix_pattern, String.trim(value))
+
   @iban_min_length 15
 
   @spec normalize_iban(String.t()) :: String.t() | nil
