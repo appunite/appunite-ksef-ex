@@ -214,7 +214,10 @@ defmodule KsefHubWeb.InvoiceLive.IndexTest do
       |> element("form[phx-change=filter]")
       |> render_change(%{"filters" => %{"date_from" => "2026-01-01"}})
 
-      assert_patched(view, "/c/#{company.id}/invoices?date_from=2026-01-01&type=expense")
+      assert_patched(
+        view,
+        "/c/#{company.id}/invoices?date_from=2026-01-01&statuses=pending%2Capproved&type=expense"
+      )
     end
 
     test "clear_filters preserves type param", %{conn: conn, company: company} do
@@ -405,7 +408,10 @@ defmodule KsefHubWeb.InvoiceLive.IndexTest do
       |> render_change(%{"filters" => %{"date_from" => "2020-01-01"}})
 
       # Should not include page param (defaults to page 1)
-      assert_patched(view, "/c/#{company.id}/invoices?date_from=2020-01-01&type=expense")
+      assert_patched(
+        view,
+        "/c/#{company.id}/invoices?date_from=2020-01-01&statuses=pending%2Capproved&type=expense"
+      )
     end
   end
 
