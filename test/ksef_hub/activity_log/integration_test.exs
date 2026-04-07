@@ -453,7 +453,11 @@ defmodule KsefHub.ActivityLog.IntegrationTest do
       assert_received {:activity_event,
                        %Event{
                          action: "invoice.classification_changed",
-                         metadata: %{"field" => "category", "old_name" => nil, "new_name" => "Payroll"}
+                         metadata: %{
+                           "field" => "category",
+                           "old_name" => nil,
+                           "new_name" => "Payroll"
+                         }
                        }}
     end
 
@@ -466,7 +470,11 @@ defmodule KsefHub.ActivityLog.IntegrationTest do
       assert_received {:activity_event,
                        %Event{
                          action: "invoice.classification_changed",
-                         metadata: %{"field" => "category", "old_name" => "Marketing", "new_name" => nil}
+                         metadata: %{
+                           "field" => "category",
+                           "old_name" => "Marketing",
+                           "new_name" => nil
+                         }
                        }}
     end
 
