@@ -308,7 +308,7 @@ defmodule KsefHub.ActivityLog.IntegrationTest do
       assert_received {:activity_event,
                        %Event{
                          action: "invoice.access_granted",
-                         metadata: %{grantee_user_id: ^reviewer_id}
+                         metadata: %{"grantee_user_id" => ^reviewer_id}
                        }}
     end
 
@@ -333,7 +333,7 @@ defmodule KsefHub.ActivityLog.IntegrationTest do
       assert_received {:activity_event,
                        %Event{
                          action: "invoice.access_revoked",
-                         metadata: %{revoked_user_id: ^reviewer_id}
+                         metadata: %{"revoked_user_id" => ^reviewer_id}
                        }}
     end
   end
@@ -368,7 +368,7 @@ defmodule KsefHub.ActivityLog.IntegrationTest do
                        %Event{
                          action: "team.invitation_sent",
                          resource_type: "invitation",
-                         metadata: %{email: "newhire@example.com", role: "accountant"}
+                         metadata: %{"email" => "newhire@example.com", "role" => "accountant"}
                        }}
     end
 
@@ -390,7 +390,7 @@ defmodule KsefHub.ActivityLog.IntegrationTest do
                        %Event{
                          action: "team.invitation_accepted",
                          user_id: ^accepter_id,
-                         metadata: %{email: "joiner@example.com"}
+                         metadata: %{"email" => "joiner@example.com"}
                        }}
     end
   end
