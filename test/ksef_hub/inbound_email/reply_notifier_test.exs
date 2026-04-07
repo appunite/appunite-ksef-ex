@@ -7,21 +7,135 @@ defmodule KsefHub.InboundEmail.ReplyNotifierTest do
 
   @sender "user@appunite.com"
 
-  describe "success/3" do
-    test "builds email for successful invoice creation" do
-      invoice = %{
-        id: "abc-123",
-        company_id: "company-456",
-        invoice_number: "FV/2026/001",
-        seller_name: "Seller Sp. z o.o."
-      }
+  @full_invoice %{
+    id: "abc-123",
+    company_id: "company-456",
+    invoice_number: "FV/2026/001",
+    seller_name: "Seller Sp. z o.o.",
+    seller_nip: "1234567890",
+    buyer_name: "Buyer Corp",
+    buyer_nip: "9876543210",
+    gross_amount: Decimal.new("1234.56"),
+    currency: "EUR",
+    billing_date_from: ~D[2026-03-01],
+    billing_date_to: ~D[2026-03-01],
+    category: %{name: "Office Supplies", emoji: "📎"},
+    tags: ["recurring", "monthly"],
+    prediction_category_name: "Office Supplies",
+    prediction_category_confidence: 0.92,
+    prediction_tag_name: "recurring",
+    prediction_tag_confidence: 0.85
+  }
 
-      email = ReplyNotifier.success(@sender, invoice)
+  describe "success/3" do
+    test "builds email with full invoice details" do
+      email = ReplyNotifier.success(@sender, @full_invoice)
       assert email.to == [{@sender, @sender}]
       assert email.subject =~ "FV/2026/001"
       assert email.text_body =~ "added and is ready"
-      assert email.text_body =~ "FV/2026/001"
+
+      # Invoice details
+      assert email.text_body =~ "Invoice number: FV/2026/001"
+      assert email.text_body =~ "Seller: Seller Sp. z o.o. (NIP: 1234567890)"
+      assert email.text_body =~ "Buyer: Buyer Corp (NIP: 9876543210)"
+      assert email.text_body =~ "Amount: 1234.56 EUR"
+      assert email.text_body =~ "Billing period: 2026-03-01 — 2026-03-01"
+      assert email.text_body =~ "Category: 📎 Office Supplies (92% confidence)"
+      assert email.text_body =~ "Tags: recurring, monthly"
+
+      # URL
       assert email.text_body =~ "/c/company-456/invoices/abc-123"
+    end
+
+    test "omits nil fields from details" do
+      invoice = %{
+        id: "abc",
+        company_id: "c1",
+        invoice_number: "FV/1",
+        seller_name: "Seller",
+        seller_nip: nil,
+        buyer_name: nil,
+        buyer_nip: nil,
+        gross_amount: nil,
+        currency: nil,
+        billing_date_from: nil,
+        billing_date_to: nil,
+        category: nil,
+        tags: [],
+        prediction_category_name: nil,
+        prediction_category_confidence: nil,
+        prediction_tag_name: nil,
+        prediction_tag_confidence: nil
+      }
+
+      email = ReplyNotifier.success(@sender, invoice)
+      assert email.text_body =~ "Invoice number: FV/1"
+      assert email.text_body =~ "Seller: Seller"
+      refute email.text_body =~ "Buyer:"
+      refute email.text_body =~ "Amount:"
+      refute email.text_body =~ "Billing period:"
+      refute email.text_body =~ "Category:"
+      refute email.text_body =~ "Tags:"
+    end
+
+    test "falls back to prediction_category_name when category not preloaded" do
+      invoice = %{
+        id: "abc",
+        company_id: "c1",
+        invoice_number: nil,
+        seller_name: nil,
+        seller_nip: nil,
+        buyer_name: nil,
+        buyer_nip: nil,
+        gross_amount: nil,
+        currency: nil,
+        billing_date_from: nil,
+        billing_date_to: nil,
+        category: nil,
+        tags: [],
+        prediction_category_name: "Travel",
+        prediction_category_confidence: nil,
+        prediction_tag_name: "one-time",
+        prediction_tag_confidence: 0.78
+      }
+
+      email = ReplyNotifier.success(@sender, invoice)
+      # Category without confidence (nil confidence)
+      assert email.text_body =~ "Category: Travel"
+      refute email.text_body =~ "Category: Travel ("
+      # Falls back to prediction tag when tags list is empty
+      assert email.text_body =~ "Tags: one-time (78% confidence)"
+    end
+
+    test "formats amount with default PLN when currency is nil" do
+      invoice = %{
+        id: "abc",
+        company_id: "c1",
+        invoice_number: nil,
+        seller_name: nil,
+        seller_nip: nil,
+        buyer_name: nil,
+        buyer_nip: nil,
+        gross_amount: Decimal.new("500.00"),
+        currency: nil,
+        billing_date_from: nil,
+        billing_date_to: nil,
+        category: nil,
+        tags: [],
+        prediction_category_name: nil,
+        prediction_category_confidence: nil,
+        prediction_tag_name: nil,
+        prediction_tag_confidence: nil
+      }
+
+      email = ReplyNotifier.success(@sender, invoice)
+      assert email.text_body =~ "Amount: 500.00 PLN"
+    end
+
+    test "works with map lacking optional keys" do
+      invoice = %{id: "abc", company_id: "c1"}
+      email = ReplyNotifier.success(@sender, invoice)
+      assert email.text_body =~ "added and is ready"
     end
 
     test "includes CC when configured as list of tuples" do
@@ -91,11 +205,65 @@ defmodule KsefHub.InboundEmail.ReplyNotifierTest do
   end
 
   describe "needs_review/3" do
-    test "builds email for needs-review invoice" do
+    test "builds email for needs-review invoice with extracted details" do
+      invoice = %{
+        id: "abc-123",
+        company_id: "company-456",
+        invoice_number: "FV/2026/005",
+        seller_name: "Vendor LLC",
+        seller_nip: "5555555555",
+        buyer_name: nil,
+        buyer_nip: nil,
+        gross_amount: nil,
+        currency: nil,
+        billing_date_from: nil,
+        billing_date_to: nil,
+        category: nil,
+        tags: [],
+        prediction_category_name: nil,
+        prediction_category_confidence: nil,
+        prediction_tag_name: nil,
+        prediction_tag_confidence: nil
+      }
+
+      email = ReplyNotifier.needs_review(@sender, invoice)
+      assert email.text_body =~ "needs human review"
+      assert email.text_body =~ "Invoice number: FV/2026/005"
+      assert email.text_body =~ "Seller: Vendor LLC (NIP: 5555555555)"
+      assert email.text_body =~ "Missing fields: buyer, amount"
+      assert email.text_body =~ "/c/company-456/invoices/abc-123"
+    end
+
+    test "no missing fields section when all required fields present" do
+      invoice = %{
+        id: "abc-123",
+        company_id: "company-456",
+        invoice_number: "FV/1",
+        seller_name: "Seller",
+        seller_nip: nil,
+        buyer_name: "Buyer",
+        buyer_nip: nil,
+        gross_amount: Decimal.new("100"),
+        currency: "PLN",
+        billing_date_from: nil,
+        billing_date_to: nil,
+        category: nil,
+        tags: [],
+        prediction_category_name: nil,
+        prediction_category_confidence: nil,
+        prediction_tag_name: nil,
+        prediction_tag_confidence: nil
+      }
+
+      email = ReplyNotifier.needs_review(@sender, invoice)
+      refute email.text_body =~ "Missing fields"
+    end
+
+    test "works with minimal map" do
       invoice = %{id: "abc-123", company_id: "company-456"}
       email = ReplyNotifier.needs_review(@sender, invoice)
       assert email.text_body =~ "needs human review"
-      assert email.text_body =~ "/c/company-456/invoices/abc-123"
+      assert email.text_body =~ "Missing fields: invoice number, seller, buyer, amount"
     end
   end
 

@@ -12,7 +12,8 @@ defmodule KsefHub.InboundEmail.InboundEmailWorker do
 
   alias KsefHub.Companies
   alias KsefHub.InboundEmail
-  alias KsefHub.InboundEmail.{CcParser, NipVerifier, ReplyNotifier}
+  alias KsefHub.InboundEmail.{CcParser, EmailReplyWorker, NipVerifier, ReplyNotifier}
+  alias KsefHub.InvoiceClassifier.Worker, as: ClassifierWorker
   alias KsefHub.InvoiceExtractor.ContextBuilder
   alias KsefHub.Invoices
 
@@ -123,7 +124,11 @@ defmodule KsefHub.InboundEmail.InboundEmailWorker do
   end
 
   defp create_and_notify(record, company, extracted, reply_type) do
-    create_opts = [filename: record.original_filename, sender_email: record.sender]
+    create_opts = [
+      filename: record.original_filename,
+      sender_email: record.sender,
+      skip_prediction: true
+    ]
 
     case Invoices.create_email_invoice(
            company.id,
@@ -152,8 +157,8 @@ defmodule KsefHub.InboundEmail.InboundEmailWorker do
       record.id
     )
 
-    opts = reply_opts(company, record)
-    send_reply(build_reply(reply_type, record.sender, invoice, company, opts), record)
+    reply_args = reply_worker_args(record, company, invoice, reply_type)
+    enqueue_classification_chain(invoice, reply_type, reply_args)
     :ok
   end
 
@@ -165,7 +170,11 @@ defmodule KsefHub.InboundEmail.InboundEmailWorker do
           reply_type()
         ) :: :ok
   defp fallback_create_and_notify(record, company, original_reason, reply_type) do
-    create_opts = [filename: record.original_filename, sender_email: record.sender]
+    create_opts = [
+      filename: record.original_filename,
+      sender_email: record.sender,
+      skip_prediction: true
+    ]
 
     case Invoices.create_email_invoice(
            company.id,
@@ -179,14 +188,10 @@ defmodule KsefHub.InboundEmail.InboundEmailWorker do
           record.id
         )
 
-        fallback_reply_type = fallback_reply_type(reply_type)
-        opts = reply_opts(company, record)
-
-        send_reply(
-          build_reply(fallback_reply_type, record.sender, invoice, company, opts),
-          record
-        )
-
+        fallback_type = fallback_reply_type(reply_type)
+        reply_args = reply_worker_args(record, company, invoice, fallback_type)
+        # No classification for failed extraction — send reply directly
+        enqueue_reply(reply_args)
         :ok
 
       {:error, fallback_reason} ->
@@ -206,25 +211,71 @@ defmodule KsefHub.InboundEmail.InboundEmailWorker do
     end
   end
 
-  @spec build_reply(
-          reply_type(),
-          String.t(),
-          Invoices.Invoice.t(),
-          Companies.Company.t(),
-          keyword()
-        ) ::
-          Swoosh.Email.t()
-  defp build_reply(:success, sender, invoice, _company, opts),
-    do: ReplyNotifier.success(sender, invoice, opts)
-
-  defp build_reply(:needs_review, sender, invoice, _company, opts),
-    do: ReplyNotifier.needs_review(sender, invoice, opts)
-
   # When fallback creates an invoice with :extraction_failed,
   # downgrade :success to :needs_review since extraction data was lost.
   @spec fallback_reply_type(reply_type()) :: reply_type()
   defp fallback_reply_type(:success), do: :needs_review
   defp fallback_reply_type(other), do: other
+
+  @spec reply_worker_args(
+          InboundEmail.InboundEmail.t(),
+          Companies.Company.t(),
+          Invoices.Invoice.t(),
+          reply_type()
+        ) :: map()
+  defp reply_worker_args(record, company, invoice, reply_type) do
+    %{
+      inbound_email_id: record.id,
+      company_id: company.id,
+      invoice_id: invoice.id,
+      reply_type: Atom.to_string(reply_type)
+    }
+  end
+
+  # For complete extraction: chain ClassifierWorker → EmailReplyWorker.
+  # For partial/failed extraction: send reply directly (no classification).
+  @spec enqueue_classification_chain(Invoices.Invoice.t(), reply_type(), map()) :: :ok
+  defp enqueue_classification_chain(invoice, :success, reply_args) do
+    on_complete = %{
+      worker: "KsefHub.InboundEmail.EmailReplyWorker",
+      args: reply_args
+    }
+
+    case ClassifierWorker.maybe_enqueue(invoice, on_complete: on_complete) do
+      {:ok, _job} ->
+        :ok
+
+      :skip ->
+        # Non-expense or other skip — send reply without classification
+        enqueue_reply(reply_args)
+
+      {:error, reason} ->
+        Logger.warning(
+          "Failed to enqueue classifier for invoice #{invoice.id}: #{inspect(reason)}, sending reply directly"
+        )
+
+        enqueue_reply(reply_args)
+    end
+  end
+
+  defp enqueue_classification_chain(_invoice, _reply_type, reply_args) do
+    enqueue_reply(reply_args)
+  end
+
+  @spec enqueue_reply(map()) :: :ok
+  defp enqueue_reply(reply_args) do
+    case reply_args |> EmailReplyWorker.new() |> Oban.insert() do
+      {:ok, _job} ->
+        :ok
+
+      {:error, reason} ->
+        Logger.warning(
+          "Failed to enqueue email reply for inbound email #{reply_args.inbound_email_id}: #{inspect(reason)}"
+        )
+
+        :ok
+    end
+  end
 
   @spec send_reply(Swoosh.Email.t(), InboundEmail.InboundEmail.t()) :: :ok
   defp send_reply(email, record) do

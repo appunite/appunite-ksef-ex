@@ -3,6 +3,7 @@ defmodule KsefHub.InvoiceClassifier.WorkerTest do
 
   import KsefHub.Factory
   import Mox
+  import Swoosh.TestAssertions
 
   alias KsefHub.InvoiceClassifier.Worker
 
@@ -16,7 +17,7 @@ defmodule KsefHub.InvoiceClassifier.WorkerTest do
     %{company: company}
   end
 
-  describe "maybe_enqueue/1" do
+  describe "maybe_enqueue/2" do
     test "enqueues job for expense invoices", %{company: company} do
       invoice = insert(:manual_invoice, company: company, type: :expense)
 
@@ -24,6 +25,25 @@ defmodule KsefHub.InvoiceClassifier.WorkerTest do
       expect_successful_predictions()
 
       assert {:ok, %Oban.Job{}} = Worker.maybe_enqueue(invoice)
+    end
+
+    test "enqueues job with on_complete args", %{company: company} do
+      invoice = insert(:manual_invoice, company: company, type: :expense)
+      expect_successful_predictions()
+
+      on_complete = %{
+        worker: "KsefHub.InboundEmail.EmailReplyWorker",
+        args: %{
+          inbound_email_id: Ecto.UUID.generate(),
+          company_id: company.id,
+          invoice_id: invoice.id,
+          reply_type: "success"
+        }
+      }
+
+      # In inline mode, the chained EmailReplyWorker will also execute (and cancel
+      # because inbound_email_id doesn't exist), but the classifier succeeds.
+      assert {:ok, %Oban.Job{}} = Worker.maybe_enqueue(invoice, on_complete: on_complete)
     end
 
     test "skips income invoices", %{company: company} do
@@ -108,6 +128,93 @@ defmodule KsefHub.InvoiceClassifier.WorkerTest do
 
       job = build_job(invoice)
       assert {:error, {:request_failed, :timeout}} = Worker.perform(job)
+    end
+
+    test "enqueues on_complete worker after successful classification", %{company: company} do
+      invoice = insert(:manual_invoice, company: company, type: :expense)
+      expect_successful_predictions()
+
+      on_complete = %{
+        "worker" => "KsefHub.InboundEmail.EmailReplyWorker",
+        "args" => %{
+          "inbound_email_id" => Ecto.UUID.generate(),
+          "company_id" => company.id,
+          "invoice_id" => invoice.id,
+          "reply_type" => "success"
+        }
+      }
+
+      job = %Oban.Job{
+        args: %{
+          "invoice_id" => invoice.id,
+          "company_id" => invoice.company_id,
+          "on_complete" => on_complete
+        }
+      }
+
+      # In inline mode, the on_complete job will also execute.
+      # The EmailReplyWorker will cancel because the inbound_email_id doesn't exist,
+      # but the classifier itself should succeed.
+      assert :ok = Worker.perform(job)
+    end
+
+    test "enqueues on_complete worker on cancel (non-retryable)", %{company: company} do
+      invoice = insert(:invoice, company: company, type: :income)
+
+      on_complete = %{
+        "worker" => "KsefHub.InboundEmail.EmailReplyWorker",
+        "args" => %{
+          "inbound_email_id" => Ecto.UUID.generate(),
+          "company_id" => company.id,
+          "invoice_id" => invoice.id,
+          "reply_type" => "success"
+        }
+      }
+
+      job = %Oban.Job{
+        args: %{
+          "invoice_id" => invoice.id,
+          "company_id" => invoice.company_id,
+          "on_complete" => on_complete
+        }
+      }
+
+      # Cancelled because income, but on_complete should still fire
+      assert {:cancel, "not an expense invoice"} = Worker.perform(job)
+    end
+
+    test "does NOT enqueue on_complete on transient error", %{company: company} do
+      invoice = insert(:manual_invoice, company: company, type: :expense)
+
+      KsefHub.InvoiceClassifier.Mock
+      |> expect(:predict_category, fn _input ->
+        {:error, {:request_failed, :timeout}}
+      end)
+      |> expect(:predict_tag, fn _input ->
+        {:error, {:request_failed, :timeout}}
+      end)
+
+      on_complete = %{
+        "worker" => "KsefHub.InboundEmail.EmailReplyWorker",
+        "args" => %{
+          "inbound_email_id" => Ecto.UUID.generate(),
+          "company_id" => company.id,
+          "invoice_id" => invoice.id,
+          "reply_type" => "success"
+        }
+      }
+
+      job = %Oban.Job{
+        args: %{
+          "invoice_id" => invoice.id,
+          "company_id" => invoice.company_id,
+          "on_complete" => on_complete
+        }
+      }
+
+      assert {:error, {:request_failed, :timeout}} = Worker.perform(job)
+      # No email should be sent since the error is transient
+      refute_email_sent()
     end
   end
 

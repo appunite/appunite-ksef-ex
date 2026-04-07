@@ -14,8 +14,7 @@ defmodule KsefHub.InboundEmail.ReplyNotifier do
   @doc "Builds a success reply email for a processed invoice."
   @spec success(String.t(), KsefHub.Invoices.Invoice.t(), keyword()) :: Swoosh.Email.t()
   def success(sender, invoice, opts \\ []) do
-    invoice_number = invoice.invoice_number
-    seller_name = invoice.seller_name || ""
+    invoice_number = Map.get(invoice, :invoice_number)
 
     subject =
       if invoice_number,
@@ -26,9 +25,9 @@ defmodule KsefHub.InboundEmail.ReplyNotifier do
 
     ==============================
 
-    Expense invoice #{invoice_number || "(no number)"}#{if seller_name != "", do: " from #{seller_name}", else: ""}
-    has been added and is ready for review.
+    Expense invoice has been added and is ready for review.
 
+    #{format_invoice_details(invoice)}
     #{invoice_url(invoice)}
 
     ==============================
@@ -40,12 +39,23 @@ defmodule KsefHub.InboundEmail.ReplyNotifier do
   @doc "Builds a needs-review reply email."
   @spec needs_review(String.t(), KsefHub.Invoices.Invoice.t(), keyword()) :: Swoosh.Email.t()
   def needs_review(sender, invoice, opts \\ []) do
+    missing = missing_fields(invoice)
+
+    missing_section =
+      if missing != [] do
+        "\n    Missing fields: #{Enum.join(missing, ", ")}\n    Please review and complete manually."
+      else
+        ""
+      end
+
     body = """
 
     ==============================
 
     Your invoice was uploaded but needs human review — some fields
     could not be extracted automatically.
+
+    #{format_invoice_details(invoice)}#{missing_section}
 
     #{invoice_url(invoice)}
 
@@ -315,4 +325,123 @@ defmodule KsefHub.InboundEmail.ReplyNotifier do
   defp invoice_url(invoice) do
     "#{KsefHubWeb.Endpoint.url()}/c/#{invoice.company_id}/invoices/#{invoice.id}"
   end
+
+  @spec format_invoice_details(map()) :: String.t()
+  defp format_invoice_details(invoice) do
+    lines =
+      [
+        detail_line("Invoice number", Map.get(invoice, :invoice_number)),
+        detail_line(
+          "Seller",
+          format_party(Map.get(invoice, :seller_name), Map.get(invoice, :seller_nip))
+        ),
+        detail_line(
+          "Buyer",
+          format_party(Map.get(invoice, :buyer_name), Map.get(invoice, :buyer_nip))
+        ),
+        detail_line(
+          "Amount",
+          format_amount(Map.get(invoice, :gross_amount), Map.get(invoice, :currency))
+        ),
+        detail_line(
+          "Billing period",
+          format_billing_period(
+            Map.get(invoice, :billing_date_from),
+            Map.get(invoice, :billing_date_to)
+          )
+        ),
+        detail_line("Category", format_category(invoice)),
+        detail_line("Tags", format_tags(invoice))
+      ]
+      |> Enum.reject(&is_nil/1)
+      |> Enum.join("\n")
+
+    if lines == "", do: "", else: lines <> "\n"
+  end
+
+  @spec detail_line(String.t(), String.t() | nil) :: String.t() | nil
+  defp detail_line(_label, nil), do: nil
+  defp detail_line(_label, ""), do: nil
+  defp detail_line(label, value), do: "    #{label}: #{value}"
+
+  @spec format_party(String.t() | nil, String.t() | nil) :: String.t() | nil
+  defp format_party(nil, nil), do: nil
+  defp format_party(nil, nip), do: "NIP #{nip}"
+  defp format_party(name, nil), do: name
+  defp format_party(name, nip), do: "#{name} (NIP: #{nip})"
+
+  @spec format_amount(Decimal.t() | nil, String.t() | nil) :: String.t() | nil
+  defp format_amount(nil, _currency), do: nil
+  defp format_amount(amount, currency), do: "#{amount} #{currency || "PLN"}"
+
+  @spec format_billing_period(Date.t() | nil, Date.t() | nil) :: String.t() | nil
+  defp format_billing_period(nil, _), do: nil
+  defp format_billing_period(_, nil), do: nil
+  defp format_billing_period(from, to), do: "#{from} — #{to}"
+
+  @spec format_category(map()) :: String.t() | nil
+  defp format_category(invoice) do
+    # Prefer the preloaded category association (has emoji + canonical name)
+    case Map.get(invoice, :category) do
+      %{name: name, emoji: emoji} when is_binary(name) and is_binary(emoji) ->
+        with_confidence("#{emoji} #{name}", Map.get(invoice, :prediction_category_confidence))
+
+      %{name: name} when is_binary(name) ->
+        with_confidence(name, Map.get(invoice, :prediction_category_confidence))
+
+      _ ->
+        # Fallback to prediction field (category not yet applied or not preloaded)
+        with_confidence(
+          Map.get(invoice, :prediction_category_name),
+          Map.get(invoice, :prediction_category_confidence)
+        )
+    end
+  end
+
+  @spec format_tags(map()) :: String.t() | nil
+  defp format_tags(invoice) do
+    tags = Map.get(invoice, :tags, []) || []
+
+    case tags do
+      [] ->
+        # Fallback to prediction tag name
+        with_confidence(
+          Map.get(invoice, :prediction_tag_name),
+          Map.get(invoice, :prediction_tag_confidence)
+        )
+
+      tags ->
+        Enum.join(tags, ", ")
+    end
+  end
+
+  @spec with_confidence(String.t() | nil, float() | nil) :: String.t() | nil
+  defp with_confidence(nil, _), do: nil
+  defp with_confidence("", _), do: nil
+
+  defp with_confidence(name, confidence) when is_number(confidence) do
+    pct = round(confidence * 100)
+    "#{name} (#{pct}% confidence)"
+  end
+
+  defp with_confidence(name, _), do: name
+
+  @required_fields ~w(invoice_number seller_name buyer_name gross_amount)a
+
+  @spec missing_fields(map()) :: [String.t()]
+  defp missing_fields(invoice) do
+    @required_fields
+    |> Enum.filter(fn field ->
+      value = Map.get(invoice, field)
+      is_nil(value) or value == ""
+    end)
+    |> Enum.map(&field_label/1)
+  end
+
+  @spec field_label(atom()) :: String.t()
+  defp field_label(:invoice_number), do: "invoice number"
+  defp field_label(:seller_name), do: "seller"
+  defp field_label(:buyer_name), do: "buyer"
+  defp field_label(:gross_amount), do: "amount"
+  defp field_label(field), do: field |> Atom.to_string() |> String.replace("_", " ")
 end
