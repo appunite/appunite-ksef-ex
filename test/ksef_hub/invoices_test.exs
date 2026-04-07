@@ -1240,6 +1240,51 @@ defmodule KsefHub.InvoicesTest do
       assert invoice.iban == "61109010140000071219812874"
     end
 
+    test "routes short non-IBAN account numbers to account_number field", %{company: company} do
+      Mox.expect(KsefHub.InvoiceExtractor.Mock, :extract, fn _pdf, _opts ->
+        {:ok,
+         %{
+           "seller_name" => "PT Jasa Informasi",
+           "invoice_number" => "1/4/2026",
+           "issue_date" => "2026-04-07",
+           "net_amount" => "1000.00",
+           "gross_amount" => "1000.00",
+           "bank_iban" => "167800010537",
+           "bank_swift_bic" => "NISPIDJAXXX"
+         }}
+      end)
+
+      assert {:ok, %Invoice{} = invoice} =
+               Invoices.create_pdf_upload_invoice(company, "pdf-data", %{type: :expense})
+
+      assert invoice.iban == nil
+      assert invoice.account_number == "167800010537"
+      assert invoice.swift_bic == "NISPIDJAXXX"
+    end
+
+    test "explicit bank_account_number takes priority over non-IBAN fallback", %{
+      company: company
+    } do
+      Mox.expect(KsefHub.InvoiceExtractor.Mock, :extract, fn _pdf, _opts ->
+        {:ok,
+         %{
+           "seller_name" => "Test Seller",
+           "invoice_number" => "FV/BANK/001",
+           "issue_date" => "2026-04-07",
+           "net_amount" => "500.00",
+           "gross_amount" => "500.00",
+           "bank_iban" => "12345678",
+           "bank_account_number" => "9876543210"
+         }}
+      end)
+
+      assert {:ok, %Invoice{} = invoice} =
+               Invoices.create_pdf_upload_invoice(company, "pdf-data", %{type: :expense})
+
+      assert invoice.iban == nil
+      assert invoice.account_number == "9876543210"
+    end
+
     test "maps flat address and bank keys from extraction schema", %{company: company} do
       Mox.expect(KsefHub.InvoiceExtractor.Mock, :extract, fn _pdf, _opts ->
         {:ok,
