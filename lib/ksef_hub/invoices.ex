@@ -1264,7 +1264,10 @@ defmodule KsefHub.Invoices do
 
   @spec iban_candidate?(String.t() | nil) :: boolean()
   defp iban_candidate?(nil), do: false
-  defp iban_candidate?(value), do: Regex.match?(@iban_prefix_pattern, String.trim(value))
+  defp iban_candidate?(value) do
+    stripped = value |> String.trim() |> String.replace(~r/[\s\-]/, "")
+    Regex.match?(@iban_prefix_pattern, stripped)
+  end
 
   @iban_min_length 15
 
