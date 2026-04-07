@@ -643,7 +643,7 @@ defmodule KsefHub.Invoices do
   @spec maybe_auto_approve(Company.t(), Invoice.t(), keyword()) :: Invoice.t()
   defp maybe_auto_approve(company, invoice, opts \\ []) do
     if AutoApproval.should_auto_approve?(company, invoice, opts) do
-      case approve_invoice(invoice, actor_type: :system, actor_label: "Auto-approval") do
+      case approve_invoice(invoice, actor_label: "Auto-approval") do
         {:ok, approved} ->
           approved
 
@@ -1354,7 +1354,7 @@ defmodule KsefHub.Invoices do
     %Invoice{}
     |> Ecto.Changeset.change(trusted_fields)
     |> Invoice.changeset(attrs)
-    |> Repo.insert(
+    |> TrackedRepo.insert(
       on_conflict: {:replace, @upsert_replace_fields},
       conflict_target:
         {:unsafe_fragment,

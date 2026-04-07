@@ -40,12 +40,17 @@ defmodule KsefHub.ActivityLog.TrackedRepo do
   Event action and metadata are derived from `schema.track_change(changeset)`,
   or from `opts[:action]` if the schema doesn't implement `Trackable`.
   """
+  @repo_insert_keys [:on_conflict, :conflict_target, :returning, :stale_error_field,
+                      :stale_error_message, :prefix, :log]
+
   @spec insert(Ecto.Changeset.t(), keyword()) ::
           {:ok, Ecto.Schema.t()} | {:error, Ecto.Changeset.t()}
   def insert(changeset, opts \\ []) do
-    case Repo.insert(changeset) do
+    {repo_opts, event_opts} = Keyword.split(opts, @repo_insert_keys)
+
+    case Repo.insert(changeset, repo_opts) do
       {:ok, struct} ->
-        maybe_emit(%{changeset | action: :insert}, struct, opts)
+        maybe_emit(%{changeset | action: :insert}, struct, event_opts)
         {:ok, struct}
 
       error ->
