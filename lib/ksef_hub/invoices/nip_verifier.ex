@@ -6,7 +6,10 @@ defmodule KsefHub.Invoices.NipVerifier do
   invoices that don't belong to the company.
   """
 
+  alias KsefHub.InvoiceExtractor.Placeholders
   alias KsefHub.Nip
+
+  require Logger
 
   @type verify_result ::
           :ok
@@ -32,13 +35,24 @@ defmodule KsefHub.Invoices.NipVerifier do
   def verify_for_type(extracted, company_nip, type) do
     case type_to_nip_key(type) do
       {:ok, nip_key, mismatch_error} ->
-        extracted_nip = get_nip(extracted, nip_key) |> Nip.normalize()
+        raw_nip = get_nip(extracted, nip_key)
+        extracted_nip = Nip.normalize(raw_nip)
         normalized_company = Nip.normalize(company_nip)
 
         cond do
-          not present?(extracted_nip) -> :ok
-          extracted_nip == normalized_company -> :ok
-          true -> {:error, mismatch_error}
+          not present?(extracted_nip) ->
+            :ok
+
+          extracted_nip == normalized_company ->
+            :ok
+
+          true ->
+            Logger.warning(
+              "NIP mismatch on #{type}: extracted #{mask_nip(raw_nip)} " <>
+                "(normalized: #{mask_nip(extracted_nip)}) != company #{mask_nip(normalized_company)}"
+            )
+
+            {:error, mismatch_error}
         end
 
       :error ->
@@ -86,8 +100,27 @@ defmodule KsefHub.Invoices.NipVerifier do
     Map.get(map, key) || Map.get(map, Atom.to_string(key))
   end
 
+  @spec mask_nip(String.t() | nil) :: String.t()
+  defp mask_nip(nil), do: "nil"
+  defp mask_nip(""), do: "\"\""
+
+  defp mask_nip(value) when is_binary(value) do
+    digits = String.replace(value, ~r/[^0-9]/, "")
+
+    case String.length(digits) do
+      len when len >= 6 -> String.slice(digits, 0, 3) <> "***" <> String.slice(digits, -3, 3)
+      _ -> "***"
+    end
+  end
+
   @spec present?(term()) :: boolean()
   defp present?(nil), do: false
   defp present?(""), do: false
-  defp present?(_), do: true
+
+  defp present?(value) when is_binary(value) do
+    trimmed = String.trim(value)
+    trimmed != "" and not Placeholders.placeholder?(trimmed)
+  end
+
+  defp present?(_), do: false
 end

@@ -34,10 +34,7 @@ defmodule KsefHub.Invoices do
   @default_per_page 25
   @critical_extraction_fields ~w(seller_nip seller_name invoice_number issue_date net_amount gross_amount)a
 
-  # Placeholder values the LLM may return when a field is not found on the invoice.
-  # All fields are required in the extraction schema (for API performance), so the
-  # model outputs these instead of null.
-  @extraction_placeholders ~w(- -- N/A n/a `)
+  @extraction_placeholders KsefHub.InvoiceExtractor.Placeholders.values()
 
   @doc """
   Returns a list of invoices for a company matching the given filters.

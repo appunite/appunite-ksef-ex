@@ -80,5 +80,47 @@ defmodule KsefHub.Invoices.NipVerifierTest do
       assert {:error, :seller_nip_mismatch} =
                NipVerifier.verify_for_type(extracted, @company_nip, "income")
     end
+
+    test "treats newline-null placeholder as not extracted" do
+      extracted = %{"buyer_nip" => "\nnull"}
+      assert :ok = NipVerifier.verify_for_type(extracted, @company_nip, :expense)
+    end
+
+    test "treats null string as not extracted" do
+      extracted = %{"buyer_nip" => "null"}
+      assert :ok = NipVerifier.verify_for_type(extracted, @company_nip, :expense)
+    end
+
+    test "treats N/A as not extracted" do
+      extracted = %{"buyer_nip" => "N/A"}
+      assert :ok = NipVerifier.verify_for_type(extracted, @company_nip, :expense)
+    end
+
+    test "treats dash placeholder as not extracted" do
+      extracted = %{"buyer_nip" => "-"}
+      assert :ok = NipVerifier.verify_for_type(extracted, @company_nip, :expense)
+    end
+
+    test "treats double-dash placeholder as not extracted" do
+      extracted = %{"buyer_nip" => "--"}
+      assert :ok = NipVerifier.verify_for_type(extracted, @company_nip, :expense)
+    end
+  end
+
+  describe "verify_expense/2" do
+    test "treats null placeholder as not extracted (needs review)" do
+      extracted = %{"buyer_nip" => "null", "seller_nip" => "5555555555"}
+      assert {:undetermined, :needs_review} = NipVerifier.verify_expense(extracted, @company_nip)
+    end
+
+    test "treats newline-null placeholder as not extracted (needs review)" do
+      extracted = %{"buyer_nip" => "\nnull", "seller_nip" => "5555555555"}
+      assert {:undetermined, :needs_review} = NipVerifier.verify_expense(extracted, @company_nip)
+    end
+
+    test "detects matching buyer NIP through PL prefix" do
+      extracted = %{"buyer_nip" => "PL#{@company_nip}", "seller_nip" => "5555555555"}
+      assert {:ok, :expense} = NipVerifier.verify_expense(extracted, @company_nip)
+    end
   end
 end
