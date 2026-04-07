@@ -166,6 +166,11 @@ defmodule KsefHubWeb.SettingsLive.ActivityLog do
     ~p"/c/#{cid}/invoices/#{id}"
   end
 
+  defp resource_href(%{resource_type: "payment_request", resource_id: rid}, cid)
+       when is_binary(rid) and rid != "" do
+    ~p"/c/#{cid}/payment-requests/#{rid}/edit"
+  end
+
   defp resource_href(%{resource_type: "payment_request", metadata: meta}, cid) do
     case meta do
       %{"invoice_id" => iid} when is_binary(iid) -> ~p"/c/#{cid}/invoices/#{iid}"
@@ -200,9 +205,11 @@ defmodule KsefHubWeb.SettingsLive.ActivityLog do
   defp resource_href(_entry, _cid), do: nil
 
   @spec resource_label(map()) :: String.t()
-  defp resource_label(%{resource_type: type}) do
+  defp resource_label(%{resource_type: type}) when is_binary(type) do
     type |> String.replace("_", " ") |> String.split() |> Enum.map_join(" ", &String.capitalize/1)
   end
+
+  defp resource_label(_entry), do: "—"
 
   # ---------------------------------------------------------------------------
   # Action descriptions (human-readable action names)

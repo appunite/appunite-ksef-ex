@@ -31,7 +31,28 @@ defmodule KsefHubWeb.SettingsLive.ActivityLogTest do
       assert has_element?(view, "a[href*='invoices/#{invoice_id}']", "Invoice")
     end
 
-    test "payment request entries link to the associated invoice", %{
+    test "payment request entries with resource_id link to the payment request", %{
+      conn: conn,
+      company: company,
+      user: user
+    } do
+      pr_id = Ecto.UUID.generate()
+
+      insert(:audit_log,
+        company: company,
+        user: user,
+        action: "payment_request.paid",
+        resource_type: "payment_request",
+        resource_id: pr_id,
+        metadata: %{"invoice_id" => Ecto.UUID.generate()}
+      )
+
+      {:ok, view, _html} = live(conn, ~p"/c/#{company.id}/settings/activity-log")
+
+      assert has_element?(view, "a[href*='payment-requests/#{pr_id}/edit']", "Payment Request")
+    end
+
+    test "payment request entries without resource_id fall back to invoice link", %{
       conn: conn,
       company: company,
       user: user
@@ -43,7 +64,7 @@ defmodule KsefHubWeb.SettingsLive.ActivityLogTest do
         user: user,
         action: "payment_request.paid",
         resource_type: "payment_request",
-        resource_id: Ecto.UUID.generate(),
+        resource_id: nil,
         metadata: %{"invoice_id" => invoice_id}
       )
 
@@ -106,10 +127,30 @@ defmodule KsefHubWeb.SettingsLive.ActivityLogTest do
         metadata: %{"old_status" => "pending", "new_status" => "approved"}
       )
 
-      {:ok, _view, html} = live(conn, ~p"/c/#{company.id}/settings/activity-log")
+      {:ok, view, _html} = live(conn, ~p"/c/#{company.id}/settings/activity-log")
 
-      assert html =~ "Changed status to approved"
-      assert html =~ "was pending"
+      assert has_element?(view, "#activity-log-table td", "Changed status to approved")
+      assert has_element?(view, "#activity-log-table td", "was pending")
+    end
+
+    test "shows human-readable action for status change with atom-keyed metadata", %{
+      conn: conn,
+      company: company,
+      user: user
+    } do
+      insert(:audit_log,
+        company: company,
+        user: user,
+        action: "invoice.status_changed",
+        resource_type: "invoice",
+        resource_id: Ecto.UUID.generate(),
+        metadata: %{old_status: "pending", new_status: "approved"}
+      )
+
+      {:ok, view, _html} = live(conn, ~p"/c/#{company.id}/settings/activity-log")
+
+      assert has_element?(view, "#activity-log-table td", "Changed status to approved")
+      assert has_element?(view, "#activity-log-table td", "was pending")
     end
 
     test "shows category change with names", %{conn: conn, company: company, user: user} do
@@ -122,9 +163,13 @@ defmodule KsefHubWeb.SettingsLive.ActivityLogTest do
         metadata: %{"field" => "category", "old_name" => "Operations", "new_name" => "Growth"}
       )
 
-      {:ok, _view, html} = live(conn, ~p"/c/#{company.id}/settings/activity-log")
+      {:ok, view, _html} = live(conn, ~p"/c/#{company.id}/settings/activity-log")
 
-      assert html =~ "Changed category from Operations to Growth"
+      assert has_element?(
+               view,
+               "#activity-log-table td",
+               "Changed category from Operations to Growth"
+             )
     end
 
     test "shows tag changes with added/removed detail", %{
@@ -145,10 +190,10 @@ defmodule KsefHubWeb.SettingsLive.ActivityLogTest do
         }
       )
 
-      {:ok, _view, html} = live(conn, ~p"/c/#{company.id}/settings/activity-log")
+      {:ok, view, _html} = live(conn, ~p"/c/#{company.id}/settings/activity-log")
 
-      assert html =~ "Updated tags"
-      assert html =~ "added: q1"
+      assert has_element?(view, "#activity-log-table td", "Updated tags")
+      assert has_element?(view, "#activity-log-table td", "added: q1")
     end
 
     test "shows invitation with email", %{conn: conn, company: company, user: user} do
@@ -161,10 +206,10 @@ defmodule KsefHubWeb.SettingsLive.ActivityLogTest do
         metadata: %{"email" => "new@example.com", "role" => "reviewer"}
       )
 
-      {:ok, _view, html} = live(conn, ~p"/c/#{company.id}/settings/activity-log")
+      {:ok, view, _html} = live(conn, ~p"/c/#{company.id}/settings/activity-log")
 
-      assert html =~ "Sent invitation to new@example.com"
-      assert html =~ "as reviewer"
+      assert has_element?(view, "#activity-log-table td", "Sent invitation to new@example.com")
+      assert has_element?(view, "#activity-log-table td", "as reviewer")
     end
 
     test "shows category CRUD with name", %{conn: conn, company: company, user: user} do
@@ -177,9 +222,9 @@ defmodule KsefHubWeb.SettingsLive.ActivityLogTest do
         metadata: %{"name" => "Marketing"}
       )
 
-      {:ok, _view, html} = live(conn, ~p"/c/#{company.id}/settings/activity-log")
+      {:ok, view, _html} = live(conn, ~p"/c/#{company.id}/settings/activity-log")
 
-      assert html =~ ~s(Created category &quot;Marketing&quot;)
+      assert has_element?(view, "#activity-log-table td", ~s(Created category "Marketing"))
     end
 
     test "gracefully handles unknown action types", %{conn: conn, company: company, user: user} do
@@ -191,9 +236,9 @@ defmodule KsefHubWeb.SettingsLive.ActivityLogTest do
         resource_id: Ecto.UUID.generate()
       )
 
-      {:ok, _view, html} = live(conn, ~p"/c/#{company.id}/settings/activity-log")
+      {:ok, view, _html} = live(conn, ~p"/c/#{company.id}/settings/activity-log")
 
-      assert html =~ "Some Future Action"
+      assert has_element?(view, "#activity-log-table td", "Some Future Action")
     end
 
     test "falls back to 'Updated classification' for old events without names", %{
@@ -210,9 +255,9 @@ defmodule KsefHubWeb.SettingsLive.ActivityLogTest do
         metadata: %{"field" => "category"}
       )
 
-      {:ok, _view, html} = live(conn, ~p"/c/#{company.id}/settings/activity-log")
+      {:ok, view, _html} = live(conn, ~p"/c/#{company.id}/settings/activity-log")
 
-      assert html =~ "Updated category"
+      assert has_element?(view, "#activity-log-table td", "Updated category")
     end
   end
 end

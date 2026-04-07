@@ -1823,22 +1823,24 @@ defmodule KsefHub.Invoices do
 
   def set_invoice_category(%Invoice{} = invoice, nil, opts) do
     old_name = current_category_name(invoice)
+    existing_meta = Keyword.get(opts, :metadata, %{})
+    merged_meta = Map.merge(existing_meta, %{old_name: old_name, new_name: nil})
 
     invoice
     |> Invoice.category_changeset(%{category_id: nil})
-    |> TrackedRepo.update(Keyword.put(opts, :metadata, %{old_name: old_name, new_name: nil}))
+    |> TrackedRepo.update(Keyword.put(opts, :metadata, merged_meta))
   end
 
   def set_invoice_category(%Invoice{} = invoice, category_id, opts) do
     with %Category{} = category <- fetch_company_category(invoice.company_id, category_id),
          attrs <- build_category_attrs(category_id, category) do
       old_name = current_category_name(invoice)
+      existing_meta = Keyword.get(opts, :metadata, %{})
+      merged_meta = Map.merge(existing_meta, %{old_name: old_name, new_name: category.name})
 
       invoice
       |> Invoice.category_changeset(attrs)
-      |> TrackedRepo.update(
-        Keyword.put(opts, :metadata, %{old_name: old_name, new_name: category.name})
-      )
+      |> TrackedRepo.update(Keyword.put(opts, :metadata, merged_meta))
     else
       nil -> {:error, :category_not_in_company}
     end

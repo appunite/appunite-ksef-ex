@@ -60,9 +60,15 @@ defmodule KsefHub.AuditLog do
   # via PubSub (atom keys from track_change).
   @spec normalize_metadata_keys(map()) :: map()
   defp normalize_metadata_keys(attrs) do
-    case Map.get(attrs, :metadata) do
+    meta = Map.get(attrs, :metadata) || Map.get(attrs, "metadata")
+
+    case meta do
       meta when is_map(meta) and meta != %{} ->
-        Map.put(attrs, :metadata, Map.new(meta, fn {k, v} -> {to_string(k), v} end))
+        normalized = Map.new(meta, fn {k, v} -> {to_string(k), v} end)
+
+        attrs
+        |> Map.put(:metadata, normalized)
+        |> Map.delete("metadata")
 
       _ ->
         attrs
