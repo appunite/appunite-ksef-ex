@@ -3,6 +3,7 @@ defmodule KsefHub.InvoiceClassifier.WorkerTest do
 
   import KsefHub.Factory
   import Mox
+  import Swoosh.TestAssertions
 
   alias KsefHub.InvoiceClassifier.Worker
 
@@ -213,7 +214,6 @@ defmodule KsefHub.InvoiceClassifier.WorkerTest do
 
       assert {:error, {:request_failed, :timeout}} = Worker.perform(job)
       # No email should be sent since the error is transient
-      import Swoosh.TestAssertions
       refute_email_sent()
     end
   end

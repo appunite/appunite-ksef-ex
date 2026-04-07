@@ -126,6 +126,13 @@ defmodule KsefHub.InvoiceClassifier.Worker do
 
         :ok
     end
+  rescue
+    e in ArgumentError ->
+      Logger.error(
+        "Failed to resolve on_complete worker #{worker_module}: #{Exception.message(e)}"
+      )
+
+      :ok
   end
 
   defp maybe_run_on_complete(_result, _args), do: :ok
