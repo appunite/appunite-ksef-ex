@@ -1359,7 +1359,9 @@ defmodule KsefHub.Invoices do
       conflict_target:
         {:unsafe_fragment,
          ~s|("company_id","ksef_number") WHERE ksef_number IS NOT NULL AND duplicate_of_id IS NULL|},
-      returning: true
+      returning: true,
+      actor_type: :system,
+      actor_label: "KSeF Sync"
     )
   end
 
