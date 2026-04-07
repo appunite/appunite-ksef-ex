@@ -2529,6 +2529,37 @@ defmodule KsefHub.InvoicesTest do
     end
   end
 
+  describe "missing_critical_fields/1" do
+    test "returns empty list when all critical fields present", %{company: company} do
+      invoice =
+        insert(:pdf_upload_invoice,
+          company: company,
+          seller_nip: "1234567890",
+          seller_name: "Seller",
+          invoice_number: "FV/001",
+          issue_date: ~D[2026-02-20],
+          net_amount: Decimal.new("100"),
+          gross_amount: Decimal.new("123")
+        )
+
+      assert Invoices.missing_critical_fields(invoice) == []
+    end
+
+    test "returns missing fields", %{company: company} do
+      invoice =
+        insert(:pdf_upload_invoice,
+          company: company,
+          seller_nip: nil,
+          net_amount: nil
+        )
+
+      missing = Invoices.missing_critical_fields(invoice)
+      assert :seller_nip in missing
+      assert :net_amount in missing
+      refute :seller_name in missing
+    end
+  end
+
   describe "recalculate_extraction_status/2" do
     test "returns complete when all critical fields present", %{company: company} do
       invoice =

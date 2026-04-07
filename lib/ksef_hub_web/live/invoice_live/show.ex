@@ -972,13 +972,20 @@ defmodule KsefHubWeb.InvoiceLive.Show do
       role="alert"
       data-testid="extraction-warning"
     >
-      <.icon name="hero-exclamation-triangle" class="size-5" />
-      <span :if={@data_editable}>
-        This invoice has missing data. Please review and fill in the missing fields below.
-      </span>
-      <span :if={!@data_editable}>
-        This invoice has missing data but cannot be edited because it originates from KSeF.
-      </span>
+      <.icon name="hero-exclamation-triangle" class="size-5 shrink-0" />
+      <div>
+        <span>Missing required fields: </span>
+        <span class="font-medium">
+          {Invoices.missing_critical_fields(@invoice)
+          |> Enum.map_join(", ", &humanize_field(Atom.to_string(&1)))}
+        </span>
+        <span :if={@data_editable} class="text-base-content/60">
+          — please fill them in or dismiss.
+        </span>
+        <span :if={!@data_editable} class="text-base-content/60">
+          — cannot be edited because it originates from KSeF.
+        </span>
+      </div>
       <div class="ml-auto flex items-center gap-2">
         <.button
           :if={

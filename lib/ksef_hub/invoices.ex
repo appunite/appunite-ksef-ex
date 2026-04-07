@@ -608,6 +608,18 @@ defmodule KsefHub.Invoices do
   end
 
   @doc """
+  Returns the list of critical extraction fields that are missing on the invoice.
+  """
+  @spec missing_critical_fields(Invoice.t()) :: [atom()]
+  def missing_critical_fields(%Invoice{} = invoice) do
+    map = Map.from_struct(invoice)
+
+    Enum.filter(@critical_extraction_fields, fn field ->
+      not present_value?(Map.get(map, field))
+    end)
+  end
+
+  @doc """
   Determines extraction status from a plain attrs map (no struct required).
 
   Used during KSeF sync to set extraction_status before upsert.
