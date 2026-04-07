@@ -727,11 +727,15 @@ defmodule KsefHubWeb.InvoiceLive.Show do
          |> assign(extracting: false, extract_ref: nil)
          |> put_flash(:error, "No PDF file stored for this invoice.")}
 
-      {:error, _reason} ->
+      {:error, reason} ->
+        Logger.warning(
+          "Re-extraction failed for invoice #{socket.assigns.invoice.id}: #{sanitize_error(reason)}"
+        )
+
         {:noreply,
          socket
          |> assign(extracting: false, extract_ref: nil)
-         |> put_flash(:error, "Re-extraction failed. Please try again later.")}
+         |> put_flash(:error, re_extraction_error_message(reason))}
     end
   end
 
@@ -2239,6 +2243,36 @@ defmodule KsefHubWeb.InvoiceLive.Show do
   @spec header_payment_label(atom() | nil) :: String.t() | nil
   defp header_payment_label(:pending), do: "payment pending"
   defp header_payment_label(_status), do: nil
+
+  @spec re_extraction_error_message(term()) :: String.t()
+  defp re_extraction_error_message(:buyer_nip_mismatch),
+    do: "Re-extraction failed: buyer NIP does not match company."
+
+  defp re_extraction_error_message(:seller_nip_mismatch),
+    do: "Re-extraction failed: seller NIP does not match company."
+
+  defp re_extraction_error_message(%Ecto.Changeset{}),
+    do: "Re-extraction failed: invalid data after extraction."
+
+  defp re_extraction_error_message(_reason),
+    do: "Re-extraction failed. Please try again later."
+
+  @spec sanitize_error(term()) :: String.t()
+  defp sanitize_error(%Ecto.Changeset{} = cs),
+    do:
+      "changeset errors: #{inspect(Ecto.Changeset.traverse_errors(cs, fn {msg, _opts} -> msg end))}"
+
+  defp sanitize_error(%{__exception__: true} = exception),
+    do: Exception.message(exception)
+
+  defp sanitize_error(reason) when is_atom(reason),
+    do: Atom.to_string(reason)
+
+  defp sanitize_error(reason) when is_binary(reason),
+    do: reason
+
+  defp sanitize_error(_reason),
+    do: "unknown error"
 
   @spec dropdown_menu_class() :: String.t()
   defp dropdown_menu_class,

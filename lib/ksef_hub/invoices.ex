@@ -553,12 +553,27 @@ defmodule KsefHub.Invoices do
           {:ok, Invoice.t()} | {:error, Ecto.Changeset.t()}
   defp apply_extraction_results(invoice, extracted, company, opts) do
     extraction_status = determine_extraction_status(extracted)
+    extracted_attrs = extracted_to_invoice_attrs(extracted)
+
+    # When bank_iban was present but rejected as non-IBAN (e.g. short local
+    # account number), we must explicitly clear the iban field so a stale
+    # value from a previous extraction doesn't persist.
+    # However, values that look like truncated IBANs (start with a country
+    # prefix like "PL") should NOT trigger clearing — they're partial IBANs,
+    # not a signal that the account is non-IBAN.
+    raw_bank_iban = get_extracted_string(extracted, "bank_iban")
+
+    clear_iban? =
+      not is_nil(raw_bank_iban) and
+        is_nil(Map.get(extracted_attrs, :iban)) and
+        not iban_candidate?(raw_bank_iban)
 
     # For re-extraction, only overwrite fields that have non-nil extracted values.
     # This preserves manually-edited data when re-extraction returns partial results.
     attrs =
-      extracted_to_invoice_attrs(extracted)
+      extracted_attrs
       |> Map.reject(fn {_k, v} -> is_nil(v) end)
+      |> then(fn attrs -> if clear_iban?, do: Map.put(attrs, :iban, nil), else: attrs end)
       |> Map.put(:extraction_status, extraction_status)
       |> Map.put(:type, invoice.type)
       |> populate_company_fields(company)
@@ -1134,6 +1149,15 @@ defmodule KsefHub.Invoices do
   # Used by both initial PDF upload creation and re-extraction.
   @spec extracted_to_invoice_attrs(map()) :: map()
   defp extracted_to_invoice_attrs(extracted) do
+    iban = extract_iban(extracted)
+    explicit_account = get_extracted_string(extracted, "bank_account_number")
+
+    # When bank_iban contained a non-IBAN value (e.g. Indonesian local account),
+    # extract_iban/1 returns nil. Fall back the raw value to account_number
+    # so the data isn't lost. Explicit bank_account_number takes priority.
+    account_number =
+      explicit_account || non_iban_fallback(extracted, iban)
+
     %{
       seller_nip: get_extracted_nip(extracted, "seller_nip"),
       seller_name: get_extracted_string(extracted, "seller_name"),
@@ -1148,12 +1172,12 @@ defmodule KsefHub.Invoices do
       purchase_order: get_extracted_purchase_order(extracted, "purchase_order"),
       sales_date: get_extracted_date(extracted, "sales_date"),
       due_date: get_extracted_date(extracted, "due_date"),
-      iban: extract_iban(extracted),
+      iban: iban,
       swift_bic: get_extracted_string(extracted, "bank_swift_bic"),
       bank_name: get_extracted_string(extracted, "bank_name"),
       bank_address: get_extracted_string(extracted, "bank_address"),
       routing_number: get_extracted_string(extracted, "bank_routing_number"),
-      account_number: get_extracted_string(extracted, "bank_account_number"),
+      account_number: account_number,
       payment_instructions: get_extracted_string(extracted, "bank_notes"),
       seller_address: get_extracted_address(extracted, "seller_address_"),
       buyer_address: get_extracted_address(extracted, "buyer_address_")
@@ -1208,23 +1232,55 @@ defmodule KsefHub.Invoices do
     end
   end
 
+  # Returns the raw bank_iban value when it was rejected as non-IBAN
+  # (i.e. extract_iban returned nil), so it can populate account_number.
+  # Values that look like truncated IBANs (start with a country prefix)
+  # are NOT demoted — they're partial IBANs, not local account numbers.
+  @spec non_iban_fallback(map(), String.t() | nil) :: String.t() | nil
+  defp non_iban_fallback(_extracted, iban) when not is_nil(iban), do: nil
+
+  defp non_iban_fallback(extracted, nil) do
+    raw = get_extracted_string(extracted, "bank_iban")
+    if iban_candidate?(raw), do: nil, else: raw
+  end
+
+  # Extracts and normalizes IBAN from the extracted data.
+  # Returns nil when the value is shorter than 15 chars (minimum IBAN length),
+  # routing it to :account_number instead via extracted_to_invoice_attrs/1.
   @spec extract_iban(map()) :: String.t() | nil
   defp extract_iban(extracted) do
     case get_extracted_string(extracted, "bank_iban") do
       nil -> nil
-      raw -> maybe_normalize_iban(raw)
+      raw -> normalize_iban(raw)
     end
   end
 
-  # Strips spaces, dashes, and trims whitespace from IBAN/account number values.
-  # Uppercases values that look like IBANs (country prefix + check digits).
-  @spec maybe_normalize_iban(String.t()) :: String.t()
-  defp maybe_normalize_iban(value) do
+  # IBANs are 15-34 characters. Values shorter than 15 chars are local
+  # account numbers (e.g. Indonesian) that don't belong in the IBAN field.
+  # Matches values that start with a 2-letter country code followed by digits,
+  # indicating the value is a (possibly truncated) IBAN rather than a local
+  # account number. Used to avoid demoting partial IBANs to account_number.
+  @iban_prefix_pattern ~r/^[A-Za-z]{2}\d/
+
+  @spec iban_candidate?(String.t() | nil) :: boolean()
+  defp iban_candidate?(nil), do: false
+
+  defp iban_candidate?(value) do
+    stripped = value |> String.trim() |> String.replace(~r/[\s\-]/, "")
+    Regex.match?(@iban_prefix_pattern, stripped)
+  end
+
+  @iban_min_length 15
+
+  @spec normalize_iban(String.t()) :: String.t() | nil
+  defp normalize_iban(value) do
     stripped = value |> String.trim() |> String.replace(~r/[\s\-]/, "")
 
-    if Regex.match?(~r/^[A-Za-z]{2}\d{2}/, stripped),
-      do: String.upcase(stripped),
-      else: stripped
+    cond do
+      String.length(stripped) < @iban_min_length -> nil
+      Regex.match?(~r/^[A-Za-z]{2}\d{2}/, stripped) -> String.upcase(stripped)
+      true -> stripped
+    end
   end
 
   @spec normalize_nip(String.t()) :: String.t()

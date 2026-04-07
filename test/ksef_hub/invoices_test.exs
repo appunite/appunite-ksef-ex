@@ -1314,6 +1314,72 @@ defmodule KsefHub.InvoicesTest do
       assert invoice.iban == "61109010140000071219812874"
     end
 
+    test "routes short non-IBAN account numbers to account_number field", %{company: company} do
+      Mox.expect(KsefHub.InvoiceExtractor.Mock, :extract, fn _pdf, _opts ->
+        {:ok,
+         %{
+           "seller_name" => "PT Jasa Informasi",
+           "invoice_number" => "1/4/2026",
+           "issue_date" => "2026-04-07",
+           "net_amount" => "1000.00",
+           "gross_amount" => "1000.00",
+           "bank_iban" => "167800010537",
+           "bank_swift_bic" => "NISPIDJAXXX"
+         }}
+      end)
+
+      assert {:ok, %Invoice{} = invoice} =
+               Invoices.create_pdf_upload_invoice(company, "pdf-data", %{type: :expense})
+
+      assert invoice.iban == nil
+      assert invoice.account_number == "167800010537"
+      assert invoice.swift_bic == "NISPIDJAXXX"
+    end
+
+    test "explicit bank_account_number takes priority over non-IBAN fallback", %{
+      company: company
+    } do
+      Mox.expect(KsefHub.InvoiceExtractor.Mock, :extract, fn _pdf, _opts ->
+        {:ok,
+         %{
+           "seller_name" => "Test Seller",
+           "invoice_number" => "FV/BANK/001",
+           "issue_date" => "2026-04-07",
+           "net_amount" => "500.00",
+           "gross_amount" => "500.00",
+           "bank_iban" => "12345678",
+           "bank_account_number" => "9876543210"
+         }}
+      end)
+
+      assert {:ok, %Invoice{} = invoice} =
+               Invoices.create_pdf_upload_invoice(company, "pdf-data", %{type: :expense})
+
+      assert invoice.iban == nil
+      assert invoice.account_number == "9876543210"
+    end
+
+    test "does not demote IBAN-prefixed short value to account_number", %{company: company} do
+      Mox.expect(KsefHub.InvoiceExtractor.Mock, :extract, fn _pdf, _opts ->
+        {:ok,
+         %{
+           "seller_name" => "Firma Testowa",
+           "invoice_number" => "FV/2026/01",
+           "issue_date" => "2026-04-07",
+           "net_amount" => "100.00",
+           "gross_amount" => "123.00",
+           "bank_iban" => "PL6110901014"
+         }}
+      end)
+
+      assert {:ok, %Invoice{} = invoice} =
+               Invoices.create_pdf_upload_invoice(company, "pdf-data", %{type: :expense})
+
+      # Short but IBAN-prefixed: don't treat as local account number
+      assert invoice.iban == nil
+      assert invoice.account_number == nil
+    end
+
     test "maps flat address and bank keys from extraction schema", %{company: company} do
       Mox.expect(KsefHub.InvoiceExtractor.Mock, :extract, fn _pdf, _opts ->
         {:ok,
@@ -2168,7 +2234,8 @@ defmodule KsefHub.InvoicesTest do
           buyer_name: "Original Buyer",
           invoice_number: "FV/ORIG/001",
           net_amount: Decimal.new("1000.00"),
-          gross_amount: Decimal.new("1230.00")
+          gross_amount: Decimal.new("1230.00"),
+          iban: "PL61109010140000071219812874"
         )
 
       KsefHub.InvoiceExtractor.Mock
@@ -2190,6 +2257,9 @@ defmodule KsefHub.InvoicesTest do
       assert updated.invoice_number == "FV/ORIG/001"
       assert updated.net_amount == Decimal.new("1000.00")
       assert updated.gross_amount == Decimal.new("1230.00")
+
+      # IBAN preserved when extractor omits bank_iban entirely
+      assert updated.iban == "PL61109010140000071219812874"
 
       # Extraction status recalculated from the new extraction result (partial),
       # not from the merged invoice state
@@ -2299,6 +2369,111 @@ defmodule KsefHub.InvoicesTest do
       assert {:ok, updated} = Invoices.re_extract_invoice(invoice, company)
       assert updated.seller_name == "Re-extracted Seller"
       assert updated.extraction_status == :complete
+    end
+
+    test "clears stale iban when re-extraction routes bank_iban to account_number", %{
+      company: company
+    } do
+      # Invoice originally had a valid IBAN from first extraction
+      invoice =
+        insert(:pdf_upload_invoice,
+          company: company,
+          extraction_status: :complete,
+          iban: "PL61109010140000071219812874",
+          account_number: nil
+        )
+
+      # Re-extraction now returns a short non-IBAN value in bank_iban
+      KsefHub.InvoiceExtractor.Mock
+      |> expect(:extract, fn _pdf, _opts ->
+        {:ok,
+         %{
+           "seller_name" => "PT Jasa Informasi",
+           "buyer_nip" => company.nip,
+           "invoice_number" => "1/4/2026",
+           "issue_date" => "2026-04-07",
+           "net_amount" => "1000.00",
+           "gross_amount" => "1000.00",
+           "bank_iban" => "167800010537",
+           "bank_swift_bic" => "NISPIDJAXXX"
+         }}
+      end)
+
+      assert {:ok, updated} = Invoices.re_extract_invoice(invoice, company)
+
+      # Stale IBAN must be cleared, not preserved
+      assert updated.iban == nil
+      # Non-IBAN value routed to account_number
+      assert updated.account_number == "167800010537"
+      assert updated.swift_bic == "NISPIDJAXXX"
+    end
+
+    test "does not clear iban when re-extraction returns IBAN-prefixed short value", %{
+      company: company
+    } do
+      # Invoice has a valid IBAN from first extraction
+      invoice =
+        insert(:pdf_upload_invoice,
+          company: company,
+          extraction_status: :complete,
+          iban: "PL61109010140000071219812874",
+          account_number: nil
+        )
+
+      # Re-extraction returns a truncated IBAN-like value
+      KsefHub.InvoiceExtractor.Mock
+      |> expect(:extract, fn _pdf, _opts ->
+        {:ok,
+         %{
+           "seller_name" => "Firma Testowa",
+           "buyer_nip" => company.nip,
+           "invoice_number" => "FV/2026/01",
+           "issue_date" => "2026-04-07",
+           "net_amount" => "100.00",
+           "gross_amount" => "123.00",
+           "bank_iban" => "PL6110901014"
+         }}
+      end)
+
+      assert {:ok, updated} = Invoices.re_extract_invoice(invoice, company)
+
+      # Existing IBAN must NOT be cleared for IBAN-prefixed short values
+      assert updated.iban == "PL61109010140000071219812874"
+      # Partial IBAN must NOT be demoted to account_number
+      assert updated.account_number == nil
+    end
+
+    test "does not clear iban when re-extraction returns formatted IBAN-prefixed short value",
+         %{company: company} do
+      # Invoice has a valid IBAN from first extraction
+      invoice =
+        insert(:pdf_upload_invoice,
+          company: company,
+          extraction_status: :complete,
+          iban: "PL61109010140000071219812874",
+          account_number: nil
+        )
+
+      # Re-extraction returns a truncated IBAN-like value with spaces/hyphens
+      KsefHub.InvoiceExtractor.Mock
+      |> expect(:extract, fn _pdf, _opts ->
+        {:ok,
+         %{
+           "seller_name" => "Firma Testowa",
+           "buyer_nip" => company.nip,
+           "invoice_number" => "FV/2026/01",
+           "issue_date" => "2026-04-07",
+           "net_amount" => "100.00",
+           "gross_amount" => "123.00",
+           "bank_iban" => "PL 6110901014"
+         }}
+      end)
+
+      assert {:ok, updated} = Invoices.re_extract_invoice(invoice, company)
+
+      # Existing IBAN must NOT be cleared — formatted value is still IBAN-prefixed
+      assert updated.iban == "PL61109010140000071219812874"
+      assert updated.account_number == nil
     end
   end
 
