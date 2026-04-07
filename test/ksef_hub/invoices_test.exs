@@ -2261,9 +2261,45 @@ defmodule KsefHub.InvoicesTest do
       # IBAN preserved when extractor omits bank_iban entirely
       assert updated.iban == "PL61109010140000071219812874"
 
-      # Extraction status recalculated from the new extraction result (partial),
-      # not from the merged invoice state
-      assert updated.extraction_status == :partial
+      # Extraction status recalculated from merged invoice state — all critical
+      # fields are still present so status stays :complete
+      assert updated.extraction_status == :complete
+    end
+
+    test "becomes complete when re-extraction fills the missing critical field", %{
+      company: company
+    } do
+      # Invoice is partial because seller_nip is missing
+      invoice =
+        insert(:pdf_upload_invoice,
+          company: company,
+          extraction_status: :partial,
+          seller_nip: nil,
+          seller_name: "Existing Seller",
+          invoice_number: "FV/PART/001",
+          issue_date: ~D[2026-03-01],
+          net_amount: Decimal.new("500.00"),
+          gross_amount: Decimal.new("615.00")
+        )
+
+      KsefHub.InvoiceExtractor.Mock
+      |> expect(:extract, fn _pdf, _opts ->
+        # Re-extract provides the missing seller_nip but not other fields
+        {:ok, %{"seller_nip" => "5555555555"}}
+      end)
+
+      assert {:ok, updated} = Invoices.re_extract_invoice(invoice, company)
+
+      # Missing field now filled
+      assert updated.seller_nip == "5555555555"
+
+      # Existing fields preserved
+      assert updated.seller_name == "Existing Seller"
+      assert updated.invoice_number == "FV/PART/001"
+      assert updated.net_amount == Decimal.new("500.00")
+
+      # Status promoted to complete — merged state has all critical fields
+      assert updated.extraction_status == :complete
     end
 
     test "preserves manually-set billing dates on re-extraction", %{company: company} do

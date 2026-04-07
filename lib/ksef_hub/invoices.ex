@@ -552,7 +552,6 @@ defmodule KsefHub.Invoices do
   @spec apply_extraction_results(Invoice.t(), map(), Company.t(), keyword()) ::
           {:ok, Invoice.t()} | {:error, Ecto.Changeset.t()}
   defp apply_extraction_results(invoice, extracted, company, opts) do
-    extraction_status = determine_extraction_status(extracted)
     extracted_attrs = extracted_to_invoice_attrs(extracted)
 
     # When bank_iban was present but rejected as non-IBAN (e.g. short local
@@ -574,7 +573,6 @@ defmodule KsefHub.Invoices do
       extracted_attrs
       |> Map.reject(fn {_k, v} -> is_nil(v) end)
       |> then(fn attrs -> if clear_iban?, do: Map.put(attrs, :iban, nil), else: attrs end)
-      |> Map.put(:extraction_status, extraction_status)
       |> Map.put(:type, invoice.type)
       |> populate_company_fields(company)
       |> maybe_default_billing_date_for_update(invoice)
@@ -585,8 +583,13 @@ defmodule KsefHub.Invoices do
         do: attrs,
         else: Map.put(attrs, :currency, invoice.currency || "PLN")
 
+    # Determine extraction status from merged invoice + new attrs so that
+    # fields already present on the invoice (from prior extraction or manual
+    # edit) count towards completeness.
+    attrs = recalculate_extraction_status(invoice, attrs)
+
     with {:ok, updated} <- update_invoice(invoice, attrs, opts) do
-      maybe_enqueue_prediction(extraction_status, updated)
+      maybe_enqueue_prediction(attrs.extraction_status, updated)
       {:ok, updated}
     end
   end
