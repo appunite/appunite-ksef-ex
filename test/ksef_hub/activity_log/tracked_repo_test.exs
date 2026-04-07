@@ -80,6 +80,22 @@ defmodule KsefHub.ActivityLog.TrackedRepoTest do
       assert_received {:activity_event, %Event{action: "invoice.excluded"}}
     end
 
+    test "merges caller metadata into Trackable-derived metadata", %{company: company} do
+      invoice = insert(:invoice, company: company, is_excluded: false)
+      flush_activity_events()
+
+      changeset = Invoice.changeset(invoice, %{is_excluded: true})
+
+      {:ok, _updated} =
+        TrackedRepo.update(changeset, metadata: %{extra_info: "from context"})
+
+      assert_received {:activity_event,
+                       %Event{
+                         action: "invoice.excluded",
+                         metadata: %{extra_info: "from context"}
+                       }}
+    end
+
     test "skips event emission on no-op (empty changes)", %{company: company} do
       invoice = insert(:invoice, company: company, note: "same")
       flush_activity_events()

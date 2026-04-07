@@ -426,8 +426,26 @@ defmodule KsefHub.ActivityLog.IntegrationTest do
   end
 
   describe "classification changes emit events" do
-    test "set_invoice_category emits classification_changed", %{company: company} do
-      category = insert(:category, company: company)
+    test "set_invoice_category emits classification_changed with names", %{company: company} do
+      old_cat = insert(:category, company: company, name: "Operations")
+      new_cat = insert(:category, company: company, name: "Growth")
+      invoice = insert(:invoice, company: company, type: :expense, category: old_cat)
+
+      {:ok, _updated} = Invoices.set_invoice_category(invoice, new_cat.id)
+
+      assert_received {:activity_event,
+                       %Event{
+                         action: "invoice.classification_changed",
+                         metadata: %{
+                           field: "category",
+                           old_name: "Operations",
+                           new_name: "Growth"
+                         }
+                       }}
+    end
+
+    test "set_invoice_category with nil old category includes nil old_name", %{company: company} do
+      category = insert(:category, company: company, name: "Payroll")
       invoice = insert(:invoice, company: company, type: :expense, category: nil)
 
       {:ok, _updated} = Invoices.set_invoice_category(invoice, category.id)
@@ -435,7 +453,20 @@ defmodule KsefHub.ActivityLog.IntegrationTest do
       assert_received {:activity_event,
                        %Event{
                          action: "invoice.classification_changed",
-                         metadata: %{field: "category"}
+                         metadata: %{field: "category", old_name: nil, new_name: "Payroll"}
+                       }}
+    end
+
+    test "clearing category includes old_name and nil new_name", %{company: company} do
+      category = insert(:category, company: company, name: "Marketing")
+      invoice = insert(:invoice, company: company, type: :expense, category: category)
+
+      {:ok, _updated} = Invoices.set_invoice_category(invoice, nil)
+
+      assert_received {:activity_event,
+                       %Event{
+                         action: "invoice.classification_changed",
+                         metadata: %{field: "category", old_name: "Marketing", new_name: nil}
                        }}
     end
 

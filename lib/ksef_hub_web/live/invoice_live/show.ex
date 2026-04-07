@@ -1620,7 +1620,16 @@ defmodule KsefHubWeb.InvoiceLive.Show do
   end
 
   defp describe_dynamic_action("invoice.classification_changed", metadata) do
-    "updated #{metadata["field"] || "classification"}"
+    field = metadata["field"] || "classification"
+    old_name = metadata["old_name"]
+    new_name = metadata["new_name"]
+
+    cond do
+      old_name && new_name -> "updated #{field} from #{old_name} to #{new_name}"
+      new_name -> "set #{field} to #{new_name}"
+      old_name -> "removed #{field} #{old_name}"
+      true -> "updated #{field}"
+    end
   end
 
   defp describe_dynamic_action("invoice.access_changed", metadata) do

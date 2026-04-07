@@ -1,6 +1,7 @@
 defmodule KsefHub.AuditLogTest do
   use KsefHub.DataCase, async: true
 
+  import Ecto.Changeset
   import KsefHub.Factory
 
   alias KsefHub.AuditLog
@@ -10,6 +11,36 @@ defmodule KsefHub.AuditLogTest do
       changeset = AuditLog.changeset(%AuditLog{}, %{})
       refute changeset.valid?
       assert "can't be blank" in errors_on(changeset).action
+    end
+
+    test "normalizes atom metadata keys to strings" do
+      changeset =
+        AuditLog.changeset(%AuditLog{}, %{
+          action: "test.action",
+          metadata: %{old_status: "pending", new_status: "approved"}
+        })
+
+      assert changeset.valid?
+
+      assert get_change(changeset, :metadata) == %{
+               "old_status" => "pending",
+               "new_status" => "approved"
+             }
+    end
+
+    test "preserves already-string metadata keys" do
+      changeset =
+        AuditLog.changeset(%AuditLog{}, %{
+          action: "test.action",
+          metadata: %{"field" => "category", "old_name" => "Ops"}
+        })
+
+      assert get_change(changeset, :metadata) == %{"field" => "category", "old_name" => "Ops"}
+    end
+
+    test "handles empty metadata without error" do
+      changeset = AuditLog.changeset(%AuditLog{}, %{action: "test.action", metadata: %{}})
+      assert changeset.valid?
     end
   end
 
