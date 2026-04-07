@@ -46,6 +46,7 @@ defmodule KsefHubWeb.InvoiceLive.Index do
       params
       |> parse_filters()
       |> Map.put_new(:type, :expense)
+      |> Map.put_new(:statuses, [:pending, :approved])
 
     company_id =
       case socket.assigns[:current_company] do
@@ -86,14 +87,7 @@ defmodule KsefHubWeb.InvoiceLive.Index do
     invoice_ids = Enum.map(result.entries, & &1.id)
     payment_statuses = PaymentRequests.payment_statuses_for_invoices(invoice_ids)
 
-    filter_count =
-      length(filters[:statuses] || []) +
-        length(filters[:category_ids] || []) +
-        length(filters[:tags] || []) +
-        length(filters[:payment_statuses] || []) +
-        if(filters[:date_from], do: 1, else: 0) +
-        if(filters[:date_to], do: 1, else: 0) +
-        if(filters[:query] && String.trim(filters[:query]) != "", do: 1, else: 0)
+    filter_count = filter_count(filters)
 
     [
       invoices: result.entries,
@@ -107,6 +101,27 @@ defmodule KsefHubWeb.InvoiceLive.Index do
       can_create: Authorization.can?(role, :create_invoice),
       filter_count: filter_count
     ]
+  end
+
+  @spec statuses_count(map()) :: non_neg_integer()
+  defp statuses_count(filters) do
+    default_statuses = MapSet.new([:pending, :approved])
+
+    case filters[:statuses] || [] do
+      [] -> 0
+      list -> if MapSet.new(list) == default_statuses, do: 0, else: length(list)
+    end
+  end
+
+  @spec filter_count(map()) :: non_neg_integer()
+  defp filter_count(filters) do
+    statuses_count(filters) +
+      length(filters[:category_ids] || []) +
+      length(filters[:tags] || []) +
+      length(filters[:payment_statuses] || []) +
+      if(filters[:date_from], do: 1, else: 0) +
+      if(filters[:date_to], do: 1, else: 0) +
+      if(filters[:query] && String.trim(filters[:query]) != "", do: 1, else: 0)
   end
 
   @spec build_filters_form(map()) :: Phoenix.HTML.Form.t()
@@ -154,7 +169,12 @@ defmodule KsefHubWeb.InvoiceLive.Index do
   defp build_query_params(filters, form_params) do
     %{}
     |> maybe_put("type", to_string_or_empty(filters[:type]))
-    |> maybe_put("statuses", join_list(filters[:statuses]))
+    |> then(fn params ->
+      case filters[:statuses] do
+        [] -> Map.put(params, "statuses", "")
+        other -> maybe_put(params, "statuses", join_list(other))
+      end
+    end)
     |> maybe_put("date_from", form_params["date_from"] || date_to_string(filters[:date_from]))
     |> maybe_put("date_to", form_params["date_to"] || date_to_string(filters[:date_to]))
     |> maybe_put("query", form_params["query"] || filters[:query])
@@ -203,9 +223,14 @@ defmodule KsefHubWeb.InvoiceLive.Index do
     %{}
     |> maybe_put_enum(:type, params["type"], Invoice, :type)
     |> maybe_put_csv(:statuses, params["statuses"],
-      valid: ~w(pending approved rejected),
+      valid: ~w(pending approved rejected duplicate),
       transform: &String.to_existing_atom/1
     )
+    |> then(fn map ->
+      if params["statuses"] == "" and not Map.has_key?(map, :statuses),
+        do: Map.put(map, :statuses, []),
+        else: map
+    end)
     |> maybe_put_date(:date_from, params["date_from"])
     |> maybe_put_date(:date_to, params["date_to"])
     |> maybe_put_search(:query, params["query"])
@@ -292,7 +317,12 @@ defmodule KsefHubWeb.InvoiceLive.Index do
           id="status-filter"
           label="Status"
           field="statuses"
-          options={[{"Pending", "pending"}, {"Approved", "approved"}, {"Rejected", "rejected"}]}
+          options={[
+            {"Pending", "pending"},
+            {"Approved", "approved"},
+            {"Rejected", "rejected"},
+            {"Duplicate", "duplicate"}
+          ]}
           selected={Enum.map(@filters[:statuses] || [], &to_string/1)}
           open={@open_filter == "status-filter"}
         />

@@ -309,6 +309,80 @@ defmodule KsefHub.InvoicesTest do
       assert [] = Invoices.list_invoices(company.id, %{status: :rejected})
     end
 
+    test "excludes confirmed duplicates by default", %{company: company} do
+      insert(:invoice, type: :expense, company: company, status: :approved)
+
+      insert(:invoice,
+        type: :expense,
+        company: company,
+        status: :approved,
+        duplicate_status: :confirmed
+      )
+
+      result = Invoices.list_invoices(company.id, %{statuses: [:approved]})
+      assert length(result) == 1
+      assert hd(result).duplicate_status != :confirmed
+    end
+
+    test "includes confirmed duplicates when duplicate filter is selected", %{company: company} do
+      insert(:invoice, type: :expense, company: company, status: :approved)
+
+      insert(:invoice,
+        type: :expense,
+        company: company,
+        status: :approved,
+        duplicate_status: :confirmed
+      )
+
+      result = Invoices.list_invoices(company.id, %{statuses: [:approved, :duplicate]})
+      assert length(result) == 2
+    end
+
+    test "shows only duplicates when only duplicate filter is selected", %{company: company} do
+      insert(:invoice, type: :expense, company: company, status: :approved)
+
+      insert(:invoice,
+        type: :expense,
+        company: company,
+        status: :approved,
+        duplicate_status: :confirmed
+      )
+
+      result = Invoices.list_invoices(company.id, %{statuses: [:duplicate]})
+      assert length(result) == 1
+      assert hd(result).duplicate_status == :confirmed
+    end
+
+    test "excludes confirmed duplicates when no statuses filter is applied", %{company: company} do
+      insert(:invoice, type: :expense, company: company)
+
+      insert(:invoice,
+        type: :expense,
+        company: company,
+        duplicate_status: :confirmed
+      )
+
+      result = Invoices.list_invoices(company.id, %{})
+      assert length(result) == 1
+      assert is_nil(hd(result).duplicate_status)
+    end
+
+    test "excludes confirmed duplicates when explicit statuses filter is an empty list", %{
+      company: company
+    } do
+      insert(:invoice, type: :expense, company: company)
+
+      insert(:invoice,
+        type: :expense,
+        company: company,
+        duplicate_status: :confirmed
+      )
+
+      result = Invoices.list_invoices(company.id, %{statuses: []})
+      assert length(result) == 1
+      assert is_nil(hd(result).duplicate_status)
+    end
+
     test "filters by date range", %{company: company} do
       insert(:invoice, issue_date: ~D[2025-01-01], company: company)
       insert(:invoice, issue_date: ~D[2025-06-15], company: company)

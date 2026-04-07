@@ -2443,15 +2443,14 @@ defmodule KsefHub.Invoices do
 
   @spec apply_filters(Ecto.Queryable.t(), map()) :: Ecto.Query.t()
   defp apply_filters(query, filters) do
+    query = apply_status_and_duplicate_filters(query, filters)
+
     Enum.reduce(filters, query, fn
       {:type, type}, q when type in [:income, :expense] ->
         where(q, [i], i.type == ^type)
 
       {:status, status}, q when status in [:pending, :approved, :rejected] ->
         where(q, [i], i.status == ^status)
-
-      {:statuses, statuses}, q when is_list(statuses) and statuses != [] ->
-        where(q, [i], i.status in ^statuses)
 
       {:category_ids, ids}, q when is_list(ids) and ids != [] ->
         where(q, [i], i.category_id in ^ids)
@@ -2495,6 +2494,35 @@ defmodule KsefHub.Invoices do
       _, q ->
         q
     end)
+  end
+
+  @spec apply_status_and_duplicate_filters(Ecto.Queryable.t(), map()) :: Ecto.Query.t()
+  defp apply_status_and_duplicate_filters(query, filters) do
+    statuses = filters[:statuses] || []
+    include_duplicates = :duplicate in statuses
+
+    query =
+      if include_duplicates do
+        query
+      else
+        where(query, [i], is_nil(i.duplicate_status) or i.duplicate_status != :confirmed)
+      end
+
+    real_statuses = Enum.reject(statuses, &(&1 == :duplicate))
+
+    case {real_statuses, include_duplicates} do
+      {[], true} ->
+        where(query, [i], i.duplicate_status == :confirmed)
+
+      {_, true} ->
+        where(query, [i], i.status in ^real_statuses or i.duplicate_status == :confirmed)
+
+      {[_ | _], false} ->
+        where(query, [i], i.status in ^real_statuses)
+
+      _ ->
+        query
+    end
   end
 
   @spec apply_payment_status_filter(Ecto.Queryable.t(), [String.t()]) :: Ecto.Query.t()
