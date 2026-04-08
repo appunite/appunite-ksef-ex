@@ -2401,9 +2401,10 @@ defmodule KsefHub.Invoices do
         invoice
 
       older_id ->
-        older_invoice = Repo.get!(Invoice, older_id)
-
-        mark_as_duplicate(older_invoice, invoice.id, Event.ksef_sync_opts())
+        case Repo.get(Invoice, older_id) do
+          nil -> :ok
+          older_invoice -> mark_as_duplicate(older_invoice, invoice.id, Event.ksef_sync_opts())
+        end
 
         invoice
     end

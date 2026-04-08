@@ -89,6 +89,7 @@ defmodule KsefHub.Invoices.DuplicateDetector do
       |> maybe_exclude_id(opts[:exclude_id])
       |> maybe_require_no_ksef(has_ksef)
       |> maybe_require_seller_nip(seller_nip)
+      |> order_by([i], asc: i.inserted_at, asc: i.id)
       |> select([i], i.id)
       |> limit(1)
       |> Repo.one()
