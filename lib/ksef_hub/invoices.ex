@@ -15,6 +15,7 @@ defmodule KsefHub.Invoices do
   alias KsefHub.InvoiceClassifier.Worker, as: ClassifierWorker
   alias KsefHub.InvoiceExtractor.ContextBuilder
 
+  alias KsefHub.ActivityLog.Event
   alias KsefHub.ActivityLog.Events
   alias KsefHub.ActivityLog.TrackedRepo
 
@@ -1488,13 +1489,13 @@ defmodule KsefHub.Invoices do
     |> Ecto.Changeset.change(trusted_fields)
     |> Invoice.changeset(attrs)
     |> TrackedRepo.insert(
-      on_conflict: {:replace, @upsert_replace_fields},
-      conflict_target:
-        {:unsafe_fragment,
-         ~s|("company_id","ksef_number") WHERE ksef_number IS NOT NULL AND duplicate_of_id IS NULL|},
-      returning: true,
-      actor_type: :system,
-      actor_label: "KSeF Sync"
+      [
+        on_conflict: {:replace, @upsert_replace_fields},
+        conflict_target:
+          {:unsafe_fragment,
+           ~s|("company_id","ksef_number") WHERE ksef_number IS NOT NULL AND duplicate_of_id IS NULL|},
+        returning: true
+      ] ++ Event.ksef_sync_opts()
     )
   end
 
@@ -2401,14 +2402,15 @@ defmodule KsefHub.Invoices do
 
       older_id ->
         older_invoice = Repo.get!(Invoice, older_id)
-        mark_as_duplicate(older_invoice, invoice.id, skip_emit: true)
+
+        mark_as_duplicate(older_invoice, invoice.id, Event.ksef_sync_opts())
+
         invoice
     end
   end
 
   # Shared: mark an invoice as a suspected duplicate of another.
   # Returns the updated invoice on success, the original on failure (with a warning log).
-  # Pass `skip_emit: true` for system-level operations that should not emit activity events.
   @spec mark_as_duplicate(Invoice.t(), Ecto.UUID.t(), keyword()) :: Invoice.t()
   defp mark_as_duplicate(invoice, original_id, opts) do
     case invoice

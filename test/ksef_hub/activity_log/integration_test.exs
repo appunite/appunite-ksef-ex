@@ -157,6 +157,48 @@ defmodule KsefHub.ActivityLog.IntegrationTest do
   end
 
   describe "duplicate management" do
+    @sample_xml File.read!("test/support/fixtures/sample_income.xml")
+
+    test "upsert_invoice emits duplicate_detected when marking older invoice", %{
+      company: company
+    } do
+      # Pre-existing manual invoice (no ksef_number)
+      insert(:invoice,
+        company: company,
+        ksef_number: nil,
+        source: :pdf_upload,
+        invoice_number: "DUP-EMIT/001",
+        seller_nip: "5260003819",
+        issue_date: ~D[2026-04-02],
+        net_amount: Decimal.new("1000.00"),
+        gross_amount: Decimal.new("1230.00")
+      )
+
+      flush_activity_events()
+
+      # KSeF sync inserts matching invoice
+      attrs =
+        params_for(:invoice,
+          ksef_number: "ksef-dup-emit-001",
+          company_id: company.id,
+          invoice_number: "DUP-EMIT/001",
+          seller_nip: "5260003819",
+          issue_date: ~D[2026-04-02],
+          net_amount: Decimal.new("1000.00"),
+          gross_amount: Decimal.new("1230.00")
+        )
+        |> Map.put(:xml_content, @sample_xml)
+
+      assert {:ok, _ksef_invoice, :inserted} = Invoices.upsert_invoice(attrs)
+
+      assert_received {:activity_event,
+                       %Event{
+                         action: "invoice.duplicate_detected",
+                         actor_type: :system,
+                         actor_label: "KSeF Sync"
+                       }}
+    end
+
     test "confirm_duplicate emits event", %{company: company} do
       original = insert(:invoice, company: company)
 

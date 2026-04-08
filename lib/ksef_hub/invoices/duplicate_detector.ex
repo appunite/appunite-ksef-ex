@@ -77,7 +77,9 @@ defmodule KsefHub.Invoices.DuplicateDetector do
     seller_nip = attr(attrs, :seller_nip)
     has_ksef = present?(attr(attrs, :ksef_number))
 
-    if present?(invoice_number) && present?(issue_date) && net_amount do
+    with true <- present?(invoice_number),
+         {:ok, issue_date} <- cast_date(issue_date),
+         {:ok, net_amount} <- cast_decimal(net_amount) do
       Invoice
       |> where([i], i.company_id == ^company_id)
       |> where([i], i.invoice_number == ^invoice_number)
@@ -90,25 +92,56 @@ defmodule KsefHub.Invoices.DuplicateDetector do
       |> select([i], i.id)
       |> limit(1)
       |> Repo.one()
+    else
+      _ -> nil
     end
   end
 
+  @spec maybe_exclude_id(Ecto.Query.t(), nil | Ecto.UUID.t()) :: Ecto.Query.t()
   defp maybe_exclude_id(query, nil), do: query
   defp maybe_exclude_id(query, id), do: where(query, [i], i.id != ^id)
 
   # When the new invoice has a KSeF number, candidates must NOT have one.
   # Same KSeF → already caught by find_by_ksef_number.
   # Different KSeF → definitively different invoices.
+  @spec maybe_require_no_ksef(Ecto.Query.t(), boolean()) :: Ecto.Query.t()
   defp maybe_require_no_ksef(query, false), do: query
   defp maybe_require_no_ksef(query, true), do: where(query, [i], is_nil(i.ksef_number))
 
   # EU invoices have seller_nip — require it to match.
   # Non-EU invoices (US, etc.) have no NIP — skip this filter.
+  @spec maybe_require_seller_nip(Ecto.Query.t(), nil | String.t()) :: Ecto.Query.t()
   defp maybe_require_seller_nip(query, seller_nip) do
     if present?(seller_nip),
       do: where(query, [i], i.seller_nip == ^seller_nip),
       else: query
   end
+
+  @spec cast_date(term()) :: {:ok, Date.t()} | :error
+  defp cast_date(%Date{} = d), do: {:ok, d}
+
+  defp cast_date(s) when is_binary(s) do
+    case Date.from_iso8601(s) do
+      {:ok, d} -> {:ok, d}
+      _ -> :error
+    end
+  end
+
+  defp cast_date(_), do: :error
+
+  @spec cast_decimal(term()) :: {:ok, Decimal.t()} | :error
+  defp cast_decimal(%Decimal{} = d), do: {:ok, d}
+  defp cast_decimal(n) when is_integer(n), do: {:ok, Decimal.new(n)}
+  defp cast_decimal(n) when is_float(n), do: {:ok, Decimal.from_float(n)}
+
+  defp cast_decimal(s) when is_binary(s) do
+    case Decimal.parse(s) do
+      {d, ""} -> {:ok, d}
+      _ -> :error
+    end
+  end
+
+  defp cast_decimal(_), do: :error
 
   @spec attr(map(), atom()) :: term()
   defp attr(attrs, key), do: attrs[key] || attrs[Atom.to_string(key)]
