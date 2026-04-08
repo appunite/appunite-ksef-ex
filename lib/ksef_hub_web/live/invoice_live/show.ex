@@ -1010,47 +1010,11 @@ defmodule KsefHubWeb.InvoiceLive.Show do
       </div>
     </div>
 
-    <div
-      :if={@invoice.duplicate_of_id && @invoice.duplicate_status == :suspected}
-      class="flex items-center gap-3 rounded-md border border-warning/20 bg-warning/5 p-4 mt-4"
-      role="alert"
-      data-testid="duplicate-warning"
-    >
-      <.icon name="hero-document-duplicate" class="size-5" />
-      <span>
-        This invoice may be a duplicate.
-        <.link
-          navigate={~p"/c/#{@current_company.id}/invoices/#{@invoice.duplicate_of_id}"}
-          class="text-shad-primary underline-offset-4 hover:underline"
-        >
-          View original
-        </.link>
-      </span>
-      <div :if={@can_mutate} class="flex-none flex gap-2">
-        <.button variant="ghost" phx-click="dismiss_duplicate">
-          Not a duplicate
-        </.button>
-        <.button variant="warning" phx-click="confirm_duplicate">
-          Confirm duplicate
-        </.button>
-      </div>
-    </div>
-    <div
-      :if={@invoice.duplicate_of_id && @invoice.duplicate_status == :confirmed}
-      class="flex items-center gap-3 rounded-md border border-error/20 bg-error/5 p-4 mt-4"
-      role="alert"
-      data-testid="duplicate-confirmed"
-    >
-      <.icon name="hero-document-duplicate" class="size-5" />
-      <span>
-        This invoice is a confirmed duplicate of <.link
-          navigate={~p"/c/#{@current_company.id}/invoices/#{@invoice.duplicate_of_id}"}
-          class="text-shad-primary underline-offset-4 hover:underline"
-        >
-          the original
-        </.link>.
-      </span>
-    </div>
+    <.duplicate_banner
+      invoice={@invoice}
+      company_id={@current_company.id}
+      can_mutate={@can_mutate}
+    />
 
     <div class="grid grid-cols-1 lg:grid-cols-[minmax(0,1fr)_minmax(0,2fr)] gap-6 mt-6">
       <!-- Invoice Metadata -->

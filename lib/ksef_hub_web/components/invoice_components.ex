@@ -5,9 +5,108 @@ defmodule KsefHubWeb.InvoiceComponents do
 
   use Phoenix.Component
 
-  import KsefHubWeb.CoreComponents, only: [badge: 1]
+  import KsefHubWeb.CoreComponents, only: [badge: 1, button: 1, icon: 1]
+
+  use Phoenix.VerifiedRoutes, endpoint: KsefHubWeb.Endpoint, router: KsefHubWeb.Router
 
   require Logger
+
+  @doc """
+  Renders the duplicate-status banner for an invoice.
+
+  Shows nothing when the invoice is not a duplicate. Otherwise renders a
+  warning (suspected), error (confirmed), or muted (dismissed) banner with
+  a link to the original invoice.
+  """
+  @spec duplicate_banner(map()) :: Phoenix.LiveView.Rendered.t()
+  attr :invoice, :map, required: true
+  attr :company_id, :string, required: true
+  attr :can_mutate, :boolean, default: false
+
+  def duplicate_banner(%{invoice: %{duplicate_of_id: nil}} = assigns), do: ~H""
+
+  def duplicate_banner(%{invoice: %{duplicate_status: :suspected}} = assigns) do
+    ~H"""
+    <div
+      class="flex items-center gap-3 rounded-md border border-warning/20 bg-warning/5 p-4 mt-4"
+      role="alert"
+      data-testid="duplicate-warning"
+    >
+      <.icon name="hero-document-duplicate" class="size-5" />
+      <span>
+        This invoice may be a duplicate.
+        <.duplicate_link company_id={@company_id} invoice_id={@invoice.duplicate_of_id}>
+          View original
+        </.duplicate_link>
+      </span>
+      <div :if={@can_mutate} class="flex-none flex gap-2">
+        <.button variant="ghost" phx-click="dismiss_duplicate">
+          Not a duplicate
+        </.button>
+        <.button variant="warning" phx-click="confirm_duplicate">
+          Confirm duplicate
+        </.button>
+      </div>
+    </div>
+    """
+  end
+
+  def duplicate_banner(%{invoice: %{duplicate_status: :confirmed}} = assigns) do
+    ~H"""
+    <div
+      class="flex items-center gap-3 rounded-md border border-error/20 bg-error/5 p-4 mt-4"
+      role="alert"
+      data-testid="duplicate-confirmed"
+    >
+      <.icon name="hero-document-duplicate" class="size-5" />
+      <span>
+        This invoice is a confirmed duplicate of <.duplicate_link
+          company_id={@company_id}
+          invoice_id={@invoice.duplicate_of_id}
+        >
+          the original
+        </.duplicate_link>.
+      </span>
+    </div>
+    """
+  end
+
+  def duplicate_banner(%{invoice: %{duplicate_status: :dismissed}} = assigns) do
+    ~H"""
+    <div
+      class="flex items-center gap-3 rounded-md border border-muted bg-muted/30 p-3 mt-4 text-sm text-muted-foreground"
+      data-testid="duplicate-dismissed"
+    >
+      <.icon name="hero-document-duplicate" class="size-4" />
+      <span>
+        Previously flagged as a possible duplicate of
+        <.duplicate_link
+          company_id={@company_id}
+          invoice_id={@invoice.duplicate_of_id}
+        >
+          another invoice
+        </.duplicate_link>
+        — dismissed.
+      </span>
+    </div>
+    """
+  end
+
+  @spec duplicate_link(map()) :: Phoenix.LiveView.Rendered.t()
+  attr :company_id, :string, required: true
+  attr :invoice_id, :string, required: true
+  slot :inner_block, required: true
+
+  defp duplicate_link(assigns) do
+    ~H"""
+    <.link
+      navigate={~p"/c/#{@company_id}/invoices/#{@invoice_id}"}
+      class="text-shad-primary underline-offset-4 hover:underline"
+    >
+      {render_slot(@inner_block)}
+    </.link>
+    """
+  end
 
   @doc "Renders a coloured badge for the invoice type (:income / :expense)."
   @spec type_badge(map()) :: Phoenix.LiveView.Rendered.t()

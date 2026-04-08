@@ -795,7 +795,7 @@ defmodule KsefHubWeb.InvoiceLive.ShowTest do
       assert has_element?(view, "button", "Confirm duplicate")
     end
 
-    test "dismiss_duplicate removes the warning", %{conn: conn, company: company} do
+    test "dismiss_duplicate replaces warning with dismissed note", %{conn: conn, company: company} do
       original = insert(:invoice, company: company)
 
       duplicate =
@@ -810,6 +810,13 @@ defmodule KsefHubWeb.InvoiceLive.ShowTest do
       view |> element("button", "Not a duplicate") |> render_click()
 
       refute has_element?(view, ~s([data-testid="duplicate-warning"]))
+      assert has_element?(view, ~s([data-testid="duplicate-dismissed"]))
+
+      assert has_element?(
+               view,
+               ~s(a[href="/c/#{company.id}/invoices/#{original.id}"]),
+               "another invoice"
+             )
     end
 
     test "confirm_duplicate shows confirmed state", %{conn: conn, company: company} do
