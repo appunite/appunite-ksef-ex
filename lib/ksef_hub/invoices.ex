@@ -21,6 +21,7 @@ defmodule KsefHub.Invoices do
   alias KsefHub.Invoices.{
     AutoApproval,
     Category,
+    DuplicateDetector,
     Invoice,
     InvoiceAccessGrant,
     InvoiceComment,
@@ -633,8 +634,25 @@ defmodule KsefHub.Invoices do
     attrs = recalculate_extraction_status(invoice, attrs)
 
     with {:ok, updated} <- update_invoice(invoice, attrs, opts) do
+      updated = maybe_detect_duplicate_after_extraction(updated, opts)
       maybe_enqueue_prediction(attrs.extraction_status, updated)
       {:ok, updated}
+    end
+  end
+
+  # After re-extraction populates fields, check if this invoice is now a duplicate.
+  # Only runs when the invoice is not already marked as a duplicate.
+  @spec maybe_detect_duplicate_after_extraction(Invoice.t(), keyword()) :: Invoice.t()
+  defp maybe_detect_duplicate_after_extraction(%Invoice{duplicate_of_id: id} = invoice, _opts)
+       when not is_nil(id),
+       do: invoice
+
+  defp maybe_detect_duplicate_after_extraction(%Invoice{} = invoice, opts) do
+    attrs = Map.from_struct(invoice)
+
+    case DuplicateDetector.find_original_id(invoice.company_id, attrs, exclude_id: invoice.id) do
+      nil -> invoice
+      original_id -> mark_as_duplicate(invoice, original_id, opts)
     end
   end
 
@@ -871,7 +889,7 @@ defmodule KsefHub.Invoices do
   @spec create_or_retry_duplicate(Ecto.UUID.t(), map(), keyword()) ::
           {:ok, Invoice.t()} | {:error, Ecto.Changeset.t() | term()}
   defp create_or_retry_duplicate(company_id, attrs, opts) do
-    attrs = detect_duplicate(company_id, attrs)
+    attrs = DuplicateDetector.detect(company_id, attrs)
 
     case create_invoice(attrs, opts) do
       {:ok, invoice} ->
@@ -892,7 +910,7 @@ defmodule KsefHub.Invoices do
   defp retry_as_duplicate(company_id, attrs, opts) do
     attrs
     |> Map.merge(%{
-      duplicate_of_id: find_original_id(company_id, attrs),
+      duplicate_of_id: DuplicateDetector.find_original_id(company_id, attrs),
       duplicate_status: :suspected
     })
     |> create_invoice(opts)
@@ -2332,8 +2350,6 @@ defmodule KsefHub.Invoices do
 
   # --- Private ---
 
-  @spec detect_duplicate(Ecto.UUID.t(), map()) :: map()
-
   @spec fetch_company_category(Ecto.UUID.t(), Ecto.UUID.t()) :: Category.t() | nil
   defp fetch_company_category(company_id, category_id) do
     Category
@@ -2359,96 +2375,6 @@ defmodule KsefHub.Invoices do
       else: attrs
   end
 
-  defp detect_duplicate(company_id, attrs) do
-    case find_original_id(company_id, attrs) do
-      nil ->
-        attrs
-
-      original_id ->
-        Map.merge(attrs, %{duplicate_of_id: original_id, duplicate_status: :suspected})
-    end
-  end
-
-  @spec find_original_id(Ecto.UUID.t(), map()) :: Ecto.UUID.t() | nil
-  defp find_original_id(company_id, attrs) do
-    find_original_by_ksef_number(company_id, attrs) ||
-      find_original_by_business_fields(company_id, attrs)
-  end
-
-  @spec find_original_by_ksef_number(Ecto.UUID.t(), map()) :: Ecto.UUID.t() | nil
-  defp find_original_by_ksef_number(company_id, attrs) do
-    ksef_number = attrs[:ksef_number] || attrs["ksef_number"]
-
-    if present?(ksef_number) do
-      Invoice
-      |> where([i], i.company_id == ^company_id and i.ksef_number == ^ksef_number)
-      |> where([i], is_nil(i.duplicate_of_id))
-      |> select([i], i.id)
-      |> Repo.one()
-    end
-  end
-
-  # Fallback: match on (invoice_number + seller_nip + issue_date) OR
-  # (invoice_number + issue_date + net_amount) to catch cross-source duplicates
-  # (e.g. PDF uploaded before KSeF sync).
-  @spec find_original_by_business_fields(Ecto.UUID.t(), map(), keyword()) :: Ecto.UUID.t() | nil
-  defp find_original_by_business_fields(company_id, attrs, opts \\ []) do
-    invoice_number = attrs[:invoice_number] || attrs["invoice_number"]
-    issue_date = attrs[:issue_date] || attrs["issue_date"]
-
-    if present?(invoice_number) && present?(issue_date) do
-      base = business_field_base_query(company_id, invoice_number, issue_date, opts[:exclude_id])
-
-      base
-      |> apply_business_field_filter(attrs)
-      |> run_duplicate_query()
-    end
-  end
-
-  @spec business_field_base_query(Ecto.UUID.t(), String.t(), Date.t(), Ecto.UUID.t() | nil) ::
-          Ecto.Query.t()
-  defp business_field_base_query(company_id, invoice_number, issue_date, exclude_id) do
-    Invoice
-    |> where([i], i.company_id == ^company_id)
-    |> where([i], i.invoice_number == ^invoice_number and i.issue_date == ^issue_date)
-    |> where([i], is_nil(i.duplicate_of_id))
-    |> then(fn q ->
-      if exclude_id, do: where(q, [i], i.id != ^exclude_id), else: q
-    end)
-  end
-
-  @spec apply_business_field_filter(Ecto.Query.t(), map()) :: Ecto.Query.t() | nil
-  defp apply_business_field_filter(base, attrs) do
-    seller_nip = attrs[:seller_nip] || attrs["seller_nip"]
-    net_amount = attrs[:net_amount] || attrs["net_amount"]
-
-    cond do
-      present?(seller_nip) && net_amount ->
-        where(base, [i], i.seller_nip == ^seller_nip or i.net_amount == ^net_amount)
-
-      present?(seller_nip) ->
-        where(base, [i], i.seller_nip == ^seller_nip)
-
-      net_amount ->
-        where(base, [i], i.net_amount == ^net_amount)
-
-      true ->
-        nil
-    end
-  end
-
-  @spec run_duplicate_query(Ecto.Query.t() | nil) :: Ecto.UUID.t() | nil
-  defp run_duplicate_query(nil), do: nil
-  defp run_duplicate_query(query), do: query |> select([i], i.id) |> limit(1) |> Repo.one()
-
-  @spec present?(term()) :: boolean()
-  defp present?(nil), do: false
-  defp present?(""), do: false
-
-  defp present?(s) when is_binary(s), do: String.trim(s) != ""
-
-  defp present?(_), do: true
-
   @spec format_error_reason(term()) :: String.t()
   defp format_error_reason(%Ecto.Changeset{} = changeset) do
     changeset
@@ -2462,39 +2388,45 @@ defmodule KsefHub.Invoices do
   # already exists with matching business fields. The KSeF invoice is authoritative,
   # so mark the older manual/PDF invoice as the duplicate (pointing at the new KSeF
   # row). This preserves the KSeF invoice's duplicate_of_id as NULL, which is
-  # required by the upsert conflict target and find_original_by_ksef_number/2.
+  # required by the upsert conflict target and DuplicateDetector.find_original_id/3.
   @spec maybe_mark_business_field_duplicate(Invoice.t(), :inserted | :updated) :: Invoice.t()
   defp maybe_mark_business_field_duplicate(invoice, :updated), do: invoice
 
   defp maybe_mark_business_field_duplicate(invoice, :inserted) do
     attrs = Map.from_struct(invoice)
 
-    case find_original_by_business_fields(invoice.company_id, attrs, exclude_id: invoice.id) do
+    case DuplicateDetector.find_original_id(invoice.company_id, attrs, exclude_id: invoice.id) do
       nil ->
         invoice
 
       older_id ->
         older_invoice = Repo.get!(Invoice, older_id)
+        mark_as_duplicate(older_invoice, invoice.id, skip_emit: true)
+        invoice
+    end
+  end
 
-        case older_invoice
-             |> Invoice.duplicate_changeset(%{
-               duplicate_of_id: invoice.id,
-               duplicate_status: :suspected
-             })
-             |> Repo.update() do
-          {:ok, _updated} ->
-            invoice
+  # Shared: mark an invoice as a suspected duplicate of another.
+  # Returns the updated invoice on success, the original on failure (with a warning log).
+  # Pass `skip_emit: true` for system-level operations that should not emit activity events.
+  @spec mark_as_duplicate(Invoice.t(), Ecto.UUID.t(), keyword()) :: Invoice.t()
+  defp mark_as_duplicate(invoice, original_id, opts) do
+    case invoice
+         |> Invoice.duplicate_changeset(%{
+           duplicate_of_id: original_id,
+           duplicate_status: :suspected
+         })
+         |> TrackedRepo.update(opts) do
+      {:ok, updated} ->
+        updated
 
-          {:error, reason} ->
-            error_detail = format_error_reason(reason)
+      {:error, reason} ->
+        Logger.warning(
+          "Failed to mark invoice #{invoice.id} (company #{invoice.company_id}) " <>
+            "as duplicate of #{original_id}: #{format_error_reason(reason)}"
+        )
 
-            Logger.warning(
-              "Failed to mark invoice #{older_id} (company #{invoice.company_id}) " <>
-                "as duplicate of #{invoice.id}: #{error_detail}"
-            )
-
-            invoice
-        end
+        invoice
     end
   end
 
