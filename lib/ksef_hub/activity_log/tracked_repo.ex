@@ -61,7 +61,10 @@ defmodule KsefHub.ActivityLog.TrackedRepo do
 
     case Repo.insert(changeset, repo_opts) do
       {:ok, struct} ->
-        maybe_emit(%{changeset | action: :insert}, struct, event_opts)
+        unless upsert_no_op?(repo_opts, struct) do
+          maybe_emit(%{changeset | action: :insert}, struct, event_opts)
+        end
+
         {:ok, struct}
 
       error ->
@@ -177,6 +180,18 @@ defmodule KsefHub.ActivityLog.TrackedRepo do
   @spec stringify_keys(map()) :: map()
   defp stringify_keys(map) when is_map(map) do
     Map.new(map, fn {k, v} -> {to_string(k), v} end)
+  end
+
+  # Detects when Repo.insert with on_conflict resolved to an update (not a
+  # fresh insert). We compare inserted_at vs updated_at — on a true insert
+  # they are equal; on an on_conflict replace, updated_at is refreshed but
+  # inserted_at stays the same, making them differ.
+  @spec upsert_no_op?(keyword(), Ecto.Schema.t()) :: boolean()
+  defp upsert_no_op?(repo_opts, struct) do
+    Keyword.has_key?(repo_opts, :on_conflict) and
+      Map.has_key?(struct, :inserted_at) and
+      Map.has_key?(struct, :updated_at) and
+      struct.inserted_at != struct.updated_at
   end
 
   @spec explicit_event(keyword()) :: {String.t(), map()} | :skip
