@@ -115,6 +115,17 @@ defmodule KsefHub.Release do
     IO.puts("  #{invoice.id} (#{invoice.invoice_number}) #{label}: #{Enum.join(diff, ", ")}")
   end
 
+  defp log_reparse_result({invoice, {:error, %Ecto.Changeset{} = cs}}, _dry_run?) do
+    errors =
+      Ecto.Changeset.traverse_errors(cs, fn {msg, opts} ->
+        Regex.replace(~r"%{(\w+)}", msg, fn _, key ->
+          opts |> Keyword.get(String.to_existing_atom(key), key) |> to_string()
+        end)
+      end)
+
+    IO.puts("  #{invoice.id} validation error: #{inspect(errors)}")
+  end
+
   defp log_reparse_result({invoice, {:error, reason}}, _dry_run?) do
     IO.puts("  #{invoice.id} error: #{inspect(reason)}")
   end
@@ -144,7 +155,7 @@ defmodule KsefHub.Release do
 
   defp run_reparse(invoice, true) do
     KsefHub.Repo.transaction(fn ->
-      case KsefHub.Invoices.reparse_from_stored_xml(invoice) do
+      case KsefHub.Invoices.reparse_from_stored_xml(invoice, skip_emit: true) do
         {:ok, updated} -> KsefHub.Repo.rollback({:dry_run, updated})
         {:error, reason} -> KsefHub.Repo.rollback({:real_error, reason})
       end
