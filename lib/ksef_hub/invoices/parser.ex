@@ -165,9 +165,16 @@ defmodule KsefHub.Invoices.Parser do
 
   @spec extract_purchase_order(term()) :: String.t() | nil
   defp extract_purchase_order(doc) do
+    extract_po_from_nr_zamowienia(doc) ||
+      extract_po_from_dodatkowy_opis(doc) ||
+      extract_po_from_stopka(doc)
+  end
+
+  @spec extract_po_from_nr_zamowienia(term()) :: String.t() | nil
+  defp extract_po_from_nr_zamowienia(doc) do
     PurchaseOrder.extract(
       xpath(doc, ~x"//*[local-name()='Fa']//*[local-name()='NrZamowienia']/text()"s)
-    ) || extract_po_from_dodatkowy_opis(doc)
+    )
   end
 
   @spec extract_po_from_dodatkowy_opis(term()) :: String.t() | nil
@@ -180,6 +187,13 @@ defmodule KsefHub.Invoices.Parser do
 
       PurchaseOrder.extract(key) || PurchaseOrder.extract(value)
     end)
+  end
+
+  @spec extract_po_from_stopka(term()) :: String.t() | nil
+  defp extract_po_from_stopka(doc) do
+    doc
+    |> xpath(~x"//*[local-name()='StopkaFaktury']/text()"ls)
+    |> Enum.find_value(&PurchaseOrder.extract/1)
   end
 
   @spec parse_line_items(term()) :: [map()]
