@@ -220,7 +220,7 @@ defmodule KsefHub.ActivityLog.Events do
       build_event("sync.completed",
         resource_type: "sync",
         company_id: company_id,
-        opts: Keyword.merge(opts, actor_type: :system, actor_label: "KSeF Sync"),
+        opts: Keyword.merge(opts, Event.ksef_sync_opts()),
         extra_metadata: stats
       )
     )

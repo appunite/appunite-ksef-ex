@@ -38,6 +38,10 @@ defmodule KsefHub.ActivityLog.Event do
   @spec actor_types() :: [actor_type()]
   def actor_types, do: @actor_types
 
+  @doc "Returns actor opts for system-level KSeF Sync operations."
+  @spec ksef_sync_opts() :: keyword()
+  def ksef_sync_opts, do: [actor_type: :system, actor_label: "KSeF Sync"]
+
   @doc "Resolves actor_type from opts, defaulting based on presence of user_id."
   @spec resolve_actor_type(keyword()) :: actor_type()
   def resolve_actor_type(opts) do

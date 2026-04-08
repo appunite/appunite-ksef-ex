@@ -778,6 +778,26 @@ defmodule KsefHub.InvoicesTest do
   end
 
   describe "create_manual_invoice/2" do
+    defp manual_attrs(overrides \\ []) do
+      %{
+        type: :expense,
+        seller_nip: Keyword.get(overrides, :seller_nip, "1234567890"),
+        seller_name: "Seller Sp. z o.o.",
+        buyer_nip: "0987654321",
+        buyer_name: "Buyer S.A.",
+        invoice_number: Keyword.get(overrides, :invoice_number, "FV/2026/TEST"),
+        issue_date: Keyword.get(overrides, :issue_date, ~D[2026-02-20]),
+        net_amount: Keyword.get(overrides, :net_amount, Decimal.new("1000.00")),
+        gross_amount: Keyword.get(overrides, :gross_amount, Decimal.new("1230.00"))
+      }
+      |> then(fn attrs ->
+        case Keyword.fetch(overrides, :ksef_number) do
+          {:ok, val} -> Map.put(attrs, :ksef_number, val)
+          :error -> attrs
+        end
+      end)
+    end
+
     test "creates a manual invoice with valid attributes", %{company: company} do
       attrs = %{
         type: :expense,
@@ -816,189 +836,270 @@ defmodule KsefHub.InvoicesTest do
       assert is_nil(invoice.duplicate_of_id)
     end
 
-    test "auto-detects duplicate when ksef_number matches existing invoice", %{company: company} do
-      existing = insert(:invoice, ksef_number: "existing-123", company: company)
+    # ── Step 1: same KSeF number ─────────────────────────────────────
 
-      attrs = %{
-        type: :expense,
-        ksef_number: "existing-123",
-        seller_nip: "1234567890",
-        seller_name: "Seller Sp. z o.o.",
-        buyer_nip: "0987654321",
-        buyer_name: "Buyer S.A.",
-        invoice_number: "FV/2026/003",
-        issue_date: ~D[2026-02-20],
-        net_amount: Decimal.new("1000.00"),
-        gross_amount: Decimal.new("1230.00")
-      }
+    test "duplicate: same KSeF number in same company", %{company: company} do
+      existing = insert(:invoice, ksef_number: "KSEF-123", company: company)
 
-      assert {:ok, %Invoice{} = invoice} = Invoices.create_manual_invoice(company.id, attrs)
-      assert invoice.duplicate_of_id == existing.id
-      assert invoice.duplicate_status == :suspected
+      attrs =
+        manual_attrs(
+          ksef_number: "KSEF-123",
+          invoice_number: "FV/001",
+          issue_date: ~D[2026-02-20]
+        )
+
+      assert {:ok, inv} = Invoices.create_manual_invoice(company.id, attrs)
+      assert inv.duplicate_of_id == existing.id
+      assert inv.duplicate_status == :suspected
     end
 
-    test "does not detect duplicate across different companies", %{company: company} do
+    test "not duplicate: same KSeF number in different company", %{company: company} do
       other = insert(:company)
-      insert(:invoice, ksef_number: "cross-company-123", company: other)
+      insert(:invoice, ksef_number: "KSEF-123", company: other)
 
-      attrs = %{
-        type: :expense,
-        ksef_number: "cross-company-123",
-        seller_nip: "1234567890",
-        seller_name: "Seller Sp. z o.o.",
-        buyer_nip: "0987654321",
-        buyer_name: "Buyer S.A.",
-        invoice_number: "FV/2026/004",
-        issue_date: ~D[2026-02-20],
-        net_amount: Decimal.new("1000.00"),
-        gross_amount: Decimal.new("1230.00")
-      }
+      attrs =
+        manual_attrs(
+          ksef_number: "KSEF-123",
+          invoice_number: "FV/001",
+          issue_date: ~D[2026-02-20]
+        )
 
-      assert {:ok, %Invoice{} = invoice} = Invoices.create_manual_invoice(company.id, attrs)
-      assert is_nil(invoice.duplicate_of_id)
+      assert {:ok, inv} = Invoices.create_manual_invoice(company.id, attrs)
+      assert is_nil(inv.duplicate_of_id)
     end
 
-    test "detects duplicate by invoice_number + seller_nip + issue_date when ksef_number is absent",
-         %{company: company} do
+    test "KSeF number match takes precedence over business field match", %{company: company} do
+      ksef_original =
+        insert(:invoice,
+          company: company,
+          ksef_number: "KSEF-PRIORITY",
+          invoice_number: "FV/400",
+          seller_nip: "5555555555",
+          issue_date: ~D[2026-03-25]
+        )
+
+      # Another invoice with same business fields but no KSeF number
       insert(:invoice,
         company: company,
-        invoice_number: "FV/2026/100",
+        ksef_number: nil,
+        invoice_number: "FV/400",
         seller_nip: "5555555555",
-        issue_date: ~D[2026-03-15]
+        issue_date: ~D[2026-03-25]
       )
 
-      attrs = %{
-        type: :expense,
-        invoice_number: "FV/2026/100",
-        seller_nip: "5555555555",
-        seller_name: "Seller Sp. z o.o.",
-        buyer_nip: "0987654321",
-        buyer_name: "Buyer S.A.",
-        issue_date: ~D[2026-03-15],
-        net_amount: Decimal.new("2000.00"),
-        gross_amount: Decimal.new("2460.00")
-      }
+      attrs =
+        manual_attrs(
+          ksef_number: "KSEF-PRIORITY",
+          invoice_number: "FV/400",
+          seller_nip: "5555555555",
+          issue_date: ~D[2026-03-25]
+        )
 
-      assert {:ok, %Invoice{} = invoice} = Invoices.create_manual_invoice(company.id, attrs)
-      assert invoice.duplicate_status == :suspected
-      assert invoice.duplicate_of_id
+      assert {:ok, inv} = Invoices.create_manual_invoice(company.id, attrs)
+      assert inv.duplicate_of_id == ksef_original.id
     end
 
-    test "detects duplicate by invoice_number + issue_date + net_amount when seller_nip differs",
-         %{company: company} do
-      insert(:invoice,
-        company: company,
-        invoice_number: "FV/2026/200",
-        issue_date: ~D[2026-03-20],
-        net_amount: Decimal.new("3000.00"),
-        seller_nip: "1111111111"
-      )
+    # ── Step 2: different KSeF numbers = different invoices ───────────
 
-      attrs = %{
-        type: :expense,
-        invoice_number: "FV/2026/200",
-        seller_nip: "2222222222",
-        seller_name: "Seller Sp. z o.o.",
-        buyer_nip: "0987654321",
-        buyer_name: "Buyer S.A.",
-        issue_date: ~D[2026-03-20],
-        net_amount: Decimal.new("3000.00"),
-        gross_amount: Decimal.new("3690.00")
-      }
-
-      assert {:ok, %Invoice{} = invoice} = Invoices.create_manual_invoice(company.id, attrs)
-      assert invoice.duplicate_status == :suspected
-      assert invoice.duplicate_of_id
-    end
-
-    test "does not detect duplicate when only invoice_number matches", %{company: company} do
-      insert(:invoice,
-        company: company,
-        invoice_number: "FV/2026/300",
-        seller_nip: "5555555555",
-        issue_date: ~D[2026-03-10]
-      )
-
-      attrs = %{
-        type: :expense,
-        invoice_number: "FV/2026/300",
-        seller_nip: "9999999999",
-        seller_name: "Other Seller",
-        buyer_nip: "0987654321",
-        buyer_name: "Buyer S.A.",
-        issue_date: ~D[2026-04-10],
-        net_amount: Decimal.new("5000.00"),
-        gross_amount: Decimal.new("6150.00")
-      }
-
-      assert {:ok, %Invoice{} = invoice} = Invoices.create_manual_invoice(company.id, attrs)
-      assert is_nil(invoice.duplicate_of_id)
-    end
-
-    test "does not detect duplicate when invoice_number or issue_date is blank/whitespace", %{
+    test "not duplicate: both have different KSeF numbers despite matching business fields", %{
       company: company
     } do
       insert(:invoice,
         company: company,
-        invoice_number: "FV/2026/300",
+        ksef_number: "KSEF-AAA",
+        invoice_number: "1/04/2026",
+        seller_nip: "1111111111",
+        issue_date: ~D[2026-04-08],
+        net_amount: Decimal.new("18000.00")
+      )
+
+      attrs =
+        manual_attrs(
+          ksef_number: "KSEF-BBB",
+          invoice_number: "1/04/2026",
+          seller_nip: "1111111111",
+          issue_date: ~D[2026-04-08],
+          net_amount: Decimal.new("18000.00")
+        )
+
+      assert {:ok, inv} = Invoices.create_manual_invoice(company.id, attrs)
+      assert is_nil(inv.duplicate_of_id)
+    end
+
+    # ── Step 3a: cross-source (KSeF + email/PDF without KSeF number) ─
+
+    test "duplicate: KSeF invoice added, manual invoice already exists without KSeF number", %{
+      company: company
+    } do
+      manual =
+        insert(:invoice,
+          company: company,
+          ksef_number: nil,
+          invoice_number: "FV/500",
+          seller_nip: "5555555555",
+          issue_date: ~D[2026-03-20],
+          net_amount: Decimal.new("3000.00")
+        )
+
+      attrs =
+        manual_attrs(
+          ksef_number: "KSEF-CROSS",
+          invoice_number: "FV/500",
+          seller_nip: "5555555555",
+          issue_date: ~D[2026-03-20],
+          net_amount: Decimal.new("3000.00")
+        )
+
+      assert {:ok, inv} = Invoices.create_manual_invoice(company.id, attrs)
+      assert inv.duplicate_of_id == manual.id
+      assert inv.duplicate_status == :suspected
+    end
+
+    test "duplicate: manual invoice added, KSeF invoice already exists", %{company: company} do
+      ksef =
+        insert(:invoice,
+          company: company,
+          ksef_number: "KSEF-EXISTING",
+          invoice_number: "FV/600",
+          seller_nip: "5555555555",
+          issue_date: ~D[2026-03-20],
+          net_amount: Decimal.new("3000.00")
+        )
+
+      attrs =
+        manual_attrs(
+          invoice_number: "FV/600",
+          seller_nip: "5555555555",
+          issue_date: ~D[2026-03-20],
+          net_amount: Decimal.new("3000.00")
+        )
+
+      assert {:ok, inv} = Invoices.create_manual_invoice(company.id, attrs)
+      assert inv.duplicate_of_id == ksef.id
+      assert inv.duplicate_status == :suspected
+    end
+
+    # ── Step 3b: two manual EU invoices (both without KSeF, with NIP) ─
+
+    test "duplicate: same invoice_number + issue_date + seller_nip + net_amount, no KSeF", %{
+      company: company
+    } do
+      existing =
+        insert(:invoice,
+          company: company,
+          invoice_number: "FV/100",
+          seller_nip: "5555555555",
+          issue_date: ~D[2026-03-15],
+          net_amount: Decimal.new("2000.00")
+        )
+
+      attrs =
+        manual_attrs(
+          invoice_number: "FV/100",
+          seller_nip: "5555555555",
+          issue_date: ~D[2026-03-15],
+          net_amount: Decimal.new("2000.00")
+        )
+
+      assert {:ok, inv} = Invoices.create_manual_invoice(company.id, attrs)
+      assert inv.duplicate_of_id == existing.id
+      assert inv.duplicate_status == :suspected
+    end
+
+    test "not duplicate: same fields but different seller_nip (different EU sellers)", %{
+      company: company
+    } do
+      insert(:invoice,
+        company: company,
+        invoice_number: "FV/200",
+        seller_nip: "1111111111",
+        issue_date: ~D[2026-03-20],
+        net_amount: Decimal.new("3000.00")
+      )
+
+      attrs =
+        manual_attrs(
+          invoice_number: "FV/200",
+          seller_nip: "2222222222",
+          issue_date: ~D[2026-03-20],
+          net_amount: Decimal.new("3000.00")
+        )
+
+      assert {:ok, inv} = Invoices.create_manual_invoice(company.id, attrs)
+      assert is_nil(inv.duplicate_of_id)
+    end
+
+    # ── Step 3c: two manual non-EU invoices (no NIP) ─────────────────
+
+    # Step 3c (non-EU invoices without NIP) is tested in
+    # "create_pdf_upload_invoice/3" — manual source requires seller_nip.
+
+    # ── Step 4: skip detection when fields are missing ───────────────
+
+    test "not duplicate: only invoice_number matches (different date, nip, amount)", %{
+      company: company
+    } do
+      insert(:invoice,
+        company: company,
+        invoice_number: "FV/300",
+        seller_nip: "5555555555",
+        issue_date: ~D[2026-03-10]
+      )
+
+      attrs =
+        manual_attrs(
+          invoice_number: "FV/300",
+          seller_nip: "9999999999",
+          issue_date: ~D[2026-04-10],
+          net_amount: Decimal.new("5000.00")
+        )
+
+      assert {:ok, inv} = Invoices.create_manual_invoice(company.id, attrs)
+      assert is_nil(inv.duplicate_of_id)
+    end
+
+    test "skip: blank invoice_number or issue_date aborts detection", %{company: company} do
+      insert(:invoice,
+        company: company,
+        invoice_number: "FV/300",
         seller_nip: "5555555555",
         issue_date: ~D[2026-03-10],
         net_amount: Decimal.new("1000.00")
       )
 
-      base_attrs = %{
-        type: :expense,
-        seller_nip: "5555555555",
-        seller_name: "Seller Sp. z o.o.",
-        buyer_nip: "0987654321",
-        buyer_name: "Buyer S.A.",
-        net_amount: Decimal.new("1000.00"),
-        gross_amount: Decimal.new("1230.00")
-      }
+      base = manual_attrs(seller_nip: "5555555555")
 
-      # Blank issue_date string
-      attrs = Map.merge(base_attrs, %{invoice_number: "FV/2026/300", issue_date: ""})
+      # Blank issue_date
+      attrs = Map.merge(base, %{invoice_number: "FV/300", issue_date: ""})
       assert {:error, _} = Invoices.create_manual_invoice(company.id, attrs)
 
-      # Whitespace-only invoice_number — rejected by changeset validation
-      attrs = Map.merge(base_attrs, %{invoice_number: "   ", issue_date: ~D[2026-03-10]})
+      # Whitespace-only invoice_number
+      attrs = Map.merge(base, %{invoice_number: "   ", issue_date: ~D[2026-03-10]})
       assert {:error, _} = Invoices.create_manual_invoice(company.id, attrs)
     end
 
-    test "ksef_number match takes precedence over business field match", %{company: company} do
-      ksef_original =
-        insert(:invoice,
-          company: company,
-          ksef_number: "priority-123",
-          invoice_number: "FV/2026/400",
-          seller_nip: "5555555555",
-          issue_date: ~D[2026-03-25]
-        )
-
-      # Another invoice with same business fields but no ksef_number
+    test "skip: missing net_amount is rejected by changeset (never reaches detection)", %{
+      company: company
+    } do
       insert(:invoice,
         company: company,
-        ksef_number: nil,
-        invoice_number: "FV/2026/400",
+        invoice_number: "FV/700",
         seller_nip: "5555555555",
-        issue_date: ~D[2026-03-25]
+        issue_date: ~D[2026-03-10],
+        net_amount: Decimal.new("1000.00")
       )
 
-      attrs = %{
-        type: :expense,
-        ksef_number: "priority-123",
-        invoice_number: "FV/2026/400",
-        seller_nip: "5555555555",
-        seller_name: "Seller Sp. z o.o.",
-        buyer_nip: "0987654321",
-        buyer_name: "Buyer S.A.",
-        issue_date: ~D[2026-03-25],
-        net_amount: Decimal.new("1000.00"),
-        gross_amount: Decimal.new("1230.00")
-      }
+      attrs =
+        manual_attrs(
+          invoice_number: "FV/700",
+          seller_nip: "5555555555",
+          issue_date: ~D[2026-03-10],
+          net_amount: nil,
+          gross_amount: Decimal.new("1230.00")
+        )
 
-      assert {:ok, %Invoice{} = invoice} = Invoices.create_manual_invoice(company.id, attrs)
-      assert invoice.duplicate_of_id == ksef_original.id
+      assert {:error, changeset} = Invoices.create_manual_invoice(company.id, attrs)
+      assert %{net_amount: ["can't be blank"]} = errors_on(changeset)
     end
 
     test "strips ksef_acquisition_date and ksef_permanent_storage_date", %{company: company} do
@@ -1165,6 +1266,39 @@ defmodule KsefHub.InvoicesTest do
            "issue_date" => "2026-02-20",
            "net_amount" => "1000.00",
            "gross_amount" => "1230.00"
+         }}
+      end)
+
+      assert {:ok, %Invoice{} = invoice} =
+               Invoices.create_pdf_upload_invoice(company, "pdf-data", %{type: :expense})
+
+      assert invoice.duplicate_of_id == existing.id
+      assert invoice.duplicate_status == :suspected
+    end
+
+    test "detects duplicate for non-EU invoices without NIP (matches on invoice_number + issue_date + net_amount)",
+         %{company: company} do
+      existing =
+        insert(:invoice,
+          company: company,
+          source: :pdf_upload,
+          invoice_number: "INV-2026-042",
+          seller_nip: nil,
+          seller_name: "US Corp LLC",
+          issue_date: ~D[2026-03-20],
+          net_amount: Decimal.new("5000.00")
+        )
+
+      Mox.expect(KsefHub.InvoiceExtractor.Mock, :extract, fn _pdf, _opts ->
+        {:ok,
+         %{
+           "seller_name" => "US Corp LLC",
+           "buyer_nip" => company.nip,
+           "buyer_name" => "Buyer S.A.",
+           "invoice_number" => "INV-2026-042",
+           "issue_date" => "2026-03-20",
+           "net_amount" => "5000.00",
+           "gross_amount" => "5000.00"
          }}
       end)
 
@@ -2584,6 +2718,97 @@ defmodule KsefHub.InvoicesTest do
       # Existing IBAN must NOT be cleared — formatted value is still IBAN-prefixed
       assert updated.iban == "PL61109010140000071219812874"
       assert updated.account_number == nil
+    end
+
+    test "detects duplicate after re-extraction populates fields", %{company: company} do
+      # KSeF invoice already exists
+      _ksef =
+        insert(:invoice,
+          company: company,
+          ksef_number: nil,
+          invoice_number: "FV/DUP/RE",
+          seller_nip: "5555555555",
+          issue_date: ~D[2026-03-01],
+          net_amount: Decimal.new("2000.00")
+        )
+
+      # Email invoice with failed extraction — no business fields yet
+      email_invoice =
+        insert(:pdf_upload_invoice,
+          company: company,
+          source: :email,
+          extraction_status: :failed,
+          invoice_number: nil,
+          seller_nip: nil,
+          issue_date: nil,
+          net_amount: nil
+        )
+
+      assert is_nil(email_invoice.duplicate_of_id)
+
+      # Re-extraction succeeds and populates matching fields
+      KsefHub.InvoiceExtractor.Mock
+      |> expect(:extract, fn _pdf, _opts ->
+        {:ok,
+         %{
+           "seller_nip" => "5555555555",
+           "seller_name" => "Seller Sp. z o.o.",
+           "buyer_nip" => company.nip,
+           "invoice_number" => "FV/DUP/RE",
+           "issue_date" => "2026-03-01",
+           "net_amount" => "2000.00",
+           "gross_amount" => "2460.00"
+         }}
+      end)
+
+      assert {:ok, updated} = Invoices.re_extract_invoice(email_invoice, company)
+      assert updated.duplicate_status == :suspected
+      assert updated.duplicate_of_id
+    end
+
+    test "does not re-detect duplicate when already marked", %{company: company} do
+      original =
+        insert(:invoice,
+          company: company,
+          invoice_number: "FV/ALREADY/DUP",
+          seller_nip: "5555555555",
+          issue_date: ~D[2026-03-01],
+          net_amount: Decimal.new("2000.00")
+        )
+
+      # Invoice already marked as duplicate
+      email_invoice =
+        insert(:pdf_upload_invoice,
+          company: company,
+          source: :email,
+          extraction_status: :partial,
+          invoice_number: "FV/ALREADY/DUP",
+          seller_nip: "5555555555",
+          issue_date: ~D[2026-03-01],
+          net_amount: Decimal.new("2000.00"),
+          duplicate_of_id: original.id,
+          duplicate_status: :suspected
+        )
+
+      KsefHub.InvoiceExtractor.Mock
+      |> expect(:extract, fn _pdf, _opts ->
+        {:ok,
+         %{
+           "seller_nip" => "5555555555",
+           "seller_name" => "Updated Seller",
+           "invoice_number" => "FV/ALREADY/DUP",
+           "issue_date" => "2026-03-01",
+           "net_amount" => "2000.00",
+           "gross_amount" => "2460.00"
+         }}
+      end)
+
+      assert {:ok, updated} = Invoices.re_extract_invoice(email_invoice, company)
+      # Duplicate info unchanged
+      assert updated.duplicate_of_id == original.id
+      assert updated.duplicate_status == :suspected
+      # But extraction data was still updated
+      assert updated.seller_name == "Updated Seller"
     end
   end
 
