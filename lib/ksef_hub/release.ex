@@ -161,9 +161,12 @@ defmodule KsefHub.Release do
     Application.load(@app)
   end
 
-  @spec start_app() :: {:ok, [atom()]} | {:error, term()}
+  @spec start_app() :: :ok
   defp start_app do
-    Application.ensure_all_started(@app)
+    case Application.ensure_all_started(@app) do
+      {:ok, _apps} -> :ok
+      {:error, {app, reason}} -> raise "failed to start #{app}: #{inspect(reason)}"
+    end
   end
 
   @spec repos() :: [module()]
