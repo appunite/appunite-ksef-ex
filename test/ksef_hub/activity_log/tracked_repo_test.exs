@@ -102,8 +102,9 @@ defmodule KsefHub.ActivityLog.TrackedRepoTest do
 
       changeset = Invoice.changeset(invoice, %{is_excluded: true})
 
-      {:ok, _updated} = TrackedRepo.update(changeset, skip_emit: true)
+      {:ok, updated} = TrackedRepo.update(changeset, skip_emit: true)
 
+      assert updated.is_excluded == true
       refute_received {:activity_event, _}
     end
 

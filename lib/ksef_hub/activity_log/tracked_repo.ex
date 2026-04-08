@@ -152,6 +152,15 @@ defmodule KsefHub.ActivityLog.TrackedRepo do
 
   @spec maybe_emit_delete(Ecto.Schema.t(), keyword()) :: :ok
   defp maybe_emit_delete(struct, opts) do
+    if Keyword.get(opts, :skip_emit, false) do
+      :ok
+    else
+      do_emit_delete(struct, opts)
+    end
+  end
+
+  @spec do_emit_delete(Ecto.Schema.t(), keyword()) :: :ok
+  defp do_emit_delete(struct, opts) do
     module = struct.__struct__
 
     event_info =
