@@ -35,6 +35,7 @@ defmodule KsefHubWeb.TeamLive do
     socket
     |> stream(:members, members, reset: true)
     |> stream(:pending_invitations, pending_invitations, reset: true)
+    |> assign(:pending_invitations_count, length(pending_invitations))
   end
 
   defp role_label(role), do: Membership.role_label(role)
@@ -116,6 +117,28 @@ defmodule KsefHubWeb.TeamLive do
                   </td>
                 </tr>
               </tbody>
+            </table>
+          </div>
+        </div>
+      </.card>
+      <.card :if={@pending_invitations_count > 0} class="mt-6">
+        <h2 class="text-base font-semibold mb-3">Pending Invitations</h2>
+        <div class="rounded-lg border border-border overflow-hidden">
+          <div class="overflow-x-auto" data-testid="pending-invitations-list">
+            <table class="w-full table-fixed text-sm">
+              <thead>
+                <tr class="border-b border-border">
+                  <th class="text-left py-3 px-4 text-xs font-medium text-muted-foreground uppercase tracking-wide">
+                    Email
+                  </th>
+                  <th class="text-left py-3 px-4 text-xs font-medium text-muted-foreground uppercase tracking-wide">
+                    Expires
+                  </th>
+                  <th class="text-left py-3 px-4 text-xs font-medium text-muted-foreground uppercase tracking-wide">
+                    Role
+                  </th>
+                </tr>
+              </thead>
               <tbody id="pending-invitations-list" phx-update="stream">
                 <tr
                   :for={{dom_id, inv} <- @streams.pending_invitations}
@@ -131,11 +154,10 @@ defmodule KsefHubWeb.TeamLive do
                     >
                       {inv.email}
                     </.link>
-                    <div class="text-xs text-muted-foreground mt-0.5">
-                      Pending — expires {Calendar.strftime(inv.expires_at, "%Y-%m-%d")}
-                    </div>
                   </td>
-                  <td class="py-3.5 px-4">-</td>
+                  <td class="py-3.5 px-4 text-muted-foreground">
+                    {Calendar.strftime(inv.expires_at, "%Y-%m-%d")}
+                  </td>
                   <td class="py-3.5 px-4">
                     <.badge variant="muted">{role_label(inv.role)}</.badge>
                   </td>
