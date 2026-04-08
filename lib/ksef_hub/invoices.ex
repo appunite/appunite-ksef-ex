@@ -25,6 +25,7 @@ defmodule KsefHub.Invoices do
     InvoiceAccessGrant,
     InvoiceComment,
     NipVerifier,
+    Parser,
     PurchaseOrder
   }
 
@@ -508,6 +509,48 @@ defmodule KsefHub.Invoices do
       changeset
     end
   end
+
+  @doc """
+  Re-parses an invoice from its stored FA(3) XML file.
+
+  Loads the XML from the files table, runs it through `Parser.parse/1`, and
+  updates the invoice with the freshly parsed fields. Only works for invoices
+  that have a stored XML file (source: :ksef).
+
+  Useful when the parser is improved (e.g. new field extraction) and existing
+  invoices need to pick up the changes without a full KSeF re-sync.
+
+  Returns `{:ok, updated_invoice}` on success, `{:error, reason}` on failure.
+  """
+  @spec reparse_from_stored_xml(Invoice.t(), keyword()) ::
+          {:ok, Invoice.t()} | {:error, term()}
+  def reparse_from_stored_xml(%Invoice{} = invoice, opts \\ []) do
+    with {:ok, xml_content} <- load_xml_content(invoice),
+         {:ok, parsed} <- Parser.parse(xml_content) do
+      attrs =
+        parsed
+        |> Map.drop([:line_items])
+        |> Map.put(:type, invoice.type)
+        |> Map.put(:currency, parsed[:currency] || invoice.currency || "PLN")
+
+      attrs = recalculate_extraction_status(invoice, attrs)
+
+      update_invoice(invoice, attrs, opts)
+    end
+  end
+
+  @spec load_xml_content(Invoice.t()) :: {:ok, binary()} | {:error, :no_xml}
+  defp load_xml_content(%Invoice{xml_file: %{content: content}}) when is_binary(content),
+    do: {:ok, content}
+
+  defp load_xml_content(%Invoice{xml_file_id: xml_file_id}) when not is_nil(xml_file_id) do
+    case Files.get_file(xml_file_id) do
+      %{content: content} when is_binary(content) -> {:ok, content}
+      _ -> {:error, :no_xml}
+    end
+  end
+
+  defp load_xml_content(_invoice), do: {:error, :no_xml}
 
   @doc """
   Re-extracts data from an invoice's stored PDF file.
