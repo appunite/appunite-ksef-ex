@@ -55,8 +55,17 @@ defmodule KsefHub.Release do
       bin/ksef_hub eval "KsefHub.Release.reparse_ksef_invoices(dry_run: true)"
       bin/ksef_hub eval "KsefHub.Release.reparse_ksef_invoices(company_id: \\"bb524c06-...\\\")"
   """
+  @allowed_reparse_opts ~w(dry_run company_id invoice_id)a
+
   @spec reparse_ksef_invoices(keyword()) :: :ok
   def reparse_ksef_invoices(opts \\ []) do
+    unknown = Keyword.keys(opts) -- @allowed_reparse_opts
+
+    if unknown != [] do
+      raise ArgumentError,
+            "unknown options: #{inspect(unknown)}. Allowed: #{inspect(@allowed_reparse_opts)}"
+    end
+
     start_app()
 
     dry_run? = Keyword.get(opts, :dry_run, false)
@@ -74,6 +83,11 @@ defmodule KsefHub.Release do
 
     unchanged = length(invoices) - changed - errors
     IO.puts("\nDone. #{changed} changed, #{unchanged} unchanged, #{errors} error(s).")
+
+    if errors > 0 do
+      raise "reparse completed with #{errors} error(s)"
+    end
+
     :ok
   end
 

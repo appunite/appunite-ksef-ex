@@ -24,17 +24,22 @@ defmodule Mix.Tasks.ReparseKsefInvoices do
 
   @shortdoc "Re-parses KSeF invoices from stored XML"
 
+  @switches [dry_run: :boolean, company_id: :string, invoice_id: :string]
+
+  @doc false
   @impl Mix.Task
   @spec run([String.t()]) :: :ok
   def run(args) do
-    Mix.Task.run("app.start")
+    {opts, remaining, invalid} =
+      OptionParser.parse(args, switches: @switches, aliases: [n: :dry_run])
 
-    {opts, _, _} =
-      OptionParser.parse(args,
-        switches: [dry_run: :boolean, company_id: :string, invoice_id: :string],
-        aliases: [n: :dry_run]
+    if remaining != [] or invalid != [] do
+      Mix.raise(
+        "Unknown arguments: #{inspect(remaining ++ invalid)}\n\nUsage: mix reparse_ksef_invoices [--dry-run] [--company-id UUID] [--invoice-id UUID]"
       )
+    end
 
+    Mix.Task.run("app.start")
     KsefHub.Release.reparse_ksef_invoices(opts)
   end
 end

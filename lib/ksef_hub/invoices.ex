@@ -532,6 +532,7 @@ defmodule KsefHub.Invoices do
         |> Map.drop([:line_items])
         |> Map.put(:type, invoice.type)
         |> Map.put(:currency, parsed[:currency] || invoice.currency || "PLN")
+        |> maybe_default_billing_date_for_update(invoice)
 
       attrs = recalculate_extraction_status(invoice, attrs)
 

@@ -2211,6 +2211,30 @@ defmodule KsefHub.InvoicesTest do
       assert {:ok, updated} = Invoices.reparse_from_stored_xml(invoice)
       assert updated.extraction_status == :complete
     end
+
+    test "backfills billing dates from parsed sales_date", %{company: company} do
+      attrs =
+        params_for(:invoice,
+          company_id: company.id,
+          billing_date_from: nil,
+          billing_date_to: nil
+        )
+        |> Map.put(:xml_content, @sample_xml_with_po)
+
+      {:ok, invoice} = Invoices.create_invoice(attrs)
+      assert invoice.billing_date_from
+
+      # Clear billing dates to simulate old invoice without them
+      invoice
+      |> Ecto.Changeset.change(billing_date_from: nil, billing_date_to: nil)
+      |> KsefHub.Repo.update!()
+
+      invoice = KsefHub.Repo.get!(Invoice, invoice.id)
+      assert invoice.billing_date_from == nil
+
+      assert {:ok, updated} = Invoices.reparse_from_stored_xml(invoice)
+      assert updated.billing_date_from != nil
+    end
   end
 
   describe "re_extract_invoice/2" do
