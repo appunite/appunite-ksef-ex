@@ -2163,6 +2163,80 @@ defmodule KsefHub.InvoicesTest do
     end
   end
 
+  @sample_xml_with_po File.read!("test/support/fixtures/sample_income_with_po.xml")
+
+  describe "reparse_from_stored_xml/2" do
+    test "re-parses stored XML and updates invoice fields", %{company: company} do
+      attrs =
+        params_for(:invoice, company_id: company.id)
+        |> Map.put(:xml_content, @sample_xml)
+
+      {:ok, invoice} = Invoices.create_invoice(attrs)
+      assert invoice.purchase_order == nil
+
+      # Replace the stored XML file with one that contains a PO number
+      xml_file = KsefHub.Files.get_file!(invoice.xml_file_id)
+      Ecto.Changeset.change(xml_file, content: @sample_xml_with_po) |> KsefHub.Repo.update!()
+
+      assert {:ok, updated} = Invoices.reparse_from_stored_xml(invoice)
+      assert updated.purchase_order == "AU_CON_NW9BBJ4VJ"
+    end
+
+    test "preserves invoice type and ksef metadata", %{company: company} do
+      attrs =
+        params_for(:invoice, company_id: company.id, type: :expense)
+        |> Map.put(:xml_content, @sample_xml)
+
+      {:ok, invoice} = Invoices.create_invoice(attrs)
+
+      assert {:ok, updated} = Invoices.reparse_from_stored_xml(invoice)
+      assert updated.type == :expense
+      assert updated.ksef_number == invoice.ksef_number
+      assert updated.ksef_acquisition_date == invoice.ksef_acquisition_date
+    end
+
+    test "returns error when invoice has no XML file", %{company: company} do
+      invoice = insert(:pdf_upload_invoice, company: company)
+
+      assert {:error, :no_xml} = Invoices.reparse_from_stored_xml(invoice)
+    end
+
+    test "recalculates extraction status", %{company: company} do
+      attrs =
+        params_for(:invoice, company_id: company.id, extraction_status: :partial)
+        |> Map.put(:xml_content, @sample_xml_with_po)
+
+      {:ok, invoice} = Invoices.create_invoice(attrs)
+
+      assert {:ok, updated} = Invoices.reparse_from_stored_xml(invoice)
+      assert updated.extraction_status == :complete
+    end
+
+    test "backfills billing dates from parsed sales_date", %{company: company} do
+      attrs =
+        params_for(:invoice,
+          company_id: company.id,
+          billing_date_from: nil,
+          billing_date_to: nil
+        )
+        |> Map.put(:xml_content, @sample_xml_with_po)
+
+      {:ok, invoice} = Invoices.create_invoice(attrs)
+      assert invoice.billing_date_from
+
+      # Clear billing dates to simulate old invoice without them
+      invoice
+      |> Ecto.Changeset.change(billing_date_from: nil, billing_date_to: nil)
+      |> KsefHub.Repo.update!()
+
+      invoice = KsefHub.Repo.get!(Invoice, invoice.id)
+      assert invoice.billing_date_from == nil
+
+      assert {:ok, updated} = Invoices.reparse_from_stored_xml(invoice)
+      assert updated.billing_date_from != nil
+    end
+  end
+
   describe "re_extract_invoice/2" do
     test "re-extracts data from stored PDF and updates invoice", %{company: company} do
       invoice = insert(:pdf_upload_invoice, company: company, extraction_status: :partial)

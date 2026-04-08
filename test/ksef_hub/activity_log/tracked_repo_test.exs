@@ -96,6 +96,18 @@ defmodule KsefHub.ActivityLog.TrackedRepoTest do
                        }}
     end
 
+    test "skips event emission when skip_emit: true", %{company: company} do
+      invoice = insert(:invoice, company: company, is_excluded: false)
+      flush_activity_events()
+
+      changeset = Invoice.changeset(invoice, %{is_excluded: true})
+
+      {:ok, updated} = TrackedRepo.update(changeset, skip_emit: true)
+
+      assert updated.is_excluded == true
+      refute_received {:activity_event, _}
+    end
+
     test "skips event emission on no-op (empty changes)", %{company: company} do
       invoice = insert(:invoice, company: company, note: "same")
       flush_activity_events()
