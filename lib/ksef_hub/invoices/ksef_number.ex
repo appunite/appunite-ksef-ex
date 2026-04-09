@@ -34,7 +34,7 @@ defmodule KsefHub.Invoices.KsefNumber do
   def validate(nil), do: nil
 
   def validate(value) when is_binary(value) do
-    if Regex.match?(@ksef_format, value), do: value, else: nil
+    if Regex.match?(@ksef_format, value) and valid_date?(value), do: value, else: nil
   end
 
   @doc """
@@ -66,6 +66,20 @@ defmodule KsefHub.Invoices.KsefNumber do
       valid ->
         nip_prefix = String.slice(valid, 0, 10)
         if nip_prefix == seller_nip, do: valid, else: nil
+    end
+  end
+
+  # Extracts the YYYYMMDD segment and validates it as a real calendar date.
+  @spec valid_date?(String.t()) :: boolean()
+  defp valid_date?(value) do
+    <<_nip::binary-size(11), date::binary-size(8), _rest::binary>> = value
+
+    case Date.from_iso8601(
+           <<String.slice(date, 0, 4)::binary, "-", String.slice(date, 4, 2)::binary, "-",
+             String.slice(date, 6, 2)::binary>>
+         ) do
+      {:ok, _} -> true
+      _ -> false
     end
   end
 end

@@ -51,6 +51,15 @@ defmodule KsefHub.Invoices.KsefNumberTest do
       refute KsefNumber.validate("manual-ksef-123")
     end
 
+    test "rejects invalid calendar dates" do
+      # month 13, day 40
+      refute KsefNumber.validate("5555555555-20251340-010080615740-E4")
+      # Feb 30
+      refute KsefNumber.validate("5555555555-20250230-010080615740-E4")
+      # month 00
+      refute KsefNumber.validate("5555555555-20250015-010080615740-E4")
+    end
+
     test "rejects empty string" do
       refute KsefNumber.validate("")
     end
