@@ -26,6 +26,7 @@ defmodule KsefHub.Invoices do
     Invoice,
     InvoiceAccessGrant,
     InvoiceComment,
+    KsefNumber,
     NipVerifier,
     Parser,
     PurchaseOrder
@@ -1246,7 +1247,7 @@ defmodule KsefHub.Invoices do
       net_amount: get_extracted_decimal(extracted, "net_amount"),
       gross_amount: get_extracted_decimal(extracted, "gross_amount"),
       currency: get_extracted_string(extracted, "currency"),
-      ksef_number: get_extracted_string(extracted, "ksef_number"),
+      ksef_number: get_extracted_ksef_number(extracted),
       purchase_order: get_extracted_purchase_order(extracted, "purchase_order"),
       sales_date: get_extracted_date(extracted, "sales_date"),
       due_date: get_extracted_date(extracted, "due_date"),
@@ -1297,6 +1298,13 @@ defmodule KsefHub.Invoices do
       nil -> nil
       value -> normalize_nip(value)
     end
+  end
+
+  @spec get_extracted_ksef_number(map()) :: String.t() | nil
+  defp get_extracted_ksef_number(data) do
+    raw = get_extracted_string(data, "ksef_number")
+    seller_nip = get_extracted_nip(data, "seller_nip")
+    KsefNumber.validate(raw, seller_nip)
   end
 
   defp verify_nip_for_type(extracted, company_nip, type),

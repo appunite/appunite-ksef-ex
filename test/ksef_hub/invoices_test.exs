@@ -1254,12 +1254,13 @@ defmodule KsefHub.InvoicesTest do
     end
 
     test "detects duplicates via extracted ksef_number", %{company: company} do
-      existing = insert(:invoice, ksef_number: "pdf-dup-123", company: company)
+      existing =
+        insert(:invoice, ksef_number: "1234567890-20260220-010080615740-E4", company: company)
 
       Mox.expect(KsefHub.InvoiceExtractor.Mock, :extract, fn _pdf, _opts ->
         {:ok,
          %{
-           "ksef_number" => "pdf-dup-123",
+           "ksef_number" => "1234567890-20260220-010080615740-E4",
            "seller_nip" => "1234567890",
            "seller_name" => "Seller",
            "invoice_number" => "FV/PDF/DUP",

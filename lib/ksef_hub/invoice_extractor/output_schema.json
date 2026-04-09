@@ -3,7 +3,7 @@
   "additionalProperties": false,
   "properties": {
     "ksef_number": {
-      "description": "Polish KSeF (Krajowy System e-Faktur) reference number",
+      "description": "Polish KSeF (Krajowy System e-Faktur) reference number. Official format: 9999999999-RRRRMMDD-FFFFFFFFFFFF-FF — 10-digit seller NIP, dash, 8-digit submission date (YYYYMMDD), dash, 12-char uppercase hex technical part, dash, 2-char uppercase hex checksum (e.g. 5265877635-20250626-010080DD2B5E-26). Do NOT return QR code URLs, verification links (like qr.ksef.mf.gov.pl/...), or URL path segments. Return empty string if no properly formatted KSeF number is found.",
       "type": "string"
     },
     "invoice_number": {
