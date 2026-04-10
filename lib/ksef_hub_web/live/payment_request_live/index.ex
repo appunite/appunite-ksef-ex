@@ -25,7 +25,11 @@ defmodule KsefHubWeb.PaymentRequestLive.Index do
   @spec handle_params(map(), String.t(), Phoenix.LiveView.Socket.t()) ::
           {:noreply, Phoenix.LiveView.Socket.t()}
   def handle_params(params, _uri, socket) do
-    filters = parse_filters(params)
+    filters =
+      params
+      |> parse_filters()
+      |> Map.put_new(:statuses, [:pending])
+
     role = socket.assigns[:current_role]
 
     result =
@@ -41,7 +45,7 @@ defmodule KsefHubWeb.PaymentRequestLive.Index do
     can_manage = Authorization.can?(role, :manage_payment_requests)
 
     filter_count =
-      length(filters[:statuses] || []) +
+      statuses_count(filters) +
         if(filters[:date_from], do: 1, else: 0) +
         if(filters[:date_to], do: 1, else: 0) +
         if(filters[:query] && String.trim(filters[:query]) != "", do: 1, else: 0)
@@ -169,6 +173,16 @@ defmodule KsefHubWeb.PaymentRequestLive.Index do
       {:noreply, push_event(socket, "download", %{url: url})}
     else
       {:noreply, socket}
+    end
+  end
+
+  @spec statuses_count(map()) :: non_neg_integer()
+  defp statuses_count(filters) do
+    default_statuses = MapSet.new([:pending])
+
+    case filters[:statuses] || [] do
+      [] -> 0
+      list -> if MapSet.new(list) == default_statuses, do: 0, else: length(list)
     end
   end
 

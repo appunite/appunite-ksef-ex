@@ -149,7 +149,7 @@ defmodule KsefHubWeb.PaymentRequestLiveTest do
           recipient_name: "Voided Co"
         )
 
-      {:ok, view, _html} = live(conn, ~p"/c/#{company.id}/payment-requests")
+      {:ok, view, _html} = live(conn, ~p"/c/#{company.id}/payment-requests?statuses=voided")
       assert has_element?(view, "td", "Voided Co")
       refute has_element?(view, "#pr-#{pr.id} input[type='checkbox']")
     end
