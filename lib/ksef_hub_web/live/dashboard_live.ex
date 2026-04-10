@@ -354,33 +354,16 @@ defmodule KsefHubWeb.DashboardLive do
         />
 
         <.form for={@form} id="dashboard-date-form" phx-change="filter" class="contents">
-          <input
-            type="date"
-            name={@form[:billing_date_from].name}
-            value={@form[:billing_date_from].value}
-            placeholder="From"
-            phx-debounce="300"
-            class="h-8 rounded-md border border-input bg-background px-2 text-xs focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
-          />
-          <span class="text-xs text-muted-foreground">&ndash;</span>
-          <input
-            type="date"
-            name={@form[:billing_date_to].name}
-            value={@form[:billing_date_to].value}
-            placeholder="To"
-            phx-debounce="300"
-            class="h-8 rounded-md border border-input bg-background px-2 text-xs focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+          <.date_range_picker
+            id="billing-date-range"
+            from_name={@form[:billing_date_from].name}
+            to_name={@form[:billing_date_to].name}
+            from_value={@form[:billing_date_from].value}
+            to_value={@form[:billing_date_to].value}
           />
         </.form>
 
-        <button
-          :if={@filter_count > 0}
-          type="button"
-          phx-click="clear_filters"
-          class="text-xs text-muted-foreground hover:text-foreground cursor-pointer"
-        >
-          Reset
-        </button>
+        <.reset_filters_button :if={@filter_count > 0} />
       </div>
     </div>
 

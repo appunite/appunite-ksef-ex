@@ -291,6 +291,41 @@ Every module **must** have:
 - Depend on behaviours, not concrete implementations
 - Keep web layer thin — controllers delegate to contexts
 
+## UI Components
+
+### Component-first development
+
+Before writing inline HTML in a LiveView template, check `CoreComponents` for an existing component. Common components:
+
+| Category | Components |
+|----------|-----------|
+| Layout | `card`, `table`, `table_container`, `header` |
+| Forms | `input`, `simple_form`, `multi_select`, `date_range_picker`, `date_picker`, `search_input` |
+| Display | `badge`, `icon`, `pagination`, `empty_state` |
+| Filters | `multi_select`, `date_range_picker`, `search_input`, `reset_filters_button` |
+| Actions | `button` (variants: primary, outline, outline-destructive, ghost, destructive, success, warning) |
+
+Domain-specific components live in dedicated modules:
+- `InvoiceComponents` — status/type/category/payment badges, format helpers, invoice detail table
+- `CertificateComponents` — certificate expiry alerts
+- `SettingsComponents` — settings page sidebar layout
+
+### When to extract a component
+
+- **3+ identical occurrences** of the same HTML across views → extract to `CoreComponents`
+- **Domain-agnostic** (table wrappers, empty states, inputs) → `CoreComponents` (globally imported)
+- **Domain-specific** (invoice badges, format helpers) → domain module (e.g., `InvoiceComponents`)
+- **Single-use** or highly context-dependent → keep inline
+
+### Component conventions
+
+- Every component must have `@doc`, `@spec`, and declarative `attr`/`slot` annotations
+- Support a `class` attr for caller customization when reasonable
+- Use `slot :inner_block` for content projection
+- Use `@rest` (`:global`) for forwarding HTML attributes like `data-testid`
+
+See `docs/adr/0043-component-driven-ui.md` for the architectural decision.
+
 ## TDD Workflow
 
 Every feature starts with a test:

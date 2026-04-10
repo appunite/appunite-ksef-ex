@@ -47,44 +47,42 @@ defmodule KsefHubWeb.CompanyLive.Index do
       </:actions>
     </.header>
 
-    <div class="rounded-lg border border-border overflow-hidden mt-6">
-      <div class="overflow-x-auto">
-        <.table
-          id="companies"
-          rows={@companies_with_creds}
-          row_id={fn c -> "company-#{c.id}" end}
-        >
-          <:col :let={company} label="Name">
-            <span data-testid="company-name">{company.name}</span>
-          </:col>
-          <:col :let={company} label="NIP">
-            <span class="font-mono">{company.nip}</span>
-          </:col>
-          <:col :let={company} label="KSeF Sync">
-            <.badge :if={company.has_active_credential} variant="success">Configured</.badge>
-            <.badge :if={!company.has_active_credential} variant="muted">Not configured</.badge>
-          </:col>
-          <:col :let={company} label="Status">
-            <.badge :if={company.is_active} variant="success">Active</.badge>
-            <.badge :if={!company.is_active} variant="muted">Inactive</.badge>
-          </:col>
-          <:action :let={company}>
-            <.button
-              :if={@can_manage_company}
-              variant="outline"
-              size="sm"
-              navigate={~p"/companies/#{company.id}/edit"}
-            >
-              Edit
-            </.button>
-          </:action>
-        </.table>
-      </div>
-    </div>
+    <.table_container class="mt-6">
+      <.table
+        id="companies"
+        rows={@companies_with_creds}
+        row_id={fn c -> "company-#{c.id}" end}
+      >
+        <:col :let={company} label="Name">
+          <span data-testid="company-name">{company.name}</span>
+        </:col>
+        <:col :let={company} label="NIP">
+          <span class="font-mono">{company.nip}</span>
+        </:col>
+        <:col :let={company} label="KSeF Sync">
+          <.badge :if={company.has_active_credential} variant="success">Configured</.badge>
+          <.badge :if={!company.has_active_credential} variant="muted">Not configured</.badge>
+        </:col>
+        <:col :let={company} label="Status">
+          <.badge :if={company.is_active} variant="success">Active</.badge>
+          <.badge :if={!company.is_active} variant="muted">Inactive</.badge>
+        </:col>
+        <:action :let={company}>
+          <.button
+            :if={@can_manage_company}
+            variant="outline"
+            size="sm"
+            navigate={~p"/companies/#{company.id}/edit"}
+          >
+            Edit
+          </.button>
+        </:action>
+      </.table>
+    </.table_container>
 
-    <p :if={@companies_with_creds == []} class="text-center text-muted-foreground py-8">
+    <.empty_state :if={@companies_with_creds == []}>
       No companies yet. Create one to get started.
-    </p>
+    </.empty_state>
     """
   end
 end

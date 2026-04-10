@@ -25,6 +25,7 @@ import {LiveSocket} from "phoenix_live_view"
 import {hooks as colocatedHooks} from "phoenix-colocated/ksef_hub"
 import topbar from "../vendor/topbar"
 import Chart from "../vendor/chart.js"
+import "../vendor/cally.js"
 
 // Chart color palettes
 const DONUT_COLORS = [
@@ -172,11 +173,159 @@ const LocalTime = {
   }
 }
 
+// Shared calendar picker hook logic.
+// calendarSelector: CSS selector for the Cally web component
+// onSelect: (hook, calendarValue) => void — updates hidden inputs from the selected value
+function calendarPickerHook(calendarSelector, onSelect) {
+  return {
+    mounted() {
+      this.calendar = this.el.querySelector(calendarSelector)
+      this.trigger = this.el.querySelector("[data-trigger]")
+      this.popover = this.el.querySelector("[data-popover]")
+
+      this.trigger.addEventListener("click", (e) => {
+        e.preventDefault()
+        this.popover.classList.toggle("hidden")
+      })
+
+      this._onOutsideClick = (e) => {
+        if (!this.el.contains(e.target)) {
+          this.popover.classList.add("hidden")
+        }
+      }
+      document.addEventListener("click", this._onOutsideClick)
+
+      this.calendar.addEventListener("change", () => {
+        onSelect(this, this.calendar.value)
+        this.popover.classList.add("hidden")
+      })
+    },
+
+    destroyed() {
+      document.removeEventListener("click", this._onOutsideClick)
+    }
+  }
+}
+
+const DateRangePicker = calendarPickerHook("calendar-range", (hook, value) => {
+  if (value && value.includes("/")) {
+    const [from, to] = value.split("/")
+    const fromInput = hook.el.querySelector("[data-from]")
+    const toInput = hook.el.querySelector("[data-to]")
+    fromInput.value = from
+    toInput.value = to
+    fromInput.dispatchEvent(new Event("input", { bubbles: true }))
+  }
+})
+
+const DatePicker = calendarPickerHook("calendar-date", (hook, value) => {
+  const input = hook.el.querySelector("[data-value]")
+  input.value = value
+  input.dispatchEvent(new Event("input", { bubbles: true }))
+})
+
+const MONTH_LABELS = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"]
+
+const MonthRangePicker = {
+  mounted() {
+    this.trigger = this.el.querySelector("[data-trigger]")
+    this.popover = this.el.querySelector("[data-popover]")
+    this.yearEl = this.el.querySelector("[data-year]")
+    this.labelEl = this.el.querySelector("[data-label]")
+    this.fromInput = this.el.querySelector("[data-from]")
+    this.toInput = this.el.querySelector("[data-to]")
+    this.monthButtons = this.el.querySelectorAll("[data-month]")
+
+    this.year = parseInt(this.yearEl.textContent)
+    this.from = this.el.dataset.from || null
+    this.to = this.el.dataset.to || null
+    this.picking = null // null = pick from next, "to" = pick to next
+
+    this.trigger.addEventListener("click", (e) => {
+      e.preventDefault()
+      this.popover.classList.toggle("hidden")
+    })
+
+    this._onOutsideClick = (e) => {
+      if (!this.el.contains(e.target)) this.popover.classList.add("hidden")
+    }
+    document.addEventListener("click", this._onOutsideClick)
+
+    this.el.querySelector("[data-prev-year]").addEventListener("click", () => {
+      this.year--
+      this.yearEl.textContent = this.year
+      this.highlightMonths()
+    })
+
+    this.el.querySelector("[data-next-year]").addEventListener("click", () => {
+      this.year++
+      this.yearEl.textContent = this.year
+      this.highlightMonths()
+    })
+
+    this.monthButtons.forEach(btn => {
+      btn.addEventListener("click", () => {
+        const ym = this.year + "-" + btn.dataset.month
+        if (!this.picking) {
+          this.from = ym
+          this.to = null
+          this.picking = "to"
+        } else {
+          this.to = ym
+          this.picking = null
+          // swap if from > to
+          if (this.from > this.to) [this.from, this.to] = [this.to, this.from]
+          // commit
+          this.fromInput.value = this.from
+          this.toInput.value = this.to
+          this.fromInput.dispatchEvent(new Event("input", { bubbles: true }))
+          this.updateLabel()
+          this.popover.classList.add("hidden")
+        }
+        this.highlightMonths()
+      })
+    })
+
+    this.highlightMonths()
+  },
+
+  highlightMonths() {
+    this.monthButtons.forEach(btn => {
+      const ym = this.year + "-" + btn.dataset.month
+      const inRange = this.from && this.to && ym >= this.from && ym <= this.to
+      const isEndpoint = ym === this.from || ym === this.to
+      const isPartialFrom = this.picking === "to" && ym === this.from
+
+      btn.className = "h-8 rounded-md text-xs font-medium transition-colors cursor-pointer " +
+        (isEndpoint || isPartialFrom
+          ? "bg-base-content text-base-100"
+          : inRange
+            ? "bg-base-content/20"
+            : "hover:bg-base-200")
+    })
+  },
+
+  updateLabel() {
+    if (this.from && this.to) {
+      this.labelEl.textContent = this.fmtMonth(this.from) + " – " + this.fmtMonth(this.to)
+    }
+  },
+
+  fmtMonth(ym) {
+    const [y, m] = ym.split("-")
+    return MONTH_LABELS[parseInt(m) - 1] + " " + y
+  },
+
+  destroyed() {
+    document.removeEventListener("click", this._onOutsideClick)
+  }
+}
+
 const csrfToken = document.querySelector("meta[name='csrf-token']").getAttribute("content")
 const liveSocket = new LiveSocket("/live", Socket, {
   longPollFallbackMs: 2500,
   params: {_csrf_token: csrfToken},
-  hooks: {...colocatedHooks, ExpenseBarChart, CategoryDonutChart, MultiSelectSearch, LocalTime},
+  hooks: {...colocatedHooks, ExpenseBarChart, CategoryDonutChart, MultiSelectSearch, LocalTime, DateRangePicker, DatePicker, MonthRangePicker},
 })
 
 // Show progress bar on live navigation and form submits

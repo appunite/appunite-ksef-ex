@@ -951,8 +951,8 @@ defmodule KsefHubWeb.InvoiceLive.ShowTest do
       {:ok, view, _html} = live(conn, ~p"/c/#{company.id}/invoices/#{invoice.id}")
       view |> element(~s(button[phx-click="toggle_edit"]), "Edit") |> render_click()
 
-      assert has_element?(view, "input#edit-sales-date")
-      assert has_element?(view, "input#edit-due-date")
+      assert has_element?(view, "#edit-sales-date")
+      assert has_element?(view, "#edit-due-date")
       assert has_element?(view, "input#edit-iban")
     end
 

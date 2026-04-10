@@ -356,119 +356,87 @@ defmodule KsefHubWeb.InvoiceLive.Index do
         />
 
         <.form for={@form} id="date-search-form" phx-change="filter" class="contents">
-          <input
-            type="date"
-            name={@form[:date_from].name}
-            value={@form[:date_from].value}
-            placeholder="From"
-            phx-debounce="300"
-            class="h-8 rounded-md border border-input bg-background px-2 text-xs focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
-          />
-          <span class="text-xs text-muted-foreground">&ndash;</span>
-          <input
-            type="date"
-            name={@form[:date_to].name}
-            value={@form[:date_to].value}
-            placeholder="To"
-            phx-debounce="300"
-            class="h-8 rounded-md border border-input bg-background px-2 text-xs focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+          <.date_range_picker
+            id="invoice-date-range"
+            from_name={@form[:date_from].name}
+            to_name={@form[:date_to].name}
+            from_value={@form[:date_from].value}
+            to_value={@form[:date_to].value}
           />
 
-          <button
-            :if={@filter_count > 0}
-            type="button"
-            phx-click="clear_filters"
-            class="text-xs text-muted-foreground hover:text-foreground cursor-pointer"
-          >
-            Reset
-          </button>
+          <.reset_filters_button :if={@filter_count > 0} />
 
-          <div class="ml-auto w-64">
-            <div class="relative">
-              <.icon
-                name="hero-magnifying-glass"
-                class="absolute left-2.5 top-2 size-4 text-muted-foreground"
-              />
-              <input
-                type="text"
-                name={@form[:query].name}
-                value={@form[:query].value}
-                placeholder="Search invoices..."
-                phx-debounce="300"
-                class="w-full h-8 rounded-md border border-input bg-background pl-8 pr-3 text-xs focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
-              />
-            </div>
-          </div>
+          <.search_input
+            name={@form[:query].name}
+            value={@form[:query].value}
+            placeholder="Search invoices..."
+            phx-debounce="300"
+          />
         </.form>
       </div>
     </div>
 
     <!-- Invoice Table -->
-    <div class="rounded-lg border border-border overflow-hidden">
-      <div class="overflow-x-auto">
-        <.table id="invoices" rows={@invoices} row_id={fn inv -> "inv-#{inv.id}" end}>
-          <:col :let={inv} label="Issue date" class="w-28">
-            <span class="whitespace-nowrap">{format_date(inv.issue_date)}</span>
-          </:col>
-          <:col :let={inv} label={if @filters[:type] == :income, do: "Buyer", else: "Seller"}>
-            <div class="flex items-center gap-1">
-              <.link
-                navigate={~p"/c/#{@current_company.id}/invoices/#{inv.id}"}
-                class="text-shad-primary underline-offset-4 hover:underline"
-              >
-                {counterparty_name(inv, @filters[:type])}
-              </.link>
-              <.restricted_icon :if={inv.access_restricted} />
-            </div>
-          </:col>
-          <:col :let={inv} label="Amount" class="w-36 text-right">
-            <div class="font-mono">{format_amount(inv.net_amount)}</div>
-            <div class="font-mono text-xs text-muted-foreground">
-              {format_amount(inv.gross_amount)} {inv.currency}
-            </div>
-          </:col>
-          <:col :let={inv} :if={@filters[:type] != :income} label="Status" class="w-28">
-            <div class="flex flex-wrap gap-1">
-              <.status_badge status={display_status(inv)} />
-              <.needs_review_badge
-                prediction_status={inv.prediction_status}
-                duplicate_status={inv.duplicate_status}
-                extraction_status={inv.extraction_status}
-                status={inv.status}
-              />
-              <.extraction_badge
-                status={inv.extraction_status}
-                duplicate_status={inv.duplicate_status}
-              />
-            </div>
-            <div class="mt-1">
-              <.payment_badge status={@payment_statuses[inv.id]} />
-            </div>
-          </:col>
-          <:col :let={inv} :if={@filters[:type] != :income} label="Category">
-            <.category_badge category={inv.category} />
-          </:col>
-          <:col :let={inv} label="Tags">
-            <div class="flex flex-wrap gap-1">
-              <.badge :for={tag <- inv.tags} variant="info">{tag}</.badge>
-              <.badge :if={inv.project_tag} variant="success">{inv.project_tag}</.badge>
-            </div>
-            <span
-              :if={inv.tags == [] && is_nil(inv.project_tag)}
-              class="text-muted-foreground"
+    <.table_container>
+      <.table id="invoices" rows={@invoices} row_id={fn inv -> "inv-#{inv.id}" end}>
+        <:col :let={inv} label="Issue date" class="w-28">
+          <span class="whitespace-nowrap">{format_date(inv.issue_date)}</span>
+        </:col>
+        <:col :let={inv} label={if @filters[:type] == :income, do: "Buyer", else: "Seller"}>
+          <div class="flex items-center gap-1">
+            <.link
+              navigate={~p"/c/#{@current_company.id}/invoices/#{inv.id}"}
+              class="text-shad-primary underline-offset-4 hover:underline"
             >
-              -
-            </span>
-          </:col>
-        </.table>
-      </div>
+              {counterparty_name(inv, @filters[:type])}
+            </.link>
+            <.restricted_icon :if={inv.access_restricted} />
+          </div>
+        </:col>
+        <:col :let={inv} label="Amount" class="w-36 text-right">
+          <div class="font-mono">{format_amount(inv.net_amount)}</div>
+          <div class="font-mono text-xs text-muted-foreground">
+            {format_amount(inv.gross_amount)} {inv.currency}
+          </div>
+        </:col>
+        <:col :let={inv} :if={@filters[:type] != :income} label="Status" class="w-28">
+          <div class="flex flex-wrap gap-1">
+            <.status_badge status={display_status(inv)} />
+            <.needs_review_badge
+              prediction_status={inv.prediction_status}
+              duplicate_status={inv.duplicate_status}
+              extraction_status={inv.extraction_status}
+              status={inv.status}
+            />
+            <.extraction_badge
+              status={inv.extraction_status}
+              duplicate_status={inv.duplicate_status}
+            />
+          </div>
+          <div class="mt-1">
+            <.payment_badge status={@payment_statuses[inv.id]} />
+          </div>
+        </:col>
+        <:col :let={inv} :if={@filters[:type] != :income} label="Category">
+          <.category_badge category={inv.category} />
+        </:col>
+        <:col :let={inv} label="Tags">
+          <div class="flex flex-wrap gap-1">
+            <.badge :for={tag <- inv.tags} variant="info">{tag}</.badge>
+            <.badge :if={inv.project_tag} variant="success">{inv.project_tag}</.badge>
+          </div>
+          <span
+            :if={inv.tags == [] && is_nil(inv.project_tag)}
+            class="text-muted-foreground"
+          >
+            -
+          </span>
+        </:col>
+      </.table>
 
-      <p
-        :if={@invoices == [] && @total_count == 0}
-        class="text-center text-muted-foreground py-8"
-      >
+      <.empty_state :if={@invoices == [] && @total_count == 0}>
         No invoices found matching your filters.
-      </p>
+      </.empty_state>
 
       <div class="border-t border-border px-4 py-3">
         <.pagination
@@ -481,7 +449,7 @@ defmodule KsefHubWeb.InvoiceLive.Index do
           noun="invoices"
         />
       </div>
-    </div>
+    </.table_container>
     """
   end
 end

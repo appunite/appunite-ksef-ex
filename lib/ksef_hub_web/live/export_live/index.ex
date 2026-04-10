@@ -190,22 +190,14 @@ defmodule KsefHubWeb.ExportLive.Index do
 
           <form phx-change="update_form" phx-submit="export" class="space-y-4">
             <div class="space-y-1">
-              <label class="label"><span class="text-sm font-medium">Issue Date From</span></label>
-              <input
-                type="date"
-                name="date_from"
-                value={@date_from}
-                class="h-9 w-full rounded-md border border-input bg-background px-3 text-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
-              />
-            </div>
-
-            <div class="space-y-1">
-              <label class="label"><span class="text-sm font-medium">Issue Date To</span></label>
-              <input
-                type="date"
-                name="date_to"
-                value={@date_to}
-                class="h-9 w-full rounded-md border border-input bg-background px-3 text-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+              <label class="label"><span class="text-sm font-medium">Issue Date Range</span></label>
+              <.date_range_picker
+                id="export-date-range"
+                from_name="date_from"
+                to_name="date_to"
+                from_value={@date_from}
+                to_value={@date_to}
+                size="default"
               />
             </div>
 
@@ -259,9 +251,8 @@ defmodule KsefHubWeb.ExportLive.Index do
             </div>
 
             <p class="text-xs text-muted-foreground">
-              Includes all approved invoices that fit your filters.
-              Pending, rejected, and duplicate invoices are excluded. Invoices
-              marked as excluded (for analytics) are still included in exports.
+              Only approved invoices are included.
+              Excluded invoices (hidden from analytics) are still exported.
             </p>
           </form>
         </.card>
