@@ -1,3 +1,14 @@
+/**
+ * Cally – web component calendar library
+ * @version 0.9.2
+ * @license MIT
+ * @author  WickyNilliams (Nick Williams)
+ * @see     https://wicky.nillia.ms/cally/
+ * @source  https://www.npmjs.com/package/cally
+ *
+ * Vendored from unpkg.com/cally@0.9.2/dist/cally.js
+ * To update: curl -sL "https://unpkg.com/cally/dist/cally.js" -o assets/vendor/cally.js
+ */
 class le {
   /**
    * @type {T}

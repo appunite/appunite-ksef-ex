@@ -693,12 +693,13 @@ defmodule KsefHubWeb.CoreComponents do
       </.table_container>
   """
   attr :class, :string, default: nil
+  attr :rest, :global
   slot :inner_block, required: true
 
   @spec table_container(map()) :: Phoenix.LiveView.Rendered.t()
   def table_container(assigns) do
     ~H"""
-    <div class={["rounded-lg border border-border overflow-hidden", @class]}>
+    <div class={["rounded-lg border border-border overflow-hidden", @class]} {@rest}>
       <div class="overflow-x-auto">
         {render_slot(@inner_block)}
       </div>
@@ -716,12 +717,13 @@ defmodule KsefHubWeb.CoreComponents do
   """
   attr :icon, :string, default: nil
   attr :class, :string, default: nil
+  attr :rest, :global
   slot :inner_block, required: true
 
   @spec empty_state(map()) :: Phoenix.LiveView.Rendered.t()
   def empty_state(assigns) do
     ~H"""
-    <div class={["text-center text-muted-foreground py-8", @class]}>
+    <div class={["text-center text-muted-foreground py-8", @class]} {@rest}>
       <.icon :if={@icon} name={@icon} class="size-8 mx-auto mb-2 opacity-40" />
       <p>{render_slot(@inner_block)}</p>
     </div>
@@ -1263,9 +1265,19 @@ defmodule KsefHubWeb.CoreComponents do
 
   @spec format_month_label(String.t()) :: String.t()
   defp format_month_label(ym) when is_binary(ym) do
-    [year, month_str] = String.split(ym, "-")
-    {month_num, _} = Integer.parse(month_str)
-    "#{Enum.at(@months, month_num - 1)} #{year}"
+    case String.split(ym, "-", parts: 2) do
+      [year, month_str] ->
+        case Integer.parse(month_str) do
+          {month_num, _} when month_num in 1..12 ->
+            "#{Enum.at(@months, month_num - 1)} #{year}"
+
+          _ ->
+            ym
+        end
+
+      _ ->
+        ym
+    end
   end
 
   @spec pad2(integer()) :: String.t()

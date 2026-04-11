@@ -215,6 +215,7 @@ const DateRangePicker = calendarPickerHook("calendar-range", (hook, value) => {
     fromInput.value = from
     toInput.value = to
     fromInput.dispatchEvent(new Event("input", { bubbles: true }))
+    toInput.dispatchEvent(new Event("input", { bubbles: true }))
   }
 })
 
