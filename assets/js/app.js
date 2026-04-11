@@ -237,7 +237,7 @@ const MonthRangePicker = {
     this.toInput = this.el.querySelector("[data-to]")
     this.monthButtons = this.el.querySelectorAll("[data-month]")
 
-    this.year = parseInt(this.yearEl.textContent)
+    this.year = parseInt(this.yearEl.textContent, 10)
     this.from = this.el.dataset.from || null
     this.to = this.el.dataset.to || null
     this.picking = null // null = pick from next, "to" = pick to next
@@ -280,6 +280,7 @@ const MonthRangePicker = {
           this.fromInput.value = this.from
           this.toInput.value = this.to
           this.fromInput.dispatchEvent(new Event("input", { bubbles: true }))
+          this.toInput.dispatchEvent(new Event("input", { bubbles: true }))
           this.updateLabel()
           this.popover.classList.add("hidden")
         }
