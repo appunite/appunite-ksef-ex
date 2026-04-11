@@ -273,49 +273,22 @@ defmodule KsefHubWeb.PaymentRequestLive.Index do
         />
 
         <.form for={@form} id="pr-date-search-form" phx-change="filter" class="contents">
-          <input
-            type="date"
-            name={@form[:date_from].name}
-            value={@form[:date_from].value}
-            placeholder="From"
-            phx-debounce="300"
-            class="h-8 rounded-md border border-input bg-background px-2 text-xs focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
-          />
-          <span class="text-xs text-muted-foreground">&ndash;</span>
-          <input
-            type="date"
-            name={@form[:date_to].name}
-            value={@form[:date_to].value}
-            placeholder="To"
-            phx-debounce="300"
-            class="h-8 rounded-md border border-input bg-background px-2 text-xs focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+          <.date_range_picker
+            id="pr-date-range"
+            from_name={@form[:date_from].name}
+            to_name={@form[:date_to].name}
+            from_value={@form[:date_from].value}
+            to_value={@form[:date_to].value}
           />
 
-          <button
-            :if={@filter_count > 0}
-            type="button"
-            phx-click="clear_filters"
-            class="text-xs text-muted-foreground hover:text-foreground cursor-pointer"
-          >
-            Reset
-          </button>
+          <.reset_filters_button :if={@filter_count > 0} />
 
-          <div class="ml-auto w-64">
-            <div class="relative">
-              <.icon
-                name="hero-magnifying-glass"
-                class="absolute left-2.5 top-2 size-4 text-muted-foreground"
-              />
-              <input
-                type="text"
-                name={@form[:query].name}
-                value={@form[:query].value}
-                placeholder="Recipient, title, IBAN..."
-                phx-debounce="300"
-                class="w-full h-8 rounded-md border border-input bg-background pl-8 pr-3 text-xs focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
-              />
-            </div>
-          </div>
+          <.search_input
+            name={@form[:query].name}
+            value={@form[:query].value}
+            placeholder="Recipient, title, IBAN..."
+            phx-debounce="300"
+          />
         </.form>
       </div>
     </div>
@@ -342,100 +315,95 @@ defmodule KsefHubWeb.PaymentRequestLive.Index do
     </div>
 
     <!-- Payment Requests Table -->
-    <div class="rounded-lg border border-border overflow-hidden">
-      <div class="overflow-x-auto">
-        <table class="w-full text-sm">
-          <thead>
-            <tr class="border-b border-border">
-              <th :if={@can_manage} class="py-3 px-4 w-10">
-                <input
-                  type="checkbox"
-                  class="checkbox checkbox-sm"
-                  phx-click="toggle_select_all"
-                  checked={
-                    MapSet.size(@selected_ids) > 0 &&
-                      MapSet.size(@selected_ids) ==
-                        Enum.count(@payment_requests, &selectable?/1)
-                  }
-                />
-              </th>
-              <th class="hidden lg:table-cell text-left py-3 px-4 text-xs font-medium text-muted-foreground uppercase tracking-wide w-36">
-                Created
-              </th>
-              <th class="text-left py-3 px-4 text-xs font-medium text-muted-foreground uppercase tracking-wide">
-                Recipient
-              </th>
-              <th class="hidden md:table-cell text-left py-3 px-4 text-xs font-medium text-muted-foreground uppercase tracking-wide">
-                Title
-              </th>
-              <th class="text-right py-3 px-4 text-xs font-medium text-muted-foreground uppercase tracking-wide w-32">
-                Amount
-              </th>
-              <th class="text-left py-3 px-4 text-xs font-medium text-muted-foreground uppercase tracking-wide w-20">
-                Status
-              </th>
-              <th class="hidden lg:table-cell text-left py-3 px-4 text-xs font-medium text-muted-foreground uppercase tracking-wide w-36">
-                Paid
-              </th>
-            </tr>
-          </thead>
-          <tbody id="payment-requests">
-            <tr
-              :for={pr <- @payment_requests}
-              id={"pr-#{pr.id}"}
-              class="border-b border-border/50 hover:bg-muted/50 transition-colors"
-            >
-              <td :if={@can_manage} class="py-3.5 px-4">
-                <input
-                  :if={selectable?(pr)}
-                  type="checkbox"
-                  class="checkbox checkbox-sm"
-                  phx-click="toggle_select"
-                  phx-value-id={pr.id}
-                  checked={MapSet.member?(@selected_ids, pr.id)}
-                />
-              </td>
-              <td class="hidden lg:table-cell py-3.5 px-4">
-                <span class="whitespace-nowrap">
-                  <.local_datetime at={pr.inserted_at} id={"pr-created-#{pr.id}"} />
-                </span>
-              </td>
-              <td class="py-3.5 px-4">
-                <.link
-                  :if={@can_manage}
-                  navigate={~p"/c/#{@current_company.id}/payment-requests/#{pr.id}/edit"}
-                  class="text-shad-primary underline-offset-4 hover:underline"
-                >
-                  {pr.recipient_name}
-                </.link>
-                <span :if={!@can_manage}>{pr.recipient_name}</span>
-                <div class="text-xs text-muted-foreground md:hidden">{pr.title}</div>
-              </td>
-              <td class="hidden md:table-cell py-3.5 px-4">{pr.title}</td>
-              <td class="py-3.5 px-4 text-right">
-                <span class="font-mono">{format_amount(pr.amount)}</span>
-                <span class="text-xs text-muted-foreground">{pr.currency}</span>
-              </td>
-              <td class="py-3.5 px-4">
-                <.badge variant={status_variant(pr.status)}>{pr.status}</.badge>
-              </td>
-              <td class="hidden lg:table-cell py-3.5 px-4">
-                <span :if={pr.paid_at} class="whitespace-nowrap">
-                  <.local_datetime at={pr.paid_at} id={"pr-paid-#{pr.id}"} />
-                </span>
-                <span :if={!pr.paid_at} class="text-muted-foreground">-</span>
-              </td>
-            </tr>
-          </tbody>
-        </table>
-      </div>
+    <.table_container>
+      <table class="w-full text-sm">
+        <thead>
+          <tr class="border-b border-border">
+            <th :if={@can_manage} class="py-3 px-4 w-10">
+              <input
+                type="checkbox"
+                class="checkbox checkbox-sm"
+                phx-click="toggle_select_all"
+                checked={
+                  MapSet.size(@selected_ids) > 0 &&
+                    MapSet.size(@selected_ids) ==
+                      Enum.count(@payment_requests, &selectable?/1)
+                }
+              />
+            </th>
+            <th class="hidden lg:table-cell text-left py-3 px-4 text-xs font-medium text-muted-foreground uppercase tracking-wide w-36">
+              Created
+            </th>
+            <th class="text-left py-3 px-4 text-xs font-medium text-muted-foreground uppercase tracking-wide">
+              Recipient
+            </th>
+            <th class="hidden md:table-cell text-left py-3 px-4 text-xs font-medium text-muted-foreground uppercase tracking-wide">
+              Title
+            </th>
+            <th class="text-right py-3 px-4 text-xs font-medium text-muted-foreground uppercase tracking-wide w-32">
+              Amount
+            </th>
+            <th class="text-left py-3 px-4 text-xs font-medium text-muted-foreground uppercase tracking-wide w-20">
+              Status
+            </th>
+            <th class="hidden lg:table-cell text-left py-3 px-4 text-xs font-medium text-muted-foreground uppercase tracking-wide w-36">
+              Paid
+            </th>
+          </tr>
+        </thead>
+        <tbody id="payment-requests">
+          <tr
+            :for={pr <- @payment_requests}
+            id={"pr-#{pr.id}"}
+            class="border-b border-border/50 hover:bg-muted/50 transition-colors"
+          >
+            <td :if={@can_manage} class="py-3.5 px-4">
+              <input
+                :if={selectable?(pr)}
+                type="checkbox"
+                class="checkbox checkbox-sm"
+                phx-click="toggle_select"
+                phx-value-id={pr.id}
+                checked={MapSet.member?(@selected_ids, pr.id)}
+              />
+            </td>
+            <td class="hidden lg:table-cell py-3.5 px-4">
+              <span class="whitespace-nowrap">
+                <.local_datetime at={pr.inserted_at} id={"pr-created-#{pr.id}"} />
+              </span>
+            </td>
+            <td class="py-3.5 px-4">
+              <.link
+                :if={@can_manage}
+                navigate={~p"/c/#{@current_company.id}/payment-requests/#{pr.id}/edit"}
+                class="text-shad-primary underline-offset-4 hover:underline"
+              >
+                {pr.recipient_name}
+              </.link>
+              <span :if={!@can_manage}>{pr.recipient_name}</span>
+              <div class="text-xs text-muted-foreground md:hidden">{pr.title}</div>
+            </td>
+            <td class="hidden md:table-cell py-3.5 px-4">{pr.title}</td>
+            <td class="py-3.5 px-4 text-right">
+              <span class="font-mono">{format_amount(pr.amount)}</span>
+              <span class="text-xs text-muted-foreground">{pr.currency}</span>
+            </td>
+            <td class="py-3.5 px-4">
+              <.badge variant={status_variant(pr.status)}>{pr.status}</.badge>
+            </td>
+            <td class="hidden lg:table-cell py-3.5 px-4">
+              <span :if={pr.paid_at} class="whitespace-nowrap">
+                <.local_datetime at={pr.paid_at} id={"pr-paid-#{pr.id}"} />
+              </span>
+              <span :if={!pr.paid_at} class="text-muted-foreground">-</span>
+            </td>
+          </tr>
+        </tbody>
+      </table>
 
-      <p
-        :if={@payment_requests == [] && @total_count == 0}
-        class="text-center text-muted-foreground py-8"
-      >
+      <.empty_state :if={@payment_requests == [] && @total_count == 0}>
         No payment requests found matching your filters.
-      </p>
+      </.empty_state>
 
       <div class="border-t border-border px-4 py-3">
         <.pagination
@@ -448,7 +416,7 @@ defmodule KsefHubWeb.PaymentRequestLive.Index do
           noun="payment requests"
         />
       </div>
-    </div>
+    </.table_container>
     """
   end
 end

@@ -210,7 +210,10 @@ defmodule KsefHubWeb.CoreComponents do
   """
   attr :rest, :global, include: ~w(href navigate patch method download name value disabled)
   attr :class, :string, default: nil
-  attr :variant, :string, values: ~w(primary outline ghost destructive success warning)
+
+  attr :variant, :string,
+    values: ~w(primary outline outline-destructive ghost destructive success warning)
+
   attr :size, :string, values: ~w(default sm icon), default: "default"
   slot :inner_block, required: true
 
@@ -220,6 +223,8 @@ defmodule KsefHubWeb.CoreComponents do
       "outline" =>
         "border border-input bg-background hover:bg-shad-accent hover:text-shad-accent-foreground",
       "ghost" => "hover:bg-shad-accent hover:text-shad-accent-foreground",
+      "outline-destructive" =>
+        "border border-shad-destructive text-shad-destructive bg-background hover:bg-shad-destructive/10",
       "destructive" =>
         "bg-shad-destructive text-shad-destructive-foreground hover:bg-shad-destructive/90",
       "success" => "bg-emerald-600 text-white hover:bg-emerald-600/90",
@@ -675,6 +680,57 @@ defmodule KsefHubWeb.CoreComponents do
   end
 
   @doc """
+  Wraps content in a rounded, bordered container with horizontal scroll.
+
+  Designed to wrap `<.table>` and optional pagination or empty state elements.
+
+  ## Examples
+
+      <.table_container>
+        <.table id="items" rows={@items}>
+          <:col :let={item} label="Name">{item.name}</:col>
+        </.table>
+      </.table_container>
+  """
+  attr :class, :string, default: nil
+  attr :rest, :global
+  slot :inner_block, required: true
+
+  @spec table_container(map()) :: Phoenix.LiveView.Rendered.t()
+  def table_container(assigns) do
+    ~H"""
+    <div class={["rounded-lg border border-border overflow-hidden", @class]} {@rest}>
+      <div class="overflow-x-auto">
+        {render_slot(@inner_block)}
+      </div>
+    </div>
+    """
+  end
+
+  @doc """
+  Renders a centered empty-state message, shown when a list has no results.
+
+  ## Examples
+
+      <.empty_state :if={@items == []}>No items found.</.empty_state>
+      <.empty_state icon="hero-arrow-down-tray" class="py-12">No exports yet.</.empty_state>
+  """
+  attr :icon, :string, default: nil
+  attr :class, :string, default: nil
+  attr :rest, :global
+  slot :inner_block, required: true
+
+  @spec empty_state(map()) :: Phoenix.LiveView.Rendered.t()
+  def empty_state(assigns) do
+    ~H"""
+    <div class={["text-center text-muted-foreground py-8", @class]} {@rest}>
+      <.icon :if={@icon} name={@icon} class="size-8 mx-auto mb-2 opacity-40" />
+      <p>{render_slot(@inner_block)}</p>
+    </div>
+    """
+  end
+
+  @doc """
   Renders a data list.
 
   ## Examples
@@ -824,6 +880,453 @@ defmodule KsefHubWeb.CoreComponents do
     </div>
     """
   end
+
+  @doc """
+  Renders a small "Reset" text button for clearing active filters.
+
+  ## Examples
+
+      <.reset_filters_button :if={@filter_count > 0} />
+  """
+  attr :rest, :global
+
+  @spec reset_filters_button(map()) :: Phoenix.LiveView.Rendered.t()
+  def reset_filters_button(assigns) do
+    ~H"""
+    <button
+      type="button"
+      phx-click="clear_filters"
+      class="text-xs text-muted-foreground hover:text-foreground cursor-pointer"
+      {@rest}
+    >
+      Reset
+    </button>
+    """
+  end
+
+  @doc """
+  Renders a search text input with a magnifying glass icon.
+
+  ## Examples
+
+      <.search_input name="filters[query]" value={@query} placeholder="Search invoices..." />
+  """
+  attr :name, :string, required: true, doc: "form field name"
+  attr :value, :string, default: "", doc: "current search value"
+  attr :placeholder, :string, default: "Search..."
+  attr :class, :string, default: "ml-auto w-64", doc: "wrapper classes"
+  attr :rest, :global, include: ~w(phx-debounce)
+
+  @spec search_input(map()) :: Phoenix.LiveView.Rendered.t()
+  def search_input(assigns) do
+    ~H"""
+    <div class={@class}>
+      <div class="relative">
+        <.icon
+          name="hero-magnifying-glass"
+          class="absolute left-2.5 top-2 size-4 text-muted-foreground"
+        />
+        <input
+          type="text"
+          name={@name}
+          value={@value}
+          placeholder={@placeholder}
+          class="w-full h-8 rounded-md border border-input bg-background pl-8 pr-3 text-xs focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+          {@rest}
+        />
+      </div>
+    </div>
+    """
+  end
+
+  @doc """
+  Renders a date range picker using the Cally web component inside a dropdown popover.
+
+  Uses `<calendar-range>` from the [Cally](https://wicky.nillia.ms/cally/) library,
+  styled automatically by daisyUI's `.cally` class. Two hidden inputs are rendered
+  so the selected range integrates with any parent `<.form>` via standard `phx-change`.
+
+  ## Examples
+
+      <.date_range_picker
+        id="billing-dates"
+        from_name="filters[billing_date_from]"
+        to_name="filters[billing_date_to]"
+        from_value="2025-01-01"
+        to_value="2025-03-31"
+      />
+  """
+  attr :id, :string, required: true
+  attr :from_name, :string, required: true, doc: "form field name for the start date"
+  attr :to_name, :string, required: true, doc: "form field name for the end date"
+  attr :from_value, :any, default: nil, doc: "start date (Date, ISO string, or nil)"
+  attr :to_value, :any, default: nil, doc: "end date (Date, ISO string, or nil)"
+  attr :label, :string, default: "Date range"
+
+  attr :size, :string,
+    values: ~w(sm default),
+    default: "sm",
+    doc: "sm = compact filter-bar pill, default = full-width form input"
+
+  @spec date_range_picker(map()) :: Phoenix.LiveView.Rendered.t()
+  def date_range_picker(assigns) do
+    from = date_to_iso(assigns.from_value)
+    to = date_to_iso(assigns.to_value)
+
+    range_value =
+      if from && to do
+        "#{from}/#{to}"
+      else
+        nil
+      end
+
+    assigns =
+      assigns
+      |> assign(:from_value, from)
+      |> assign(:to_value, to)
+      |> assign(:range_value, range_value)
+      |> assign(:has_value, range_value != nil)
+
+    ~H"""
+    <div id={@id} phx-hook="DateRangePicker" class="relative">
+      <button
+        :if={@size == "sm"}
+        type="button"
+        data-trigger
+        class={[
+          "inline-flex items-center gap-1.5 h-8 px-3 text-xs font-medium rounded-md border transition-colors cursor-pointer",
+          if(@has_value,
+            do:
+              "border-shad-primary/50 bg-shad-primary/10 text-shad-primary hover:bg-shad-primary/20",
+            else:
+              "border-input bg-background text-muted-foreground hover:bg-shad-accent hover:text-shad-accent-foreground"
+          )
+        ]}
+      >
+        <.icon name="hero-calendar-days" class="size-3.5 opacity-60" />
+        <span>
+          {if @has_value, do: "#{@from_value} – #{@to_value}", else: @label}
+        </span>
+      </button>
+      <button
+        :if={@size == "default"}
+        type="button"
+        data-trigger
+        class={[
+          "inline-flex items-center gap-2 h-9 w-full px-3 text-sm rounded-md border transition-colors cursor-pointer",
+          if(@has_value,
+            do: "border-input bg-background text-foreground",
+            else: "border-input bg-background text-muted-foreground"
+          )
+        ]}
+      >
+        <.icon name="hero-calendar-days" class="size-4 opacity-60" />
+        <span>
+          {if @has_value, do: "#{@from_value} – #{@to_value}", else: @label}
+        </span>
+      </button>
+
+      <.calendar_popover>
+        <calendar-range class="cally" value={@range_value} first-day-of-week="1">
+          <.calendar_nav_arrows />
+          <calendar-month></calendar-month>
+        </calendar-range>
+      </.calendar_popover>
+
+      <input
+        type="text"
+        name={@from_name}
+        value={@from_value || ""}
+        data-from
+        class="sr-only"
+        tabindex="-1"
+      />
+      <input
+        type="text"
+        name={@to_name}
+        value={@to_value || ""}
+        data-to
+        class="sr-only"
+        tabindex="-1"
+      />
+    </div>
+    """
+  end
+
+  @doc """
+  Renders a single date picker using the Cally web component inside a dropdown popover.
+
+  Uses `<calendar-date>` from the [Cally](https://wicky.nillia.ms/cally/) library,
+  styled automatically by daisyUI's `.cally` class. A hidden input is rendered
+  so the selected date integrates with any parent `<.form>` via standard `phx-change`.
+
+  ## Examples
+
+      <.date_picker
+        id="issue-date"
+        name="invoice[issue_date]"
+        value={@edit_form[:issue_date].value}
+        label="Issue Date"
+      />
+  """
+  attr :id, :string, required: true
+  attr :name, :string, required: true, doc: "form field name"
+  attr :value, :any, default: nil, doc: "date (Date, ISO string, or nil)"
+  attr :label, :string, default: "Pick a date"
+
+  @spec date_picker(map()) :: Phoenix.LiveView.Rendered.t()
+  def date_picker(assigns) do
+    value = date_to_iso(assigns.value)
+
+    assigns =
+      assigns
+      |> assign(:value, value)
+      |> assign(:has_value, value != nil)
+
+    ~H"""
+    <div id={@id} phx-hook="DatePicker" class="relative">
+      <button
+        type="button"
+        data-trigger
+        class={[
+          "inline-flex items-center gap-2 h-9 w-full px-3 text-sm rounded-md border transition-colors cursor-pointer",
+          if(@has_value,
+            do: "border-input bg-background text-foreground",
+            else: "border-input bg-background text-muted-foreground"
+          )
+        ]}
+      >
+        <.icon name="hero-calendar-days" class="size-4 opacity-60" />
+        <span>{@value || @label}</span>
+      </button>
+
+      <.calendar_popover>
+        <calendar-date class="cally" value={@value} first-day-of-week="1">
+          <.calendar_nav_arrows />
+          <calendar-month></calendar-month>
+        </calendar-date>
+      </.calendar_popover>
+
+      <input type="text" name={@name} value={@value || ""} data-value class="sr-only" tabindex="-1" />
+    </div>
+    """
+  end
+
+  @months ~w(Jan Feb Mar Apr May Jun Jul Aug Sep Oct Nov Dec)
+
+  @doc """
+  Renders a month range picker with year navigation and a 4x3 month grid.
+
+  Used for billing period selection where day-level precision isn't needed.
+  Outputs values in `YYYY-MM` format (compatible with `normalize_month_to_date`).
+
+  ## Examples
+
+      <.month_range_picker
+        id="billing-period"
+        from_name="billing_date_from"
+        to_name="billing_date_to"
+        from_value={~D[2025-01-01]}
+        to_value={~D[2025-03-01]}
+      />
+  """
+  attr :id, :string, required: true
+  attr :from_name, :string, required: true, doc: "form field name for the start month"
+  attr :to_name, :string, required: true, doc: "form field name for the end month"
+  attr :from_value, :any, default: nil, doc: "start date (Date, YYYY-MM string, or nil)"
+  attr :to_value, :any, default: nil, doc: "end date (Date, YYYY-MM string, or nil)"
+  attr :label, :string, default: "Select period"
+
+  @spec month_range_picker(map()) :: Phoenix.LiveView.Rendered.t()
+  def month_range_picker(assigns) do
+    from = date_to_month(assigns.from_value)
+    to = date_to_month(assigns.to_value)
+    has_value = from != nil and to != nil
+
+    display =
+      if has_value do
+        "#{format_month_label(from)} – #{format_month_label(to)}"
+      else
+        assigns.label
+      end
+
+    year =
+      cond do
+        from -> String.slice(from, 0, 4)
+        to -> String.slice(to, 0, 4)
+        true -> Integer.to_string(Date.utc_today().year)
+      end
+
+    months_with_index =
+      @months |> Enum.with_index(1) |> Enum.map(fn {name, i} -> {name, pad2(i)} end)
+
+    assigns =
+      assigns
+      |> assign(:from_value, from)
+      |> assign(:to_value, to)
+      |> assign(:has_value, has_value)
+      |> assign(:display, display)
+      |> assign(:year, year)
+      |> assign(:months_with_index, months_with_index)
+
+    ~H"""
+    <div
+      id={@id}
+      phx-hook="MonthRangePicker"
+      class="relative"
+      data-from={@from_value || ""}
+      data-to={@to_value || ""}
+    >
+      <button
+        type="button"
+        data-trigger
+        class={[
+          "inline-flex items-center gap-2 h-9 w-full px-3 text-sm rounded-md border transition-colors cursor-pointer",
+          if(@has_value,
+            do: "border-input bg-background text-foreground",
+            else: "border-input bg-background text-muted-foreground"
+          )
+        ]}
+      >
+        <.icon name="hero-calendar-days" class="size-4 opacity-60" />
+        <span data-label>{@display}</span>
+      </button>
+
+      <div
+        data-popover
+        class="hidden absolute left-0 top-full z-30 mt-1 w-64 rounded-box border border-border bg-base-100 shadow-lg p-3"
+      >
+        <div class="flex items-center justify-between mb-2">
+          <button
+            type="button"
+            data-prev-year
+            class="size-7 inline-flex items-center justify-center rounded-md hover:bg-base-200 transition-colors"
+          >
+            <svg class="fill-current size-4" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24">
+              <path d="M15.75 19.5 8.25 12l7.5-7.5"></path>
+            </svg>
+          </button>
+          <span data-year class="text-sm font-semibold">{@year}</span>
+          <button
+            type="button"
+            data-next-year
+            class="size-7 inline-flex items-center justify-center rounded-md hover:bg-base-200 transition-colors"
+          >
+            <svg class="fill-current size-4" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24">
+              <path d="m8.25 4.5 7.5 7.5-7.5 7.5"></path>
+            </svg>
+          </button>
+        </div>
+        <div class="grid grid-cols-4 gap-1">
+          <button
+            :for={{name, num} <- @months_with_index}
+            type="button"
+            data-month={num}
+            class="h-8 rounded-md text-xs font-medium transition-colors hover:bg-base-200 cursor-pointer"
+          >
+            {name}
+          </button>
+        </div>
+      </div>
+
+      <input
+        type="text"
+        name={@from_name}
+        value={@from_value || ""}
+        data-from
+        class="sr-only"
+        tabindex="-1"
+      />
+      <input
+        type="text"
+        name={@to_name}
+        value={@to_value || ""}
+        data-to
+        class="sr-only"
+        tabindex="-1"
+      />
+    </div>
+    """
+  end
+
+  @spec date_to_month(Date.t() | String.t() | nil) :: String.t() | nil
+  defp date_to_month(nil), do: nil
+  defp date_to_month(""), do: nil
+
+  defp date_to_month(%Date{year: y, month: m}),
+    do: "#{y}-#{pad2(m)}"
+
+  defp date_to_month(s) when is_binary(s) do
+    case Regex.run(~r/^(\d{4})-(\d{2})/, s) do
+      [_, _y, _m] = _match -> String.slice(s, 0, 7)
+      _ -> nil
+    end
+  end
+
+  @spec format_month_label(String.t()) :: String.t()
+  defp format_month_label(ym) when is_binary(ym) do
+    case String.split(ym, "-", parts: 2) do
+      [year, month_str] ->
+        case Integer.parse(month_str) do
+          {month_num, _} when month_num in 1..12 ->
+            "#{Enum.at(@months, month_num - 1)} #{year}"
+
+          _ ->
+            ym
+        end
+
+      _ ->
+        ym
+    end
+  end
+
+  @spec pad2(integer()) :: String.t()
+  defp pad2(n), do: String.pad_leading(Integer.to_string(n), 2, "0")
+
+  attr :rest, :global
+  slot :inner_block, required: true
+
+  @spec calendar_popover(map()) :: Phoenix.LiveView.Rendered.t()
+  defp calendar_popover(assigns) do
+    ~H"""
+    <div
+      data-popover
+      class="hidden absolute left-0 top-full z-30 mt-1 rounded-box border border-border bg-base-100 shadow-lg"
+    >
+      {render_slot(@inner_block)}
+    </div>
+    """
+  end
+
+  @spec calendar_nav_arrows(map()) :: Phoenix.LiveView.Rendered.t()
+  defp calendar_nav_arrows(assigns) do
+    ~H"""
+    <svg
+      aria-label="Previous"
+      class="fill-current size-4"
+      slot="previous"
+      xmlns="http://www.w3.org/2000/svg"
+      viewBox="0 0 24 24"
+    >
+      <path d="M15.75 19.5 8.25 12l7.5-7.5"></path>
+    </svg>
+    <svg
+      aria-label="Next"
+      class="fill-current size-4"
+      slot="next"
+      xmlns="http://www.w3.org/2000/svg"
+      viewBox="0 0 24 24"
+    >
+      <path d="m8.25 4.5 7.5 7.5-7.5 7.5"></path>
+    </svg>
+    """
+  end
+
+  @spec date_to_iso(Date.t() | String.t() | nil) :: String.t() | nil
+  defp date_to_iso(nil), do: nil
+  defp date_to_iso(""), do: nil
+  defp date_to_iso(%Date{} = d), do: Date.to_iso8601(d)
+  defp date_to_iso(s) when is_binary(s), do: s
 
   @doc """
   Renders a standalone pagination footer with page info and navigation.

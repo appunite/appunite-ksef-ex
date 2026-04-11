@@ -67,51 +67,48 @@ defmodule KsefHubWeb.CategoryLive.Index do
         </:actions>
       </.header>
 
-      <div class="rounded-lg border border-border overflow-hidden mt-6">
-        <div class="overflow-x-auto">
-          <.table
-            id="categories"
-            rows={@streams.categories}
-            row_id={fn {id, _} -> id end}
-            row_item={fn {_id, item} -> item end}
-          >
-            <:col :let={cat} label="Emoji" class="w-16 text-center">
-              {cat.emoji || "-"}
-            </:col>
-            <:col :let={cat} label="Identifier">
-              <span data-testid={"category-identifier-#{cat.id}"}>{cat.identifier}</span>
-            </:col>
-            <:col :let={cat} label="Name">
-              <span data-testid={"category-name-#{cat.id}"}>{cat.name || "-"}</span>
-            </:col>
-            <:col :let={cat} label="Description">
-              <span class="text-muted-foreground">{cat.description || "-"}</span>
-            </:col>
-            <:col :let={cat} label="Order" class="w-20 text-center">
-              {cat.sort_order}
-            </:col>
-            <:action :let={cat}>
-              <.button
-                variant="outline"
-                size="sm"
-                navigate={~p"/c/#{@current_company.id}/settings/categories/#{cat.id}/edit"}
-              >
-                Edit
-              </.button>
-              <.button
-                variant="outline"
-                size="sm"
-                class="border-shad-destructive text-shad-destructive hover:bg-shad-destructive/10"
-                phx-click="delete"
-                phx-value-id={cat.id}
-                data-confirm="Delete this category? Invoices with this category will become uncategorized."
-              >
-                Delete
-              </.button>
-            </:action>
-          </.table>
-        </div>
-      </div>
+      <.table_container class="mt-6">
+        <.table
+          id="categories"
+          rows={@streams.categories}
+          row_id={fn {id, _} -> id end}
+          row_item={fn {_id, item} -> item end}
+        >
+          <:col :let={cat} label="Emoji" class="w-16 text-center">
+            {cat.emoji || "-"}
+          </:col>
+          <:col :let={cat} label="Identifier">
+            <span data-testid={"category-identifier-#{cat.id}"}>{cat.identifier}</span>
+          </:col>
+          <:col :let={cat} label="Name">
+            <span data-testid={"category-name-#{cat.id}"}>{cat.name || "-"}</span>
+          </:col>
+          <:col :let={cat} label="Description">
+            <span class="text-muted-foreground">{cat.description || "-"}</span>
+          </:col>
+          <:col :let={cat} label="Order" class="w-20 text-center">
+            {cat.sort_order}
+          </:col>
+          <:action :let={cat}>
+            <.button
+              variant="outline"
+              size="sm"
+              navigate={~p"/c/#{@current_company.id}/settings/categories/#{cat.id}/edit"}
+            >
+              Edit
+            </.button>
+            <.button
+              variant="outline-destructive"
+              size="sm"
+              phx-click="delete"
+              phx-value-id={cat.id}
+              data-confirm="Delete this category? Invoices with this category will become uncategorized."
+            >
+              Delete
+            </.button>
+          </:action>
+        </.table>
+      </.table_container>
     </.settings_layout>
     """
   end

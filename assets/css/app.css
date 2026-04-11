@@ -241,4 +241,23 @@ input[type="checkbox"].checkbox {
 /* Make LiveView wrapper divs transparent for layout */
 [data-phx-session], [data-phx-teleported-src] { display: contents }
 
+/* Cally calendar: differentiate "today" from selected dates.
+   Default daisyUI fills today with --color-primary which looks too similar to selected.
+   Instead: primary-colored bold text with underline indicator.
+   The "selected" rule restores the filled style when today is also selected. */
+.cally ::part(button day today) {
+  background: transparent !important;
+  color: var(--color-primary) !important;
+  font-weight: 700;
+  text-decoration: underline;
+  text-decoration-thickness: 3px;
+  text-underline-offset: 3px;
+}
+
+.cally ::part(selected today) {
+  background: var(--color-base-content) !important;
+  color: var(--color-base-100) !important;
+  text-decoration: none;
+}
+
 /* This file is for your main application CSS */

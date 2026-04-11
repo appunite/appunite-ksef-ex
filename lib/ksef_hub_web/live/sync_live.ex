@@ -10,7 +10,7 @@ defmodule KsefHubWeb.SyncLive do
 
   require Logger
 
-  import KsefHubWeb.InvoiceComponents, only: [format_datetime: 1]
+  import KsefHubWeb.InvoiceComponents, only: [local_datetime: 1]
 
   alias KsefHub.Authorization
   alias KsefHub.Sync.History
@@ -96,36 +96,34 @@ defmodule KsefHubWeb.SyncLive do
         </:actions>
       </.header>
 
-      <div class="mt-6 rounded-lg border border-border overflow-hidden">
-        <div class="overflow-x-auto">
-          <.table id="syncs" rows={@streams.jobs} row_id={fn {id, _} -> id end}>
-            <:col :let={{_id, job}} label="Time">
-              {format_datetime(job.inserted_at)}
-            </:col>
-            <:col :let={{_id, job}} label="Duration">
-              {format_duration(job.duration)}
-            </:col>
-            <:col :let={{_id, job}} label="Status">
-              <.badge variant={sync_badge_variant(job.state)}>{job.state}</.badge>
-            </:col>
-            <:col :let={{_id, job}} label="Income">
-              <span class="font-mono">{job.income_count || "-"}</span>
-            </:col>
-            <:col :let={{_id, job}} label="Expense">
-              <span class="font-mono">{job.expense_count || "-"}</span>
-            </:col>
-            <:col :let={{_id, job}} label="Error">
-              <span
-                :if={job.error}
-                class="text-shad-destructive/80 text-xs truncate max-w-xs inline-block"
-                title={job.error}
-              >
-                {truncate(job.error, 80)}
-              </span>
-            </:col>
-          </.table>
-        </div>
-      </div>
+      <.table_container class="mt-6">
+        <.table id="syncs" rows={@streams.jobs} row_id={fn {id, _} -> id end}>
+          <:col :let={{id, job}} label="Time">
+            <.local_datetime at={job.inserted_at} id={"#{id}-time"} />
+          </:col>
+          <:col :let={{_id, job}} label="Duration">
+            {format_duration(job.duration)}
+          </:col>
+          <:col :let={{_id, job}} label="Status">
+            <.badge variant={sync_badge_variant(job.state)}>{job.state}</.badge>
+          </:col>
+          <:col :let={{_id, job}} label="Income">
+            <span class="font-mono">{job.income_count || "-"}</span>
+          </:col>
+          <:col :let={{_id, job}} label="Expense">
+            <span class="font-mono">{job.expense_count || "-"}</span>
+          </:col>
+          <:col :let={{_id, job}} label="Error">
+            <span
+              :if={job.error}
+              class="text-shad-destructive/80 text-xs truncate max-w-xs inline-block"
+              title={job.error}
+            >
+              {truncate(job.error, 80)}
+            </span>
+          </:col>
+        </.table>
+      </.table_container>
 
       <div :if={@jobs_count == 0} class="text-center py-12">
         <.icon name="hero-arrow-path" class="size-8 text-muted-foreground mx-auto mb-2" />

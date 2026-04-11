@@ -1144,27 +1144,13 @@ defmodule KsefHubWeb.InvoiceLive.Show do
               phx-submit="save_billing_date"
               class="space-y-2"
             >
-              <div class="grid grid-cols-2 gap-2">
-                <div class="space-y-1">
-                  <label class="text-xs text-muted-foreground">From</label>
-                  <input
-                    type="month"
-                    name="billing_date_from"
-                    value={format_month_value(@billing_date_form["billing_date_from"].value)}
-                    class="h-9 w-full rounded-md border border-input bg-background px-3 text-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
-                    autofocus
-                  />
-                </div>
-                <div class="space-y-1">
-                  <label class="text-xs text-muted-foreground">To</label>
-                  <input
-                    type="month"
-                    name="billing_date_to"
-                    value={format_month_value(@billing_date_form["billing_date_to"].value)}
-                    class="h-9 w-full rounded-md border border-input bg-background px-3 text-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
-                  />
-                </div>
-              </div>
+              <.month_range_picker
+                id="billing-period"
+                from_name="billing_date_from"
+                to_name="billing_date_to"
+                from_value={@billing_date_form["billing_date_from"].value}
+                to_value={@billing_date_form["billing_date_to"].value}
+              />
               <div class="flex gap-2">
                 <.button type="submit" size="sm">
                   Save
@@ -1852,15 +1838,14 @@ defmodule KsefHubWeb.InvoiceLive.Show do
         </div>
 
         <div class="space-y-1">
-          <label for="edit-issue-date" class="label">
+          <label class="label">
             <span class="text-sm font-medium text-xs">Issue Date</span>
           </label>
-          <input
-            type="date"
+          <.date_picker
             id="edit-issue-date"
             name={@edit_form[:issue_date].name}
             value={@edit_form[:issue_date].value}
-            class="h-9 w-full rounded-md border border-input bg-background px-3 text-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+            label="Pick issue date"
           />
           <.field_error errors={@edit_form[:issue_date].errors} />
         </div>
@@ -1868,29 +1853,27 @@ defmodule KsefHubWeb.InvoiceLive.Show do
 
       <div class="grid grid-cols-2 gap-3">
         <div class="space-y-1">
-          <label for="edit-sales-date" class="label">
+          <label class="label">
             <span class="text-sm font-medium text-xs">Sales Date</span>
           </label>
-          <input
-            type="date"
+          <.date_picker
             id="edit-sales-date"
             name={@edit_form[:sales_date].name}
             value={@edit_form[:sales_date].value}
-            class="h-9 w-full rounded-md border border-input bg-background px-3 text-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+            label="Pick sales date"
           />
           <.field_error errors={@edit_form[:sales_date].errors} />
         </div>
 
         <div class="space-y-1">
-          <label for="edit-due-date" class="label">
+          <label class="label">
             <span class="text-sm font-medium text-xs">Due Date</span>
           </label>
-          <input
-            type="date"
+          <.date_picker
             id="edit-due-date"
             name={@edit_form[:due_date].name}
             value={@edit_form[:due_date].value}
-            class="h-9 w-full rounded-md border border-input bg-background px-3 text-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+            label="Pick due date"
           />
           <.field_error errors={@edit_form[:due_date].errors} />
         </div>
@@ -2254,12 +2237,6 @@ defmodule KsefHubWeb.InvoiceLive.Show do
   defp dropdown_item_class,
     do:
       "flex w-full items-center gap-2 px-2 py-1.5 text-sm rounded-sm text-muted-foreground hover:bg-shad-accent hover:text-shad-accent-foreground transition-colors"
-
-  @spec format_month_value(Date.t() | nil) :: String.t() | nil
-  defp format_month_value(%Date{year: y, month: m}),
-    do: "#{y}-#{String.pad_leading(Integer.to_string(m), 2, "0")}"
-
-  defp format_month_value(_), do: nil
 
   @spec normalize_month_to_date(String.t()) :: String.t()
   defp normalize_month_to_date(val) when is_binary(val) do

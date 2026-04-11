@@ -60,50 +60,47 @@ defmodule KsefHubWeb.TokenLive do
           </.button>
         </:actions>
       </.header>
-      <div class="rounded-lg border border-border overflow-hidden mt-6">
-        <div class="overflow-x-auto">
-          <.table
-            id="tokens"
-            rows={@streams.tokens}
-            row_id={fn {id, _} -> id end}
-            row_item={fn {_id, item} -> item end}
-          >
-            <:col :let={token} label="Name">
-              <span data-testid={"token-name-#{token.id}"}>{token.name}</span>
-            </:col>
-            <:col :let={token} label="Prefix">
-              <code class="font-mono text-sm">{token.token_prefix}****</code>
-            </:col>
-            <:col :let={token} label="Last Used">
-              {format_datetime(token.last_used_at)}
-            </:col>
-            <:col :let={token} label="Requests">
-              <span class="font-mono">{token.request_count}</span>
-            </:col>
-            <:col :let={token} label="Status">
-              <.badge :if={token.is_active} variant="success">Active</.badge>
-              <.badge :if={!token.is_active} variant="muted">Revoked</.badge>
-            </:col>
-            <:action :let={token}>
-              <.button
-                :if={token.is_active}
-                variant="outline"
-                size="sm"
-                class="border-shad-destructive text-shad-destructive hover:bg-shad-destructive/10"
-                phx-click="revoke"
-                phx-value-id={token.id}
-                data-confirm="Are you sure? This will immediately revoke API access for this token."
-              >
-                Revoke
-              </.button>
-            </:action>
-          </.table>
-        </div>
-      </div>
+      <.table_container class="mt-6">
+        <.table
+          id="tokens"
+          rows={@streams.tokens}
+          row_id={fn {id, _} -> id end}
+          row_item={fn {_id, item} -> item end}
+        >
+          <:col :let={token} label="Name">
+            <span data-testid={"token-name-#{token.id}"}>{token.name}</span>
+          </:col>
+          <:col :let={token} label="Prefix">
+            <code class="font-mono text-sm">{token.token_prefix}****</code>
+          </:col>
+          <:col :let={token} label="Last Used">
+            {format_datetime(token.last_used_at)}
+          </:col>
+          <:col :let={token} label="Requests">
+            <span class="font-mono">{token.request_count}</span>
+          </:col>
+          <:col :let={token} label="Status">
+            <.badge :if={token.is_active} variant="success">Active</.badge>
+            <.badge :if={!token.is_active} variant="muted">Revoked</.badge>
+          </:col>
+          <:action :let={token}>
+            <.button
+              :if={token.is_active}
+              variant="outline-destructive"
+              size="sm"
+              phx-click="revoke"
+              phx-value-id={token.id}
+              data-confirm="Are you sure? This will immediately revoke API access for this token."
+            >
+              Revoke
+            </.button>
+          </:action>
+        </.table>
+      </.table_container>
 
-      <p :if={@tokens_count == 0} class="text-center text-muted-foreground py-8">
+      <.empty_state :if={@tokens_count == 0}>
         No API tokens yet. Create one to get started.
-      </p>
+      </.empty_state>
     </.settings_layout>
     """
   end

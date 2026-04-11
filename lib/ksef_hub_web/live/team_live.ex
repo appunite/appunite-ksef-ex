@@ -71,8 +71,8 @@ defmodule KsefHubWeb.TeamLive do
       </.header>
       <.card class="mt-6">
         <h2 class="text-base font-semibold mb-3">Members</h2>
-        <div class="rounded-lg border border-border overflow-hidden">
-          <div class="overflow-x-auto" data-testid="member-list">
+        <div data-testid="member-list">
+          <.table_container>
             <table class="w-full table-fixed text-sm" data-testid="team-table">
               <thead>
                 <tr class="border-b border-border">
@@ -118,54 +118,52 @@ defmodule KsefHubWeb.TeamLive do
                 </tr>
               </tbody>
             </table>
-          </div>
+          </.table_container>
         </div>
       </.card>
       <.card :if={@pending_invitations_count > 0} class="mt-6">
         <h2 class="text-base font-semibold mb-3">Pending Invitations</h2>
-        <div class="rounded-lg border border-border overflow-hidden">
-          <div class="overflow-x-auto" data-testid="pending-invitations-list">
-            <table class="w-full table-fixed text-sm">
-              <thead>
-                <tr class="border-b border-border">
-                  <th class="text-left py-3 px-4 text-xs font-medium text-muted-foreground uppercase tracking-wide">
-                    Email
-                  </th>
-                  <th class="text-left py-3 px-4 text-xs font-medium text-muted-foreground uppercase tracking-wide">
-                    Expires
-                  </th>
-                  <th class="text-left py-3 px-4 text-xs font-medium text-muted-foreground uppercase tracking-wide">
-                    Role
-                  </th>
-                </tr>
-              </thead>
-              <tbody id="pending-invitations-list" phx-update="stream">
-                <tr
-                  :for={{dom_id, inv} <- @streams.pending_invitations}
-                  id={dom_id}
-                  class="border-b border-border/50 hover:bg-muted/50 transition-colors"
-                  data-testid={"invitation-row-#{inv.id}"}
-                >
-                  <td class="py-3.5 px-4">
-                    <.link
-                      navigate={invitation_path(@current_company.id, inv)}
-                      class="hover:underline underline-offset-4"
-                      data-testid={"invitation-link-#{inv.id}"}
-                    >
-                      {inv.email}
-                    </.link>
-                  </td>
-                  <td class="py-3.5 px-4 text-muted-foreground">
-                    {Calendar.strftime(inv.expires_at, "%Y-%m-%d")}
-                  </td>
-                  <td class="py-3.5 px-4">
-                    <.badge variant="muted">{role_label(inv.role)}</.badge>
-                  </td>
-                </tr>
-              </tbody>
-            </table>
-          </div>
-        </div>
+        <.table_container>
+          <table class="w-full table-fixed text-sm">
+            <thead>
+              <tr class="border-b border-border">
+                <th class="text-left py-3 px-4 text-xs font-medium text-muted-foreground uppercase tracking-wide">
+                  Email
+                </th>
+                <th class="text-left py-3 px-4 text-xs font-medium text-muted-foreground uppercase tracking-wide">
+                  Expires
+                </th>
+                <th class="text-left py-3 px-4 text-xs font-medium text-muted-foreground uppercase tracking-wide">
+                  Role
+                </th>
+              </tr>
+            </thead>
+            <tbody id="pending-invitations-list" phx-update="stream">
+              <tr
+                :for={{dom_id, inv} <- @streams.pending_invitations}
+                id={dom_id}
+                class="border-b border-border/50 hover:bg-muted/50 transition-colors"
+                data-testid={"invitation-row-#{inv.id}"}
+              >
+                <td class="py-3.5 px-4">
+                  <.link
+                    navigate={invitation_path(@current_company.id, inv)}
+                    class="hover:underline underline-offset-4"
+                    data-testid={"invitation-link-#{inv.id}"}
+                  >
+                    {inv.email}
+                  </.link>
+                </td>
+                <td class="py-3.5 px-4 text-muted-foreground">
+                  {Calendar.strftime(inv.expires_at, "%Y-%m-%d")}
+                </td>
+                <td class="py-3.5 px-4">
+                  <.badge variant="muted">{role_label(inv.role)}</.badge>
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </.table_container>
       </.card>
     </.settings_layout>
     """

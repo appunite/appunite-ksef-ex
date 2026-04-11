@@ -334,9 +334,8 @@ defmodule KsefHubWeb.TeamMemberLive.Show do
             <.button
               :if={can_block?(assigns)}
               type="button"
-              variant="outline"
+              variant="outline-destructive"
               size="sm"
-              class="border-shad-destructive text-shad-destructive hover:bg-shad-destructive/10"
               phx-click="block_member"
               data-confirm="Block this member? They will lose all access to the company."
               data-testid="block-button"
@@ -406,9 +405,8 @@ defmodule KsefHubWeb.TeamMemberLive.Show do
 
         <div :if={@invitation.status == :pending} class="mt-6 pt-4 border-t border-border">
           <.button
-            variant="outline"
+            variant="outline-destructive"
             size="sm"
-            class="border-shad-destructive text-shad-destructive hover:bg-shad-destructive/10"
             phx-click="cancel_invitation"
             data-confirm="Cancel this invitation?"
             data-testid="cancel-invitation-button"

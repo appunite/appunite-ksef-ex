@@ -347,8 +347,7 @@ defmodule KsefHubWeb.CompanyLive.Form do
         </.button>
         <.button
           :if={@company.inbound_email_token_hash}
-          variant="outline"
-          class="border-shad-destructive text-shad-destructive hover:bg-shad-destructive/10"
+          variant="outline-destructive"
           type="button"
           phx-click="disable_inbound_email"
           data-confirm="This will disable inbound email processing for this company. Continue?"

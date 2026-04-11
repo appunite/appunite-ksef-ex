@@ -232,52 +232,49 @@ defmodule KsefHubWeb.BankAccountLive do
       </div>
 
       <%!-- Table of existing accounts --%>
-      <div :if={@accounts_count > 0} class="rounded-lg border border-border overflow-hidden mt-6">
-        <div class="overflow-x-auto">
-          <.table
-            id="bank-accounts"
-            rows={@streams.bank_accounts}
-            row_id={fn {id, _} -> id end}
-            row_item={fn {_id, item} -> item end}
-          >
-            <:col :let={ba} label="Currency">
-              <span class="font-mono font-medium">{ba.currency}</span>
-            </:col>
-            <:col :let={ba} label="IBAN">
-              <code class="font-mono text-sm">{ba.iban}</code>
-            </:col>
-            <:col :let={ba} label="Label">
-              <span class="text-muted-foreground">{ba.label || "—"}</span>
-            </:col>
-            <:action :let={ba}>
-              <div class="flex gap-2">
-                <.button
-                  variant="outline"
-                  size="sm"
-                  phx-click="edit"
-                  phx-value-id={ba.id}
-                >
-                  Edit
-                </.button>
-                <.button
-                  variant="outline"
-                  size="sm"
-                  class="border-shad-destructive text-shad-destructive hover:bg-shad-destructive/10"
-                  phx-click="delete"
-                  phx-value-id={ba.id}
-                  data-confirm="Delete bank account for #{ba.currency}?"
-                >
-                  Delete
-                </.button>
-              </div>
-            </:action>
-          </.table>
-        </div>
-      </div>
+      <.table_container :if={@accounts_count > 0} class="mt-6">
+        <.table
+          id="bank-accounts"
+          rows={@streams.bank_accounts}
+          row_id={fn {id, _} -> id end}
+          row_item={fn {_id, item} -> item end}
+        >
+          <:col :let={ba} label="Currency">
+            <span class="font-mono font-medium">{ba.currency}</span>
+          </:col>
+          <:col :let={ba} label="IBAN">
+            <code class="font-mono text-sm">{ba.iban}</code>
+          </:col>
+          <:col :let={ba} label="Label">
+            <span class="text-muted-foreground">{ba.label || "—"}</span>
+          </:col>
+          <:action :let={ba}>
+            <div class="flex gap-2">
+              <.button
+                variant="outline"
+                size="sm"
+                phx-click="edit"
+                phx-value-id={ba.id}
+              >
+                Edit
+              </.button>
+              <.button
+                variant="outline-destructive"
+                size="sm"
+                phx-click="delete"
+                phx-value-id={ba.id}
+                data-confirm="Delete bank account for #{ba.currency}?"
+              >
+                Delete
+              </.button>
+            </div>
+          </:action>
+        </.table>
+      </.table_container>
 
-      <p :if={@accounts_count == 0} class="text-center text-muted-foreground py-8">
+      <.empty_state :if={@accounts_count == 0}>
         No bank accounts configured. Add one to enable payment CSV exports.
-      </p>
+      </.empty_state>
     </.settings_layout>
     """
   end
