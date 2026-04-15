@@ -1,0 +1,65 @@
+name: Run Eval Task
+
+on:
+  workflow_dispatch:
+    inputs:
+      expression:
+        description: "Elixir expression to evaluate"
+        required: true
+        default: "KsefHub.Release.reparse_ksef_invoices()"
+        type: string
+
+concurrency:
+  group: eval-production
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+  id-token: write
+
+env:
+  GCP_PROJECT_ID: au-ksef-ex
+  GCP_REGION: europe-west1
+  IMAGE_NAME: europe-west1-docker.pkg.dev/au-ksef-ex/ksef-hub/ksef-hub
+
+jobs:
+  eval:
+    name: Eval
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Authenticate to Google Cloud
+        uses: google-github-actions/auth@v2
+        with:
+          workload_identity_provider: ${{ secrets.GCP_WIF_PROVIDER }}
+          service_account: ${{ secrets.GCP_SERVICE_ACCOUNT }}
+
+      - name: Set up Cloud SDK
+        uses: google-github-actions/setup-gcloud@v2
+
+      - name: Run eval task
+        run: |
+          echo "Running: ${{ inputs.expression }}"
+
+          JOB_ARGS=(
+            --region "${GCP_REGION}"
+            --image "${IMAGE_NAME}:latest"
+            --command "bin/ksef_hub"
+            --set-secrets "DATABASE_URL=database-url:latest,SECRET_KEY_BASE=secret-key-base:latest,CREDENTIAL_ENCRYPTION_KEY=credential-encryption-key:latest"
+            --set-env-vars "KSEF_API_URL=https://api.ksef.mf.gov.pl,POOL_SIZE=2"
+            --service-account "ksef-hub-runner@${GCP_PROJECT_ID}.iam.gserviceaccount.com"
+            --max-retries 0
+            --task-timeout 600s
+            --memory 512Mi
+          )
+
+          if gcloud run jobs describe ksef-hub-eval --region "${GCP_REGION}" > /dev/null 2>&1; then
+            gcloud run jobs update ksef-hub-eval "${JOB_ARGS[@]}"
+          else
+            gcloud run jobs create ksef-hub-eval "${JOB_ARGS[@]}"
+          fi
+
+          gcloud run jobs execute ksef-hub-eval \
+            --region "${GCP_REGION}" \
+            --wait \
+            --args "eval,${{ inputs.expression }}"

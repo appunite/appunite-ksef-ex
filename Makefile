@@ -2,7 +2,7 @@
        server console \
        docker.build docker.run docker.up docker.down \
        db.setup db.migrate db.reset db.rollback \
-       deploy deploy.job \
+       deploy \
        models.upload models.restart models.train
 
 APP_NAME := ksef-hub
@@ -95,10 +95,6 @@ deploy: ## Deploy current service.yaml to Cloud Run (uses latest pushed image)
 	@read -p "Continue? [y/N] " confirm && [ "$$confirm" = "y" ] || (echo "Aborted." && exit 1)
 	sed "s|IMAGE_PLACEHOLDER|$(IMAGE_NAME):latest|g" cloud-run/service.yaml | \
 		gcloud run services replace - --region $(GCP_REGION) --project $(GCP_PROJECT_ID)
-
-deploy.job: ## Deploy/update the eval job (uses latest pushed image)
-	sed "s|IMAGE_PLACEHOLDER|$(IMAGE_NAME):latest|g" cloud-run/eval-job.yaml | \
-		gcloud run jobs replace - --region $(GCP_REGION) --project $(GCP_PROJECT_ID)
 
 # --- ML Models ---
 
