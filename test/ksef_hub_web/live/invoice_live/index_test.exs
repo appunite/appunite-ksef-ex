@@ -447,6 +447,22 @@ defmodule KsefHubWeb.InvoiceLive.IndexTest do
       {:ok, _view, html} = live(conn, ~p"/c/#{company.id}/invoices")
       refute html =~ "Access restricted to invited reviewers"
     end
+
+    test "lock icon appears before correction badge in the row", %{conn: conn, company: company} do
+      insert(:invoice,
+        type: :expense,
+        company: company,
+        invoice_kind: :correction,
+        access_restricted: true
+      )
+
+      {:ok, _view, html} = live(conn, ~p"/c/#{company.id}/invoices")
+
+      lock_pos = html |> :binary.match("Access restricted to invited reviewers") |> elem(0)
+      badge_pos = html |> :binary.match("text-purple-400") |> elem(0)
+
+      assert lock_pos < badge_pos
+    end
   end
 
   describe "reviewer role" do

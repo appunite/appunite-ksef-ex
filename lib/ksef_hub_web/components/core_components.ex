@@ -104,7 +104,7 @@ defmodule KsefHubWeb.CoreComponents do
       <.badge variant="warning">Pending</.badge>
   """
   attr :variant, :string,
-    values: ~w(success warning error info muted default),
+    values: ~w(success warning error info muted default purple),
     default: "default"
 
   attr :class, :string, default: nil
@@ -119,7 +119,8 @@ defmodule KsefHubWeb.CoreComponents do
       "error" => "bg-error/10 text-error border-error/20",
       "info" => "bg-info/10 text-info border-info/20",
       "muted" => "bg-muted text-muted-foreground border-border",
-      "default" => "bg-muted text-muted-foreground border-border"
+      "default" => "bg-muted text-muted-foreground border-border",
+      "purple" => "bg-purple-500/10 text-purple-400 border-purple-500/20"
     }
 
     assigns = assign(assigns, :variant_class, Map.fetch!(variant_classes, assigns.variant))
