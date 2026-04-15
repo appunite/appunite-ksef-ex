@@ -225,5 +225,4 @@ defmodule KsefHub.AccountsTest do
       refute Repo.one(UserToken.by_user_and_contexts_query(user, :all))
     end
   end
-
 end
