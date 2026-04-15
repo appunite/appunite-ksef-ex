@@ -260,11 +260,15 @@ defmodule KsefHub.Invoices do
     |> then(fn %{num_rows: n} -> {n, nil} end)
   end
 
+  @doc false
   defdelegate compute_billing_date(attrs), to: Extraction
+  @doc false
   defdelegate missing_critical_fields(invoice), to: Extraction
+  @doc false
   defdelegate determine_extraction_status_from_attrs(attrs), to: Extraction
+  @doc false
   defdelegate populate_company_fields(attrs, company), to: Extraction
-
+  @doc false
   defdelegate recalculate_extraction_status(invoice, attrs), to: Extraction
 
   @spec maybe_restrict_access(map()) :: map()
@@ -1243,25 +1247,40 @@ defmodule KsefHub.Invoices do
     |> TrackedRepo.update(opts)
   end
 
-  # --- Invoice Comments ---
+  # --- Invoice Comments (see Invoices.Comments for docs) ---
 
+  @doc false
   defdelegate list_invoice_comments(company_id, invoice_id), to: Comments
+  @doc false
   defdelegate create_invoice_comment(company_id, invoice_id, user_id, attrs), to: Comments
+  @doc false
   defdelegate create_invoice_comment(company_id, invoice_id, user_id, attrs, opts), to: Comments
+  @doc false
   defdelegate update_invoice_comment(comment, user, attrs), to: Comments
+  @doc false
   defdelegate update_invoice_comment(comment, user, attrs, opts), to: Comments
+  @doc false
   defdelegate delete_invoice_comment(comment, user), to: Comments
+  @doc false
   defdelegate delete_invoice_comment(comment, user, opts), to: Comments
 
-  # --- Access Control ---
+  # --- Access Control (see Invoices.AccessControl for docs) ---
 
+  @doc false
   defdelegate list_access_grants(invoice_id), to: AccessControl
+  @doc false
   defdelegate grant_access(invoice_id, user_id), to: AccessControl
+  @doc false
   defdelegate grant_access(invoice_id, user_id, granted_by_id), to: AccessControl
+  @doc false
   defdelegate grant_access(invoice_id, user_id, granted_by_id, opts), to: AccessControl
+  @doc false
   defdelegate revoke_access(invoice_id, user_id), to: AccessControl
+  @doc false
   defdelegate revoke_access(invoice_id, user_id, opts), to: AccessControl
+  @doc false
   defdelegate set_access_restricted(invoice, restricted), to: AccessControl
+  @doc false
   defdelegate set_access_restricted(invoice, restricted, opts), to: AccessControl
 
   # --- Private ---

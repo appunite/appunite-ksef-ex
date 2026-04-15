@@ -214,6 +214,9 @@ defmodule KsefHub.Invoices.Classification do
   def mark_prediction_manual(%Invoice{prediction_status: nil} = invoice), do: {:ok, invoice}
   def mark_prediction_manual(%Invoice{prediction_status: :manual} = invoice), do: {:ok, invoice}
 
+  # Uses Repo (not TrackedRepo) intentionally — Invoice.track_change/1 returns
+  # :skip for prediction_status changes, so TrackedRepo would add overhead
+  # without emitting any event.
   def mark_prediction_manual(%Invoice{} = invoice) do
     invoice
     |> Invoice.prediction_changeset(%{prediction_status: :manual})
@@ -289,6 +292,7 @@ defmodule KsefHub.Invoices.Classification do
   defp do_mark_prediction_manual_in_txn!(%Invoice{prediction_status: nil}), do: :ok
   defp do_mark_prediction_manual_in_txn!(%Invoice{prediction_status: :manual}), do: :ok
 
+  # See mark_prediction_manual/1 — Repo used intentionally (prediction_status is :skip in Trackable).
   defp do_mark_prediction_manual_in_txn!(%Invoice{} = invoice) do
     invoice
     |> Invoice.prediction_changeset(%{prediction_status: :manual})

@@ -104,6 +104,7 @@ defmodule KsefHub.Invoices.Analytics do
   def income_monthly_summary(company_id) do
     today = Date.utc_today()
     current_month_start = Date.beginning_of_month(today)
+    current_month_end = Date.end_of_month(today)
     last_month_start = current_month_start |> Date.add(-1) |> Date.beginning_of_month()
 
     # Fetch invoices whose billing range overlaps either month
@@ -112,7 +113,7 @@ defmodule KsefHub.Invoices.Analytics do
       |> base_aggregation_query(:income)
       |> where(
         [i],
-        i.billing_date_to >= ^last_month_start and i.billing_date_from <= ^current_month_start
+        i.billing_date_to >= ^last_month_start and i.billing_date_from <= ^current_month_end
       )
       |> select([i], %{
         billing_date_from: i.billing_date_from,
