@@ -168,6 +168,7 @@ defmodule KsefHub.Invoices.Invoice do
   def invoice_kind_label(:simplified), do: "Simplified"
   def invoice_kind_label(:advance_correction), do: "Advance correction"
   def invoice_kind_label(:settlement_correction), do: "Settlement correction"
+  def invoice_kind_label(_), do: "Unknown"
 
   @doc "Returns a human-readable label for the correction type (TypKorekty)."
   @spec correction_type_label(integer() | nil) :: String.t()
@@ -448,6 +449,8 @@ defmodule KsefHub.Invoices.Invoice do
 
   @spec validate_correction_fields(Ecto.Changeset.t()) :: Ecto.Changeset.t()
   defp validate_correction_fields(changeset) do
+    kind = get_field(changeset, :invoice_kind)
+
     changeset
     |> validate_length(:correction_reason, max: 1000)
     |> validate_change(:correction_type, fn :correction_type, value ->
@@ -455,6 +458,39 @@ defmodule KsefHub.Invoices.Invoice do
         do: [],
         else: [correction_type: "must be 1, 2, or 3"]
     end)
+    |> validate_correction_only_fields(kind)
+    |> validate_correction_period_order()
+  end
+
+  @spec validate_correction_only_fields(Ecto.Changeset.t(), invoice_kind() | nil) ::
+          Ecto.Changeset.t()
+  defp validate_correction_only_fields(changeset, kind) when kind in @correction_kinds,
+    do: changeset
+
+  defp validate_correction_only_fields(changeset, _kind) do
+    Enum.reduce(
+      [:correction_reason, :correction_type, :correction_period_from, :correction_period_to],
+      changeset,
+      fn field, cs ->
+        if get_field(cs, field) != nil do
+          add_error(cs, field, "only allowed on correction invoices")
+        else
+          cs
+        end
+      end
+    )
+  end
+
+  @spec validate_correction_period_order(Ecto.Changeset.t()) :: Ecto.Changeset.t()
+  defp validate_correction_period_order(changeset) do
+    from = get_field(changeset, :correction_period_from)
+    to = get_field(changeset, :correction_period_to)
+
+    if from && to && Date.compare(from, to) == :gt do
+      add_error(changeset, :correction_period_to, "must not be before correction_period_from")
+    else
+      changeset
+    end
   end
 
   @spec validate_nip_fields(Ecto.Changeset.t()) :: Ecto.Changeset.t()
