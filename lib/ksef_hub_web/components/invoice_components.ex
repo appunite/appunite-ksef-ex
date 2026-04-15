@@ -9,6 +9,8 @@ defmodule KsefHubWeb.InvoiceComponents do
 
   use Phoenix.VerifiedRoutes, endpoint: KsefHubWeb.Endpoint, router: KsefHubWeb.Router
 
+  alias KsefHub.Invoices.Invoice
+
   require Logger
 
   @doc """
@@ -106,6 +108,206 @@ defmodule KsefHubWeb.InvoiceComponents do
       {render_slot(@inner_block)}
     </.link>
     """
+  end
+
+  @doc """
+  Renders a badge for the invoice kind. Shows nothing for plain VAT invoices
+  (the default). Shows a red "Korekta" badge for correction kinds, and an
+  info badge for other non-standard kinds (advance, simplified, etc.).
+  """
+  @spec invoice_kind_badge(map()) :: Phoenix.LiveView.Rendered.t()
+  attr :kind, :atom, required: true
+
+  def invoice_kind_badge(%{kind: :vat} = assigns), do: ~H""
+  def invoice_kind_badge(%{kind: nil} = assigns), do: ~H""
+
+  def invoice_kind_badge(assigns) do
+    assigns = assign(assigns, :label, Invoice.invoice_kind_label(assigns.kind))
+
+    assigns =
+      assign(
+        assigns,
+        :variant,
+        if(assigns.kind in Invoice.correction_kinds(),
+          do: "error",
+          else: "info"
+        )
+      )
+
+    ~H"""
+    <.badge variant={@variant}>{@label}</.badge>
+    """
+  end
+
+  @doc """
+  Renders a correction details panel for correction invoices. Shows the corrected
+  invoice reference, correction reason, type, and period. Renders nothing for
+  non-correction invoices.
+  """
+  @spec correction_details(map()) :: Phoenix.LiveView.Rendered.t()
+  attr :invoice, :map, required: true
+  attr :company_id, :string, required: true
+
+  # Guard requires compile-time literals — must stay in sync with Invoice.correction_kinds/0
+  def correction_details(%{invoice: %{invoice_kind: kind}} = assigns)
+      when kind not in [:correction, :advance_correction, :settlement_correction] do
+    ~H""
+  end
+
+  def correction_details(assigns) do
+    assigns =
+      assign(
+        assigns,
+        :type_label,
+        Invoice.correction_type_label(assigns.invoice.correction_type)
+      )
+
+    ~H"""
+    <div
+      class="rounded-md border border-error/20 bg-error/5 p-4 mt-4 space-y-2"
+      data-testid="correction-details"
+    >
+      <div class="flex items-center gap-2 font-medium text-sm">
+        <.icon name="hero-arrow-uturn-left" class="size-4" />
+        <span>Correction invoice</span>
+      </div>
+      <table class="text-sm w-full">
+        <tbody>
+          <tr :if={@invoice.corrected_invoice_number} class="border-b border-border/50 last:border-0">
+            <td class="py-1 pr-3 text-muted-foreground whitespace-nowrap">
+              Corrected invoice
+            </td>
+            <td class="py-1 text-right">
+              <%= if @invoice.corrects_invoice_id do %>
+                <.link
+                  navigate={~p"/c/#{@company_id}/invoices/#{@invoice.corrects_invoice_id}"}
+                  class="text-shad-primary underline-offset-4 hover:underline"
+                >
+                  {@invoice.corrected_invoice_number}
+                </.link>
+              <% else %>
+                {@invoice.corrected_invoice_number}
+              <% end %>
+            </td>
+          </tr>
+          <tr
+            :if={@invoice.corrected_invoice_ksef_number}
+            class="border-b border-border/50 last:border-0"
+          >
+            <td class="py-1 pr-3 text-muted-foreground whitespace-nowrap">
+              Original KSeF
+            </td>
+            <td class="py-1 text-right font-mono text-xs break-all">
+              {@invoice.corrected_invoice_ksef_number}
+            </td>
+          </tr>
+          <tr :if={@invoice.corrected_invoice_date} class="border-b border-border/50 last:border-0">
+            <td class="py-1 pr-3 text-muted-foreground whitespace-nowrap">
+              Original date
+            </td>
+            <td class="py-1 text-right">{format_date(@invoice.corrected_invoice_date)}</td>
+          </tr>
+          <tr :if={@invoice.correction_reason} class="border-b border-border/50 last:border-0">
+            <td class="py-1 pr-3 text-muted-foreground whitespace-nowrap">Reason</td>
+            <td class="py-1 text-right">{@invoice.correction_reason}</td>
+          </tr>
+          <tr :if={@type_label != ""} class="border-b border-border/50 last:border-0">
+            <td class="py-1 pr-3 text-muted-foreground whitespace-nowrap">
+              Effect
+            </td>
+            <td class="py-1 text-right">{@type_label}</td>
+          </tr>
+          <tr
+            :if={@invoice.correction_period_from || @invoice.correction_period_to}
+            class="border-b border-border/50 last:border-0"
+          >
+            <td class="py-1 pr-3 text-muted-foreground whitespace-nowrap">Period</td>
+            <td class="py-1 text-right">
+              {format_date(@invoice.correction_period_from)} – {format_date(
+                @invoice.correction_period_to
+              )}
+            </td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+    """
+  end
+
+  @doc """
+  Renders a table of related invoices: corrections for an original, or the
+  original for a correction. Renders nothing when there are no related invoices.
+  """
+  @spec related_invoices(map()) :: Phoenix.LiveView.Rendered.t()
+  attr :invoice, :map, required: true
+  attr :company_id, :string, required: true
+
+  def related_invoices(assigns) do
+    corrections = loaded_list(assigns.invoice, :corrections)
+    corrects = loaded_assoc(assigns.invoice, :corrects_invoice)
+
+    original = if corrects, do: [{corrects, :original}], else: []
+    related = original ++ Enum.map(corrections, &{&1, :correction})
+
+    if related == [] do
+      ~H""
+    else
+      assigns = assign(assigns, :related, related)
+
+      ~H"""
+      <div
+        class="rounded-md border border-border bg-card p-4 mt-4"
+        data-testid="related-invoices"
+      >
+        <h3 class="text-sm font-medium mb-2">Related invoices</h3>
+        <table class="text-sm w-full">
+          <thead>
+            <tr class="border-b border-border text-muted-foreground text-left">
+              <th class="py-1 pr-3 font-normal">Relation</th>
+              <th class="py-1 pr-3 font-normal">Number</th>
+              <th class="py-1 pr-3 font-normal">Date</th>
+              <th class="py-1 font-normal">Kind</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr :for={{inv, relation} <- @related} class="border-b border-border/50 last:border-0">
+              <td class="py-1.5 pr-3 text-muted-foreground">
+                {if relation == :original, do: "Original", else: "Correction"}
+              </td>
+              <td class="py-1.5 pr-3">
+                <.link
+                  navigate={~p"/c/#{@company_id}/invoices/#{inv.id}"}
+                  class="text-shad-primary underline-offset-4 hover:underline"
+                >
+                  {inv.invoice_number}
+                </.link>
+              </td>
+              <td class="py-1.5 pr-3">{format_date(inv.issue_date)}</td>
+              <td class="py-1.5"><.invoice_kind_badge kind={inv.invoice_kind} /></td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+      """
+    end
+  end
+
+  @spec loaded_list(map(), atom()) :: [map()]
+  defp loaded_list(struct, field) do
+    case Map.get(struct, field) do
+      %Ecto.Association.NotLoaded{} -> []
+      nil -> []
+      list when is_list(list) -> list
+    end
+  end
+
+  @spec loaded_assoc(map(), atom()) :: map() | nil
+  defp loaded_assoc(struct, field) do
+    case Map.get(struct, field) do
+      %Ecto.Association.NotLoaded{} -> nil
+      nil -> nil
+      assoc -> assoc
+    end
   end
 
   @doc "Renders a coloured badge for the invoice type (:income / :expense)."

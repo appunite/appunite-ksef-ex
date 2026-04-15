@@ -73,6 +73,7 @@ defmodule KsefHubWeb.InvoiceLive.PublicShow do
       Invoice {@invoice.invoice_number}
       <:subtitle>
         <.type_badge type={@invoice.type} />
+        <.invoice_kind_badge kind={@invoice.invoice_kind} />
       </:subtitle>
     </.header>
 

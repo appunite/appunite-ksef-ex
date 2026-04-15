@@ -131,6 +131,28 @@ defmodule KsefHubWeb.Api.InvoiceController do
         in: :query,
         description: "Filter by exclusion status.",
         schema: %Schema{type: :boolean}
+      ],
+      invoice_kind: [
+        in: :query,
+        description: "Filter by invoice kind.",
+        schema: %Schema{
+          type: :string,
+          enum: [
+            "vat",
+            "correction",
+            "advance",
+            "advance_settlement",
+            "simplified",
+            "advance_correction",
+            "settlement_correction"
+          ]
+        }
+      ],
+      is_correction: [
+        in: :query,
+        description:
+          "Filter to show only correction invoices (correction, advance_correction, settlement_correction) when true, or exclude them when false.",
+        schema: %Schema{type: :boolean}
       ]
     ],
     responses: %{
@@ -1384,6 +1406,8 @@ defmodule KsefHubWeb.Api.InvoiceController do
     |> maybe_put(:category_id, params["category_id"])
     |> maybe_put_list(:tags, params["tags[]"] || params["tags"])
     |> maybe_put_boolean(:is_excluded, params["is_excluded"])
+    |> maybe_put(:invoice_kind, cast_enum_param(params["invoice_kind"], Invoice, :invoice_kind))
+    |> maybe_put_boolean(:is_correction, params["is_correction"])
   end
 
   @spec maybe_put(map(), atom(), String.t() | nil) :: map()
@@ -1554,6 +1578,15 @@ defmodule KsefHubWeb.Api.InvoiceController do
       project_tag: invoice.project_tag,
       is_excluded: invoice.is_excluded,
       access_restricted: invoice.access_restricted,
+      invoice_kind: invoice.invoice_kind,
+      corrected_invoice_number: invoice.corrected_invoice_number,
+      corrected_invoice_ksef_number: invoice.corrected_invoice_ksef_number,
+      corrected_invoice_date: invoice.corrected_invoice_date,
+      correction_period_from: invoice.correction_period_from,
+      correction_period_to: invoice.correction_period_to,
+      correction_reason: invoice.correction_reason,
+      correction_type: invoice.correction_type,
+      corrects_invoice_id: invoice.corrects_invoice_id,
       inserted_at: invoice.inserted_at,
       updated_at: invoice.updated_at
     }

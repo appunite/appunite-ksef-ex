@@ -266,6 +266,70 @@ defmodule KsefHubWeb.Schemas.Invoice do
         type: :boolean,
         description: "Whether this invoice is excluded from reports and summaries."
       },
+      invoice_kind: %Schema{
+        type: :string,
+        enum: [
+          "vat",
+          "correction",
+          "advance",
+          "advance_settlement",
+          "simplified",
+          "advance_correction",
+          "settlement_correction"
+        ],
+        description:
+          "Invoice kind derived from FA(3) RodzajFaktury. Maps: VAT→vat, KOR→correction, ZAL→advance, ROZ→advance_settlement, UPR→simplified, KOR_ZAL→advance_correction, KOR_ROZ→settlement_correction."
+      },
+      corrected_invoice_number: %Schema{
+        type: :string,
+        nullable: true,
+        description:
+          "Business number of the corrected invoice (NrFaKorygowanej). Only set for correction invoices."
+      },
+      corrected_invoice_ksef_number: %Schema{
+        type: :string,
+        nullable: true,
+        description:
+          "KSeF number of the corrected invoice (NrKSeFFaKorygowanej). Only set for correction invoices."
+      },
+      corrected_invoice_date: %Schema{
+        type: :string,
+        format: :date,
+        nullable: true,
+        description: "Issue date of the corrected invoice (DataFaKorygowanej)."
+      },
+      correction_period_from: %Schema{
+        type: :string,
+        format: :date,
+        nullable: true,
+        description: "Start of the corrected period (OkresFaKorygowanejOd)."
+      },
+      correction_period_to: %Schema{
+        type: :string,
+        format: :date,
+        nullable: true,
+        description: "End of the corrected period (OkresFaKorygowanejDo)."
+      },
+      correction_reason: %Schema{
+        type: :string,
+        nullable: true,
+        maxLength: 1000,
+        description: "Reason for the correction (PrzyczynaKorekty)."
+      },
+      correction_type: %Schema{
+        type: :integer,
+        nullable: true,
+        enum: [1, 2, 3],
+        description:
+          "Correction effect type (TypKorekty). 1=effective on original invoice date, 2=effective on correction date, 3=effective on other dates."
+      },
+      corrects_invoice_id: %Schema{
+        type: :string,
+        format: :uuid,
+        nullable: true,
+        description:
+          "ID of the original invoice this correction targets. Resolved from corrected_invoice_ksef_number."
+      },
       access_restricted: %Schema{
         type: :boolean,
         description:

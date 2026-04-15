@@ -31,7 +31,11 @@ defmodule KsefHub.Exports.CsvBuilder do
     "Added By",
     "Updated At",
     "Original Filename",
-    "Duplicate Status"
+    "Duplicate Status",
+    "Invoice Kind",
+    "Corrected Invoice Number",
+    "Corrected Invoice KSeF Number",
+    "Correction Reason"
   ]
 
   @doc "Builds a CSV binary (UTF-8 with BOM) from a list of invoices."
@@ -76,7 +80,11 @@ defmodule KsefHub.Exports.CsvBuilder do
       Invoice.added_by_label(invoice),
       format_datetime(invoice.updated_at),
       s(invoice.original_filename),
-      s(invoice.duplicate_status)
+      s(invoice.duplicate_status),
+      s(invoice.invoice_kind),
+      s(invoice.corrected_invoice_number),
+      s(invoice.corrected_invoice_ksef_number),
+      s(invoice.correction_reason)
     ]
   end
 

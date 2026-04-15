@@ -838,6 +838,7 @@ defmodule KsefHubWeb.InvoiceLive.Show do
       Invoice {@invoice.invoice_number}
       <:subtitle>
         <.type_badge type={@invoice.type} />
+        <.invoice_kind_badge kind={@invoice.invoice_kind} />
         <.status_badge
           status={display_status(@invoice)}
           label={header_status_label(display_status(@invoice))}
@@ -1015,6 +1016,9 @@ defmodule KsefHubWeb.InvoiceLive.Show do
       company_id={@current_company.id}
       can_mutate={@can_mutate}
     />
+
+    <.correction_details invoice={@invoice} company_id={@current_company.id} />
+    <.related_invoices invoice={@invoice} company_id={@current_company.id} />
 
     <div class="grid grid-cols-1 lg:grid-cols-[minmax(0,1fr)_minmax(0,2fr)] gap-6 mt-6">
       <!-- Invoice Metadata -->

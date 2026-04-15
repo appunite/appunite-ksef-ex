@@ -413,6 +413,51 @@ defmodule KsefHub.Invoices.ParserTest do
       assert {:ok, invoice} = Parser.parse(xml)
       assert invoice.iban == nil
     end
+
+    test "extracts correction invoice fields from KOR invoice" do
+      xml = File.read!(Path.join(@fixtures_path, "sample_correction.xml"))
+
+      assert {:ok, invoice} = Parser.parse(xml)
+      assert invoice.invoice_kind == "correction"
+      assert invoice.invoice_number == "1/KOR/04/2026"
+      assert invoice.corrected_invoice_number == "11/04/2026"
+
+      assert invoice.corrected_invoice_ksef_number ==
+               "7831812112-20260407-5B69FA00002B-9D"
+
+      assert invoice.corrected_invoice_date == ~D[2026-04-02]
+      assert invoice.correction_reason == "Błąd rachunkowy lub inna oczywista omyłka"
+      assert invoice.correction_type == 1
+      assert invoice.correction_period_from == ~D[2026-04-01]
+      assert invoice.correction_period_to == ~D[2026-04-30]
+    end
+
+    test "defaults invoice_kind to VAT when RodzajFaktury is absent" do
+      xml = File.read!(Path.join(@fixtures_path, "sample_income.xml"))
+
+      assert {:ok, invoice} = Parser.parse(xml)
+      assert invoice.invoice_kind == "vat"
+    end
+
+    test "returns nil correction fields for standard VAT invoice" do
+      xml = File.read!(Path.join(@fixtures_path, "sample_income.xml"))
+
+      assert {:ok, invoice} = Parser.parse(xml)
+      assert invoice.corrected_invoice_number == nil
+      assert invoice.corrected_invoice_ksef_number == nil
+      assert invoice.corrected_invoice_date == nil
+      assert invoice.correction_reason == nil
+      assert invoice.correction_type == nil
+      assert invoice.correction_period_from == nil
+      assert invoice.correction_period_to == nil
+    end
+
+    test "extracts RodzajFaktury from margin scheme invoice" do
+      xml = File.read!(Path.join(@fixtures_path, "sample_margin_scheme.xml"))
+
+      assert {:ok, invoice} = Parser.parse(xml)
+      assert invoice.invoice_kind == "vat"
+    end
   end
 
   @spec dodatkowy_opis_xml(String.t(), String.t()) :: String.t()
