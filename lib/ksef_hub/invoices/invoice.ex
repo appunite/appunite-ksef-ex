@@ -667,8 +667,10 @@ defmodule KsefHub.Invoices.Invoice do
   defp classify_field(:prediction_status, _cs), do: :skip
 
   defp classify_field(:corrects_invoice_id, cs) do
-    {"invoice.correction_linked",
-     %{corrects_invoice_id: to_string(cs.changes[:corrects_invoice_id])}}
+    case cs.changes[:corrects_invoice_id] do
+      nil -> {"invoice.correction_unlinked", %{}}
+      id -> {"invoice.correction_linked", %{corrects_invoice_id: to_string(id)}}
+    end
   end
 
   @spec classify_generic(Ecto.Changeset.t()) :: {String.t(), map()}
