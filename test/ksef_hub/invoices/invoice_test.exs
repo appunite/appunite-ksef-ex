@@ -151,4 +151,63 @@ defmodule KsefHub.Invoices.InvoiceTest do
       refute :advance in kinds
     end
   end
+
+  describe "changeset/2 correction field validation" do
+    test "rejects correction-only fields on non-correction invoices" do
+      cs =
+        %Invoice{type: :expense, company_id: Ecto.UUID.generate()}
+        |> Invoice.changeset(%{
+          invoice_kind: :vat,
+          corrected_invoice_number: "FV/2026/001",
+          corrected_invoice_ksef_number: "7831812112-20260407-5B69FA00002B-9D",
+          corrected_invoice_date: ~D[2026-04-02],
+          correction_reason: "Błąd",
+          correction_type: 1,
+          correction_period_from: ~D[2026-04-01],
+          correction_period_to: ~D[2026-04-30]
+        })
+
+      errors = changeset_errors(cs)
+      assert "only allowed on correction invoices" in errors[:corrected_invoice_number]
+      assert "only allowed on correction invoices" in errors[:corrected_invoice_ksef_number]
+      assert "only allowed on correction invoices" in errors[:corrected_invoice_date]
+      assert "only allowed on correction invoices" in errors[:correction_reason]
+      assert "only allowed on correction invoices" in errors[:correction_type]
+      assert "only allowed on correction invoices" in errors[:correction_period_from]
+      assert "only allowed on correction invoices" in errors[:correction_period_to]
+    end
+
+    test "allows correction fields on correction invoices" do
+      cs =
+        %Invoice{type: :expense, company_id: Ecto.UUID.generate()}
+        |> Invoice.changeset(%{
+          invoice_kind: :correction,
+          corrected_invoice_number: "FV/2026/001",
+          corrected_invoice_ksef_number: "7831812112-20260407-5B69FA00002B-9D",
+          corrected_invoice_date: ~D[2026-04-02],
+          correction_reason: "Błąd",
+          correction_type: 1,
+          correction_period_from: ~D[2026-04-01],
+          correction_period_to: ~D[2026-04-30]
+        })
+
+      errors = changeset_errors(cs)
+      refute Map.has_key?(errors, :corrected_invoice_number)
+      refute Map.has_key?(errors, :corrected_invoice_ksef_number)
+      refute Map.has_key?(errors, :corrected_invoice_date)
+      refute Map.has_key?(errors, :correction_reason)
+      refute Map.has_key?(errors, :correction_type)
+      refute Map.has_key?(errors, :correction_period_from)
+      refute Map.has_key?(errors, :correction_period_to)
+    end
+  end
+
+  @spec changeset_errors(Ecto.Changeset.t()) :: %{atom() => [String.t()]}
+  defp changeset_errors(changeset) do
+    Ecto.Changeset.traverse_errors(changeset, fn {message, opts} ->
+      Regex.replace(~r"%{(\w+)}", message, fn _, key ->
+        opts |> Keyword.get(String.to_existing_atom(key), key) |> to_string()
+      end)
+    end)
+  end
 end

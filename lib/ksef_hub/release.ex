@@ -42,6 +42,9 @@ defmodule KsefHub.Release do
     issue_date sales_date net_amount gross_amount currency
     purchase_order iban seller_address buyer_address
     extraction_status due_date billing_date_from billing_date_to
+    invoice_kind corrected_invoice_number corrected_invoice_ksef_number
+    corrected_invoice_date correction_period_from correction_period_to
+    correction_reason correction_type
   )a
 
   @doc """
@@ -82,6 +85,19 @@ defmodule KsefHub.Release do
     errors = Enum.count(results, &match?({:error, _}, &1))
 
     unchanged = length(invoices) - changed - errors
+
+    unless dry_run? do
+      company_ids =
+        invoices
+        |> Enum.map(& &1.company_id)
+        |> Enum.uniq()
+
+      Enum.each(company_ids, fn company_id ->
+        {linked, _} = KsefHub.Invoices.link_unlinked_corrections(company_id)
+        if linked > 0, do: IO.puts("  Linked #{linked} correction(s) for company #{company_id}")
+      end)
+    end
+
     IO.puts("\nDone. #{changed} changed, #{unchanged} unchanged, #{errors} error(s).")
 
     if errors > 0 do

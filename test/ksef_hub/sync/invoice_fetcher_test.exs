@@ -159,5 +159,102 @@ defmodule KsefHub.Sync.InvoiceFetcherTest do
       assert {:ok, 0, nil, 0} =
                InvoiceFetcher.fetch_all("token", :income, company.nip, company.id, from)
     end
+
+    test "links correction invoice to existing original during sync", %{company: company} do
+      correction_xml = File.read!("test/support/fixtures/sample_correction.xml")
+      storage_date = DateTime.to_iso8601(DateTime.utc_now())
+
+      # Pre-insert the original invoice that the correction references
+      original =
+        insert(:invoice,
+          company: company,
+          ksef_number: "7831812112-20260407-5B69FA00002B-9D",
+          type: :income
+        )
+
+      KsefHub.KsefClient.Mock
+      |> expect(:query_invoice_metadata, fn _token, _filters, _opts ->
+        {:ok,
+         %{
+           invoices: [
+             %{
+               "ksefNumber" => "CORR-001",
+               "acquisitionDate" => storage_date,
+               "permanentStorageDate" => storage_date
+             }
+           ],
+           has_more: false,
+           is_truncated: false
+         }}
+      end)
+
+      KsefHub.KsefClient.Mock
+      |> expect(:download_invoice, fn _token, "CORR-001" ->
+        {:ok, correction_xml}
+      end)
+
+      from = DateTime.add(DateTime.utc_now(), -3600)
+
+      assert {:ok, 1, _max_ts, 0} =
+               InvoiceFetcher.fetch_all("token", :expense, company.nip, company.id, from)
+
+      correction = KsefHub.Invoices.get_invoice_by_ksef_number(company.id, "CORR-001")
+      assert correction != nil
+      assert correction.invoice_kind == :correction
+      assert correction.corrects_invoice_id == original.id
+      assert correction.corrected_invoice_ksef_number == "7831812112-20260407-5B69FA00002B-9D"
+    end
+
+    test "correction invoice remains unlinked when original does not exist yet", %{
+      company: company
+    } do
+      correction_xml = File.read!("test/support/fixtures/sample_correction.xml")
+      storage_date = DateTime.to_iso8601(DateTime.utc_now())
+
+      KsefHub.KsefClient.Mock
+      |> expect(:query_invoice_metadata, fn _token, _filters, _opts ->
+        {:ok,
+         %{
+           invoices: [
+             %{
+               "ksefNumber" => "CORR-002",
+               "acquisitionDate" => storage_date,
+               "permanentStorageDate" => storage_date
+             }
+           ],
+           has_more: false,
+           is_truncated: false
+         }}
+      end)
+
+      KsefHub.KsefClient.Mock
+      |> expect(:download_invoice, fn _token, "CORR-002" ->
+        {:ok, correction_xml}
+      end)
+
+      from = DateTime.add(DateTime.utc_now(), -3600)
+
+      assert {:ok, 1, _max_ts, 0} =
+               InvoiceFetcher.fetch_all("token", :expense, company.nip, company.id, from)
+
+      correction = KsefHub.Invoices.get_invoice_by_ksef_number(company.id, "CORR-002")
+      assert correction != nil
+      assert correction.invoice_kind == :correction
+      assert correction.corrects_invoice_id == nil
+      assert correction.corrected_invoice_ksef_number == "7831812112-20260407-5B69FA00002B-9D"
+
+      # Now insert the original and run the bulk linking
+      original =
+        insert(:invoice,
+          company: company,
+          ksef_number: "7831812112-20260407-5B69FA00002B-9D",
+          type: :income
+        )
+
+      assert {1, nil} = KsefHub.Invoices.link_unlinked_corrections(company.id)
+
+      correction = KsefHub.Invoices.get_invoice!(company.id, correction.id)
+      assert correction.corrects_invoice_id == original.id
+    end
   end
 end

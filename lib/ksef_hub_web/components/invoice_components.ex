@@ -148,13 +148,8 @@ defmodule KsefHubWeb.InvoiceComponents do
   attr :invoice, :map, required: true
   attr :company_id, :string, required: true
 
-  # Guard requires compile-time literals — must stay in sync with Invoice.correction_kinds/0
   def correction_details(%{invoice: %{invoice_kind: kind}} = assigns)
-      when kind not in [:correction, :advance_correction, :settlement_correction] do
-    ~H""
-  end
-
-  def correction_details(assigns) do
+      when kind in [:correction, :advance_correction, :settlement_correction] do
     assigns =
       assign(
         assigns,
@@ -233,6 +228,8 @@ defmodule KsefHubWeb.InvoiceComponents do
     </div>
     """
   end
+
+  def correction_details(assigns), do: ~H""
 
   @doc """
   Renders a table of related invoices: corrections for an original, or the

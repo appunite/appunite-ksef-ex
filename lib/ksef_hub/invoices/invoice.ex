@@ -469,7 +469,15 @@ defmodule KsefHub.Invoices.Invoice do
 
   defp validate_correction_only_fields(changeset, _kind) do
     Enum.reduce(
-      [:correction_reason, :correction_type, :correction_period_from, :correction_period_to],
+      [
+        :corrected_invoice_number,
+        :corrected_invoice_ksef_number,
+        :corrected_invoice_date,
+        :correction_reason,
+        :correction_type,
+        :correction_period_from,
+        :correction_period_to
+      ],
       changeset,
       fn field, cs ->
         if get_field(cs, field) != nil do
