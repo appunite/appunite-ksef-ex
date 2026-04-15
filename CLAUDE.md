@@ -144,6 +144,30 @@ Phoenix contexts are the primary boundaries. Each context owns its schema, queri
 | `KsefHub.InvoiceClassifier` | ML-based category/tag classification via invoice-classifier service |
 | `KsefHub.Accounts` | API token generation, validation, usage tracking |
 
+### Module Size & Modularization
+
+Context modules must stay maintainable. When a context file grows beyond **~500 lines**, proactively extract cohesive function groups into sub-modules under the context namespace.
+
+**Pattern:** The context module stays as a **thin public API facade** using `defdelegate` or one-line wrappers. Sub-modules hold the implementation. Callers always use `Context.function()` — never call sub-modules directly from controllers or LiveViews.
+
+```elixir
+# In lib/ksef_hub/invoices.ex (facade)
+defdelegate confirm_duplicate(invoice, opts), to: Invoices.Duplicates
+defdelegate list_invoice_comments(company_id, invoice_id), to: Invoices.Comments
+
+# Callers unchanged:
+Invoices.confirm_duplicate(invoice, opts)
+```
+
+**When to extract:**
+- A cluster of 5+ functions shares a single responsibility (e.g., all filtering, all comment CRUD)
+- Private helpers only serve that cluster
+- The cluster can be moved without circular dependencies back to the facade
+
+**Current sub-modules (Invoices):** `Extraction`, `Analytics`, `Comments`, `AccessControl`, `Classification`, `Queries`, `Reextraction`, `Duplicates`
+
+**Current sub-modules (Accounts):** `ApiTokens`
+
 ### Activity Log (Trackable + TrackedRepo)
 
 Every context mutation that affects user-visible state **must** emit an activity event. Schemas implement the `Trackable` behaviour to classify their own changesets into events. Context functions use `TrackedRepo` instead of `Repo` — no manual event names needed.
