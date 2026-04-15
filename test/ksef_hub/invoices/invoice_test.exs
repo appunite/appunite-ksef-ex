@@ -90,4 +90,65 @@ defmodule KsefHub.Invoices.InvoiceTest do
       assert Invoice.added_by_label(%{source: :pdf_upload}) == "PDF upload"
     end
   end
+
+  describe "correction?/1" do
+    test "returns true for correction invoices" do
+      assert Invoice.correction?(%Invoice{invoice_kind: :correction})
+    end
+
+    test "returns true for advance_correction invoices" do
+      assert Invoice.correction?(%Invoice{invoice_kind: :advance_correction})
+    end
+
+    test "returns true for settlement_correction invoices" do
+      assert Invoice.correction?(%Invoice{invoice_kind: :settlement_correction})
+    end
+
+    test "returns false for vat invoices" do
+      refute Invoice.correction?(%Invoice{invoice_kind: :vat})
+    end
+
+    test "returns false for advance invoices" do
+      refute Invoice.correction?(%Invoice{invoice_kind: :advance})
+    end
+
+    test "returns false for default (nil becomes :vat)" do
+      refute Invoice.correction?(%Invoice{})
+    end
+  end
+
+  describe "invoice_kind_label/1" do
+    test "returns labels for all kinds" do
+      assert Invoice.invoice_kind_label(:vat) == "VAT"
+      assert Invoice.invoice_kind_label(:correction) == "Correction"
+      assert Invoice.invoice_kind_label(:advance) == "Advance"
+      assert Invoice.invoice_kind_label(:advance_settlement) == "Advance settlement"
+      assert Invoice.invoice_kind_label(:simplified) == "Simplified"
+      assert Invoice.invoice_kind_label(:advance_correction) == "Advance correction"
+      assert Invoice.invoice_kind_label(:settlement_correction) == "Settlement correction"
+    end
+  end
+
+  describe "correction_type_label/1" do
+    test "returns labels for valid types" do
+      assert Invoice.correction_type_label(1) == "Skutek na dacie faktury pierwotnej"
+      assert Invoice.correction_type_label(2) == "Skutek na dacie faktury korygującej"
+      assert Invoice.correction_type_label(3) == "Skutek na innej dacie"
+    end
+
+    test "returns empty string for nil" do
+      assert Invoice.correction_type_label(nil) == ""
+    end
+  end
+
+  describe "correction_kinds/0" do
+    test "returns all correction kinds" do
+      kinds = Invoice.correction_kinds()
+      assert :correction in kinds
+      assert :advance_correction in kinds
+      assert :settlement_correction in kinds
+      refute :vat in kinds
+      refute :advance in kinds
+    end
+  end
 end

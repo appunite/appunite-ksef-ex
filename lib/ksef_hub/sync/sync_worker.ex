@@ -9,6 +9,7 @@ defmodule KsefHub.Sync.SyncWorker do
   require Logger
 
   alias KsefHub.Credentials
+  alias KsefHub.Invoices
   alias KsefHub.KsefClient.{Authenticator, TokenManager}
   alias KsefHub.Sync.{Checkpoint, Checkpoints, InvoiceFetcher}
 
@@ -214,6 +215,7 @@ defmodule KsefHub.Sync.SyncWorker do
         else: meta
 
     store_meta(job, meta)
+    link_corrections(company_id)
     broadcast_sync_completed(company_id, %{income: ic, expense: ec})
 
     if total_failed > 0 do
@@ -281,6 +283,16 @@ defmodule KsefHub.Sync.SyncWorker do
         Logger.warning(
           "Failed to terminate KSeF session for company #{company_id}: #{inspect(reason)}"
         )
+    end
+
+    :ok
+  end
+
+  @spec link_corrections(Ecto.UUID.t()) :: :ok
+  defp link_corrections(company_id) do
+    case Invoices.link_unlinked_corrections(company_id) do
+      {0, _} -> :ok
+      {n, _} -> Logger.info("Linked #{n} correction invoices for company #{company_id}")
     end
 
     :ok

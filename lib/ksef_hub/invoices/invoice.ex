@@ -10,6 +10,14 @@ defmodule KsefHub.Invoices.Invoice do
 
   @type t :: %__MODULE__{}
   @type invoice_type :: :income | :expense
+  @type invoice_kind ::
+          :vat
+          | :correction
+          | :advance
+          | :advance_settlement
+          | :simplified
+          | :advance_correction
+          | :settlement_correction
   @type invoice_status :: :pending | :approved | :rejected
   @type invoice_source :: :ksef | :manual | :pdf_upload | :email
   @type extraction_status :: :complete | :partial | :failed
@@ -88,6 +96,28 @@ defmodule KsefHub.Invoices.Invoice do
     field :is_excluded, :boolean, default: false
     field :access_restricted, :boolean, default: false
 
+    field :invoice_kind, Ecto.Enum,
+      values: [
+        :vat,
+        :correction,
+        :advance,
+        :advance_settlement,
+        :simplified,
+        :advance_correction,
+        :settlement_correction
+      ],
+      default: :vat
+
+    field :corrected_invoice_number, :string
+    field :corrected_invoice_ksef_number, :string
+    field :corrected_invoice_date, :date
+    field :correction_period_from, :date
+    field :correction_period_to, :date
+    field :correction_reason, :string
+    field :correction_type, :integer
+    belongs_to :corrects_invoice, __MODULE__
+    has_many :corrections, __MODULE__, foreign_key: :corrects_invoice_id
+
     timestamps()
   end
 
@@ -117,6 +147,35 @@ defmodule KsefHub.Invoices.Invoice do
   def source_label(:pdf_upload), do: "PDF upload"
   def source_label(:email), do: "email"
   def source_label(_), do: "unknown"
+
+  @correction_kinds [:correction, :advance_correction, :settlement_correction]
+
+  @doc "Returns the list of invoice kinds that are corrections."
+  @spec correction_kinds() :: [invoice_kind()]
+  def correction_kinds, do: @correction_kinds
+
+  @doc "Returns whether the invoice is a correction invoice."
+  @spec correction?(t()) :: boolean()
+  def correction?(%__MODULE__{invoice_kind: kind}) when kind in @correction_kinds, do: true
+  def correction?(%__MODULE__{}), do: false
+
+  @doc "Returns a human-readable label for the invoice kind."
+  @spec invoice_kind_label(invoice_kind()) :: String.t()
+  def invoice_kind_label(:vat), do: "VAT"
+  def invoice_kind_label(:correction), do: "Correction"
+  def invoice_kind_label(:advance), do: "Advance"
+  def invoice_kind_label(:advance_settlement), do: "Advance settlement"
+  def invoice_kind_label(:simplified), do: "Simplified"
+  def invoice_kind_label(:advance_correction), do: "Advance correction"
+  def invoice_kind_label(:settlement_correction), do: "Settlement correction"
+  def invoice_kind_label(_), do: "Unknown"
+
+  @doc "Returns a human-readable label for the correction type (TypKorekty)."
+  @spec correction_type_label(integer() | nil) :: String.t()
+  def correction_type_label(1), do: "Skutek na dacie faktury pierwotnej"
+  def correction_type_label(2), do: "Skutek na dacie faktury korygującej"
+  def correction_type_label(3), do: "Skutek na innej dacie"
+  def correction_type_label(_), do: ""
 
   @doc """
   Returns a human-readable label for who added an invoice, combining source and creator info.
@@ -198,11 +257,20 @@ defmodule KsefHub.Invoices.Invoice do
       :payment_instructions,
       :seller_address,
       :buyer_address,
-      :is_excluded
+      :is_excluded,
+      :invoice_kind,
+      :corrected_invoice_number,
+      :corrected_invoice_ksef_number,
+      :corrected_invoice_date,
+      :correction_period_from,
+      :correction_period_to,
+      :correction_reason,
+      :correction_type
     ])
     |> validate_required([:type, :company_id])
     |> validate_billing_dates()
     |> validate_nip_fields()
+    |> validate_correction_fields()
     |> validate_length(:original_filename, max: 255)
     |> validate_length(:purchase_order, max: 256)
     |> validate_length(:iban, min: 15, max: 34)
@@ -218,6 +286,7 @@ defmodule KsefHub.Invoices.Invoice do
     |> foreign_key_constraint(:created_by_id)
     |> foreign_key_constraint(:xml_file_id)
     |> foreign_key_constraint(:pdf_file_id)
+    |> foreign_key_constraint(:corrects_invoice_id)
     |> unique_constraint([:company_id, :ksef_number],
       name: :invoices_company_id_ksef_number_unique_non_duplicate
     )
@@ -378,6 +447,52 @@ defmodule KsefHub.Invoices.Invoice do
     |> validate_length(:note, max: 5000)
   end
 
+  @spec validate_correction_fields(Ecto.Changeset.t()) :: Ecto.Changeset.t()
+  defp validate_correction_fields(changeset) do
+    kind = get_field(changeset, :invoice_kind)
+
+    changeset
+    |> validate_length(:correction_reason, max: 1000)
+    |> validate_change(:correction_type, fn :correction_type, value ->
+      if is_nil(value) or value in [1, 2, 3],
+        do: [],
+        else: [correction_type: "must be 1, 2, or 3"]
+    end)
+    |> validate_correction_only_fields(kind)
+    |> validate_correction_period_order()
+  end
+
+  @spec validate_correction_only_fields(Ecto.Changeset.t(), invoice_kind() | nil) ::
+          Ecto.Changeset.t()
+  defp validate_correction_only_fields(changeset, kind) when kind in @correction_kinds,
+    do: changeset
+
+  defp validate_correction_only_fields(changeset, _kind) do
+    Enum.reduce(
+      [:correction_reason, :correction_type, :correction_period_from, :correction_period_to],
+      changeset,
+      fn field, cs ->
+        if get_field(cs, field) != nil do
+          add_error(cs, field, "only allowed on correction invoices")
+        else
+          cs
+        end
+      end
+    )
+  end
+
+  @spec validate_correction_period_order(Ecto.Changeset.t()) :: Ecto.Changeset.t()
+  defp validate_correction_period_order(changeset) do
+    from = get_field(changeset, :correction_period_from)
+    to = get_field(changeset, :correction_period_to)
+
+    if from && to && Date.compare(from, to) == :gt do
+      add_error(changeset, :correction_period_to, "must not be before correction_period_from")
+    else
+      changeset
+    end
+  end
+
   @spec validate_nip_fields(Ecto.Changeset.t()) :: Ecto.Changeset.t()
   defp validate_nip_fields(changeset) do
     case get_field(changeset, :source) do
@@ -509,7 +624,8 @@ defmodule KsefHub.Invoices.Invoice do
     :billing_date_from,
     :billing_date_to,
     :access_restricted,
-    :prediction_status
+    :prediction_status,
+    :corrects_invoice_id
   ]
 
   @impl KsefHub.ActivityLog.Trackable
@@ -585,6 +701,13 @@ defmodule KsefHub.Invoices.Invoice do
   end
 
   defp classify_field(:prediction_status, _cs), do: :skip
+
+  defp classify_field(:corrects_invoice_id, cs) do
+    case cs.changes[:corrects_invoice_id] do
+      nil -> {"invoice.correction_unlinked", %{}}
+      id -> {"invoice.correction_linked", %{corrects_invoice_id: to_string(id)}}
+    end
+  end
 
   @spec classify_generic(Ecto.Changeset.t()) :: {String.t(), map()}
   defp classify_generic(changeset) do

@@ -171,6 +171,8 @@ defmodule KsefHub.Sync.InvoiceFetcher do
       attrs =
         Map.put(attrs, :extraction_status, Invoices.determine_extraction_status_from_attrs(attrs))
 
+      attrs = maybe_link_corrected_invoice(attrs, ctx.company_id)
+
       Invoices.upsert_invoice(attrs)
     end
   end
@@ -184,6 +186,22 @@ defmodule KsefHub.Sync.InvoiceFetcher do
       _ -> nil
     end
   end
+
+  @spec maybe_link_corrected_invoice(map(), Ecto.UUID.t()) :: map()
+  defp maybe_link_corrected_invoice(%{corrected_invoice_ksef_number: nil} = attrs, _company_id),
+    do: attrs
+
+  defp maybe_link_corrected_invoice(
+         %{corrected_invoice_ksef_number: ksef_number} = attrs,
+         company_id
+       ) do
+    case Invoices.get_invoice_by_ksef_number(company_id, ksef_number) do
+      %{id: id} -> Map.put(attrs, :corrects_invoice_id, id)
+      nil -> attrs
+    end
+  end
+
+  defp maybe_link_corrected_invoice(attrs, _company_id), do: attrs
 
   @spec pick_max_timestamp(DateTime.t() | nil, DateTime.t() | nil) :: DateTime.t() | nil
   defp pick_max_timestamp(nil, new), do: new

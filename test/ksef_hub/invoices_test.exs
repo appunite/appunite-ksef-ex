@@ -5005,4 +5005,132 @@ defmodule KsefHub.InvoicesTest do
       assert tags == ["Same"]
     end
   end
+
+  describe "correction invoices" do
+    @correction_xml File.read!("test/support/fixtures/sample_correction.xml")
+
+    test "upsert_invoice stores correction fields", %{company: company} do
+      attrs =
+        params_for(:correction_invoice,
+          ksef_number: "1234567890-20260415-CORR001-01",
+          company_id: company.id
+        )
+        |> Map.put(:xml_content, @correction_xml)
+
+      assert {:ok, invoice, :inserted} = Invoices.upsert_invoice(attrs)
+      assert invoice.invoice_kind == :correction
+      assert invoice.corrected_invoice_number == "FV/2026/001"
+      assert invoice.corrected_invoice_ksef_number == "7831812112-20260407-5B69FA00002B-9D"
+      assert invoice.correction_reason == "Błąd rachunkowy"
+      assert invoice.correction_type == 1
+    end
+
+    test "list_invoices filters by is_correction: true", %{company: company} do
+      insert(:invoice, company: company, invoice_kind: :vat)
+      insert(:correction_invoice, company: company)
+
+      results = Invoices.list_invoices(company.id, %{is_correction: true})
+      assert length(results) == 1
+      assert hd(results).invoice_kind == :correction
+    end
+
+    test "list_invoices filters by is_correction: false", %{company: company} do
+      insert(:invoice, company: company, invoice_kind: :vat)
+      insert(:correction_invoice, company: company)
+
+      results = Invoices.list_invoices(company.id, %{is_correction: false})
+      assert length(results) == 1
+      assert hd(results).invoice_kind == :vat
+    end
+
+    test "list_invoices filters by invoice_kind", %{company: company} do
+      insert(:invoice, company: company, invoice_kind: :vat)
+      insert(:correction_invoice, company: company)
+
+      assert [%{invoice_kind: :correction}] =
+               Invoices.list_invoices(company.id, %{invoice_kind: :correction})
+
+      assert [%{invoice_kind: :vat}] =
+               Invoices.list_invoices(company.id, %{invoice_kind: :vat})
+    end
+
+    test "link_unlinked_corrections links correction to original", %{company: company} do
+      original =
+        insert(:invoice,
+          company: company,
+          ksef_number: "7831812112-20260407-5B69FA00002B-9D"
+        )
+
+      correction =
+        insert(:correction_invoice,
+          company: company,
+          corrected_invoice_ksef_number: "7831812112-20260407-5B69FA00002B-9D",
+          corrects_invoice: nil
+        )
+
+      assert {1, nil} = Invoices.link_unlinked_corrections(company.id)
+
+      updated = Invoices.get_invoice!(company.id, correction.id)
+      assert updated.corrects_invoice_id == original.id
+    end
+
+    test "link_unlinked_corrections is idempotent", %{company: company} do
+      original =
+        insert(:invoice,
+          company: company,
+          ksef_number: "7831812112-20260407-5B69FA00002B-9D"
+        )
+
+      insert(:correction_invoice,
+        company: company,
+        corrected_invoice_ksef_number: "7831812112-20260407-5B69FA00002B-9D",
+        corrects_invoice: original
+      )
+
+      assert {0, nil} = Invoices.link_unlinked_corrections(company.id)
+    end
+
+    test "link_unlinked_corrections does not cross companies", %{company: company} do
+      other = insert(:company)
+
+      insert(:invoice,
+        company: other,
+        ksef_number: "7831812112-20260407-5B69FA00002B-9D"
+      )
+
+      insert(:correction_invoice,
+        company: company,
+        corrected_invoice_ksef_number: "7831812112-20260407-5B69FA00002B-9D",
+        corrects_invoice: nil
+      )
+
+      assert {0, nil} = Invoices.link_unlinked_corrections(company.id)
+    end
+
+    test "get_invoice_with_details! preloads corrections and corrects_invoice", %{
+      company: company
+    } do
+      original =
+        insert(:invoice,
+          company: company,
+          ksef_number: "7831812112-20260407-5B69FA00002B-9D"
+        )
+
+      correction =
+        insert(:correction_invoice,
+          company: company,
+          corrected_invoice_ksef_number: "7831812112-20260407-5B69FA00002B-9D",
+          corrects_invoice: original
+        )
+
+      # From the original's perspective: corrections are preloaded
+      loaded_original = Invoices.get_invoice_with_details!(company.id, original.id)
+      assert [%{id: correction_id}] = loaded_original.corrections
+      assert correction_id == correction.id
+
+      # From the correction's perspective: corrects_invoice is preloaded
+      loaded_correction = Invoices.get_invoice_with_details!(company.id, correction.id)
+      assert loaded_correction.corrects_invoice.id == original.id
+    end
+  end
 end

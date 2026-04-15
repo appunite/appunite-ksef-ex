@@ -137,20 +137,40 @@ defmodule KsefHub.Invoices do
   @doc "Fetches an invoice by UUID with associations preloaded."
   @spec get_invoice_with_details!(Ecto.UUID.t(), Ecto.UUID.t(), keyword()) :: Invoice.t()
   def get_invoice_with_details!(company_id, id, opts \\ []) do
+    access_query = access_scoped_invoice_query(opts)
+
     Invoice
     |> where([i], i.company_id == ^company_id and i.id == ^id)
     |> maybe_filter_by_access(opts)
-    |> preload([:xml_file, :pdf_file, :category, :created_by, :inbound_email])
+    |> preload([
+      :xml_file,
+      :pdf_file,
+      :category,
+      :created_by,
+      :inbound_email,
+      corrects_invoice: ^access_query,
+      corrections: ^access_query
+    ])
     |> Repo.one!()
   end
 
   @doc "Fetches an invoice by UUID with associations preloaded, returning nil if not found."
   @spec get_invoice_with_details(Ecto.UUID.t(), Ecto.UUID.t(), keyword()) :: Invoice.t() | nil
   def get_invoice_with_details(company_id, id, opts \\ []) do
+    access_query = access_scoped_invoice_query(opts)
+
     Invoice
     |> where([i], i.company_id == ^company_id and i.id == ^id)
     |> maybe_filter_by_access(opts)
-    |> preload([:xml_file, :pdf_file, :category, :created_by, :inbound_email])
+    |> preload([
+      :xml_file,
+      :pdf_file,
+      :category,
+      :created_by,
+      :inbound_email,
+      corrects_invoice: ^access_query,
+      corrections: ^access_query
+    ])
     |> Repo.one()
   end
 
@@ -222,6 +242,36 @@ defmodule KsefHub.Invoices do
     |> where([i], i.company_id == ^company_id and i.ksef_number == ^ksef_number)
     |> where([i], is_nil(i.duplicate_of_id))
     |> Repo.one()
+  end
+
+  @doc """
+  Links correction invoices to their originals by matching `corrected_invoice_ksef_number`
+  to `ksef_number` within the same company. Only updates corrections that have
+  `corrects_invoice_id` as nil (not yet linked). Idempotent and safe to call after each sync.
+
+  Uses raw SQL for bulk performance. Bypasses Ecto changesets and ActivityLog —
+  no `invoice.correction_linked` events are emitted. This is intentional: the
+  linking is a bookkeeping step during sync, not a user-visible mutation.
+  """
+  @spec link_unlinked_corrections(Ecto.UUID.t()) :: {non_neg_integer(), nil}
+  def link_unlinked_corrections(company_id) do
+    Repo.query!(
+      """
+      UPDATE invoices AS correction
+      SET corrects_invoice_id = original.id, updated_at = NOW()
+      FROM invoices AS original
+      WHERE correction.company_id = $1
+        AND correction.corrected_invoice_ksef_number IS NOT NULL
+        AND correction.corrects_invoice_id IS NULL
+        AND correction.invoice_kind IN ('correction', 'advance_correction', 'settlement_correction')
+        AND original.company_id = $1
+        AND original.ksef_number = correction.corrected_invoice_ksef_number
+        AND original.duplicate_of_id IS NULL
+        AND original.id <> correction.id
+      """,
+      [Ecto.UUID.dump!(company_id)]
+    )
+    |> then(fn %{num_rows: n} -> {n, nil} end)
   end
 
   @doc """
@@ -368,6 +418,15 @@ defmodule KsefHub.Invoices do
     :iban,
     :seller_address,
     :buyer_address,
+    :invoice_kind,
+    :corrected_invoice_number,
+    :corrected_invoice_ksef_number,
+    :corrected_invoice_date,
+    :correction_period_from,
+    :correction_period_to,
+    :correction_reason,
+    :correction_type,
+    :corrects_invoice_id,
     :updated_at
   ]
 
@@ -1428,6 +1487,7 @@ defmodule KsefHub.Invoices do
     {file_ids, attrs} = pop_file_ids(attrs)
     {created_by_id, attrs} = Map.pop(attrs, :created_by_id)
     {access_restricted, attrs} = Map.pop(attrs, :access_restricted)
+    {corrects_invoice_id, attrs} = Map.pop(attrs, :corrects_invoice_id)
 
     trusted_fields =
       file_ids
@@ -1439,6 +1499,9 @@ defmodule KsefHub.Invoices do
         if is_boolean(access_restricted),
           do: Map.put(m, :access_restricted, access_restricted),
           else: m
+      end)
+      |> then(fn m ->
+        if corrects_invoice_id, do: Map.put(m, :corrects_invoice_id, corrects_invoice_id), else: m
       end)
 
     opts = build_insert_opts(caller_opts, created_by_id)
@@ -1470,6 +1533,7 @@ defmodule KsefHub.Invoices do
     {file_ids, attrs} = pop_file_ids(attrs)
     {created_by_id, attrs} = Map.pop(attrs, :created_by_id)
     {access_restricted, attrs} = Map.pop(attrs, :access_restricted)
+    {corrects_invoice_id, attrs} = Map.pop(attrs, :corrects_invoice_id)
 
     trusted_fields =
       file_ids
@@ -1481,6 +1545,9 @@ defmodule KsefHub.Invoices do
         if is_boolean(access_restricted),
           do: Map.put(m, :access_restricted, access_restricted),
           else: m
+      end)
+      |> then(fn m ->
+        if corrects_invoice_id, do: Map.put(m, :corrects_invoice_id, corrects_invoice_id), else: m
       end)
 
     %Invoice{}
@@ -2478,6 +2545,11 @@ defmodule KsefHub.Invoices do
     end
   end
 
+  @spec access_scoped_invoice_query(keyword()) :: Ecto.Query.t()
+  defp access_scoped_invoice_query(opts) do
+    from(i in Invoice) |> maybe_filter_by_access(opts)
+  end
+
   @spec do_list_invoices(Ecto.UUID.t(), map(), pos_integer(), pos_integer(), keyword()) ::
           [Invoice.t()]
   defp do_list_invoices(company_id, filters, page, per_page, opts) do
@@ -2540,6 +2612,15 @@ defmodule KsefHub.Invoices do
 
       {:is_excluded, is_excluded}, q when is_boolean(is_excluded) ->
         where(q, [i], i.is_excluded == ^is_excluded)
+
+      {:invoice_kind, kind}, q when is_atom(kind) ->
+        where(q, [i], i.invoice_kind == ^kind)
+
+      {:is_correction, true}, q ->
+        where(q, [i], i.invoice_kind in ^Invoice.correction_kinds())
+
+      {:is_correction, false}, q ->
+        where(q, [i], i.invoice_kind not in ^Invoice.correction_kinds())
 
       _, q ->
         q

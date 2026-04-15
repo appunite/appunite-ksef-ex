@@ -145,6 +145,39 @@ defmodule KsefHub.Factory do
     }
   end
 
+  @doc "Builds a correction `Invoice` (KOR) with correction-specific fields populated."
+  @spec correction_invoice_factory() :: Invoice.t()
+  def correction_invoice_factory do
+    %Invoice{
+      type: :expense,
+      source: :ksef,
+      invoice_kind: :correction,
+      seller_nip: "1234567890",
+      seller_name: "Seller Sp. z o.o.",
+      buyer_nip: "0987654321",
+      buyer_name: "Buyer S.A.",
+      xml_file:
+        build(:file,
+          content: File.read!("test/support/fixtures/sample_correction.xml"),
+          content_type: "application/xml"
+        ),
+      invoice_number: sequence(:invoice_number, &"KOR/2026/#{&1}"),
+      issue_date: Date.utc_today(),
+      billing_date_from: Date.utc_today() |> Date.beginning_of_month(),
+      billing_date_to: Date.utc_today() |> Date.beginning_of_month(),
+      net_amount: Decimal.new("-500.00"),
+      gross_amount: Decimal.new("-615.00"),
+      currency: "PLN",
+      status: :pending,
+      corrected_invoice_number: "FV/2026/001",
+      corrected_invoice_ksef_number: "7831812112-20260407-5B69FA00002B-9D",
+      corrected_invoice_date: ~D[2026-04-02],
+      correction_reason: "Błąd rachunkowy",
+      correction_type: 1,
+      company: build(:company)
+    }
+  end
+
   @doc "Builds a manual `Invoice` without xml_file, suitable for manual entry."
   @spec manual_invoice_factory() :: Invoice.t()
   def manual_invoice_factory do

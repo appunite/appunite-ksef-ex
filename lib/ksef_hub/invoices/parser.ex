@@ -47,7 +47,30 @@ defmodule KsefHub.Invoices.Parser do
        iban: extract_iban(doc),
        seller_address: extract_address(doc, "Podmiot1"),
        buyer_address: extract_address(doc, "Podmiot2"),
-       line_items: parse_line_items(doc)
+       line_items: parse_line_items(doc),
+       invoice_kind:
+         xpath(doc, ~x"//*[local-name()='RodzajFaktury']/text()"s) |> map_invoice_kind(),
+       corrected_invoice_number:
+         xpath(doc, ~x"//*[local-name()='NrFaKorygowanej']/text()"s) |> presence(),
+       corrected_invoice_ksef_number:
+         xpath(doc, ~x"//*[local-name()='NrKSeFFaKorygowanej']/text()"s) |> presence(),
+       corrected_invoice_date:
+         xpath(doc, ~x"//*[local-name()='DataFaKorygowanej']/text()"s) |> parse_date(),
+       correction_period_from:
+         xpath(
+           doc,
+           ~x"//*[local-name()='OkresFaKorygowanej']/*[local-name()='OkresFaKorygowanejOd']/text()"s
+         )
+         |> parse_date(),
+       correction_period_to:
+         xpath(
+           doc,
+           ~x"//*[local-name()='OkresFaKorygowanej']/*[local-name()='OkresFaKorygowanejDo']/text()"s
+         )
+         |> parse_date(),
+       correction_reason:
+         xpath(doc, ~x"//*[local-name()='PrzyczynaKorekty']/text()"s) |> presence(),
+       correction_type: xpath(doc, ~x"//*[local-name()='TypKorekty']/text()"s) |> parse_integer()
      }}
   rescue
     e ->
@@ -260,4 +283,19 @@ defmodule KsefHub.Invoices.Parser do
   @spec default_currency(String.t()) :: String.t()
   defp default_currency(""), do: "PLN"
   defp default_currency(currency), do: currency
+
+  # Maps FA(3) RodzajFaktury codes to English invoice kind identifiers.
+  @fa3_kind_mapping %{
+    "VAT" => "vat",
+    "KOR" => "correction",
+    "ZAL" => "advance",
+    "ROZ" => "advance_settlement",
+    "UPR" => "simplified",
+    "KOR_ZAL" => "advance_correction",
+    "KOR_ROZ" => "settlement_correction"
+  }
+
+  @spec map_invoice_kind(String.t()) :: String.t()
+  defp map_invoice_kind(""), do: "vat"
+  defp map_invoice_kind(code), do: Map.get(@fa3_kind_mapping, code, code)
 end

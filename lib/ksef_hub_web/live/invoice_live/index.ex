@@ -390,6 +390,7 @@ defmodule KsefHubWeb.InvoiceLive.Index do
             >
               {counterparty_name(inv, @filters[:type])}
             </.link>
+            <.invoice_kind_badge kind={inv.invoice_kind} />
             <.restricted_icon :if={inv.access_restricted} />
           </div>
         </:col>
