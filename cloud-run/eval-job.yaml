@@ -1,0 +1,41 @@
+apiVersion: run.googleapis.com/v1
+kind: Job
+metadata:
+  name: ksef-hub-eval
+  labels:
+    cloud.googleapis.com/location: europe-west1
+spec:
+  template:
+    spec:
+      parallelism: 1
+      taskCount: 1
+      template:
+        spec:
+          maxRetries: 0
+          timeoutSeconds: 600
+          serviceAccountName: ksef-hub-runner@au-ksef-ex.iam.gserviceaccount.com
+          containers:
+            - name: eval
+              image: IMAGE_PLACEHOLDER
+              command: ["bin/ksef_hub"]
+              args: ["eval", "KsefHub.Release.reparse_ksef_invoices()"]
+              resources:
+                limits:
+                  memory: 512Mi
+                  cpu: "1"
+              env:
+                - name: DATABASE_URL
+                  valueFrom:
+                    secretKeyRef:
+                      key: latest
+                      name: database-url
+                - name: SECRET_KEY_BASE
+                  valueFrom:
+                    secretKeyRef:
+                      key: latest
+                      name: secret-key-base
+                - name: CREDENTIAL_ENCRYPTION_KEY
+                  valueFrom:
+                    secretKeyRef:
+                      key: latest
+                      name: credential-encryption-key
