@@ -121,18 +121,6 @@ defmodule KsefHub.Invoices.Invoice do
     timestamps()
   end
 
-  @doc "Returns the list of valid invoice types."
-  @spec types() :: [invoice_type()]
-  def types, do: Ecto.Enum.values(__MODULE__, :type)
-
-  @doc "Returns the list of valid invoice statuses."
-  @spec statuses() :: [invoice_status()]
-  def statuses, do: Ecto.Enum.values(__MODULE__, :status)
-
-  @doc "Returns the list of valid invoice sources."
-  @spec sources() :: [invoice_source()]
-  def sources, do: Ecto.Enum.values(__MODULE__, :source)
-
   @editable_sources [:manual, :pdf_upload, :email]
 
   @doc "Returns whether the invoice data fields can be edited. Only explicitly allowed sources are editable; KSeF and unknown sources are not."
@@ -273,12 +261,7 @@ defmodule KsefHub.Invoices.Invoice do
     |> validate_correction_fields()
     |> validate_length(:original_filename, max: 255)
     |> validate_length(:purchase_order, max: 256)
-    |> validate_length(:iban, min: 15, max: 34)
-    |> validate_length(:swift_bic, max: 11)
-    |> validate_length(:bank_name, max: 255)
-    |> validate_length(:bank_address, max: 500)
-    |> validate_length(:routing_number, is: 9)
-    |> validate_length(:account_number, max: 34)
+    |> validate_bank_fields()
     |> normalize_address_fields()
     |> validate_source_requirements()
     |> foreign_key_constraint(:company_id)
@@ -392,20 +375,14 @@ defmodule KsefHub.Invoices.Invoice do
     |> validate_number(:net_amount, greater_than_or_equal_to: 0)
     |> validate_number(:gross_amount, greater_than_or_equal_to: 0)
     |> validate_length(:purchase_order, max: 256)
-    |> validate_length(:iban, min: 15, max: 34)
-    |> validate_length(:swift_bic, max: 11)
-    |> validate_length(:bank_name, max: 255)
-    |> validate_length(:bank_address, max: 500)
-    |> validate_length(:routing_number, is: 9)
-    |> validate_length(:account_number, max: 34)
+    |> validate_bank_fields()
     |> normalize_address_fields()
   end
 
-  @doc "Returns the company-owned fields that should not be user-editable for a given invoice type."
   @spec company_fields(invoice_type()) :: [atom()]
-  def company_fields(:expense), do: [:buyer_nip, :buyer_name]
-  def company_fields(:income), do: [:seller_nip, :seller_name]
-  def company_fields(_), do: []
+  defp company_fields(:expense), do: [:buyer_nip, :buyer_name]
+  defp company_fields(:income), do: [:seller_nip, :seller_name]
+  defp company_fields(_), do: []
 
   @doc "Returns the fields that are editable for a given invoice type (excludes company-owned fields)."
   @spec editable_fields(invoice_type() | nil) :: [atom()]
@@ -514,6 +491,17 @@ defmodule KsefHub.Invoices.Invoice do
         |> validate_length(:seller_nip, max: 50)
         |> validate_length(:buyer_nip, max: 50)
     end
+  end
+
+  @spec validate_bank_fields(Ecto.Changeset.t()) :: Ecto.Changeset.t()
+  defp validate_bank_fields(changeset) do
+    changeset
+    |> validate_length(:iban, min: 15, max: 34)
+    |> validate_length(:swift_bic, max: 11)
+    |> validate_length(:bank_name, max: 255)
+    |> validate_length(:bank_address, max: 500)
+    |> validate_length(:routing_number, is: 9)
+    |> validate_length(:account_number, max: 34)
   end
 
   @spec validate_source_requirements(Ecto.Changeset.t()) :: Ecto.Changeset.t()
