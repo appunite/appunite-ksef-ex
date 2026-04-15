@@ -46,7 +46,8 @@ defmodule KsefHub.Invoices.AccessControl do
           {:ok, InvoiceAccessGrant.t()} | {:error, Ecto.Changeset.t()}
   def grant_access(invoice_id, user_id, granted_by_id \\ nil, opts \\ []) do
     with {:ok, company_id} <- fetch_invoice_company_id(invoice_id),
-         {:ok, _membership} <- validate_grantable_member(company_id, user_id) do
+         {:ok, _membership} <- validate_grantable_member(company_id, user_id),
+         :not_found <- existing_grant(invoice_id, user_id) do
       result =
         %InvoiceAccessGrant{}
         |> Ecto.Changeset.change(%{
@@ -62,13 +63,19 @@ defmodule KsefHub.Invoices.AccessControl do
 
       case result do
         {:ok, grant} ->
-          invoice_ref = %{id: invoice_id, company_id: company_id}
-          Events.invoice_access_granted(invoice_ref, user_id, opts)
+          Events.invoice_access_granted(%{id: invoice_id, company_id: company_id}, user_id, opts)
           {:ok, grant}
 
         error ->
           error
       end
+    end
+  end
+
+  defp existing_grant(invoice_id, user_id) do
+    case Repo.get_by(InvoiceAccessGrant, invoice_id: invoice_id, user_id: user_id) do
+      %InvoiceAccessGrant{} = grant -> {:ok, grant}
+      nil -> :not_found
     end
   end
 

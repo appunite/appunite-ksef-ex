@@ -266,8 +266,12 @@ defmodule KsefHub.Invoices.Classification do
   @spec current_category_name(Invoice.t()) :: String.t() | nil
   defp current_category_name(%Invoice{category: %Category{name: name}}), do: name
 
-  defp current_category_name(%Invoice{category_id: id}) when is_binary(id) do
-    Category |> where([c], c.id == ^id) |> select([c], c.name) |> Repo.one()
+  defp current_category_name(%Invoice{category_id: id} = invoice) when is_binary(id) do
+    if Ecto.assoc_loaded?(invoice.category) do
+      nil
+    else
+      Category |> where([c], c.id == ^id) |> select([c], c.name) |> Repo.one()
+    end
   end
 
   defp current_category_name(_invoice), do: nil

@@ -194,11 +194,13 @@ defmodule KsefHub.Invoices.Analytics do
 
   @spec allocate_across_months(Date.t(), Date.t(), Decimal.t()) :: [{Date.t(), Decimal.t()}]
   defp allocate_across_months(from, to, net_amount) when not is_nil(net_amount) do
-    months = months_between(from, to)
+    start_month = Date.beginning_of_month(from)
+    end_month = Date.beginning_of_month(to)
+    months = months_between(start_month, end_month)
     count = length(months)
 
     if count <= 1 do
-      [{from, net_amount}]
+      [{start_month, net_amount}]
     else
       per_month = Decimal.div(net_amount, count) |> Decimal.round(2)
       allocated_sum = Decimal.mult(per_month, count - 1)

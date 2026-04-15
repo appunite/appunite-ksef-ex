@@ -265,16 +265,7 @@ defmodule KsefHub.Invoices do
   defdelegate determine_extraction_status_from_attrs(attrs), to: Extraction
   defdelegate populate_company_fields(attrs, company), to: Extraction
 
-  @doc """
-  Recalculates extraction status based on the presence of critical fields.
-
-  Merges the given `attrs` over the invoice's current values, then checks
-  whether all critical fields are present. Returns updated attrs with the
-  new `:extraction_status` value.
-  """
-  @spec recalculate_extraction_status(Invoice.t(), map()) :: map()
-  def recalculate_extraction_status(invoice, attrs),
-    do: Extraction.recalculate_extraction_status(invoice, attrs)
+  defdelegate recalculate_extraction_status(invoice, attrs), to: Extraction
 
   @spec maybe_restrict_access(map()) :: map()
   defp maybe_restrict_access(attrs) do
