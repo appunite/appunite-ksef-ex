@@ -5009,7 +5009,7 @@ defmodule KsefHub.InvoicesTest do
   describe "correction invoices" do
     @correction_xml File.read!("test/support/fixtures/sample_correction.xml")
 
-    test "upsert_invoice stores correction fields from parsed XML", %{company: company} do
+    test "upsert_invoice stores correction fields", %{company: company} do
       attrs =
         params_for(:correction_invoice,
           ksef_number: "1234567890-20260415-CORR001-01",

@@ -264,8 +264,7 @@ defmodule KsefHub.Invoices.Invoice do
       :correction_period_from,
       :correction_period_to,
       :correction_reason,
-      :correction_type,
-      :corrects_invoice_id
+      :correction_type
     ])
     |> validate_required([:type, :company_id])
     |> validate_billing_dates()

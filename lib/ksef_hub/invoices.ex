@@ -137,6 +137,8 @@ defmodule KsefHub.Invoices do
   @doc "Fetches an invoice by UUID with associations preloaded."
   @spec get_invoice_with_details!(Ecto.UUID.t(), Ecto.UUID.t(), keyword()) :: Invoice.t()
   def get_invoice_with_details!(company_id, id, opts \\ []) do
+    access_query = access_scoped_invoice_query(opts)
+
     Invoice
     |> where([i], i.company_id == ^company_id and i.id == ^id)
     |> maybe_filter_by_access(opts)
@@ -146,8 +148,8 @@ defmodule KsefHub.Invoices do
       :category,
       :created_by,
       :inbound_email,
-      :corrects_invoice,
-      :corrections
+      corrects_invoice: ^access_query,
+      corrections: ^access_query
     ])
     |> Repo.one!()
   end
@@ -155,6 +157,8 @@ defmodule KsefHub.Invoices do
   @doc "Fetches an invoice by UUID with associations preloaded, returning nil if not found."
   @spec get_invoice_with_details(Ecto.UUID.t(), Ecto.UUID.t(), keyword()) :: Invoice.t() | nil
   def get_invoice_with_details(company_id, id, opts \\ []) do
+    access_query = access_scoped_invoice_query(opts)
+
     Invoice
     |> where([i], i.company_id == ^company_id and i.id == ^id)
     |> maybe_filter_by_access(opts)
@@ -164,8 +168,8 @@ defmodule KsefHub.Invoices do
       :category,
       :created_by,
       :inbound_email,
-      :corrects_invoice,
-      :corrections
+      corrects_invoice: ^access_query,
+      corrections: ^access_query
     ])
     |> Repo.one()
   end
@@ -259,9 +263,11 @@ defmodule KsefHub.Invoices do
       WHERE correction.company_id = $1
         AND correction.corrected_invoice_ksef_number IS NOT NULL
         AND correction.corrects_invoice_id IS NULL
+        AND correction.invoice_kind IN ('correction', 'advance_correction', 'settlement_correction')
         AND original.company_id = $1
         AND original.ksef_number = correction.corrected_invoice_ksef_number
         AND original.duplicate_of_id IS NULL
+        AND original.id <> correction.id
       """,
       [Ecto.UUID.dump!(company_id)]
     )
@@ -1491,6 +1497,7 @@ defmodule KsefHub.Invoices do
     {file_ids, attrs} = pop_file_ids(attrs)
     {created_by_id, attrs} = Map.pop(attrs, :created_by_id)
     {access_restricted, attrs} = Map.pop(attrs, :access_restricted)
+    {corrects_invoice_id, attrs} = Map.pop(attrs, :corrects_invoice_id)
 
     trusted_fields =
       file_ids
@@ -1502,6 +1509,9 @@ defmodule KsefHub.Invoices do
         if is_boolean(access_restricted),
           do: Map.put(m, :access_restricted, access_restricted),
           else: m
+      end)
+      |> then(fn m ->
+        if corrects_invoice_id, do: Map.put(m, :corrects_invoice_id, corrects_invoice_id), else: m
       end)
 
     opts = build_insert_opts(caller_opts, created_by_id)
@@ -1533,6 +1543,7 @@ defmodule KsefHub.Invoices do
     {file_ids, attrs} = pop_file_ids(attrs)
     {created_by_id, attrs} = Map.pop(attrs, :created_by_id)
     {access_restricted, attrs} = Map.pop(attrs, :access_restricted)
+    {corrects_invoice_id, attrs} = Map.pop(attrs, :corrects_invoice_id)
 
     trusted_fields =
       file_ids
@@ -1544,6 +1555,9 @@ defmodule KsefHub.Invoices do
         if is_boolean(access_restricted),
           do: Map.put(m, :access_restricted, access_restricted),
           else: m
+      end)
+      |> then(fn m ->
+        if corrects_invoice_id, do: Map.put(m, :corrects_invoice_id, corrects_invoice_id), else: m
       end)
 
     %Invoice{}
@@ -2539,6 +2553,11 @@ defmodule KsefHub.Invoices do
       true ->
         where(query, [i], i.access_restricted == false)
     end
+  end
+
+  @spec access_scoped_invoice_query(keyword()) :: Ecto.Query.t()
+  defp access_scoped_invoice_query(opts) do
+    from(i in Invoice) |> maybe_filter_by_access(opts)
   end
 
   @spec do_list_invoices(Ecto.UUID.t(), map(), pos_integer(), pos_integer(), keyword()) ::
