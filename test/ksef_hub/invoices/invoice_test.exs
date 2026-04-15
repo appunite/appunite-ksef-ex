@@ -120,12 +120,12 @@ defmodule KsefHub.Invoices.InvoiceTest do
   describe "invoice_kind_label/1" do
     test "returns labels for all kinds" do
       assert Invoice.invoice_kind_label(:vat) == "VAT"
-      assert Invoice.invoice_kind_label(:correction) == "Correction"
-      assert Invoice.invoice_kind_label(:advance) == "Advance"
-      assert Invoice.invoice_kind_label(:advance_settlement) == "Advance settlement"
-      assert Invoice.invoice_kind_label(:simplified) == "Simplified"
-      assert Invoice.invoice_kind_label(:advance_correction) == "Advance correction"
-      assert Invoice.invoice_kind_label(:settlement_correction) == "Settlement correction"
+      assert Invoice.invoice_kind_label(:correction) == "correction"
+      assert Invoice.invoice_kind_label(:advance) == "advance"
+      assert Invoice.invoice_kind_label(:advance_settlement) == "advance settlement"
+      assert Invoice.invoice_kind_label(:simplified) == "simplified"
+      assert Invoice.invoice_kind_label(:advance_correction) == "advance correction"
+      assert Invoice.invoice_kind_label(:settlement_correction) == "settlement correction"
     end
   end
 

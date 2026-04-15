@@ -112,8 +112,9 @@ defmodule KsefHubWeb.InvoiceComponents do
 
   @doc """
   Renders a badge for the invoice kind. Shows nothing for plain VAT invoices
-  (the default). Shows a red "Korekta" badge for correction kinds, and an
-  info badge for other non-standard kinds (advance, simplified, etc.).
+  (the default). Shows a purple badge for correction kinds, and an info badge
+  for other non-standard kinds (advance, simplified, etc.). Labels are rendered
+  lowercase to match badge conventions across the app.
   """
   @spec invoice_kind_badge(map()) :: Phoenix.LiveView.Rendered.t()
   attr :kind, :atom, required: true
@@ -129,7 +130,7 @@ defmodule KsefHubWeb.InvoiceComponents do
         assigns,
         :variant,
         if(assigns.kind in Invoice.correction_kinds(),
-          do: "error",
+          do: "purple",
           else: "info"
         )
       )
@@ -159,20 +160,18 @@ defmodule KsefHubWeb.InvoiceComponents do
 
     ~H"""
     <div
-      class="rounded-md border border-error/20 bg-error/5 p-4 mt-4 space-y-2"
+      class="rounded-md border border-purple-500/20 bg-purple-500/5 p-4 mt-4"
       data-testid="correction-details"
     >
-      <div class="flex items-center gap-2 font-medium text-sm">
+      <h3 class="flex items-center gap-2 text-base font-semibold mb-2">
         <.icon name="hero-arrow-uturn-left" class="size-4" />
-        <span>Correction invoice</span>
-      </div>
+        Correction invoice
+      </h3>
       <table class="text-sm w-full">
         <tbody>
           <tr :if={@invoice.corrected_invoice_number} class="border-b border-border/50 last:border-0">
-            <td class="py-1 pr-3 text-muted-foreground whitespace-nowrap">
-              Corrected invoice
-            </td>
-            <td class="py-1 text-right">
+            <td class="py-1.5 pr-3 text-muted-foreground whitespace-nowrap">Corrected invoice</td>
+            <td class="py-1.5 text-right">
               <%= if @invoice.corrects_invoice_id do %>
                 <.link
                   navigate={~p"/c/#{@company_id}/invoices/#{@invoice.corrects_invoice_id}"}
@@ -189,35 +188,29 @@ defmodule KsefHubWeb.InvoiceComponents do
             :if={@invoice.corrected_invoice_ksef_number}
             class="border-b border-border/50 last:border-0"
           >
-            <td class="py-1 pr-3 text-muted-foreground whitespace-nowrap">
-              Original KSeF
-            </td>
-            <td class="py-1 text-right font-mono text-xs break-all">
+            <td class="py-1.5 pr-3 text-muted-foreground whitespace-nowrap">Original KSeF</td>
+            <td class="py-1.5 text-right font-mono break-all">
               {@invoice.corrected_invoice_ksef_number}
             </td>
           </tr>
           <tr :if={@invoice.corrected_invoice_date} class="border-b border-border/50 last:border-0">
-            <td class="py-1 pr-3 text-muted-foreground whitespace-nowrap">
-              Original date
-            </td>
-            <td class="py-1 text-right">{format_date(@invoice.corrected_invoice_date)}</td>
+            <td class="py-1.5 pr-3 text-muted-foreground whitespace-nowrap">Original date</td>
+            <td class="py-1.5 text-right">{format_date(@invoice.corrected_invoice_date)}</td>
           </tr>
           <tr :if={@invoice.correction_reason} class="border-b border-border/50 last:border-0">
-            <td class="py-1 pr-3 text-muted-foreground whitespace-nowrap">Reason</td>
-            <td class="py-1 text-right">{@invoice.correction_reason}</td>
+            <td class="py-1.5 pr-3 text-muted-foreground whitespace-nowrap">Reason</td>
+            <td class="py-1.5 text-right">{@invoice.correction_reason}</td>
           </tr>
           <tr :if={@type_label != ""} class="border-b border-border/50 last:border-0">
-            <td class="py-1 pr-3 text-muted-foreground whitespace-nowrap">
-              Effect
-            </td>
-            <td class="py-1 text-right">{@type_label}</td>
+            <td class="py-1.5 pr-3 text-muted-foreground whitespace-nowrap">Effect</td>
+            <td class="py-1.5 text-right">{@type_label}</td>
           </tr>
           <tr
             :if={@invoice.correction_period_from || @invoice.correction_period_to}
             class="border-b border-border/50 last:border-0"
           >
-            <td class="py-1 pr-3 text-muted-foreground whitespace-nowrap">Period</td>
-            <td class="py-1 text-right">
+            <td class="py-1.5 pr-3 text-muted-foreground whitespace-nowrap">Period</td>
+            <td class="py-1.5 text-right">
               {format_date(@invoice.correction_period_from)} – {format_date(
                 @invoice.correction_period_to
               )}
@@ -256,7 +249,7 @@ defmodule KsefHubWeb.InvoiceComponents do
         class="rounded-md border border-border bg-card p-4 mt-4"
         data-testid="related-invoices"
       >
-        <h3 class="text-sm font-medium mb-2">Related invoices</h3>
+        <h3 class="text-base font-semibold mb-2">Related invoices</h3>
         <table class="text-sm w-full">
           <thead>
             <tr class="border-b border-border text-muted-foreground text-left">

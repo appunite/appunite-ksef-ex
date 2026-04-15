@@ -150,13 +150,13 @@ defmodule KsefHub.Invoices.Invoice do
   @doc "Returns a human-readable label for the invoice kind."
   @spec invoice_kind_label(invoice_kind()) :: String.t()
   def invoice_kind_label(:vat), do: "VAT"
-  def invoice_kind_label(:correction), do: "Correction"
-  def invoice_kind_label(:advance), do: "Advance"
-  def invoice_kind_label(:advance_settlement), do: "Advance settlement"
-  def invoice_kind_label(:simplified), do: "Simplified"
-  def invoice_kind_label(:advance_correction), do: "Advance correction"
-  def invoice_kind_label(:settlement_correction), do: "Settlement correction"
-  def invoice_kind_label(_), do: "Unknown"
+  def invoice_kind_label(:correction), do: "correction"
+  def invoice_kind_label(:advance), do: "advance"
+  def invoice_kind_label(:advance_settlement), do: "advance settlement"
+  def invoice_kind_label(:simplified), do: "simplified"
+  def invoice_kind_label(:advance_correction), do: "advance correction"
+  def invoice_kind_label(:settlement_correction), do: "settlement correction"
+  def invoice_kind_label(_), do: "unknown"
 
   @doc "Returns a human-readable label for the correction type (TypKorekty)."
   @spec correction_type_label(integer() | nil) :: String.t()

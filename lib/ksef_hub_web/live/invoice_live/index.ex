@@ -382,7 +382,7 @@ defmodule KsefHubWeb.InvoiceLive.Index do
         <:col :let={inv} label="Issue date" class="w-28">
           <span class="whitespace-nowrap">{format_date(inv.issue_date)}</span>
         </:col>
-        <:col :let={inv} label={if @filters[:type] == :income, do: "Buyer", else: "Seller"}>
+        <:col :let={inv} label={if @filters[:type] == :income, do: "Buyer", else: "Seller"} class="w-96">
           <div class="flex items-center gap-1">
             <.link
               navigate={~p"/c/#{@current_company.id}/invoices/#{inv.id}"}
@@ -390,8 +390,8 @@ defmodule KsefHubWeb.InvoiceLive.Index do
             >
               {counterparty_name(inv, @filters[:type])}
             </.link>
-            <.invoice_kind_badge kind={inv.invoice_kind} />
             <.restricted_icon :if={inv.access_restricted} />
+            <.invoice_kind_badge kind={inv.invoice_kind} />
           </div>
         </:col>
         <:col :let={inv} label="Amount" class="w-36 text-right">
@@ -399,6 +399,9 @@ defmodule KsefHubWeb.InvoiceLive.Index do
           <div class="font-mono text-xs text-muted-foreground">
             {format_amount(inv.gross_amount)} {inv.currency}
           </div>
+        </:col>
+        <:col :let={inv} :if={@filters[:type] == :income} label="Number" class="w-44">
+          <span class="font-mono text-sm">{inv.invoice_number}</span>
         </:col>
         <:col :let={inv} :if={@filters[:type] != :income} label="Status" class="w-28">
           <div class="flex flex-wrap gap-1">
