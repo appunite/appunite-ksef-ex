@@ -2013,4 +2013,103 @@ defmodule KsefHubWeb.Api.InvoiceControllerTest do
       assert hd(body["data"])["is_excluded"] == false
     end
   end
+
+  describe "invoice_kind filter" do
+    test "filters by invoice_kind=correction", %{conn: conn} do
+      %{company: company, token: token} = create_user_with_token(:owner)
+      insert(:invoice, company: company, invoice_kind: :vat)
+      insert(:correction_invoice, company: company)
+
+      conn = conn |> api_conn(token) |> get("/api/invoices?invoice_kind=correction")
+
+      body = Jason.decode!(conn.resp_body)
+      assert length(body["data"]) == 1
+      assert hd(body["data"])["invoice_kind"] == "correction"
+    end
+
+    test "filters by invoice_kind=vat", %{conn: conn} do
+      %{company: company, token: token} = create_user_with_token(:owner)
+      insert(:invoice, company: company, invoice_kind: :vat)
+      insert(:correction_invoice, company: company)
+
+      conn = conn |> api_conn(token) |> get("/api/invoices?invoice_kind=vat")
+
+      body = Jason.decode!(conn.resp_body)
+      assert length(body["data"]) == 1
+      assert hd(body["data"])["invoice_kind"] == "vat"
+    end
+  end
+
+  describe "is_correction filter" do
+    test "filters by is_correction=true returns all correction kinds", %{conn: conn} do
+      %{company: company, token: token} = create_user_with_token(:owner)
+      insert(:invoice, company: company, invoice_kind: :vat)
+      insert(:correction_invoice, company: company)
+
+      conn = conn |> api_conn(token) |> get("/api/invoices?is_correction=true")
+
+      body = Jason.decode!(conn.resp_body)
+      assert length(body["data"]) == 1
+      assert hd(body["data"])["invoice_kind"] == "correction"
+    end
+
+    test "filters by is_correction=false excludes corrections", %{conn: conn} do
+      %{company: company, token: token} = create_user_with_token(:owner)
+      insert(:invoice, company: company, invoice_kind: :vat)
+      insert(:correction_invoice, company: company)
+
+      conn = conn |> api_conn(token) |> get("/api/invoices?is_correction=false")
+
+      body = Jason.decode!(conn.resp_body)
+      assert length(body["data"]) == 1
+      assert hd(body["data"])["invoice_kind"] == "vat"
+    end
+  end
+
+  describe "correction fields in show response" do
+    test "returns correction fields for correction invoice", %{conn: conn} do
+      %{company: company, token: token} = create_user_with_token(:owner)
+
+      original = insert(:invoice, company: company, ksef_number: "ORIG-KSEF-001")
+
+      correction =
+        insert(:correction_invoice,
+          company: company,
+          corrected_invoice_ksef_number: "ORIG-KSEF-001",
+          corrects_invoice: original,
+          correction_reason: "Błąd rachunkowy",
+          correction_type: 1,
+          corrected_invoice_number: "FV/2026/001",
+          corrected_invoice_date: ~D[2026-04-02]
+        )
+
+      conn = conn |> api_conn(token) |> get("/api/invoices/#{correction.id}")
+
+      body = Jason.decode!(conn.resp_body)
+      data = body["data"]
+      assert data["invoice_kind"] == "correction"
+      assert data["corrected_invoice_number"] == "FV/2026/001"
+      assert data["corrected_invoice_ksef_number"] == "ORIG-KSEF-001"
+      assert data["corrected_invoice_date"] == "2026-04-02"
+      assert data["correction_reason"] == "Błąd rachunkowy"
+      assert data["correction_type"] == 1
+      assert data["corrects_invoice_id"] == original.id
+    end
+
+    test "returns nil correction fields for regular invoice", %{conn: conn} do
+      %{company: company, token: token} = create_user_with_token(:owner)
+      invoice = insert(:invoice, company: company, invoice_kind: :vat)
+
+      conn = conn |> api_conn(token) |> get("/api/invoices/#{invoice.id}")
+
+      body = Jason.decode!(conn.resp_body)
+      data = body["data"]
+      assert data["invoice_kind"] == "vat"
+      assert data["corrected_invoice_number"] == nil
+      assert data["corrected_invoice_ksef_number"] == nil
+      assert data["correction_reason"] == nil
+      assert data["correction_type"] == nil
+      assert data["corrects_invoice_id"] == nil
+    end
+  end
 end

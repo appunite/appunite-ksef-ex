@@ -3,7 +3,7 @@ defmodule KsefHub.Repo.Migrations.AddCorrectionFieldsToInvoices do
 
   def change do
     alter table(:invoices) do
-      add :invoice_kind, :string, default: "VAT", null: false
+      add :invoice_kind, :string, default: "vat", null: false
       add :corrected_invoice_number, :string
       add :corrected_invoice_ksef_number, :string
       add :corrected_invoice_date, :date
