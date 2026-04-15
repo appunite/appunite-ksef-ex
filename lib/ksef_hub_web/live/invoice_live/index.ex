@@ -382,7 +382,11 @@ defmodule KsefHubWeb.InvoiceLive.Index do
         <:col :let={inv} label="Issue date" class="w-28">
           <span class="whitespace-nowrap">{format_date(inv.issue_date)}</span>
         </:col>
-        <:col :let={inv} label={if @filters[:type] == :income, do: "Buyer", else: "Seller"} class="w-96">
+        <:col
+          :let={inv}
+          label={if @filters[:type] == :income, do: "Buyer", else: "Seller"}
+          class="w-96"
+        >
           <div class="flex items-center gap-1">
             <.link
               navigate={~p"/c/#{@current_company.id}/invoices/#{inv.id}"}

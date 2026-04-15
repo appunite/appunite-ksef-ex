@@ -164,8 +164,7 @@ defmodule KsefHubWeb.InvoiceComponents do
       data-testid="correction-details"
     >
       <h3 class="flex items-center gap-2 text-base font-semibold mb-2">
-        <.icon name="hero-arrow-uturn-left" class="size-4" />
-        Correction invoice
+        <.icon name="hero-arrow-uturn-left" class="size-4" /> Correction invoice
       </h3>
       <table class="text-sm w-full">
         <tbody>

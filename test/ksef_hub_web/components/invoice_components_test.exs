@@ -96,7 +96,9 @@ defmodule KsefHubWeb.InvoiceComponentsTest do
     end
 
     test "renders lowercase purple badge for :settlement_correction" do
-      html = render_component(&InvoiceComponents.invoice_kind_badge/1, kind: :settlement_correction)
+      html =
+        render_component(&InvoiceComponents.invoice_kind_badge/1, kind: :settlement_correction)
+
       assert html =~ "text-purple-400"
       assert html =~ "settlement correction"
     end
