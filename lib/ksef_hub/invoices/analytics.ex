@@ -148,7 +148,8 @@ defmodule KsefHub.Invoices.Analytics do
     |> where(
       [i],
       i.company_id == ^company_id and i.type == ^type and
-        not is_nil(i.billing_date_from) and not is_nil(i.billing_date_to)
+        not is_nil(i.billing_date_from) and not is_nil(i.billing_date_to) and
+        i.billing_date_from <= i.billing_date_to
     )
   end
 
@@ -157,8 +158,10 @@ defmodule KsefHub.Invoices.Analytics do
 
   @spec trim_allocations_to_window([map()], map()) :: [map()]
   defp trim_allocations_to_window(allocations, filters) do
-    from = Map.get(filters, :billing_date_from)
-    to = Map.get(filters, :billing_date_to)
+    # Normalize filter dates to month starts so month-bucket keys (always 1st of month)
+    # aren't dropped when the filter is mid-month (e.g., 2026-04-15 → 2026-04-01).
+    from = Map.get(filters, :billing_date_from) |> maybe_beginning_of_month()
+    to = Map.get(filters, :billing_date_to) |> maybe_beginning_of_month()
 
     allocations
     |> then(fn allocs ->
@@ -170,6 +173,9 @@ defmodule KsefHub.Invoices.Analytics do
       if to, do: Enum.filter(allocs, &(Date.compare(&1.billing_date, to) != :gt)), else: allocs
     end)
   end
+
+  defp maybe_beginning_of_month(nil), do: nil
+  defp maybe_beginning_of_month(%Date{} = date), do: Date.beginning_of_month(date)
 
   # --- Multi-month allocation helpers ---
 

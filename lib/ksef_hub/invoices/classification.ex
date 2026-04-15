@@ -54,6 +54,9 @@ defmodule KsefHub.Invoices.Classification do
     if trimmed == "" or String.length(trimmed) > Invoice.max_tag_length() do
       {:ok, invoice}
     else
+      # Uses Repo.update_all (not TrackedRepo) for atomic array_append with guards.
+      # TrackedRepo only wraps single-changeset operations; activity for tag changes
+      # is emitted by set_invoice_tags/3 which uses TrackedRepo.update via tags_changeset.
       Invoice
       |> where([i], i.id == ^invoice.id)
       |> where([i], fragment("NOT ? = ANY(?)", ^trimmed, i.tags))
@@ -128,17 +131,19 @@ defmodule KsefHub.Invoices.Classification do
   end
 
   def set_invoice_category(%Invoice{} = invoice, category_id, opts) do
-    with %Category{} = category <- fetch_company_category(invoice.company_id, category_id),
-         attrs <- build_category_attrs(category_id, category) do
-      old_name = current_category_name(invoice)
-      existing_meta = Keyword.get(opts, :metadata, %{})
-      merged_meta = Map.merge(existing_meta, %{old_name: old_name, new_name: category.name})
+    case fetch_company_category(invoice.company_id, category_id) do
+      nil ->
+        {:error, :category_not_in_company}
 
-      invoice
-      |> Invoice.category_changeset(attrs)
-      |> TrackedRepo.update(Keyword.put(opts, :metadata, merged_meta))
-    else
-      nil -> {:error, :category_not_in_company}
+      %Category{} = category ->
+        attrs = build_category_attrs(category_id, category)
+        old_name = current_category_name(invoice)
+        existing_meta = Keyword.get(opts, :metadata, %{})
+        merged_meta = Map.merge(existing_meta, %{old_name: old_name, new_name: category.name})
+
+        invoice
+        |> Invoice.category_changeset(attrs)
+        |> TrackedRepo.update(Keyword.put(opts, :metadata, merged_meta))
     end
   end
 
@@ -271,6 +276,7 @@ defmodule KsefHub.Invoices.Classification do
 
   defp current_category_name(%Invoice{category_id: id} = invoice) when is_binary(id) do
     if Ecto.assoc_loaded?(invoice.category) do
+      # Association was loaded but didn't match %Category{} above — category was cleared/nil.
       nil
     else
       Category |> where([c], c.id == ^id) |> select([c], c.name) |> Repo.one()
