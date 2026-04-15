@@ -378,7 +378,7 @@ defmodule KsefHubWeb.InvoiceComponents do
     ~H"""
     <table class="text-sm w-full">
       <tbody>
-        <tr class="border-b border-border/50">
+        <tr class="border-b border-border/50 last:border-0">
           <td class="py-1.5 pr-3 text-muted-foreground">Buyer</td>
           <td class="py-1.5 text-right">
             <div>{@invoice.buyer_name}</div>
@@ -392,7 +392,7 @@ defmodule KsefHubWeb.InvoiceComponents do
             </div>
           </td>
         </tr>
-        <tr class="border-b border-border/50">
+        <tr class="border-b border-border/50 last:border-0">
           <td class="py-1.5 pr-3 text-muted-foreground">Seller</td>
           <td class="py-1.5 text-right">
             <div>{@invoice.seller_name}</div>
@@ -406,24 +406,32 @@ defmodule KsefHubWeb.InvoiceComponents do
             </div>
           </td>
         </tr>
-        <tr class="border-b border-border/50">
+        <tr class="border-b border-border/50 last:border-0">
           <td class="py-1.5 pr-3 text-muted-foreground whitespace-nowrap">Number</td>
           <td class="py-1.5 text-right">{@invoice.invoice_number}</td>
         </tr>
-        <tr class="border-b border-border/50">
+        <tr class="border-b border-border/50 last:border-0">
           <td class="py-1.5 pr-3 text-muted-foreground">Date</td>
           <td class="py-1.5 text-right">{format_date(@invoice.issue_date)}</td>
         </tr>
-        <tr :if={@invoice.sales_date} class="border-b border-border/50" data-testid="sales-date">
+        <tr
+          :if={@invoice.sales_date}
+          class="border-b border-border/50 last:border-0"
+          data-testid="sales-date"
+        >
           <td class="py-1.5 pr-3 text-muted-foreground whitespace-nowrap">Sales Date</td>
           <td class="py-1.5 text-right">{format_date(@invoice.sales_date)}</td>
         </tr>
-        <tr :if={@invoice.due_date} class="border-b border-border/50" data-testid="due-date">
+        <tr
+          :if={@invoice.due_date}
+          class="border-b border-border/50 last:border-0"
+          data-testid="due-date"
+        >
           <td class="py-1.5 pr-3 text-muted-foreground whitespace-nowrap">Due Date</td>
           <td class="py-1.5 text-right">{format_date(@invoice.due_date)}</td>
         </tr>
         <tr class={[
-          "border-b border-border/50",
+          "border-b border-border/50 last:border-0",
           is_nil(@invoice.net_amount) && "bg-warning/5"
         ]}>
           <td class="py-1.5 pr-3 text-muted-foreground">Netto</td>
@@ -432,7 +440,7 @@ defmodule KsefHubWeb.InvoiceComponents do
           </td>
         </tr>
         <tr class={[
-          "border-b border-border/50",
+          "border-b border-border/50 last:border-0",
           is_nil(@invoice.gross_amount) && "bg-warning/5"
         ]}>
           <td class="py-1.5 pr-3 text-muted-foreground">Brutto</td>
@@ -440,19 +448,19 @@ defmodule KsefHubWeb.InvoiceComponents do
             {format_amount(@invoice.gross_amount)} {@invoice.currency}
           </td>
         </tr>
-        <tr :if={@invoice.ksef_number} class="border-b border-border/50">
+        <tr :if={@invoice.ksef_number} class="border-b border-border/50 last:border-0">
           <td class="py-1.5 pr-3 text-muted-foreground">KSeF</td>
           <td class="py-1.5 text-right font-mono break-all">
             {@invoice.ksef_number}
           </td>
         </tr>
-        <tr :if={@invoice.purchase_order} class="border-b border-border/50">
+        <tr :if={@invoice.purchase_order} class="border-b border-border/50 last:border-0">
           <td class="py-1.5 pr-3 text-muted-foreground whitespace-nowrap">PO</td>
           <td class="py-1.5 text-right font-mono break-all">
             {@invoice.purchase_order}
           </td>
         </tr>
-        <tr :if={@invoice.iban} class="border-b border-border/50" data-testid="iban">
+        <tr :if={@invoice.iban} class="border-b border-border/50 last:border-0" data-testid="iban">
           <td class="py-1.5 pr-3 text-muted-foreground whitespace-nowrap">IBAN</td>
           <td class="py-1.5 text-right font-mono break-all">
             {@invoice.iban}

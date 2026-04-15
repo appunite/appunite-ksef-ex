@@ -1356,18 +1356,8 @@ defmodule KsefHub.Invoices do
     Regex.match?(@iban_prefix_pattern, stripped)
   end
 
-  @iban_min_length 15
-
   @spec normalize_iban(String.t()) :: String.t() | nil
-  defp normalize_iban(value) do
-    stripped = value |> String.trim() |> String.replace(~r/[\s\-]/, "")
-
-    cond do
-      String.length(stripped) < @iban_min_length -> nil
-      Regex.match?(~r/^[A-Za-z]{2}\d{2}/, stripped) -> String.upcase(stripped)
-      true -> stripped
-    end
-  end
+  defp normalize_iban(value), do: KsefHub.Iban.normalize(value)
 
   @spec normalize_nip(String.t()) :: String.t()
   defp normalize_nip(value), do: KsefHub.Nip.normalize(value)

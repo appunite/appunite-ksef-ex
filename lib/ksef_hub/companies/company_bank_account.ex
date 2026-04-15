@@ -42,6 +42,7 @@ defmodule KsefHub.Companies.CompanyBankAccount do
     changeset
     |> validate_required([:currency, :iban])
     |> validate_format(:currency, ~r/^[A-Z]{3}$/, message: "must be a 3-letter uppercase code")
+    |> normalize_iban()
     |> validate_length(:iban, min: 15, max: 34)
     |> validate_length(:label, max: 256)
     |> unique_constraint(:currency,
@@ -57,6 +58,14 @@ defmodule KsefHub.Companies.CompanyBankAccount do
       name: :company_bank_accounts_iban_check,
       message: "must be 15-34 alphanumeric characters"
     )
+  end
+
+  @spec normalize_iban(Ecto.Changeset.t()) :: Ecto.Changeset.t()
+  defp normalize_iban(changeset) do
+    case get_change(changeset, :iban) do
+      nil -> changeset
+      value -> put_change(changeset, :iban, KsefHub.Iban.normalize(value) || value)
+    end
   end
 
   @impl KsefHub.ActivityLog.Trackable

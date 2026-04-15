@@ -60,6 +60,7 @@ defmodule KsefHub.PaymentRequests.PaymentRequest do
     ])
     |> validate_required([:recipient_name, :title, :iban, :amount, :currency])
     |> validate_number(:amount, greater_than: 0)
+    |> normalize_iban()
     |> validate_length(:iban, min: 15, max: 34)
     |> validate_length(:recipient_name, max: 256)
     |> validate_length(:recipient_nip, max: 50)
@@ -87,6 +88,14 @@ defmodule KsefHub.PaymentRequests.PaymentRequest do
   @doc "Formats an address map as a comma-separated string. Delegates to Invoice.format_address/1."
   @spec format_address(map() | nil) :: String.t()
   defdelegate format_address(addr), to: KsefHub.Invoices.Invoice
+
+  @spec normalize_iban(Ecto.Changeset.t()) :: Ecto.Changeset.t()
+  defp normalize_iban(changeset) do
+    case get_change(changeset, :iban) do
+      nil -> changeset
+      value -> put_change(changeset, :iban, KsefHub.Iban.normalize(value) || value)
+    end
+  end
 
   @spec normalize_address(Ecto.Changeset.t()) :: Ecto.Changeset.t()
   defp normalize_address(changeset) do
