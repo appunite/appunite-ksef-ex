@@ -2,7 +2,7 @@
        server console \
        docker.build docker.run docker.up docker.down \
        db.setup db.migrate db.reset db.rollback \
-       deploy deploy.job \
+       deploy deploy.job\
        models.upload models.restart models.train
 
 APP_NAME := ksef-hub
@@ -89,17 +89,14 @@ docker.down: ## Stop all services
 
 # --- Deploy ---
 
-deploy: ## Deploy service + eval job to Cloud Run (uses latest pushed image)
+deploy: ## Deploy current service.yaml to Cloud Run (uses latest pushed image)
 	@echo "Deploying cloud-run/service.yaml to Cloud Run ($(GCP_REGION))..."
 	@echo "Image: $(IMAGE_NAME):latest"
 	@read -p "Continue? [y/N] " confirm && [ "$$confirm" = "y" ] || (echo "Aborted." && exit 1)
 	sed "s|IMAGE_PLACEHOLDER|$(IMAGE_NAME):latest|g" cloud-run/service.yaml | \
 		gcloud run services replace - --region $(GCP_REGION) --project $(GCP_PROJECT_ID)
-	@echo "Updating eval job image..."
-	sed "s|IMAGE_PLACEHOLDER|$(IMAGE_NAME):latest|g" cloud-run/eval-job.yaml | \
-		gcloud run jobs replace - --region $(GCP_REGION) --project $(GCP_PROJECT_ID)
 
-deploy.job: ## Deploy only the eval job (without the service)
+deploy.job: ## Deploy/update the eval job (uses latest pushed image)
 	sed "s|IMAGE_PLACEHOLDER|$(IMAGE_NAME):latest|g" cloud-run/eval-job.yaml | \
 		gcloud run jobs replace - --region $(GCP_REGION) --project $(GCP_PROJECT_ID)
 
