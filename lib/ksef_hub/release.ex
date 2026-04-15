@@ -86,17 +86,7 @@ defmodule KsefHub.Release do
 
     unchanged = length(invoices) - changed - errors
 
-    unless dry_run? do
-      company_ids =
-        invoices
-        |> Enum.map(& &1.company_id)
-        |> Enum.uniq()
-
-      Enum.each(company_ids, fn company_id ->
-        {linked, _} = KsefHub.Invoices.link_unlinked_corrections(company_id)
-        if linked > 0, do: IO.puts("  Linked #{linked} correction(s) for company #{company_id}")
-      end)
-    end
+    unless dry_run?, do: link_corrections(invoices)
 
     IO.puts("\nDone. #{changed} changed, #{unchanged} unchanged, #{errors} error(s).")
 
@@ -105,6 +95,17 @@ defmodule KsefHub.Release do
     end
 
     :ok
+  end
+
+  @spec link_corrections([KsefHub.Invoices.Invoice.t()]) :: :ok
+  defp link_corrections(invoices) do
+    invoices
+    |> Enum.map(& &1.company_id)
+    |> Enum.uniq()
+    |> Enum.each(fn company_id ->
+      {linked, _} = KsefHub.Invoices.link_unlinked_corrections(company_id)
+      if linked > 0, do: IO.puts("  Linked #{linked} correction(s) for company #{company_id}")
+    end)
   end
 
   @spec load_ksef_invoices(keyword()) :: [KsefHub.Invoices.Invoice.t()]

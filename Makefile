@@ -2,7 +2,7 @@
        server console \
        docker.build docker.run docker.up docker.down \
        db.setup db.migrate db.reset db.rollback \
-       deploy deploy.job\
+       deploy deploy.job \
        models.upload models.restart models.train
 
 APP_NAME := ksef-hub
