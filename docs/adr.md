@@ -37,6 +37,15 @@ Use the next sequential number. Titles should be lowercase, hyphen-separated, co
 ## Format
 
 ```markdown
+---
+name: Short Title
+description: One-line summary of the decision
+tags: [tag1, tag2]
+author: your-name
+date: YYYY-MM-DD
+status: Accepted
+---
+
 # NNNN. Short Title
 
 Date: YYYY-MM-DD
