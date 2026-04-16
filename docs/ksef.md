@@ -24,7 +24,7 @@ See `docs/ksef-certificates.md` for certificate types and how to generate them.
 - Sessions expire after **1 hour** — do not let them expire passively
 - Always call `terminateSession` when done, even on error paths
 - If a session expires mid-sync, re-authenticate and continue from the last checkpoint
-- One active session at a time per NIP (starting a new session does not invalidate the old one — both count against limits)
+- Only one active session is allowed per NIP — starting a new session invalidates any previous session for that NIP
 
 ---
 

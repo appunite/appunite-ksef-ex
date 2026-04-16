@@ -186,7 +186,7 @@ Before writing inline HTML in a LiveView template, check `CoreComponents` first.
 
 ## Testing
 
-We follow TDD (red-green-refactor). Tests use ExUnit with `async: true`, ExMachina for test data factories, and Mox for mocking external services. For test structure, factory patterns, Mox setup, and fixture conventions, see @docs/tests.md.
+We follow TDD (red-green-refactor). Prefer using ExUnit with `async: true` when safe (avoid for DB or integration tests that share resources), ExMachina for test data factories, and Mox for mocking external services. For test structure, factory patterns, Mox setup, and fixture conventions, see @docs/tests.md.
 
 ## Project Conventions
 

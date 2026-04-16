@@ -56,7 +56,7 @@ Read only the ADR(s) relevant to your task — the summaries below tell you whic
 | 0001-use-elixir-phoenix.md | Use Elixir/OTP with Phoenix | Accepted | Elixir 1.16+, Phoenix 1.8 + LiveView, Ecto, PostgreSQL, Oban |
 | 0002-ksef-xades-auth.md | KSeF Authentication via XADES Signing | Accepted | xmlsec1 CLI for XADES envelope signing with secure temp files |
 | 0003-incremental-sync-oban.md | Incremental Invoice Sync with Oban | Accepted | Oban cron for 15-min KSeF sync with per-type checkpoints and rate limiting |
-| 0004-pdf-generation-xsltproc.md | PDF Generation via xsltproc + Gotenberg | Superseded by 0015 | Two-stage: xsltproc (XML→HTML) + Gotenberg (HTML→PDF) |
+| 0004-pdf-generation-xsltproc.md | PDF Generation via xsltproc + Gotenberg | Superseded by 0015-ksef-pdf-microservice.md | Two-stage: xsltproc (XML→HTML) + Gotenberg (HTML→PDF) |
 | 0005-supabase-database.md | PostgreSQL on Supabase | Accepted | Supabase-managed Postgres with binary UUIDs, Oban jobs table |
 | 0006-api-token-hashed-bearer.md | Hashed Bearer API Tokens | Accepted | SHA-256 hashed 32-byte tokens with prefix, soft-delete revocation |
 | 0007-unified-invoice-api.md | Unified Invoice Model and API | Accepted | Single `invoices` table with `type` discriminator; status only meaningful for expenses |
@@ -74,7 +74,7 @@ Read only the ADR(s) relevant to your task — the summaries below tell you whic
 | 0018-manual-invoice-creation.md | Manual Invoice Creation | Accepted | `POST /api/invoices` with duplicate detection via `:suspected` flag |
 | 0019-ml-prediction-sidecar.md | ML Prediction Sidecar | Accepted | `au-payroll-model-categories` sidecar for category/tag auto-classification |
 | 0020-pdf-invoice-upload-flow.md | PDF Invoice Upload Flow | Accepted | `:pdf_upload` source with `extraction_status` tracking and PDF storage |
-| 0021-future-invoice-documents-table.md | Future Invoice Documents Table | Superseded by 0026 | Extract xml/pdf content to a separate `invoice_documents` table |
+| 0021-future-invoice-documents-table.md | Future Invoice Documents Table | Superseded by 0026-generic-files-table.md | Extract xml/pdf content to a separate `invoice_documents` table |
 | 0023-ecto-enum-for-string-enums.md | Ecto.Enum for String Enums | Accepted | Replace bare string enums with `Ecto.Enum` atoms for type safety |
 | 0024-tech-debt-invoice-creation-and-client-tests.md | Tech Debt: Invoice Creation Pattern | Implemented | Deduplicate create-then-retry-as-duplicate pattern across context functions |
 | 0025-inbound-email-invoice-processing.md | Inbound Email Invoice Processing | Accepted | Mailgun inbound routes for per-company email-to-invoice with extraction |
@@ -86,7 +86,7 @@ Read only the ADR(s) relevant to your task — the summaries below tell you whic
 | 0031-track-invoice-creator.md | Track Invoice Creator | Accepted | `created_by_id` FK with creator display on detail page |
 | 0032-block-ksef-invoice-data-editing.md | Block KSeF Invoice Data Editing | Accepted | KSeF source invoice data fields immutable; only metadata editable |
 | 0032-expense-categories-typed-tags.md | Expense Categories & Typed Tags | Accepted | Categories restricted to expenses; tags have `:expense`/`:income` type |
-| 0033-billing-date-field.md | Billing Date Field | Superseded by 0034 | Single `billing_date` for accounting period assignment |
+| 0033-billing-date-field.md | Billing Date Field | Superseded by 0034-billing-date-range.md | Single `billing_date` for accounting period assignment |
 | 0034-billing-date-range.md | Billing Date Range | Accepted | `billing_date_from`/`billing_date_to` for multi-month cost allocation |
 | 0034-invoice-exclusion.md | Invoice Exclusion | Accepted | `is_excluded` boolean to hide invoices from reports without deleting |
 | 0035-invoice-access-control.md | Invoice Access Control | Accepted | `access_restricted` flag with `invoice_access_grants` join table |

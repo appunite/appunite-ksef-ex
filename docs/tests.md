@@ -91,7 +91,7 @@ stub(KsefHub.KsefClient.Mock, :fetch_invoices, fn _session, _params ->
 end)
 ```
 
-Use `expect/3` when the call must happen exactly N times. Use `stub/3` for background defaults in `setup` blocks. Mox verifies all expectations at test end automatically with `async: true`.
+Use `expect/3` when the call must happen exactly N times. Use `stub/3` for background defaults in `setup` blocks. `async: true` enables concurrent test isolation via the sandbox but does not trigger Mox verification — add `setup :verify_on_exit!` to each test module that uses `expect/3` so Mox checks expectations at test exit.
 
 ---
 

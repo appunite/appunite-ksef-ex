@@ -24,7 +24,7 @@ Do **not** write an ADR for:
 
 ## Naming Convention
 
-```
+```text
 docs/adr/NNNN-short-title.md
 ```
 
