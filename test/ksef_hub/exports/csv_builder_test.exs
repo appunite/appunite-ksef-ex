@@ -11,12 +11,12 @@ defmodule KsefHub.Exports.CsvBuilderTest do
       assert String.starts_with?(csv, <<0xEF, 0xBB, 0xBF>>)
       [header_line | _] = csv_lines(csv)
 
-      assert header_line =~ "Invoice Number,"
-      assert header_line =~ "Billing Period,"
-      assert header_line =~ "Status,"
-      assert header_line =~ "Note,"
-      assert header_line =~ "Added By,"
-      assert header_line =~ "Updated At,"
+      assert header_line =~ "Invoice Number;"
+      assert header_line =~ "Billing Period;"
+      assert header_line =~ "Status;"
+      assert header_line =~ "Note;"
+      assert header_line =~ "Added By;"
+      assert header_line =~ "Updated At;"
     end
 
     test "includes invoice data in correct columns" do
@@ -42,9 +42,15 @@ defmodule KsefHub.Exports.CsvBuilderTest do
       assert data =~ "invoice.pdf"
     end
 
-    test "escapes fields containing commas" do
+    test "does not quote fields containing only commas (semicolon is the delimiter)" do
       invoice = build_invoice(%{seller_name: "Foo, Bar & Co."})
-      assert csv_content(invoice) =~ ~s("Foo, Bar & Co.")
+      assert csv_content(invoice) =~ "Foo, Bar & Co."
+      refute csv_content(invoice) =~ ~s("Foo, Bar & Co.")
+    end
+
+    test "escapes fields containing semicolons" do
+      invoice = build_invoice(%{seller_name: "Dept; Finance"})
+      assert csv_content(invoice) =~ ~s("Dept; Finance")
     end
 
     test "escapes fields containing double quotes" do
@@ -57,9 +63,9 @@ defmodule KsefHub.Exports.CsvBuilderTest do
       assert csv_content(invoice) =~ "operations:rent"
     end
 
-    test "formats tags as semicolon-separated" do
+    test "formats tags as comma-separated" do
       invoice = build_invoice(%{tags: ["recurring", "office"]})
-      assert csv_content(invoice) =~ "recurring; office"
+      assert csv_content(invoice) =~ "recurring, office"
     end
 
     test "includes Added By from created_by user" do
@@ -181,10 +187,10 @@ defmodule KsefHub.Exports.CsvBuilderTest do
     struct!(Invoice, Map.merge(defaults, overrides))
   end
 
-  # Simple CSV row parser that handles quoted fields with commas.
+  # Simple CSV row parser that handles quoted fields with semicolons.
   @spec parse_csv_row(String.t()) :: [String.t()]
   defp parse_csv_row(row) do
-    ~r/(?:\"([^\"]*(?:\"\"[^\"]*)*)\"|([^,]*))(,|$)/
+    ~r/(?:\"([^\"]*(?:\"\"[^\"]*)*)\"|([^;]*))(;|$)/
     |> Regex.scan(row)
     |> Enum.map(fn
       [_, quoted, "", _] -> String.replace(quoted, ~s(""), ~s("))
