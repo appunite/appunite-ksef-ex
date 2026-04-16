@@ -11,7 +11,7 @@ Before making changes, read @docs/architecture.md. It contains:
 
 For any non-trivial task, scan the ADR index first and read only the ADRs whose summaries match your task. This is faster than exploring the codebase blind.
 
-After writing a new ADR, adding a feature area, or discovering a non-obvious invariant, run `/update-architecture` to keep `docs/architecture.md` in sync.
+After writing a new ADR, adding a feature area, or discovering a non-obvious invariant, run `/update-architecture` to keep `@docs/architecture.md` in sync.
 
 For tech stack, project structure, setup commands, Make targets, and environment variables, see @README.md.
 
@@ -73,7 +73,7 @@ Key files:
 - `lib/ksef_hub/activity_log/events.ex` — `emit/1` dispatch + manual helpers for non-changeset events
 - `lib/ksef_hub/activity_log/recorder.ex` — GenServer that persists events to DB
 
-For implementation pattern, Trackable code examples, and the full list of schemas/events, see `docs/adr/0042-activity-log.md`.
+For implementation pattern, Trackable code examples, and the full list of schemas/events, see `@docs/adr/0042-activity-log.md`.
 
 ### Dependency Injection with Behaviours
 
