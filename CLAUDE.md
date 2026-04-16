@@ -57,32 +57,7 @@ Invoices.confirm_duplicate(invoice, opts)
 
 ### Activity Log (Trackable + TrackedRepo)
 
-Every context mutation that affects user-visible state **must** emit an activity event. Schemas implement the `Trackable` behaviour to classify their own changesets into events. Context functions use `TrackedRepo` instead of `Repo` — no manual event names needed.
-
-```elixir
-# 1. Schema implements Trackable (defines what events its changes produce):
-@behaviour KsefHub.ActivityLog.Trackable
-
-@impl true
-def track_change(%Ecto.Changeset{action: :insert} = cs) do
-  {"invoice.created", %{source: to_string(get_field(cs, :source))}}
-end
-
-def track_change(%Ecto.Changeset{} = cs) do
-  case cs.changes do
-    %{status: new} -> {"invoice.status_changed", %{old: to_string(cs.data.status), new: to_string(new)}}
-    %{is_excluded: true} -> {"invoice.excluded", %{}}
-    _ -> {"invoice.updated", %{changed_fields: Map.keys(cs.changes)}}
-  end
-end
-
-# 2. Context function is 2-3 lines (TrackedRepo handles the rest):
-def approve_invoice(%Invoice{} = invoice, opts \\ []) do
-  invoice
-  |> Invoice.changeset(%{status: :approved})
-  |> TrackedRepo.update(opts)
-end
-```
+Every context mutation that affects user-visible state **must** emit an activity event. Schemas implement the `Trackable` behaviour; context functions use `TrackedRepo` instead of `Repo` — event emission is automatic, no manual event names needed.
 
 **When to use `Events.*` directly** (no changeset available):
 - Login/logout (session management)
@@ -97,7 +72,8 @@ Key files:
 - `lib/ksef_hub/activity_log/tracked_repo.ex` — Repo wrapper with auto event emission + no-op detection
 - `lib/ksef_hub/activity_log/events.ex` — `emit/1` dispatch + manual helpers for non-changeset events
 - `lib/ksef_hub/activity_log/recorder.ex` — GenServer that persists events to DB
-- `docs/adr/0042-activity-log.md` — architecture decision record
+
+For implementation pattern, Trackable code examples, and the full list of schemas/events, see `docs/adr/0042-activity-log.md`.
 
 ### Dependency Injection with Behaviours
 
@@ -140,6 +116,8 @@ defp ksef_client, do: Application.get_env(:ksef_hub, :ksef_client, KsefHub.KsefC
 **PDF Extraction:** Uploaded PDF (non-KSeF invoice) -> invoice-extractor sidecar -> structured JSON.
 
 **Invoice Classification (Oban, on expense creation):** New expense invoice -> ClassifierWorker -> invoice-classifier service -> auto-assign category/tags.
+
+For sidecar service integration details (endpoints, auth, request/response formats), see `docs/sidecar-services.md`.
 
 ## Code Style
 
@@ -395,6 +373,8 @@ Trade-offs and implications.
 - Encryption key: base64-decoded `CREDENTIAL_ENCRYPTION_KEY` (32 bytes), falls back to `SHA256(SECRET_KEY_BASE)`
 - Audit log on every certificate operation (upload, decrypt, use for signing)
 
+For KSeF certificate types, how to generate them, and portal usage, see `docs/ksef-certificates.md`.
+
 ### Temp file security (xmlsec1 interaction)
 
 When calling xmlsec1 for XADES signing:
@@ -445,11 +425,7 @@ end
 
 ### FA(3) XML parsing
 
-- Polish field names: `P_1` (issue date), `P_2` (sequential number), etc.
-- Maintain a clear mapping from FA(3) field codes to domain field names
-- Handle nested structures: `Podmiot1` (seller), `Podmiot2` (buyer), `Fa` (invoice data)
-- Multiple date formats: ISO8601 with and without fractional seconds
-- Test with real-world XML samples covering edge cases
+FA(3) is Poland's structured e-invoice XML format. Fields use Polish codes (`P_1` issue date, `P_2` invoice number, `P_15` gross total), parties are `Podmiot1` (seller) and `Podmiot2` (buyer), and VAT amounts are split across per-rate `P_13_X` buckets. For the full field mapping, XML structure, correction invoice fields, purchase order extraction logic, and edge cases, see `docs/fa3-xml.md`.
 
 ## Useful References
 

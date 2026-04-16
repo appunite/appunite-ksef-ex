@@ -14,6 +14,7 @@ Quick reference for developers. Before touching a feature area:
 |---------|-----------|
 | Invoice export (ZIP + CSV) | `lib/ksef_hub/exports.ex`, `exports/csv_builder.ex`, `exports/export_batch.ex`, `live/export_live/index.ex` |
 | KSeF sync | `lib/ksef_hub/sync/sync_worker.ex`, `sync/invoice_fetcher.ex`, `ksef_client/` |
+| FA(3) XML parsing | `invoices/parser.ex`, `docs/fa3-xml.md` (field mapping reference) |
 | Invoice CRUD & business logic | `lib/ksef_hub/invoices.ex` (facade) + `invoices/` sub-modules |
 | Invoice approval & auto-approval | `invoices.ex` (`approve_invoice`), `invoices/auto_approval.ex` |
 | Invoice categories & ML classification | `invoices/category.ex`, `invoice_classifier/` |
