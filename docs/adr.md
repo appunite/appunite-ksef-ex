@@ -1,0 +1,72 @@
+# Architecture Decision Records (ADRs)
+
+ADRs document significant technical decisions — what was decided, why, and what trade-offs were accepted. They are the primary mechanism for capturing architectural intent that cannot be inferred from reading the code.
+
+---
+
+## When to Write an ADR
+
+Write an ADR when:
+
+- Choosing between two or more viable technical approaches
+- Establishing a pattern that other developers will be expected to follow (e.g. how to handle X, where Y lives)
+- Making a decision with non-obvious trade-offs
+- Superseding a previous decision
+
+Do **not** write an ADR for:
+- Obvious implementation choices with no meaningful alternatives
+- Bug fixes or routine feature work that follows existing patterns
+- Changes that are fully explained by a PR description
+
+**Rule of thumb:** if a new developer would wonder "why did they do it this way?", write an ADR.
+
+---
+
+## Naming Convention
+
+```
+docs/adr/NNNN-short-title.md
+```
+
+Use the next sequential number. Titles should be lowercase, hyphen-separated, concise:
+- `0045-invoice-export-format.md`
+- `0046-rate-limit-strategy.md`
+
+---
+
+## Format
+
+```markdown
+# NNNN. Short Title
+
+Date: YYYY-MM-DD
+
+## Status
+Accepted | Superseded by NNNN
+
+## Context
+Why this decision was needed. What problem it solves. What constraints existed.
+
+## Decision
+What was decided. Be specific — this should read as a clear statement of what to do.
+
+## Consequences
+Trade-offs accepted. Known downsides. What becomes easier or harder as a result.
+```
+
+---
+
+## After Writing an ADR
+
+1. Run `/update-architecture` to add the new ADR to the index in `docs/architecture.md`
+2. Reference the ADR in relevant code comments or module docs where appropriate
+
+---
+
+## Superseding an ADR
+
+When a later decision overrides an earlier one:
+
+1. Add `## Status\nSuperseded by NNNN` to the old ADR
+2. Reference the old ADR in the new ADR's Context section
+3. Run `/update-architecture` to update both rows in the ADR index
