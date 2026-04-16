@@ -35,7 +35,7 @@ Non-obvious invariants that affect multiple features. Violating these is usually
 
 | Invariant | Source |
 |-----------|--------|
-| Income invoices always have `status: :pending` — there is no approval workflow for them | ADR-0007 |
+| Income invoices always have `expense_approval_status: :pending` — there is no approval workflow for them | ADR-0007 |
 | Categories are **expense-only** — `set_invoice_category` rejects income invoices with `{:error, :expense_only}` | ADR-0032 |
 | KSeF source invoices (`:ksef`) are never auto-approved, even expenses — auto-approval is for `:manual`, `:pdf_upload`, `:email` sources only | ADR-0041 |
 | KSeF invoice **data fields** are immutable — only metadata (category, tags, cost line, note, billing dates) is editable after sync | ADR-0032 (block-ksef-editing) |
@@ -99,3 +99,4 @@ Read only the ADR(s) relevant to your task — the summaries below tell you whic
 | 0042-activity-log.md | Activity Log System | Accepted | `Trackable` behaviour on schemas + `TrackedRepo` for automatic audit events |
 | 0043-component-driven-ui.md | Component-Driven UI | Accepted | Extract shared UI patterns (3+ occurrences) to `CoreComponents` |
 | 0044-correction-invoice-support.md | Correction Invoice Support | Accepted | `invoice_kind` enum (VAT/KOR/ZAL) with FK to corrected original |
+| 0045-rename-expense-invoice-columns.md | Rename Expense-Specific Invoice Columns | Accepted | 11 expense-only columns prefixed with `expense_`/`prediction_expense_`; breaking API change |

@@ -130,7 +130,7 @@ defmodule KsefHub.Invoices.AnalyticsTest do
         billing_date_from: ~D[2026-01-01],
         billing_date_to: ~D[2026-01-01],
         net_amount: Decimal.new("100.00"),
-        category_id: category.id
+        expense_category_id: category.id
       )
 
       insert(:invoice,
@@ -139,10 +139,10 @@ defmodule KsefHub.Invoices.AnalyticsTest do
         billing_date_from: ~D[2026-01-01],
         billing_date_to: ~D[2026-01-01],
         net_amount: Decimal.new("200.00"),
-        category_id: nil
+        expense_category_id: nil
       )
 
-      result = Invoices.expense_monthly_totals(company.id, %{category_id: category.id})
+      result = Invoices.expense_monthly_totals(company.id, %{expense_category_id: category.id})
       assert [row] = result
       assert Decimal.equal?(row.net_total, Decimal.new("100.00"))
     end
@@ -216,7 +216,7 @@ defmodule KsefHub.Invoices.AnalyticsTest do
         billing_date_from: ~D[2026-01-01],
         billing_date_to: ~D[2026-01-01],
         net_amount: Decimal.new("500.00"),
-        category_id: cat1.id
+        expense_category_id: cat1.id
       )
 
       insert(:invoice,
@@ -225,7 +225,7 @@ defmodule KsefHub.Invoices.AnalyticsTest do
         billing_date_from: ~D[2026-01-01],
         billing_date_to: ~D[2026-01-01],
         net_amount: Decimal.new("300.00"),
-        category_id: cat2.id
+        expense_category_id: cat2.id
       )
 
       result = Invoices.expense_by_category(company.id)
@@ -242,7 +242,7 @@ defmodule KsefHub.Invoices.AnalyticsTest do
         billing_date_from: ~D[2026-01-01],
         billing_date_to: ~D[2026-01-01],
         net_amount: Decimal.new("100.00"),
-        category_id: nil
+        expense_category_id: nil
       )
 
       result = Invoices.expense_by_category(company.id)
@@ -260,7 +260,7 @@ defmodule KsefHub.Invoices.AnalyticsTest do
         billing_date_from: ~D[2026-01-01],
         billing_date_to: ~D[2026-01-01],
         net_amount: Decimal.new("100.00"),
-        category_id: cat.id
+        expense_category_id: cat.id
       )
 
       insert(:invoice,
@@ -269,7 +269,7 @@ defmodule KsefHub.Invoices.AnalyticsTest do
         billing_date_from: ~D[2026-03-01],
         billing_date_to: ~D[2026-03-01],
         net_amount: Decimal.new("200.00"),
-        category_id: cat.id
+        expense_category_id: cat.id
       )
 
       result =
@@ -290,7 +290,7 @@ defmodule KsefHub.Invoices.AnalyticsTest do
         billing_date_from: ~D[2026-01-01],
         billing_date_to: ~D[2026-01-01],
         net_amount: Decimal.new("250.00"),
-        category_id: cat.id,
+        expense_category_id: cat.id,
         tags: ["alpha", "beta"]
       )
 
@@ -308,7 +308,7 @@ defmodule KsefHub.Invoices.AnalyticsTest do
         billing_date_from: ~D[2026-01-01],
         billing_date_to: ~D[2026-03-01],
         net_amount: Decimal.new("300.00"),
-        category_id: cat.id
+        expense_category_id: cat.id
       )
 
       result = Invoices.expense_by_category(company.id)

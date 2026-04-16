@@ -126,7 +126,7 @@ defmodule KsefHub.Invoices.Classification do
     merged_meta = Map.merge(existing_meta, %{old_name: old_name, new_name: nil})
 
     invoice
-    |> Invoice.category_changeset(%{category_id: nil})
+    |> Invoice.category_changeset(%{expense_category_id: nil})
     |> TrackedRepo.update(Keyword.put(opts, :metadata, merged_meta))
   end
 
@@ -165,7 +165,7 @@ defmodule KsefHub.Invoices.Classification do
 
   def set_invoice_cost_line(%Invoice{} = invoice, cost_line, opts) do
     invoice
-    |> Invoice.category_changeset(%{cost_line: cost_line})
+    |> Invoice.category_changeset(%{expense_cost_line: cost_line})
     |> TrackedRepo.update(opts)
   end
 
@@ -274,7 +274,7 @@ defmodule KsefHub.Invoices.Classification do
   @spec current_category_name(Invoice.t()) :: String.t() | nil
   defp current_category_name(%Invoice{category: %Category{name: name}}), do: name
 
-  defp current_category_name(%Invoice{category_id: id} = invoice) when is_binary(id) do
+  defp current_category_name(%Invoice{expense_category_id: id} = invoice) when is_binary(id) do
     if Ecto.assoc_loaded?(invoice.category) do
       # Association was loaded but didn't match %Category{} above — category was cleared/nil.
       nil
@@ -287,10 +287,10 @@ defmodule KsefHub.Invoices.Classification do
 
   @spec build_category_attrs(Ecto.UUID.t(), Category.t()) :: map()
   defp build_category_attrs(category_id, category) do
-    attrs = %{category_id: category_id}
+    attrs = %{expense_category_id: category_id}
 
     if category.default_cost_line,
-      do: Map.put(attrs, :cost_line, category.default_cost_line),
+      do: Map.put(attrs, :expense_cost_line, category.default_cost_line),
       else: attrs
   end
 

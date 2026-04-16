@@ -151,14 +151,14 @@ defmodule KsefHub.InvoiceClassifier do
 
     %{
       prediction_status: status,
-      prediction_category_name: cat_result["predicted_label"],
-      prediction_tag_name: tag_result["predicted_label"],
-      prediction_category_confidence: cat_result["confidence"] || 0.0,
-      prediction_tag_confidence: tag_result["confidence"] || 0.0,
-      prediction_category_model_version: cat_result["model_version"],
-      prediction_tag_model_version: tag_result["model_version"],
-      prediction_category_probabilities: cat_result["probabilities"],
-      prediction_tag_probabilities: tag_result["probabilities"],
+      prediction_expense_category_name: cat_result["predicted_label"],
+      prediction_expense_tag_name: tag_result["predicted_label"],
+      prediction_expense_category_confidence: cat_result["confidence"] || 0.0,
+      prediction_expense_tag_confidence: tag_result["confidence"] || 0.0,
+      prediction_expense_category_model_version: cat_result["model_version"],
+      prediction_expense_tag_model_version: tag_result["model_version"],
+      prediction_expense_category_probabilities: cat_result["probabilities"],
+      prediction_expense_tag_probabilities: tag_result["probabilities"],
       prediction_predicted_at: DateTime.utc_now() |> DateTime.truncate(:microsecond)
     }
   end

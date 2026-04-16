@@ -189,12 +189,12 @@ defmodule KsefHub.Invoices.CategoriesTest do
     test "nilifies category_id on associated invoices" do
       company = insert(:company)
       category = insert(:category, company: company)
-      invoice = insert(:invoice, company: company, category_id: category.id)
+      invoice = insert(:invoice, company: company, expense_category_id: category.id)
 
       assert {:ok, _} = Invoices.delete_category(category)
 
       updated = KsefHub.Repo.get!(KsefHub.Invoices.Invoice, invoice.id)
-      assert is_nil(updated.category_id)
+      assert is_nil(updated.expense_category_id)
     end
   end
 end

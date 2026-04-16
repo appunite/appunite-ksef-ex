@@ -18,9 +18,9 @@ defmodule KsefHub.ActivityLog.Trackable do
           old = changeset.data
 
           cond do
-            Map.has_key?(changes, :status) ->
+            Map.has_key?(changes, :expense_approval_status) ->
               {"invoice.status_changed",
-               %{old_status: to_string(old.status), new_status: to_string(changes.status)}}
+               %{old_status: to_string(old.expense_approval_status), new_status: to_string(changes.expense_approval_status)}}
 
             Map.has_key?(changes, :is_excluded) ->
               action = if changes.is_excluded, do: "invoice.excluded", else: "invoice.included"

@@ -280,7 +280,7 @@ defmodule KsefHubWeb.InvoiceLive.IndexTest do
       insert(:invoice, company: company, type: :expense, seller_name: "Uncategorized Seller")
 
       {:ok, view, _html} =
-        live(conn, ~p"/c/#{company.id}/invoices?category_ids=#{category.id}")
+        live(conn, ~p"/c/#{company.id}/invoices?expense_category_ids=#{category.id}")
 
       html = render(view)
       assert html =~ "Categorized Seller"
@@ -310,21 +310,21 @@ defmodule KsefHubWeb.InvoiceLive.IndexTest do
         company: company,
         type: :expense,
         seller_name: "Pending Seller",
-        status: :pending
+        expense_approval_status: :pending
       )
 
       insert(:invoice,
         company: company,
         type: :expense,
         seller_name: "Approved Seller",
-        status: :approved
+        expense_approval_status: :approved
       )
 
       insert(:invoice,
         company: company,
         type: :expense,
         seller_name: "Rejected Seller",
-        status: :rejected
+        expense_approval_status: :rejected
       )
 
       {:ok, view, _html} =

@@ -140,7 +140,7 @@ defmodule KsefHub.Factory do
       net_amount: Decimal.new("1000.00"),
       gross_amount: Decimal.new("1230.00"),
       currency: "PLN",
-      status: :pending,
+      expense_approval_status: :pending,
       company: build(:company)
     }
   end
@@ -168,7 +168,7 @@ defmodule KsefHub.Factory do
       net_amount: Decimal.new("-500.00"),
       gross_amount: Decimal.new("-615.00"),
       currency: "PLN",
-      status: :pending,
+      expense_approval_status: :pending,
       corrected_invoice_number: "FV/2026/001",
       corrected_invoice_ksef_number: "7831812112-20260407-5B69FA00002B-9D",
       corrected_invoice_date: ~D[2026-04-02],
@@ -195,7 +195,7 @@ defmodule KsefHub.Factory do
       net_amount: Decimal.new("2000.00"),
       gross_amount: Decimal.new("2460.00"),
       currency: "PLN",
-      status: :pending,
+      expense_approval_status: :pending,
       company: build(:company)
     }
   end
@@ -217,7 +217,7 @@ defmodule KsefHub.Factory do
       net_amount: Decimal.new("1000.00"),
       gross_amount: Decimal.new("1230.00"),
       currency: "PLN",
-      status: :pending,
+      expense_approval_status: :pending,
       pdf_file:
         build(:file,
           content: "%PDF-1.4 fake content",

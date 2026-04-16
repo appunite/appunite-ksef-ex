@@ -88,9 +88,9 @@ defmodule KsefHubWeb.InvoiceLive.Classify do
        categories: categories,
        grouped_categories: grouped,
        all_tags: all_tags,
-       selected_category_id: invoice.category_id,
+       selected_category_id: invoice.expense_category_id,
        selected_tags: current_tags,
-       selected_cost_line: invoice.cost_line,
+       selected_cost_line: invoice.expense_cost_line,
        selected_project_tag: invoice.project_tag,
        project_tags: project_tags,
        category_cost_line_map: category_cost_line_map,
@@ -104,7 +104,7 @@ defmodule KsefHubWeb.InvoiceLive.Classify do
        show_all_project_tags: false,
        category_confidence_threshold: InvoiceClassifier.category_confidence_threshold(),
        tag_confidence_threshold: InvoiceClassifier.tag_confidence_threshold(),
-       expanded_group: expanded_group_for(invoice.category_id, categories)
+       expanded_group: expanded_group_for(invoice.expense_category_id, categories)
      )}
   end
 
@@ -143,7 +143,7 @@ defmodule KsefHubWeb.InvoiceLive.Classify do
     {:noreply, assign(socket, :expanded_group, if(current == group, do: nil, else: group))}
   end
 
-  def handle_event("select_cost_line", %{"cost_line" => value}, socket) do
+  def handle_event("select_cost_line", %{"expense_cost_line" => value}, socket) do
     if socket.assigns.can_set_category do
       case CostLine.cast(value) do
         {:ok, cost_line} -> {:noreply, assign(socket, :selected_cost_line, cost_line)}
@@ -436,7 +436,7 @@ defmodule KsefHubWeb.InvoiceLive.Classify do
         <.prediction_hint
           predicted_at={@invoice.prediction_predicted_at}
           status={@invoice.prediction_status}
-          confidence={@invoice.prediction_category_confidence}
+          confidence={@invoice.prediction_expense_category_confidence}
           threshold={@category_confidence_threshold}
           label="category"
           testid="prediction-category-hint"
@@ -451,7 +451,7 @@ defmodule KsefHubWeb.InvoiceLive.Classify do
         </p>
         <form phx-change="select_cost_line">
           <select
-            name="cost_line"
+            name="expense_cost_line"
             class="h-9 w-full rounded-md border border-input bg-background px-3 text-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
             data-testid="cost-line-select"
           >
@@ -503,7 +503,7 @@ defmodule KsefHubWeb.InvoiceLive.Classify do
         <.prediction_hint
           predicted_at={@invoice.prediction_predicted_at}
           status={@invoice.prediction_status}
-          confidence={@invoice.prediction_tag_confidence}
+          confidence={@invoice.prediction_expense_tag_confidence}
           threshold={@tag_confidence_threshold}
           label="tag"
           testid="prediction-tag-hint"

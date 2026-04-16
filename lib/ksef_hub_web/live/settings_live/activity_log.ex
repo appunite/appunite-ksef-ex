@@ -254,7 +254,12 @@ defmodule KsefHubWeb.SettingsLive.ActivityLog do
   end
 
   defp describe_dynamic_action("invoice.classification_changed", metadata) do
-    field = metadata["field"] || "classification"
+    field =
+      case metadata["field"] do
+        # "expense_cost_line" kept for backward compat with historical activity log records
+        f when f in ["cost_line", "expense_cost_line"] -> "cost line"
+        other -> other || "classification"
+      end
 
     case {metadata["old_name"], metadata["new_name"]} do
       {old, new} when is_binary(old) and is_binary(new) ->
@@ -430,7 +435,8 @@ defmodule KsefHubWeb.SettingsLive.ActivityLog do
         new_tags = meta["new_value"] || []
         format_tag_change(old_tags, new_tags)
 
-      "cost_line" ->
+      # "cost_line" kept for backward compatibility with historical activity log records
+      field when field in ["cost_line", "expense_cost_line"] ->
         format_value_change(meta["old_value"], meta["new_value"])
 
       "project_tag" ->

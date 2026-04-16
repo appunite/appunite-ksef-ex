@@ -526,7 +526,7 @@ defmodule KsefHub.Invoices do
 
   def approve_invoice(%Invoice{type: :expense} = invoice, opts) do
     invoice
-    |> Invoice.changeset(%{status: :approved})
+    |> Invoice.changeset(%{expense_approval_status: :approved})
     |> TrackedRepo.update(opts)
   end
 
@@ -565,7 +565,7 @@ defmodule KsefHub.Invoices do
 
   def reject_invoice(%Invoice{type: :expense} = invoice, opts) do
     invoice
-    |> Invoice.changeset(%{status: :rejected})
+    |> Invoice.changeset(%{expense_approval_status: :rejected})
     |> TrackedRepo.update(opts)
   end
 
@@ -583,7 +583,7 @@ defmodule KsefHub.Invoices do
           | {:error, {:invalid_type, Invoice.invoice_type()}}
   def reset_invoice_status(invoice, opts \\ [])
 
-  def reset_invoice_status(%Invoice{type: :expense, status: :pending}, _opts) do
+  def reset_invoice_status(%Invoice{type: :expense, expense_approval_status: :pending}, _opts) do
     {:error, :already_pending}
   end
 
@@ -593,7 +593,7 @@ defmodule KsefHub.Invoices do
 
   def reset_invoice_status(%Invoice{type: :expense} = invoice, opts) do
     invoice
-    |> Invoice.changeset(%{status: :pending})
+    |> Invoice.changeset(%{expense_approval_status: :pending})
     |> TrackedRepo.update(opts)
   end
 

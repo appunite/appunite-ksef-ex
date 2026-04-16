@@ -49,11 +49,11 @@ defmodule KsefHub.Invoices.Queries do
       {:type, type}, q when type in [:income, :expense] ->
         where(q, [i], i.type == ^type)
 
-      {:status, status}, q when status in [:pending, :approved, :rejected] ->
-        where(q, [i], i.status == ^status)
+      {:expense_approval_status, status}, q when status in [:pending, :approved, :rejected] ->
+        where(q, [i], i.expense_approval_status == ^status)
 
-      {:category_ids, ids}, q when is_list(ids) and ids != [] ->
-        where(q, [i], i.category_id in ^ids)
+      {:expense_category_ids, ids}, q when is_list(ids) and ids != [] ->
+        where(q, [i], i.expense_category_id in ^ids)
 
       {:payment_statuses, ps}, q when is_list(ps) and ps != [] ->
         apply_payment_status_filter(q, ps)
@@ -82,8 +82,8 @@ defmodule KsefHub.Invoices.Queries do
       {:source, source}, q when source in [:ksef, :manual, :pdf_upload, :email] ->
         where(q, [i], i.source == ^source)
 
-      {:category_id, category_id}, q when is_binary(category_id) and category_id != "" ->
-        where(q, [i], i.category_id == ^category_id)
+      {:expense_category_id, category_id}, q when is_binary(category_id) and category_id != "" ->
+        where(q, [i], i.expense_category_id == ^category_id)
 
       {:tags, tags}, q when is_list(tags) and tags != [] ->
         where(q, [i], fragment("? && ?", i.tags, ^tags))
@@ -136,10 +136,14 @@ defmodule KsefHub.Invoices.Queries do
         where(query, [i], i.duplicate_status == :confirmed)
 
       {_, true} ->
-        where(query, [i], i.status in ^real_statuses or i.duplicate_status == :confirmed)
+        where(
+          query,
+          [i],
+          i.expense_approval_status in ^real_statuses or i.duplicate_status == :confirmed
+        )
 
       {[_ | _], false} ->
-        where(query, [i], i.status in ^real_statuses)
+        where(query, [i], i.expense_approval_status in ^real_statuses)
 
       _ ->
         query

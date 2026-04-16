@@ -156,7 +156,7 @@ defmodule KsefHub.Exports.CsvBuilderTest do
       issue_date: ~D[2026-01-15],
       type: :expense,
       source: :ksef,
-      status: :approved,
+      expense_approval_status: :approved,
       seller_nip: "1234567890",
       seller_name: "Seller Corp",
       buyer_nip: "0987654321",

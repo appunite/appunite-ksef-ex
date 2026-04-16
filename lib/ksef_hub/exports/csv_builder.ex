@@ -59,7 +59,7 @@ defmodule KsefHub.Exports.CsvBuilder do
       format_date(invoice.due_date),
       format_billing_period(invoice.billing_date_from, invoice.billing_date_to),
       s(invoice.type),
-      s(invoice.status),
+      s(invoice.expense_approval_status),
       s(invoice.source),
       s(invoice.seller_nip),
       s(invoice.seller_name),

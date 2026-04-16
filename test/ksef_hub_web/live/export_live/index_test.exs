@@ -103,14 +103,14 @@ defmodule KsefHubWeb.ExportLive.IndexTest do
         company: company,
         issue_date: ~D[2026-01-15],
         type: :expense,
-        status: :approved
+        expense_approval_status: :approved
       )
 
       insert(:invoice,
         company: company,
         issue_date: ~D[2026-01-20],
         type: :expense,
-        status: :approved
+        expense_approval_status: :approved
       )
 
       {:ok, view, _html} = live(conn, ~p"/c/#{company.id}/settings/exports")
@@ -132,7 +132,7 @@ defmodule KsefHubWeb.ExportLive.IndexTest do
         company: company,
         issue_date: ~D[2026-01-15],
         type: :expense,
-        status: :approved
+        expense_approval_status: :approved
       )
 
       {:ok, view, _html} = live(conn, ~p"/c/#{company.id}/settings/exports")
@@ -238,7 +238,7 @@ defmodule KsefHubWeb.ExportLive.IndexTest do
         company: company,
         issue_date: ~D[2026-01-15],
         type: :expense,
-        status: :approved
+        expense_approval_status: :approved
       )
 
       {:ok, view, _html} = live(conn, ~p"/c/#{company.id}/settings/exports")

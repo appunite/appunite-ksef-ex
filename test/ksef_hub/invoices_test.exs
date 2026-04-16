@@ -28,7 +28,7 @@ defmodule KsefHub.InvoicesTest do
       assert {:ok, %Invoice{} = invoice} = Invoices.create_invoice(attrs)
       assert invoice.ksef_number == "1234567890-20250101-ABC123-01"
       assert invoice.type == :income
-      assert invoice.status == :pending
+      assert invoice.expense_approval_status == :pending
       assert invoice.currency == "PLN"
       assert invoice.company_id == company.id
     end
@@ -255,12 +255,12 @@ defmodule KsefHub.InvoicesTest do
           company: company,
           type: :expense,
           prediction_status: :predicted,
-          prediction_category_name: "finance:invoices",
-          prediction_category_confidence: 0.92,
-          prediction_tag_name: "monthly",
-          prediction_tag_confidence: 0.85,
-          prediction_category_model_version: "v1.0",
-          prediction_tag_model_version: "v1.0",
+          prediction_expense_category_name: "finance:invoices",
+          prediction_expense_category_confidence: 0.92,
+          prediction_expense_tag_name: "monthly",
+          prediction_expense_tag_confidence: 0.85,
+          prediction_expense_category_model_version: "v1.0",
+          prediction_expense_tag_model_version: "v1.0",
           inserted_at: NaiveDateTime.add(NaiveDateTime.utc_now(), -60)
         )
 
@@ -274,13 +274,14 @@ defmodule KsefHub.InvoicesTest do
       assert updated.id == original.id
       assert updated.seller_name == "Updated Seller"
       assert updated.prediction_status == :predicted
-      assert updated.prediction_category_name == "finance:invoices"
-      assert updated.prediction_category_confidence == 0.92
+      assert updated.prediction_expense_category_name == "finance:invoices"
+      assert updated.prediction_expense_category_confidence == 0.92
 
-      assert updated.prediction_category_model_version ==
-               original.prediction_category_model_version
+      assert updated.prediction_expense_category_model_version ==
+               original.prediction_expense_category_model_version
 
-      assert updated.prediction_tag_model_version == original.prediction_tag_model_version
+      assert updated.prediction_expense_tag_model_version ==
+               original.prediction_expense_tag_model_version
     end
   end
 
@@ -305,17 +306,19 @@ defmodule KsefHub.InvoicesTest do
       inv = insert(:invoice, type: :expense, company: company)
       Invoices.approve_invoice(inv)
 
-      assert [%{status: :approved}] = Invoices.list_invoices(company.id, %{status: :approved})
-      assert [] = Invoices.list_invoices(company.id, %{status: :rejected})
+      assert [%{expense_approval_status: :approved}] =
+               Invoices.list_invoices(company.id, %{expense_approval_status: :approved})
+
+      assert [] = Invoices.list_invoices(company.id, %{expense_approval_status: :rejected})
     end
 
     test "excludes confirmed duplicates by default", %{company: company} do
-      insert(:invoice, type: :expense, company: company, status: :approved)
+      insert(:invoice, type: :expense, company: company, expense_approval_status: :approved)
 
       insert(:invoice,
         type: :expense,
         company: company,
-        status: :approved,
+        expense_approval_status: :approved,
         duplicate_status: :confirmed
       )
 
@@ -325,12 +328,12 @@ defmodule KsefHub.InvoicesTest do
     end
 
     test "includes confirmed duplicates when duplicate filter is selected", %{company: company} do
-      insert(:invoice, type: :expense, company: company, status: :approved)
+      insert(:invoice, type: :expense, company: company, expense_approval_status: :approved)
 
       insert(:invoice,
         type: :expense,
         company: company,
-        status: :approved,
+        expense_approval_status: :approved,
         duplicate_status: :confirmed
       )
 
@@ -339,12 +342,12 @@ defmodule KsefHub.InvoicesTest do
     end
 
     test "shows only duplicates when only duplicate filter is selected", %{company: company} do
-      insert(:invoice, type: :expense, company: company, status: :approved)
+      insert(:invoice, type: :expense, company: company, expense_approval_status: :approved)
 
       insert(:invoice,
         type: :expense,
         company: company,
-        status: :approved,
+        expense_approval_status: :approved,
         duplicate_status: :confirmed
       )
 
@@ -580,7 +583,7 @@ defmodule KsefHub.InvoicesTest do
   describe "approve_invoice/1" do
     test "approves an expense invoice", %{company: company} do
       inv = insert(:invoice, type: :expense, company: company)
-      assert {:ok, %Invoice{status: :approved}} = Invoices.approve_invoice(inv)
+      assert {:ok, %Invoice{expense_approval_status: :approved}} = Invoices.approve_invoice(inv)
     end
 
     test "rejects approving an income invoice", %{company: company} do
@@ -592,7 +595,7 @@ defmodule KsefHub.InvoicesTest do
   describe "reject_invoice/1" do
     test "rejects an expense invoice", %{company: company} do
       inv = insert(:invoice, type: :expense, company: company)
-      assert {:ok, %Invoice{status: :rejected}} = Invoices.reject_invoice(inv)
+      assert {:ok, %Invoice{expense_approval_status: :rejected}} = Invoices.reject_invoice(inv)
     end
 
     test "rejects rejecting an income invoice", %{company: company} do
@@ -603,17 +606,21 @@ defmodule KsefHub.InvoicesTest do
 
   describe "reset_invoice_status/1" do
     test "resets approved expense invoice to pending", %{company: company} do
-      inv = insert(:invoice, type: :expense, status: :approved, company: company)
-      assert {:ok, %Invoice{status: :pending}} = Invoices.reset_invoice_status(inv)
+      inv = insert(:invoice, type: :expense, expense_approval_status: :approved, company: company)
+
+      assert {:ok, %Invoice{expense_approval_status: :pending}} =
+               Invoices.reset_invoice_status(inv)
     end
 
     test "resets rejected expense invoice to pending", %{company: company} do
-      inv = insert(:invoice, type: :expense, status: :rejected, company: company)
-      assert {:ok, %Invoice{status: :pending}} = Invoices.reset_invoice_status(inv)
+      inv = insert(:invoice, type: :expense, expense_approval_status: :rejected, company: company)
+
+      assert {:ok, %Invoice{expense_approval_status: :pending}} =
+               Invoices.reset_invoice_status(inv)
     end
 
     test "returns error for already pending invoice", %{company: company} do
-      inv = insert(:invoice, type: :expense, status: :pending, company: company)
+      inv = insert(:invoice, type: :expense, expense_approval_status: :pending, company: company)
       assert {:error, :already_pending} = Invoices.reset_invoice_status(inv)
     end
 
@@ -1639,7 +1646,8 @@ defmodule KsefHub.InvoicesTest do
           extraction_status: :complete
         )
 
-      assert {:ok, %Invoice{status: :approved}} = Invoices.approve_invoice(invoice)
+      assert {:ok, %Invoice{expense_approval_status: :approved}} =
+               Invoices.approve_invoice(invoice)
     end
 
     test "rejects approval of failed-extraction invoice", %{company: company} do
@@ -1656,7 +1664,8 @@ defmodule KsefHub.InvoicesTest do
     test "allows approval of invoice with nil extraction_status", %{company: company} do
       invoice = insert(:invoice, company: company, type: :expense, extraction_status: nil)
 
-      assert {:ok, %Invoice{status: :approved}} = Invoices.approve_invoice(invoice)
+      assert {:ok, %Invoice{expense_approval_status: :approved}} =
+               Invoices.approve_invoice(invoice)
     end
   end
 
@@ -1992,7 +2001,7 @@ defmodule KsefHub.InvoicesTest do
       attrs = params_for(:manual_invoice)
 
       assert {:ok, invoice} = Invoices.create_manual_invoice(company.id, attrs)
-      assert invoice.status == :approved
+      assert invoice.expense_approval_status == :approved
     end
 
     test "leaves manual invoice as pending when company setting is disabled", %{
@@ -2001,7 +2010,7 @@ defmodule KsefHub.InvoicesTest do
       attrs = params_for(:manual_invoice)
 
       assert {:ok, invoice} = Invoices.create_manual_invoice(company.id, attrs)
-      assert invoice.status == :pending
+      assert invoice.expense_approval_status == :pending
     end
 
     test "auto-approves email invoice when sender is a company member", %{company: company} do
@@ -2030,7 +2039,7 @@ defmodule KsefHub.InvoicesTest do
                  sender_email: "member@appunite.com"
                )
 
-      assert invoice.status == :approved
+      assert invoice.expense_approval_status == :approved
     end
 
     test "leaves email invoice as pending when sender is not a company member", %{
@@ -2057,7 +2066,7 @@ defmodule KsefHub.InvoicesTest do
                  sender_email: "stranger@example.com"
                )
 
-      assert invoice.status == :pending
+      assert invoice.expense_approval_status == :pending
     end
 
     test "does not auto-approve KSeF invoices even when setting is enabled", %{company: company} do
@@ -2074,7 +2083,7 @@ defmodule KsefHub.InvoicesTest do
         |> Map.put(:xml_content, @sample_xml)
 
       assert {:ok, invoice, :inserted} = Invoices.upsert_invoice(attrs)
-      assert invoice.status == :pending
+      assert invoice.expense_approval_status == :pending
     end
   end
 
