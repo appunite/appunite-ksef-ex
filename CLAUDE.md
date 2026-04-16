@@ -1,8 +1,8 @@
 # KSeF Hub
 
-Dedicated service for Poland's National e-Invoice System (KSeF). Owns all KSeF complexity — certificate authentication, XADES signing, FA(3) XML parsing, invoice sync, PDF generation — and exposes clean REST APIs for any consumer application.
+Multi-tenant service for Poland's KSeF (National e-Invoice System). Owns certificate authentication, XADES signing, FA(3) XML parsing, incremental invoice sync, PDF generation, and ML-based categorisation for multiple companies — exposing clean REST APIs and a LiveView admin UI.
 
-See @docs/prd.md for full product requirements.
+Two invoice types drive most of the domain logic: **income** (issued by the company, synced read-only from KSeF, no approval workflow) and **expense** (received invoices, arriving via KSeF sync, PDF upload, or inbound email, with approval workflow and ML auto-classification).
 
 Before making changes, read @docs/architecture.md. It contains:
 - **Feature → Files Map** — which files to look at for each feature area
