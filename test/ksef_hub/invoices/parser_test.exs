@@ -495,10 +495,12 @@ defmodule KsefHub.Invoices.ParserTest do
             <RachunekBankowy>
               <NrRB>PL11111111111111111111111111</NrRB>
               <SWIFT>FIRSTBIC</SWIFT>
+              <NazwaBanku>FirstBank</NazwaBanku>
             </RachunekBankowy>
             <RachunekBankowy>
               <NrRB>PL22222222222222222222222222</NrRB>
               <SWIFT>SECONDBIC</SWIFT>
+              <NazwaBanku>SecondBank</NazwaBanku>
             </RachunekBankowy>
           </Platnosc>
           <Adnotacje><P_16>2</P_16><P_17>2</P_17><P_18>2</P_18><P_18A>2</P_18A><Zwolnienie><P_19N>1</P_19N></Zwolnienie><NoweSrodkiTransportu><P_22N>1</P_22N></NoweSrodkiTransportu><P_23>2</P_23><PMarzy><P_PMarzyN>1</P_PMarzyN></PMarzy></Adnotacje>
@@ -510,6 +512,7 @@ defmodule KsefHub.Invoices.ParserTest do
       assert {:ok, invoice} = Parser.parse(xml)
       assert invoice.iban == "PL11111111111111111111111111"
       assert invoice.swift_bic == "FIRSTBIC"
+      assert invoice.bank_name == "FirstBank"
     end
 
     test "extracts correction invoice fields from KOR invoice" do

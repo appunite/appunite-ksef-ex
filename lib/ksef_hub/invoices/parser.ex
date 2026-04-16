@@ -17,6 +17,7 @@ defmodule KsefHub.Invoices.Parser do
   @spec parse(String.t()) :: {:ok, map()} | {:error, term()}
   def parse(xml_string) when is_binary(xml_string) do
     doc = SweetXml.parse(xml_string, namespace_conformant: true, quiet: true)
+    bank_node = xpath(doc, ~x"//*[local-name()='Platnosc']/*[local-name()='RachunekBankowy'][1]"o)
 
     {:ok,
      %{
@@ -50,9 +51,9 @@ defmodule KsefHub.Invoices.Parser do
        gross_amount: xpath(doc, ~x"//*[local-name()='P_15']/text()"s) |> parse_decimal(),
        currency: xpath(doc, ~x"//*[local-name()='KodWaluty']/text()"s) |> default_currency(),
        purchase_order: extract_purchase_order(doc),
-       iban: extract_bank_field(doc, "NrRB"),
-       swift_bic: extract_bank_field(doc, "SWIFT"),
-       bank_name: extract_bank_field(doc, "NazwaBanku"),
+       iban: extract_bank_field(bank_node, "NrRB"),
+       swift_bic: extract_bank_field(bank_node, "SWIFT"),
+       bank_name: extract_bank_field(bank_node, "NazwaBanku"),
        seller_address: extract_address(doc, "Podmiot1"),
        buyer_address: extract_address(doc, "Podmiot2"),
        line_items: parse_line_items(doc),
@@ -103,18 +104,14 @@ defmodule KsefHub.Invoices.Parser do
 
   # --- Private ---
 
-  # Extracts a named field from the first RachunekBankowy inside Platnosc.
-  # All three bank fields (NrRB, SWIFT, NazwaBanku) share the same parent path,
-  # so a single helper avoids duplicating the traversal logic.
-  @spec extract_bank_field(term(), String.t()) :: String.t() | nil
-  defp extract_bank_field(doc, field_name) do
-    case xpath(doc, ~x"//*[local-name()='Platnosc']/*[local-name()='RachunekBankowy'][1]"o) do
-      nil ->
-        nil
+  # Extracts a named field from a pre-resolved RachunekBankowy node.
+  # The caller resolves the node once and passes it here for all three bank fields
+  # (NrRB, SWIFT, NazwaBanku), avoiding repeated traversal to the same node.
+  @spec extract_bank_field(term() | nil, String.t()) :: String.t() | nil
+  defp extract_bank_field(nil, _field_name), do: nil
 
-      node ->
-        xpath(node, ~x"./*[local-name()='#{field_name}']/text()"s) |> presence()
-    end
+  defp extract_bank_field(node, field_name) do
+    xpath(node, ~x"./*[local-name()='#{field_name}']/text()"s) |> presence()
   end
 
   @spec presence(String.t()) :: String.t() | nil

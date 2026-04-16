@@ -54,7 +54,7 @@ Both seller (`Podmiot1`) and buyer (`Podmiot2`) share the same structure:
 | `NrZamowienia` | `purchase_order` | `String` | Purchase order number (source 1 of 3) |
 | `Platnosc/TerminPlatnosci[1]/Termin` | `due_date` | `Date` | Payment due date (first entry only) |
 | `Platnosc/RachunekBankowy[1]/NrRB` | `iban` | `String` | IBAN of first bank account |
-| `Platnosc/RachunekBankowy[1]/SWIFT` | `swift_bic` | `String` | SWIFT/BIC code of first bank account |
+| `Platnosc/RachunekBankowy[1]/SWIFT` | `swift_bic` | `String` | SWIFT/BIC of first bank account |
 | `Platnosc/RachunekBankowy[1]/NazwaBanku` | `bank_name` | `String` | Bank name of first bank account |
 
 ### Invoice type mapping (`RodzajFaktury`)
