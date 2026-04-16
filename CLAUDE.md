@@ -15,6 +15,8 @@ After writing a new ADR, adding a feature area, or discovering a non-obvious inv
 
 For tech stack, project structure, setup commands, Make targets, and environment variables, see `README.md`.
 
+For deployment topology, CI/CD pipeline, GCP Cloud Run configuration, sidecar service relationships, secrets, and Mailgun/Oban setup, see `docs/infrastructure.md`.
+
 ## Architecture
 
 ### Contexts
