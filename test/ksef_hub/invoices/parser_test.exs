@@ -387,7 +387,7 @@ defmodule KsefHub.Invoices.ParserTest do
     end
 
     test "extracts sales_date from P_6" do
-      xml = File.read!(Path.join(@fixtures_path, "sample_income_with_iban.xml"))
+      xml = File.read!(Path.join(@fixtures_path, "sample_income_with_bank_details.xml"))
 
       assert {:ok, invoice} = Parser.parse(xml)
       assert invoice.sales_date == ~D[2025-01-14]
@@ -400,18 +400,119 @@ defmodule KsefHub.Invoices.ParserTest do
       assert invoice.sales_date == nil
     end
 
-    test "extracts iban from Rachunek/NrRB" do
-      xml = File.read!(Path.join(@fixtures_path, "sample_income_with_iban.xml"))
+    test "extracts due_date from Platnosc/TerminPlatnosci/Termin" do
+      xml = File.read!(Path.join(@fixtures_path, "sample_income_with_due_date.xml"))
+
+      assert {:ok, invoice} = Parser.parse(xml)
+      assert invoice.due_date == ~D[2025-02-14]
+    end
+
+    test "uses first TerminPlatnosci when multiple are present" do
+      xml = """
+      <?xml version="1.0" encoding="UTF-8"?>
+      <Faktura xmlns="http://crd.gov.pl/wzor/2025/06/25/13775/">
+        <Naglowek>
+          <KodFormularza kodSystemowy="FA (3)" wersjaSchemy="1-0E">FA</KodFormularza>
+          <WariantFormularza>3</WariantFormularza>
+          <DataWytworzeniaFa>2025-01-15T10:30:00</DataWytworzeniaFa>
+          <SystemInfo>Test</SystemInfo>
+        </Naglowek>
+        <Podmiot1><DaneIdentyfikacyjne><NIP>1234567890</NIP><Nazwa>Seller</Nazwa></DaneIdentyfikacyjne></Podmiot1>
+        <Podmiot2><DaneIdentyfikacyjne><NIP>0987654321</NIP><Nazwa>Buyer</Nazwa></DaneIdentyfikacyjne></Podmiot2>
+        <Fa>
+          <KodWaluty>PLN</KodWaluty>
+          <P_1>2025-01-15</P_1>
+          <P_2>FV/2025/001</P_2>
+          <P_13_1>1000.00</P_13_1>
+          <P_15>1230.00</P_15>
+          <Platnosc>
+            <TerminPlatnosci><Termin>2025-02-14</Termin></TerminPlatnosci>
+            <TerminPlatnosci><Termin>2025-03-14</Termin></TerminPlatnosci>
+          </Platnosc>
+          <Adnotacje><P_16>2</P_16><P_17>2</P_17><P_18>2</P_18><P_18A>2</P_18A><Zwolnienie><P_19N>1</P_19N></Zwolnienie><NoweSrodkiTransportu><P_22N>1</P_22N></NoweSrodkiTransportu><P_23>2</P_23><PMarzy><P_PMarzyN>1</P_PMarzyN></PMarzy></Adnotacje>
+          <FaWiersz><NrWierszaFa>1</NrWierszaFa><P_7>Item</P_7><P_11>1000.00</P_11><P_12>23</P_12></FaWiersz>
+        </Fa>
+      </Faktura>
+      """
+
+      assert {:ok, invoice} = Parser.parse(xml)
+      assert invoice.due_date == ~D[2025-02-14]
+    end
+
+    test "returns nil due_date when Platnosc is absent" do
+      xml = File.read!(Path.join(@fixtures_path, "sample_income.xml"))
+
+      assert {:ok, invoice} = Parser.parse(xml)
+      assert invoice.due_date == nil
+    end
+
+    test "extracts iban, swift_bic and bank_name from Platnosc/RachunekBankowy" do
+      xml = File.read!(Path.join(@fixtures_path, "sample_income_with_bank_details.xml"))
 
       assert {:ok, invoice} = Parser.parse(xml)
       assert invoice.iban == "PL61109010140000071219812874"
+      assert invoice.swift_bic == "WBKPPLPP"
+      assert invoice.bank_name == "Bank Zachodni WBK S.A."
     end
 
-    test "returns nil iban when Rachunek is absent" do
+    test "returns nil bank fields when Platnosc is absent" do
       xml = File.read!(Path.join(@fixtures_path, "sample_income.xml"))
 
       assert {:ok, invoice} = Parser.parse(xml)
       assert invoice.iban == nil
+      assert invoice.swift_bic == nil
+      assert invoice.bank_name == nil
+    end
+
+    test "returns nil bank fields when Platnosc has no RachunekBankowy" do
+      xml = File.read!(Path.join(@fixtures_path, "sample_income_with_due_date.xml"))
+
+      assert {:ok, invoice} = Parser.parse(xml)
+      assert invoice.iban == nil
+      assert invoice.swift_bic == nil
+      assert invoice.bank_name == nil
+    end
+
+    test "uses first RachunekBankowy when multiple are present" do
+      xml = """
+      <?xml version="1.0" encoding="UTF-8"?>
+      <Faktura xmlns="http://crd.gov.pl/wzor/2025/06/25/13775/">
+        <Naglowek>
+          <KodFormularza kodSystemowy="FA (3)" wersjaSchemy="1-0E">FA</KodFormularza>
+          <WariantFormularza>3</WariantFormularza>
+          <DataWytworzeniaFa>2025-01-15T10:30:00</DataWytworzeniaFa>
+          <SystemInfo>Test</SystemInfo>
+        </Naglowek>
+        <Podmiot1><DaneIdentyfikacyjne><NIP>1234567890</NIP><Nazwa>Seller</Nazwa></DaneIdentyfikacyjne></Podmiot1>
+        <Podmiot2><DaneIdentyfikacyjne><NIP>0987654321</NIP><Nazwa>Buyer</Nazwa></DaneIdentyfikacyjne></Podmiot2>
+        <Fa>
+          <KodWaluty>PLN</KodWaluty>
+          <P_1>2025-01-15</P_1>
+          <P_2>FV/2025/001</P_2>
+          <P_13_1>1000.00</P_13_1>
+          <P_15>1230.00</P_15>
+          <Platnosc>
+            <RachunekBankowy>
+              <NrRB>PL11111111111111111111111111</NrRB>
+              <SWIFT>FIRSTBIC</SWIFT>
+              <NazwaBanku>FirstBank</NazwaBanku>
+            </RachunekBankowy>
+            <RachunekBankowy>
+              <NrRB>PL22222222222222222222222222</NrRB>
+              <SWIFT>SECONDBIC</SWIFT>
+              <NazwaBanku>SecondBank</NazwaBanku>
+            </RachunekBankowy>
+          </Platnosc>
+          <Adnotacje><P_16>2</P_16><P_17>2</P_17><P_18>2</P_18><P_18A>2</P_18A><Zwolnienie><P_19N>1</P_19N></Zwolnienie><NoweSrodkiTransportu><P_22N>1</P_22N></NoweSrodkiTransportu><P_23>2</P_23><PMarzy><P_PMarzyN>1</P_PMarzyN></PMarzy></Adnotacje>
+          <FaWiersz><NrWierszaFa>1</NrWierszaFa><P_7>Item</P_7><P_11>1000.00</P_11><P_12>23</P_12></FaWiersz>
+        </Fa>
+      </Faktura>
+      """
+
+      assert {:ok, invoice} = Parser.parse(xml)
+      assert invoice.iban == "PL11111111111111111111111111"
+      assert invoice.swift_bic == "FIRSTBIC"
+      assert invoice.bank_name == "FirstBank"
     end
 
     test "extracts correction invoice fields from KOR invoice" do
