@@ -85,6 +85,6 @@ Both `status` and `date` appear twice: once in the YAML frontmatter and once in 
 When a later decision overrides an earlier one:
 
 1. In the **old** ADR, update both the canonical frontmatter (`status: Superseded by NNNN`) and its body mirror (`## Status` → `Superseded by NNNN`). Both must be changed together — tooling reads the frontmatter; humans read the body.
-2. Update the `date` line in the old ADR's body if you also amend its content (otherwise leave it as the original decision date).
+2. Do **not** change the decision date. Both the frontmatter `date` and its body mirror (`Date: YYYY-MM-DD` under the title) must remain the original decision date — even when amending or superseding. Only correct the date if it was recorded incorrectly in the first place.
 3. Reference the old ADR in the new ADR's `## Context` section.
 4. Run `/update-architecture` to update both rows in the ADR index.
