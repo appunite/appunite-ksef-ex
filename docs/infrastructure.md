@@ -31,7 +31,7 @@ Overview of deployment topology, CI/CD pipeline, cloud configuration, and sideca
                     ▼             ▼                    ▼
               PostgreSQL    GCP Secret           GCS Bucket
               (Supabase)    Manager              au-ksef-ex-ml-models
-                            (8 secrets)          (ML model weights)
+                            (10 secrets)         (ML model weights)
 ```
 
 All sidecars run in the same Cloud Run instance as the main app and communicate over **localhost** — no inter-service networking or authentication required between them. The main container startup is gated on all three sidecars being healthy.
@@ -168,7 +168,7 @@ All secrets are injected as environment variables at runtime via GCP Secret Mana
 
 ## CI/CD Pipeline
 
-Defined in `.github/workflows/ci.yml`. Two jobs run on every push; the deploy job is gated on the test job and only runs on pushes to `main`.
+Defined in `.github/workflows/ci.yml`. The workflow triggers on all pull requests and on pushes to `main`. The test job runs for both triggers; the deploy job runs only on pushes to `main` (gated on the test job).
 
 ### Test job (all branches)
 
