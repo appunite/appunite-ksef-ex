@@ -23,7 +23,7 @@ defmodule KsefHub.Invoices.Queries do
     |> where([i], i.company_id == ^company_id)
     |> apply_filters(filters)
     |> AccessControl.maybe_filter_by_access(opts)
-    |> order_by([i], desc: i.issue_date, desc: i.inserted_at)
+    |> order_by([i], desc: i.issue_date, desc: i.inserted_at, asc: i.id)
     |> limit(^per_page)
     |> offset(^((page - 1) * per_page))
     |> Repo.all()
