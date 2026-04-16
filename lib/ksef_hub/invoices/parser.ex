@@ -23,6 +23,12 @@ defmodule KsefHub.Invoices.Parser do
        invoice_number: xpath(doc, ~x"//*[local-name()='P_2']/text()"s),
        issue_date: xpath(doc, ~x"//*[local-name()='P_1']/text()"s) |> parse_date(),
        sales_date: xpath(doc, ~x"//*[local-name()='P_6']/text()"s) |> parse_date(),
+       due_date:
+         xpath(
+           doc,
+           ~x"//*[local-name()='Platnosc']/*[local-name()='TerminPlatnosci'][1]/*[local-name()='Termin']/text()"s
+         )
+         |> parse_date(),
        seller_nip: xpath(doc, ~x"//*[local-name()='Podmiot1']//*[local-name()='NIP']/text()"s),
        seller_name: extract_name(doc, "Podmiot1"),
        buyer_nip: xpath(doc, ~x"//*[local-name()='Podmiot2']//*[local-name()='NIP']/text()"s),
@@ -44,7 +50,9 @@ defmodule KsefHub.Invoices.Parser do
        gross_amount: xpath(doc, ~x"//*[local-name()='P_15']/text()"s) |> parse_decimal(),
        currency: xpath(doc, ~x"//*[local-name()='KodWaluty']/text()"s) |> default_currency(),
        purchase_order: extract_purchase_order(doc),
-       iban: extract_iban(doc),
+       iban: extract_bank_field(doc, "NrRB"),
+       swift_bic: extract_bank_field(doc, "SWIFT"),
+       bank_name: extract_bank_field(doc, "NazwaBanku"),
        seller_address: extract_address(doc, "Podmiot1"),
        buyer_address: extract_address(doc, "Podmiot2"),
        line_items: parse_line_items(doc),
@@ -95,15 +103,18 @@ defmodule KsefHub.Invoices.Parser do
 
   # --- Private ---
 
-  @spec extract_iban(term()) :: String.t() | nil
-  defp extract_iban(doc) do
-    presence(
-      xpath(
-        doc,
-        ~x"//*[local-name()='Fa']//*[local-name()='Rachunek']//*[local-name()='NrRB']/text()"s
-      )
-    ) ||
-      presence(xpath(doc, ~x"//*[local-name()='Podmiot1']//*[local-name()='NrRB']/text()"s))
+  # Extracts a named field from the first RachunekBankowy inside Platnosc.
+  # All three bank fields (NrRB, SWIFT, NazwaBanku) share the same parent path,
+  # so a single helper avoids duplicating the traversal logic.
+  @spec extract_bank_field(term(), String.t()) :: String.t() | nil
+  defp extract_bank_field(doc, field_name) do
+    case xpath(doc, ~x"//*[local-name()='Platnosc']/*[local-name()='RachunekBankowy'][1]"o) do
+      nil ->
+        nil
+
+      node ->
+        xpath(node, ~x"./*[local-name()='#{field_name}']/text()"s) |> presence()
+    end
   end
 
   @spec presence(String.t()) :: String.t() | nil

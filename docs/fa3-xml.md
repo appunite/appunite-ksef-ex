@@ -52,8 +52,10 @@ Both seller (`Podmiot1`) and buyer (`Podmiot2`) share the same structure:
 | `KodWaluty` | `currency` | `String` | Defaults to `"PLN"` if absent |
 | `RodzajFaktury` | `invoice_kind` | `atom` | See type mapping below |
 | `NrZamowienia` | `purchase_order` | `String` | Purchase order number (source 1 of 3) |
-| `Rachunek/NrRB` | `iban` | `String` | IBAN (source 1 of 2) |
-| `Podmiot1/NrRB` | `iban` | `String` | IBAN fallback (source 2 of 2) |
+| `Platnosc/TerminPlatnosci[1]/Termin` | `due_date` | `Date` | Payment due date (first entry only) |
+| `Platnosc/RachunekBankowy[1]/NrRB` | `iban` | `String` | IBAN of first bank account |
+| `Platnosc/RachunekBankowy[1]/SWIFT` | `swift_bic` | `String` | SWIFT/BIC code of first bank account |
+| `Platnosc/RachunekBankowy[1]/NazwaBanku` | `bank_name` | `String` | Bank name of first bank account |
 
 ### Invoice type mapping (`RodzajFaktury`)
 

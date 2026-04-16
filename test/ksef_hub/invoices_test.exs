@@ -2368,7 +2368,7 @@ defmodule KsefHub.InvoicesTest do
     test "upsert stores provided sales_date, iban, and addresses when passed in attrs", %{
       company: company
     } do
-      xml = File.read!("test/support/fixtures/sample_income_with_iban.xml")
+      xml = File.read!("test/support/fixtures/sample_income_with_bank_details.xml")
 
       attrs =
         params_for(:invoice, ksef_number: "iban-upsert-1", company_id: company.id)
