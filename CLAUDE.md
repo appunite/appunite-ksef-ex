@@ -182,7 +182,7 @@ Every module **must** have:
 
 ## UI Components
 
-Before writing inline HTML in a LiveView template, check `CoreComponents` first. Domain-specific components live in `InvoiceComponents`, `CertificateComponents`, and `SettingsComponents`. Extract shared patterns when they appear 3+ times. For the full component reference, color tokens, and DaisyUI usage, use the `/frontend` skill.
+Before writing inline HTML in a LiveView template, check `CoreComponents` first. Domain-specific components live in `InvoiceComponents`, `CertificateComponents`, and `SettingsComponents`. Extract shared patterns when they appear 3+ times. For the full component reference, color tokens, DaisyUI usage, layout system, typography, and common page patterns, see @docs/frontend.md. When generating frontend code, use the `/frontend` skill.
 
 ## Testing
 
