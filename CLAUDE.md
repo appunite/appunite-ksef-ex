@@ -4,16 +4,16 @@ Multi-tenant service for Poland's KSeF (National e-Invoice System). Owns certifi
 
 Two invoice types drive most of the domain logic: **income** (issued by the company, synced read-only from KSeF, no approval workflow) and **expense** (received invoices, arriving via KSeF sync, PDF upload, or inbound email, with approval workflow and ML auto-classification).
 
-Before making changes, read @docs/architecture.md. It contains:
+Before making changes, read `docs/architecture.md`. It contains:
 - **Feature → Files Map** — which files to look at for each feature area
 - **Behavioral Contracts** — non-obvious invariants that affect multiple features
 - **ADR Index** — one-line summaries of every architecture decision
 
 For any non-trivial task, scan the ADR index first and read only the ADRs whose summaries match your task. This is faster than exploring the codebase blind.
 
-After writing a new ADR, adding a feature area, or discovering a non-obvious invariant, run `/update-architecture` to keep @docs/architecture.md in sync.
+After writing a new ADR, adding a feature area, or discovering a non-obvious invariant, run `/update-architecture` to keep `docs/architecture.md` in sync.
 
-For tech stack, project structure, setup commands, Make targets, and environment variables, see @README.md.
+For tech stack, project structure, setup commands, Make targets, and environment variables, see `README.md`.
 
 ## Architecture
 
@@ -73,7 +73,7 @@ Key files:
 - `lib/ksef_hub/activity_log/events.ex` — `emit/1` dispatch + manual helpers for non-changeset events
 - `lib/ksef_hub/activity_log/recorder.ex` — GenServer that persists events to DB
 
-For implementation pattern, Trackable code examples, and the full list of schemas/events, see @docs/adr/0042-activity-log.md.
+For implementation pattern, Trackable code examples, and the full list of schemas/events, see `docs/adr/0042-activity-log.md`.
 
 ### Dependency Injection with Behaviours
 
@@ -117,7 +117,7 @@ defp ksef_client, do: Application.get_env(:ksef_hub, :ksef_client, KsefHub.KsefC
 
 **Invoice Classification (Oban, on expense creation):** New expense invoice -> ClassifierWorker -> invoice-classifier service -> auto-assign category/tags.
 
-For sidecar service integration details (endpoints, auth, request/response formats), see @docs/sidecar-services.md.
+For sidecar service integration details (endpoints, auth, request/response formats), see `docs/sidecar-services.md`.
 
 ## Code Style
 
@@ -182,21 +182,21 @@ Every module **must** have:
 
 ## UI Components
 
-Before writing inline HTML in a LiveView template, check `CoreComponents` first. Domain-specific components live in `InvoiceComponents`, `CertificateComponents`, and `SettingsComponents`. Extract shared patterns when they appear 3+ times. For the full component reference, color tokens, DaisyUI usage, layout system, typography, and common page patterns, see @docs/frontend.md. When generating frontend code, use the `/frontend` skill.
+Before writing inline HTML in a LiveView template, check `CoreComponents` first. Domain-specific components live in `InvoiceComponents`, `CertificateComponents`, and `SettingsComponents`. Extract shared patterns when they appear 3+ times. For the full component reference, color tokens, DaisyUI usage, layout system, typography, and common page patterns, see `docs/frontend.md`. When generating frontend code, use the `/frontend` skill.
 
 ## Testing
 
-We follow TDD (red-green-refactor). Prefer using ExUnit with `async: true` when safe (avoid for DB or integration tests that share resources), ExMachina for test data factories, and Mox for mocking external services. For test structure, factory patterns, Mox setup, and fixture conventions, see @docs/tests.md.
+We follow TDD (red-green-refactor). Prefer using ExUnit with `async: true` when safe (avoid for DB or integration tests that share resources), ExMachina for test data factories, and Mox for mocking external services. For test structure, factory patterns, Mox setup, and fixture conventions, see `docs/tests.md`.
 
 ## Project Conventions
 
 ### OpenAPI Documentation (required for every API endpoint)
 
-Every REST API controller action **must** have an `open_api_spex` operation spec — this is NOT automatic. For the annotation template, schema conventions, and checklist, see @docs/openapi.md.
+Every REST API controller action **must** have an `open_api_spex` operation spec — this is NOT automatic. For the annotation template, schema conventions, and checklist, see `docs/openapi.md`.
 
 ### ADR (Architecture Decision Records)
 
-Every significant technical decision gets an ADR in `docs/adr/`. After implementing a feature, consider whether the decisions made warrant one. For format, naming convention, and when to create, see @docs/adr.md.
+Every significant technical decision gets an ADR in `docs/adr/`. After implementing a feature, consider whether the decisions made warrant one. For format, naming convention, and when to create, see `docs/adr.md`.
 
 ### Commits
 
@@ -219,7 +219,7 @@ Every significant technical decision gets an ADR in `docs/adr/`. After implement
 - Encryption key: base64-decoded `CREDENTIAL_ENCRYPTION_KEY` (32 bytes), falls back to `SHA256(SECRET_KEY_BASE)`
 - Audit log on every certificate operation (upload, decrypt, use for signing)
 
-For KSeF certificate types, how to generate them, and portal usage, see @docs/ksef-certificates.md.
+For KSeF certificate types, how to generate them, and portal usage, see `docs/ksef-certificates.md`.
 
 ### Temp file security (xmlsec1 interaction)
 
@@ -257,4 +257,4 @@ end
 
 KSeF (Krajowy System e-Faktur) is Poland's national e-invoice system. Invoices are synced via an authenticated XADES API session, parsed from FA(3) XML format, and stored in the database. When parser logic improves, existing invoices can be re-parsed from stored XML without a full re-sync.
 
-For authentication flow, rate limits, session rules, re-parsing, and FA(3) details, see @docs/ksef.md.
+For authentication flow, rate limits, session rules, re-parsing, and FA(3) details, see `docs/ksef.md`.
