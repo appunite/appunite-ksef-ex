@@ -11,7 +11,7 @@ Before making changes, read @docs/architecture.md. It contains:
 
 For any non-trivial task, scan the ADR index first and read only the ADRs whose summaries match your task. This is faster than exploring the codebase blind.
 
-After writing a new ADR, adding a feature area, or discovering a non-obvious invariant, run `/update-architecture` to keep `@docs/architecture.md` in sync.
+After writing a new ADR, adding a feature area, or discovering a non-obvious invariant, run `/update-architecture` to keep @docs/architecture.md in sync.
 
 For tech stack, project structure, setup commands, Make targets, and environment variables, see @README.md.
 
@@ -73,7 +73,7 @@ Key files:
 - `lib/ksef_hub/activity_log/events.ex` — `emit/1` dispatch + manual helpers for non-changeset events
 - `lib/ksef_hub/activity_log/recorder.ex` — GenServer that persists events to DB
 
-For implementation pattern, Trackable code examples, and the full list of schemas/events, see `@docs/adr/0042-activity-log.md`.
+For implementation pattern, Trackable code examples, and the full list of schemas/events, see @docs/adr/0042-activity-log.md.
 
 ### Dependency Injection with Behaviours
 
@@ -186,17 +186,17 @@ Before writing inline HTML in a LiveView template, check `CoreComponents` first.
 
 ## Testing
 
-We follow TDD (red-green-refactor). Tests use ExUnit with `async: true`, ExMachina for test data factories, and Mox for mocking external services. For test structure, factory patterns, Mox setup, and fixture conventions, see `@docs/tests.md`.
+We follow TDD (red-green-refactor). Tests use ExUnit with `async: true`, ExMachina for test data factories, and Mox for mocking external services. For test structure, factory patterns, Mox setup, and fixture conventions, see @docs/tests.md.
 
 ## Project Conventions
 
 ### OpenAPI Documentation (required for every API endpoint)
 
-Every REST API controller action **must** have an `open_api_spex` operation spec — this is NOT automatic. For the annotation template, schema conventions, and checklist, see `@docs/openapi.md`.
+Every REST API controller action **must** have an `open_api_spex` operation spec — this is NOT automatic. For the annotation template, schema conventions, and checklist, see @docs/openapi.md.
 
 ### ADR (Architecture Decision Records)
 
-Every significant technical decision gets an ADR in `docs/adr/`. After implementing a feature, consider whether the decisions made warrant one. For format, naming convention, and when to create, see `@docs/adr.md`.
+Every significant technical decision gets an ADR in `docs/adr/`. After implementing a feature, consider whether the decisions made warrant one. For format, naming convention, and when to create, see @docs/adr.md.
 
 ### Commits
 
@@ -257,4 +257,4 @@ end
 
 KSeF (Krajowy System e-Faktur) is Poland's national e-invoice system. Invoices are synced via an authenticated XADES API session, parsed from FA(3) XML format, and stored in the database. When parser logic improves, existing invoices can be re-parsed from stored XML without a full re-sync.
 
-For authentication flow, rate limits, session rules, re-parsing, and FA(3) details, see `@docs/ksef.md`.
+For authentication flow, rate limits, session rules, re-parsing, and FA(3) details, see @docs/ksef.md.
