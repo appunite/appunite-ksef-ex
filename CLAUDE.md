@@ -4,6 +4,20 @@ Dedicated service for Poland's National e-Invoice System (KSeF). Owns all KSeF c
 
 See `docs/prd.md` for full product requirements.
 
+Before making changes, read `docs/architecture.md`. It contains:
+- **Feature → Files Map** — which files to look at for each feature area
+- **Behavioral Contracts** — non-obvious invariants that affect multiple features
+- **ADR Index** — one-line summaries of every architecture decision
+
+For any non-trivial task, scan the ADR index first and read only the ADRs whose summaries match your task. This is faster than exploring the codebase blind.
+
+Keep `docs/architecture.md` up to date as the codebase evolves. Update it when:
+- **A new ADR is written** → add a row to the ADR Index (filename, title, status, one-line decision)
+- **An ADR is superseded** → update its Status cell and note the superseding ADR
+- **A new feature area is added** (new context, new LiveView section, new background job) → add a row to Feature → Files Map
+- **Key files for an existing feature move or are renamed** → update the relevant Feature → Files Map row
+- **A non-obvious invariant is discovered or introduced** (e.g. "X is always Y", "Z only applies to expense invoices") → add it to Behavioral Contracts with the source ADR or file
+
 ## Tech Stack
 
 | Layer | Technology |
