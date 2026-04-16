@@ -21,10 +21,10 @@ defmodule KsefHub.InboundEmail.ReplyNotifierTest do
     billing_date_to: ~D[2026-03-01],
     category: %{name: "Office Supplies", emoji: "📎"},
     tags: ["recurring", "monthly"],
-    prediction_category_name: "Office Supplies",
-    prediction_category_confidence: 0.92,
-    prediction_tag_name: "recurring",
-    prediction_tag_confidence: 0.85
+    prediction_expense_category_name: "Office Supplies",
+    prediction_expense_category_confidence: 0.92,
+    prediction_expense_tag_name: "recurring",
+    prediction_expense_tag_confidence: 0.85
   }
 
   describe "success/3" do
@@ -62,10 +62,10 @@ defmodule KsefHub.InboundEmail.ReplyNotifierTest do
         billing_date_to: nil,
         category: nil,
         tags: [],
-        prediction_category_name: nil,
-        prediction_category_confidence: nil,
-        prediction_tag_name: nil,
-        prediction_tag_confidence: nil
+        prediction_expense_category_name: nil,
+        prediction_expense_category_confidence: nil,
+        prediction_expense_tag_name: nil,
+        prediction_expense_tag_confidence: nil
       }
 
       email = ReplyNotifier.success(@sender, invoice)
@@ -78,7 +78,7 @@ defmodule KsefHub.InboundEmail.ReplyNotifierTest do
       refute email.text_body =~ "Tags:"
     end
 
-    test "falls back to prediction_category_name when category not preloaded" do
+    test "falls back to prediction_expense_category_name when category not preloaded" do
       invoice = %{
         id: "abc",
         company_id: "c1",
@@ -93,10 +93,10 @@ defmodule KsefHub.InboundEmail.ReplyNotifierTest do
         billing_date_to: nil,
         category: nil,
         tags: [],
-        prediction_category_name: "Travel",
-        prediction_category_confidence: nil,
-        prediction_tag_name: "one-time",
-        prediction_tag_confidence: 0.78
+        prediction_expense_category_name: "Travel",
+        prediction_expense_category_confidence: nil,
+        prediction_expense_tag_name: "one-time",
+        prediction_expense_tag_confidence: 0.78
       }
 
       email = ReplyNotifier.success(@sender, invoice)
@@ -122,10 +122,10 @@ defmodule KsefHub.InboundEmail.ReplyNotifierTest do
         billing_date_to: nil,
         category: nil,
         tags: [],
-        prediction_category_name: nil,
-        prediction_category_confidence: nil,
-        prediction_tag_name: nil,
-        prediction_tag_confidence: nil
+        prediction_expense_category_name: nil,
+        prediction_expense_category_confidence: nil,
+        prediction_expense_tag_name: nil,
+        prediction_expense_tag_confidence: nil
       }
 
       email = ReplyNotifier.success(@sender, invoice)
@@ -220,10 +220,10 @@ defmodule KsefHub.InboundEmail.ReplyNotifierTest do
         billing_date_to: nil,
         category: nil,
         tags: [],
-        prediction_category_name: nil,
-        prediction_category_confidence: nil,
-        prediction_tag_name: nil,
-        prediction_tag_confidence: nil
+        prediction_expense_category_name: nil,
+        prediction_expense_category_confidence: nil,
+        prediction_expense_tag_name: nil,
+        prediction_expense_tag_confidence: nil
       }
 
       email = ReplyNotifier.needs_review(@sender, invoice)
@@ -249,10 +249,10 @@ defmodule KsefHub.InboundEmail.ReplyNotifierTest do
         billing_date_to: nil,
         category: nil,
         tags: [],
-        prediction_category_name: nil,
-        prediction_category_confidence: nil,
-        prediction_tag_name: nil,
-        prediction_tag_confidence: nil
+        prediction_expense_category_name: nil,
+        prediction_expense_category_confidence: nil,
+        prediction_expense_tag_name: nil,
+        prediction_expense_tag_confidence: nil
       }
 
       email = ReplyNotifier.needs_review(@sender, invoice)

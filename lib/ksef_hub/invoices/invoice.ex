@@ -41,23 +41,27 @@ defmodule KsefHub.Invoices.Invoice do
     field :net_amount, :decimal
     field :gross_amount, :decimal
     field :currency, :string, default: "PLN"
-    field :status, Ecto.Enum, values: [:pending, :approved, :rejected], default: :pending
+
+    field :expense_approval_status, Ecto.Enum,
+      values: [:pending, :approved, :rejected],
+      default: :pending
+
     field :source, Ecto.Enum, values: [:ksef, :manual, :pdf_upload, :email], default: :ksef
     field :duplicate_status, Ecto.Enum, values: [:suspected, :confirmed, :dismissed]
     field :ksef_acquisition_date, :utc_datetime_usec
     field :ksef_permanent_storage_date, :utc_datetime_usec
 
     field :prediction_status, Ecto.Enum, values: [:pending, :predicted, :needs_review, :manual]
-    field :prediction_category_name, :string
-    field :prediction_tag_name, :string
-    field :prediction_category_confidence, :float
+    field :prediction_expense_category_name, :string
+    field :prediction_expense_tag_name, :string
+    field :prediction_expense_category_confidence, :float
 
-    # Confidence of the top predicted tag; per-tag confidences live in prediction_tag_probabilities
-    field :prediction_tag_confidence, :float
-    field :prediction_category_model_version, :string
-    field :prediction_tag_model_version, :string
-    field :prediction_category_probabilities, :map
-    field :prediction_tag_probabilities, :map
+    # Confidence of the top predicted tag; per-tag confidences live in prediction_expense_tag_probabilities
+    field :prediction_expense_tag_confidence, :float
+    field :prediction_expense_category_model_version, :string
+    field :prediction_expense_tag_model_version, :string
+    field :prediction_expense_category_probabilities, :map
+    field :prediction_expense_tag_probabilities, :map
     field :prediction_predicted_at, :utc_datetime_usec
 
     field :extraction_status, Ecto.Enum, values: [:complete, :partial, :failed]
@@ -81,7 +85,7 @@ defmodule KsefHub.Invoices.Invoice do
     belongs_to :company, KsefHub.Companies.Company
     belongs_to :duplicate_of, __MODULE__
     has_many :duplicates, __MODULE__, foreign_key: :duplicate_of_id
-    belongs_to :category, KsefHub.Invoices.Category
+    belongs_to :category, KsefHub.Invoices.Category, foreign_key: :expense_category_id
     belongs_to :xml_file, KsefHub.Files.File
     belongs_to :pdf_file, KsefHub.Files.File
     field :tags, {:array, :string}, default: []
@@ -91,7 +95,7 @@ defmodule KsefHub.Invoices.Invoice do
     has_many :access_grants, KsefHub.Invoices.InvoiceAccessGrant
 
     field :public_token, :string
-    field :cost_line, Ecto.Enum, values: CostLine.values()
+    field :expense_cost_line, Ecto.Enum, values: CostLine.values()
     field :project_tag, :string
     field :is_excluded, :boolean, default: false
     field :access_restricted, :boolean, default: false
@@ -223,7 +227,7 @@ defmodule KsefHub.Invoices.Invoice do
       :net_amount,
       :gross_amount,
       :currency,
-      :status,
+      :expense_approval_status,
       :source,
       :duplicate_of_id,
       :duplicate_status,
@@ -287,8 +291,8 @@ defmodule KsefHub.Invoices.Invoice do
   @spec category_changeset(t(), map()) :: Ecto.Changeset.t()
   def category_changeset(invoice, attrs) do
     invoice
-    |> cast(attrs, [:category_id, :cost_line])
-    |> foreign_key_constraint(:category_id)
+    |> cast(attrs, [:expense_category_id, :expense_cost_line])
+    |> foreign_key_constraint(:expense_category_id)
   end
 
   @doc "Builds a changeset for setting or clearing the project tag."
@@ -390,14 +394,14 @@ defmodule KsefHub.Invoices.Invoice do
 
   @prediction_fields [
     :prediction_status,
-    :prediction_category_name,
-    :prediction_tag_name,
-    :prediction_category_confidence,
-    :prediction_tag_confidence,
-    :prediction_category_model_version,
-    :prediction_tag_model_version,
-    :prediction_category_probabilities,
-    :prediction_tag_probabilities,
+    :prediction_expense_category_name,
+    :prediction_expense_tag_name,
+    :prediction_expense_category_confidence,
+    :prediction_expense_tag_confidence,
+    :prediction_expense_category_model_version,
+    :prediction_expense_tag_model_version,
+    :prediction_expense_category_probabilities,
+    :prediction_expense_tag_probabilities,
     :prediction_predicted_at
   ]
 
@@ -609,11 +613,11 @@ defmodule KsefHub.Invoices.Invoice do
   # Priority-ordered list of fields that trigger specific events.
   # First match wins. Fields not listed fall through to the generic "invoice.updated".
   @tracked_fields [
-    :status,
+    :expense_approval_status,
     :is_excluded,
     :duplicate_status,
-    :category_id,
-    :cost_line,
+    :expense_category_id,
+    :expense_cost_line,
     :tags,
     :project_tag,
     :note,
@@ -639,9 +643,12 @@ defmodule KsefHub.Invoices.Invoice do
   end
 
   @spec classify_field(atom(), Ecto.Changeset.t()) :: {String.t(), map()} | :skip
-  defp classify_field(:status, cs) do
+  defp classify_field(:expense_approval_status, cs) do
     {"invoice.status_changed",
-     %{old_status: to_string(cs.data.status), new_status: to_string(cs.changes.status)}}
+     %{
+       old_status: to_string(cs.data.expense_approval_status),
+       new_status: to_string(cs.changes.expense_approval_status)
+     }}
   end
 
   defp classify_field(:is_excluded, cs) do
@@ -661,17 +668,21 @@ defmodule KsefHub.Invoices.Invoice do
      %{duplicate_of_id: to_string(cs.changes[:duplicate_of_id] || cs.data.duplicate_of_id)}}
   end
 
-  defp classify_field(:category_id, cs) do
-    {"invoice.classification_changed",
-     %{field: "category", old_value: cs.data.category_id, new_value: cs.changes.category_id}}
-  end
-
-  defp classify_field(:cost_line, cs) do
+  defp classify_field(:expense_category_id, cs) do
     {"invoice.classification_changed",
      %{
-       field: "cost_line",
-       old_value: to_string(cs.data.cost_line),
-       new_value: to_string(cs.changes.cost_line)
+       field: "expense_category",
+       old_value: cs.data.expense_category_id,
+       new_value: cs.changes.expense_category_id
+     }}
+  end
+
+  defp classify_field(:expense_cost_line, cs) do
+    {"invoice.classification_changed",
+     %{
+       field: "expense_cost_line",
+       old_value: to_string(cs.data.expense_cost_line),
+       new_value: to_string(cs.changes.expense_cost_line)
      }}
   end
 

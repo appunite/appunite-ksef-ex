@@ -90,21 +90,21 @@ defmodule KsefHub.ExportsTest do
         company: company,
         issue_date: ~D[2026-01-15],
         type: :expense,
-        status: :approved
+        expense_approval_status: :approved
       )
 
       insert(:invoice,
         company: company,
         issue_date: ~D[2026-01-20],
         type: :income,
-        status: :approved
+        expense_approval_status: :approved
       )
 
       insert(:invoice,
         company: company,
         issue_date: ~D[2026-02-05],
         type: :expense,
-        status: :approved
+        expense_approval_status: :approved
       )
 
       count =
@@ -124,14 +124,14 @@ defmodule KsefHub.ExportsTest do
         company: company,
         issue_date: ~D[2026-01-15],
         type: :expense,
-        status: :approved
+        expense_approval_status: :approved
       )
 
       insert(:invoice,
         company: company,
         issue_date: ~D[2026-01-20],
         type: :income,
-        status: :approved
+        expense_approval_status: :approved
       )
 
       count =
@@ -152,14 +152,14 @@ defmodule KsefHub.ExportsTest do
           company: company,
           issue_date: ~D[2026-01-15],
           type: :expense,
-          status: :approved
+          expense_approval_status: :approved
         )
 
       insert(:invoice,
         company: company,
         issue_date: ~D[2026-01-20],
         type: :expense,
-        status: :approved
+        expense_approval_status: :approved
       )
 
       batch = insert(:export_batch, user: user, company: company)
@@ -182,21 +182,21 @@ defmodule KsefHub.ExportsTest do
         company: company,
         issue_date: ~D[2026-01-15],
         type: :expense,
-        status: :approved
+        expense_approval_status: :approved
       )
 
       insert(:invoice,
         company: company,
         issue_date: ~D[2026-01-16],
         type: :expense,
-        status: :pending
+        expense_approval_status: :pending
       )
 
       insert(:invoice,
         company: company,
         issue_date: ~D[2026-01-17],
         type: :expense,
-        status: :rejected
+        expense_approval_status: :rejected
       )
 
       count =
@@ -216,14 +216,14 @@ defmodule KsefHub.ExportsTest do
         company: company,
         issue_date: ~D[2026-01-15],
         type: :income,
-        status: :pending
+        expense_approval_status: :pending
       )
 
       insert(:invoice,
         company: company,
         issue_date: ~D[2026-01-16],
         type: :income,
-        status: :rejected
+        expense_approval_status: :rejected
       )
 
       count =
@@ -244,14 +244,14 @@ defmodule KsefHub.ExportsTest do
         company: company,
         issue_date: ~D[2026-01-15],
         type: :expense,
-        status: :approved
+        expense_approval_status: :approved
       )
 
       insert(:invoice,
         company: company,
         issue_date: ~D[2026-01-16],
         type: :expense,
-        status: :approved,
+        expense_approval_status: :approved,
         is_excluded: true
       )
 
@@ -275,7 +275,7 @@ defmodule KsefHub.ExportsTest do
           company: company,
           issue_date: ~D[2026-01-15],
           type: :expense,
-          status: :approved
+          expense_approval_status: :approved
         )
 
       batch = insert(:export_batch, user: other_user, company: company)
@@ -302,7 +302,7 @@ defmodule KsefHub.ExportsTest do
         company: company,
         issue_date: ~D[2026-01-15],
         type: :expense,
-        status: :approved,
+        expense_approval_status: :approved,
         category: cat1
       )
 
@@ -310,7 +310,7 @@ defmodule KsefHub.ExportsTest do
         company: company,
         issue_date: ~D[2026-01-16],
         type: :expense,
-        status: :approved,
+        expense_approval_status: :approved,
         category: cat2
       )
 
@@ -334,7 +334,7 @@ defmodule KsefHub.ExportsTest do
         company: company,
         issue_date: ~D[2026-01-15],
         type: :expense,
-        status: :approved,
+        expense_approval_status: :approved,
         category: cat
       )
 
@@ -342,7 +342,7 @@ defmodule KsefHub.ExportsTest do
         company: company,
         issue_date: ~D[2026-01-16],
         type: :expense,
-        status: :approved
+        expense_approval_status: :approved
       )
 
       count =
@@ -454,14 +454,14 @@ defmodule KsefHub.ExportsTest do
         company: company,
         issue_date: ~D[2026-01-15],
         type: :expense,
-        status: :approved
+        expense_approval_status: :approved
       )
 
       insert(:manual_invoice,
         company: company,
         issue_date: ~D[2026-01-20],
         type: :expense,
-        status: :approved
+        expense_approval_status: :approved
       )
 
       batch =

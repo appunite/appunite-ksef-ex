@@ -108,14 +108,14 @@ defmodule KsefHub.InboundEmail.EmailReplyWorkerTest do
       category = insert(:category, company: company, name: "Travel", emoji: "✈️")
 
       invoice
-      |> Invoices.Invoice.category_changeset(%{category_id: category.id})
+      |> Invoices.Invoice.category_changeset(%{expense_category_id: category.id})
       |> KsefHub.Repo.update!()
 
       invoice
       |> Invoices.Invoice.prediction_changeset(%{
         prediction_status: :predicted,
-        prediction_category_name: "travel",
-        prediction_category_confidence: 0.95
+        prediction_expense_category_name: "travel",
+        prediction_expense_category_confidence: 0.95
       })
       |> KsefHub.Repo.update!()
 

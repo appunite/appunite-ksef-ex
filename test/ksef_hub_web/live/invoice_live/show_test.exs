@@ -305,11 +305,12 @@ defmodule KsefHubWeb.InvoiceLive.ShowTest do
 
       # Verify the invoice was not mutated in the database
       unchanged = Invoices.get_invoice!(company.id, invoice.id)
-      assert unchanged.status == invoice.status
+      assert unchanged.expense_approval_status == invoice.expense_approval_status
     end
 
     test "already-approved invoice does not show action buttons", %{conn: conn, company: company} do
-      invoice = insert(:invoice, type: :expense, status: :approved, company: company)
+      invoice =
+        insert(:invoice, type: :expense, expense_approval_status: :approved, company: company)
 
       {:ok, view, _html} = live(conn, ~p"/c/#{company.id}/invoices/#{invoice.id}")
 
@@ -323,28 +324,32 @@ defmodule KsefHubWeb.InvoiceLive.ShowTest do
     setup :stub_pdf
 
     test "reset button appears for approved expense invoices", %{conn: conn, company: company} do
-      invoice = insert(:invoice, type: :expense, status: :approved, company: company)
+      invoice =
+        insert(:invoice, type: :expense, expense_approval_status: :approved, company: company)
 
       {:ok, view, _html} = live(conn, ~p"/c/#{company.id}/invoices/#{invoice.id}")
       assert has_element?(view, "[data-testid=reset-status-btn]", "Reset Decision")
     end
 
     test "reset button appears for rejected expense invoices", %{conn: conn, company: company} do
-      invoice = insert(:invoice, type: :expense, status: :rejected, company: company)
+      invoice =
+        insert(:invoice, type: :expense, expense_approval_status: :rejected, company: company)
 
       {:ok, view, _html} = live(conn, ~p"/c/#{company.id}/invoices/#{invoice.id}")
       assert has_element?(view, "[data-testid=reset-status-btn]", "Reset Decision")
     end
 
     test "reset button hidden for pending invoices", %{conn: conn, company: company} do
-      invoice = insert(:invoice, type: :expense, status: :pending, company: company)
+      invoice =
+        insert(:invoice, type: :expense, expense_approval_status: :pending, company: company)
 
       {:ok, view, _html} = live(conn, ~p"/c/#{company.id}/invoices/#{invoice.id}")
       refute has_element?(view, "[data-testid=reset-status-btn]")
     end
 
     test "clicking reset changes status back to pending", %{conn: conn, company: company} do
-      invoice = insert(:invoice, type: :expense, status: :approved, company: company)
+      invoice =
+        insert(:invoice, type: :expense, expense_approval_status: :approved, company: company)
 
       {:ok, view, _html} = live(conn, ~p"/c/#{company.id}/invoices/#{invoice.id}")
 
@@ -471,8 +476,8 @@ defmodule KsefHubWeb.InvoiceLive.ShowTest do
           type: :expense,
           company: company,
           prediction_status: :predicted,
-          prediction_category_confidence: 0.92,
-          prediction_tag_confidence: 0.96,
+          prediction_expense_category_confidence: 0.92,
+          prediction_expense_tag_confidence: 0.96,
           prediction_predicted_at: ~U[2026-03-11 12:00:00Z]
         )
 
@@ -489,8 +494,8 @@ defmodule KsefHubWeb.InvoiceLive.ShowTest do
           type: :expense,
           company: company,
           prediction_status: :needs_review,
-          prediction_category_confidence: 0.30,
-          prediction_tag_confidence: 0.25,
+          prediction_expense_category_confidence: 0.30,
+          prediction_expense_tag_confidence: 0.25,
           prediction_predicted_at: ~U[2026-03-11 12:00:00Z]
         )
 
@@ -510,8 +515,8 @@ defmodule KsefHubWeb.InvoiceLive.ShowTest do
           type: :expense,
           company: company,
           prediction_status: :manual,
-          prediction_category_confidence: 0.92,
-          prediction_tag_confidence: 0.85,
+          prediction_expense_category_confidence: 0.92,
+          prediction_expense_tag_confidence: 0.85,
           prediction_predicted_at: ~U[2026-03-11 12:00:00Z]
         )
 
@@ -1227,7 +1232,8 @@ defmodule KsefHubWeb.InvoiceLive.ShowTest do
     setup :stub_pdf
 
     test "shows cost line for expense invoice", %{conn: conn, company: company} do
-      invoice = insert(:invoice, type: :expense, company: company, cost_line: :service_delivery)
+      invoice =
+        insert(:invoice, type: :expense, company: company, expense_cost_line: :service_delivery)
 
       {:ok, view, _html} = live(conn, ~p"/c/#{company.id}/invoices/#{invoice.id}")
 
@@ -1236,7 +1242,7 @@ defmodule KsefHubWeb.InvoiceLive.ShowTest do
     end
 
     test "shows fallback dash when cost line is nil", %{conn: conn, company: company} do
-      invoice = insert(:invoice, type: :expense, cost_line: nil, company: company)
+      invoice = insert(:invoice, type: :expense, expense_cost_line: nil, company: company)
 
       {:ok, view, _html} = live(conn, ~p"/c/#{company.id}/invoices/#{invoice.id}")
 

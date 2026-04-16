@@ -430,7 +430,8 @@ defmodule KsefHubWeb.SettingsLive.ActivityLog do
         new_tags = meta["new_value"] || []
         format_tag_change(old_tags, new_tags)
 
-      "cost_line" ->
+      # "cost_line" kept for backward compatibility with historical activity log records
+      field when field in ["cost_line", "expense_cost_line"] ->
         format_value_change(meta["old_value"], meta["new_value"])
 
       "project_tag" ->

@@ -847,7 +847,7 @@ defmodule KsefHubWeb.InvoiceLive.Show do
           prediction_status={@invoice.prediction_status}
           duplicate_status={@invoice.duplicate_status}
           extraction_status={@invoice.extraction_status}
-          status={@invoice.status}
+          status={@invoice.expense_approval_status}
         />
         <.extraction_badge
           status={@invoice.extraction_status}
@@ -861,7 +861,8 @@ defmodule KsefHubWeb.InvoiceLive.Show do
         <div class="flex gap-2">
           <.button
             :if={
-              @can_approve && @invoice.type == :expense && @invoice.status == :pending &&
+              @can_approve && @invoice.type == :expense &&
+                @invoice.expense_approval_status == :pending &&
                 @invoice.duplicate_status != :confirmed
             }
             variant="success"
@@ -871,7 +872,8 @@ defmodule KsefHubWeb.InvoiceLive.Show do
           </.button>
           <.button
             :if={
-              @can_approve && @invoice.type == :expense && @invoice.status == :pending &&
+              @can_approve && @invoice.type == :expense &&
+                @invoice.expense_approval_status == :pending &&
                 @invoice.duplicate_status != :confirmed
             }
             variant="destructive"
@@ -950,7 +952,7 @@ defmodule KsefHubWeb.InvoiceLive.Show do
               <button
                 :if={
                   @can_approve && @invoice.type == :expense &&
-                    @invoice.status in [:approved, :rejected] &&
+                    @invoice.expense_approval_status in [:approved, :rejected] &&
                     @invoice.duplicate_status != :confirmed
                 }
                 phx-click="reset_status"
@@ -1074,12 +1076,12 @@ defmodule KsefHubWeb.InvoiceLive.Show do
           <div :if={@invoice.type == :expense} class="mb-3">
             <label class="text-sm text-muted-foreground">Category</label>
             <div class="mt-1" data-testid="category-display">
-              <.category_badge category={find_category(@invoice.category_id, @categories)} />
+              <.category_badge category={find_category(@invoice.expense_category_id, @categories)} />
             </div>
             <.prediction_hint
               predicted_at={@invoice.prediction_predicted_at}
               status={@invoice.prediction_status}
-              confidence={@invoice.prediction_category_confidence}
+              confidence={@invoice.prediction_expense_category_confidence}
               threshold={@category_confidence_threshold}
               label="category"
               testid="prediction-category-hint"
@@ -1112,7 +1114,7 @@ defmodule KsefHubWeb.InvoiceLive.Show do
             <.prediction_hint
               predicted_at={@invoice.prediction_predicted_at}
               status={@invoice.prediction_status}
-              confidence={@invoice.prediction_tag_confidence}
+              confidence={@invoice.prediction_expense_tag_confidence}
               threshold={@tag_confidence_threshold}
               label="tag"
               testid="prediction-tag-hint"
@@ -1122,10 +1124,10 @@ defmodule KsefHubWeb.InvoiceLive.Show do
           <div :if={@invoice.type == :expense} class="mb-3">
             <label class="text-sm text-muted-foreground">Cost Line</label>
             <div class="mt-1" data-testid="cost-line-display">
-              <.badge :if={@invoice.cost_line} variant="info">
-                {CostLine.label(@invoice.cost_line)}
+              <.badge :if={@invoice.expense_cost_line} variant="info">
+                {CostLine.label(@invoice.expense_cost_line)}
               </.badge>
-              <span :if={is_nil(@invoice.cost_line)} class="text-muted-foreground">-</span>
+              <span :if={is_nil(@invoice.expense_cost_line)} class="text-muted-foreground">-</span>
             </div>
           </div>
         </.card>

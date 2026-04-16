@@ -282,7 +282,7 @@ defmodule KsefHub.Exports do
        }) do
     Invoice
     |> where([i], i.company_id == ^company_id)
-    |> where([i], i.type == :income or i.status == :approved)
+    |> where([i], i.type == :income or i.expense_approval_status == :approved)
     |> where([i], is_nil(i.duplicate_of_id))
     |> where([i], i.issue_date >= ^date_from and i.issue_date <= ^date_to)
     |> maybe_filter_type(invoice_type)
@@ -315,11 +315,13 @@ defmodule KsefHub.Exports do
 
   defp maybe_filter_type(query, _), do: query
 
+  # category_id here is an expense Category UUID — it maps to export_batches.category_id (stored
+  # on the batch) and filters invoices via i.expense_category_id (the invoice FK column).
   @spec maybe_filter_category(Ecto.Queryable.t(), String.t() | nil, Ecto.UUID.t() | nil) ::
           Ecto.Query.t()
   defp maybe_filter_category(query, invoice_type, category_id)
        when not is_nil(category_id) and invoice_type != "income",
-       do: where(query, [i], i.category_id == ^category_id)
+       do: where(query, [i], i.expense_category_id == ^category_id)
 
   defp maybe_filter_category(query, _invoice_type, _category_id), do: query
 

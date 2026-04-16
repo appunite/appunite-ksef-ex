@@ -18,27 +18,27 @@ defmodule KsefHub.Invoices.ClassificationTest do
       invoice = insert(:invoice, company: company, type: :expense)
 
       {:ok, updated} = Invoices.set_invoice_category(invoice, category.id)
-      assert updated.cost_line == :growth
+      assert updated.expense_cost_line == :growth
     end
 
     test "set_invoice_category preserves existing cost_line when category has no default", %{
       company: company
     } do
       category = insert(:category, company: company, default_cost_line: nil)
-      invoice = insert(:invoice, company: company, type: :expense, cost_line: :heads)
+      invoice = insert(:invoice, company: company, type: :expense, expense_cost_line: :heads)
 
       {:ok, updated} = Invoices.set_invoice_category(invoice, category.id)
-      assert updated.cost_line == :heads
+      assert updated.expense_cost_line == :heads
     end
 
     test "set_invoice_category does not clear cost_line when clearing category", %{
       company: company
     } do
-      invoice = insert(:invoice, company: company, type: :expense, cost_line: :service)
+      invoice = insert(:invoice, company: company, type: :expense, expense_cost_line: :service)
 
       {:ok, updated} = Invoices.set_invoice_category(invoice, nil)
-      assert updated.cost_line == :service
-      assert updated.category_id == nil
+      assert updated.expense_cost_line == :service
+      assert updated.expense_category_id == nil
     end
 
     test "set_invoice_cost_line sets cost_line independently on expense invoice", %{
@@ -47,14 +47,14 @@ defmodule KsefHub.Invoices.ClassificationTest do
       invoice = insert(:invoice, company: company, type: :expense)
 
       {:ok, updated} = Invoices.set_invoice_cost_line(invoice, :client_success)
-      assert updated.cost_line == :client_success
+      assert updated.expense_cost_line == :client_success
     end
 
     test "set_invoice_cost_line clears cost_line with nil", %{company: company} do
-      invoice = insert(:invoice, company: company, type: :expense, cost_line: :growth)
+      invoice = insert(:invoice, company: company, type: :expense, expense_cost_line: :growth)
 
       {:ok, updated} = Invoices.set_invoice_cost_line(invoice, nil)
-      assert updated.cost_line == nil
+      assert updated.expense_cost_line == nil
     end
 
     test "set_invoice_cost_line returns error for income invoice", %{company: company} do

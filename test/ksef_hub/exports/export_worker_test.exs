@@ -22,7 +22,7 @@ defmodule KsefHub.Exports.ExportWorkerTest do
         company: company,
         issue_date: ~D[2026-01-15],
         type: :expense,
-        status: :approved
+        expense_approval_status: :approved
       )
 
       batch =

@@ -17,7 +17,7 @@ defmodule KsefHub.Invoices.AutoApprovalTest do
       type: :expense,
       source: :manual,
       extraction_status: :complete,
-      status: :pending
+      expense_approval_status: :pending
     }
 
     struct!(KsefHub.Invoices.Invoice, Map.merge(defaults, attrs))

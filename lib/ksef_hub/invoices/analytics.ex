@@ -29,8 +29,8 @@ defmodule KsefHub.Invoices.Analytics do
   def count_by_type_and_status(company_id) do
     Invoice
     |> where([i], i.company_id == ^company_id)
-    |> group_by([i], [i.type, i.status])
-    |> select([i], {i.type, i.status, count(i.id)})
+    |> group_by([i], [i.type, i.expense_approval_status])
+    |> select([i], {i.type, i.expense_approval_status, count(i.id)})
     |> Repo.all()
     |> Enum.reduce(%{}, fn {type, status, count}, acc ->
       Map.put(acc, {type, status}, count)
@@ -78,7 +78,7 @@ defmodule KsefHub.Invoices.Analytics do
     company_id
     |> base_aggregation_query(:expense)
     |> Queries.apply_filters(filters)
-    |> join(:left, [i], c in Category, on: i.category_id == c.id)
+    |> join(:left, [i], c in Category, on: i.expense_category_id == c.id)
     |> select([i, ..., c], %{
       category_name: coalesce(c.name, coalesce(c.identifier, "Uncategorized")),
       emoji: c.emoji,

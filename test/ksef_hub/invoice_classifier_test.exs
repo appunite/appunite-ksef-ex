@@ -60,17 +60,17 @@ defmodule KsefHub.InvoiceClassifierTest do
       assert {:ok, updated} = InvoiceClassifier.predict_and_apply(invoice)
 
       assert updated.prediction_status == :predicted
-      assert updated.prediction_category_name == "finance:invoices"
-      assert updated.prediction_tag_name == "monthly"
-      assert updated.prediction_category_confidence == 0.92
-      assert updated.prediction_tag_confidence == 0.95
-      assert updated.prediction_category_model_version == "v1.0"
-      assert updated.prediction_tag_model_version == "v1.0"
+      assert updated.prediction_expense_category_name == "finance:invoices"
+      assert updated.prediction_expense_tag_name == "monthly"
+      assert updated.prediction_expense_category_confidence == 0.92
+      assert updated.prediction_expense_tag_confidence == 0.95
+      assert updated.prediction_expense_category_model_version == "v1.0"
+      assert updated.prediction_expense_tag_model_version == "v1.0"
       assert updated.prediction_predicted_at != nil
 
       # Verify category and tag were actually applied
       updated = Invoices.get_invoice_with_details!(company.id, updated.id)
-      assert updated.category_id == category.id
+      assert updated.expense_category_id == category.id
       assert "monthly" in updated.tags
     end
 
@@ -127,12 +127,12 @@ defmodule KsefHub.InvoiceClassifierTest do
       assert {:ok, updated} = InvoiceClassifier.predict_and_apply(invoice)
 
       assert updated.prediction_status == :needs_review
-      assert updated.prediction_category_name == "finance:invoices"
-      assert updated.prediction_category_confidence == 0.40
+      assert updated.prediction_expense_category_name == "finance:invoices"
+      assert updated.prediction_expense_category_confidence == 0.40
 
       # Category is NOT applied when confidence is below threshold
       updated = Invoices.get_invoice_with_details!(company.id, updated.id)
-      assert updated.category_id == nil
+      assert updated.expense_category_id == nil
     end
 
     test "below-threshold tag confidence does not apply tag", %{company: company} do
@@ -194,7 +194,7 @@ defmodule KsefHub.InvoiceClassifierTest do
       # Tag applied (string, no matching needed), but category has no match -> predicted
       assert updated.prediction_status == :predicted
       updated = Invoices.get_invoice_with_details!(company.id, updated.id)
-      assert updated.category_id == nil
+      assert updated.expense_category_id == nil
       assert "nonexistent-tag" in updated.tags
     end
 
@@ -241,7 +241,7 @@ defmodule KsefHub.InvoiceClassifierTest do
 
       assert updated.prediction_status == :predicted
       updated = Invoices.get_invoice_with_details!(company.id, updated.id)
-      assert updated.category_id == nil
+      assert updated.expense_category_id == nil
       assert "monthly" in updated.tags
     end
 
@@ -271,7 +271,7 @@ defmodule KsefHub.InvoiceClassifierTest do
 
       assert updated.prediction_status == :predicted
       updated = Invoices.get_invoice_with_details!(company.id, updated.id)
-      assert updated.category_id == category.id
+      assert updated.expense_category_id == category.id
     end
 
     test "applies category but not tag when confidence is between the two thresholds", %{
@@ -301,7 +301,7 @@ defmodule KsefHub.InvoiceClassifierTest do
 
       assert updated.prediction_status == :predicted
       updated = Invoices.get_invoice_with_details!(company.id, updated.id)
-      assert updated.category_id == category.id
+      assert updated.expense_category_id == category.id
       assert updated.tags == []
     end
 
@@ -354,7 +354,7 @@ defmodule KsefHub.InvoiceClassifierTest do
 
       assert updated.prediction_status == :predicted
       updated = Invoices.get_invoice_with_details!(company.id, updated.id)
-      assert updated.category_id == category.id
+      assert updated.expense_category_id == category.id
       assert "monthly" in updated.tags
     end
 
@@ -383,7 +383,7 @@ defmodule KsefHub.InvoiceClassifierTest do
 
       assert updated.prediction_status == :needs_review
       updated = Invoices.get_invoice_with_details!(company.id, updated.id)
-      assert updated.category_id == nil
+      assert updated.expense_category_id == nil
       assert updated.tags == []
     end
 
@@ -412,10 +412,10 @@ defmodule KsefHub.InvoiceClassifierTest do
 
       # Below thresholds and no matching company categories/tags -> needs_review
       assert updated.prediction_status == :needs_review
-      assert updated.prediction_category_probabilities == cat_probs
-      assert updated.prediction_tag_probabilities == tag_probs
-      assert updated.prediction_category_model_version == "v2.1"
-      assert updated.prediction_tag_model_version == "v2.1"
+      assert updated.prediction_expense_category_probabilities == cat_probs
+      assert updated.prediction_expense_tag_probabilities == tag_probs
+      assert updated.prediction_expense_category_model_version == "v2.1"
+      assert updated.prediction_expense_tag_model_version == "v2.1"
     end
   end
 

@@ -355,8 +355,8 @@ defmodule KsefHubWeb.InvoiceComponents do
   def display_status(%{"duplicate_status" => :confirmed}), do: :duplicate
   def display_status(%{type: :income}), do: nil
   def display_status(%{"type" => :income}), do: nil
-  def display_status(%{status: status}), do: status
-  def display_status(%{"status" => status}), do: status
+  def display_status(%{expense_approval_status: status}), do: status
+  def display_status(%{"expense_approval_status" => status}), do: status
 
   @doc "Renders a category badge with emoji and name, or \"-\" when nil."
   @spec category_badge(map()) :: Phoenix.LiveView.Rendered.t()

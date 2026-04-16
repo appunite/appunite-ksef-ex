@@ -65,7 +65,7 @@ defmodule KsefHubWeb.Api.InvoiceController do
         description: "Filter by invoice source.",
         schema: %Schema{type: :string, enum: ["ksef", "manual", "pdf_upload"]}
       ],
-      status: [
+      expense_approval_status: [
         in: :query,
         description: "Filter by approval status.",
         schema: %Schema{type: :string, enum: ["pending", "approved", "rejected"]}
@@ -117,7 +117,7 @@ defmodule KsefHubWeb.Api.InvoiceController do
         description: "Results per page (default 25, max 100).",
         schema: %Schema{type: :integer, minimum: 1, maximum: 100, default: 25}
       ],
-      category_id: [
+      expense_category_id: [
         in: :query,
         description: "Filter by category UUID.",
         schema: %Schema{type: :string, format: :uuid}
@@ -896,7 +896,7 @@ defmodule KsefHubWeb.Api.InvoiceController do
     role = conn.assigns[:current_role]
     user_id = conn.assigns.api_token.created_by_id
     invoice = Invoices.get_invoice!(company_id, id, role: role, user_id: user_id)
-    category_id = params["category_id"]
+    category_id = params["expense_category_id"]
 
     with {:ok, cost_line} <- cast_cost_line_param(params),
          :ok <- validate_category_company(category_id, company_id),
@@ -910,7 +910,7 @@ defmodule KsefHubWeb.Api.InvoiceController do
       {:error, :invalid_cost_line} ->
         conn
         |> put_status(:unprocessable_entity)
-        |> json(%{error: "Invalid cost_line value"})
+        |> json(%{error: "Invalid expense_cost_line value"})
 
       {:error, :invalid_uuid} ->
         conn
@@ -1392,7 +1392,10 @@ defmodule KsefHubWeb.Api.InvoiceController do
   defp build_filters(params) do
     %{}
     |> maybe_put(:type, cast_enum_param(params["type"], Invoice, :type))
-    |> maybe_put(:status, cast_enum_param(params["status"], Invoice, :status))
+    |> maybe_put(
+      :expense_approval_status,
+      cast_enum_param(params["expense_approval_status"], Invoice, :expense_approval_status)
+    )
     |> maybe_put(:source, cast_enum_param(params["source"], Invoice, :source))
     |> maybe_put(:seller_nip, params["seller_nip"])
     |> maybe_put(:buyer_nip, params["buyer_nip"])
@@ -1403,7 +1406,7 @@ defmodule KsefHubWeb.Api.InvoiceController do
     |> maybe_put_date(:billing_date_to, params["billing_date_to"])
     |> maybe_put_integer(:page, params["page"])
     |> maybe_put_integer(:per_page, params["per_page"])
-    |> maybe_put(:category_id, params["category_id"])
+    |> maybe_put(:expense_category_id, params["expense_category_id"])
     |> maybe_put_list(:tags, params["tags[]"] || params["tags"])
     |> maybe_put_boolean(:is_excluded, params["is_excluded"])
     |> maybe_put(:invoice_kind, cast_enum_param(params["invoice_kind"], Invoice, :invoice_kind))
@@ -1476,7 +1479,7 @@ defmodule KsefHubWeb.Api.InvoiceController do
 
   @spec cast_cost_line_param(map()) ::
           {:ok, atom() | nil | :not_provided} | {:error, :invalid_cost_line}
-  defp cast_cost_line_param(%{"cost_line" => value}) do
+  defp cast_cost_line_param(%{"expense_cost_line" => value}) do
     case CostLine.cast(value) do
       {:ok, cost_line} -> {:ok, cost_line}
       :error -> {:error, :invalid_cost_line}
@@ -1543,19 +1546,20 @@ defmodule KsefHubWeb.Api.InvoiceController do
       net_amount: invoice.net_amount,
       gross_amount: invoice.gross_amount,
       currency: invoice.currency,
-      status: invoice.status,
+      expense_approval_status: invoice.expense_approval_status,
       source: invoice.source,
       duplicate_of_id: invoice.duplicate_of_id,
       duplicate_status: invoice.duplicate_status,
       ksef_acquisition_date: invoice.ksef_acquisition_date,
       ksef_permanent_storage_date: invoice.ksef_permanent_storage_date,
       prediction_status: invoice.prediction_status,
-      prediction_category_name: invoice.prediction_category_name,
-      prediction_tag_name: invoice.prediction_tag_name,
-      prediction_category_confidence: invoice.prediction_category_confidence,
-      prediction_tag_confidence: invoice.prediction_tag_confidence,
-      prediction_category_model_version: invoice.prediction_category_model_version,
-      prediction_tag_model_version: invoice.prediction_tag_model_version,
+      prediction_expense_category_name: invoice.prediction_expense_category_name,
+      prediction_expense_tag_name: invoice.prediction_expense_tag_name,
+      prediction_expense_category_confidence: invoice.prediction_expense_category_confidence,
+      prediction_expense_tag_confidence: invoice.prediction_expense_tag_confidence,
+      prediction_expense_category_model_version:
+        invoice.prediction_expense_category_model_version,
+      prediction_expense_tag_model_version: invoice.prediction_expense_tag_model_version,
       prediction_predicted_at: invoice.prediction_predicted_at,
       extraction_status: invoice.extraction_status,
       original_filename: invoice.original_filename,
@@ -1574,7 +1578,7 @@ defmodule KsefHubWeb.Api.InvoiceController do
       seller_address: invoice.seller_address,
       buyer_address: invoice.buyer_address,
       note: invoice.note,
-      cost_line: invoice.cost_line,
+      expense_cost_line: invoice.expense_cost_line,
       project_tag: invoice.project_tag,
       is_excluded: invoice.is_excluded,
       access_restricted: invoice.access_restricted,

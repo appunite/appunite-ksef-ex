@@ -86,18 +86,26 @@ defmodule KsefHubWeb.Api.InvoiceControllerTest do
   describe "approve" do
     test "approves expense invoice from token's company", %{conn: conn} do
       %{company: company, token: token} = create_user_with_token(:owner)
-      invoice = insert(:invoice, company: company, type: :expense, status: :pending)
+
+      invoice =
+        insert(:invoice, company: company, type: :expense, expense_approval_status: :pending)
 
       conn = conn |> api_conn(token) |> post("/api/invoices/#{invoice.id}/approve")
 
       assert conn.status == 200
-      assert Jason.decode!(conn.resp_body)["data"]["status"] == "approved"
+      assert Jason.decode!(conn.resp_body)["data"]["expense_approval_status"] == "approved"
     end
 
     test "returns 404 when approving invoice from different company", %{conn: conn} do
       %{token: token} = create_user_with_token(:owner)
       other_company = insert(:company)
-      invoice = insert(:invoice, company: other_company, type: :expense, status: :pending)
+
+      invoice =
+        insert(:invoice,
+          company: other_company,
+          type: :expense,
+          expense_approval_status: :pending
+        )
 
       assert_error_sent 404, fn ->
         conn |> api_conn(token) |> post("/api/invoices/#{invoice.id}/approve")
@@ -108,18 +116,26 @@ defmodule KsefHubWeb.Api.InvoiceControllerTest do
   describe "reject" do
     test "rejects expense invoice from token's company", %{conn: conn} do
       %{company: company, token: token} = create_user_with_token(:owner)
-      invoice = insert(:invoice, company: company, type: :expense, status: :pending)
+
+      invoice =
+        insert(:invoice, company: company, type: :expense, expense_approval_status: :pending)
 
       conn = conn |> api_conn(token) |> post("/api/invoices/#{invoice.id}/reject")
 
       assert conn.status == 200
-      assert Jason.decode!(conn.resp_body)["data"]["status"] == "rejected"
+      assert Jason.decode!(conn.resp_body)["data"]["expense_approval_status"] == "rejected"
     end
 
     test "returns 404 when rejecting invoice from different company", %{conn: conn} do
       %{token: token} = create_user_with_token(:owner)
       other_company = insert(:company)
-      invoice = insert(:invoice, company: other_company, type: :expense, status: :pending)
+
+      invoice =
+        insert(:invoice,
+          company: other_company,
+          type: :expense,
+          expense_approval_status: :pending
+        )
 
       assert_error_sent 404, fn ->
         conn |> api_conn(token) |> post("/api/invoices/#{invoice.id}/reject")
@@ -130,27 +146,33 @@ defmodule KsefHubWeb.Api.InvoiceControllerTest do
   describe "reset_status" do
     test "resets approved expense invoice to pending", %{conn: conn} do
       %{company: company, token: token} = create_user_with_token(:owner)
-      invoice = insert(:invoice, company: company, type: :expense, status: :approved)
+
+      invoice =
+        insert(:invoice, company: company, type: :expense, expense_approval_status: :approved)
 
       conn = conn |> api_conn(token) |> post("/api/invoices/#{invoice.id}/reset_status")
 
       assert conn.status == 200
-      assert Jason.decode!(conn.resp_body)["data"]["status"] == "pending"
+      assert Jason.decode!(conn.resp_body)["data"]["expense_approval_status"] == "pending"
     end
 
     test "resets rejected expense invoice to pending", %{conn: conn} do
       %{company: company, token: token} = create_user_with_token(:owner)
-      invoice = insert(:invoice, company: company, type: :expense, status: :rejected)
+
+      invoice =
+        insert(:invoice, company: company, type: :expense, expense_approval_status: :rejected)
 
       conn = conn |> api_conn(token) |> post("/api/invoices/#{invoice.id}/reset_status")
 
       assert conn.status == 200
-      assert Jason.decode!(conn.resp_body)["data"]["status"] == "pending"
+      assert Jason.decode!(conn.resp_body)["data"]["expense_approval_status"] == "pending"
     end
 
     test "returns 422 for already pending invoice", %{conn: conn} do
       %{company: company, token: token} = create_user_with_token(:owner)
-      invoice = insert(:invoice, company: company, type: :expense, status: :pending)
+
+      invoice =
+        insert(:invoice, company: company, type: :expense, expense_approval_status: :pending)
 
       conn = conn |> api_conn(token) |> post("/api/invoices/#{invoice.id}/reset_status")
 
@@ -170,7 +192,9 @@ defmodule KsefHubWeb.Api.InvoiceControllerTest do
 
     test "accountant gets 403", %{conn: conn} do
       {:ok, %{company: company, token: token}} = create_user_with_token(:accountant)
-      invoice = insert(:invoice, company: company, type: :expense, status: :approved)
+
+      invoice =
+        insert(:invoice, company: company, type: :expense, expense_approval_status: :approved)
 
       conn = conn |> api_conn(token) |> post("/api/invoices/#{invoice.id}/reset_status")
       assert conn.status == 403
@@ -178,12 +202,14 @@ defmodule KsefHubWeb.Api.InvoiceControllerTest do
 
     test "reviewer can reset", %{conn: conn} do
       {:ok, %{company: company, token: token}} = create_user_with_token(:reviewer)
-      invoice = insert(:invoice, company: company, type: :expense, status: :approved)
+
+      invoice =
+        insert(:invoice, company: company, type: :expense, expense_approval_status: :approved)
 
       conn = conn |> api_conn(token) |> post("/api/invoices/#{invoice.id}/reset_status")
 
       assert conn.status == 200
-      assert Jason.decode!(conn.resp_body)["data"]["status"] == "pending"
+      assert Jason.decode!(conn.resp_body)["data"]["expense_approval_status"] == "pending"
     end
   end
 
@@ -1004,7 +1030,9 @@ defmodule KsefHubWeb.Api.InvoiceControllerTest do
     test "includes category and tags in show response", %{conn: conn} do
       %{company: company, token: token} = create_user_with_token(:owner)
       category = insert(:category, company: company, identifier: "ops:test")
-      invoice = insert(:invoice, company: company, category_id: category.id, tags: ["urgent"])
+
+      invoice =
+        insert(:invoice, company: company, expense_category_id: category.id, tags: ["urgent"])
 
       conn = conn |> api_conn(token) |> get("/api/invoices/#{invoice.id}")
 
@@ -1017,7 +1045,7 @@ defmodule KsefHubWeb.Api.InvoiceControllerTest do
     test "includes category in list response", %{conn: conn} do
       %{company: company, token: token} = create_user_with_token(:owner)
       category = insert(:category, company: company)
-      insert(:invoice, company: company, category_id: category.id)
+      insert(:invoice, company: company, expense_category_id: category.id)
 
       conn = conn |> api_conn(token) |> get("/api/invoices")
 
@@ -1032,7 +1060,7 @@ defmodule KsefHubWeb.Api.InvoiceControllerTest do
       category = insert(:category, company: company)
       invoice = insert(:invoice, type: :expense, company: company)
 
-      body = Jason.encode!(%{category_id: category.id})
+      body = Jason.encode!(%{expense_category_id: category.id})
       conn = conn |> api_conn(token) |> put("/api/invoices/#{invoice.id}/category", body)
 
       assert conn.status == 200
@@ -1042,9 +1070,11 @@ defmodule KsefHubWeb.Api.InvoiceControllerTest do
     test "clears category with null", %{conn: conn} do
       %{company: company, token: token} = create_user_with_token(:owner)
       category = insert(:category, company: company)
-      invoice = insert(:invoice, type: :expense, company: company, category_id: category.id)
 
-      body = Jason.encode!(%{category_id: nil})
+      invoice =
+        insert(:invoice, type: :expense, company: company, expense_category_id: category.id)
+
+      body = Jason.encode!(%{expense_category_id: nil})
       conn = conn |> api_conn(token) |> put("/api/invoices/#{invoice.id}/category", body)
 
       assert conn.status == 200
@@ -1056,7 +1086,7 @@ defmodule KsefHubWeb.Api.InvoiceControllerTest do
       category = insert(:category, company: company)
       invoice = insert(:invoice, type: :income, company: company)
 
-      body = Jason.encode!(%{category_id: category.id})
+      body = Jason.encode!(%{expense_category_id: category.id})
       conn = conn |> api_conn(token) |> put("/api/invoices/#{invoice.id}/category", body)
 
       assert conn.status == 422
@@ -1069,7 +1099,7 @@ defmodule KsefHubWeb.Api.InvoiceControllerTest do
       category = insert(:category, company: other_company)
       invoice = insert(:invoice, type: :expense, company: company)
 
-      body = Jason.encode!(%{category_id: category.id})
+      body = Jason.encode!(%{expense_category_id: category.id})
       conn = conn |> api_conn(token) |> put("/api/invoices/#{invoice.id}/category", body)
 
       assert conn.status == 422
@@ -1078,12 +1108,12 @@ defmodule KsefHubWeb.Api.InvoiceControllerTest do
 
     test "includes cost_line in invoice JSON response", %{conn: conn} do
       %{company: company, token: token} = create_user_with_token(:owner)
-      invoice = insert(:invoice, type: :expense, company: company, cost_line: :growth)
+      invoice = insert(:invoice, type: :expense, company: company, expense_cost_line: :growth)
 
       conn = conn |> api_conn(token) |> get("/api/invoices/#{invoice.id}")
 
       assert conn.status == 200
-      assert Jason.decode!(conn.resp_body)["data"]["cost_line"] == "growth"
+      assert Jason.decode!(conn.resp_body)["data"]["expense_cost_line"] == "growth"
     end
 
     test "set_category with cost_line override", %{conn: conn} do
@@ -1091,12 +1121,12 @@ defmodule KsefHubWeb.Api.InvoiceControllerTest do
       category = insert(:category, company: company, default_cost_line: :growth)
       invoice = insert(:invoice, type: :expense, company: company)
 
-      body = Jason.encode!(%{category_id: category.id, cost_line: "heads"})
+      body = Jason.encode!(%{expense_category_id: category.id, expense_cost_line: "heads"})
       conn = conn |> api_conn(token) |> put("/api/invoices/#{invoice.id}/category", body)
 
       assert conn.status == 200
       data = Jason.decode!(conn.resp_body)["data"]
-      assert data["cost_line"] == "heads"
+      assert data["expense_cost_line"] == "heads"
     end
 
     test "set_category returns 422 for invalid cost_line", %{conn: conn} do
@@ -1104,11 +1134,11 @@ defmodule KsefHubWeb.Api.InvoiceControllerTest do
       category = insert(:category, company: company)
       invoice = insert(:invoice, type: :expense, company: company)
 
-      body = Jason.encode!(%{category_id: category.id, cost_line: "bogus"})
+      body = Jason.encode!(%{expense_category_id: category.id, expense_cost_line: "bogus"})
       conn = conn |> api_conn(token) |> put("/api/invoices/#{invoice.id}/category", body)
 
       assert conn.status == 422
-      assert Jason.decode!(conn.resp_body)["error"] =~ "Invalid cost_line"
+      assert Jason.decode!(conn.resp_body)["error"] =~ "Invalid expense_cost_line"
     end
 
     test "set_category auto-sets cost_line from default when not provided", %{conn: conn} do
@@ -1116,12 +1146,12 @@ defmodule KsefHubWeb.Api.InvoiceControllerTest do
       category = insert(:category, company: company, default_cost_line: :service_delivery)
       invoice = insert(:invoice, type: :expense, company: company)
 
-      body = Jason.encode!(%{category_id: category.id})
+      body = Jason.encode!(%{expense_category_id: category.id})
       conn = conn |> api_conn(token) |> put("/api/invoices/#{invoice.id}/category", body)
 
       assert conn.status == 200
       data = Jason.decode!(conn.resp_body)["data"]
-      assert data["cost_line"] == "service_delivery"
+      assert data["expense_cost_line"] == "service_delivery"
     end
   end
 
@@ -1188,10 +1218,16 @@ defmodule KsefHubWeb.Api.InvoiceControllerTest do
     test "filters invoices by category_id", %{conn: conn} do
       %{company: company, token: token} = create_user_with_token(:owner)
       category = insert(:category, company: company)
-      insert(:invoice, company: company, category_id: category.id, seller_name: "Cat Invoice")
+
+      insert(:invoice,
+        company: company,
+        expense_category_id: category.id,
+        seller_name: "Cat Invoice"
+      )
+
       insert(:invoice, company: company, seller_name: "No Cat Invoice")
 
-      conn = conn |> api_conn(token) |> get("/api/invoices?category_id=#{category.id}")
+      conn = conn |> api_conn(token) |> get("/api/invoices?expense_category_id=#{category.id}")
 
       body = Jason.decode!(conn.resp_body)
       assert length(body["data"]) == 1
@@ -1484,7 +1520,7 @@ defmodule KsefHubWeb.Api.InvoiceControllerTest do
       conn =
         conn
         |> api_conn(token)
-        |> put("/api/invoices/#{invoice.id}/category", %{category_id: nil})
+        |> put("/api/invoices/#{invoice.id}/category", %{expense_category_id: nil})
 
       assert conn.status == 403
     end
@@ -1532,7 +1568,7 @@ defmodule KsefHubWeb.Api.InvoiceControllerTest do
         insert(:invoice,
           company: company,
           type: :expense,
-          status: :pending,
+          expense_approval_status: :pending,
           source: :ksef
         )
 
@@ -1895,13 +1931,13 @@ defmodule KsefHubWeb.Api.InvoiceControllerTest do
 
     test "index returns status field for rejected invoice", %{conn: conn} do
       %{company: company, token: token} = create_user_with_token(:owner)
-      insert(:invoice, company: company, type: :expense, status: :rejected)
+      insert(:invoice, company: company, type: :expense, expense_approval_status: :rejected)
 
       conn = conn |> api_conn(token) |> get("/api/invoices")
 
       assert conn.status == 200
       data = Jason.decode!(conn.resp_body)["data"]
-      assert hd(data)["status"] == "rejected"
+      assert hd(data)["expense_approval_status"] == "rejected"
     end
 
     test "index includes rejected and excluded invoices with correct marking", %{conn: conn} do
@@ -1910,21 +1946,21 @@ defmodule KsefHubWeb.Api.InvoiceControllerTest do
       insert(:invoice,
         company: company,
         type: :expense,
-        status: :approved,
+        expense_approval_status: :approved,
         seller_name: "Approved"
       )
 
       insert(:invoice,
         company: company,
         type: :expense,
-        status: :rejected,
+        expense_approval_status: :rejected,
         seller_name: "Rejected"
       )
 
       insert(:invoice,
         company: company,
         type: :expense,
-        status: :approved,
+        expense_approval_status: :approved,
         is_excluded: true,
         seller_name: "Excluded"
       )
@@ -1936,11 +1972,11 @@ defmodule KsefHubWeb.Api.InvoiceControllerTest do
       assert length(data) == 3
 
       rejected = Enum.find(data, &(&1["seller_name"] == "Rejected"))
-      assert rejected["status"] == "rejected"
+      assert rejected["expense_approval_status"] == "rejected"
       assert rejected["is_excluded"] == false
 
       excluded = Enum.find(data, &(&1["seller_name"] == "Excluded"))
-      assert excluded["status"] == "approved"
+      assert excluded["expense_approval_status"] == "approved"
       assert excluded["is_excluded"] == true
     end
   end
@@ -1948,41 +1984,41 @@ defmodule KsefHubWeb.Api.InvoiceControllerTest do
   describe "status filter" do
     test "filters invoices by status=rejected", %{conn: conn} do
       %{company: company, token: token} = create_user_with_token(:owner)
-      insert(:invoice, company: company, type: :expense, status: :pending)
-      insert(:invoice, company: company, type: :expense, status: :approved)
-      insert(:invoice, company: company, type: :expense, status: :rejected)
+      insert(:invoice, company: company, type: :expense, expense_approval_status: :pending)
+      insert(:invoice, company: company, type: :expense, expense_approval_status: :approved)
+      insert(:invoice, company: company, type: :expense, expense_approval_status: :rejected)
 
-      conn = conn |> api_conn(token) |> get("/api/invoices?status=rejected")
+      conn = conn |> api_conn(token) |> get("/api/invoices?expense_approval_status=rejected")
 
       body = Jason.decode!(conn.resp_body)
       assert length(body["data"]) == 1
-      assert hd(body["data"])["status"] == "rejected"
+      assert hd(body["data"])["expense_approval_status"] == "rejected"
     end
 
     test "filters invoices by status=approved", %{conn: conn} do
       %{company: company, token: token} = create_user_with_token(:owner)
-      insert(:invoice, company: company, type: :expense, status: :pending)
-      insert(:invoice, company: company, type: :expense, status: :approved)
-      insert(:invoice, company: company, type: :expense, status: :rejected)
+      insert(:invoice, company: company, type: :expense, expense_approval_status: :pending)
+      insert(:invoice, company: company, type: :expense, expense_approval_status: :approved)
+      insert(:invoice, company: company, type: :expense, expense_approval_status: :rejected)
 
-      conn = conn |> api_conn(token) |> get("/api/invoices?status=approved")
+      conn = conn |> api_conn(token) |> get("/api/invoices?expense_approval_status=approved")
 
       body = Jason.decode!(conn.resp_body)
       assert length(body["data"]) == 1
-      assert hd(body["data"])["status"] == "approved"
+      assert hd(body["data"])["expense_approval_status"] == "approved"
     end
 
     test "filters invoices by status=pending", %{conn: conn} do
       %{company: company, token: token} = create_user_with_token(:owner)
-      insert(:invoice, company: company, type: :expense, status: :pending)
-      insert(:invoice, company: company, type: :expense, status: :approved)
-      insert(:invoice, company: company, type: :expense, status: :rejected)
+      insert(:invoice, company: company, type: :expense, expense_approval_status: :pending)
+      insert(:invoice, company: company, type: :expense, expense_approval_status: :approved)
+      insert(:invoice, company: company, type: :expense, expense_approval_status: :rejected)
 
-      conn = conn |> api_conn(token) |> get("/api/invoices?status=pending")
+      conn = conn |> api_conn(token) |> get("/api/invoices?expense_approval_status=pending")
 
       body = Jason.decode!(conn.resp_body)
       assert length(body["data"]) == 1
-      assert hd(body["data"])["status"] == "pending"
+      assert hd(body["data"])["expense_approval_status"] == "pending"
     end
   end
 

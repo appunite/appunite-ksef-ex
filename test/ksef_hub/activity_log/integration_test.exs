@@ -29,7 +29,8 @@ defmodule KsefHub.ActivityLog.IntegrationTest do
 
   describe "invoice status changes" do
     test "approve_invoice emits status_changed event", %{user: user, company: company} do
-      invoice = insert(:invoice, company: company, type: :expense, status: :pending)
+      invoice =
+        insert(:invoice, company: company, type: :expense, expense_approval_status: :pending)
 
       {:ok, _updated} =
         Invoices.approve_invoice(invoice, user_id: user.id, actor_label: user.name)
@@ -43,7 +44,8 @@ defmodule KsefHub.ActivityLog.IntegrationTest do
     end
 
     test "reject_invoice emits status_changed event", %{user: user, company: company} do
-      invoice = insert(:invoice, company: company, type: :expense, status: :pending)
+      invoice =
+        insert(:invoice, company: company, type: :expense, expense_approval_status: :pending)
 
       {:ok, _updated} =
         Invoices.reject_invoice(invoice, user_id: user.id, actor_label: user.name)
@@ -56,7 +58,8 @@ defmodule KsefHub.ActivityLog.IntegrationTest do
     end
 
     test "reset_invoice_status emits status_changed event", %{company: company} do
-      invoice = insert(:invoice, company: company, type: :expense, status: :approved)
+      invoice =
+        insert(:invoice, company: company, type: :expense, expense_approval_status: :approved)
 
       {:ok, _updated} = Invoices.reset_invoice_status(invoice)
 
@@ -140,7 +143,7 @@ defmodule KsefHub.ActivityLog.IntegrationTest do
     end
 
     test "set_invoice_cost_line does NOT emit when same value", %{company: company} do
-      invoice = insert(:invoice, company: company, type: :expense, cost_line: :growth)
+      invoice = insert(:invoice, company: company, type: :expense, expense_cost_line: :growth)
 
       {:ok, _updated} = Invoices.set_invoice_cost_line(invoice, :growth)
 
@@ -479,7 +482,7 @@ defmodule KsefHub.ActivityLog.IntegrationTest do
                        %Event{
                          action: "invoice.classification_changed",
                          metadata: %{
-                           "field" => "category",
+                           "field" => "expense_category",
                            "old_name" => "Operations",
                            "new_name" => "Growth"
                          }
@@ -496,7 +499,7 @@ defmodule KsefHub.ActivityLog.IntegrationTest do
                        %Event{
                          action: "invoice.classification_changed",
                          metadata: %{
-                           "field" => "category",
+                           "field" => "expense_category",
                            "old_name" => nil,
                            "new_name" => "Payroll"
                          }
@@ -513,7 +516,7 @@ defmodule KsefHub.ActivityLog.IntegrationTest do
                        %Event{
                          action: "invoice.classification_changed",
                          metadata: %{
-                           "field" => "category",
+                           "field" => "expense_category",
                            "old_name" => "Marketing",
                            "new_name" => nil
                          }
@@ -533,14 +536,14 @@ defmodule KsefHub.ActivityLog.IntegrationTest do
     end
 
     test "set_invoice_cost_line emits classification_changed", %{company: company} do
-      invoice = insert(:invoice, company: company, type: :expense, cost_line: nil)
+      invoice = insert(:invoice, company: company, type: :expense, expense_cost_line: nil)
 
       {:ok, _updated} = Invoices.set_invoice_cost_line(invoice, :growth)
 
       assert_received {:activity_event,
                        %Event{
                          action: "invoice.classification_changed",
-                         metadata: %{"field" => "cost_line"}
+                         metadata: %{"field" => "expense_cost_line"}
                        }}
     end
 
@@ -559,7 +562,9 @@ defmodule KsefHub.ActivityLog.IntegrationTest do
 
   describe "payment request lifecycle" do
     test "create_payment_request emits created event", %{company: company, user: user} do
-      invoice = insert(:invoice, company: company, type: :expense, status: :approved)
+      invoice =
+        insert(:invoice, company: company, type: :expense, expense_approval_status: :approved)
+
       bank_account = insert(:company_bank_account, company: company)
 
       {:ok, _pr} =

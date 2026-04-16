@@ -99,3 +99,4 @@ Read only the ADR(s) relevant to your task — the summaries below tell you whic
 | 0042-activity-log.md | Activity Log System | Accepted | `Trackable` behaviour on schemas + `TrackedRepo` for automatic audit events |
 | 0043-component-driven-ui.md | Component-Driven UI | Accepted | Extract shared UI patterns (3+ occurrences) to `CoreComponents` |
 | 0044-correction-invoice-support.md | Correction Invoice Support | Accepted | `invoice_kind` enum (VAT/KOR/ZAL) with FK to corrected original |
+| 0045-rename-expense-invoice-columns.md | Rename Expense-Specific Invoice Columns | Accepted | 11 expense-only columns prefixed with `expense_`/`prediction_expense_`; breaking API change |

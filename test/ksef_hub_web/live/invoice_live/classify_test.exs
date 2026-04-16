@@ -128,7 +128,7 @@ defmodule KsefHubWeb.InvoiceLive.ClassifyTest do
 
       # Verify persistence
       updated = Invoices.get_invoice_with_details!(company.id, invoice.id)
-      assert updated.category_id == cat.id
+      assert updated.expense_category_id == cat.id
       assert "monthly" in updated.tags
     end
 
@@ -197,7 +197,7 @@ defmodule KsefHubWeb.InvoiceLive.ClassifyTest do
 
       # Verify no persistence
       updated = Invoices.get_invoice_with_details!(company.id, invoice.id)
-      assert is_nil(updated.category_id)
+      assert is_nil(updated.expense_category_id)
     end
   end
 
@@ -374,7 +374,7 @@ defmodule KsefHubWeb.InvoiceLive.ClassifyTest do
       render_click(view, "save")
 
       updated = Invoices.get_invoice!(company.id, invoice.id)
-      assert updated.cost_line == :growth
+      assert updated.expense_cost_line == :growth
     end
 
     test "allows manual cost line override after category select", %{
@@ -387,12 +387,12 @@ defmodule KsefHubWeb.InvoiceLive.ClassifyTest do
       {:ok, view, _html} = live(conn, ~p"/c/#{company.id}/invoices/#{invoice.id}/classify")
 
       render_click(view, "select_category", %{"id" => category.id})
-      render_change(view, "select_cost_line", %{"cost_line" => "heads"})
+      render_change(view, "select_cost_line", %{"expense_cost_line" => "heads"})
       render_click(view, "save")
 
       updated = Invoices.get_invoice!(company.id, invoice.id)
-      assert updated.cost_line == :heads
-      assert updated.category_id == category.id
+      assert updated.expense_cost_line == :heads
+      assert updated.expense_category_id == category.id
     end
 
     test "persists cost line without category on save", %{conn: conn, company: company} do
@@ -400,12 +400,12 @@ defmodule KsefHubWeb.InvoiceLive.ClassifyTest do
 
       {:ok, view, _html} = live(conn, ~p"/c/#{company.id}/invoices/#{invoice.id}/classify")
 
-      render_change(view, "select_cost_line", %{"cost_line" => "service"})
+      render_change(view, "select_cost_line", %{"expense_cost_line" => "service"})
       render_click(view, "save")
 
       updated = Invoices.get_invoice!(company.id, invoice.id)
-      assert updated.cost_line == :service
-      assert is_nil(updated.category_id)
+      assert updated.expense_cost_line == :service
+      assert is_nil(updated.expense_category_id)
     end
 
     test "does not render cost line section for income invoice", %{conn: conn, company: company} do

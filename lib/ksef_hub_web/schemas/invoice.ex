@@ -48,7 +48,7 @@ defmodule KsefHubWeb.Schemas.Invoice do
         description: "ISO 4217 currency code.",
         example: "PLN"
       },
-      status: %Schema{type: :string, enum: ["pending", "approved", "rejected"]},
+      expense_approval_status: %Schema{type: :string, enum: ["pending", "approved", "rejected"]},
       source: %Schema{
         type: :string,
         enum: ["ksef", "manual", "pdf_upload"],
@@ -205,34 +205,34 @@ defmodule KsefHubWeb.Schemas.Invoice do
         description:
           "ML prediction status. nil=not applicable, pending=awaiting, predicted=auto-applied (>=80%), needs_review=stored but not applied (<80%), manual=user overrode."
       },
-      prediction_category_name: %Schema{
+      prediction_expense_category_name: %Schema{
         type: :string,
         nullable: true,
         description: "Category name predicted by the ML model."
       },
-      prediction_tag_name: %Schema{
+      prediction_expense_tag_name: %Schema{
         type: :string,
         nullable: true,
         description: "Tag name predicted by the ML model."
       },
-      prediction_category_confidence: %Schema{
+      prediction_expense_category_confidence: %Schema{
         type: :number,
         format: :float,
         nullable: true,
         description: "Confidence score (0.0-1.0) for the predicted category."
       },
-      prediction_tag_confidence: %Schema{
+      prediction_expense_tag_confidence: %Schema{
         type: :number,
         format: :float,
         nullable: true,
         description: "Confidence score (0.0-1.0) for the predicted tag."
       },
-      prediction_category_model_version: %Schema{
+      prediction_expense_category_model_version: %Schema{
         type: :string,
         nullable: true,
         description: "Version of the category ML model that generated the prediction."
       },
-      prediction_tag_model_version: %Schema{
+      prediction_expense_tag_model_version: %Schema{
         type: :string,
         nullable: true,
         description: "Version of the tag ML model that generated the prediction."
@@ -248,7 +248,7 @@ defmodule KsefHubWeb.Schemas.Invoice do
         nullable: true,
         description: "Free-form note attached to the invoice."
       },
-      cost_line: %Schema{
+      expense_cost_line: %Schema{
         type: :string,
         enum: ["growth", "heads", "service", "service_delivery", "client_success"],
         nullable: true,
@@ -338,7 +338,7 @@ defmodule KsefHubWeb.Schemas.Invoice do
       inserted_at: %Schema{type: :string, format: :"date-time"},
       updated_at: %Schema{type: :string, format: :"date-time"}
     },
-    required: [:id, :type, :status],
+    required: [:id, :type, :expense_approval_status],
     example: %{
       id: "a1b2c3d4-e5f6-7890-abcd-ef1234567890",
       company_id: "c1d2e3f4-a5b6-7890-cdef-ab1234567890",

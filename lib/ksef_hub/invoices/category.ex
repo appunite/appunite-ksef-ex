@@ -23,7 +23,7 @@ defmodule KsefHub.Invoices.Category do
     field :default_cost_line, Ecto.Enum, values: CostLine.values()
 
     belongs_to :company, KsefHub.Companies.Company
-    has_many :invoices, KsefHub.Invoices.Invoice
+    has_many :invoices, KsefHub.Invoices.Invoice, foreign_key: :expense_category_id
 
     timestamps()
   end

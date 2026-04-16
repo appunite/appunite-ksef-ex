@@ -384,16 +384,19 @@ defmodule KsefHub.InboundEmail.ReplyNotifier do
     # Prefer the preloaded category association (has emoji + canonical name)
     case Map.get(invoice, :category) do
       %{name: name, emoji: emoji} when is_binary(name) and is_binary(emoji) ->
-        with_confidence("#{emoji} #{name}", Map.get(invoice, :prediction_category_confidence))
+        with_confidence(
+          "#{emoji} #{name}",
+          Map.get(invoice, :prediction_expense_category_confidence)
+        )
 
       %{name: name} when is_binary(name) ->
-        with_confidence(name, Map.get(invoice, :prediction_category_confidence))
+        with_confidence(name, Map.get(invoice, :prediction_expense_category_confidence))
 
       _ ->
         # Fallback to prediction field (category not yet applied or not preloaded)
         with_confidence(
-          Map.get(invoice, :prediction_category_name),
-          Map.get(invoice, :prediction_category_confidence)
+          Map.get(invoice, :prediction_expense_category_name),
+          Map.get(invoice, :prediction_expense_category_confidence)
         )
     end
   end
@@ -406,8 +409,8 @@ defmodule KsefHub.InboundEmail.ReplyNotifier do
       [] ->
         # Fallback to prediction tag name
         with_confidence(
-          Map.get(invoice, :prediction_tag_name),
-          Map.get(invoice, :prediction_tag_confidence)
+          Map.get(invoice, :prediction_expense_tag_name),
+          Map.get(invoice, :prediction_expense_tag_confidence)
         )
 
       tags ->
