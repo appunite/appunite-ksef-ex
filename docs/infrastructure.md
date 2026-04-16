@@ -6,7 +6,7 @@ Overview of deployment topology, CI/CD pipeline, cloud configuration, and sideca
 
 ## Topology Overview
 
-```
+```text
                         ┌──────────────────────────────────────────────┐
                         │         GCP Cloud Run (gen2)                 │
                         │         europe-west1 · scale 0–3             │
@@ -34,7 +34,7 @@ Overview of deployment topology, CI/CD pipeline, cloud configuration, and sideca
                             (10 secrets)         (ML model weights)
 ```
 
-All sidecars run in the same Cloud Run instance as the main app and communicate over **localhost** — no inter-service networking or authentication required between them. The main container startup is gated on all three sidecars being healthy.
+All sidecars run in the same Cloud Run instance as the main app and communicate over **localhost** — no network-level authentication or TLS is required between them. Application-level bearer-token authentication is still enforced for the extractor and classifier endpoints; the pdf-renderer has no auth. The main container startup is gated on all three sidecars being healthy.
 
 ---
 
@@ -151,18 +151,18 @@ All production images live in **GCP Artifact Registry**. Cloud Run cannot pull d
 
 All secrets are injected as environment variables at runtime via GCP Secret Manager. Never committed to the repo.
 
-| Secret name | Used by | Purpose |
-|-------------|---------|---------|
-| `DATABASE_URL` | app, migration job | Supabase PostgreSQL connection string |
-| `SECRET_KEY_BASE` | app | Phoenix session signing |
-| `GOOGLE_CLIENT_ID` | app | Google OAuth |
-| `GOOGLE_CLIENT_SECRET` | app | Google OAuth |
-| `CREDENTIAL_ENCRYPTION_KEY` | app | AES-256-GCM encryption for PKCS12 certs |
-| `MAILGUN_SIGNING_KEY` | app | Inbound webhook verification |
-| `MAILGUN_API_KEY` | app | Outbound email sending |
-| `INVOICE_EXTRACTOR_API_TOKEN` | app + extractor sidecar | Bearer auth between app and extractor |
-| `INVOICE_CLASSIFIER_API_TOKEN` | app + classifier sidecar | Bearer auth between app and classifier |
-| `ANTHROPIC_API_KEY` | extractor sidecar | Claude API calls for PDF extraction |
+| GCP Secret Manager ID | Env var | Used by | Purpose |
+|-----------------------|---------|---------|---------|
+| `database-url` | `DATABASE_URL` | app, migration job | Supabase PostgreSQL connection string |
+| `secret-key-base` | `SECRET_KEY_BASE` | app | Phoenix session signing |
+| `google-client-id` | `GOOGLE_CLIENT_ID` | app | Google OAuth |
+| `google-client-secret` | `GOOGLE_CLIENT_SECRET` | app | Google OAuth |
+| `credential-encryption-key` | `CREDENTIAL_ENCRYPTION_KEY` | app | AES-256-GCM encryption for PKCS12 certs |
+| `mailgun-signing-key` | `MAILGUN_SIGNING_KEY` | app | Inbound webhook verification |
+| `mailgun-api-key` | `MAILGUN_API_KEY` | app | Outbound email sending |
+| `invoice-extractor-api-token` | `INVOICE_EXTRACTOR_API_TOKEN` | app + extractor sidecar | Bearer auth between app and extractor |
+| `invoice-classifier-api-token` | `INVOICE_CLASSIFIER_API_TOKEN` | app + classifier sidecar | Bearer auth between app and classifier |
+| `anthropic-api-key` | `ANTHROPIC_API_KEY` | extractor sidecar | Claude API calls for PDF extraction |
 
 ---
 
@@ -172,7 +172,7 @@ Defined in `.github/workflows/ci.yml`. The workflow triggers on all pull request
 
 ### Test job (all branches)
 
-```
+```text
 Checkout
   → Setup Elixir 1.18.4 / OTP 28.0.2
   → Restore deps + _build cache (keyed on mix.lock)
@@ -186,7 +186,7 @@ Checkout
 
 ### Deploy job (main branch only, after tests pass)
 
-```
+```text
 GCP auth via Workload Identity Federation (no long-lived service account keys)
   → Setup Cloud SDK
   → Configure Docker for Artifact Registry
