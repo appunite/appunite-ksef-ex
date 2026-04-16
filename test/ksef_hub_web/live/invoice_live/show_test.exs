@@ -1247,7 +1247,7 @@ defmodule KsefHubWeb.InvoiceLive.ShowTest do
       {:ok, view, _html} = live(conn, ~p"/c/#{company.id}/invoices/#{invoice.id}")
 
       assert has_element?(view, ~s([data-testid="cost-line-display"]))
-      assert render(view) =~ "—"
+      assert render(view) =~ "-"
     end
 
     test "does not show cost line section for income invoice", %{conn: conn, company: company} do

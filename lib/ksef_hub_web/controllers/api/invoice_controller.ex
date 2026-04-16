@@ -1406,7 +1406,11 @@ defmodule KsefHubWeb.Api.InvoiceController do
     |> maybe_put_date(:billing_date_to, params["billing_date_to"])
     |> maybe_put_integer(:page, params["page"])
     |> maybe_put_integer(:per_page, params["per_page"])
-    |> maybe_put(:expense_category_id, params["expense_category_id"])
+    |> maybe_put_list(
+      :expense_category_ids,
+      params["expense_category_id"] || params["expense_category_ids"] ||
+        params["expense_category_ids[]"]
+    )
     |> maybe_put_list(:tags, params["tags[]"] || params["tags"])
     |> maybe_put_boolean(:is_excluded, params["is_excluded"])
     |> maybe_put(:invoice_kind, cast_enum_param(params["invoice_kind"], Invoice, :invoice_kind))
@@ -1578,7 +1582,11 @@ defmodule KsefHubWeb.Api.InvoiceController do
       seller_address: invoice.seller_address,
       buyer_address: invoice.buyer_address,
       note: invoice.note,
+      expense_category_id: invoice.expense_category_id,
       expense_cost_line: invoice.expense_cost_line,
+      prediction_expense_category_probabilities:
+        invoice.prediction_expense_category_probabilities,
+      prediction_expense_tag_probabilities: invoice.prediction_expense_tag_probabilities,
       project_tag: invoice.project_tag,
       is_excluded: invoice.is_excluded,
       access_restricted: invoice.access_restricted,

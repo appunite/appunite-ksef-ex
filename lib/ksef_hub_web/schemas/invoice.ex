@@ -243,6 +243,22 @@ defmodule KsefHubWeb.Schemas.Invoice do
         nullable: true,
         description: "When the ML prediction was generated."
       },
+      prediction_expense_category_probabilities: %Schema{
+        type: :object,
+        nullable: true,
+        description: "Per-category confidence scores from the ML model (category_name → float)."
+      },
+      prediction_expense_tag_probabilities: %Schema{
+        type: :object,
+        nullable: true,
+        description: "Per-tag confidence scores from the ML model (tag_name → float)."
+      },
+      expense_category_id: %Schema{
+        type: :string,
+        format: :uuid,
+        nullable: true,
+        description: "ID of the expense category assigned to this invoice."
+      },
       note: %Schema{
         type: :string,
         nullable: true,
@@ -353,7 +369,7 @@ defmodule KsefHubWeb.Schemas.Invoice do
       net_amount: "1000.00",
       gross_amount: "1230.00",
       currency: "PLN",
-      status: "pending",
+      expense_approval_status: "pending",
       source: "ksef",
       category: %{
         id: "d4c3b2a1-9876-5432-fedc-ba0987654321",
@@ -376,7 +392,7 @@ defmodule KsefHubWeb.Schemas.Invoice do
       id: "b2c3d4e5-f6a7-8901-bcde-f12345678901",
       type: "expense",
       source: "pdf_upload",
-      status: "pending",
+      expense_approval_status: "pending",
       extraction_status: "partial",
       original_filename: "invoice_february.pdf",
       seller_nip: "1234567890",
