@@ -58,7 +58,12 @@ defmodule KsefHubWeb.ExportLive.Index do
           {:noreply, Phoenix.LiveView.Socket.t()}
   def handle_event("update_form", params, socket) do
     invoice_type = params["invoice_type"] || socket.assigns.invoice_type
-    category_id = params |> Map.get("category_id") |> normalize_category_id() |> category_id_for_type(invoice_type)
+
+    category_id =
+      params
+      |> Map.get("category_id")
+      |> normalize_category_id()
+      |> category_id_for_type(invoice_type)
 
     {:noreply,
      socket
@@ -74,7 +79,12 @@ defmodule KsefHubWeb.ExportLive.Index do
 
   def handle_event("export", params, socket) do
     invoice_type = params["invoice_type"] || socket.assigns.invoice_type
-    category_id = params |> Map.get("category_id") |> normalize_category_id() |> category_id_for_type(invoice_type)
+
+    category_id =
+      params
+      |> Map.get("category_id")
+      |> normalize_category_id()
+      |> category_id_for_type(invoice_type)
 
     socket =
       socket

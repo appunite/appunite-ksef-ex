@@ -286,7 +286,7 @@ defmodule KsefHub.Exports do
     |> where([i], is_nil(i.duplicate_of_id))
     |> where([i], i.issue_date >= ^date_from and i.issue_date <= ^date_to)
     |> maybe_filter_type(invoice_type)
-    |> maybe_filter_category(category_id)
+    |> maybe_filter_category(invoice_type, category_id)
     |> maybe_filter_only_new(only_new, user_id)
   end
 
@@ -315,11 +315,12 @@ defmodule KsefHub.Exports do
 
   defp maybe_filter_type(query, _), do: query
 
-  @spec maybe_filter_category(Ecto.Queryable.t(), Ecto.UUID.t() | nil) :: Ecto.Query.t()
-  defp maybe_filter_category(query, nil), do: query
-
-  defp maybe_filter_category(query, category_id),
+  @spec maybe_filter_category(Ecto.Queryable.t(), String.t() | nil, Ecto.UUID.t() | nil) ::
+          Ecto.Query.t()
+  defp maybe_filter_category(query, "expense", category_id) when not is_nil(category_id),
     do: where(query, [i], i.category_id == ^category_id)
+
+  defp maybe_filter_category(query, _invoice_type, _category_id), do: query
 
   @spec maybe_filter_only_new(Ecto.Queryable.t(), boolean() | nil, Ecto.UUID.t() | nil) ::
           Ecto.Query.t()
