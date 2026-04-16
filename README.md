@@ -93,6 +93,13 @@ make docker.up       # start all services (docker compose)
 make docker.down     # stop all services
 ```
 
+To run a specific file or test by line number:
+
+```bash
+mix test test/ksef_hub/invoices_test.exs
+mix test test/ksef_hub/invoices_test.exs:42
+```
+
 ## API
 
 All API endpoints require a Bearer token. Full OpenAPI spec available at `/api/openapi` and SwaggerUI at `/dev/swaggerui` (dev only).

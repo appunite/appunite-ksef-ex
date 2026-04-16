@@ -1,132 +1,19 @@
 # KSeF Hub
 
-Dedicated service for Poland's National e-Invoice System (KSeF). Owns all KSeF complexity — certificate authentication, XADES signing, FA(3) XML parsing, invoice sync, PDF generation — and exposes clean REST APIs for any consumer application.
+Multi-tenant service for Poland's KSeF (National e-Invoice System). Owns certificate authentication, XADES signing, FA(3) XML parsing, incremental invoice sync, PDF generation, and ML-based categorisation for multiple companies — exposing clean REST APIs and a LiveView admin UI.
 
-See `docs/prd.md` for full product requirements.
+Two invoice types drive most of the domain logic: **income** (issued by the company, synced read-only from KSeF, no approval workflow) and **expense** (received invoices, arriving via KSeF sync, PDF upload, or inbound email, with approval workflow and ML auto-classification).
 
-## Tech Stack
+Before making changes, read @docs/architecture.md. It contains:
+- **Feature → Files Map** — which files to look at for each feature area
+- **Behavioral Contracts** — non-obvious invariants that affect multiple features
+- **ADR Index** — one-line summaries of every architecture decision
 
-| Layer | Technology |
-|-------|-----------|
-| Language | Elixir 1.16+ / OTP 26+ |
-| Framework | Phoenix 1.8 + LiveView |
-| Database | PostgreSQL (Supabase) via Ecto |
-| Auth (UI) | Google Sign-In (company membership RBAC) |
-| Auth (API) | Bearer API tokens (hashed, revocable) |
-| PDF renderer | pdf-renderer sidecar ([ghcr.io/appunite/ksef-pdf](https://github.com/appunite/ksef-pdf-generator)) |
-| Invoice extractor | invoice-extractor sidecar ([ghcr.io/appunite/au-ksef-unstructured](https://github.com/appunite/au-ksef-unstructured)) |
-| Invoice classifier | invoice-classifier sidecar ([ghcr.io/appunite/au-payroll-model-categories](https://github.com/appunite/au-payroll-model-categories)) |
-| XADES signing | xmlsec1 (CLI, called via System.cmd) |
-| Background jobs | Oban (async workers, 60-min sync cron) |
-| API docs | open_api_spex (OpenAPI 3.0 + SwaggerUI) |
-| UI styling | Tailwind CSS + DaisyUI |
-| Deployment | Docker, GCP Cloud Run |
+For any non-trivial task, scan the ADR index first and read only the ADRs whose summaries match your task. This is faster than exploring the codebase blind.
 
-## Project Structure
+After writing a new ADR, adding a feature area, or discovering a non-obvious invariant, run `/update-architecture` to keep @docs/architecture.md in sync.
 
-```
-lib/
-├── ksef_hub/                     # Business logic (contexts)
-│   ├── invoices/                 # Invoice context (income + expense)
-│   ├── credentials/              # Certificate storage & encryption
-│   ├── ksef_client/              # KSeF API client (auth, query, download)
-│   ├── invoice_classifier/       # ML classification service client + Oban worker
-│   ├── invoice_extractor/        # PDF extraction via invoice-extractor sidecar
-│   ├── pdf_renderer/             # PDF/HTML generation via pdf-renderer sidecar
-│   ├── sync_worker.ex            # GenServer — 60-min sync cron
-│
-└── ksef_hub_web/                 # Web layer
-    ├── controllers/api/          # REST JSON controllers
-    │   ├── expense_controller.ex
-    │   └── income_controller.ex
-    ├── live/                     # LiveView pages (admin UI)
-    │   ├── dashboard_live.ex
-    │   ├── invoice_live.ex
-    │   └── certificate_live.ex
-    └── router.ex
-
-test/
-├── ksef_hub/                     # Context unit tests
-├── ksef_hub_web/                 # Controller & LiveView tests
-├── support/                      # Fixtures, factories, mocks
-│   └── fixtures/                 # Sample FA(3) XML files
-└── test_helper.exs
-
-docs/
-├── prd.md                        # Product requirements
-└── adr/                          # Architecture Decision Records
-    ├── 0001-use-elixir.md
-    └── ...
-```
-
-## Build & Run
-
-```bash
-# Install dependencies
-mix deps.get
-
-# Create and migrate database
-mix ecto.setup
-
-# Run the server (with LiveView)
-mix phx.server
-
-# Interactive console
-iex -S mix phx.server
-```
-
-### Docker
-
-```bash
-# Build image
-docker build -t ksef-hub .
-
-# Run with Gotenberg sidecar (for PDF generation)
-docker compose up
-```
-
-### System dependencies (required in Docker and CI)
-
-```bash
-apt-get install -y xmlsec1
-```
-
-## Tests
-
-```bash
-# Run all tests
-mix test
-
-# Run a specific test file
-mix test test/ksef_hub/invoices_test.exs
-
-# Run a specific test by line number
-mix test test/ksef_hub/invoices_test.exs:42
-
-# Run with coverage
-mix test --cover
-
-# Run integration tests (excluded by default, requires KSeF credentials)
-mix test --include integration
-# or
-make test.integration
-```
-
-### Linting & formatting
-
-```bash
-# Format code (check)
-mix format --check-formatted
-
-# Compile with warnings as errors (CI enforces this)
-mix compile --warnings-as-errors
-
-# Static analysis
-mix credo --strict
-
-# Dialyzer (type checking)
-mix dialyzer
-```
+For tech stack, project structure, setup commands, Make targets, and environment variables, see @README.md.
 
 ## Architecture
 
@@ -170,32 +57,7 @@ Invoices.confirm_duplicate(invoice, opts)
 
 ### Activity Log (Trackable + TrackedRepo)
 
-Every context mutation that affects user-visible state **must** emit an activity event. Schemas implement the `Trackable` behaviour to classify their own changesets into events. Context functions use `TrackedRepo` instead of `Repo` — no manual event names needed.
-
-```elixir
-# 1. Schema implements Trackable (defines what events its changes produce):
-@behaviour KsefHub.ActivityLog.Trackable
-
-@impl true
-def track_change(%Ecto.Changeset{action: :insert} = cs) do
-  {"invoice.created", %{source: to_string(get_field(cs, :source))}}
-end
-
-def track_change(%Ecto.Changeset{} = cs) do
-  case cs.changes do
-    %{status: new} -> {"invoice.status_changed", %{old: to_string(cs.data.status), new: to_string(new)}}
-    %{is_excluded: true} -> {"invoice.excluded", %{}}
-    _ -> {"invoice.updated", %{changed_fields: Map.keys(cs.changes)}}
-  end
-end
-
-# 2. Context function is 2-3 lines (TrackedRepo handles the rest):
-def approve_invoice(%Invoice{} = invoice, opts \\ []) do
-  invoice
-  |> Invoice.changeset(%{status: :approved})
-  |> TrackedRepo.update(opts)
-end
-```
+Every context mutation that affects user-visible state **must** emit an activity event. Schemas implement the `Trackable` behaviour; context functions use `TrackedRepo` instead of `Repo` — event emission is automatic, no manual event names needed.
 
 **When to use `Events.*` directly** (no changeset available):
 - Login/logout (session management)
@@ -210,7 +72,8 @@ Key files:
 - `lib/ksef_hub/activity_log/tracked_repo.ex` — Repo wrapper with auto event emission + no-op detection
 - `lib/ksef_hub/activity_log/events.ex` — `emit/1` dispatch + manual helpers for non-changeset events
 - `lib/ksef_hub/activity_log/recorder.ex` — GenServer that persists events to DB
-- `docs/adr/0042-activity-log.md` — architecture decision record
+
+For implementation pattern, Trackable code examples, and the full list of schemas/events, see @docs/adr/0042-activity-log.md.
 
 ### Dependency Injection with Behaviours
 
@@ -253,6 +116,8 @@ defp ksef_client, do: Application.get_env(:ksef_hub, :ksef_client, KsefHub.KsefC
 **PDF Extraction:** Uploaded PDF (non-KSeF invoice) -> invoice-extractor sidecar -> structured JSON.
 
 **Invoice Classification (Oban, on expense creation):** New expense invoice -> ClassifierWorker -> invoice-classifier service -> auto-assign category/tags.
+
+For sidecar service integration details (endpoints, auth, request/response formats), see @docs/sidecar-services.md.
 
 ## Code Style
 
@@ -317,175 +182,21 @@ Every module **must** have:
 
 ## UI Components
 
-### Component-first development
+Before writing inline HTML in a LiveView template, check `CoreComponents` first. Domain-specific components live in `InvoiceComponents`, `CertificateComponents`, and `SettingsComponents`. Extract shared patterns when they appear 3+ times. For the full component reference, color tokens, DaisyUI usage, layout system, typography, and common page patterns, see @docs/frontend.md. When generating frontend code, use the `/frontend` skill.
 
-Before writing inline HTML in a LiveView template, check `CoreComponents` for an existing component. Common components:
+## Testing
 
-| Category | Components |
-|----------|-----------|
-| Layout | `card`, `table`, `table_container`, `header` |
-| Forms | `input`, `simple_form`, `multi_select`, `date_range_picker`, `date_picker`, `search_input` |
-| Display | `badge`, `icon`, `pagination`, `empty_state` |
-| Filters | `multi_select`, `date_range_picker`, `search_input`, `reset_filters_button` |
-| Actions | `button` (variants: primary, outline, outline-destructive, ghost, destructive, success, warning) |
-
-Domain-specific components live in dedicated modules:
-- `InvoiceComponents` — status/type/category/payment badges, format helpers, invoice detail table
-- `CertificateComponents` — certificate expiry alerts
-- `SettingsComponents` — settings page sidebar layout
-
-### When to extract a component
-
-- **3+ identical occurrences** of the same HTML across views → extract to `CoreComponents`
-- **Domain-agnostic** (table wrappers, empty states, inputs) → `CoreComponents` (globally imported)
-- **Domain-specific** (invoice badges, format helpers) → domain module (e.g., `InvoiceComponents`)
-- **Single-use** or highly context-dependent → keep inline
-
-### Component conventions
-
-- Every component must have `@doc`, `@spec`, and declarative `attr`/`slot` annotations
-- Support a `class` attr for caller customization when reasonable
-- Use `slot :inner_block` for content projection
-- Use `@rest` (`:global`) for forwarding HTML attributes like `data-testid`
-
-See `docs/adr/0043-component-driven-ui.md` for the architectural decision.
-
-## TDD Workflow
-
-Every feature starts with a test:
-
-1. **Red** — Write a failing test that describes the desired behaviour
-2. **Green** — Write the minimum code to make it pass
-3. **Refactor** — Clean up while keeping tests green
-
-### Test structure
-
-```elixir
-defmodule KsefHub.Invoices.ParserTest do
-  use ExUnit.Case, async: true
-
-  alias KsefHub.Invoices.Parser
-
-  describe "parse/1" do
-    test "extracts seller and buyer from FA(3) XML" do
-      xml = File.read!("test/support/fixtures/sample_income.xml")
-
-      assert {:ok, invoice} = Parser.parse(xml)
-      assert invoice.seller_nip == "1234567890"
-      assert invoice.buyer_name == "Acme Corp"
-    end
-
-    test "returns error for invalid XML" do
-      assert {:error, :invalid_xml} = Parser.parse("<not-valid>")
-    end
-  end
-end
-```
-
-### Test data with ExMachina
-
-Use factories (`test/support/factory.ex`) for test data instead of inline `@valid_attrs` maps:
-
-```elixir
-import KsefHub.Factory
-
-# Insert a persisted record with defaults
-cred = insert(:credential)
-
-# Override specific fields
-cred = insert(:credential, nip: "9999999999", is_active: false)
-
-# Build attrs map without inserting (for testing context functions)
-attrs = params_for(:credential, nip: "1234567890")
-{:ok, cred} = Credentials.create_credential(attrs)
-```
-
-Keep explicit attrs only when testing validation logic (e.g., missing required fields, invalid formats).
-
-### Mocking with Mox
-
-- Define behaviours for all external dependencies (KSeF API, pdf-renderer, invoice-extractor, invoice-classifier, xmlsec1)
-- Use `Mox.defmock/2` in `test_helper.exs`
-- Use `expect/3` for specific call expectations in tests
-- Use `stub/3` for default returns in setup blocks
-- Set `async: true` on tests that don't share state
-
-### Test fixtures
-
-Store sample FA(3) XML files in `test/support/fixtures/`. Include both valid invoices and edge cases (missing fields, multiple line items, different date formats).
+We follow TDD (red-green-refactor). Prefer using ExUnit with `async: true` when safe (avoid for DB or integration tests that share resources), ExMachina for test data factories, and Mox for mocking external services. For test structure, factory patterns, Mox setup, and fixture conventions, see @docs/tests.md.
 
 ## Project Conventions
 
 ### OpenAPI Documentation (required for every API endpoint)
 
-Every REST API controller action **must** have an `open_api_spex` operation spec. This is NOT automatic — you must manually annotate each action.
-
-When adding a new API endpoint:
-
-1. Add `use OpenApiSpex.ControllerSpecs` to the controller (if not already present)
-2. Define an `operation(:action_name, ...)` block above each action function
-3. Create or reuse schemas under `lib/ksef_hub_web/schemas/` for request/response bodies
-4. Verify the spec renders correctly at `/dev/swaggerui` (dev only)
-
-```elixir
-# In the controller:
-use OpenApiSpex.ControllerSpecs
-
-alias KsefHubWeb.Schemas
-alias OpenApiSpex.Schema
-
-tags(["TagName"])
-security([%{"bearer" => []}])
-
-operation(:index,
-  summary: "Short summary",
-  description: "Longer description of what this endpoint does.",
-  parameters: [
-    id: [in: :path, description: "Resource UUID.", schema: %Schema{type: :string, format: :uuid}]
-  ],
-  responses: %{
-    200 => {"Success", "application/json", Schemas.SomeResponse},
-    401 => {"Unauthorized", "application/json", Schemas.ErrorResponse}
-  }
-)
-
-def index(conn, params) do
-  # ...
-end
-```
-
-Key files:
-- `lib/ksef_hub_web/api_spec.ex` — root OpenAPI spec (info, security, servers)
-- `lib/ksef_hub_web/schemas/` — reusable API schemas (Invoice, Token, response wrappers)
-- Spec served at: `GET /api/openapi` (JSON)
-- SwaggerUI at: `GET /dev/swaggerui` (dev only)
+Every REST API controller action **must** have an `open_api_spex` operation spec — this is NOT automatic. For the annotation template, schema conventions, and checklist, see @docs/openapi.md.
 
 ### ADR (Architecture Decision Records)
 
-Every significant technical decision gets an ADR in `docs/adr/`:
-
-```
-docs/adr/NNNN-short-title.md
-```
-
-Format:
-```markdown
-# NNNN. Short Title
-
-Date: YYYY-MM-DD
-
-## Status
-Accepted | Superseded by NNNN
-
-## Context
-Why this decision was needed.
-
-## Decision
-What we decided.
-
-## Consequences
-Trade-offs and implications.
-```
+Every significant technical decision gets an ADR in `docs/adr/`. After implementing a feature, consider whether the decisions made warrant one. For format, naming convention, and when to create, see @docs/adr.md.
 
 ### Commits
 
@@ -507,6 +218,8 @@ Trade-offs and implications.
 - Certificate password encrypted separately (AES-256-GCM)
 - Encryption key: base64-decoded `CREDENTIAL_ENCRYPTION_KEY` (32 bytes), falls back to `SHA256(SECRET_KEY_BASE)`
 - Audit log on every certificate operation (upload, decrypt, use for signing)
+
+For KSeF certificate types, how to generate them, and portal usage, see @docs/ksef-certificates.md.
 
 ### Temp file security (xmlsec1 interaction)
 
@@ -542,55 +255,6 @@ end
 
 ## KSeF Domain Specifics
 
-### Rate limits
+KSeF (Krajowy System e-Faktur) is Poland's national e-invoice system. Invoices are synced via an authenticated XADES API session, parsed from FA(3) XML format, and stored in the database. When parser logic improves, existing invoices can be re-parsed from stored XML without a full re-sync.
 
-| Operation | Limit | Strategy |
-|-----------|-------|----------|
-| Invoice download | 8 req/s | Token bucket or `Process.sleep(125)` between requests |
-| Query | 2 req/s | `Process.sleep(500)` between queries |
-
-### Session management
-
-- KSeF sessions have 1-hour TTL
-- Always terminate sessions when done (don't let them expire)
-- If session expires mid-sync, re-authenticate and continue
-- One active session at a time per NIP
-
-### FA(3) XML parsing
-
-- Polish field names: `P_1` (issue date), `P_2` (sequential number), etc.
-- Maintain a clear mapping from FA(3) field codes to domain field names
-- Handle nested structures: `Podmiot1` (seller), `Podmiot2` (buyer), `Fa` (invoice data)
-- Multiple date formats: ISO8601 with and without fractional seconds
-- Test with real-world XML samples covering edge cases
-
-## Environment Variables
-
-| Variable | Description |
-|----------|-------------|
-| `DATABASE_URL` | PostgreSQL connection string (Supabase) |
-| `SECRET_KEY_BASE` | Phoenix secret key (also used to derive encryption key) |
-| `CREDENTIAL_ENCRYPTION_KEY` | Base64-encoded 32-byte AES-256 key for certificate encryption at rest. Falls back to `SHA256(SECRET_KEY_BASE)` if not set |
-| `GOOGLE_CLIENT_ID` | Google OAuth client ID |
-| `GOOGLE_CLIENT_SECRET` | Google OAuth client secret |
-| `PDF_RENDERER_URL` | PDF renderer sidecar URL (e.g., `http://localhost:3001`) |
-| `INVOICE_EXTRACTOR_URL` | Invoice extractor sidecar URL (e.g., `http://localhost:3002`) |
-| `INVOICE_EXTRACTOR_API_TOKEN` | Bearer token for invoice-extractor authentication |
-| `KSEF_API_URL` | KSeF v2 API URL (`https://api-test.ksef.mf.gov.pl` for test, `https://api.ksef.mf.gov.pl` for production) |
-| `INVOICE_CLASSIFIER_URL` | Invoice classifier service URL (e.g., `http://localhost:3003` locally, `https://invoice-classifier-*.run.app` in prod) |
-| `INVOICE_CLASSIFIER_API_TOKEN` | Bearer token for invoice-classifier authentication |
-| `ANTHROPIC_API_KEY` | Anthropic API key for emoji generation and invoice-extractor sidecar |
-| `SYNC_INTERVAL_MINUTES` | KSeF sync cron interval in minutes (default: `60`) |
-| `INBOUND_EMAIL_DOMAIN` | Domain for inbound email addresses (e.g., `mg.payroll.appunite.co`) |
-| `MAILGUN_SIGNING_KEY` | Mailgun webhook signing key for verifying inbound emails |
-| `MAILGUN_API_KEY` | Mailgun API key for sending emails |
-| `MAILGUN_DOMAIN` | Mailgun sending domain (e.g., `mg.payroll.appunite.co`) |
-
-## Useful References
-
-| Resource | URL |
-|----------|-----|
-| KSeF Test Environment | https://ksef-test.mf.gov.pl |
-| KSeF Production | https://ksef.mf.gov.pl |
-| FA(3) Schema | http://crd.gov.pl/wzor/2025/06/25/13775/schemat.xsd |
-| FA(3) Stylesheet | http://crd.gov.pl/wzor/2025/06/25/13775/styl.xsl |
+For authentication flow, rate limits, session rules, re-parsing, and FA(3) details, see @docs/ksef.md.
