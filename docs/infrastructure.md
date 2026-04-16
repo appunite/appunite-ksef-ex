@@ -231,7 +231,7 @@ Two Cloud Run Jobs handle tasks that require Mix/Release functions outside the H
 
 ### ksef-hub-migrate (migration job)
 
-Created and run automatically by CI on every deploy. Can also be triggered manually:
+Created and run automatically by CI on every deploy; it can also be triggered manually:
 
 ```bash
 gcloud run jobs execute ksef-hub-migrate \
