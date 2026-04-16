@@ -67,6 +67,21 @@ defmodule KsefHub.ExportsTest do
       assert {:ok, batch} = Exports.create_export(user.id, company.id, params)
       assert batch.invoice_type == nil
     end
+
+    test "stores category_id when provided", %{user: user, company: company} do
+      category = insert(:category, company: company)
+
+      params = %{
+        date_from: "2026-01-01",
+        date_to: "2026-01-31",
+        invoice_type: "expense",
+        only_new: false,
+        category_id: category.id
+      }
+
+      assert {:ok, batch} = Exports.create_export(user.id, company.id, params)
+      assert batch.category_id == category.id
+    end
   end
 
   describe "count_exportable_invoices/2" do
@@ -162,7 +177,7 @@ defmodule KsefHub.ExportsTest do
       assert count == 1
     end
 
-    test "excludes pending and rejected invoices", %{user: user, company: company} do
+    test "excludes pending and rejected expense invoices", %{user: user, company: company} do
       insert(:invoice,
         company: company,
         issue_date: ~D[2026-01-15],
@@ -188,12 +203,39 @@ defmodule KsefHub.ExportsTest do
         Exports.count_exportable_invoices(company.id, %{
           date_from: ~D[2026-01-01],
           date_to: ~D[2026-01-31],
-          invoice_type: nil,
+          invoice_type: "expense",
           only_new: false,
           user_id: user.id
         })
 
       assert count == 1
+    end
+
+    test "includes income invoices regardless of status", %{user: user, company: company} do
+      insert(:invoice,
+        company: company,
+        issue_date: ~D[2026-01-15],
+        type: :income,
+        status: :pending
+      )
+
+      insert(:invoice,
+        company: company,
+        issue_date: ~D[2026-01-16],
+        type: :income,
+        status: :rejected
+      )
+
+      count =
+        Exports.count_exportable_invoices(company.id, %{
+          date_from: ~D[2026-01-01],
+          date_to: ~D[2026-01-31],
+          invoice_type: "income",
+          only_new: false,
+          user_id: user.id
+        })
+
+      assert count == 2
     end
 
     test "includes invoices marked as is_excluded (excluded is for analytics only)",
@@ -250,6 +292,70 @@ defmodule KsefHub.ExportsTest do
         })
 
       assert count == 1
+    end
+
+    test "filters by category_id", %{user: user, company: company} do
+      cat1 = insert(:category, company: company)
+      cat2 = insert(:category, company: company)
+
+      insert(:invoice,
+        company: company,
+        issue_date: ~D[2026-01-15],
+        type: :expense,
+        status: :approved,
+        category: cat1
+      )
+
+      insert(:invoice,
+        company: company,
+        issue_date: ~D[2026-01-16],
+        type: :expense,
+        status: :approved,
+        category: cat2
+      )
+
+      count =
+        Exports.count_exportable_invoices(company.id, %{
+          date_from: ~D[2026-01-01],
+          date_to: ~D[2026-01-31],
+          invoice_type: nil,
+          only_new: false,
+          user_id: user.id,
+          category_id: cat1.id
+        })
+
+      assert count == 1
+    end
+
+    test "nil category_id returns all invoices", %{user: user, company: company} do
+      cat = insert(:category, company: company)
+
+      insert(:invoice,
+        company: company,
+        issue_date: ~D[2026-01-15],
+        type: :expense,
+        status: :approved,
+        category: cat
+      )
+
+      insert(:invoice,
+        company: company,
+        issue_date: ~D[2026-01-16],
+        type: :expense,
+        status: :approved
+      )
+
+      count =
+        Exports.count_exportable_invoices(company.id, %{
+          date_from: ~D[2026-01-01],
+          date_to: ~D[2026-01-31],
+          invoice_type: nil,
+          only_new: false,
+          user_id: user.id,
+          category_id: nil
+        })
+
+      assert count == 2
     end
   end
 

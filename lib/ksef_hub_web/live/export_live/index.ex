@@ -12,6 +12,7 @@ defmodule KsefHubWeb.ExportLive.Index do
   alias KsefHub.Authorization
   alias KsefHub.Exports
   alias KsefHub.Exports.ExportBatch
+  alias KsefHub.Invoices
   alias KsefHub.Repo
 
   @impl true
@@ -26,10 +27,15 @@ defmodule KsefHubWeb.ExportLive.Index do
     today = Date.utc_today()
     first_of_month = Date.beginning_of_month(today)
 
-    batches =
-      if company,
-        do: Exports.list_batches(company.id, socket.assigns.current_user.id),
-        else: []
+    {batches, categories} =
+      if company do
+        {
+          Exports.list_batches(company.id, socket.assigns.current_user.id),
+          Invoices.list_categories(company.id)
+        }
+      else
+        {[], []}
+      end
 
     {:ok,
      socket
@@ -39,6 +45,8 @@ defmodule KsefHubWeb.ExportLive.Index do
        date_to: Date.to_iso8601(today),
        invoice_type: "expense",
        only_new: true,
+       category_id: nil,
+       categories: categories,
        preview_count: nil,
        batches_count: length(batches)
      )
@@ -49,25 +57,33 @@ defmodule KsefHubWeb.ExportLive.Index do
   @spec handle_event(String.t(), map(), Phoenix.LiveView.Socket.t()) ::
           {:noreply, Phoenix.LiveView.Socket.t()}
   def handle_event("update_form", params, socket) do
+    invoice_type = params["invoice_type"] || socket.assigns.invoice_type
+    category_id = params |> Map.get("category_id") |> normalize_category_id() |> category_id_for_type(invoice_type)
+
     {:noreply,
      socket
      |> assign(
        date_from: params["date_from"] || socket.assigns.date_from,
        date_to: params["date_to"] || socket.assigns.date_to,
-       invoice_type: params["invoice_type"] || socket.assigns.invoice_type,
-       only_new: params["only_new"] == "true"
+       invoice_type: invoice_type,
+       only_new: params["only_new"] == "true",
+       category_id: category_id
      )
      |> assign(preview_count: nil)}
   end
 
   def handle_event("export", params, socket) do
+    invoice_type = params["invoice_type"] || socket.assigns.invoice_type
+    category_id = params |> Map.get("category_id") |> normalize_category_id() |> category_id_for_type(invoice_type)
+
     socket =
       socket
       |> assign(
         date_from: params["date_from"] || socket.assigns.date_from,
         date_to: params["date_to"] || socket.assigns.date_to,
-        invoice_type: params["invoice_type"] || socket.assigns.invoice_type,
-        only_new: params["only_new"] == "true"
+        invoice_type: invoice_type,
+        only_new: params["only_new"] == "true",
+        category_id: category_id
       )
 
     case params["_action"] do
@@ -90,7 +106,8 @@ defmodule KsefHubWeb.ExportLive.Index do
             date_to: date_to,
             invoice_type: normalize_type(socket.assigns.invoice_type),
             only_new: socket.assigns.only_new,
-            user_id: socket.assigns.current_user.id
+            user_id: socket.assigns.current_user.id,
+            category_id: socket.assigns.category_id
           }
 
           count = Exports.count_exportable_invoices(company.id, filters)
@@ -125,11 +142,14 @@ defmodule KsefHubWeb.ExportLive.Index do
       date_from: socket.assigns.date_from,
       date_to: socket.assigns.date_to,
       invoice_type: normalize_type(socket.assigns.invoice_type),
-      only_new: socket.assigns.only_new
+      only_new: socket.assigns.only_new,
+      category_id: socket.assigns.category_id
     }
 
     case Exports.create_export(user.id, company.id, params, actor_opts(socket)) do
       {:ok, batch} ->
+        batch = Repo.preload(batch, [:category])
+
         {:noreply,
          socket
          |> stream_insert(:batches, batch, at: 0)
@@ -162,6 +182,7 @@ defmodule KsefHubWeb.ExportLive.Index do
 
       batch ->
         if batch.company_id == company.id and batch.user_id == user.id do
+          batch = Repo.preload(batch, [:category])
           {:noreply, stream_insert(socket, :batches, batch)}
         else
           {:noreply, socket}
@@ -214,6 +235,32 @@ defmodule KsefHubWeb.ExportLive.Index do
             </div>
 
             <div class="space-y-1">
+              <label class="label">
+                <span class="text-sm font-medium">Category</span>
+                <span
+                  :if={@invoice_type != "expense"}
+                  class="text-xs text-muted-foreground font-normal"
+                >
+                  — expense only
+                </span>
+              </label>
+              <select
+                name="category_id"
+                disabled={@invoice_type != "expense"}
+                class="h-9 w-full rounded-md border border-input bg-background px-3 text-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50"
+              >
+                <option value="" selected={is_nil(@category_id)}>All categories</option>
+                <option
+                  :for={cat <- @categories}
+                  value={cat.id}
+                  selected={@category_id == cat.id}
+                >
+                  {cat.name || cat.identifier}
+                </option>
+              </select>
+            </div>
+
+            <div class="space-y-1">
               <label class="label cursor-pointer justify-start gap-2 items-start whitespace-normal">
                 <input type="hidden" name="only_new" value="false" />
                 <input
@@ -251,7 +298,7 @@ defmodule KsefHubWeb.ExportLive.Index do
             </div>
 
             <p class="text-xs text-muted-foreground">
-              Only approved invoices are included.
+              Approved expense invoices and all income invoices are included.
               Excluded invoices (hidden from analytics) are still exported.
             </p>
           </form>
@@ -272,6 +319,9 @@ defmodule KsefHubWeb.ExportLive.Index do
                   {batch.date_from} &mdash; {batch.date_to}
                   <.badge :if={batch.invoice_type} variant="default" class="ml-1">
                     {batch.invoice_type}
+                  </.badge>
+                  <.badge :if={match?(%{id: _}, batch.category)} variant="default" class="ml-1">
+                    {batch.category.name || batch.category.identifier}
                   </.badge>
                   <.badge :if={batch.only_new} variant="default" class="ml-1">
                     new only
@@ -326,4 +376,13 @@ defmodule KsefHubWeb.ExportLive.Index do
   @spec normalize_type(String.t()) :: String.t() | nil
   defp normalize_type(""), do: nil
   defp normalize_type(type), do: type
+
+  @spec normalize_category_id(String.t() | nil) :: Ecto.UUID.t() | nil
+  defp normalize_category_id(""), do: nil
+  defp normalize_category_id(nil), do: nil
+  defp normalize_category_id(id), do: id
+
+  @spec category_id_for_type(Ecto.UUID.t() | nil, String.t()) :: Ecto.UUID.t() | nil
+  defp category_id_for_type(_category_id, invoice_type) when invoice_type != "expense", do: nil
+  defp category_id_for_type(category_id, _invoice_type), do: category_id
 end

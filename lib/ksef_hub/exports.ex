@@ -110,6 +110,7 @@ defmodule KsefHub.Exports do
     |> where([b], b.company_id == ^company_id and b.user_id == ^user_id)
     |> order_by([b], desc: b.inserted_at)
     |> limit(20)
+    |> preload([:category])
     |> Repo.all()
   end
 
@@ -276,14 +277,16 @@ defmodule KsefHub.Exports do
          date_to: date_to,
          invoice_type: invoice_type,
          only_new: only_new,
-         user_id: user_id
+         user_id: user_id,
+         category_id: category_id
        }) do
     Invoice
     |> where([i], i.company_id == ^company_id)
-    |> where([i], i.status == :approved)
+    |> where([i], i.type == :income or i.status == :approved)
     |> where([i], is_nil(i.duplicate_of_id))
     |> where([i], i.issue_date >= ^date_from and i.issue_date <= ^date_to)
     |> maybe_filter_type(invoice_type)
+    |> maybe_filter_category(category_id)
     |> maybe_filter_only_new(only_new, user_id)
   end
 
@@ -295,7 +298,8 @@ defmodule KsefHub.Exports do
       date_to: filters[:date_to],
       invoice_type: filters[:invoice_type],
       only_new: filters[:only_new],
-      user_id: filters[:user_id]
+      user_id: filters[:user_id],
+      category_id: filters[:category_id]
     }
   end
 
@@ -310,6 +314,12 @@ defmodule KsefHub.Exports do
     do: where(query, [i], i.type == :income)
 
   defp maybe_filter_type(query, _), do: query
+
+  @spec maybe_filter_category(Ecto.Queryable.t(), Ecto.UUID.t() | nil) :: Ecto.Query.t()
+  defp maybe_filter_category(query, nil), do: query
+
+  defp maybe_filter_category(query, category_id),
+    do: where(query, [i], i.category_id == ^category_id)
 
   @spec maybe_filter_only_new(Ecto.Queryable.t(), boolean() | nil, Ecto.UUID.t() | nil) ::
           Ecto.Query.t()

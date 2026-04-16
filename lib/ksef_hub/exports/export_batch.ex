@@ -27,6 +27,7 @@ defmodule KsefHub.Exports.ExportBatch do
     belongs_to :user, KsefHub.Accounts.User
     belongs_to :company, KsefHub.Companies.Company
     belongs_to :zip_file, KsefHub.Files.File
+    belongs_to :category, KsefHub.Invoices.Category
 
     has_many :invoice_downloads, KsefHub.Exports.InvoiceDownload
 
@@ -37,10 +38,11 @@ defmodule KsefHub.Exports.ExportBatch do
   @spec changeset(t(), map()) :: Ecto.Changeset.t()
   def changeset(batch, attrs) do
     batch
-    |> cast(attrs, [:date_from, :date_to, :invoice_type, :only_new])
+    |> cast(attrs, [:date_from, :date_to, :invoice_type, :only_new, :category_id])
     |> validate_required([:date_from, :date_to])
     |> validate_invoice_type()
     |> validate_date_range()
+    |> foreign_key_constraint(:category_id)
   end
 
   @doc "Builds a changeset for updating export batch status and results."

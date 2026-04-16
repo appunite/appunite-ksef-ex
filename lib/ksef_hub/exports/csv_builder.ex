@@ -94,7 +94,7 @@ defmodule KsefHub.Exports.CsvBuilder do
 
   @spec encode_row([String.t()]) :: String.t()
   defp encode_row(fields) do
-    Enum.map_join(fields, ",", &escape_field/1)
+    Enum.map_join(fields, ";", &escape_field/1)
   end
 
   @spec escape_field(String.t()) :: String.t()
@@ -119,7 +119,7 @@ defmodule KsefHub.Exports.CsvBuilder do
 
   @spec needs_quoting?(String.t()) :: boolean()
   defp needs_quoting?(value) do
-    String.contains?(value, [",", "\"", "\n", "\r"])
+    String.contains?(value, [";", "\"", "\n", "\r"])
   end
 
   @spec format_date(Date.t() | nil) :: String.t()
@@ -156,7 +156,7 @@ defmodule KsefHub.Exports.CsvBuilder do
 
   @spec format_tags(Invoice.t()) :: String.t()
   defp format_tags(%{tags: tags}) when is_list(tags) do
-    Enum.join(tags, "; ")
+    Enum.join(tags, ", ")
   end
 
   defp format_tags(_), do: ""
