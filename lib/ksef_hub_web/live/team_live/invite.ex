@@ -22,7 +22,7 @@ defmodule KsefHubWeb.TeamLive.Invite do
      socket
      |> assign(
        page_title: "Invite Member",
-       form: to_form(%{"email" => "", "role" => "accountant"}, as: :invitation),
+       form: to_form(%{"email" => "", "role" => "reviewer"}, as: :invitation),
        email_error: nil
      )}
   end
