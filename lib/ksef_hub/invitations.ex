@@ -27,15 +27,17 @@ defmodule KsefHub.Invitations do
   # ---------------------------------------------------------------------------
 
   @doc """
-  Creates an invitation for the given company. Only owners can invite.
+  Creates an invitation for the given company. Only owners and admins can invite.
 
   Generates a secure token (returned once) and stores only the hash.
+  If a pending invitation already exists for the email, it is cancelled and a
+  fresh invitation is created (resend behaviour).
   Returns `{:ok, %{invitation: invitation, token: raw_token}}` on success.
 
   ## Errors
     - `{:error, :unauthorized}` — caller is not the company owner or admin
     - `{:error, :already_member}` — invitee email already has a membership
-    - `{:error, changeset}` — validation failure (e.g., duplicate pending invitation)
+    - `{:error, changeset}` — validation failure
   """
   @spec create_invitation(Ecto.UUID.t(), Ecto.UUID.t(), map()) ::
           {:ok, %{invitation: Invitation.t(), token: String.t()}}
@@ -50,6 +52,20 @@ defmodule KsefHub.Invitations do
     expires_at =
       DateTime.add(DateTime.utc_now(), @expiry_days * 24 * 3600) |> DateTime.truncate(:second)
 
+    build_create_multi(user_id, company_id, email, token_hash, expires_at, attrs)
+    |> Repo.transaction()
+    |> handle_create_result(email, user_id, raw_token)
+  end
+
+  @spec build_create_multi(
+          Ecto.UUID.t(),
+          Ecto.UUID.t(),
+          String.t(),
+          String.t(),
+          DateTime.t(),
+          map()
+        ) :: Ecto.Multi.t()
+  defp build_create_multi(user_id, company_id, email, token_hash, expires_at, attrs) do
     Multi.new()
     |> Multi.run(:authorize, fn _repo, _changes ->
       Companies.authorize(user_id, company_id, [:owner, :admin])
@@ -59,6 +75,16 @@ defmodule KsefHub.Invitations do
         :ok -> {:ok, :not_member}
         {:error, :already_member} -> {:error, :already_member}
       end
+    end)
+    |> Multi.run(:cancel_existing, fn repo, _changes ->
+      now = DateTime.utc_now() |> DateTime.truncate(:second)
+
+      from(i in Invitation,
+        where: i.company_id == ^company_id and i.email == ^email and i.status == :pending
+      )
+      |> repo.update_all(set: [status: :cancelled, updated_at: now])
+
+      {:ok, :done}
     end)
     |> Multi.insert(:invitation, fn _changes ->
       %Invitation{
@@ -70,22 +96,36 @@ defmodule KsefHub.Invitations do
       }
       |> Invitation.changeset(attrs)
     end)
-    |> Repo.transaction()
-    |> case do
-      {:ok, %{invitation: invitation}} ->
-        Events.invitation_sent(invitation, email, user_id: user_id)
-        {:ok, %{invitation: invitation, token: raw_token}}
-
-      {:error, :authorize, :unauthorized, _changes} ->
-        {:error, :unauthorized}
-
-      {:error, :check_member, :already_member, _changes} ->
-        {:error, :already_member}
-
-      {:error, :invitation, changeset, _changes} ->
-        {:error, changeset}
-    end
   end
+
+  @spec handle_create_result(
+          {:ok, map()} | {:error, atom(), term(), map()},
+          String.t(),
+          Ecto.UUID.t(),
+          String.t()
+        ) ::
+          {:ok, %{invitation: Invitation.t(), token: String.t()}}
+          | {:error, :unauthorized}
+          | {:error, :already_member}
+          | {:error, Ecto.Changeset.t()}
+  defp handle_create_result({:ok, %{invitation: invitation}}, email, user_id, raw_token) do
+    Events.invitation_sent(invitation, email, user_id: user_id)
+    {:ok, %{invitation: invitation, token: raw_token}}
+  end
+
+  defp handle_create_result({:error, :authorize, :unauthorized, _}, _email, _user_id, _token),
+    do: {:error, :unauthorized}
+
+  defp handle_create_result(
+         {:error, :check_member, :already_member, _},
+         _email,
+         _user_id,
+         _token
+       ),
+       do: {:error, :already_member}
+
+  defp handle_create_result({:error, :invitation, changeset, _}, _email, _user_id, _token),
+    do: {:error, changeset}
 
   # ---------------------------------------------------------------------------
   # Accept
@@ -234,6 +274,19 @@ defmodule KsefHub.Invitations do
   # List
   # ---------------------------------------------------------------------------
 
+  @doc "Returns true if the email already has a membership for the company."
+  @spec already_member?(Ecto.UUID.t(), String.t()) :: boolean()
+  def already_member?(company_id, email) do
+    normalized = normalize_email(email)
+
+    user_query = from(u in User, where: u.email == ^normalized, select: u.id)
+
+    from(m in Membership,
+      where: m.company_id == ^company_id and m.user_id in subquery(user_query)
+    )
+    |> Repo.exists?()
+  end
+
   @doc "Fetches an invitation by ID, scoped to a company."
   @spec get_invitation(Ecto.UUID.t(), Ecto.UUID.t()) :: Invitation.t() | nil
   def get_invitation(invitation_id, company_id) do
@@ -243,16 +296,23 @@ defmodule KsefHub.Invitations do
   end
 
   @doc """
-  Lists all pending, non-expired invitations for a company, ordered by newest first.
+  Lists all pending invitations for a company (including expired ones), ordered by newest first.
+
+  Invitations for emails that already have a membership are excluded — these are
+  stale records from memberships created outside the invitation flow.
   """
   @spec list_pending_invitations(Ecto.UUID.t()) :: [Invitation.t()]
   def list_pending_invitations(company_id) do
-    now = DateTime.utc_now()
+    already_member_emails =
+      from u in User,
+        join: m in Membership,
+        on: m.user_id == u.id and m.company_id == ^company_id,
+        select: u.email
 
     Invitation
     |> where([i], i.company_id == ^company_id)
     |> where([i], i.status == :pending)
-    |> where([i], i.expires_at > ^now)
+    |> where([i], i.email not in subquery(already_member_emails))
     |> order_by([i], desc: i.inserted_at)
     |> Repo.all()
   end

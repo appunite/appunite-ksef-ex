@@ -103,6 +103,38 @@ defmodule KsefHubWeb.TeamLiveTest do
 
       assert_redirect(view, ~p"/c/#{company.id}/settings/team/invitations/#{invitation.id}")
     end
+
+    test "shows expired badge for expired invitation", %{
+      conn: conn,
+      company: company,
+      owner: owner
+    } do
+      expired =
+        insert(:invitation,
+          company: company,
+          invited_by: owner,
+          email: "expired@example.com",
+          expires_at: DateTime.add(DateTime.utc_now(), -3600) |> DateTime.truncate(:second)
+        )
+
+      {:ok, view, _html} = live(conn, ~p"/c/#{company.id}/settings/team")
+      assert has_element?(view, "[data-testid='expired-badge-#{expired.id}']", "Expired")
+    end
+
+    test "does not show expired badge for valid pending invitation", %{
+      conn: conn,
+      company: company,
+      owner: owner
+    } do
+      {:ok, %{invitation: inv}} =
+        Invitations.create_invitation(owner.id, company.id, %{
+          email: "valid@example.com",
+          role: :accountant
+        })
+
+      {:ok, view, _html} = live(conn, ~p"/c/#{company.id}/settings/team")
+      refute has_element?(view, "[data-testid='expired-badge-#{inv.id}']")
+    end
   end
 
   describe "invite member" do
@@ -124,7 +156,29 @@ defmodule KsefHubWeb.TeamLiveTest do
       assert flash["info"] =~ "Invitation sent"
     end
 
-    test "shows error when inviting existing member", %{conn: conn, company: company} do
+    test "shows inline error when email belongs to an existing member", %{
+      conn: conn,
+      company: company
+    } do
+      existing = insert(:user, email: "existing@example.com")
+      insert(:membership, user: existing, company: company, role: :accountant)
+
+      {:ok, view, _html} = live(conn, ~p"/c/#{company.id}/settings/team/invite")
+
+      html =
+        view
+        |> form("[data-testid='invite-form']", %{
+          "invitation" => %{"email" => "existing@example.com", "role" => "accountant"}
+        })
+        |> render_change()
+
+      assert html =~ "already a member"
+    end
+
+    test "blocks submit when email belongs to an existing member", %{
+      conn: conn,
+      company: company
+    } do
       existing = insert(:user, email: "existing@example.com")
       insert(:membership, user: existing, company: company, role: :accountant)
 
@@ -137,6 +191,25 @@ defmodule KsefHubWeb.TeamLiveTest do
       |> render_submit()
 
       assert has_element?(view, "#flash-error", "already a member")
+    end
+
+    test "resends when inviting email that already has a pending invitation", %{
+      conn: conn,
+      company: company,
+      owner: owner
+    } do
+      insert(:invitation, company: company, invited_by: owner, email: "resend@example.com")
+
+      {:ok, view, _html} = live(conn, ~p"/c/#{company.id}/settings/team/invite")
+
+      view
+      |> form("[data-testid='invite-form']", %{
+        "invitation" => %{"email" => "resend@example.com", "role" => "reviewer"}
+      })
+      |> render_submit()
+
+      flash = assert_redirect(view, ~p"/c/#{company.id}/settings/team")
+      assert flash["info"] =~ "Invitation sent"
     end
   end
 end

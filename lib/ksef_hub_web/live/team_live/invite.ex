@@ -22,7 +22,8 @@ defmodule KsefHubWeb.TeamLive.Invite do
      socket
      |> assign(
        page_title: "Invite Member",
-       form: to_form(%{"email" => "", "role" => "accountant"}, as: :invitation)
+       form: to_form(%{"email" => "", "role" => "accountant"}, as: :invitation),
+       email_error: nil
      )}
   end
 
@@ -33,7 +34,18 @@ defmodule KsefHubWeb.TeamLive.Invite do
   @spec handle_event(String.t(), map(), Phoenix.LiveView.Socket.t()) ::
           {:noreply, Phoenix.LiveView.Socket.t()}
   def handle_event("validate", %{"invitation" => params}, socket) do
-    {:noreply, assign(socket, form: to_form(params, as: :invitation))}
+    email = params["email"] || ""
+    company_id = socket.assigns.current_company.id
+
+    email_error =
+      if String.contains?(email, "@") && Invitations.already_member?(company_id, email) do
+        "is already a member of this company"
+      end
+
+    {:noreply,
+     socket
+     |> assign(form: to_form(params, as: :invitation))
+     |> assign(email_error: email_error)}
   end
 
   @impl true
@@ -134,13 +146,16 @@ defmodule KsefHubWeb.TeamLive.Invite do
         id="invite-form"
         data-testid="invite-form"
       >
-        <.input
-          field={@form[:email]}
-          type="email"
-          label="Email"
-          placeholder="user@example.com"
-          required
-        />
+        <div>
+          <.input
+            field={@form[:email]}
+            type="email"
+            label="Email"
+            placeholder="user@example.com"
+            required
+          />
+          <.error :if={@email_error}>{@email_error}</.error>
+        </div>
 
         <.input
           field={@form[:role]}

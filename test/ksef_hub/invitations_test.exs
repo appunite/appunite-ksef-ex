@@ -54,13 +54,48 @@ defmodule KsefHub.InvitationsTest do
                Invitations.create_invitation(owner.id, company.id, attrs)
     end
 
-    test "rejects if pending invitation already exists", %{company: company, owner: owner} do
-      insert(:invitation, company: company, invited_by: owner, email: "dupe@example.com")
+    test "resends to email with existing pending invitation — cancels old, creates new", %{
+      company: company,
+      owner: owner
+    } do
+      existing =
+        insert(:invitation, company: company, invited_by: owner, email: "dupe@example.com")
 
       attrs = %{email: "dupe@example.com", role: :reviewer}
 
-      assert {:error, changeset} = Invitations.create_invitation(owner.id, company.id, attrs)
-      assert "already has a pending invitation for this company" in errors_on(changeset)[:email]
+      assert {:ok, %{invitation: new_inv, token: _token}} =
+               Invitations.create_invitation(owner.id, company.id, attrs)
+
+      assert new_inv.id != existing.id
+      assert new_inv.role == :reviewer
+      assert new_inv.status == :pending
+      assert DateTime.compare(new_inv.expires_at, DateTime.utc_now()) == :gt
+
+      assert Repo.get!(Invitation, existing.id).status == :cancelled
+    end
+
+    test "resends to email with expired pending invitation — cancels old, creates new", %{
+      company: company,
+      owner: owner
+    } do
+      expired =
+        insert(:invitation,
+          company: company,
+          invited_by: owner,
+          email: "expired-resend@example.com",
+          expires_at: DateTime.add(DateTime.utc_now(), -3600) |> DateTime.truncate(:second)
+        )
+
+      attrs = %{email: "expired-resend@example.com", role: :accountant}
+
+      assert {:ok, %{invitation: new_inv, token: _token}} =
+               Invitations.create_invitation(owner.id, company.id, attrs)
+
+      assert new_inv.id != expired.id
+      assert new_inv.status == :pending
+      assert DateTime.compare(new_inv.expires_at, DateTime.utc_now()) == :gt
+
+      assert Repo.get!(Invitation, expired.id).status == :cancelled
     end
 
     test "rejects non-owner caller", %{company: company} do
@@ -236,7 +271,7 @@ defmodule KsefHub.InvitationsTest do
   end
 
   describe "list_pending_invitations/1" do
-    test "returns only pending invitations for a company" do
+    test "excludes accepted invitations and invitations for other companies" do
       company = insert(:company)
       other_company = insert(:company)
       owner = insert(:user)
@@ -269,6 +304,75 @@ defmodule KsefHub.InvitationsTest do
       pending = Invitations.list_pending_invitations(company.id)
       assert length(pending) == 1
       assert hd(pending).id == inv1.id
+    end
+
+    test "includes expired pending invitations" do
+      company = insert(:company)
+      owner = insert(:user)
+      insert(:membership, user: owner, company: company, role: :owner)
+
+      expired =
+        insert(:invitation,
+          company: company,
+          invited_by: owner,
+          email: "expired@example.com",
+          expires_at: DateTime.add(DateTime.utc_now(), -3600) |> DateTime.truncate(:second)
+        )
+
+      pending = Invitations.list_pending_invitations(company.id)
+      assert Enum.any?(pending, &(&1.id == expired.id))
+    end
+
+    test "excludes pending invitations for emails that already have a membership" do
+      company = insert(:company)
+      owner = insert(:user)
+      insert(:membership, user: owner, company: company, role: :owner)
+
+      # User with a membership whose invitation was never formally accepted
+      member = insert(:user, email: "already-member@example.com")
+      insert(:membership, user: member, company: company, role: :accountant)
+
+      stale =
+        insert(:invitation,
+          company: company,
+          invited_by: owner,
+          email: "already-member@example.com"
+        )
+
+      pending = Invitations.list_pending_invitations(company.id)
+      refute Enum.any?(pending, &(&1.id == stale.id))
+    end
+  end
+
+  describe "already_member?/2" do
+    test "returns true when email has an active membership" do
+      company = insert(:company)
+      user = insert(:user, email: "member@example.com")
+      insert(:membership, user: user, company: company, role: :accountant)
+
+      assert Invitations.already_member?(company.id, "member@example.com")
+    end
+
+    test "returns false when email has no membership" do
+      company = insert(:company)
+      refute Invitations.already_member?(company.id, "nobody@example.com")
+    end
+
+    test "normalizes email before checking" do
+      company = insert(:company)
+      user = insert(:user, email: "member@example.com")
+      insert(:membership, user: user, company: company, role: :accountant)
+
+      assert Invitations.already_member?(company.id, "MEMBER@Example.COM")
+    end
+
+    test "returns false when member belongs to a different company" do
+      company = insert(:company)
+      other_company = insert(:company)
+      user = insert(:user, email: "member@example.com")
+      insert(:membership, user: user, company: other_company, role: :accountant)
+
+      refute Invitations.already_member?(company.id, "member@example.com")
     end
   end
 

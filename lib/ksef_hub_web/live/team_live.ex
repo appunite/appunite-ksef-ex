@@ -40,6 +40,11 @@ defmodule KsefHubWeb.TeamLive do
 
   defp role_label(role), do: Membership.role_label(role)
 
+  @spec invitation_expired?(Invitations.Invitation.t()) :: boolean()
+  defp invitation_expired?(%{expires_at: expires_at}) do
+    DateTime.compare(expires_at, DateTime.utc_now()) != :gt
+  end
+
   @spec member_path(Ecto.UUID.t(), Companies.Membership.t()) :: String.t()
   defp member_path(company_id, member) do
     ~p"/c/#{company_id}/settings/team/members/#{member.id}"
@@ -156,6 +161,14 @@ defmodule KsefHubWeb.TeamLive do
                 </td>
                 <td class="py-3.5 px-4 text-muted-foreground">
                   {Calendar.strftime(inv.expires_at, "%Y-%m-%d")}
+                  <.badge
+                    :if={invitation_expired?(inv)}
+                    variant="error"
+                    class="ml-2"
+                    data-testid={"expired-badge-#{inv.id}"}
+                  >
+                    Expired
+                  </.badge>
                 </td>
                 <td class="py-3.5 px-4">
                   <.badge variant="muted">{role_label(inv.role)}</.badge>
