@@ -386,6 +386,126 @@ defmodule KsefHub.InvoicesTest do
       assert is_nil(hd(result).duplicate_status)
     end
 
+    test "shows only incomplete invoices when incomplete filter is selected", %{company: company} do
+      insert(:invoice, type: :expense, company: company, extraction_status: :complete)
+      insert(:invoice, type: :expense, company: company, extraction_status: :partial)
+      insert(:invoice, type: :expense, company: company, extraction_status: :failed)
+
+      result = Invoices.list_invoices(company.id, %{statuses: [:incomplete]})
+      assert length(result) == 2
+      assert Enum.all?(result, &(&1.extraction_status in [:partial, :failed]))
+    end
+
+    # :failed means the extractor service errored; :partial means it returned
+    # incomplete data. Both need user attention, so both map to "Incomplete".
+    test "incomplete filter includes both :partial and :failed extraction statuses", %{
+      company: company
+    } do
+      partial = insert(:invoice, type: :expense, company: company, extraction_status: :partial)
+      failed = insert(:invoice, type: :expense, company: company, extraction_status: :failed)
+      insert(:invoice, type: :expense, company: company, extraction_status: :complete)
+
+      result = Invoices.list_invoices(company.id, %{statuses: [:incomplete]})
+      ids = Enum.map(result, & &1.id)
+      assert partial.id in ids
+      assert failed.id in ids
+    end
+
+    test "incomplete filter still hides confirmed duplicates", %{company: company} do
+      insert(:invoice, type: :expense, company: company, extraction_status: :partial)
+
+      insert(:invoice,
+        type: :expense,
+        company: company,
+        extraction_status: :partial,
+        duplicate_status: :confirmed
+      )
+
+      result = Invoices.list_invoices(company.id, %{statuses: [:incomplete]})
+      assert length(result) == 1
+      assert is_nil(hd(result).duplicate_status)
+    end
+
+    test "combines incomplete with approval status using OR", %{company: company} do
+      insert(:invoice,
+        type: :expense,
+        company: company,
+        expense_approval_status: :pending,
+        extraction_status: :complete
+      )
+
+      insert(:invoice,
+        type: :expense,
+        company: company,
+        expense_approval_status: :approved,
+        extraction_status: :partial
+      )
+
+      insert(:invoice,
+        type: :expense,
+        company: company,
+        expense_approval_status: :approved,
+        extraction_status: :complete
+      )
+
+      result = Invoices.list_invoices(company.id, %{statuses: [:pending, :incomplete]})
+      assert length(result) == 2
+    end
+
+    test "combines incomplete and excluded using OR", %{company: company} do
+      insert(:invoice,
+        type: :expense,
+        company: company,
+        extraction_status: :partial,
+        is_excluded: false
+      )
+
+      insert(:invoice,
+        type: :expense,
+        company: company,
+        extraction_status: :complete,
+        is_excluded: true
+      )
+
+      insert(:invoice,
+        type: :expense,
+        company: company,
+        extraction_status: :complete,
+        is_excluded: false
+      )
+
+      result = Invoices.list_invoices(company.id, %{statuses: [:incomplete, :excluded]})
+      assert length(result) == 2
+    end
+
+    test "excluded invoices appear in normal status views", %{company: company} do
+      insert(:invoice,
+        type: :expense,
+        company: company,
+        expense_approval_status: :pending,
+        is_excluded: false
+      )
+
+      insert(:invoice,
+        type: :expense,
+        company: company,
+        expense_approval_status: :pending,
+        is_excluded: true
+      )
+
+      result = Invoices.list_invoices(company.id, %{statuses: [:pending]})
+      assert length(result) == 2
+    end
+
+    test "shows only excluded invoices when excluded filter is selected", %{company: company} do
+      insert(:invoice, type: :expense, company: company, is_excluded: false)
+      insert(:invoice, type: :expense, company: company, is_excluded: true)
+
+      result = Invoices.list_invoices(company.id, %{statuses: [:excluded]})
+      assert length(result) == 1
+      assert hd(result).is_excluded == true
+    end
+
     test "filters by date range", %{company: company} do
       insert(:invoice, issue_date: ~D[2025-01-01], company: company)
       insert(:invoice, issue_date: ~D[2025-06-15], company: company)

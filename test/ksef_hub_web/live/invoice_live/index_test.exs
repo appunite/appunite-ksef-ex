@@ -341,6 +341,52 @@ defmodule KsefHubWeb.InvoiceLive.IndexTest do
       assert has_element?(view, "#status-filter-popover")
       assert has_element?(view, "#tag-filter-popover")
     end
+
+    test "filters by incomplete status", %{conn: conn, company: company} do
+      insert(:invoice,
+        company: company,
+        type: :expense,
+        seller_name: "Partial Seller",
+        extraction_status: :partial
+      )
+
+      insert(:invoice,
+        company: company,
+        type: :expense,
+        seller_name: "Complete Seller",
+        extraction_status: :complete
+      )
+
+      {:ok, view, _html} =
+        live(conn, ~p"/c/#{company.id}/invoices?type=expense&statuses=incomplete")
+
+      html = render(view)
+      assert html =~ "Partial Seller"
+      refute html =~ "Complete Seller"
+    end
+
+    test "filters by excluded status", %{conn: conn, company: company} do
+      insert(:invoice,
+        company: company,
+        type: :expense,
+        seller_name: "Excluded Seller",
+        is_excluded: true
+      )
+
+      insert(:invoice,
+        company: company,
+        type: :expense,
+        seller_name: "Normal Seller",
+        is_excluded: false
+      )
+
+      {:ok, view, _html} =
+        live(conn, ~p"/c/#{company.id}/invoices?type=expense&statuses=excluded")
+
+      html = render(view)
+      assert html =~ "Excluded Seller"
+      refute html =~ "Normal Seller"
+    end
   end
 
   describe "pagination" do

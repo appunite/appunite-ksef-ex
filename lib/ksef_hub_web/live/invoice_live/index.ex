@@ -223,7 +223,7 @@ defmodule KsefHubWeb.InvoiceLive.Index do
     %{}
     |> maybe_put_enum(:type, params["type"], Invoice, :type)
     |> maybe_put_csv(:statuses, params["statuses"],
-      valid: ~w(pending approved rejected duplicate),
+      valid: ~w(pending approved rejected duplicate incomplete excluded),
       transform: &String.to_existing_atom/1
     )
     |> then(fn map ->
@@ -321,7 +321,9 @@ defmodule KsefHubWeb.InvoiceLive.Index do
             {"Pending", "pending"},
             {"Approved", "approved"},
             {"Rejected", "rejected"},
-            {"Duplicate", "duplicate"}
+            {"Duplicate", "duplicate"},
+            {"Incomplete", "incomplete"},
+            {"Excluded", "excluded"}
           ]}
           selected={Enum.map(@filters[:statuses] || [], &to_string/1)}
           open={@open_filter == "status-filter"}
@@ -410,6 +412,7 @@ defmodule KsefHubWeb.InvoiceLive.Index do
         <:col :let={inv} :if={@filters[:type] != :income} label="Status" class="w-28">
           <div class="flex flex-wrap gap-1">
             <.status_badge status={display_status(inv)} />
+            <.excluded_badge is_excluded={inv.is_excluded} />
             <.needs_review_badge
               prediction_status={inv.prediction_status}
               duplicate_status={inv.duplicate_status}

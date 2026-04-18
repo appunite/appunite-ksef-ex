@@ -43,7 +43,7 @@ defmodule KsefHub.Invoices.Queries do
   @doc false
   @spec apply_filters(Ecto.Queryable.t(), map()) :: Ecto.Query.t()
   def apply_filters(query, filters) do
-    query = apply_status_and_duplicate_filters(query, filters)
+    query = apply_status_filters(query, filters)
 
     Enum.reduce(filters, query, fn
       {:type, type}, q when type in [:income, :expense] ->
@@ -117,38 +117,52 @@ defmodule KsefHub.Invoices.Queries do
   # Private helpers
   # -------------------------------------------------------------------
 
-  @spec apply_status_and_duplicate_filters(Ecto.Queryable.t(), map()) :: Ecto.Query.t()
-  defp apply_status_and_duplicate_filters(query, filters) do
+  # Handles all status-based filtering: approval status, duplicate, incomplete
+  # (extraction_status :partial/:failed), and excluded (is_excluded).
+  # Each "special" bucket (:duplicate, :incomplete, :excluded) removes a default
+  # exclusion guard and contributes a positive OR condition alongside the real
+  # approval statuses.
+  @spec apply_status_filters(Ecto.Queryable.t(), map()) :: Ecto.Query.t()
+  defp apply_status_filters(query, filters) do
     statuses = filters[:statuses] || []
     include_duplicates = :duplicate in statuses
+    include_incomplete = :incomplete in statuses
+    include_excluded = :excluded in statuses
+    real_statuses = Enum.reject(statuses, &(&1 in [:duplicate, :incomplete, :excluded]))
 
+    # Hide confirmed duplicates unless :duplicate is explicitly selected.
     query =
-      if include_duplicates do
+      if include_duplicates,
+        do: query,
+        else: where(query, [i], is_nil(i.duplicate_status) or i.duplicate_status != :confirmed)
+
+    # Build positive OR conditions for each selected bucket.
+    # Both :partial and :failed map to "Incomplete" — either the extractor
+    # returned partial data or failed entirely; both require user attention.
+    conditions =
+      []
+      |> add_cond(real_statuses != [], dynamic([i], i.expense_approval_status in ^real_statuses))
+      |> add_cond(include_duplicates, dynamic([i], i.duplicate_status == :confirmed))
+      |> add_cond(include_incomplete, dynamic([i], i.extraction_status in [:partial, :failed]))
+      |> add_cond(include_excluded, dynamic([i], i.is_excluded == true))
+      |> Enum.reverse()
+
+    case conditions do
+      [] ->
         query
-      else
-        where(query, [i], is_nil(i.duplicate_status) or i.duplicate_status != :confirmed)
-      end
 
-    real_statuses = Enum.reject(statuses, &(&1 == :duplicate))
+      [single] ->
+        where(query, ^single)
 
-    case {real_statuses, include_duplicates} do
-      {[], true} ->
-        where(query, [i], i.duplicate_status == :confirmed)
-
-      {_, true} ->
-        where(
-          query,
-          [i],
-          i.expense_approval_status in ^real_statuses or i.duplicate_status == :confirmed
-        )
-
-      {[_ | _], false} ->
-        where(query, [i], i.expense_approval_status in ^real_statuses)
-
-      _ ->
-        query
+      [first | rest] ->
+        combined = Enum.reduce(rest, first, fn cond, acc -> dynamic(^acc or ^cond) end)
+        where(query, ^combined)
     end
   end
+
+  @spec add_cond(list(), boolean(), term()) :: list()
+  defp add_cond(list, true, cond), do: [cond | list]
+  defp add_cond(list, false, _cond), do: list
 
   @spec apply_payment_status_filter(Ecto.Queryable.t(), [String.t()]) :: Ecto.Query.t()
   defp apply_payment_status_filter(query, statuses) do
