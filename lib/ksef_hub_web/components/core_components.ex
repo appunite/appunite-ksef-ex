@@ -1137,7 +1137,10 @@ defmodule KsefHubWeb.CoreComponents do
   attr :from_value, :any, default: nil, doc: "start date (Date, YYYY-MM string, or nil)"
   attr :to_value, :any, default: nil, doc: "end date (Date, YYYY-MM string, or nil)"
   attr :label, :string, default: "Select period"
-  attr :single, :boolean, default: false, doc: "when true, only one month can be selected (from == to)"
+
+  attr :single, :boolean,
+    default: false,
+    doc: "when true, only one month can be selected (from == to)"
 
   @spec month_range_picker(map()) :: Phoenix.LiveView.Rendered.t()
   def month_range_picker(assigns) do

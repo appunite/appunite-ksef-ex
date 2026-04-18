@@ -2798,6 +2798,7 @@ defmodule KsefHub.InvoicesTest do
       invoice =
         insert(:invoice,
           company: company,
+          type: :income,
           source: :ksef,
           billing_date_from: ~D[2026-01-01],
           billing_date_to: ~D[2026-01-01]
@@ -2817,6 +2818,7 @@ defmodule KsefHub.InvoicesTest do
       invoice =
         insert(:invoice,
           company: company,
+          type: :income,
           billing_date_from: ~D[2026-01-01],
           billing_date_to: ~D[2026-01-01]
         )
@@ -2876,6 +2878,7 @@ defmodule KsefHub.InvoicesTest do
         |> Map.put(:xml_content, @sample_xml)
 
       assert {:error, changeset} = Invoices.create_invoice(attrs)
+
       assert "must equal billing_date_from for income invoices" in errors_on(changeset).billing_date_to
     end
 

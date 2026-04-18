@@ -617,7 +617,11 @@ defmodule KsefHub.Invoices.Invoice do
         # Only add the income-specific error when the range is otherwise valid (from < to).
         # When from > to, validate_billing_date_range already adds an error; no need to double up.
         if from != nil and to != nil and Date.compare(from, to) == :lt do
-          add_error(changeset, :billing_date_to, "must equal billing_date_from for income invoices")
+          add_error(
+            changeset,
+            :billing_date_to,
+            "must equal billing_date_from for income invoices"
+          )
         else
           changeset
         end
