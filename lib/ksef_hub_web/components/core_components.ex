@@ -1137,6 +1137,7 @@ defmodule KsefHubWeb.CoreComponents do
   attr :from_value, :any, default: nil, doc: "start date (Date, YYYY-MM string, or nil)"
   attr :to_value, :any, default: nil, doc: "end date (Date, YYYY-MM string, or nil)"
   attr :label, :string, default: "Select period"
+  attr :single, :boolean, default: false, doc: "when true, only one month can be selected (from == to)"
 
   @spec month_range_picker(map()) :: Phoenix.LiveView.Rendered.t()
   def month_range_picker(assigns) do
@@ -1146,7 +1147,11 @@ defmodule KsefHubWeb.CoreComponents do
 
     display =
       if has_value do
-        "#{format_month_label(from)} – #{format_month_label(to)}"
+        if assigns.single do
+          format_month_label(from)
+        else
+          "#{format_month_label(from)} – #{format_month_label(to)}"
+        end
       else
         assigns.label
       end
@@ -1177,6 +1182,7 @@ defmodule KsefHubWeb.CoreComponents do
       class="relative"
       data-from={@from_value || ""}
       data-to={@to_value || ""}
+      data-single={to_string(@single)}
     >
       <button
         type="button"

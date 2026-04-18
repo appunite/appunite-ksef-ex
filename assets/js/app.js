@@ -240,6 +240,7 @@ const MonthRangePicker = {
     this.year = parseInt(this.yearEl.textContent, 10)
     this.from = this.el.dataset.from || null
     this.to = this.el.dataset.to || null
+    this.single = this.el.dataset.single === "true"
     this.picking = null // null = pick from next, "to" = pick to next
 
     this.trigger.addEventListener("click", (e) => {
@@ -267,7 +268,17 @@ const MonthRangePicker = {
     this.monthButtons.forEach(btn => {
       btn.addEventListener("click", () => {
         const ym = this.year + "-" + btn.dataset.month
-        if (!this.picking) {
+        if (this.single) {
+          this.from = ym
+          this.to = ym
+          this.picking = null
+          this.fromInput.value = this.from
+          this.toInput.value = this.to
+          this.fromInput.dispatchEvent(new Event("input", { bubbles: true }))
+          this.toInput.dispatchEvent(new Event("input", { bubbles: true }))
+          this.updateLabel()
+          this.popover.classList.add("hidden")
+        } else if (!this.picking) {
           this.from = ym
           this.to = null
           this.picking = "to"
@@ -309,7 +320,9 @@ const MonthRangePicker = {
 
   updateLabel() {
     if (this.from && this.to) {
-      this.labelEl.textContent = this.fmtMonth(this.from) + " – " + this.fmtMonth(this.to)
+      this.labelEl.textContent = this.single
+        ? this.fmtMonth(this.from)
+        : this.fmtMonth(this.from) + " – " + this.fmtMonth(this.to)
     }
   },
 
