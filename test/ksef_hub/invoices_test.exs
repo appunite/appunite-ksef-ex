@@ -1230,7 +1230,7 @@ defmodule KsefHub.InvoicesTest do
 
       assert invoice.extraction_status == :partial
       assert is_nil(invoice.net_amount)
-      assert invoice.gross_amount == Decimal.new("2077.0")
+      assert Decimal.equal?(invoice.gross_amount, Decimal.new("2077.0"))
     end
 
     test "creates invoice with partial extraction when fields missing", %{company: company} do
