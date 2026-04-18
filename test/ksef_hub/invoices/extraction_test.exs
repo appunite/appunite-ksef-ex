@@ -88,6 +88,39 @@ defmodule KsefHub.Invoices.ExtractionTest do
 
       assert Invoices.determine_extraction_status_from_attrs(attrs) == :partial
     end
+
+    test "treats LLM placeholder strings as missing" do
+      for placeholder <- ["-", "--", "N/A", "n/a", "null", "`"] do
+        attrs = %{
+          seller_nip: placeholder,
+          seller_name: "Seller",
+          invoice_number: "FV/001",
+          issue_date: ~D[2026-01-01],
+          net_amount: Decimal.new("100"),
+          gross_amount: Decimal.new("123")
+        }
+
+        assert Invoices.determine_extraction_status_from_attrs(attrs) == :partial,
+               "expected :partial for placeholder #{inspect(placeholder)}"
+      end
+    end
+
+    # get_extracted_decimal/2 converts LLM sentinel zeros to nil before this
+    # function is called, so extraction always arrives here with nil for
+    # unfound amounts. Decimal.new("0") can only reach this function via manual
+    # edit — in that case, zero is treated as a valid (present) value.
+    test "treats Decimal zero as present (manual-edit path)" do
+      attrs = %{
+        seller_nip: "1234567890",
+        seller_name: "Seller",
+        invoice_number: "FV/001",
+        issue_date: ~D[2026-01-01],
+        net_amount: Decimal.new("0"),
+        gross_amount: Decimal.new("123")
+      }
+
+      assert Invoices.determine_extraction_status_from_attrs(attrs) == :complete
+    end
   end
 
   describe "missing_critical_fields/1" do

@@ -65,7 +65,7 @@ defmodule KsefHub.InboundEmail.InboundEmailWorker do
 
   @spec handle_extraction(InboundEmail.InboundEmail.t(), Companies.Company.t(), map()) :: :ok
   defp handle_extraction(record, company, extracted) do
-    extraction_status = Invoices.determine_extraction_status_from_attrs(extracted)
+    extraction_status = Invoices.determine_extraction_status(extracted)
     nip_result = NipVerifier.verify_expense(extracted, company.nip)
 
     case {extraction_status, nip_result} do

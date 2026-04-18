@@ -386,6 +386,126 @@ defmodule KsefHub.InvoicesTest do
       assert is_nil(hd(result).duplicate_status)
     end
 
+    test "shows only incomplete invoices when incomplete filter is selected", %{company: company} do
+      insert(:invoice, type: :expense, company: company, extraction_status: :complete)
+      insert(:invoice, type: :expense, company: company, extraction_status: :partial)
+      insert(:invoice, type: :expense, company: company, extraction_status: :failed)
+
+      result = Invoices.list_invoices(company.id, %{statuses: [:incomplete]})
+      assert length(result) == 2
+      assert Enum.all?(result, &(&1.extraction_status in [:partial, :failed]))
+    end
+
+    # :failed means the extractor service errored; :partial means it returned
+    # incomplete data. Both need user attention, so both map to "Incomplete".
+    test "incomplete filter includes both :partial and :failed extraction statuses", %{
+      company: company
+    } do
+      partial = insert(:invoice, type: :expense, company: company, extraction_status: :partial)
+      failed = insert(:invoice, type: :expense, company: company, extraction_status: :failed)
+      insert(:invoice, type: :expense, company: company, extraction_status: :complete)
+
+      result = Invoices.list_invoices(company.id, %{statuses: [:incomplete]})
+      ids = Enum.map(result, & &1.id)
+      assert partial.id in ids
+      assert failed.id in ids
+    end
+
+    test "incomplete filter still hides confirmed duplicates", %{company: company} do
+      insert(:invoice, type: :expense, company: company, extraction_status: :partial)
+
+      insert(:invoice,
+        type: :expense,
+        company: company,
+        extraction_status: :partial,
+        duplicate_status: :confirmed
+      )
+
+      result = Invoices.list_invoices(company.id, %{statuses: [:incomplete]})
+      assert length(result) == 1
+      assert is_nil(hd(result).duplicate_status)
+    end
+
+    test "combines incomplete with approval status using OR", %{company: company} do
+      insert(:invoice,
+        type: :expense,
+        company: company,
+        expense_approval_status: :pending,
+        extraction_status: :complete
+      )
+
+      insert(:invoice,
+        type: :expense,
+        company: company,
+        expense_approval_status: :approved,
+        extraction_status: :partial
+      )
+
+      insert(:invoice,
+        type: :expense,
+        company: company,
+        expense_approval_status: :approved,
+        extraction_status: :complete
+      )
+
+      result = Invoices.list_invoices(company.id, %{statuses: [:pending, :incomplete]})
+      assert length(result) == 2
+    end
+
+    test "combines incomplete and excluded using OR", %{company: company} do
+      insert(:invoice,
+        type: :expense,
+        company: company,
+        extraction_status: :partial,
+        is_excluded: false
+      )
+
+      insert(:invoice,
+        type: :expense,
+        company: company,
+        extraction_status: :complete,
+        is_excluded: true
+      )
+
+      insert(:invoice,
+        type: :expense,
+        company: company,
+        extraction_status: :complete,
+        is_excluded: false
+      )
+
+      result = Invoices.list_invoices(company.id, %{statuses: [:incomplete, :excluded]})
+      assert length(result) == 2
+    end
+
+    test "excluded invoices appear in normal status views", %{company: company} do
+      insert(:invoice,
+        type: :expense,
+        company: company,
+        expense_approval_status: :pending,
+        is_excluded: false
+      )
+
+      insert(:invoice,
+        type: :expense,
+        company: company,
+        expense_approval_status: :pending,
+        is_excluded: true
+      )
+
+      result = Invoices.list_invoices(company.id, %{statuses: [:pending]})
+      assert length(result) == 2
+    end
+
+    test "shows only excluded invoices when excluded filter is selected", %{company: company} do
+      insert(:invoice, type: :expense, company: company, is_excluded: false)
+      insert(:invoice, type: :expense, company: company, is_excluded: true)
+
+      result = Invoices.list_invoices(company.id, %{statuses: [:excluded]})
+      assert length(result) == 1
+      assert hd(result).is_excluded == true
+    end
+
     test "filters by date range", %{company: company} do
       insert(:invoice, issue_date: ~D[2025-01-01], company: company)
       insert(:invoice, issue_date: ~D[2025-06-15], company: company)
@@ -1080,6 +1200,37 @@ defmodule KsefHub.InvoicesTest do
       assert invoice.pdf_file_id
       pdf_file = KsefHub.Files.get_file!(invoice.pdf_file_id)
       assert pdf_file.content == "pdf-data"
+    end
+
+    # Regression: PDFs that show only a total amount (no net/gross split) cause
+    # the extractor to return 0 for net_amount. get_extracted_decimal/2 converts
+    # that sentinel zero to nil, which must produce :partial — not :complete.
+    # An invoice that is :complete with nil net_amount silently contributes zero
+    # to analytics cost reports.
+    test "marks extraction as partial when extractor returns zero for net_amount", %{
+      company: company
+    } do
+      Mox.expect(KsefHub.InvoiceExtractor.Mock, :extract, fn _pdf, _opts ->
+        {:ok,
+         %{
+           "seller_nip" => "1234567890",
+           "seller_name" => "Seller Sp. z o.o.",
+           "invoice_number" => "FV/001",
+           "issue_date" => "2026-01-15",
+           "net_amount" => 0,
+           "gross_amount" => 2077.0
+         }}
+      end)
+
+      assert {:ok, %Invoice{} = invoice} =
+               Invoices.create_pdf_upload_invoice(company, "pdf-data", %{
+                 type: :expense,
+                 filename: "total-only.pdf"
+               })
+
+      assert invoice.extraction_status == :partial
+      assert is_nil(invoice.net_amount)
+      assert Decimal.equal?(invoice.gross_amount, Decimal.new("2077.0"))
     end
 
     test "creates invoice with partial extraction when fields missing", %{company: company} do

@@ -265,6 +265,9 @@ defmodule KsefHub.Invoices do
   @doc false
   defdelegate missing_critical_fields(invoice), to: Extraction
   @doc false
+  defdelegate determine_extraction_status(extracted), to: Extraction
+  @doc false
+  @spec determine_extraction_status_from_attrs(map()) :: :complete | :partial
   defdelegate determine_extraction_status_from_attrs(attrs), to: Extraction
   @doc false
   defdelegate populate_company_fields(attrs, company), to: Extraction
