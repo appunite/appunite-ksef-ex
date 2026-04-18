@@ -1082,6 +1082,37 @@ defmodule KsefHub.InvoicesTest do
       assert pdf_file.content == "pdf-data"
     end
 
+    # Regression: PDFs that show only a total amount (no net/gross split) cause
+    # the extractor to return 0 for net_amount. get_extracted_decimal/2 converts
+    # that sentinel zero to nil, which must produce :partial — not :complete.
+    # An invoice that is :complete with nil net_amount silently contributes zero
+    # to analytics cost reports.
+    test "marks extraction as partial when extractor returns zero for net_amount", %{
+      company: company
+    } do
+      Mox.expect(KsefHub.InvoiceExtractor.Mock, :extract, fn _pdf, _opts ->
+        {:ok,
+         %{
+           "seller_nip" => "1234567890",
+           "seller_name" => "Seller Sp. z o.o.",
+           "invoice_number" => "FV/001",
+           "issue_date" => "2026-01-15",
+           "net_amount" => 0,
+           "gross_amount" => 2077.0
+         }}
+      end)
+
+      assert {:ok, %Invoice{} = invoice} =
+               Invoices.create_pdf_upload_invoice(company, "pdf-data", %{
+                 type: :expense,
+                 filename: "total-only.pdf"
+               })
+
+      assert invoice.extraction_status == :partial
+      assert is_nil(invoice.net_amount)
+      assert invoice.gross_amount == Decimal.new("2077.0")
+    end
+
     test "creates invoice with partial extraction when fields missing", %{company: company} do
       Mox.expect(KsefHub.InvoiceExtractor.Mock, :extract, fn _pdf, _opts ->
         {:ok,

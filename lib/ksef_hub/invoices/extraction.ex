@@ -13,6 +13,17 @@ defmodule KsefHub.Invoices.Extraction do
   alias KsefHub.Companies.Company
   alias KsefHub.Invoices.{Invoice, KsefNumber, PurchaseOrder}
 
+  # Fields that must be present for an invoice to be considered fully extracted.
+  # `present_value?/1` defines what "present" means (non-nil, non-blank, non-placeholder).
+  # For Decimal amounts, zero is treated as present here — `get_extracted_decimal/2`
+  # already converts LLM sentinel zeros to nil before status is calculated, so extraction
+  # always produces nil (absent) for unfound amounts; zero can only arrive via manual edit.
+  #
+  # ⚠️  MIGRATION OBLIGATION: adding a field to this list does NOT retroactively fix
+  # existing invoices. You MUST also write a backfill migration that sets
+  # extraction_status = :partial for invoices that are currently :complete but have
+  # the newly-required field missing. See priv/repo/migrations/20260418100000_backfill_extraction_status.exs
+  # as a reference.
   @critical_extraction_fields ~w(seller_nip seller_name invoice_number issue_date net_amount gross_amount)a
 
   @extraction_placeholders KsefHub.InvoiceExtractor.Placeholders.values()
@@ -211,13 +222,22 @@ defmodule KsefHub.Invoices.Extraction do
   end
 
   @doc """
-  Determines extraction status from raw extraction results.
+  Determines extraction status from a raw extractor response map.
 
-  Delegates to `determine_extraction_status_from_attrs/1`.
+  Preprocesses the map through `extracted_to_invoice_attrs/1` before checking,
+  so that sentinel values produced by the LLM (e.g. integer `0` for unfound
+  amounts) are normalised to `nil` before the presence check runs. Use this
+  function whenever the input comes directly from the extractor sidecar.
+
+  Use `determine_extraction_status_from_attrs/1` for already-processed attrs
+  (e.g. KSeF sync, manual-edit recalculation).
   """
   @spec determine_extraction_status(map()) :: :complete | :partial
-  def determine_extraction_status(extracted),
-    do: determine_extraction_status_from_attrs(extracted)
+  def determine_extraction_status(extracted) do
+    extracted
+    |> extracted_to_invoice_attrs()
+    |> determine_extraction_status_from_attrs()
+  end
 
   @doc """
   Converts string keys to existing atoms where possible.
