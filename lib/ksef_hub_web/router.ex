@@ -117,8 +117,15 @@ defmodule KsefHubWeb.Router do
       live "/invoices/upload", InvoiceLive.Upload
     end
 
-    live_session :authenticated, on_mount: {KsefHubWeb.LiveAuth, :default} do
+    live_session :require_view_dashboard,
+      on_mount: [
+        {KsefHubWeb.LiveAuth, :default},
+        {KsefHubWeb.LiveAuth, {:require_permission, :view_dashboard}}
+      ] do
       live "/dashboard", DashboardLive
+    end
+
+    live_session :authenticated, on_mount: {KsefHubWeb.LiveAuth, :default} do
       live "/invoices", InvoiceLive.Index
       live "/invoices/:id", InvoiceLive.Show
       live "/invoices/:id/classify", InvoiceLive.Classify

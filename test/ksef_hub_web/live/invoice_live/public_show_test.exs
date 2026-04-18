@@ -15,9 +15,10 @@ defmodule KsefHubWeb.InvoiceLive.PublicShowTest do
   defp create_invoice_with_token(_context) do
     company = insert(:company)
     invoice = insert(:invoice, company: company)
-    {:ok, invoice} = Invoices.generate_public_token(invoice)
+    user = insert(:user)
+    {:ok, pt, _} = Invoices.ensure_public_token(invoice, user.id)
 
-    %{company: company, invoice: invoice, token: invoice.public_token}
+    %{company: company, invoice: invoice, token: pt.token}
   end
 
   defp stub_pdf(_context) do
@@ -99,10 +100,11 @@ defmodule KsefHubWeb.InvoiceLive.PublicShowTest do
       company = insert(:company)
       invoice1 = insert(:invoice, company: company)
       invoice2 = insert(:invoice, company: company)
-      {:ok, invoice2} = Invoices.generate_public_token(invoice2)
+      user = insert(:user)
+      {:ok, pt2, _} = Invoices.ensure_public_token(invoice2, user.id)
 
       {:error, {:redirect, %{to: "/", flash: %{"error" => "Invoice not found."}}}} =
-        live(conn, ~p"/public/invoices/#{invoice1.id}?token=#{invoice2.public_token}")
+        live(conn, ~p"/public/invoices/#{invoice1.id}?token=#{pt2.token}")
     end
   end
 

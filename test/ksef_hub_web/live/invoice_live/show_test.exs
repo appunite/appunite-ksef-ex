@@ -234,19 +234,22 @@ defmodule KsefHubWeb.InvoiceLive.ShowTest do
       html = view |> element(~s([data-testid="copy-public-link"])) |> render_click()
 
       assert html =~ "Public link copied to clipboard."
-      updated = KsefHub.Repo.get!(KsefHub.Invoices.Invoice, invoice.id)
-      assert updated.public_token != nil
     end
 
-    test "is idempotent — reuses existing token", %{conn: conn, company: company} do
+    test "is idempotent — reuses existing token for the same user", %{
+      conn: conn,
+      company: company
+    } do
       invoice = insert(:invoice, company: company)
-      {:ok, invoice} = Invoices.generate_public_token(invoice)
 
       {:ok, view, _html} = live(conn, ~p"/c/#{company.id}/invoices/#{invoice.id}")
       view |> element(~s([data-testid="copy-public-link"])) |> render_click()
+      view |> element(~s([data-testid="copy-public-link"])) |> render_click()
 
-      updated = KsefHub.Repo.get!(KsefHub.Invoices.Invoice, invoice.id)
-      assert updated.public_token == invoice.public_token
+      import Ecto.Query
+      alias KsefHub.Invoices.InvoicePublicToken
+      count = Repo.one(from pt in InvoicePublicToken, where: pt.invoice_id == ^invoice.id, select: count())
+      assert count == 1
     end
   end
 

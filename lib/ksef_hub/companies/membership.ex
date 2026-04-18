@@ -8,6 +8,7 @@ defmodule KsefHub.Companies.Membership do
   - `:admin` — same as owner except cannot delete company or transfer ownership
   - `:accountant` — read-only invoice access plus exports and API token management
   - `:reviewer` — can view and manage expense invoices, trigger syncs
+  - `:viewer` — read-only access to invoices and invoice details only; no dashboard, exports, or other features
 
   ## Status
 
@@ -21,14 +22,14 @@ defmodule KsefHub.Companies.Membership do
   @behaviour KsefHub.ActivityLog.Trackable
 
   @type t :: %__MODULE__{}
-  @type role :: :owner | :admin | :accountant | :reviewer
+  @type role :: :owner | :admin | :accountant | :reviewer | :viewer
   @type status :: :active | :blocked
 
   @primary_key {:id, :binary_id, autogenerate: true}
   @foreign_key_type :binary_id
 
   schema "memberships" do
-    field :role, Ecto.Enum, values: [:owner, :admin, :accountant, :reviewer]
+    field :role, Ecto.Enum, values: [:owner, :admin, :accountant, :reviewer, :viewer]
     field :status, Ecto.Enum, values: [:active, :blocked], default: :active
 
     belongs_to :user, KsefHub.Accounts.User
@@ -60,12 +61,15 @@ defmodule KsefHub.Companies.Membership do
   def role_description(:accountant),
     do: "Read-only invoice access for all types, plus exports and API token management."
 
+  def role_description(:viewer),
+    do: "Read-only access to invoices and invoice details only. No dashboard, exports, payments, or other features."
+
   def role_description(_), do: ""
 
   @doc "Returns the roles that the given role is allowed to assign to other members."
   @spec assignable_roles(role()) :: [role()]
-  def assignable_roles(:owner), do: [:admin, :accountant, :reviewer]
-  def assignable_roles(:admin), do: [:admin, :accountant, :reviewer]
+  def assignable_roles(:owner), do: [:admin, :accountant, :reviewer, :viewer]
+  def assignable_roles(:admin), do: [:admin, :accountant, :reviewer, :viewer]
   def assignable_roles(_), do: []
 
   @doc """

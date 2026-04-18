@@ -633,4 +633,152 @@ defmodule KsefHub.Invoices.AccessControlTest do
       assert Invoices.list_access_grants(invoice.id) == []
     end
   end
+
+  describe "viewer role access" do
+    setup %{company: company} do
+      viewer = insert(:user)
+      insert(:membership, user: viewer, company: company, role: :viewer)
+      %{viewer: viewer}
+    end
+
+    test "viewer cannot see income invoices without explicit grant (same filtering as reviewer)",
+         %{company: company, viewer: viewer} do
+      insert(:invoice, type: :income, company: company, access_restricted: true)
+      insert(:invoice, type: :expense, company: company, access_restricted: false)
+
+      result =
+        Invoices.list_invoices_paginated(company.id, %{}, role: :viewer, user_id: viewer.id)
+
+      assert result.total_count == 1
+      assert hd(result.entries).type == :expense
+    end
+
+    test "viewer cannot see restricted expense invoices without grant", %{
+      company: company,
+      viewer: viewer
+    } do
+      insert(:invoice, type: :expense, company: company, access_restricted: true)
+
+      result =
+        Invoices.list_invoices_paginated(company.id, %{}, role: :viewer, user_id: viewer.id)
+
+      assert result.total_count == 0
+    end
+
+    test "viewer sees income invoice when granted access", %{company: company, viewer: viewer} do
+      income = insert(:invoice, type: :income, company: company, access_restricted: true)
+      Invoices.grant_access(income.id, viewer.id)
+
+      result =
+        Invoices.list_invoices_paginated(company.id, %{}, role: :viewer, user_id: viewer.id)
+
+      assert result.total_count == 1
+      assert hd(result.entries).type == :income
+    end
+
+    test "get_invoice returns nil for restricted invoice without grant", %{
+      company: company,
+      viewer: viewer
+    } do
+      restricted = insert(:invoice, company: company, type: :expense, access_restricted: true)
+
+      assert is_nil(
+               Invoices.get_invoice(company.id, restricted.id, role: :viewer, user_id: viewer.id)
+             )
+    end
+
+    test "get_invoice returns nil when scoped to viewer's company but invoice belongs elsewhere",
+         %{company: company, viewer: viewer} do
+      other_company = insert(:company)
+      invoice = insert(:invoice, company: other_company)
+
+      assert is_nil(
+               Invoices.get_invoice(company.id, invoice.id, role: :viewer, user_id: viewer.id)
+             )
+    end
+
+    test "viewer can be a grant recipient (does not have full visibility)", %{
+      company: company,
+      viewer: viewer
+    } do
+      invoice = insert(:invoice, company: company, type: :income, access_restricted: true)
+
+      assert {:ok, _grant} = Invoices.grant_access(invoice.id, viewer.id)
+    end
+  end
+
+  describe "IDOR: company scoping prevents cross-company access" do
+    test "get_invoice scopes by company_id — cannot access invoice from different company" do
+      company_a = insert(:company)
+      company_b = insert(:company)
+      user = insert(:user)
+      insert(:membership, user: user, company: company_a, role: :owner)
+
+      invoice_b = insert(:invoice, company: company_b)
+
+      # Attempt to fetch company_b's invoice using company_a's scope
+      assert is_nil(Invoices.get_invoice(company_a.id, invoice_b.id, role: :owner, user_id: user.id))
+    end
+
+    test "get_invoice! raises when company_id does not match invoice" do
+      company_a = insert(:company)
+      company_b = insert(:company)
+      user = insert(:user)
+      insert(:membership, user: user, company: company_a, role: :owner)
+
+      invoice_b = insert(:invoice, company: company_b)
+
+      assert_raise Ecto.NoResultsError, fn ->
+        Invoices.get_invoice!(company_a.id, invoice_b.id, role: :owner, user_id: user.id)
+      end
+    end
+
+    test "get_invoice_with_details returns nil for invoice from different company" do
+      company_a = insert(:company)
+      company_b = insert(:company)
+      user = insert(:user)
+      insert(:membership, user: user, company: company_a, role: :admin)
+
+      invoice_b = insert(:invoice, company: company_b)
+
+      assert is_nil(
+               Invoices.get_invoice_with_details(company_a.id, invoice_b.id,
+                 role: :admin,
+                 user_id: user.id
+               )
+             )
+    end
+
+    test "list_invoices never returns invoices from another company" do
+      company_a = insert(:company)
+      company_b = insert(:company)
+      user = insert(:user)
+      insert(:membership, user: user, company: company_a, role: :owner)
+
+      insert(:invoice, company: company_a)
+      insert(:invoice, company: company_b)
+      insert(:invoice, company: company_b)
+
+      results = Invoices.list_invoices(company_a.id, %{}, role: :owner, user_id: user.id)
+      assert length(results) == 1
+      assert hd(results).company_id == company_a.id
+    end
+
+    test "viewer cannot access invoice from their company using another company's ID" do
+      company_a = insert(:company)
+      company_b = insert(:company)
+      viewer = insert(:user)
+      insert(:membership, user: viewer, company: company_a, role: :viewer)
+
+      invoice_a = insert(:invoice, company: company_a)
+
+      # Try to access company_a's invoice scoped under company_b
+      assert is_nil(
+               Invoices.get_invoice(company_b.id, invoice_a.id,
+                 role: :viewer,
+                 user_id: viewer.id
+               )
+             )
+    end
+  end
 end

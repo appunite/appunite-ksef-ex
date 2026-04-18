@@ -11,6 +11,7 @@ defmodule KsefHub.Authorization do
   - `:admin` — same as owner except cannot delete company or transfer ownership
   - `:reviewer` — can view and manage expense invoices, trigger syncs, manage own API tokens
   - `:accountant` — read-only invoice access plus exports
+  - `:viewer` — read-only access to invoices and invoice details only
   """
 
   alias KsefHub.Companies
@@ -67,6 +68,8 @@ defmodule KsefHub.Authorization do
                             :view_payment_requests
                           ])
 
+  @viewer_permissions MapSet.new([:view_invoices])
+
   @doc """
   Checks whether the given role has the specified permission.
 
@@ -87,6 +90,7 @@ defmodule KsefHub.Authorization do
   def can?(:admin, permission), do: permission not in @admin_denied
   def can?(:reviewer, permission), do: permission in @reviewer_permissions
   def can?(:accountant, permission), do: permission in @accountant_permissions
+  def can?(:viewer, permission), do: permission in @viewer_permissions
 
   @doc """
   Checks whether a user has the specified permission for a company,

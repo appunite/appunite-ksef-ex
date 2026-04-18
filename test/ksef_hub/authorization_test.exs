@@ -22,7 +22,10 @@ defmodule KsefHub.AuthorizationTest do
     :transfer_ownership,
     :manage_certificates,
     :manage_tokens,
-    :manage_team
+    :manage_team,
+    :view_payment_requests,
+    :manage_payment_requests,
+    :manage_bank_accounts
   ]
 
   describe "nil role" do
@@ -71,7 +74,9 @@ defmodule KsefHub.AuthorizationTest do
       :set_invoice_tags,
       :view_syncs,
       :trigger_sync,
-      :manage_tokens
+      :manage_tokens,
+      :view_payment_requests,
+      :manage_payment_requests
     ]
 
     @reviewer_denied @all_permissions -- @reviewer_allowed
@@ -98,7 +103,8 @@ defmodule KsefHub.AuthorizationTest do
       :view_all_invoice_types,
       :view_exports,
       :create_export,
-      :manage_tokens
+      :manage_tokens,
+      :view_payment_requests
     ]
 
     @accountant_denied @all_permissions -- @accountant_allowed
@@ -115,6 +121,56 @@ defmodule KsefHub.AuthorizationTest do
         refute Authorization.can?(:accountant, perm),
                "expected accountant NOT to have #{perm}"
       end
+    end
+  end
+
+  describe "viewer" do
+    @viewer_allowed [:view_invoices]
+
+    @viewer_denied @all_permissions -- @viewer_allowed
+
+    test "has allowed permissions" do
+      for perm <- @viewer_allowed do
+        assert Authorization.can?(:viewer, perm),
+               "expected viewer to have #{perm}"
+      end
+    end
+
+    test "does not have denied permissions" do
+      for perm <- @viewer_denied do
+        refute Authorization.can?(:viewer, perm),
+               "expected viewer NOT to have #{perm}"
+      end
+    end
+
+    test "cannot access dashboard" do
+      refute Authorization.can?(:viewer, :view_dashboard)
+    end
+
+    test "cannot approve invoices" do
+      refute Authorization.can?(:viewer, :approve_invoice)
+    end
+
+    test "cannot update invoices" do
+      refute Authorization.can?(:viewer, :update_invoice)
+    end
+
+    test "cannot manage tokens" do
+      refute Authorization.can?(:viewer, :manage_tokens)
+    end
+
+    test "cannot see all invoice types (access_restricted filter applies)" do
+      refute Authorization.can?(:viewer, :view_all_invoice_types)
+    end
+
+    test "cannot access exports" do
+      refute Authorization.can?(:viewer, :view_exports)
+      refute Authorization.can?(:viewer, :create_export)
+    end
+
+    test "cannot access payment requests" do
+      refute Authorization.can?(:viewer, :view_payment_requests)
+      refute Authorization.can?(:viewer, :manage_payment_requests)
     end
   end
 end

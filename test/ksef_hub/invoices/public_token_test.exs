@@ -1,86 +1,197 @@
 defmodule KsefHub.Invoices.PublicTokenTest do
   use KsefHub.DataCase, async: true
 
+  import Ecto.Query
   import KsefHub.Factory
 
+  alias KsefHub.Companies
   alias KsefHub.Invoices
+  alias KsefHub.Invoices.InvoicePublicToken
   alias KsefHub.Invoices.Invoice
+  alias KsefHub.Repo
 
-  describe "generate_public_token/1" do
-    test "creates a unique base64url token" do
+  describe "ensure_public_token/2" do
+    test "creates a token and returns :created for a user who has none" do
       invoice = insert(:invoice)
+      user = insert(:user)
 
-      assert {:ok, %Invoice{public_token: token}} = Invoices.generate_public_token(invoice)
-      assert is_binary(token)
-      assert String.length(token) > 20
-      assert {:ok, _} = Base.url_decode64(token, padding: false)
+      assert {:ok, %InvoicePublicToken{} = pt, :created} =
+               Invoices.ensure_public_token(invoice, user.id)
+
+      assert pt.invoice_id == invoice.id
+      assert pt.user_id == user.id
+      assert is_binary(pt.token)
+      assert String.length(pt.token) > 20
+      assert {:ok, _} = Base.url_decode64(pt.token, padding: false)
     end
 
-    test "generates different tokens for different invoices" do
-      invoice1 = insert(:invoice)
-      invoice2 = insert(:invoice)
+    test "token expires 30 days from creation" do
+      invoice = insert(:invoice)
+      user = insert(:user)
 
-      {:ok, updated1} = Invoices.generate_public_token(invoice1)
-      {:ok, updated2} = Invoices.generate_public_token(invoice2)
+      {:ok, pt, _} = Invoices.ensure_public_token(invoice, user.id)
 
-      assert updated1.public_token != updated2.public_token
+      diff = DateTime.diff(pt.expires_at, DateTime.utc_now(), :day)
+      assert diff in 29..30
     end
 
-    test "returns error when invoice already has a token" do
+    test "is idempotent — returns existing valid token and :existing for same user" do
       invoice = insert(:invoice)
+      user = insert(:user)
 
-      {:ok, _} = Invoices.generate_public_token(invoice)
-      assert {:error, :already_has_token} = Invoices.generate_public_token(invoice)
+      {:ok, first, :created} = Invoices.ensure_public_token(invoice, user.id)
+      {:ok, second, :existing} = Invoices.ensure_public_token(invoice, user.id)
+
+      assert first.token == second.token
+      assert first.id == second.id
+    end
+
+    test "different users get different tokens for the same invoice" do
+      invoice = insert(:invoice)
+      user_a = insert(:user)
+      user_b = insert(:user)
+
+      {:ok, token_a, _} = Invoices.ensure_public_token(invoice, user_a.id)
+      {:ok, token_b, _} = Invoices.ensure_public_token(invoice, user_b.id)
+
+      refute token_a.token == token_b.token
+    end
+
+    test "rotates the token when the existing one is expired and returns :created" do
+      invoice = insert(:invoice)
+      user = insert(:user)
+
+      expired_at = DateTime.utc_now() |> DateTime.add(-1, :day) |> DateTime.truncate(:second)
+
+      Repo.insert!(%InvoicePublicToken{
+        invoice_id: invoice.id,
+        user_id: user.id,
+        token: "expired_token_aaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        expires_at: expired_at
+      })
+
+      {:ok, new_pt, :created} = Invoices.ensure_public_token(invoice, user.id)
+      refute new_pt.token == "expired_token_aaaaaaaaaaaaaaaaaaaaaaaaaaa"
+      assert DateTime.compare(new_pt.expires_at, DateTime.utc_now()) == :gt
     end
   end
 
   describe "get_invoice_by_public_token/1" do
-    test "returns invoice with preloaded associations for valid token" do
+    test "returns invoice with all required preloads for a valid token" do
       invoice = insert(:invoice)
-      {:ok, updated} = Invoices.generate_public_token(invoice)
+      user = insert(:user)
+      {:ok, pt, _} = Invoices.ensure_public_token(invoice, user.id)
 
-      result = Invoices.get_invoice_by_public_token(updated.public_token)
+      result = Invoices.get_invoice_by_public_token(pt.token)
 
+      assert %Invoice{} = result
       assert result.id == invoice.id
       assert Ecto.assoc_loaded?(result.company)
       assert Ecto.assoc_loaded?(result.category)
-      assert Ecto.assoc_loaded?(result.tags)
+      assert Ecto.assoc_loaded?(result.xml_file)
+      assert Ecto.assoc_loaded?(result.pdf_file)
     end
 
-    test "returns nil for nonexistent token" do
-      assert Invoices.get_invoice_by_public_token("nonexistent-token") == nil
+    test "returns nil for unknown token" do
+      assert Invoices.get_invoice_by_public_token("nonexistent-token-aaaaaaa") == nil
     end
 
     test "returns nil for nil token" do
       assert Invoices.get_invoice_by_public_token(nil) == nil
     end
+
+    test "returns nil for expired token" do
+      invoice = insert(:invoice)
+      user = insert(:user)
+
+      expired_at = DateTime.utc_now() |> DateTime.add(-1, :day) |> DateTime.truncate(:second)
+
+      Repo.insert!(%InvoicePublicToken{
+        invoice_id: invoice.id,
+        user_id: user.id,
+        token: "expired_token_aaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        expires_at: expired_at
+      })
+
+      assert Invoices.get_invoice_by_public_token("expired_token_aaaaaaaaaaaaaaaaaaaaaaaaaaa") ==
+               nil
+    end
+
+    test "each user's token independently resolves the same invoice" do
+      invoice = insert(:invoice)
+      user_a = insert(:user)
+      user_b = insert(:user)
+
+      {:ok, token_a, _} = Invoices.ensure_public_token(invoice, user_a.id)
+      {:ok, token_b, _} = Invoices.ensure_public_token(invoice, user_b.id)
+
+      assert Invoices.get_invoice_by_public_token(token_a.token).id == invoice.id
+      assert Invoices.get_invoice_by_public_token(token_b.token).id == invoice.id
+      refute token_a.token == token_b.token
+    end
+
+    test "deleting the invoice cascades to its public tokens" do
+      invoice = insert(:invoice)
+      user = insert(:user)
+      {:ok, pt, _} = Invoices.ensure_public_token(invoice, user.id)
+
+      Repo.delete!(invoice)
+
+      assert Repo.get(InvoicePublicToken, pt.id) == nil
+    end
   end
 
-  describe "ensure_public_token/1" do
-    test "generates a token when none exists" do
-      invoice = insert(:invoice)
-      assert is_nil(invoice.public_token)
+  describe "delete_public_tokens_for_user/2" do
+    test "deletes all tokens for the user within the given company" do
+      company = insert(:company)
+      user = insert(:user)
+      invoice_1 = insert(:invoice, company: company)
+      invoice_2 = insert(:invoice, company: company)
 
-      assert {:ok, %Invoice{public_token: token}} = Invoices.ensure_public_token(invoice)
-      assert is_binary(token)
+      {:ok, _, _} = Invoices.ensure_public_token(invoice_1, user.id)
+      {:ok, _, _} = Invoices.ensure_public_token(invoice_2, user.id)
+
+      Invoices.delete_public_tokens_for_user(user.id, company.id)
+
+      count =
+        Repo.one(
+          from pt in InvoicePublicToken,
+            where: pt.user_id == ^user.id,
+            select: count()
+        )
+
+      assert count == 0
     end
 
-    test "is idempotent — returns existing token without DB hit" do
-      invoice = insert(:invoice)
-      {:ok, with_token} = Invoices.generate_public_token(invoice)
+    test "does not delete tokens for the same user in a different company" do
+      company_a = insert(:company)
+      company_b = insert(:company)
+      user = insert(:user)
 
-      assert {:ok, result} = Invoices.ensure_public_token(with_token)
-      assert result.public_token == with_token.public_token
+      invoice_a = insert(:invoice, company: company_a)
+      invoice_b = insert(:invoice, company: company_b)
+
+      {:ok, _, _} = Invoices.ensure_public_token(invoice_a, user.id)
+      {:ok, pt_b, _} = Invoices.ensure_public_token(invoice_b, user.id)
+
+      Invoices.delete_public_tokens_for_user(user.id, company_a.id)
+
+      assert Repo.get(InvoicePublicToken, pt_b.id) != nil
     end
 
-    test "concurrent callers converge on the same token" do
-      invoice = insert(:invoice)
+    test "blocking a company member invalidates their shared links" do
+      company = insert(:company)
+      user = insert(:user)
+      membership = insert(:membership, user: user, company: company, role: :reviewer)
+      invoice = insert(:invoice, company: company)
 
-      # Simulate race: first call wins, second call gets :already_has_token and reloads
-      {:ok, first} = Invoices.generate_public_token(invoice)
-      {:ok, second} = Invoices.ensure_public_token(invoice)
+      {:ok, pt, _} = Invoices.ensure_public_token(invoice, user.id)
+      assert Invoices.get_invoice_by_public_token(pt.token) != nil
 
-      assert first.public_token == second.public_token
+      {:ok, _} = Companies.block_member(membership)
+      Invoices.delete_public_tokens_for_user(user.id, company.id)
+
+      assert Invoices.get_invoice_by_public_token(pt.token) == nil
     end
   end
 end

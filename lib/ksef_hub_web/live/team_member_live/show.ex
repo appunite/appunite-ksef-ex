@@ -15,6 +15,7 @@ defmodule KsefHubWeb.TeamMemberLive.Show do
   alias KsefHub.Companies
   alias KsefHub.Companies.Membership
   alias KsefHub.Invitations
+  alias KsefHub.Invoices
 
   @impl true
   def mount(_params, _session, socket) do
@@ -113,6 +114,8 @@ defmodule KsefHubWeb.TeamMemberLive.Show do
          :ok <- check_not_self(membership.user_id, current_user.id) do
       case Companies.block_member(membership) do
         {:ok, updated} ->
+          Invoices.delete_public_tokens_for_user(membership.user_id, membership.company_id)
+
           {:noreply,
            socket
            |> assign(membership: %{updated | user: membership.user})

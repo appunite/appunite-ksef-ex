@@ -386,17 +386,17 @@ defmodule KsefHubWeb.InvoiceLive.Show do
   @impl true
   def handle_event("copy_public_link", _params, socket) do
     invoice = socket.assigns.invoice
+    user_id = socket.assigns.current_user.id
 
-    {:ok, updated} = Invoices.ensure_public_token(invoice)
-    url = url(~p"/public/invoices/#{updated.id}?token=#{updated.public_token}")
+    {:ok, pt, created?} = Invoices.ensure_public_token(invoice, user_id)
+    url = url(~p"/public/invoices/#{invoice.id}?token=#{pt.token}")
 
-    if invoice.public_token != updated.public_token do
-      Events.invoice_public_link_generated(updated, actor_opts(socket))
+    if created? == :created do
+      Events.invoice_public_link_generated(invoice, actor_opts(socket))
     end
 
     {:noreply,
      socket
-     |> assign(:invoice, %{invoice | public_token: updated.public_token})
      |> push_event("copy_to_clipboard", %{text: url})
      |> put_flash(:info, "Public link copied to clipboard.")}
   end

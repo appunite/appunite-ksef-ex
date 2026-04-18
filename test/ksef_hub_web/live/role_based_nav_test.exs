@@ -58,5 +58,18 @@ defmodule KsefHubWeb.RoleBasedNavTest do
       refute has_element?(view, "a[href='/c/#{company.id}/tokens']")
       refute has_element?(view, "a[href='/c/#{company.id}/team']")
     end
+
+    test "viewer is redirected away from dashboard to invoices", %{conn: conn} do
+      user = insert(:user)
+      company = insert(:company)
+      insert(:membership, user: user, company: company, role: :viewer)
+
+      expected_path = "/c/#{company.id}/invoices"
+
+      assert {:error, {:redirect, %{to: ^expected_path}}} =
+               conn
+               |> log_in_user(user, %{current_company_id: company.id})
+               |> live("/c/#{company.id}/dashboard")
+    end
   end
 end
