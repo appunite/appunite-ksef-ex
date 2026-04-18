@@ -2768,13 +2768,13 @@ defmodule KsefHub.InvoicesTest do
 
     test "explicit billing_date_from/to overrides auto-computation", %{company: company} do
       attrs =
-        params_for(:invoice,
+        params_for(:pdf_upload_invoice,
           company_id: company.id,
           sales_date: ~D[2026-02-15],
           billing_date_from: ~D[2026-04-01],
           billing_date_to: ~D[2026-06-01]
         )
-        |> Map.put(:xml_content, @sample_xml)
+        |> Map.put(:pdf_content, "%PDF-1.4 test")
 
       assert {:ok, invoice} = Invoices.create_invoice(attrs)
       assert invoice.billing_date_from == ~D[2026-04-01]
@@ -2945,11 +2945,48 @@ defmodule KsefHub.InvoicesTest do
       assert invoice.billing_date_to == ~D[2026-05-01]
     end
 
-    test "update_billing_date works on KSeF invoices", %{company: company} do
+    test "update_billing_date works on KSeF income invoices (single month)", %{company: company} do
       invoice =
         insert(:invoice,
           company: company,
+          type: :income,
           source: :ksef,
+          billing_date_from: ~D[2026-01-01],
+          billing_date_to: ~D[2026-01-01]
+        )
+
+      assert {:ok, updated} =
+               Invoices.update_billing_date(invoice, %{
+                 billing_date_from: ~D[2026-06-01],
+                 billing_date_to: ~D[2026-06-01]
+               })
+
+      assert updated.billing_date_from == ~D[2026-06-01]
+      assert updated.billing_date_to == ~D[2026-06-01]
+    end
+
+    test "update_billing_date rejects range for income invoices", %{company: company} do
+      invoice =
+        insert(:invoice,
+          company: company,
+          type: :income,
+          billing_date_from: ~D[2026-01-01],
+          billing_date_to: ~D[2026-01-01]
+        )
+
+      assert {:error, changeset} =
+               Invoices.update_billing_date(invoice, %{
+                 billing_date_from: ~D[2026-06-01],
+                 billing_date_to: ~D[2026-08-01]
+               })
+
+      assert "must equal billing_date_from for income invoices" in errors_on(changeset).billing_date_to
+    end
+
+    test "update_billing_date allows range for expense invoices", %{company: company} do
+      invoice =
+        insert(:manual_invoice,
+          company: company,
           billing_date_from: ~D[2026-01-01],
           billing_date_to: ~D[2026-01-01]
         )
@@ -2980,6 +3017,34 @@ defmodule KsefHub.InvoicesTest do
 
       assert is_nil(updated.billing_date_from)
       assert is_nil(updated.billing_date_to)
+    end
+
+    test "create income invoice with range billing dates is rejected", %{company: company} do
+      attrs =
+        params_for(:invoice,
+          company_id: company.id,
+          billing_date_from: ~D[2026-04-01],
+          billing_date_to: ~D[2026-06-01]
+        )
+        |> Map.put(:xml_content, @sample_xml)
+
+      assert {:error, changeset} = Invoices.create_invoice(attrs)
+
+      assert "must equal billing_date_from for income invoices" in errors_on(changeset).billing_date_to
+    end
+
+    test "create expense invoice with range billing dates is accepted", %{company: company} do
+      attrs =
+        params_for(:pdf_upload_invoice,
+          company_id: company.id,
+          billing_date_from: ~D[2026-04-01],
+          billing_date_to: ~D[2026-06-01]
+        )
+        |> Map.put(:pdf_content, "%PDF-1.4 test")
+
+      assert {:ok, invoice} = Invoices.create_invoice(attrs)
+      assert invoice.billing_date_from == ~D[2026-04-01]
+      assert invoice.billing_date_to == ~D[2026-06-01]
     end
 
     test "multi-month allocation distributes evenly with rounding", %{company: company} do

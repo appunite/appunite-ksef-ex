@@ -574,6 +574,7 @@ defmodule KsefHub.Invoices.Invoice do
     |> validate_first_of_month(:billing_date_from)
     |> validate_first_of_month(:billing_date_to)
     |> validate_billing_date_range()
+    |> validate_income_single_billing_date()
   end
 
   @spec validate_billing_date_range(Ecto.Changeset.t()) :: Ecto.Changeset.t()
@@ -604,6 +605,30 @@ defmodule KsefHub.Invoices.Invoice do
     validate_change(changeset, field, fn _, %Date{day: day} ->
       if day == 1, do: [], else: [{field, "must be the first day of the month"}]
     end)
+  end
+
+  @spec validate_income_single_billing_date(Ecto.Changeset.t()) :: Ecto.Changeset.t()
+  defp validate_income_single_billing_date(changeset) do
+    case get_field(changeset, :type) do
+      :income ->
+        from = get_field(changeset, :billing_date_from)
+        to = get_field(changeset, :billing_date_to)
+
+        # Only add the income-specific error when the range is otherwise valid (from < to).
+        # When from > to, validate_billing_date_range already adds an error; no need to double up.
+        if from != nil and to != nil and Date.compare(from, to) == :lt do
+          add_error(
+            changeset,
+            :billing_date_to,
+            "must equal billing_date_from for income invoices"
+          )
+        else
+          changeset
+        end
+
+      _ ->
+        changeset
+    end
   end
 
   # ---------------------------------------------------------------------------

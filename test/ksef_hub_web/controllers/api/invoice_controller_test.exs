@@ -1666,6 +1666,51 @@ defmodule KsefHubWeb.Api.InvoiceControllerTest do
       assert data["billing_date_from"] == "2026-05-01"
       assert data["billing_date_to"] == "2026-07-01"
     end
+
+    test "create income invoice via API rejects range billing dates", %{conn: conn} do
+      %{token: token} = create_user_with_token(:owner)
+
+      body =
+        Jason.encode!(%{
+          type: "income",
+          seller_nip: "1234567890",
+          seller_name: "Seller Sp. z o.o.",
+          buyer_nip: "0987654321",
+          buyer_name: "Buyer S.A.",
+          invoice_number: "FV/2026/INC1",
+          issue_date: "2026-03-15",
+          net_amount: "1000.00",
+          gross_amount: "1230.00",
+          billing_date_from: "2026-03-01",
+          billing_date_to: "2026-05-01"
+        })
+
+      conn = conn |> api_conn(token) |> post("/api/invoices", body)
+
+      assert conn.status == 422
+      assert Jason.decode!(conn.resp_body)["error"]["billing_date_to"] != nil
+    end
+
+    test "PATCH income invoice rejects range billing dates", %{conn: conn} do
+      %{company: company, token: token} = create_user_with_token(:owner)
+
+      invoice =
+        insert(:manual_invoice,
+          company: company,
+          type: :income,
+          source: :manual,
+          billing_date_from: ~D[2026-02-01],
+          billing_date_to: ~D[2026-02-01]
+        )
+
+      body =
+        Jason.encode!(%{billing_date_from: "2026-02-01", billing_date_to: "2026-04-01"})
+
+      conn = conn |> api_conn(token) |> patch("/api/invoices/#{invoice.id}", body)
+
+      assert conn.status == 422
+      assert Jason.decode!(conn.resp_body)["error"]["billing_date_to"] != nil
+    end
   end
 
   describe "access control API" do

@@ -1156,6 +1156,7 @@ defmodule KsefHubWeb.InvoiceLive.Show do
                 to_name="billing_date_to"
                 from_value={@billing_date_form["billing_date_from"].value}
                 to_value={@billing_date_form["billing_date_to"].value}
+                single={@invoice.type == :income}
               />
               <div class="flex gap-2">
                 <.button type="submit" size="sm">
