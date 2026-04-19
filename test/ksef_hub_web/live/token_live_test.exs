@@ -131,7 +131,7 @@ defmodule KsefHubWeb.TokenLiveTest do
       view |> element("button", "Revoke") |> render_click()
 
       html = render(view)
-      assert html =~ "Revoked"
+      assert html =~ "revoked"
     end
   end
 

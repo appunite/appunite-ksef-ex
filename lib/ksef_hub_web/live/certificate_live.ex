@@ -324,7 +324,7 @@ defmodule KsefHubWeb.CertificateLive do
     <!-- Current Certificate -->
       <.card :if={@user_certificate} id="current-certificate" class="mt-6">
         <div class="flex items-center justify-between mb-4">
-          <h2 id="cert-heading" class="text-base font-semibold">Active certificate</h2>
+          <h2 id="cert-heading" class="text-base font-semibold">Your Certificate</h2>
           <.badge variant={cert_status_variant(@user_certificate.not_after)}>
             {cert_status_label(@user_certificate.not_after)}
           </.badge>
