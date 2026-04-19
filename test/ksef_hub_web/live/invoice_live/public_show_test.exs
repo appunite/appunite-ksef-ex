@@ -124,7 +124,7 @@ defmodule KsefHubWeb.InvoiceLive.PublicShowTest do
           name: "Member"
         })
 
-      insert(:membership, user: user, company: company, role: :reviewer)
+      insert(:membership, user: user, company: company, role: :approver)
 
       conn = conn |> log_in_user(user, %{current_company_id: company.id})
 

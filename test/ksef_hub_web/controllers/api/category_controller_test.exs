@@ -203,7 +203,7 @@ defmodule KsefHubWeb.Api.CategoryControllerTest do
     end
 
     test "reviewer can read category (show)", %{conn: conn} do
-      {:ok, %{company: company, token: token}} = create_user_with_token(:reviewer)
+      {:ok, %{company: company, token: token}} = create_user_with_token(:approver)
       category = insert(:category, company: company, identifier: "ops:test")
 
       conn = conn |> api_conn(token) |> get("/api/categories/#{category.id}")
@@ -211,7 +211,7 @@ defmodule KsefHubWeb.Api.CategoryControllerTest do
     end
 
     test "reviewer can read categories (index)", %{conn: conn} do
-      {:ok, %{company: company, token: token}} = create_user_with_token(:reviewer)
+      {:ok, %{company: company, token: token}} = create_user_with_token(:approver)
       insert(:category, company: company, identifier: "ops:test")
 
       conn = conn |> api_conn(token) |> get("/api/categories")
@@ -227,7 +227,7 @@ defmodule KsefHubWeb.Api.CategoryControllerTest do
     end
 
     test "reviewer cannot create categories", %{conn: conn} do
-      {:ok, %{token: token}} = create_user_with_token(:reviewer)
+      {:ok, %{token: token}} = create_user_with_token(:approver)
 
       body = Jason.encode!(%{identifier: "ops:test"})
       conn = conn |> api_conn(token) |> post("/api/categories", body)
@@ -277,7 +277,7 @@ defmodule KsefHubWeb.Api.CategoryControllerTest do
     end
 
     test "reviewer cannot update categories", %{conn: conn} do
-      {:ok, %{company: company, token: token}} = create_user_with_token(:reviewer)
+      {:ok, %{company: company, token: token}} = create_user_with_token(:approver)
       category = insert(:category, company: company)
 
       body = Jason.encode!(%{identifier: "ops:updated"})
@@ -286,7 +286,7 @@ defmodule KsefHubWeb.Api.CategoryControllerTest do
     end
 
     test "reviewer cannot delete categories", %{conn: conn} do
-      {:ok, %{company: company, token: token}} = create_user_with_token(:reviewer)
+      {:ok, %{company: company, token: token}} = create_user_with_token(:approver)
       category = insert(:category, company: company)
 
       conn = conn |> api_conn(token) |> delete("/api/categories/#{category.id}")

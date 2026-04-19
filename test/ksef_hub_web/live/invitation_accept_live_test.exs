@@ -82,7 +82,7 @@ defmodule KsefHubWeb.InvitationAcceptLiveTest do
       {:ok, %{token: token}} =
         Invitations.create_invitation(owner.id, company.id, %{
           email: "already@example.com",
-          role: :reviewer
+          role: :approver
         })
 
       # Now add membership, simulating the user joined through another path

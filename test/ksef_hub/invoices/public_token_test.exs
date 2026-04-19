@@ -35,7 +35,7 @@ defmodule KsefHub.Invoices.PublicTokenTest do
       assert diff in 29..30
     end
 
-    test "is idempotent — returns existing valid token and :existing for same user" do
+    test "returns :existing and same token for second call within TTL" do
       invoice = insert(:invoice)
       user = insert(:user)
 
@@ -63,12 +63,14 @@ defmodule KsefHub.Invoices.PublicTokenTest do
 
       expired_at = DateTime.utc_now() |> DateTime.add(-1, :day) |> DateTime.truncate(:second)
 
-      Repo.insert!(%InvoicePublicToken{
+      %InvoicePublicToken{}
+      |> InvoicePublicToken.changeset(%{
         invoice_id: invoice.id,
         user_id: user.id,
         token: "expired_token_aaaaaaaaaaaaaaaaaaaaaaaaaaa",
         expires_at: expired_at
       })
+      |> Repo.insert!()
 
       {:ok, new_pt, :created} = Invoices.ensure_public_token(invoice, user.id)
       refute new_pt.token == "expired_token_aaaaaaaaaaaaaaaaaaaaaaaaaaa"
@@ -105,16 +107,18 @@ defmodule KsefHub.Invoices.PublicTokenTest do
       user = insert(:user)
 
       expired_at = DateTime.utc_now() |> DateTime.add(-1, :day) |> DateTime.truncate(:second)
+      raw_token = "expired_token_aaaaaaaaaaaaaaaaaaaaaaaaaaa"
 
-      Repo.insert!(%InvoicePublicToken{
+      %InvoicePublicToken{}
+      |> InvoicePublicToken.changeset(%{
         invoice_id: invoice.id,
         user_id: user.id,
-        token: "expired_token_aaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        token: raw_token,
         expires_at: expired_at
       })
+      |> Repo.insert!()
 
-      assert Invoices.get_invoice_by_public_token("expired_token_aaaaaaaaaaaaaaaaaaaaaaaaaaa") ==
-               nil
+      assert Invoices.get_invoice_by_public_token(raw_token) == nil
     end
 
     test "each user's token independently resolves the same invoice" do
@@ -182,7 +186,7 @@ defmodule KsefHub.Invoices.PublicTokenTest do
     test "blocking a company member invalidates their shared links" do
       company = insert(:company)
       user = insert(:user)
-      membership = insert(:membership, user: user, company: company, role: :reviewer)
+      membership = insert(:membership, user: user, company: company, role: :approver)
       invoice = insert(:invoice, company: company)
 
       {:ok, pt, _} = Invoices.ensure_public_token(invoice, user.id)

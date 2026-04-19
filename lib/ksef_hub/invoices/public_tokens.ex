@@ -45,9 +45,9 @@ defmodule KsefHub.Invoices.PublicTokens do
   that concurrent callers converge on the same DB-canonical token — both reload
   after the upsert so they receive the same value regardless of which write won.
 
-  Returns `{:ok, token, :created}` when a new token was issued (suitable for
-  emitting an activity log event) or `{:ok, token, :existing}` when reusing
-  a still-valid one.
+  Returns `{:ok, token, :existing}` when a still-valid token is reused, or
+  `{:ok, token, :created}` when a new token was issued (suitable for emitting
+  an activity log event).
   """
   @spec ensure_public_token(Invoice.t(), Ecto.UUID.t()) ::
           {:ok, InvoicePublicToken.t(), :created | :existing} | {:error, Ecto.Changeset.t()}
@@ -113,7 +113,7 @@ defmodule KsefHub.Invoices.PublicTokens do
         user_id: user_id
       })
       |> Repo.insert(
-        on_conflict: {:replace, [:token, :expires_at, :inserted_at]},
+        on_conflict: {:replace, [:token, :expires_at]},
         conflict_target: [:invoice_id, :user_id]
       )
 

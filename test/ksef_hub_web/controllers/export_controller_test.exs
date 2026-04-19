@@ -95,7 +95,7 @@ defmodule KsefHubWeb.ExportControllerTest do
     test "redirects when user has no permission (reviewer)", %{conn: conn} do
       user = insert(:user)
       company = insert(:company)
-      insert(:membership, user: user, company: company, role: :reviewer)
+      insert(:membership, user: user, company: company, role: :approver)
 
       batch =
         insert(:export_batch,

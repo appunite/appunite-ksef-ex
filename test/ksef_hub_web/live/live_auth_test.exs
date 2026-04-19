@@ -138,24 +138,37 @@ defmodule KsefHubWeb.LiveAuthTest do
         |> live(~p"/c/#{company.id}/invoices")
     end
 
-    test "viewer is denied dashboard but can access invoices", %{conn: conn} do
+    test "analyst is denied dashboard but can access invoices", %{conn: conn} do
       user = insert(:user)
       company = insert(:company)
-      insert(:membership, user: user, company: company, role: :viewer)
+      insert(:membership, user: user, company: company, role: :analyst)
 
       expected_path = "/c/#{company.id}/invoices"
 
-      # Dashboard requires :view_dashboard — viewer does not have it
+      # Dashboard requires :view_dashboard — analyst does not have it
       assert {:error, {:redirect, %{to: ^expected_path}}} =
                conn
                |> log_in_user(user, %{current_company_id: company.id})
                |> live(~p"/c/#{company.id}/dashboard")
 
-      # Invoice list is in the unguarded :authenticated session — viewer can access
+      # Invoice list is in the unguarded :authenticated session — analyst can access
       assert {:ok, _, _} =
                conn
                |> log_in_user(user, %{current_company_id: company.id})
                |> live(~p"/c/#{company.id}/invoices")
+    end
+
+    test "analyst is denied settings page", %{conn: conn} do
+      user = insert(:user)
+      company = insert(:company)
+      insert(:membership, user: user, company: company, role: :analyst)
+
+      expected_path = "/c/#{company.id}/invoices"
+
+      assert {:error, {:redirect, %{to: ^expected_path}}} =
+               conn
+               |> log_in_user(user, %{current_company_id: company.id})
+               |> live(~p"/c/#{company.id}/settings")
     end
   end
 end

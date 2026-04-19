@@ -9,9 +9,9 @@ defmodule KsefHub.Authorization do
 
   - `:owner` — full access including destructive operations (delete company, transfer ownership)
   - `:admin` — same as owner except cannot delete company or transfer ownership
-  - `:reviewer` — can view and manage expense invoices, trigger syncs, manage own API tokens
-  - `:accountant` — read-only invoice access plus exports
-  - `:viewer` — read-only access to invoices and invoice details only
+  - `:approver` — manages expense invoice workflow: approve/reject, trigger syncs, own API tokens
+  - `:accountant` — read-only access to all invoice types plus exports
+  - `:analyst` — read-only access to invoices; same data scope as approver, no management actions
   """
 
   alias KsefHub.Companies
@@ -43,7 +43,7 @@ defmodule KsefHub.Authorization do
 
   @admin_denied MapSet.new([:delete_company, :transfer_ownership])
 
-  @reviewer_permissions MapSet.new([
+  @approver_permissions MapSet.new([
                           :view_dashboard,
                           :view_invoices,
                           :create_invoice,
@@ -68,7 +68,7 @@ defmodule KsefHub.Authorization do
                             :view_payment_requests
                           ])
 
-  @viewer_permissions MapSet.new([:view_invoices])
+  @analyst_permissions MapSet.new([:view_invoices])
 
   @doc """
   Checks whether the given role has the specified permission.
@@ -88,9 +88,9 @@ defmodule KsefHub.Authorization do
   def can?(nil, _permission), do: false
   def can?(:owner, _permission), do: true
   def can?(:admin, permission), do: permission not in @admin_denied
-  def can?(:reviewer, permission), do: permission in @reviewer_permissions
+  def can?(:approver, permission), do: permission in @approver_permissions
   def can?(:accountant, permission), do: permission in @accountant_permissions
-  def can?(:viewer, permission), do: permission in @viewer_permissions
+  def can?(:analyst, permission), do: permission in @analyst_permissions
 
   @doc """
   Checks whether a user has the specified permission for a company,

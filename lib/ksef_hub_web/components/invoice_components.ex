@@ -548,7 +548,7 @@ defmodule KsefHubWeb.InvoiceComponents do
     ~H"""
     <span
       class="inline-flex items-center ml-1.5 text-muted-foreground align-middle"
-      title="Access restricted to invited reviewers"
+      title="Access restricted to invited members"
     >
       <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16" fill="currentColor" class="size-3.5">
         <path

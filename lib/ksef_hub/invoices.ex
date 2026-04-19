@@ -170,8 +170,18 @@ defmodule KsefHub.Invoices do
     |> Repo.one()
   end
 
+  @doc "Fetches an invoice by a valid (non-expired) public bearer token; returns nil if unknown or expired."
+  @spec get_invoice_by_public_token(String.t()) :: Invoice.t() | nil
   defdelegate get_invoice_by_public_token(token), to: PublicTokens
+
+  @doc "Creates or rotates the public sharing token for the given invoice and user."
+  @spec ensure_public_token(Invoice.t(), Ecto.UUID.t()) ::
+          {:ok, KsefHub.Invoices.InvoicePublicToken.t(), :created | :existing}
+          | {:error, Ecto.Changeset.t()}
   defdelegate ensure_public_token(invoice, user_id), to: PublicTokens
+
+  @doc "Deletes all public sharing tokens created by a user within a company; returns count deleted."
+  @spec delete_public_tokens_for_user(Ecto.UUID.t(), Ecto.UUID.t()) :: non_neg_integer()
   defdelegate delete_public_tokens_for_user(user_id, company_id), to: PublicTokens
 
   @doc "Fetches an invoice by its KSeF reference number within a company (excludes duplicates)."

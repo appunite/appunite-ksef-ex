@@ -29,8 +29,8 @@ defmodule KsefHub.Invoices.InvoicePublicToken do
 
   @doc "Builds a changeset for inserting a new public token."
   @spec changeset(t(), map()) :: Ecto.Changeset.t()
-  def changeset(token, attrs) do
-    token
+  def changeset(token_record, attrs) do
+    token_record
     |> cast(attrs, [:token, :expires_at, :invoice_id, :user_id])
     |> validate_required([:token, :expires_at, :invoice_id, :user_id])
     |> foreign_key_constraint(:invoice_id)

@@ -12,10 +12,12 @@ defmodule KsefHubWeb.TeamMemberLive.Show do
   import KsefHubWeb.SettingsComponents, only: [settings_layout: 1]
 
   alias KsefHub.Accounts
+  alias KsefHub.ActivityLog.Events
   alias KsefHub.Companies
   alias KsefHub.Companies.Membership
   alias KsefHub.Invitations
   alias KsefHub.Invoices
+  alias KsefHub.Repo
 
   @impl true
   def mount(_params, _session, socket) do
@@ -112,9 +114,33 @@ defmodule KsefHubWeb.TeamMemberLive.Show do
 
     with :ok <- check_not_owner(membership),
          :ok <- check_not_self(membership.user_id, current_user.id) do
-      case Companies.block_member(membership) do
-        {:ok, updated} ->
-          Invoices.delete_public_tokens_for_user(membership.user_id, membership.company_id)
+      result =
+        Repo.transaction(fn ->
+          case Companies.block_member(membership) do
+            {:ok, updated} ->
+              count =
+                Invoices.delete_public_tokens_for_user(
+                  membership.user_id,
+                  membership.company_id
+                )
+
+              {updated, count}
+
+            {:error, changeset} ->
+              Repo.rollback(changeset)
+          end
+        end)
+
+      case result do
+        {:ok, {updated, count}} ->
+          if count > 0 do
+            Events.member_public_tokens_revoked(
+              membership.user_id,
+              membership.company_id,
+              count,
+              actor_opts(socket)
+            )
+          end
 
           {:noreply,
            socket
@@ -199,7 +225,7 @@ defmodule KsefHubWeb.TeamMemberLive.Show do
 
   defdelegate role_description(role), to: Membership
 
-  @valid_roles ~w(owner admin accountant reviewer)a
+  @valid_roles ~w(owner admin accountant approver analyst)a
 
   @spec parse_role(String.t()) :: {:ok, atom()} | {:error, String.t()}
   defp parse_role(role) when is_binary(role) do

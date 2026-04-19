@@ -123,16 +123,20 @@ defmodule KsefHubWeb.Router do
         {KsefHubWeb.LiveAuth, {:require_permission, :view_dashboard}}
       ] do
       live "/dashboard", DashboardLive
+      live "/settings", SettingsLive.General
     end
 
     live_session :authenticated, on_mount: {KsefHubWeb.LiveAuth, :default} do
       live "/invoices", InvoiceLive.Index
       live "/invoices/:id", InvoiceLive.Show
-      live "/invoices/:id/classify", InvoiceLive.Classify
     end
 
-    live_session :settings_general, on_mount: {KsefHubWeb.LiveAuth, :default} do
-      live "/settings", SettingsLive.General
+    live_session :require_set_category,
+      on_mount: [
+        {KsefHubWeb.LiveAuth, :default},
+        {KsefHubWeb.LiveAuth, {:require_permission, :set_invoice_category}}
+      ] do
+      live "/invoices/:id/classify", InvoiceLive.Classify
     end
 
     live_session :require_manage_tokens,

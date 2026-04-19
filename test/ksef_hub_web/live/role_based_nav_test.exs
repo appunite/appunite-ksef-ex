@@ -46,7 +46,7 @@ defmodule KsefHubWeb.RoleBasedNavTest do
     test "reviewer does not see admin-only nav items", %{conn: conn} do
       user = insert(:user)
       company = insert(:company)
-      insert(:membership, user: user, company: company, role: :reviewer)
+      insert(:membership, user: user, company: company, role: :approver)
 
       {:ok, view, _html} =
         conn
@@ -62,7 +62,7 @@ defmodule KsefHubWeb.RoleBasedNavTest do
     test "viewer is redirected away from dashboard to invoices", %{conn: conn} do
       user = insert(:user)
       company = insert(:company)
-      insert(:membership, user: user, company: company, role: :viewer)
+      insert(:membership, user: user, company: company, role: :analyst)
 
       expected_path = "/c/#{company.id}/invoices"
 

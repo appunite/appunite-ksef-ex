@@ -203,13 +203,13 @@ defmodule KsefHubWeb.SettingsLive.ActivityLogTest do
         action: "team.invitation_sent",
         resource_type: "invitation",
         resource_id: Ecto.UUID.generate(),
-        metadata: %{"email" => "new@example.com", "role" => "reviewer"}
+        metadata: %{"email" => "new@example.com", "role" => "approver"}
       )
 
       {:ok, view, _html} = live(conn, ~p"/c/#{company.id}/settings/activity-log")
 
       assert has_element?(view, "#activity-log-table td", "Sent invitation to new@example.com")
-      assert has_element?(view, "#activity-log-table td", "as reviewer")
+      assert has_element?(view, "#activity-log-table td", "as approver")
     end
 
     test "shows category CRUD with name", %{conn: conn, company: company, user: user} do

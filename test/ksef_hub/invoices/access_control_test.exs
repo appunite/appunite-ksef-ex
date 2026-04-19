@@ -16,7 +16,7 @@ defmodule KsefHub.Invoices.AccessControlTest do
   describe "role-based scoping via access control" do
     setup %{company: company} do
       reviewer = insert(:user)
-      insert(:membership, user: reviewer, company: company, role: :reviewer)
+      insert(:membership, user: reviewer, company: company, role: :approver)
       %{reviewer: reviewer}
     end
 
@@ -46,7 +46,7 @@ defmodule KsefHub.Invoices.AccessControlTest do
 
       result =
         Invoices.list_invoices_paginated(company.id, %{},
-          role: :reviewer,
+          role: :approver,
           user_id: reviewer.id
         )
 
@@ -63,7 +63,7 @@ defmodule KsefHub.Invoices.AccessControlTest do
 
       result =
         Invoices.list_invoices_paginated(company.id, %{type: :income},
-          role: :reviewer,
+          role: :approver,
           user_id: reviewer.id
         )
 
@@ -79,7 +79,7 @@ defmodule KsefHub.Invoices.AccessControlTest do
 
       assert is_nil(
                Invoices.get_invoice(company.id, income.id,
-                 role: :reviewer,
+                 role: :approver,
                  user_id: reviewer.id
                )
              )
@@ -93,7 +93,7 @@ defmodule KsefHub.Invoices.AccessControlTest do
 
       assert %Invoice{} =
                Invoices.get_invoice(company.id, expense.id,
-                 role: :reviewer,
+                 role: :approver,
                  user_id: reviewer.id
                )
     end
@@ -105,7 +105,7 @@ defmodule KsefHub.Invoices.AccessControlTest do
       income = insert(:invoice, type: :income, company: company, access_restricted: true)
 
       assert_raise Ecto.NoResultsError, fn ->
-        Invoices.get_invoice!(company.id, income.id, role: :reviewer, user_id: reviewer.id)
+        Invoices.get_invoice!(company.id, income.id, role: :approver, user_id: reviewer.id)
       end
     end
 
@@ -147,7 +147,7 @@ defmodule KsefHub.Invoices.AccessControlTest do
       insert(:invoice, type: :expense, company: company)
 
       assert Invoices.count_invoices(company.id, %{},
-               role: :reviewer,
+               role: :approver,
                user_id: reviewer.id
              ) == 2
     end
@@ -156,10 +156,10 @@ defmodule KsefHub.Invoices.AccessControlTest do
   describe "access control" do
     setup %{company: company} do
       reviewer = insert(:user)
-      insert(:membership, user: reviewer, company: company, role: :reviewer)
+      insert(:membership, user: reviewer, company: company, role: :approver)
 
       other_reviewer = insert(:user)
-      insert(:membership, user: other_reviewer, company: company, role: :reviewer)
+      insert(:membership, user: other_reviewer, company: company, role: :approver)
 
       admin = insert(:user)
       insert(:membership, user: admin, company: company, role: :admin)
@@ -182,7 +182,7 @@ defmodule KsefHub.Invoices.AccessControlTest do
     test "grant_access creates a grant record", %{company: company} do
       invoice = insert(:invoice, company: company, type: :expense)
       user = insert(:user)
-      insert(:membership, user: user, company: company, role: :reviewer)
+      insert(:membership, user: user, company: company, role: :approver)
       granter = insert(:user)
 
       assert {:ok, grant} = Invoices.grant_access(invoice.id, user.id, granter.id)
@@ -262,7 +262,7 @@ defmodule KsefHub.Invoices.AccessControlTest do
       insert(:invoice, company: company, type: :expense, access_restricted: false)
 
       result =
-        Invoices.list_invoices(company.id, %{}, role: :reviewer, user_id: reviewer.id)
+        Invoices.list_invoices(company.id, %{}, role: :approver, user_id: reviewer.id)
 
       assert length(result) == 2
     end
@@ -277,7 +277,7 @@ defmodule KsefHub.Invoices.AccessControlTest do
       Invoices.grant_access(invoice.id, reviewer.id)
 
       result =
-        Invoices.list_invoices(company.id, %{}, role: :reviewer, user_id: reviewer.id)
+        Invoices.list_invoices(company.id, %{}, role: :approver, user_id: reviewer.id)
 
       assert length(result) == 1
     end
@@ -289,7 +289,7 @@ defmodule KsefHub.Invoices.AccessControlTest do
       insert(:invoice, company: company, type: :expense, access_restricted: true)
 
       result =
-        Invoices.list_invoices(company.id, %{}, role: :reviewer, user_id: reviewer.id)
+        Invoices.list_invoices(company.id, %{}, role: :approver, user_id: reviewer.id)
 
       assert result == []
     end
@@ -309,7 +309,7 @@ defmodule KsefHub.Invoices.AccessControlTest do
       Invoices.grant_access(restricted_granted.id, reviewer.id)
 
       result =
-        Invoices.list_invoices(company.id, %{}, role: :reviewer, user_id: reviewer.id)
+        Invoices.list_invoices(company.id, %{}, role: :approver, user_id: reviewer.id)
 
       ids = Enum.map(result, & &1.id) |> MapSet.new()
       assert MapSet.member?(ids, public.id)
@@ -325,12 +325,12 @@ defmodule KsefHub.Invoices.AccessControlTest do
       insert(:invoice, company: company, type: :expense, access_restricted: true)
 
       assert Invoices.list_invoices(company.id, %{},
-               role: :reviewer,
+               role: :approver,
                user_id: reviewer.id
              ) == []
 
       assert Invoices.list_invoices(company.id, %{},
-               role: :reviewer,
+               role: :approver,
                user_id: other_reviewer.id
              ) == []
     end
@@ -379,7 +379,7 @@ defmodule KsefHub.Invoices.AccessControlTest do
         insert(:invoice, company: company, type: :expense, access_restricted: true)
 
       assert Invoices.get_invoice(company.id, invoice.id,
-               role: :reviewer,
+               role: :approver,
                user_id: reviewer.id
              ) == nil
     end
@@ -395,7 +395,7 @@ defmodule KsefHub.Invoices.AccessControlTest do
 
       assert %Invoice{} =
                Invoices.get_invoice(company.id, invoice.id,
-                 role: :reviewer,
+                 role: :approver,
                  user_id: reviewer.id
                )
     end
@@ -411,7 +411,7 @@ defmodule KsefHub.Invoices.AccessControlTest do
 
       Invoices.grant_access(restricted.id, reviewer.id)
 
-      opts = [role: :reviewer, user_id: reviewer.id]
+      opts = [role: :approver, user_id: reviewer.id]
 
       list = Invoices.list_invoices(company.id, %{}, opts)
       count = Invoices.count_invoices(company.id, %{}, opts)
@@ -434,7 +434,7 @@ defmodule KsefHub.Invoices.AccessControlTest do
 
       result =
         Invoices.list_invoices_paginated(company.id, %{},
-          role: :reviewer,
+          role: :approver,
           user_id: reviewer.id
         )
 
@@ -451,7 +451,7 @@ defmodule KsefHub.Invoices.AccessControlTest do
         insert(:invoice, company: company, type: :expense, access_restricted: true)
 
       assert Invoices.get_invoice_with_details(company.id, invoice.id,
-               role: :reviewer,
+               role: :approver,
                user_id: reviewer.id
              ) == nil
     end
@@ -467,7 +467,7 @@ defmodule KsefHub.Invoices.AccessControlTest do
 
       assert %Invoice{} =
                Invoices.get_invoice_with_details(company.id, invoice.id,
-                 role: :reviewer,
+                 role: :approver,
                  user_id: reviewer.id
                )
     end
@@ -487,7 +487,7 @@ defmodule KsefHub.Invoices.AccessControlTest do
       insert(:invoice, company: company, type: :expense, access_restricted: false)
 
       result =
-        Invoices.list_invoices(company.id, %{}, role: :reviewer, user_id: reviewer.id)
+        Invoices.list_invoices(company.id, %{}, role: :approver, user_id: reviewer.id)
 
       assert length(result) == 1
       assert hd(result).type == :expense
@@ -511,7 +511,7 @@ defmodule KsefHub.Invoices.AccessControlTest do
       insert(:invoice, company: company, type: :expense, access_restricted: false)
 
       result =
-        Invoices.list_invoices(company.id, %{}, role: :reviewer, user_id: reviewer.id)
+        Invoices.list_invoices(company.id, %{}, role: :approver, user_id: reviewer.id)
 
       assert length(result) == 1
       refute hd(result).id == invoice.id
@@ -534,7 +534,7 @@ defmodule KsefHub.Invoices.AccessControlTest do
       assert invoice.access_restricted == true
 
       result =
-        Invoices.list_invoices(company.id, %{}, role: :reviewer, user_id: reviewer.id)
+        Invoices.list_invoices(company.id, %{}, role: :approver, user_id: reviewer.id)
 
       refute Enum.any?(result, &(&1.id == invoice.id))
     end
@@ -637,7 +637,7 @@ defmodule KsefHub.Invoices.AccessControlTest do
   describe "viewer role access" do
     setup %{company: company} do
       viewer = insert(:user)
-      insert(:membership, user: viewer, company: company, role: :viewer)
+      insert(:membership, user: viewer, company: company, role: :analyst)
       %{viewer: viewer}
     end
 
@@ -647,7 +647,7 @@ defmodule KsefHub.Invoices.AccessControlTest do
       insert(:invoice, type: :expense, company: company, access_restricted: false)
 
       result =
-        Invoices.list_invoices_paginated(company.id, %{}, role: :viewer, user_id: viewer.id)
+        Invoices.list_invoices_paginated(company.id, %{}, role: :analyst, user_id: viewer.id)
 
       assert result.total_count == 1
       assert hd(result.entries).type == :expense
@@ -660,7 +660,7 @@ defmodule KsefHub.Invoices.AccessControlTest do
       insert(:invoice, type: :expense, company: company, access_restricted: true)
 
       result =
-        Invoices.list_invoices_paginated(company.id, %{}, role: :viewer, user_id: viewer.id)
+        Invoices.list_invoices_paginated(company.id, %{}, role: :analyst, user_id: viewer.id)
 
       assert result.total_count == 0
     end
@@ -670,7 +670,7 @@ defmodule KsefHub.Invoices.AccessControlTest do
       Invoices.grant_access(income.id, viewer.id)
 
       result =
-        Invoices.list_invoices_paginated(company.id, %{}, role: :viewer, user_id: viewer.id)
+        Invoices.list_invoices_paginated(company.id, %{}, role: :analyst, user_id: viewer.id)
 
       assert result.total_count == 1
       assert hd(result.entries).type == :income
@@ -683,7 +683,7 @@ defmodule KsefHub.Invoices.AccessControlTest do
       restricted = insert(:invoice, company: company, type: :expense, access_restricted: true)
 
       assert is_nil(
-               Invoices.get_invoice(company.id, restricted.id, role: :viewer, user_id: viewer.id)
+               Invoices.get_invoice(company.id, restricted.id, role: :analyst, user_id: viewer.id)
              )
     end
 
@@ -693,7 +693,7 @@ defmodule KsefHub.Invoices.AccessControlTest do
       invoice = insert(:invoice, company: other_company)
 
       assert is_nil(
-               Invoices.get_invoice(company.id, invoice.id, role: :viewer, user_id: viewer.id)
+               Invoices.get_invoice(company.id, invoice.id, role: :analyst, user_id: viewer.id)
              )
     end
 
@@ -717,7 +717,9 @@ defmodule KsefHub.Invoices.AccessControlTest do
       invoice_b = insert(:invoice, company: company_b)
 
       # Attempt to fetch company_b's invoice using company_a's scope
-      assert is_nil(Invoices.get_invoice(company_a.id, invoice_b.id, role: :owner, user_id: user.id))
+      assert is_nil(
+               Invoices.get_invoice(company_a.id, invoice_b.id, role: :owner, user_id: user.id)
+             )
     end
 
     test "get_invoice! raises when company_id does not match invoice" do
@@ -768,14 +770,14 @@ defmodule KsefHub.Invoices.AccessControlTest do
       company_a = insert(:company)
       company_b = insert(:company)
       viewer = insert(:user)
-      insert(:membership, user: viewer, company: company_a, role: :viewer)
+      insert(:membership, user: viewer, company: company_a, role: :analyst)
 
       invoice_a = insert(:invoice, company: company_a)
 
       # Try to access company_a's invoice scoped under company_b
       assert is_nil(
                Invoices.get_invoice(company_b.id, invoice_a.id,
-                 role: :viewer,
+                 role: :analyst,
                  user_id: viewer.id
                )
              )

@@ -26,10 +26,10 @@ defmodule KsefHub.Invitations.InvitationNotifierTest do
                InvitationNotifier.deliver_invitation(
                  "reviewer@example.com",
                  "https://ksef-hub.com/invitations/accept/xyz",
-                 %{company_name: "Test Co", role: :reviewer}
+                 %{company_name: "Test Co", role: :approver}
                )
 
-      assert email.text_body =~ "reviewer"
+      assert email.text_body =~ "approver"
     end
   end
 end
