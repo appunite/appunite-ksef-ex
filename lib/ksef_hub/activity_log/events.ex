@@ -182,6 +182,20 @@ defmodule KsefHub.ActivityLog.Events do
     )
   end
 
+  @doc "Team member was blocked (emitted after the block+token-revoke transaction commits)."
+  @spec member_blocked(map(), keyword()) :: :ok
+  def member_blocked(membership, opts \\ []) do
+    emit(
+      build_event("team.member_blocked",
+        resource_type: "membership",
+        resource_id: membership.id,
+        company_id: membership.company_id,
+        opts: opts,
+        extra_metadata: %{member_user_id: membership.user_id}
+      )
+    )
+  end
+
   # ---------------------------------------------------------------------------
   # Invitation events (Multi transaction — bypasses TrackedRepo)
   # ---------------------------------------------------------------------------
