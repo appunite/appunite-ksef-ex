@@ -16,6 +16,7 @@ Quick reference for developers. Before touching a feature area:
 | KSeF sync | `lib/ksef_hub/sync/sync_worker.ex`, `sync/invoice_fetcher.ex`, `ksef_client/` |
 | FA(3) XML parsing | `invoices/parser.ex`, `docs/fa3-xml.md` (field mapping reference) |
 | Invoice CRUD & business logic | `lib/ksef_hub/invoices.ex` (facade) + `invoices/` sub-modules |
+| Public invoice sharing (token links) | `invoices/public_tokens.ex`, `invoices/invoice_public_token.ex`, `live/invoice_live/public_show.ex` |
 | Invoice approval & auto-approval | `invoices.ex` (`approve_invoice`), `invoices/auto_approval.ex` |
 | Invoice categories & ML classification | `invoices/category.ex`, `invoice_classifier/` |
 | PDF generation | `pdf_renderer.ex`, `pdf_renderer/client.ex` |
@@ -40,7 +41,9 @@ Non-obvious invariants that affect multiple features. Violating these is usually
 | KSeF source invoices (`:ksef`) are never auto-approved, even expenses — auto-approval is for `:manual`, `:pdf_upload`, `:email` sources only | ADR-0041 |
 | KSeF invoice **data fields** are immutable — only metadata (category, tags, cost line, note, billing dates) is editable after sync | ADR-0032 (block-ksef-editing) |
 | `TrackedRepo` must replace `Repo` for any write that should appear in the activity log | ADR-0042 |
-| Reviewer role sees **expense invoices only** — income is hidden from reviewers in all access paths | ADR-0016 |
+| **Approver** role sees **expense invoices only** — income (always `access_restricted`) is hidden unless explicitly granted | ADR-0047 |
+| **Analyst** role has the same data scope as approver — access grants are still required for restricted invoices; `view_all_invoice_types` is NOT granted | ADR-0047 |
+| Public invoice tokens are stored as **SHA-256 digests only** — raw bearer tokens are never persisted; each "copy link" call rotates the token and invalidates the previous URL | ADR-0046 |
 | Export CSV uses **semicolons** as delimiter (comma-delimited files don't open correctly in Polish-locale Windows Excel) | — |
 | Duplicate invoices (`duplicate_of_id` is set) are excluded from exports | `exports.ex` |
 | All company-scoped routes are prefixed with `/c/:company_id` | ADR-0027 |
@@ -69,7 +72,7 @@ Read only the ADR(s) relevant to your task — the summaries below tell you whic
 | 0014-company-invitation-system.md | Company Invitation System | Accepted | `invitations` table with token auth, expiry, and role assignment |
 | 0015-invoice-pagination-search-indexes.md | Invoice Pagination & Search Indexes | Accepted | Offset-based pagination (25/page), BTREE indexes for filtering |
 | 0015-ksef-pdf-microservice.md | KSeF PDF Microservice | Accepted | Dedicated `ksef-pdf` sidecar for PDF/HTML generation from FA(3) XML |
-| 0016-reviewer-expense-only-visibility.md | Reviewer Expense-Only Visibility | Accepted | Reviewer role scoped to expense invoices only across all access paths |
+| 0016-reviewer-expense-only-visibility.md | Reviewer Expense-Only Visibility | Superseded by 0047 | Reviewer role scoped to expense invoices only across all access paths |
 | 0017-unstructured-pdf-extraction-sidecar.md | PDF Extraction Sidecar | Accepted | `au-ksef-unstructured` sidecar for OCR + Claude-based JSON extraction |
 | 0018-manual-invoice-creation.md | Manual Invoice Creation | Accepted | `POST /api/invoices` with duplicate detection via `:suspected` flag |
 | 0019-ml-prediction-sidecar.md | ML Prediction Sidecar | Accepted | `au-payroll-model-categories` sidecar for category/tag auto-classification |
@@ -82,7 +85,7 @@ Read only the ADR(s) relevant to your task — the summaries below tell you whic
 | 0027-company-scoped-urls.md | Company-Scoped URLs | Accepted | All routes prefixed with `/c/:company_id`; enables direct-link sharing |
 | 0028-classifier-sidecar-gcs-models.md | Classifier Sidecar with GCS Models | Accepted | Classifier as Cloud Run sidecar with GCS-mounted ML model weights |
 | 0029-centralized-authorization-and-role-refactor.md | Centralized Authorization | Accepted | `KsefHub.Authorization` with a single `can?/2` permission matrix |
-| 0030-public-shareable-invoice-urls.md | Public Shareable Invoice URLs | Accepted | `public_token` column with unauthenticated `/public/invoices/:token` endpoint |
+| 0030-public-shareable-invoice-urls.md | Public Shareable Invoice URLs | Superseded by 0046 | `public_token` column with unauthenticated `/public/invoices/:token` endpoint |
 | 0031-track-invoice-creator.md | Track Invoice Creator | Accepted | `created_by_id` FK with creator display on detail page |
 | 0032-block-ksef-invoice-data-editing.md | Block KSeF Invoice Data Editing | Accepted | KSeF source invoice data fields immutable; only metadata editable |
 | 0032-expense-categories-typed-tags.md | Expense Categories & Typed Tags | Accepted | Categories restricted to expenses; tags have `:expense`/`:income` type |
@@ -100,3 +103,5 @@ Read only the ADR(s) relevant to your task — the summaries below tell you whic
 | 0043-component-driven-ui.md | Component-Driven UI | Accepted | Extract shared UI patterns (3+ occurrences) to `CoreComponents` |
 | 0044-correction-invoice-support.md | Correction Invoice Support | Accepted | `invoice_kind` enum (VAT/KOR/ZAL) with FK to corrected original |
 | 0045-rename-expense-invoice-columns.md | Rename Expense-Specific Invoice Columns | Accepted | 11 expense-only columns prefixed with `expense_`/`prediction_expense_`; breaking API change |
+| 0046-per-user-public-invoice-tokens.md | Per-User Public Invoice Tokens | Accepted | Per-(invoice, user) tokens in `invoice_public_tokens` table; only SHA-256 digest stored; 30-day TTL; revoked on member block |
+| 0047-approver-analyst-roles.md | Approver and Analyst Roles | Accepted | Rename `:reviewer` → `:approver` and `:viewer` → `:analyst`; analyst has same data scope as approver (access grants required for restricted invoices) |

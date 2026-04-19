@@ -179,7 +179,7 @@ defmodule KsefHubWeb.BankAccountLiveTest do
           name: "Reviewer"
         })
 
-      insert(:membership, user: reviewer, company: company, role: :reviewer)
+      insert(:membership, user: reviewer, company: company, role: :approver)
 
       conn =
         build_conn()

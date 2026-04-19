@@ -8,7 +8,7 @@ defmodule KsefHubWeb.AuthHelpers do
   @doc """
   Resolves the role for a user within a company.
 
-  Returns the role atom (e.g. `:owner`, `:reviewer`) or `nil` if the user
+  Returns the role atom (e.g. `:owner`, `:approver`) or `nil` if the user
   has no membership in the given company, or if either argument is `nil`.
   """
   @spec resolve_role(Ecto.UUID.t() | nil, Ecto.UUID.t() | nil) ::

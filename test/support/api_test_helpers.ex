@@ -23,7 +23,7 @@ defmodule KsefHubWeb.ApiTestHelpers do
   ## Examples
 
       %{token: token} = create_user_with_token(:owner)
-      {:ok, %{token: token}} = create_user_with_token(:reviewer)
+      {:ok, %{token: token}} = create_user_with_token(:approver)
   """
   @spec create_user_with_token(KsefHub.Companies.Membership.role(), map()) ::
           %{

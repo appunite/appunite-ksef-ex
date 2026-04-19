@@ -294,7 +294,7 @@ defmodule KsefHubWeb.InvoiceLive.ClassifyTest do
         })
 
       company = insert(:company)
-      insert(:membership, user: reviewer, company: company, role: :reviewer)
+      insert(:membership, user: reviewer, company: company, role: :approver)
 
       conn = build_conn() |> log_in_user(reviewer, %{current_company_id: company.id})
       stub(KsefHub.PdfRenderer.Mock, :generate_html, fn _xml, _meta -> {:error, :no_xml} end)
@@ -317,7 +317,7 @@ defmodule KsefHubWeb.InvoiceLive.ClassifyTest do
       assert html =~ "new-tag"
     end
 
-    test "accountant cannot save classification", ctx do
+    test "accountant is redirected from classify page (requires :set_invoice_category)", ctx do
       {:ok, accountant} =
         Accounts.get_or_create_google_user(%{
           uid: "g-classify-acct",
@@ -327,14 +327,13 @@ defmodule KsefHubWeb.InvoiceLive.ClassifyTest do
 
       insert(:membership, user: accountant, company: ctx.company, role: :accountant)
       conn = build_conn() |> log_in_user(accountant, %{current_company_id: ctx.company.id})
-      stub(KsefHub.PdfRenderer.Mock, :generate_html, fn _xml, _meta -> {:error, :no_xml} end)
 
       invoice = insert(:invoice, type: :expense, company: ctx.company)
 
-      {:ok, view, _html} = live(conn, ~p"/c/#{ctx.company.id}/invoices/#{invoice.id}/classify")
+      expected_path = "/c/#{ctx.company.id}/invoices"
 
-      html = render_click(view, "save")
-      assert html =~ "permission"
+      assert {:error, {:redirect, %{to: ^expected_path}}} =
+               live(conn, ~p"/c/#{ctx.company.id}/invoices/#{invoice.id}/classify")
     end
   end
 

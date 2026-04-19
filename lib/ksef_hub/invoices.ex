@@ -30,6 +30,7 @@ defmodule KsefHub.Invoices do
     Extraction,
     Invoice,
     NipVerifier,
+    PublicTokens,
     Queries,
     Reextraction
   }
@@ -180,57 +181,19 @@ defmodule KsefHub.Invoices do
     |> Repo.one()
   end
 
-  @doc "Fetches an invoice by its public sharing token, with details preloaded. Returns nil if not found or token is invalid."
+  @doc "Fetches an invoice by a valid (non-expired) public bearer token; returns nil if unknown or expired."
   @spec get_invoice_by_public_token(String.t()) :: Invoice.t() | nil
-  def get_invoice_by_public_token(token) when is_binary(token) and byte_size(token) in 20..100 do
-    Invoice
-    |> where([i], i.public_token == ^token)
-    |> preload([:company, :xml_file, :pdf_file, :category])
-    |> Repo.one()
-  end
+  defdelegate get_invoice_by_public_token(token), to: PublicTokens
 
-  def get_invoice_by_public_token(_), do: nil
+  @doc "Creates or rotates the public sharing token for the given invoice and user."
+  @spec ensure_public_token(Invoice.t(), Ecto.UUID.t()) ::
+          {:ok, KsefHub.Invoices.InvoicePublicToken.t(), :created | :existing}
+          | {:error, Ecto.Changeset.t()}
+  defdelegate ensure_public_token(invoice, user_id), to: PublicTokens
 
-  @doc """
-  Atomically generates a public sharing token for an invoice.
-
-  Uses `WHERE public_token IS NULL` so only the first write wins — concurrent
-  calls won't rotate an existing token. Returns `{:ok, invoice}` with the token
-  on success, or `{:error, :already_has_token}` if one already exists.
-  """
-  @spec generate_public_token(Invoice.t()) ::
-          {:ok, Invoice.t()} | {:error, :already_has_token | Ecto.Changeset.t()}
-  def generate_public_token(%Invoice{} = invoice) do
-    token = :crypto.strong_rand_bytes(32) |> Base.url_encode64(padding: false)
-
-    {count, _} =
-      Invoice
-      |> where([i], i.id == ^invoice.id and is_nil(i.public_token))
-      |> Repo.update_all(set: [public_token: token])
-
-    case count do
-      1 -> {:ok, %{invoice | public_token: token}}
-      0 -> {:error, :already_has_token}
-    end
-  end
-
-  @doc """
-  Ensures an invoice has a public token, generating one if absent. Idempotent.
-
-  Uses an atomic DB update so concurrent callers cannot race: only the first
-  write sets the token, subsequent calls reload and return the existing one.
-  """
-  @spec ensure_public_token(Invoice.t()) :: {:ok, Invoice.t()} | {:error, Ecto.Changeset.t()}
-  def ensure_public_token(%Invoice{public_token: token} = invoice) when is_binary(token) do
-    {:ok, invoice}
-  end
-
-  def ensure_public_token(%Invoice{} = invoice) do
-    case generate_public_token(invoice) do
-      {:ok, _} = ok -> ok
-      {:error, :already_has_token} -> {:ok, Repo.reload!(invoice)}
-    end
-  end
+  @doc "Deletes all public sharing tokens created by a user within a company; returns count deleted."
+  @spec delete_public_tokens_for_user(Ecto.UUID.t(), Ecto.UUID.t()) :: non_neg_integer()
+  defdelegate delete_public_tokens_for_user(user_id, company_id), to: PublicTokens
 
   @doc "Fetches an invoice by its KSeF reference number within a company (excludes duplicates)."
   @spec get_invoice_by_ksef_number(Ecto.UUID.t(), String.t()) :: Invoice.t() | nil

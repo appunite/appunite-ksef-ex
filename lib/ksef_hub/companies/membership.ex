@@ -7,7 +7,8 @@ defmodule KsefHub.Companies.Membership do
   - `:owner` — full access including destructive operations (delete company, transfer ownership)
   - `:admin` — same as owner except cannot delete company or transfer ownership
   - `:accountant` — read-only invoice access plus exports and API token management
-  - `:reviewer` — can view and manage expense invoices, trigger syncs
+  - `:approver` — manages expense invoice workflow: approve/reject, trigger syncs, own API tokens
+  - `:analyst` — read-only access to invoices; same data scope as approver, no management actions
 
   ## Status
 
@@ -21,14 +22,14 @@ defmodule KsefHub.Companies.Membership do
   @behaviour KsefHub.ActivityLog.Trackable
 
   @type t :: %__MODULE__{}
-  @type role :: :owner | :admin | :accountant | :reviewer
+  @type role :: :owner | :admin | :accountant | :approver | :analyst
   @type status :: :active | :blocked
 
   @primary_key {:id, :binary_id, autogenerate: true}
   @foreign_key_type :binary_id
 
   schema "memberships" do
-    field :role, Ecto.Enum, values: [:owner, :admin, :accountant, :reviewer]
+    field :role, Ecto.Enum, values: [:owner, :admin, :accountant, :approver, :analyst]
     field :status, Ecto.Enum, values: [:active, :blocked], default: :active
 
     belongs_to :user, KsefHub.Accounts.User
@@ -53,19 +54,23 @@ defmodule KsefHub.Companies.Membership do
   def role_description(:admin),
     do: "Same as Owner, except cannot delete the company or transfer ownership."
 
-  def role_description(:reviewer),
+  def role_description(:approver),
     do:
       "Can view and manage expense invoices, approve/reject, trigger syncs, and manage payment requests."
 
   def role_description(:accountant),
     do: "Read-only invoice access for all types, plus exports and API token management."
 
+  def role_description(:analyst),
+    do:
+      "Read-only access to invoices. Same data scope as approver — use invoice grants for restricted invoices. No dashboard, exports, payments, or other features."
+
   def role_description(_), do: ""
 
   @doc "Returns the roles that the given role is allowed to assign to other members."
   @spec assignable_roles(role()) :: [role()]
-  def assignable_roles(:owner), do: [:admin, :accountant, :reviewer]
-  def assignable_roles(:admin), do: [:admin, :accountant, :reviewer]
+  def assignable_roles(:owner), do: [:admin, :accountant, :approver, :analyst]
+  def assignable_roles(:admin), do: [:admin, :accountant, :approver, :analyst]
   def assignable_roles(_), do: []
 
   @doc """

@@ -201,7 +201,7 @@ defmodule KsefHubWeb.Api.InvoiceControllerTest do
     end
 
     test "reviewer can reset", %{conn: conn} do
-      {:ok, %{company: company, token: token}} = create_user_with_token(:reviewer)
+      {:ok, %{company: company, token: token}} = create_user_with_token(:approver)
 
       invoice =
         insert(:invoice, company: company, type: :expense, expense_approval_status: :approved)
@@ -937,7 +937,7 @@ defmodule KsefHubWeb.Api.InvoiceControllerTest do
 
   describe "reviewer role scoping via access control" do
     test "reviewer token returns only expense invoices (income is auto-restricted)", %{conn: conn} do
-      {:ok, %{company: company, token: token}} = create_user_with_token(:reviewer)
+      {:ok, %{company: company, token: token}} = create_user_with_token(:approver)
       insert(:invoice, company: company, type: :income, access_restricted: true)
       insert(:invoice, company: company, type: :expense)
 
@@ -950,7 +950,7 @@ defmodule KsefHubWeb.Api.InvoiceControllerTest do
     end
 
     test "reviewer token returns 404 for restricted income invoice show", %{conn: conn} do
-      {:ok, %{company: company, token: token}} = create_user_with_token(:reviewer)
+      {:ok, %{company: company, token: token}} = create_user_with_token(:approver)
       income = insert(:invoice, company: company, type: :income, access_restricted: true)
 
       assert_error_sent 404, fn ->
@@ -959,7 +959,7 @@ defmodule KsefHubWeb.Api.InvoiceControllerTest do
     end
 
     test "reviewer token can access expense invoice show", %{conn: conn} do
-      {:ok, %{company: company, token: token}} = create_user_with_token(:reviewer)
+      {:ok, %{company: company, token: token}} = create_user_with_token(:approver)
       expense = insert(:invoice, company: company, type: :expense)
 
       conn = conn |> api_conn(token) |> get("/api/invoices/#{expense.id}")
@@ -969,7 +969,7 @@ defmodule KsefHubWeb.Api.InvoiceControllerTest do
     end
 
     test "reviewer token returns 404 for restricted income invoice approve", %{conn: conn} do
-      {:ok, %{company: company, token: token}} = create_user_with_token(:reviewer)
+      {:ok, %{company: company, token: token}} = create_user_with_token(:approver)
       income = insert(:invoice, company: company, type: :income, access_restricted: true)
 
       assert_error_sent 404, fn ->
@@ -978,7 +978,7 @@ defmodule KsefHubWeb.Api.InvoiceControllerTest do
     end
 
     test "reviewer token returns 404 for restricted income invoice reject", %{conn: conn} do
-      {:ok, %{company: company, token: token}} = create_user_with_token(:reviewer)
+      {:ok, %{company: company, token: token}} = create_user_with_token(:approver)
       income = insert(:invoice, company: company, type: :income, access_restricted: true)
 
       assert_error_sent 404, fn ->
@@ -987,7 +987,7 @@ defmodule KsefHubWeb.Api.InvoiceControllerTest do
     end
 
     test "reviewer token returns 404 for restricted income invoice xml", %{conn: conn} do
-      {:ok, %{company: company, token: token}} = create_user_with_token(:reviewer)
+      {:ok, %{company: company, token: token}} = create_user_with_token(:approver)
       income = insert(:invoice, company: company, type: :income, access_restricted: true)
 
       assert_error_sent 404, fn ->
@@ -1744,7 +1744,7 @@ defmodule KsefHubWeb.Api.InvoiceControllerTest do
       %{company: company, token: token} = create_user_with_token(:owner)
       invoice = insert(:invoice, company: company, access_restricted: true)
       reviewer = insert(:user)
-      insert(:membership, user: reviewer, company: company, role: :reviewer)
+      insert(:membership, user: reviewer, company: company, role: :approver)
 
       # Grant
       conn1 =
@@ -1802,7 +1802,7 @@ defmodule KsefHubWeb.Api.InvoiceControllerTest do
     end
 
     test "reviewer cannot access access control endpoints", %{conn: conn} do
-      {:ok, %{company: company, token: token}} = create_user_with_token(:reviewer)
+      {:ok, %{company: company, token: token}} = create_user_with_token(:approver)
       invoice = insert(:invoice, company: company, type: :expense)
 
       conn = conn |> api_conn(token) |> get("/api/invoices/#{invoice.id}/access")
@@ -1810,7 +1810,7 @@ defmodule KsefHubWeb.Api.InvoiceControllerTest do
     end
 
     test "reviewer cannot see restricted invoice via API", %{conn: conn} do
-      {:ok, %{token: token, company: company}} = create_user_with_token(:reviewer)
+      {:ok, %{token: token, company: company}} = create_user_with_token(:approver)
       insert(:invoice, company: company, type: :expense, access_restricted: true)
 
       conn = conn |> api_conn(token) |> get("/api/invoices")
@@ -1832,7 +1832,7 @@ defmodule KsefHubWeb.Api.InvoiceControllerTest do
         KsefHub.Accounts.create_api_token(reviewer.id, company.id, %{name: "Reviewer Token"})
 
       reviewer_membership
-      |> Ecto.Changeset.change(role: :reviewer)
+      |> Ecto.Changeset.change(role: :approver)
       |> KsefHub.Repo.update!()
 
       reviewer_token = reviewer_token_result.token

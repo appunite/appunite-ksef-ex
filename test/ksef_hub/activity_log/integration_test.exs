@@ -265,7 +265,7 @@ defmodule KsefHub.ActivityLog.IntegrationTest do
   describe "team operations" do
     test "block_member emits event", %{company: company} do
       other_user = insert(:user)
-      membership = insert(:membership, user: other_user, company: company, role: :reviewer)
+      membership = insert(:membership, user: other_user, company: company, role: :approver)
 
       {:ok, _blocked} = Companies.block_member(membership)
 
@@ -340,7 +340,7 @@ defmodule KsefHub.ActivityLog.IntegrationTest do
         insert(:invoice, company: company, type: :expense, access_restricted: true)
 
       reviewer = insert(:user)
-      insert(:membership, user: reviewer, company: company, role: :reviewer)
+      insert(:membership, user: reviewer, company: company, role: :approver)
 
       {:ok, _grant} =
         Invoices.grant_access(invoice.id, reviewer.id, user.id,
@@ -362,7 +362,7 @@ defmodule KsefHub.ActivityLog.IntegrationTest do
         insert(:invoice, company: company, type: :expense, access_restricted: true)
 
       reviewer = insert(:user)
-      insert(:membership, user: reviewer, company: company, role: :reviewer)
+      insert(:membership, user: reviewer, company: company, role: :approver)
       {:ok, _grant} = Invoices.grant_access(invoice.id, reviewer.id, user.id)
 
       flush_activity_events()
@@ -386,7 +386,7 @@ defmodule KsefHub.ActivityLog.IntegrationTest do
   describe "membership deletion" do
     test "delete_membership emits member_removed event", %{company: company, user: user} do
       other_user = insert(:user)
-      membership = insert(:membership, user: other_user, company: company, role: :reviewer)
+      membership = insert(:membership, user: other_user, company: company, role: :approver)
 
       {:ok, _deleted} =
         Companies.delete_membership(membership, user_id: user.id, actor_label: user.name)
@@ -421,7 +421,7 @@ defmodule KsefHub.ActivityLog.IntegrationTest do
       {:ok, %{token: raw_token}} =
         Invitations.create_invitation(user.id, company.id, %{
           email: "joiner@example.com",
-          role: :reviewer
+          role: :approver
         })
 
       flush_activity_events()
@@ -589,7 +589,7 @@ defmodule KsefHub.ActivityLog.IntegrationTest do
       other_user = insert(:user)
 
       membership =
-        insert(:membership, user: other_user, company: company, role: :reviewer, status: :blocked)
+        insert(:membership, user: other_user, company: company, role: :approver, status: :blocked)
 
       {:ok, _unblocked} = Companies.unblock_member(membership)
 

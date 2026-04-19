@@ -12,6 +12,7 @@ defmodule KsefHubWeb.TeamMemberLive.Show do
   import KsefHubWeb.SettingsComponents, only: [settings_layout: 1]
 
   alias KsefHub.Accounts
+  alias KsefHub.ActivityLog.Events
   alias KsefHub.Companies
   alias KsefHub.Companies.Membership
   alias KsefHub.Invitations
@@ -111,8 +112,10 @@ defmodule KsefHubWeb.TeamMemberLive.Show do
 
     with :ok <- check_not_owner(membership),
          :ok <- check_not_self(membership.user_id, current_user.id) do
-      case Companies.block_member(membership) do
-        {:ok, updated} ->
+      case Companies.block_member_and_revoke_tokens(membership, actor_opts(socket)) do
+        {:ok, {updated, count}} ->
+          maybe_emit_tokens_revoked(membership, count, socket)
+
           {:noreply,
            socket
            |> assign(membership: %{updated | user: membership.user})
@@ -196,7 +199,7 @@ defmodule KsefHubWeb.TeamMemberLive.Show do
 
   defdelegate role_description(role), to: Membership
 
-  @valid_roles ~w(owner admin accountant reviewer)a
+  @valid_roles ~w(owner admin accountant approver analyst)a
 
   @spec parse_role(String.t()) :: {:ok, atom()} | {:error, String.t()}
   defp parse_role(role) when is_binary(role) do
@@ -224,6 +227,21 @@ defmodule KsefHubWeb.TeamMemberLive.Show do
   @spec check_role_allowed(atom(), [atom()]) :: :ok | {:error, String.t()}
   defp check_role_allowed(role, allowed) do
     if role in allowed, do: :ok, else: {:error, "Invalid role."}
+  end
+
+  @spec maybe_emit_tokens_revoked(Membership.t(), non_neg_integer(), Phoenix.LiveView.Socket.t()) ::
+          :ok
+  defp maybe_emit_tokens_revoked(_membership, 0, _socket), do: :ok
+
+  defp maybe_emit_tokens_revoked(membership, count, socket) when count > 0 do
+    Events.member_public_tokens_revoked(
+      membership.user_id,
+      membership.company_id,
+      count,
+      actor_opts(socket)
+    )
+
+    :ok
   end
 
   defdelegate assignable_roles(role), to: Membership

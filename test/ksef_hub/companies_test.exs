@@ -372,8 +372,8 @@ defmodule KsefHub.CompaniesTest do
       user = insert(:user)
       membership = insert(:membership, user: user, company: company, role: :accountant)
 
-      assert {:ok, updated} = Companies.update_membership_role(membership, :reviewer)
-      assert updated.role == :reviewer
+      assert {:ok, updated} = Companies.update_membership_role(membership, :approver)
+      assert updated.role == :approver
     end
 
     test "rejects invalid role" do
@@ -515,7 +515,7 @@ defmodule KsefHub.CompaniesTest do
       insert(:membership, user: user, company: company, role: :accountant)
 
       assert Companies.has_role?(user.id, company.id, [:owner, :accountant])
-      refute Companies.has_role?(user.id, company.id, [:owner, :reviewer])
+      refute Companies.has_role?(user.id, company.id, [:owner, :approver])
     end
   end
 
@@ -656,7 +656,7 @@ defmodule KsefHub.CompaniesTest do
     test "returns {:error, :unauthorized} when user has wrong role" do
       user = insert(:user)
       company = insert(:company)
-      insert(:membership, user: user, company: company, role: :reviewer)
+      insert(:membership, user: user, company: company, role: :approver)
 
       assert {:error, :unauthorized} =
                Companies.authorize(user.id, company.id, [:owner])
