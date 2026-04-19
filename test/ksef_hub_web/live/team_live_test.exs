@@ -77,6 +77,19 @@ defmodule KsefHubWeb.TeamLiveTest do
       assert_redirect(view, "/c/#{company.id}/settings/team/members/#{membership.id}")
     end
 
+    test "Enter key on member row navigates to detail page", %{conn: conn, company: company} do
+      member = insert(:user, name: "Keyboard", email: "kbd@example.com")
+      membership = insert(:membership, user: member, company: company, role: :accountant)
+
+      {:ok, view, _html} = live(conn, ~p"/c/#{company.id}/settings/team")
+
+      view
+      |> element("[data-testid='member-row-#{member.id}']")
+      |> render_keydown(%{"key" => "Enter"})
+
+      assert_redirect(view, "/c/#{company.id}/settings/team/members/#{membership.id}")
+    end
+
     test "shows blocked badge for blocked members", %{conn: conn, company: company} do
       member = insert(:user, name: "Blocked User", email: "blocked@example.com")
       insert(:membership, user: member, company: company, role: :accountant, status: :blocked)
@@ -98,6 +111,26 @@ defmodule KsefHubWeb.TeamLiveTest do
       view
       |> element("[data-testid='invitation-row-#{invitation.id}']")
       |> render_click()
+
+      assert_redirect(view, ~p"/c/#{company.id}/settings/team/invitations/#{invitation.id}")
+    end
+
+    test "Enter key on invitation row navigates to detail page", %{
+      conn: conn,
+      company: company,
+      owner: owner
+    } do
+      {:ok, %{invitation: invitation}} =
+        Invitations.create_invitation(owner.id, company.id, %{
+          email: "kbd-pending@example.com",
+          role: :reviewer
+        })
+
+      {:ok, view, _html} = live(conn, ~p"/c/#{company.id}/settings/team")
+
+      view
+      |> element("[data-testid='invitation-row-#{invitation.id}']")
+      |> render_keydown(%{"key" => "Enter"})
 
       assert_redirect(view, ~p"/c/#{company.id}/settings/team/invitations/#{invitation.id}")
     end

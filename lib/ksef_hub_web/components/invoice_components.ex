@@ -581,7 +581,7 @@ defmodule KsefHubWeb.InvoiceComponents do
     end
   end
 
-  @doc "Formats a numeric amount with space thousands separator (e.g. \"1 525.20\"), or returns \"-\" for nil."
+  @doc ~s|Formats a numeric amount with space thousands separator (e.g. "1 525.20"), or returns "-" for nil.|
   @spec format_amount(Decimal.t() | number() | nil) :: String.t()
   def format_amount(nil), do: "-"
 
