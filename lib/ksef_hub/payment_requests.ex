@@ -366,7 +366,12 @@ defmodule KsefHub.PaymentRequests do
   def payment_request_stats(company_id) do
     base = from(p in PaymentRequest, where: p.company_id == ^company_id)
     now = DateTime.utc_now()
-    month_start = now |> DateTime.to_date() |> Date.beginning_of_month() |> DateTime.new!(~T[00:00:00], "Etc/UTC")
+
+    month_start =
+      now
+      |> DateTime.to_date()
+      |> Date.beginning_of_month()
+      |> DateTime.new!(~T[00:00:00], "Etc/UTC")
 
     pending_count = base |> where([p], p.status == :pending) |> Repo.aggregate(:count)
 

@@ -331,7 +331,9 @@ defmodule KsefHubWeb.CertificateLive do
         </div>
         <.list>
           <:item title="Subject">
-            <span id="cert-subject" class="font-mono text-xs">{cert_display_subject(@user_certificate)}</span>
+            <span id="cert-subject" class="font-mono text-xs">
+              {cert_display_subject(@user_certificate)}
+            </span>
           </:item>
           <:item :if={@user_certificate.fingerprint} title="Serial">
             <span class="font-mono text-xs">{@user_certificate.fingerprint}</span>
@@ -495,7 +497,9 @@ defmodule KsefHubWeb.CertificateLive do
             class="flex items-center justify-between px-4 py-3 rounded-lg border border-border"
           >
             <div>
-              <div class="font-mono text-sm">{cert.fingerprint || cert.certificate_subject || "—"}</div>
+              <div class="font-mono text-sm">
+                {cert.fingerprint || cert.certificate_subject || "—"}
+              </div>
               <div class="text-xs text-muted-foreground mt-0.5">
                 replaced on {format_date(cert.updated_at)}
               </div>

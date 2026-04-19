@@ -157,6 +157,7 @@ defmodule KsefHubWeb.InvoiceLive.Index do
     filters = clear_filter_field(socket.assigns.filters, field)
     query_params = build_query_params(filters, %{})
     company_id = socket.assigns.current_company.id
+
     {:noreply,
      socket
      |> assign(:open_filter, nil)
@@ -351,10 +352,18 @@ defmodule KsefHubWeb.InvoiceLive.Index do
     <.status_tabs
       active_id={Atom.to_string(@filters[:type])}
       tabs={[
-        %{id: "expense", label: "Expense", count: @tab_counts.expense,
-          href: tab_url(@current_company.id, @filters, :expense)},
-        %{id: "income", label: "Income", count: @tab_counts.income,
-          href: tab_url(@current_company.id, @filters, :income)}
+        %{
+          id: "expense",
+          label: "Expense",
+          count: @tab_counts.expense,
+          href: tab_url(@current_company.id, @filters, :expense)
+        },
+        %{
+          id: "income",
+          label: "Income",
+          count: @tab_counts.income,
+          href: tab_url(@current_company.id, @filters, :income)
+        }
       ]}
     />
 
@@ -441,7 +450,10 @@ defmodule KsefHubWeb.InvoiceLive.Index do
         </:col>
         <%!-- Invoice number (truncated for UUID-style) --%>
         <:col :let={inv} label="Number" class="w-44">
-          <span class="font-mono text-xs tabular-nums truncate block w-full" title={inv.invoice_number}>
+          <span
+            class="font-mono text-xs tabular-nums truncate block w-full"
+            title={inv.invoice_number}
+          >
             {inv.invoice_number || "—"}
           </span>
         </:col>

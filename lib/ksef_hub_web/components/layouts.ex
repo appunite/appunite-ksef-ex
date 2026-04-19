@@ -39,8 +39,8 @@ defmodule KsefHubWeb.Layouts do
             }
             class="mr-4"
           />
-
-          <!-- Desktop nav -->
+          
+    <!-- Desktop nav -->
           <nav :if={@current_company} class="hidden md:flex items-center gap-0.5">
             <%= for item <- nav_items(@current_company, @current_role) do %>
               <a
@@ -60,8 +60,8 @@ defmodule KsefHubWeb.Layouts do
           </nav>
 
           <div class="flex-1" />
-
-          <!-- Company selector + avatar menu -->
+          
+    <!-- Company selector + avatar menu -->
           <div class="flex items-center gap-2">
             <div :if={@current_company} class="dropdown dropdown-end">
               <div

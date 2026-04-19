@@ -53,7 +53,8 @@ defmodule KsefHubWeb.InvoiceComponentsTest do
     end
 
     test "formats 7-digit amount with two separators" do
-      assert InvoiceComponents.format_amount(Decimal.new("1234567.89")) == "1\u00A0234\u00A0567.89"
+      assert InvoiceComponents.format_amount(Decimal.new("1234567.89")) ==
+               "1\u00A0234\u00A0567.89"
     end
 
     test "formats negative amount preserving sign" do

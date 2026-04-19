@@ -108,10 +108,16 @@ defmodule KsefHubWeb.TeamLive do
                   >
                     <span class="font-mono text-xs">{member.user.email}</span>
                   </td>
-                  <td class="py-3 px-4 text-sm" phx-click={JS.navigate(member_path(@current_company.id, member))}>
+                  <td
+                    class="py-3 px-4 text-sm"
+                    phx-click={JS.navigate(member_path(@current_company.id, member))}
+                  >
                     {member.user.name || "-"}
                   </td>
-                  <td class="py-3 px-4" phx-click={JS.navigate(member_path(@current_company.id, member))}>
+                  <td
+                    class="py-3 px-4"
+                    phx-click={JS.navigate(member_path(@current_company.id, member))}
+                  >
                     <.badge variant="muted">{role_label(member.role)}</.badge>
                     <.badge
                       :if={member.status == :blocked}
@@ -123,7 +129,10 @@ defmodule KsefHubWeb.TeamLive do
                     </.badge>
                   </td>
                   <td class="w-0 py-3 pr-3 pl-0">
-                    <.icon name="hero-chevron-right" class="size-3.5 text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity" />
+                    <.icon
+                      name="hero-chevron-right"
+                      class="size-3.5 text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity"
+                    />
                   </td>
                 </tr>
               </tbody>
@@ -163,7 +172,10 @@ defmodule KsefHubWeb.TeamLive do
                 >
                   <span class="font-mono text-xs">{inv.email}</span>
                 </td>
-                <td class="py-3 px-4" phx-click={JS.navigate(invitation_path(@current_company.id, inv))}>
+                <td
+                  class="py-3 px-4"
+                  phx-click={JS.navigate(invitation_path(@current_company.id, inv))}
+                >
                   <span class="font-mono text-xs text-muted-foreground">
                     {Calendar.strftime(inv.expires_at, "%Y-%m-%d")}
                   </span>
@@ -176,11 +188,17 @@ defmodule KsefHubWeb.TeamLive do
                     Expired
                   </.badge>
                 </td>
-                <td class="py-3 px-4" phx-click={JS.navigate(invitation_path(@current_company.id, inv))}>
+                <td
+                  class="py-3 px-4"
+                  phx-click={JS.navigate(invitation_path(@current_company.id, inv))}
+                >
                   <.badge variant="muted">{role_label(inv.role)}</.badge>
                 </td>
                 <td class="w-0 py-3 pr-3 pl-0">
-                  <.icon name="hero-chevron-right" class="size-3.5 text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity" />
+                  <.icon
+                    name="hero-chevron-right"
+                    class="size-3.5 text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity"
+                  />
                 </td>
               </tr>
             </tbody>

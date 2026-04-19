@@ -280,9 +280,17 @@ defmodule KsefHubWeb.CoreComponents do
     <a href={@href} class={["flex items-center gap-2 text-foreground", @class]}>
       <svg width="28" height="28" viewBox="0 0 48 48" fill="none" aria-hidden="true">
         <g fill="currentColor" opacity="0.25">
-          <circle cx="10" cy="10" r="2.5" /><circle cx="24" cy="10" r="2.5" /><circle cx="38" cy="10" r="2.5" />
+          <circle cx="10" cy="10" r="2.5" /><circle cx="24" cy="10" r="2.5" /><circle
+            cx="38"
+            cy="10"
+            r="2.5"
+          />
           <circle cx="10" cy="24" r="2.5" /><circle cx="38" cy="24" r="2.5" />
-          <circle cx="10" cy="38" r="2.5" /><circle cx="24" cy="38" r="2.5" /><circle cx="38" cy="38" r="2.5" />
+          <circle cx="10" cy="38" r="2.5" /><circle cx="24" cy="38" r="2.5" /><circle
+            cx="38"
+            cy="38"
+            r="2.5"
+          />
         </g>
         <circle cx="24" cy="24" r="4.5" fill="var(--brand)" />
         <g stroke="var(--brand)" stroke-width="2" stroke-linecap="round">
@@ -292,7 +300,9 @@ defmodule KsefHubWeb.CoreComponents do
           <line x1="19.5" y1="24" x2="12" y2="24" />
         </g>
       </svg>
-      <span class="text-sm font-bold tracking-tight whitespace-nowrap">KSeF<span class="font-normal"> Hub</span></span>
+      <span class="text-sm font-bold tracking-tight whitespace-nowrap">
+        KSeF<span class="font-normal"> Hub</span>
+      </span>
     </a>
     """
   end
@@ -836,7 +846,8 @@ defmodule KsefHubWeb.CoreComponents do
           "inline-flex items-center gap-1.5 h-8 px-2.5 text-xs font-medium rounded-md border transition-colors cursor-pointer",
           if(@count > 0,
             do: "border-foreground bg-shad-accent text-foreground",
-            else: "border-input bg-background text-muted-foreground hover:bg-shad-accent hover:text-shad-accent-foreground"
+            else:
+              "border-input bg-background text-muted-foreground hover:bg-shad-accent hover:text-shad-accent-foreground"
           )
         ]}
       >
@@ -871,7 +882,9 @@ defmodule KsefHubWeb.CoreComponents do
         </div>
         <div
           :if={@count > 0}
-          phx-click={JS.push("clear_filter_field", value: %{field: @field}) |> JS.hide(to: "##{@id}-popover")}
+          phx-click={
+            JS.push("clear_filter_field", value: %{field: @field}) |> JS.hide(to: "##{@id}-popover")
+          }
           class="px-2 py-1.5 text-xs text-muted-foreground hover:bg-shad-accent border-b border-border cursor-pointer transition-colors"
         >
           Clear selection
@@ -1522,7 +1535,8 @@ defmodule KsefHubWeb.CoreComponents do
         ]}
       />
   """
-  attr :tabs, :list, required: true,
+  attr :tabs, :list,
+    required: true,
     doc: "list of %{id: String.t(), label: String.t(), count: integer(), href: String.t()}"
 
   attr :active_id, :string, required: true, doc: "id of the currently active tab"
@@ -1550,7 +1564,10 @@ defmodule KsefHubWeb.CoreComponents do
         ]}>
           {tab.count}
         </span>
-        <span :if={tab.id == @active_id} class="absolute left-0 right-0 bottom-0 h-[3px] bg-foreground" />
+        <span
+          :if={tab.id == @active_id}
+          class="absolute left-0 right-0 bottom-0 h-[3px] bg-foreground"
+        />
       </.link>
     </div>
     """

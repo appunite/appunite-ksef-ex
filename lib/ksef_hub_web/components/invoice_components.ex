@@ -405,7 +405,9 @@ defmodule KsefHubWeb.InvoiceComponents do
       <span
         :if={@prediction_status in [:predicted, :needs_review] && @confidence}
         class="text-muted-foreground"
-      >· {round(@confidence * 100)}%</span>
+      >
+        · {round(@confidence * 100)}%
+      </span>
     </span>
     <span :if={!@category} class="text-muted-foreground">-</span>
     """
@@ -528,7 +530,11 @@ defmodule KsefHubWeb.InvoiceComponents do
       <.invoice_amount gross={inv.gross_amount} net={inv.net_amount} currency={inv.currency} />
   """
   attr :gross, :any, required: true, doc: "gross amount (Decimal, number, or nil)"
-  attr :net, :any, default: nil, doc: "net amount shown as secondary line (Decimal, number, or nil)"
+
+  attr :net, :any,
+    default: nil,
+    doc: "net amount shown as secondary line (Decimal, number, or nil)"
+
   attr :currency, :string, required: true
 
   @spec invoice_amount(map()) :: Phoenix.LiveView.Rendered.t()
@@ -538,7 +544,10 @@ defmodule KsefHubWeb.InvoiceComponents do
       {if @gross, do: format_amount(@gross), else: "—"}
       <span :if={@gross} class="text-xs text-muted-foreground ml-1">{@currency}</span>
     </div>
-    <div :if={@net} class="font-mono text-[11px] tabular-nums leading-tight text-muted-foreground mt-0.5 whitespace-nowrap">
+    <div
+      :if={@net}
+      class="font-mono text-[11px] tabular-nums leading-tight text-muted-foreground mt-0.5 whitespace-nowrap"
+    >
       {format_amount(@net)} <span class="opacity-70">net</span>
     </div>
     """
@@ -612,8 +621,7 @@ defmodule KsefHubWeb.InvoiceComponents do
       |> String.graphemes()
       |> Enum.reverse()
       |> Enum.chunk_every(3)
-      |> Enum.map(&Enum.join/1)
-      |> Enum.join("\u00A0")
+      |> Enum.map_join("\u00A0", &Enum.join/1)
       |> String.reverse()
 
     sign <> grouped
