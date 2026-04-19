@@ -63,10 +63,8 @@ defmodule KsefHub.Invoices.PublicTokenTest do
 
       expired_at = DateTime.utc_now() |> DateTime.add(-1, :day) |> DateTime.truncate(:second)
 
-      %InvoicePublicToken{}
+      %InvoicePublicToken{invoice_id: invoice.id, user_id: user.id}
       |> InvoicePublicToken.changeset(%{
-        invoice_id: invoice.id,
-        user_id: user.id,
         token: "expired_token_aaaaaaaaaaaaaaaaaaaaaaaaaaa",
         expires_at: expired_at
       })
@@ -109,10 +107,8 @@ defmodule KsefHub.Invoices.PublicTokenTest do
       expired_at = DateTime.utc_now() |> DateTime.add(-1, :day) |> DateTime.truncate(:second)
       raw_token = "expired_token_aaaaaaaaaaaaaaaaaaaaaaaaaaa"
 
-      %InvoicePublicToken{}
+      %InvoicePublicToken{invoice_id: invoice.id, user_id: user.id}
       |> InvoicePublicToken.changeset(%{
-        invoice_id: invoice.id,
-        user_id: user.id,
         token: raw_token,
         expires_at: expired_at
       })

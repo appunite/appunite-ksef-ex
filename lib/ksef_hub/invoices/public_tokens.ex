@@ -102,16 +102,13 @@ defmodule KsefHub.Invoices.PublicTokens do
           {:ok, InvoicePublicToken.t()} | {:error, Ecto.Changeset.t()}
   defp rotate_public_token(invoice_id, user_id) do
     token = :crypto.strong_rand_bytes(32) |> Base.url_encode64(padding: false)
-    expires_at = DateTime.utc_now() |> DateTime.add(@token_ttl_days, :day) |> DateTime.truncate(:second)
+
+    expires_at =
+      DateTime.utc_now() |> DateTime.add(@token_ttl_days, :day) |> DateTime.truncate(:second)
 
     result =
-      %InvoicePublicToken{}
-      |> InvoicePublicToken.changeset(%{
-        token: token,
-        expires_at: expires_at,
-        invoice_id: invoice_id,
-        user_id: user_id
-      })
+      %InvoicePublicToken{invoice_id: invoice_id, user_id: user_id}
+      |> InvoicePublicToken.changeset(%{token: token, expires_at: expires_at})
       |> Repo.insert(
         on_conflict: {:replace, [:token, :expires_at]},
         conflict_target: [:invoice_id, :user_id]

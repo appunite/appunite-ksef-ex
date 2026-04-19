@@ -91,7 +91,7 @@ defmodule KsefHubWeb.Plugs.ApiAuthTest do
       assert conn.assigns.current_role == :owner
     end
 
-    test "assigns reviewer role for reviewer-created token", %{conn: conn} do
+    test "assigns approver role for approver-created token", %{conn: conn} do
       {:ok, %{token: token}} = create_user_with_token(:approver)
 
       conn =

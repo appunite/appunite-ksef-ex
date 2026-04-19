@@ -21,10 +21,10 @@ defmodule KsefHub.Invitations.InvitationNotifierTest do
       assert body =~ "https://ksef-hub.com/invitations/accept/abc123"
     end
 
-    test "includes correct role description for reviewer" do
+    test "includes correct role description for approver" do
       assert {:ok, email} =
                InvitationNotifier.deliver_invitation(
-                 "reviewer@example.com",
+                 "approver@example.com",
                  "https://ksef-hub.com/invitations/accept/xyz",
                  %{company_name: "Test Co", role: :approver}
                )
