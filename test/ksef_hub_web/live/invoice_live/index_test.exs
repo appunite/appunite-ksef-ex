@@ -504,7 +504,7 @@ defmodule KsefHubWeb.InvoiceLive.IndexTest do
       {:ok, _view, html} = live(conn, ~p"/c/#{company.id}/invoices")
 
       lock_pos = html |> :binary.match("Access restricted to invited members") |> elem(0)
-      badge_pos = html |> :binary.match("text-purple-400") |> elem(0)
+      badge_pos = html |> :binary.match("text-purple") |> elem(0)
 
       assert lock_pos < badge_pos
     end

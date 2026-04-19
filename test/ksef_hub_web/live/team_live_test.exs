@@ -123,7 +123,7 @@ defmodule KsefHubWeb.TeamLiveTest do
       {:ok, %{invitation: invitation}} =
         Invitations.create_invitation(owner.id, company.id, %{
           email: "kbd-pending@example.com",
-          role: :reviewer
+          role: :approver
         })
 
       {:ok, view, _html} = live(conn, ~p"/c/#{company.id}/settings/team")
