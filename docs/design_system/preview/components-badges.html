@@ -1,0 +1,28 @@
+<!doctype html>
+<html><head><meta charset="utf-8"><link rel="stylesheet" href="../colors_and_type.css">
+<style>
+  html,body{margin:0;padding:20px;background:var(--background);color:var(--foreground);font-family:var(--font-sans)}
+  .row{display:flex;gap:10px;flex-wrap:wrap}
+  .badge{display:inline-flex;align-items:center;padding:2px 8px;border-radius:var(--radius-md);font-size:12px;font-weight:500;border:1px solid}
+  .b-success{background:color-mix(in oklch,var(--success) 10%,transparent);color:var(--success);border-color:color-mix(in oklch,var(--success) 20%,transparent)}
+  .b-warning{background:color-mix(in oklch,var(--warning) 10%,transparent);color:color-mix(in oklch,var(--warning) 70%,var(--foreground));border-color:color-mix(in oklch,var(--warning) 30%,transparent)}
+  .b-error{background:color-mix(in oklch,var(--destructive) 10%,transparent);color:var(--destructive);border-color:color-mix(in oklch,var(--destructive) 20%,transparent)}
+  .b-info{background:color-mix(in oklch,var(--info) 10%,transparent);color:var(--info);border-color:color-mix(in oklch,var(--info) 20%,transparent)}
+  .b-muted{background:var(--muted);color:var(--muted-foreground);border-color:var(--border)}
+  .b-purple{background:color-mix(in oklch,var(--purple) 10%,transparent);color:var(--purple);border-color:color-mix(in oklch,var(--purple) 20%,transparent)}
+  h3{font-size:11px;font-weight:500;color:var(--muted-foreground);text-transform:uppercase;letter-spacing:.06em;margin:0 0 8px}
+</style></head><body>
+<h3>Status badges (lowercase, always)</h3>
+<div class="row">
+  <span class="badge b-success">approved</span>
+  <span class="badge b-success">paid</span>
+  <span class="badge b-warning">pending</span>
+  <span class="badge b-error">rejected</span>
+  <span class="badge b-error">failed</span>
+  <span class="badge b-error">duplicate</span>
+  <span class="badge b-info">needs review</span>
+  <span class="badge b-warning">incomplete</span>
+  <span class="badge b-muted">excluded</span>
+  <span class="badge b-purple">correction</span>
+</div>
+</body></html>

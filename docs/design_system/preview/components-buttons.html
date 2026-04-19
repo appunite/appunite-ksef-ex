@@ -1,0 +1,31 @@
+<!doctype html>
+<html><head><meta charset="utf-8"><link rel="stylesheet" href="../colors_and_type.css">
+<style>
+  html,body{margin:0;padding:18px;background:var(--background);color:var(--foreground);font-family:var(--font-sans)}
+  .row{display:flex;gap:10px;flex-wrap:wrap}
+  .btn{display:inline-flex;align-items:center;justify-content:center;gap:8px;height:36px;padding:0 16px;border-radius:.375rem;font-size:14px;font-weight:500;border:1px solid transparent;cursor:pointer;transition:background .15s}
+  .primary{background:var(--primary);color:var(--primary-foreground)}
+  .primary:hover{background:color-mix(in oklch,var(--primary) 90%,transparent)}
+  .outline{border-color:var(--input);background:var(--background)}
+  .outline:hover{background:var(--accent)}
+  .ghost{background:transparent}
+  .ghost:hover{background:var(--accent)}
+  .destructive{background:var(--destructive);color:var(--destructive-foreground)}
+  .sm{height:28px;padding:0 10px;font-size:12px}
+  .icon{height:36px;width:36px;padding:0}
+  .brand{background:var(--brand);color:var(--brand-foreground)}
+</style></head><body>
+<div class="row" style="margin-bottom:10px">
+  <button class="btn primary">Sync Now</button>
+  <button class="btn outline">Cancel</button>
+  <button class="btn ghost">Edit</button>
+  <button class="btn destructive">Delete</button>
+  <button class="btn brand">Get in touch</button>
+</div>
+<div class="row">
+  <button class="btn primary sm">Approve</button>
+  <button class="btn outline sm">Dismiss</button>
+  <button class="btn ghost icon" aria-label="Close">×</button>
+  <button class="btn primary" disabled style="opacity:.5;pointer-events:none">Disabled</button>
+</div>
+</body></html>

@@ -9,6 +9,7 @@ defmodule KsefHubWeb.InvoiceLive.Index do
   alias KsefHub.Invoices
   alias KsefHub.Invoices.Invoice
   alias KsefHub.PaymentRequests
+  alias KsefHub.Sync.History
 
   import KsefHubWeb.CertificateComponents, only: [cert_expiry_alert: 1]
   import KsefHubWeb.InvoiceComponents
@@ -45,7 +46,6 @@ defmodule KsefHubWeb.InvoiceLive.Index do
     filters =
       params
       |> parse_filters()
-      |> Map.put_new(:type, :expense)
       |> Map.put_new(:statuses, [:pending, :approved])
 
     company_id =
@@ -74,9 +74,12 @@ defmodule KsefHubWeb.InvoiceLive.Index do
         %{entries: [], page: 1, per_page: 25, total_count: 0, total_pages: 1}
       end
 
+    tab_counts = compute_tab_counts(company_id, role, socket.assigns)
+
     {:noreply,
      socket
      |> assign(all_tags: all_tags)
+     |> assign(tab_counts: tab_counts)
      |> assign(filter_assigns(filters, result, role, socket.assigns))}
   end
 
@@ -99,6 +102,7 @@ defmodule KsefHubWeb.InvoiceLive.Index do
       total_count: result.total_count,
       total_pages: result.total_pages,
       can_create: Authorization.can?(role, :create_invoice),
+      can_sync: Authorization.can?(role, :trigger_sync),
       filter_count: filter_count
     ]
   end
@@ -149,6 +153,16 @@ defmodule KsefHubWeb.InvoiceLive.Index do
     {:noreply, push_patch(socket, to: ~p"/c/#{company_id}/invoices?#{query_params}")}
   end
 
+  def handle_event("clear_filter_field", %{"field" => field}, socket) do
+    filters = clear_filter_field(socket.assigns.filters, field)
+    query_params = build_query_params(filters, %{})
+    company_id = socket.assigns.current_company.id
+    {:noreply,
+     socket
+     |> assign(:open_filter, nil)
+     |> push_patch(to: ~p"/c/#{company_id}/invoices?#{query_params}")}
+  end
+
   def handle_event("open_filter", %{"id" => id}, socket) do
     current = socket.assigns.open_filter
     {:noreply, assign(socket, :open_filter, if(current == id, do: nil, else: id))}
@@ -163,6 +177,21 @@ defmodule KsefHubWeb.InvoiceLive.Index do
     current_type = to_string_or_empty(socket.assigns.filters[:type])
     params = maybe_put(%{}, "type", current_type)
     {:noreply, push_patch(socket, to: ~p"/c/#{company_id}/invoices?#{params}")}
+  end
+
+  def handle_event("trigger_sync", _params, socket) do
+    company_id = socket.assigns.current_company.id
+
+    case History.trigger_manual_sync(company_id, actor_opts(socket)) do
+      {:ok, _job} ->
+        {:noreply, put_flash(socket, :info, "Manual sync triggered.")}
+
+      {:error, :already_running} ->
+        {:noreply, put_flash(socket, :error, "A sync is already running.")}
+
+      {:error, _reason} ->
+        {:noreply, put_flash(socket, :error, "Manual sync failed.")}
+    end
   end
 
   @spec build_query_params(map(), map()) :: map()
@@ -183,15 +212,32 @@ defmodule KsefHubWeb.InvoiceLive.Index do
     |> maybe_put("payment_statuses", join_list(filters[:payment_statuses]))
   end
 
-  @spec tab_url(String.t(), map(), atom() | nil) :: String.t()
+  @spec tab_url(String.t(), map(), atom()) :: String.t()
   defp tab_url(company_id, filters, type) do
     params =
       filter_params_without_page(filters)
       |> Map.delete("type")
-      |> then(fn p -> if type, do: Map.put(p, "type", to_string(type)), else: p end)
+      |> Map.put("type", to_string(type))
 
     ~p"/c/#{company_id}/invoices?#{params}"
   end
+
+  # Single GROUP BY query returning income/expense counts — replaces the old
+  # approach that ran two full paginated queries (list + count each) per tab.
+  @spec compute_tab_counts(String.t() | nil, atom() | nil, map()) :: %{
+          income: non_neg_integer(),
+          expense: non_neg_integer()
+        }
+  defp compute_tab_counts(nil, _role, _assigns), do: %{income: 0, expense: 0}
+
+  defp compute_tab_counts(company_id, role, assigns) do
+    user_id = assigns[:current_user] && assigns.current_user.id
+    Invoices.count_invoices_by_type(company_id, role: role, user_id: user_id)
+  end
+
+  @spec counterparty_nip(map(), atom() | nil) :: String.t() | nil
+  defp counterparty_nip(invoice, :income), do: invoice.buyer_nip
+  defp counterparty_nip(invoice, _type), do: invoice.seller_nip
 
   @spec counterparty_name(map(), atom() | nil) :: String.t()
   defp counterparty_name(invoice, :income) do
@@ -218,10 +264,12 @@ defmodule KsefHubWeb.InvoiceLive.Index do
 
   @spec parse_filters(map()) :: map()
   defp parse_filters(params) do
-    is_income = params["type"] == "income"
+    type_param = params["type"]
+    is_income = type_param == "income"
 
     %{}
-    |> maybe_put_enum(:type, params["type"], Invoice, :type)
+    |> maybe_put_enum(:type, type_param, Invoice, :type)
+    |> Map.put_new(:type, :expense)
     |> maybe_put_csv(:statuses, params["statuses"],
       valid: ~w(pending approved rejected duplicate incomplete excluded),
       transform: &String.to_existing_atom/1
@@ -260,6 +308,9 @@ defmodule KsefHubWeb.InvoiceLive.Index do
       Invoices
       <:subtitle>Invoices for {@current_company.name}</:subtitle>
       <:actions>
+        <.button :if={@can_sync} variant="outline" phx-click="trigger_sync">
+          <.icon name="hero-arrow-path" class="size-4" /> Sync now
+        </.button>
         <.button :if={@can_create} navigate={~p"/c/#{@current_company.id}/invoices/upload"}>
           <.icon name="hero-arrow-up-tray" class="size-4" /> Upload PDF
         </.button>
@@ -293,163 +344,176 @@ defmodule KsefHubWeb.InvoiceLive.Index do
       class="mb-4"
     />
 
-    <!-- Type Tabs -->
-    <div class="flex border-b border-border mb-4">
-      <.link
-        patch={tab_url(@current_company.id, @filters, :expense)}
-        class={tab_class(@filters[:type] == :expense)}
-        aria-current={if @filters[:type] == :expense, do: "page"}
-      >
-        Expense
-      </.link>
-      <.link
-        patch={tab_url(@current_company.id, @filters, :income)}
-        class={tab_class(@filters[:type] == :income)}
-        aria-current={if @filters[:type] == :income, do: "page"}
-      >
-        Income
-      </.link>
-    </div>
+    <.status_tabs
+      active_id={Atom.to_string(@filters[:type])}
+      tabs={[
+        %{id: "expense", label: "Expense", count: @tab_counts.expense,
+          href: tab_url(@current_company.id, @filters, :expense)},
+        %{id: "income", label: "Income", count: @tab_counts.income,
+          href: tab_url(@current_company.id, @filters, :income)}
+      ]}
+    />
 
-    <div class="space-y-2 mt-4 mb-6">
-      <div class="flex items-center gap-2 flex-wrap">
-        <.multi_select
-          id="status-filter"
-          label="Status"
-          field="statuses"
-          options={[
-            {"Pending", "pending"},
-            {"Approved", "approved"},
-            {"Rejected", "rejected"},
-            {"Duplicate", "duplicate"},
-            {"Incomplete", "incomplete"},
-            {"Excluded", "excluded"}
-          ]}
-          selected={Enum.map(@filters[:statuses] || [], &to_string/1)}
-          open={@open_filter == "status-filter"}
+    <div class="flex items-center gap-2 flex-wrap mb-4">
+      <.form for={@form} id="search-filter-form" phx-change="filter" class="contents">
+        <.search_input
+          name={@form[:query].name}
+          value={@form[:query].value}
+          placeholder="Search invoices..."
+          phx-debounce="300"
+          class="w-48 lg:w-64"
         />
-        <.multi_select
-          :if={@filters[:type] == :expense}
-          id="category-filter"
-          label="Category"
-          field="expense_category_ids"
-          options={Enum.map(@categories, &{category_label(&1), &1.id})}
-          selected={@filters[:expense_category_ids] || []}
-          searchable={length(@categories) > 6}
-          open={@open_filter == "category-filter"}
+      </.form>
+      <.form for={@form} id="date-filter-form" phx-change="filter" class="contents">
+        <.date_range_picker
+          id="invoice-date-range"
+          from_name={@form[:date_from].name}
+          to_name={@form[:date_to].name}
+          from_value={@form[:date_from].value}
+          to_value={@form[:date_to].value}
         />
-        <.multi_select
-          :if={@filters[:type] != :income}
-          id="payment-filter"
-          label="Payment"
-          field="payment_statuses"
-          options={[{"Paid", "paid"}, {"Pending", "pending"}, {"None", "none"}]}
-          selected={@filters[:payment_statuses] || []}
-          open={@open_filter == "payment-filter"}
-        />
-        <.multi_select
-          id="tag-filter"
-          label="Tag"
-          field="tags"
-          options={Enum.map(@all_tags, &{&1, &1})}
-          selected={@filters[:tags] || []}
-          searchable={length(@all_tags) > 6}
-          open={@open_filter == "tag-filter"}
-        />
-
-        <.form for={@form} id="date-search-form" phx-change="filter" class="contents">
-          <.date_range_picker
-            id="invoice-date-range"
-            from_name={@form[:date_from].name}
-            to_name={@form[:date_to].name}
-            from_value={@form[:date_from].value}
-            to_value={@form[:date_to].value}
-          />
-
-          <.reset_filters_button :if={@filter_count > 0} />
-
-          <.search_input
-            name={@form[:query].name}
-            value={@form[:query].value}
-            placeholder="Search invoices..."
-            phx-debounce="300"
-          />
-        </.form>
-      </div>
+      </.form>
+      <.multi_select
+        id="status-filter"
+        label="Status"
+        field="statuses"
+        icon="hero-check-circle"
+        options={[
+          {"Pending", "pending"},
+          {"Approved", "approved"},
+          {"Rejected", "rejected"},
+          {"Duplicate", "duplicate"},
+          {"Incomplete", "incomplete"},
+          {"Excluded", "excluded"}
+        ]}
+        selected={Enum.map(@filters[:statuses] || [], &to_string/1)}
+        open={@open_filter == "status-filter"}
+      />
+      <.multi_select
+        :if={@filters[:type] == :expense}
+        id="category-filter"
+        label="Category"
+        field="expense_category_ids"
+        icon="hero-folder"
+        options={Enum.map(@categories, &{category_label(&1), &1.id})}
+        selected={@filters[:expense_category_ids] || []}
+        searchable={length(@categories) > 6}
+        open={@open_filter == "category-filter"}
+      />
+      <.multi_select
+        :if={@filters[:type] != :income}
+        id="payment-filter"
+        label="Payment"
+        field="payment_statuses"
+        icon="hero-credit-card"
+        options={[{"Paid", "paid"}, {"Pending", "pending"}, {"None", "none"}]}
+        selected={@filters[:payment_statuses] || []}
+        open={@open_filter == "payment-filter"}
+      />
+      <.multi_select
+        id="tag-filter"
+        label="Tag"
+        field="tags"
+        icon="hero-tag"
+        options={Enum.map(@all_tags, &{&1, &1})}
+        selected={@filters[:tags] || []}
+        searchable={length(@all_tags) > 6}
+        open={@open_filter == "tag-filter"}
+      />
+      <.reset_filters_button :if={@filter_count > 0} />
     </div>
 
     <!-- Invoice Table -->
     <.table_container>
-      <.table id="invoices" rows={@invoices} row_id={fn inv -> "inv-#{inv.id}" end}>
-        <:col :let={inv} label="Issue date" class="w-28">
-          <span class="whitespace-nowrap">{format_date(inv.issue_date)}</span>
+      <.table
+        id="invoices"
+        rows={@invoices}
+        row_id={fn inv -> "inv-#{inv.id}" end}
+        row_click={fn inv -> JS.navigate(~p"/c/#{@current_company.id}/invoices/#{inv.id}") end}
+      >
+        <%!-- Source dot --%>
+        <:col :let={inv} label="" class="w-6">
+          <.source_dot source={inv.source} />
         </:col>
+        <%!-- Invoice number (truncated for UUID-style) --%>
+        <:col :let={inv} label="Number" class="w-44">
+          <span class="font-mono text-xs tabular-nums truncate block w-full" title={inv.invoice_number}>
+            {inv.invoice_number || "—"}
+          </span>
+        </:col>
+        <%!-- Date: "17 Apr" --%>
+        <:col :let={inv} label="Date" class="w-20">
+          <span class="font-mono text-xs tabular-nums text-muted-foreground whitespace-nowrap">
+            {format_date_short(inv.issue_date)}
+          </span>
+        </:col>
+        <%!-- Counterparty name + NIP below --%>
         <:col
           :let={inv}
           label={if @filters[:type] == :income, do: "Buyer", else: "Seller"}
-          class="w-96"
         >
-          <div class="flex items-center gap-1">
+          <div class="flex items-center gap-1.5">
             <.link
               navigate={~p"/c/#{@current_company.id}/invoices/#{inv.id}"}
-              class="text-shad-primary underline-offset-4 hover:underline"
+              class="text-sm truncate max-w-[200px] hover:underline underline-offset-4"
             >
               {counterparty_name(inv, @filters[:type])}
             </.link>
             <.restricted_icon :if={inv.access_restricted} />
-            <.invoice_kind_badge kind={inv.invoice_kind} />
+          </div>
+          <div
+            :if={counterparty_nip(inv, @filters[:type])}
+            class="font-mono text-[11px] text-muted-foreground mt-0.5"
+          >
+            {counterparty_nip(inv, @filters[:type])}
           </div>
         </:col>
+        <%!-- Amount: gross on top, net below --%>
         <:col :let={inv} label="Amount" class="w-36 text-right">
-          <div class="font-mono">{format_amount(inv.net_amount)}</div>
-          <div class="font-mono text-xs text-muted-foreground">
-            {format_amount(inv.gross_amount)} {inv.currency}
-          </div>
+          <.invoice_amount gross={inv.gross_amount} net={inv.net_amount} currency={inv.currency} />
         </:col>
-        <:col :let={inv} :if={@filters[:type] == :income} label="Number" class="w-44">
-          <span class="font-mono text-sm">{inv.invoice_number}</span>
+        <%!-- Kind badge --%>
+        <:col :let={inv} label="Kind" class="w-24">
+          <.invoice_kind_badge kind={inv.invoice_kind} />
         </:col>
-        <:col :let={inv} :if={@filters[:type] != :income} label="Status" class="w-28">
-          <div class="flex flex-wrap gap-1">
+        <%!-- Category: shown on expense, empty spacer on income (keeps layout balanced) --%>
+        <:col
+          :let={inv}
+          label={if @filters[:type] == :expense, do: "Category", else: ""}
+          class={if @filters[:type] == :income, do: "w-40", else: nil}
+        >
+          <.category_badge
+            :if={@filters[:type] == :expense}
+            category={inv.category}
+            confidence={inv.prediction_expense_category_confidence}
+            prediction_status={inv.prediction_status}
+          />
+        </:col>
+        <%!-- Status: shown on expense, empty spacer on income (keeps layout balanced) --%>
+        <:col :let={inv} label={if @filters[:type] == :expense, do: "Status", else: ""} class="w-32">
+          <div :if={@filters[:type] == :expense} class="flex flex-wrap gap-1">
             <.status_badge status={display_status(inv)} />
-            <.excluded_badge is_excluded={inv.is_excluded} />
             <.needs_review_badge
               prediction_status={inv.prediction_status}
               duplicate_status={inv.duplicate_status}
               extraction_status={inv.extraction_status}
               status={inv.expense_approval_status}
             />
-            <.extraction_badge
-              status={inv.extraction_status}
-              duplicate_status={inv.duplicate_status}
-            />
-          </div>
-          <div class="mt-1">
-            <.payment_badge status={@payment_statuses[inv.id]} />
           </div>
         </:col>
-        <:col :let={inv} :if={@filters[:type] != :income} label="Category">
-          <.category_badge category={inv.category} />
-        </:col>
-        <:col :let={inv} label="Tags">
-          <div class="flex flex-wrap gap-1">
-            <.badge :for={tag <- inv.tags} variant="info">{tag}</.badge>
-            <.badge :if={inv.project_tag} variant="success">{inv.project_tag}</.badge>
-          </div>
-          <span
-            :if={inv.tags == [] && is_nil(inv.project_tag)}
-            class="text-muted-foreground"
-          >
-            -
-          </span>
-        </:col>
+        <:action>
+          <.icon
+            name="hero-chevron-right"
+            class="size-3.5 text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity"
+          />
+        </:action>
       </.table>
 
       <.empty_state :if={@invoices == [] && @total_count == 0}>
-        No invoices found matching your filters.
+        No data for selected period
       </.empty_state>
 
-      <div class="border-t border-border px-4 py-3">
+      <div class="px-4 py-3">
         <.pagination
           page={@page}
           per_page={@per_page}

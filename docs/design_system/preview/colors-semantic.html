@@ -1,0 +1,18 @@
+<!doctype html>
+<html><head><meta charset="utf-8"><link rel="stylesheet" href="../colors_and_type.css">
+<style>
+  html,body{margin:0;padding:20px;background:var(--background);color:var(--foreground);font-family:var(--font-sans)}
+  .row{display:flex;gap:12px;flex-wrap:wrap}
+  .sw{display:flex;flex-direction:column;gap:4px;width:110px}
+  .chip{height:56px;border-radius:var(--radius);border:1px solid var(--border)}
+  .name{font-size:11px;font-weight:500}
+  .meta{font-size:10px;color:var(--muted-foreground);font-family:var(--font-mono)}
+</style></head><body>
+<div class="row">
+  <div class="sw"><div class="chip" style="background:var(--success)"></div><div class="name">success</div><div class="meta">approved · paid</div></div>
+  <div class="sw"><div class="chip" style="background:var(--warning)"></div><div class="name">warning</div><div class="meta">pending · expiring</div></div>
+  <div class="sw"><div class="chip" style="background:var(--destructive)"></div><div class="name">destructive</div><div class="meta">rejected · failed</div></div>
+  <div class="sw"><div class="chip" style="background:var(--info)"></div><div class="name">info</div><div class="meta">needs review</div></div>
+  <div class="sw"><div class="chip" style="background:var(--purple)"></div><div class="name">purple</div><div class="meta">correction only</div></div>
+</div>
+</body></html>

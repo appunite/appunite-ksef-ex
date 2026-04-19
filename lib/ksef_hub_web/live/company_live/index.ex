@@ -52,30 +52,28 @@ defmodule KsefHubWeb.CompanyLive.Index do
         id="companies"
         rows={@companies_with_creds}
         row_id={fn c -> "company-#{c.id}" end}
+        row_click={
+          @can_manage_company &&
+            fn company -> JS.navigate(~p"/companies/#{company.id}/edit") end
+        }
       >
         <:col :let={company} label="Name">
-          <span data-testid="company-name">{company.name}</span>
-        </:col>
-        <:col :let={company} label="NIP">
-          <span class="font-mono">{company.nip}</span>
+          <span class="text-sm" data-testid="company-name">{company.name}</span>
+          <div class="font-mono text-[11px] text-muted-foreground">{company.nip}</div>
         </:col>
         <:col :let={company} label="KSeF Sync">
-          <.badge :if={company.has_active_credential} variant="success">Configured</.badge>
-          <.badge :if={!company.has_active_credential} variant="muted">Not configured</.badge>
+          <.badge :if={company.has_active_credential} variant="success">configured</.badge>
+          <.badge :if={!company.has_active_credential} variant="muted">not configured</.badge>
         </:col>
         <:col :let={company} label="Status">
-          <.badge :if={company.is_active} variant="success">Active</.badge>
-          <.badge :if={!company.is_active} variant="muted">Inactive</.badge>
+          <.badge :if={company.is_active} variant="success">active</.badge>
+          <.badge :if={!company.is_active} variant="muted">inactive</.badge>
         </:col>
-        <:action :let={company}>
-          <.button
-            :if={@can_manage_company}
-            variant="outline"
-            size="sm"
-            navigate={~p"/companies/#{company.id}/edit"}
-          >
-            Edit
-          </.button>
+        <:action>
+          <.icon
+            name="hero-chevron-right"
+            class="size-3.5 text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity"
+          />
         </:action>
       </.table>
     </.table_container>

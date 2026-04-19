@@ -111,28 +111,26 @@ defmodule KsefHubWeb.InvoiceComponents do
   end
 
   @doc """
-  Renders a badge for the invoice kind. Shows nothing for plain VAT invoices
-  (the default). Shows a purple badge for correction kinds, and an info badge
-  for other non-standard kinds (advance, simplified, etc.). Labels are rendered
-  lowercase to match badge conventions across the app.
+  Renders a badge for the invoice kind. Shows a muted badge for plain VAT invoices,
+  a purple badge for correction kinds, and an info badge for other non-standard kinds
+  (advance, simplified, etc.). Labels are rendered uppercase.
   """
   @spec invoice_kind_badge(map()) :: Phoenix.LiveView.Rendered.t()
   attr :kind, :atom, required: true
 
-  def invoice_kind_badge(%{kind: :vat} = assigns), do: ~H""
   def invoice_kind_badge(%{kind: nil} = assigns), do: ~H""
 
   def invoice_kind_badge(assigns) do
-    assigns = assign(assigns, :label, Invoice.invoice_kind_label(assigns.kind))
-
     assigns =
-      assign(
-        assigns,
+      assigns
+      |> assign(:label, Invoice.invoice_kind_label(assigns.kind))
+      |> assign(
         :variant,
-        if(assigns.kind in Invoice.correction_kinds(),
-          do: "purple",
-          else: "info"
-        )
+        cond do
+          assigns.kind == :vat -> "muted"
+          assigns.kind in Invoice.correction_kinds() -> "purple"
+          true -> "info"
+        end
       )
 
     ~H"""
@@ -160,7 +158,7 @@ defmodule KsefHubWeb.InvoiceComponents do
 
     ~H"""
     <div
-      class="rounded-md border border-purple-500/20 bg-purple-500/5 p-4 mt-4"
+      class="rounded-md border border-purple/20 bg-purple/5 p-4 mt-4"
       data-testid="correction-details"
     >
       <h3 class="flex items-center gap-2 text-base font-semibold mb-2">
@@ -299,6 +297,36 @@ defmodule KsefHubWeb.InvoiceComponents do
     end
   end
 
+  @doc "Renders a small coloured dot indicating the invoice source (ksef / email / pdf_upload / manual)."
+  attr :source, :atom, values: [:ksef, :manual, :pdf_upload, :email], required: true
+  attr :class, :string, default: nil
+
+  @spec source_dot(map()) :: Phoenix.LiveView.Rendered.t()
+  def source_dot(assigns) do
+    assigns = assign(assigns, :color, source_dot_color(assigns.source))
+    assigns = assign(assigns, :label, source_dot_label(assigns.source))
+
+    ~H"""
+    <span
+      class={["inline-block w-2 h-2 rounded-full shrink-0", @color, @class]}
+      title={@label}
+    />
+    """
+  end
+
+  @spec source_dot_color(atom()) :: String.t()
+  defp source_dot_color(:ksef), do: "bg-shad-primary"
+  defp source_dot_color(:email), do: "bg-info"
+  defp source_dot_color(:pdf_upload), do: "bg-warning"
+  defp source_dot_color(:manual), do: "bg-muted-foreground"
+
+  @spec source_dot_label(atom()) :: String.t()
+  defp source_dot_label(:ksef), do: "KSeF"
+  defp source_dot_label(:email), do: "Email"
+  defp source_dot_label(:pdf_upload), do: "PDF upload"
+  defp source_dot_label(:manual), do: "Manual"
+  defp source_dot_label(_), do: "Unknown"
+
   @doc "Renders a coloured badge for the invoice type (:income / :expense)."
   @spec type_badge(map()) :: Phoenix.LiveView.Rendered.t()
   attr :type, :atom, required: true
@@ -361,12 +389,21 @@ defmodule KsefHubWeb.InvoiceComponents do
   @doc "Renders a category badge with emoji and name, or \"-\" when nil."
   @spec category_badge(map()) :: Phoenix.LiveView.Rendered.t()
   attr :category, :map, default: nil
+  attr :confidence, :float, default: nil
+  attr :prediction_status, :atom, default: nil
 
   def category_badge(assigns) do
     ~H"""
-    <span :if={@category} class="inline-flex items-center gap-1 text-xs">
+    <span
+      :if={@category}
+      class="inline-flex items-center gap-1 px-2 py-0.5 rounded-md border border-border bg-muted/50 text-xs text-foreground whitespace-nowrap"
+    >
       <span :if={@category.emoji}>{@category.emoji}</span>
       <span>{@category.name || @category.identifier}</span>
+      <span
+        :if={@prediction_status in [:predicted, :needs_review] && @confidence}
+        class="text-muted-foreground"
+      >· {round(@confidence * 100)}%</span>
     </span>
     <span :if={!@category} class="text-muted-foreground">-</span>
     """
@@ -475,10 +512,45 @@ defmodule KsefHubWeb.InvoiceComponents do
 
   def excluded_badge(assigns), do: ~H""
 
+  @doc """
+  Renders a two-line gross/net amount cell matching the design system (Rule 2).
+
+  Gross (brutto) is the primary line: `font-mono text-sm tabular-nums`.
+  Net (netto) is the secondary line: `font-mono text-[11px] tabular-nums text-muted-foreground`.
+  Currency is appended as a muted suffix after the gross amount.
+
+  Use inside a right-aligned table column (`class="text-right"`).
+
+  ## Examples
+
+      <.invoice_amount gross={inv.gross_amount} net={inv.net_amount} currency={inv.currency} />
+  """
+  attr :gross, :any, required: true, doc: "gross amount (Decimal, number, or nil)"
+  attr :net, :any, default: nil, doc: "net amount shown as secondary line (Decimal, number, or nil)"
+  attr :currency, :string, required: true
+
+  @spec invoice_amount(map()) :: Phoenix.LiveView.Rendered.t()
+  def invoice_amount(assigns) do
+    ~H"""
+    <div class="font-mono text-sm tabular-nums leading-tight whitespace-nowrap">
+      {if @gross, do: format_amount(@gross), else: "—"}
+      <span :if={@gross} class="text-xs text-muted-foreground ml-1">{@currency}</span>
+    </div>
+    <div :if={@net} class="font-mono text-[11px] tabular-nums leading-tight text-muted-foreground mt-0.5 whitespace-nowrap">
+      {format_amount(@net)} <span class="opacity-70">net</span>
+    </div>
+    """
+  end
+
   @doc "Formats a date as YYYY-MM-DD, or returns \"-\" for nil."
   @spec format_date(Date.t() | nil) :: String.t()
   def format_date(nil), do: "-"
   def format_date(date), do: Calendar.strftime(date, "%Y-%m-%d")
+
+  @doc "Formats a date as \"17 Apr\" for compact table display."
+  @spec format_date_short(Date.t() | nil) :: String.t()
+  def format_date_short(nil), do: "—"
+  def format_date_short(date), do: Calendar.strftime(date, "%-d %b")
 
   @doc "Formats a date as \"Mon YYYY\" for billing period display."
   @spec format_month(Date.t() | nil) :: String.t()
@@ -498,16 +570,52 @@ defmodule KsefHubWeb.InvoiceComponents do
     end
   end
 
-  @doc "Formats a numeric amount, or returns \"-\" for nil/unknown types."
+  @doc "Formats a numeric amount with space thousands separator (e.g. \"1 525.20\"), or returns \"-\" for nil."
   @spec format_amount(Decimal.t() | number() | nil) :: String.t()
   def format_amount(nil), do: "-"
-  def format_amount(%Decimal{} = d), do: Decimal.to_string(d, :normal)
-  def format_amount(n) when is_integer(n), do: n |> Decimal.new() |> Decimal.to_string(:normal)
 
-  def format_amount(f) when is_float(f),
-    do: f |> Decimal.from_float() |> Decimal.to_string(:normal)
+  def format_amount(%Decimal{} = d) do
+    d
+    |> Decimal.round(2)
+    |> Decimal.to_string(:normal)
+    |> format_with_thousands()
+  end
+
+  def format_amount(n) when is_integer(n), do: n |> Decimal.new() |> format_amount()
+
+  def format_amount(f) when is_float(f), do: f |> Decimal.from_float() |> format_amount()
 
   def format_amount(_), do: "-"
+
+  @spec format_with_thousands(String.t()) :: String.t()
+  defp format_with_thousands(str) do
+    case String.split(str, ".") do
+      [int_part, dec_part] ->
+        "#{insert_thousands(int_part)}.#{dec_part}"
+
+      [int_part] ->
+        insert_thousands(int_part)
+    end
+  end
+
+  @spec insert_thousands(String.t()) :: String.t()
+  defp insert_thousands(int_str) do
+    {sign, digits} =
+      if String.starts_with?(int_str, "-"),
+        do: {"-", String.slice(int_str, 1..-1//1)},
+        else: {"", int_str}
+
+    grouped =
+      digits
+      |> String.graphemes()
+      |> Enum.reverse()
+      |> Enum.chunk_every(3)
+      |> Enum.map(&Enum.join/1)
+      |> Enum.join("\u00A0")
+      |> String.reverse()
+
+    sign <> grouped
+  end
 
   @doc "Formats a datetime as YYYY-MM-DD HH:MM, or returns \"-\" for nil. DateTime values must be in UTC (as produced by Ecto's `:utc_datetime` types)."
   @spec format_datetime(DateTime.t() | NaiveDateTime.t() | nil) :: String.t()

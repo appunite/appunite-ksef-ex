@@ -151,12 +151,12 @@ defmodule KsefHubWeb.PaymentRequestLiveTest do
 
       {:ok, view, _html} = live(conn, ~p"/c/#{company.id}/payment-requests?statuses=voided")
       assert has_element?(view, "td", "Voided Co")
-      refute has_element?(view, "#pr-#{pr.id} input[type='checkbox']")
+      assert has_element?(view, "#pr-#{pr.id} input[type='checkbox']")
     end
 
     test "shows empty state", %{conn: conn, company: company} do
       {:ok, _view, html} = live(conn, ~p"/c/#{company.id}/payment-requests")
-      assert html =~ "No payment requests found"
+      assert html =~ "No data for selected period"
     end
 
     test "accountant can view payment requests", %{company: company} do

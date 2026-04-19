@@ -7,7 +7,6 @@ defmodule KsefHubWeb.TokenLive do
   """
   use KsefHubWeb, :live_view
 
-  import KsefHubWeb.InvoiceComponents, only: [format_datetime: 1]
   import KsefHubWeb.SettingsComponents, only: [settings_layout: 1]
 
   alias KsefHub.Accounts
@@ -43,6 +42,23 @@ defmodule KsefHubWeb.TokenLive do
     end
   end
 
+  @spec time_ago(DateTime.t() | nil) :: String.t()
+  defp time_ago(nil), do: "never"
+
+  defp time_ago(dt) do
+    diff = DateTime.diff(DateTime.utc_now(), dt, :second)
+
+    cond do
+      diff < 60 -> "just now"
+      diff < 3600 -> "#{div(diff, 60)} min ago"
+      diff < 86_400 -> "#{div(diff, 3600)} hr ago"
+      diff < 86_400 * 2 -> "yesterday"
+      diff < 86_400 * 30 -> "#{div(diff, 86_400)} days ago"
+      diff < 86_400 * 365 -> "#{div(diff, 86_400 * 30)} mo ago"
+      true -> "#{div(diff, 86_400 * 365)} yr ago"
+    end
+  end
+
   @impl true
   def render(assigns) do
     ~H"""
@@ -68,32 +84,34 @@ defmodule KsefHubWeb.TokenLive do
           row_item={fn {_id, item} -> item end}
         >
           <:col :let={token} label="Name">
-            <span data-testid={"token-name-#{token.id}"}>{token.name}</span>
+            <span class="text-sm" data-testid={"token-name-#{token.id}"}>{token.name}</span>
           </:col>
-          <:col :let={token} label="Prefix">
-            <code class="font-mono text-sm">{token.token_prefix}****</code>
+          <:col :let={token} label="Token">
+            <code class="font-mono text-sm">{token.token_prefix}…</code>
+          </:col>
+          <:col :let={token} label="Created">
+            <span class="font-mono text-xs text-muted-foreground">
+              {Calendar.strftime(token.inserted_at, "%Y-%m-%d")}
+            </span>
           </:col>
           <:col :let={token} label="Last Used">
-            {format_datetime(token.last_used_at)}
-          </:col>
-          <:col :let={token} label="Requests">
-            <span class="font-mono">{token.request_count}</span>
-          </:col>
-          <:col :let={token} label="Status">
-            <.badge :if={token.is_active} variant="success">Active</.badge>
-            <.badge :if={!token.is_active} variant="muted">Revoked</.badge>
+            <span class="font-mono text-xs text-muted-foreground">
+              {time_ago(token.last_used_at)}
+            </span>
           </:col>
           <:action :let={token}>
             <.button
               :if={token.is_active}
-              variant="outline-destructive"
+              variant="ghost"
               size="sm"
+              class="text-shad-destructive hover:text-shad-destructive"
               phx-click="revoke"
               phx-value-id={token.id}
               data-confirm="Are you sure? This will immediately revoke API access for this token."
             >
               Revoke
             </.button>
+            <.badge :if={!token.is_active} variant="muted">revoked</.badge>
           </:action>
         </.table>
       </.table_container>

@@ -1,0 +1,248 @@
+/* ============================================================
+   KSeF Hub -- Colors + Type tokens
+   Ported from assets/css/app.css and extended with a brand accent.
+
+   Two theme modes: light (default) and dark (via [data-theme="dark"]).
+   Follows OS preference when no [data-theme] attr is set.
+
+   This file is safe to drop into Tailwind v4 via @theme, or used
+   standalone in plain HTML (the custom properties cascade).
+   ============================================================ */
+
+@import url("https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700&family=Geist+Mono:wght@400;500&display=swap");
+
+/* -------------------- BASE SCALE (neutral zinc, OKLCH) -------------------- */
+/* These match exactly what ships in the app; we don't reinvent them.        */
+
+:root {
+  /* Type foundations */
+  --font-sans: "Geist", ui-sans-serif, system-ui, -apple-system, "Segoe UI",
+    Roboto, "Helvetica Neue", Arial, sans-serif;
+  --font-mono: "Geist Mono", ui-monospace, SFMono-Regular, Menlo, Monaco,
+    Consolas, "Liberation Mono", "Courier New", monospace;
+
+  /* Type scale (matches Tailwind defaults used in the app) */
+  --text-xs: 0.75rem;     /* 12px -- table column headers, badges, sm buttons */
+  --text-sm: 0.875rem;    /* 14px -- body, nav, buttons */
+  --text-base: 1rem;      /* 16px -- body default */
+  --text-lg: 1.125rem;    /* 18px -- section headers (h1 in admin) */
+  --text-xl: 1.25rem;     /* 20px */
+  --text-2xl: 1.5rem;     /* 24px -- auth page titles */
+  --text-3xl: 1.875rem;   /* 30px */
+  --text-4xl: 2.25rem;    /* 36px -- marketing H1 small */
+  --text-5xl: 3rem;       /* 48px -- marketing H1 */
+  --text-6xl: 3.75rem;    /* 60px -- marketing hero */
+
+  /* Weights */
+  --fw-regular: 400;
+  --fw-medium: 500;
+  --fw-semibold: 600;
+  --fw-bold: 700;
+
+  /* Spacing (Tailwind 4px base) */
+  --space-1: 0.25rem;
+  --space-2: 0.5rem;
+  --space-3: 0.75rem;
+  --space-4: 1rem;
+  --space-6: 1.5rem;
+  --space-8: 2rem;
+  --space-12: 3rem;
+
+  /* Radii */
+  --radius-sm: 0.25rem;
+  --radius-md: 0.375rem;   /* field / input */
+  --radius: 0.5rem;        /* default (buttons, cards-inner) */
+  --radius-lg: 0.75rem;    /* table container */
+  --radius-xl: 0.75rem;    /* card */
+  --radius-full: 9999px;
+
+  /* ---------------- LIGHT THEME (default) ---------------- */
+  --background: oklch(100% 0 0);
+  --foreground: oklch(14.1% 0.005 285.823);
+  --card: oklch(100% 0 0);
+  --card-foreground: oklch(14.1% 0.005 285.823);
+  --popover: oklch(100% 0 0);
+  --popover-foreground: oklch(14.1% 0.005 285.823);
+
+  --primary: oklch(21% 0.006 285.885);
+  --primary-foreground: oklch(98.5% 0 0);
+  --secondary: oklch(96.7% 0.001 286.375);
+  --secondary-foreground: oklch(21% 0.006 285.885);
+  --muted: oklch(96.7% 0.001 286.375);
+  --muted-foreground: oklch(55.6% 0.01 286);
+  --accent: oklch(96.7% 0.001 286.375);
+  --accent-foreground: oklch(21% 0.006 285.885);
+
+  /* Semantic (badges / banners) */
+  --success: oklch(72.3% 0.219 149.579);
+  --success-foreground: oklch(100% 0 0);
+  --warning: oklch(85.2% 0.199 91.936);
+  --warning-foreground: oklch(21% 0.006 285.885);
+  --destructive: oklch(63.7% 0.237 25.331);
+  --destructive-foreground: oklch(100% 0 0);
+  --info: oklch(62.3% 0.209 255.092);
+  --info-foreground: oklch(100% 0 0);
+  --purple: oklch(62% 0.22 293);
+  --purple-foreground: oklch(100% 0 0);
+
+  /* Borders / input / ring */
+  --border: oklch(92.2% 0.004 286.32);
+  --input: oklch(92.2% 0.004 286.32);
+  --ring: oklch(21% 0.006 285.885);
+
+  /* ---------------- BRAND ACCENT (additive to admin palette) ---------------- */
+  --brand: oklch(52% 0.09 185);          /* teal ~ #0D7A76 */
+  --brand-foreground: oklch(100% 0 0);
+  --brand-muted: oklch(95% 0.02 185);    /* pale teal surface */
+  --brand-strong: oklch(42% 0.1 185);    /* deeper teal for hover / press */
+}
+
+[data-theme="dark"] {
+  --background: oklch(14.1% 0.005 285.823);
+  --foreground: oklch(98.5% 0 0);
+  --card: oklch(14.1% 0.005 285.823);
+  --card-foreground: oklch(98.5% 0 0);
+  --popover: oklch(14.1% 0.005 285.823);
+  --popover-foreground: oklch(98.5% 0 0);
+
+  --primary: oklch(98.5% 0 0);
+  --primary-foreground: oklch(21% 0.006 285.885);
+  --secondary: oklch(27.4% 0.006 286.033);
+  --secondary-foreground: oklch(98.5% 0 0);
+  --muted: oklch(27.4% 0.006 286.033);
+  --muted-foreground: oklch(71.2% 0.01 286);
+  --accent: oklch(27.4% 0.006 286.033);
+  --accent-foreground: oklch(98.5% 0 0);
+
+  --success: oklch(79.2% 0.209 151.711);
+  --success-foreground: oklch(14.1% 0.005 285.823);
+  --warning: oklch(88.5% 0.199 91.936);
+  --warning-foreground: oklch(14.1% 0.005 285.823);
+  --destructive: oklch(63.7% 0.237 25.331);
+  --destructive-foreground: oklch(98.5% 0 0);
+  --info: oklch(70.7% 0.165 254.624);
+  --info-foreground: oklch(14.1% 0.005 285.823);
+  --purple: oklch(70% 0.2 293);
+  --purple-foreground: oklch(14.1% 0.005 285.823);
+
+  --border: oklch(27.4% 0.006 286.033);
+  --input: oklch(27.4% 0.006 286.033);
+  --ring: oklch(84.3% 0.003 286);
+
+  --brand: oklch(68% 0.13 185);
+  --brand-foreground: oklch(14.1% 0.005 285.823);
+  --brand-muted: oklch(24% 0.04 185);
+  --brand-strong: oklch(80% 0.1 185);
+}
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme]) {
+    --background: oklch(14.1% 0.005 285.823);
+    --foreground: oklch(98.5% 0 0);
+    --card: oklch(14.1% 0.005 285.823);
+    --card-foreground: oklch(98.5% 0 0);
+    --popover: oklch(14.1% 0.005 285.823);
+    --popover-foreground: oklch(98.5% 0 0);
+    --primary: oklch(98.5% 0 0);
+    --primary-foreground: oklch(21% 0.006 285.885);
+    --secondary: oklch(27.4% 0.006 286.033);
+    --secondary-foreground: oklch(98.5% 0 0);
+    --muted: oklch(27.4% 0.006 286.033);
+    --muted-foreground: oklch(71.2% 0.01 286);
+    --accent: oklch(27.4% 0.006 286.033);
+    --accent-foreground: oklch(98.5% 0 0);
+    --success: oklch(79.2% 0.209 151.711);
+    --warning: oklch(88.5% 0.199 91.936);
+    --destructive: oklch(63.7% 0.237 25.331);
+    --info: oklch(70.7% 0.165 254.624);
+    --border: oklch(27.4% 0.006 286.033);
+    --input: oklch(27.4% 0.006 286.033);
+    --ring: oklch(84.3% 0.003 286);
+    --brand: oklch(68% 0.13 185);
+    --brand-muted: oklch(24% 0.04 185);
+  }
+}
+
+/* -------------------- SEMANTIC TYPOGRAPHY -------------------- */
+
+body, .body {
+  font-family: var(--font-sans);
+  font-size: var(--text-sm);
+  font-weight: var(--fw-regular);
+  color: var(--foreground);
+  background: var(--background);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+.h1, h1 {
+  font-family: var(--font-sans);
+  font-size: var(--text-lg);
+  font-weight: var(--fw-semibold);
+  letter-spacing: -0.01em;
+  line-height: 1.4;
+}
+
+.h2, h2 {
+  font-family: var(--font-sans);
+  font-size: var(--text-base);
+  font-weight: var(--fw-semibold);
+  line-height: 1.5;
+}
+
+.display-xl {
+  font-family: var(--font-sans);
+  font-size: var(--text-6xl);
+  font-weight: var(--fw-semibold);
+  letter-spacing: -0.03em;
+  line-height: 1.05;
+}
+
+.display-lg {
+  font-size: var(--text-5xl);
+  font-weight: var(--fw-semibold);
+  letter-spacing: -0.02em;
+  line-height: 1.1;
+}
+
+.display-md {
+  font-size: var(--text-4xl);
+  font-weight: var(--fw-semibold);
+  letter-spacing: -0.02em;
+  line-height: 1.15;
+}
+
+.body-sm {
+  font-size: var(--text-sm);
+  line-height: 1.5;
+}
+
+.body-xs, small {
+  font-size: var(--text-xs);
+  line-height: 1.4;
+  color: var(--muted-foreground);
+}
+
+.mono, code, pre, kbd {
+  font-family: var(--font-mono);
+}
+
+.label-upper {
+  font-size: var(--text-xs);
+  font-weight: var(--fw-medium);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--muted-foreground);
+}
+
+.label {
+  font-size: var(--text-sm);
+  font-weight: var(--fw-medium);
+  color: var(--foreground);
+}
+
+a {
+  color: inherit;
+  text-underline-offset: 4px;
+}
+a:hover { text-decoration: underline; }
