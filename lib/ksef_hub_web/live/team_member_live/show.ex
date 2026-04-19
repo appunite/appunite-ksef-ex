@@ -16,8 +16,6 @@ defmodule KsefHubWeb.TeamMemberLive.Show do
   alias KsefHub.Companies
   alias KsefHub.Companies.Membership
   alias KsefHub.Invitations
-  alias KsefHub.Invoices
-  alias KsefHub.Repo
 
   @impl true
   def mount(_params, _session, socket) do
@@ -114,7 +112,7 @@ defmodule KsefHubWeb.TeamMemberLive.Show do
 
     with :ok <- check_not_owner(membership),
          :ok <- check_not_self(membership.user_id, current_user.id) do
-      case block_member_and_revoke_tokens(membership) do
+      case Companies.block_member_and_revoke_tokens(membership, actor_opts(socket)) do
         {:ok, {updated, count}} ->
           maybe_emit_tokens_revoked(membership, count, socket)
 
@@ -229,23 +227,6 @@ defmodule KsefHubWeb.TeamMemberLive.Show do
   @spec check_role_allowed(atom(), [atom()]) :: :ok | {:error, String.t()}
   defp check_role_allowed(role, allowed) do
     if role in allowed, do: :ok, else: {:error, "Invalid role."}
-  end
-
-  @spec block_member_and_revoke_tokens(Membership.t()) ::
-          {:ok, {Membership.t(), non_neg_integer()}} | {:error, Ecto.Changeset.t()}
-  defp block_member_and_revoke_tokens(membership) do
-    Repo.transaction(fn ->
-      case Companies.block_member(membership) do
-        {:ok, updated} ->
-          count =
-            Invoices.delete_public_tokens_for_user(membership.user_id, membership.company_id)
-
-          {updated, count}
-
-        {:error, changeset} ->
-          Repo.rollback(changeset)
-      end
-    end)
   end
 
   @spec maybe_emit_tokens_revoked(Membership.t(), non_neg_integer(), Phoenix.LiveView.Socket.t()) ::

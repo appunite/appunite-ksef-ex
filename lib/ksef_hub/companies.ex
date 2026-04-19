@@ -10,6 +10,7 @@ defmodule KsefHub.Companies do
   alias KsefHub.Accounts.User
   alias KsefHub.ActivityLog.TrackedRepo
   alias KsefHub.Companies.{Company, CompanyBankAccount, Membership}
+  alias KsefHub.Invoices
   alias KsefHub.Repo
 
   # ---------------------------------------------------------------------------
@@ -365,6 +366,25 @@ defmodule KsefHub.Companies do
     membership
     |> Membership.status_changeset(%{status: :blocked})
     |> TrackedRepo.update(opts)
+  end
+
+  @doc """
+  Atomically blocks a member and revokes all of their public invoice sharing tokens
+  within the same company. Returns `{:ok, {updated_membership, revoked_count}}` on success.
+  """
+  @spec block_member_and_revoke_tokens(Membership.t(), keyword()) ::
+          {:ok, {Membership.t(), non_neg_integer()}} | {:error, Ecto.Changeset.t()}
+  def block_member_and_revoke_tokens(%Membership{} = membership, opts \\ []) do
+    Repo.transaction(fn ->
+      case block_member(membership, opts) do
+        {:ok, updated} ->
+          count = Invoices.delete_public_tokens_for_user(membership.user_id, membership.company_id)
+          {updated, count}
+
+        {:error, changeset} ->
+          Repo.rollback(changeset)
+      end
+    end)
   end
 
   @doc "Unblocks a membership, restoring active status."

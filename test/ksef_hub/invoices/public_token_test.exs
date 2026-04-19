@@ -188,9 +188,9 @@ defmodule KsefHub.Invoices.PublicTokenTest do
       {:ok, pt, _} = Invoices.ensure_public_token(invoice, user.id)
       assert Invoices.get_invoice_by_public_token(pt.token) != nil
 
-      {:ok, _} = Companies.block_member(membership)
-      Invoices.delete_public_tokens_for_user(user.id, company.id)
+      {:ok, {_updated, revoked_count}} = Companies.block_member_and_revoke_tokens(membership)
 
+      assert revoked_count == 1
       assert Invoices.get_invoice_by_public_token(pt.token) == nil
     end
   end
