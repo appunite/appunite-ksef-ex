@@ -6,8 +6,8 @@ defmodule KsefHub.Invoices.PublicTokenTest do
 
   alias KsefHub.Companies
   alias KsefHub.Invoices
-  alias KsefHub.Invoices.InvoicePublicToken
   alias KsefHub.Invoices.Invoice
+  alias KsefHub.Invoices.InvoicePublicToken
   alias KsefHub.Repo
 
   describe "ensure_public_token/2" do

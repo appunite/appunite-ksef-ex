@@ -114,33 +114,9 @@ defmodule KsefHubWeb.TeamMemberLive.Show do
 
     with :ok <- check_not_owner(membership),
          :ok <- check_not_self(membership.user_id, current_user.id) do
-      result =
-        Repo.transaction(fn ->
-          case Companies.block_member(membership) do
-            {:ok, updated} ->
-              count =
-                Invoices.delete_public_tokens_for_user(
-                  membership.user_id,
-                  membership.company_id
-                )
-
-              {updated, count}
-
-            {:error, changeset} ->
-              Repo.rollback(changeset)
-          end
-        end)
-
-      case result do
+      case block_member_and_revoke_tokens(membership) do
         {:ok, {updated, count}} ->
-          if count > 0 do
-            Events.member_public_tokens_revoked(
-              membership.user_id,
-              membership.company_id,
-              count,
-              actor_opts(socket)
-            )
-          end
+          maybe_emit_tokens_revoked(membership, count, socket)
 
           {:noreply,
            socket
@@ -253,6 +229,38 @@ defmodule KsefHubWeb.TeamMemberLive.Show do
   @spec check_role_allowed(atom(), [atom()]) :: :ok | {:error, String.t()}
   defp check_role_allowed(role, allowed) do
     if role in allowed, do: :ok, else: {:error, "Invalid role."}
+  end
+
+  @spec block_member_and_revoke_tokens(Membership.t()) ::
+          {:ok, {Membership.t(), non_neg_integer()}} | {:error, Ecto.Changeset.t()}
+  defp block_member_and_revoke_tokens(membership) do
+    Repo.transaction(fn ->
+      case Companies.block_member(membership) do
+        {:ok, updated} ->
+          count =
+            Invoices.delete_public_tokens_for_user(membership.user_id, membership.company_id)
+
+          {updated, count}
+
+        {:error, changeset} ->
+          Repo.rollback(changeset)
+      end
+    end)
+  end
+
+  @spec maybe_emit_tokens_revoked(Membership.t(), non_neg_integer(), Phoenix.LiveView.Socket.t()) ::
+          :ok
+  defp maybe_emit_tokens_revoked(_membership, 0, _socket), do: :ok
+
+  defp maybe_emit_tokens_revoked(membership, count, socket) when count > 0 do
+    Events.member_public_tokens_revoked(
+      membership.user_id,
+      membership.company_id,
+      count,
+      actor_opts(socket)
+    )
+
+    :ok
   end
 
   defdelegate assignable_roles(role), to: Membership
