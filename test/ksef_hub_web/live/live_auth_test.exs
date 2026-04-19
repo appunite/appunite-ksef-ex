@@ -111,4 +111,64 @@ defmodule KsefHubWeb.LiveAuthTest do
                |> live(~p"/c/#{company.id}/settings/categories")
     end
   end
+
+  describe "IDOR: company_id in URL must match user's membership" do
+    test "user requesting another company's URL is redirected — not their company", %{conn: conn} do
+      user = insert(:user)
+      their_company = insert(:company)
+      other_company = insert(:company)
+      insert(:membership, user: user, company: their_company, role: :owner)
+
+      # User has no membership in other_company — must be denied
+      {:error, {:redirect, %{to: "/companies", flash: flash}}} =
+        conn
+        |> log_in_user(user)
+        |> live(~p"/c/#{other_company.id}/invoices")
+
+      assert flash["error"] =~ "don't have access"
+    end
+
+    test "user with no memberships at all is denied every company-scoped URL", %{conn: conn} do
+      user = insert(:user)
+      company = insert(:company)
+
+      {:error, {:redirect, %{to: "/companies"}}} =
+        conn
+        |> log_in_user(user)
+        |> live(~p"/c/#{company.id}/invoices")
+    end
+
+    test "analyst is denied dashboard but can access invoices", %{conn: conn} do
+      user = insert(:user)
+      company = insert(:company)
+      insert(:membership, user: user, company: company, role: :analyst)
+
+      expected_path = "/c/#{company.id}/invoices"
+
+      # Dashboard requires :view_dashboard — analyst does not have it
+      assert {:error, {:redirect, %{to: ^expected_path}}} =
+               conn
+               |> log_in_user(user, %{current_company_id: company.id})
+               |> live(~p"/c/#{company.id}/dashboard")
+
+      # Invoice list is in the unguarded :authenticated session — analyst can access
+      assert {:ok, _, _} =
+               conn
+               |> log_in_user(user, %{current_company_id: company.id})
+               |> live(~p"/c/#{company.id}/invoices")
+    end
+
+    test "analyst is denied settings page", %{conn: conn} do
+      user = insert(:user)
+      company = insert(:company)
+      insert(:membership, user: user, company: company, role: :analyst)
+
+      expected_path = "/c/#{company.id}/invoices"
+
+      assert {:error, {:redirect, %{to: ^expected_path}}} =
+               conn
+               |> log_in_user(user, %{current_company_id: company.id})
+               |> live(~p"/c/#{company.id}/settings")
+    end
+  end
 end

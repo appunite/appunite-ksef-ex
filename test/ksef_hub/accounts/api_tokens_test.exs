@@ -143,7 +143,7 @@ defmodule KsefHub.Accounts.ApiTokensTest do
     test "create_api_token/3 allows reviewer role" do
       user = create_user()
       company = insert(:company)
-      insert(:membership, user: user, company: company, role: :reviewer)
+      insert(:membership, user: user, company: company, role: :approver)
 
       assert {:ok, %{token: _, api_token: api_token}} =
                Accounts.create_api_token(user.id, company.id, %{name: "Reviewer Token"})
@@ -228,7 +228,7 @@ defmodule KsefHub.Accounts.ApiTokensTest do
     test "revoke_api_token/3 allows reviewer role" do
       user = create_user()
       company = insert(:company)
-      insert(:membership, user: user, company: company, role: :reviewer)
+      insert(:membership, user: user, company: company, role: :approver)
 
       token = insert(:api_token, created_by: user, company: company)
 

@@ -24,8 +24,6 @@ defmodule KsefHub.Invoices.Invoice do
   @type duplicate_status :: :suspected | :confirmed | :dismissed
   @type prediction_status :: :pending | :predicted | :needs_review | :manual
 
-  @derive {Inspect, except: [:public_token]}
-
   @primary_key {:id, :binary_id, autogenerate: true}
   @foreign_key_type :binary_id
 
@@ -94,7 +92,6 @@ defmodule KsefHub.Invoices.Invoice do
     has_one :inbound_email, KsefHub.InboundEmail.InboundEmail
     has_many :access_grants, KsefHub.Invoices.InvoiceAccessGrant
 
-    field :public_token, :string
     field :expense_cost_line, Ecto.Enum, values: CostLine.values()
     field :project_tag, :string
     field :is_excluded, :boolean, default: false

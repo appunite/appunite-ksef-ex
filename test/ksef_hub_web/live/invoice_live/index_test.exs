@@ -479,7 +479,7 @@ defmodule KsefHubWeb.InvoiceLive.IndexTest do
 
       {:ok, _view, html} = live(conn, ~p"/c/#{company.id}/invoices")
       # The restricted invoice row should contain the lock icon title
-      assert html =~ "Access restricted to invited reviewers"
+      assert html =~ "Access restricted to invited members"
     end
 
     test "does not show lock icon for unrestricted invoices", %{conn: conn, company: company} do
@@ -491,7 +491,7 @@ defmodule KsefHubWeb.InvoiceLive.IndexTest do
       )
 
       {:ok, _view, html} = live(conn, ~p"/c/#{company.id}/invoices")
-      refute html =~ "Access restricted to invited reviewers"
+      refute html =~ "Access restricted to invited members"
     end
 
     test "lock icon appears before correction badge in the row", %{conn: conn, company: company} do
@@ -504,7 +504,7 @@ defmodule KsefHubWeb.InvoiceLive.IndexTest do
 
       {:ok, _view, html} = live(conn, ~p"/c/#{company.id}/invoices")
 
-      lock_pos = html |> :binary.match("Access restricted to invited reviewers") |> elem(0)
+      lock_pos = html |> :binary.match("Access restricted to invited members") |> elem(0)
       badge_pos = html |> :binary.match("text-purple-400") |> elem(0)
 
       assert lock_pos < badge_pos
@@ -521,7 +521,7 @@ defmodule KsefHubWeb.InvoiceLive.IndexTest do
         })
 
       company = insert(:company)
-      insert(:membership, user: reviewer, company: company, role: :reviewer)
+      insert(:membership, user: reviewer, company: company, role: :approver)
 
       conn = build_conn() |> log_in_user(reviewer, %{current_company_id: company.id})
       %{conn: conn, company: company}

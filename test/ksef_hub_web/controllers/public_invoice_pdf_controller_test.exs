@@ -14,9 +14,10 @@ defmodule KsefHubWeb.PublicInvoicePdfControllerTest do
     company = insert(:company)
     pdf_file = insert(:file, content: "%PDF-fake-content", content_type: "application/pdf")
     invoice = insert(:invoice, company: company, pdf_file: pdf_file)
-    {:ok, invoice} = Invoices.generate_public_token(invoice)
+    user = insert(:user)
+    {:ok, pt, _} = Invoices.ensure_public_token(invoice, user.id)
 
-    %{company: company, invoice: invoice, token: invoice.public_token}
+    %{company: company, invoice: invoice, token: pt.token}
   end
 
   describe "show/2" do
@@ -54,14 +55,14 @@ defmodule KsefHubWeb.PublicInvoicePdfControllerTest do
       company = insert(:company)
       xml_file = insert(:file, content: "<xml>data</xml>", content_type: "application/xml")
       invoice = insert(:invoice, company: company, xml_file: xml_file, pdf_file: nil)
-      {:ok, invoice} = Invoices.generate_public_token(invoice)
+      user = insert(:user)
+      {:ok, pt, _} = Invoices.ensure_public_token(invoice, user.id)
 
       stub(KsefHub.PdfRenderer.Mock, :generate_pdf, fn _xml, _meta ->
         {:ok, "%PDF-generated"}
       end)
 
-      conn =
-        get(conn, ~p"/public/invoices/#{invoice.id}/pdf?token=#{invoice.public_token}&inline=1")
+      conn = get(conn, ~p"/public/invoices/#{invoice.id}/pdf?token=#{pt.token}&inline=1")
 
       assert conn.status == 200
       assert conn.resp_body == "%PDF-generated"

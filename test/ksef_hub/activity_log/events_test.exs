@@ -240,7 +240,7 @@ defmodule KsefHub.ActivityLog.EventsTest do
         id: Ecto.UUID.generate(),
         company_id: company.id,
         email: "accepter@example.com",
-        role: :reviewer
+        role: :approver
       }
 
       Events.invitation_accepted(invitation, user)
@@ -252,7 +252,7 @@ defmodule KsefHub.ActivityLog.EventsTest do
                          action: "team.invitation_accepted",
                          user_id: ^user_id,
                          actor_label: "Accepter",
-                         metadata: %{"email" => "accepter@example.com", "role" => "reviewer"}
+                         metadata: %{"email" => "accepter@example.com", "role" => "approver"}
                        }}
     end
   end

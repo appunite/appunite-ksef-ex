@@ -70,7 +70,7 @@ defmodule KsefHubWeb.TeamMemberLive.ShowTest do
 
       view
       |> form("[data-testid='name-form']", %{
-        "user" => %{"name" => "New Name", "role" => "reviewer"}
+        "user" => %{"name" => "New Name", "role" => "approver"}
       })
       |> render_submit()
 
@@ -80,7 +80,7 @@ defmodule KsefHubWeb.TeamMemberLive.ShowTest do
       assert updated_user.name == "New Name"
 
       updated_membership = Companies.get_membership(member.id, company.id)
-      assert updated_membership.role == :reviewer
+      assert updated_membership.role == :approver
     end
   end
 
@@ -96,7 +96,7 @@ defmodule KsefHubWeb.TeamMemberLive.ShowTest do
 
       # Change to reviewer via validate event
       render_change(view, "validate_member", %{
-        "user" => %{"name" => "Desc Test", "role" => "reviewer"}
+        "user" => %{"name" => "Desc Test", "role" => "approver"}
       })
 
       assert render(view) =~ "expense invoices"
@@ -113,14 +113,14 @@ defmodule KsefHubWeb.TeamMemberLive.ShowTest do
 
       view
       |> form("[data-testid='name-form']", %{
-        "user" => %{"name" => "Role Target", "role" => "reviewer"}
+        "user" => %{"name" => "Role Target", "role" => "approver"}
       })
       |> render_submit()
 
       assert has_element?(view, "#flash-info", "Changes saved")
 
       updated = Companies.get_membership(member.id, company.id)
-      assert updated.role == :reviewer
+      assert updated.role == :approver
     end
 
     test "cannot change own role", %{conn: conn, company: company, owner_membership: om} do
@@ -242,7 +242,7 @@ defmodule KsefHubWeb.TeamMemberLive.ShowTest do
       {:ok, %{invitation: invitation}} =
         Invitations.create_invitation(owner.id, company.id, %{
           email: "invitee@example.com",
-          role: :reviewer
+          role: :approver
         })
 
       {:ok, view, _html} =

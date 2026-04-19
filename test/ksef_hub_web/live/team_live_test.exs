@@ -90,7 +90,7 @@ defmodule KsefHubWeb.TeamLiveTest do
       {:ok, %{invitation: invitation}} =
         Invitations.create_invitation(owner.id, company.id, %{
           email: "pending@example.com",
-          role: :reviewer
+          role: :approver
         })
 
       {:ok, view, _html} = live(conn, ~p"/c/#{company.id}/settings/team")
@@ -204,7 +204,7 @@ defmodule KsefHubWeb.TeamLiveTest do
 
       view
       |> form("[data-testid='invite-form']", %{
-        "invitation" => %{"email" => "resend@example.com", "role" => "reviewer"}
+        "invitation" => %{"email" => "resend@example.com", "role" => "approver"}
       })
       |> render_submit()
 

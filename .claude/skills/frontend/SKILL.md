@@ -5,6 +5,12 @@ description: Generate frontend UI code matching project patterns — Phoenix com
 
 You are generating frontend code for a Phoenix LiveView app that uses a **hybrid styling approach**: custom Phoenix components with shadcn/ui color tokens as the primary system, with DaisyUI 5 used selectively for interactive behaviors.
 
+## Design System Reference (read before generating code)
+
+- `DESIGN_SYSTEM.md` — 10 rules that must be followed (monospace for IDs/amounts, badge-only for status, dense table padding, accent token hover, etc.)
+- `docs/design_system/ui_kits/admin/` — JSX prototype screens; visual source of truth for any screen you're porting (`Primitives.jsx`, `AppShell.jsx`, screen-specific files)
+- `docs/design_system/colors_and_type.css` — full token list for both themes
+
 ## Rules
 
 1. **Reuse existing components** from `CoreComponents` and `InvoiceComponents` before creating new ones

@@ -22,7 +22,7 @@ defmodule KsefHubWeb.TeamLive.Invite do
      socket
      |> assign(
        page_title: "Invite Member",
-       form: to_form(%{"email" => "", "role" => "reviewer"}, as: :invitation),
+       form: to_form(%{"email" => "", "role" => "approver"}, as: :invitation),
        email_error: nil
      )}
   end
@@ -179,6 +179,6 @@ defmodule KsefHubWeb.TeamLive.Invite do
 
   @spec role_options() :: [{String.t(), String.t()}]
   defp role_options do
-    [{"Admin", "admin"}, {"Accountant", "accountant"}, {"Reviewer", "reviewer"}]
+    [{"Admin", "admin"}, {"Accountant", "accountant"}, {"Approver", "approver"}]
   end
 end

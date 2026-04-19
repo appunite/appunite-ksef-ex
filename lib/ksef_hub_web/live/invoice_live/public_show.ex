@@ -33,15 +33,15 @@ defmodule KsefHubWeb.InvoiceLive.PublicShow do
          {:invoice, %Invoice{} = invoice} <-
            {:invoice, Invoices.get_invoice_by_public_token(token)},
          {:match, true} <- {:match, invoice.id == id} do
-      maybe_redirect_member(socket, invoice)
+      maybe_redirect_member(socket, invoice, token)
     else
       _ -> {:noreply, redirect(socket, to: ~p"/") |> put_flash(:error, "Invoice not found.")}
     end
   end
 
-  @spec maybe_redirect_member(Phoenix.LiveView.Socket.t(), Invoice.t()) ::
+  @spec maybe_redirect_member(Phoenix.LiveView.Socket.t(), Invoice.t(), String.t()) ::
           {:noreply, Phoenix.LiveView.Socket.t()}
-  defp maybe_redirect_member(socket, invoice) do
+  defp maybe_redirect_member(socket, invoice, token) do
     user = socket.assigns[:current_user]
 
     if user && member_of_company?(user.id, invoice.company_id) do
@@ -52,6 +52,7 @@ defmodule KsefHubWeb.InvoiceLive.PublicShow do
        |> assign(
          page_title: "Invoice #{invoice.invoice_number}",
          invoice: invoice,
+         token: token,
          html_preview: generate_preview(invoice)
        )}
     end
@@ -108,7 +109,7 @@ defmodule KsefHubWeb.InvoiceLive.PublicShow do
             class="border border-border rounded-lg overflow-hidden flex-1 min-h-[600px]"
           >
             <iframe
-              src={~p"/public/invoices/#{@invoice.id}/pdf?token=#{@invoice.public_token}&inline=1"}
+              src={~p"/public/invoices/#{@invoice.id}/pdf?token=#{@token}&inline=1"}
               class="w-full h-full bg-white"
               sandbox="allow-same-origin"
               title="Invoice PDF preview"

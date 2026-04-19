@@ -39,7 +39,7 @@ defmodule KsefHubWeb.SettingsLive.GeneralTest do
       company: company
     } do
       reviewer = insert(:user)
-      insert(:membership, user: reviewer, company: company, role: :reviewer)
+      insert(:membership, user: reviewer, company: company, role: :approver)
       conn = log_in_user(conn, reviewer, %{current_company_id: company.id})
 
       {:ok, view, _html} = live(conn, ~p"/c/#{company.id}/settings")

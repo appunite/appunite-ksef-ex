@@ -234,19 +234,30 @@ defmodule KsefHubWeb.InvoiceLive.ShowTest do
       html = view |> element(~s([data-testid="copy-public-link"])) |> render_click()
 
       assert html =~ "Public link copied to clipboard."
-      updated = KsefHub.Repo.get!(KsefHub.Invoices.Invoice, invoice.id)
-      assert updated.public_token != nil
     end
 
-    test "is idempotent — reuses existing token", %{conn: conn, company: company} do
+    test "is idempotent — reuses existing token for the same user", %{
+      conn: conn,
+      company: company,
+      user: user
+    } do
       invoice = insert(:invoice, company: company)
-      {:ok, invoice} = Invoices.generate_public_token(invoice)
 
       {:ok, view, _html} = live(conn, ~p"/c/#{company.id}/invoices/#{invoice.id}")
       view |> element(~s([data-testid="copy-public-link"])) |> render_click()
+      view |> element(~s([data-testid="copy-public-link"])) |> render_click()
 
-      updated = KsefHub.Repo.get!(KsefHub.Invoices.Invoice, invoice.id)
-      assert updated.public_token == invoice.public_token
+      import Ecto.Query
+      alias KsefHub.Invoices.InvoicePublicToken
+
+      count =
+        Repo.one(
+          from pt in InvoicePublicToken,
+            where: pt.invoice_id == ^invoice.id and pt.user_id == ^user.id,
+            select: count()
+        )
+
+      assert count == 1
     end
   end
 
@@ -1117,7 +1128,7 @@ defmodule KsefHubWeb.InvoiceLive.ShowTest do
         })
 
       company = insert(:company)
-      insert(:membership, user: reviewer, company: company, role: :reviewer)
+      insert(:membership, user: reviewer, company: company, role: :approver)
 
       conn = build_conn() |> log_in_user(reviewer, %{current_company_id: company.id})
       stub(KsefHub.PdfRenderer.Mock, :generate_html, fn _xml, _meta -> {:error, :no_xml} end)
@@ -1174,7 +1185,7 @@ defmodule KsefHubWeb.InvoiceLive.ShowTest do
         })
 
       company = insert(:company)
-      insert(:membership, user: reviewer, company: company, role: :reviewer)
+      insert(:membership, user: reviewer, company: company, role: :approver)
 
       conn = build_conn() |> log_in_user(reviewer, %{current_company_id: company.id})
       invoice = insert(:invoice, type: :expense, company: company)
@@ -1206,7 +1217,7 @@ defmodule KsefHubWeb.InvoiceLive.ShowTest do
         insert(:invoice, type: :expense, company: company, access_restricted: true)
 
       reviewer = insert(:user, name: "Granted Reviewer")
-      insert(:membership, user: reviewer, company: company, role: :reviewer)
+      insert(:membership, user: reviewer, company: company, role: :approver)
 
       {:ok, view, _html} = live(conn, ~p"/c/#{company.id}/invoices/#{invoice.id}")
 

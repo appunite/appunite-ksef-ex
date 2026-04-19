@@ -140,7 +140,7 @@ defmodule KsefHub.ActivityLog.TrackedRepoTest do
 
     test "emits member_removed for membership deletion", %{company: company, user: user} do
       other = insert(:user)
-      membership = insert(:membership, user: other, company: company, role: :reviewer)
+      membership = insert(:membership, user: other, company: company, role: :approver)
 
       {:ok, _deleted} =
         TrackedRepo.delete(membership, user_id: user.id, actor_label: user.name)

@@ -94,8 +94,8 @@ defmodule KsefHubWeb.InvoiceLive.Show do
            can_manage_access: can_manage_access,
            access_grants:
              if(can_manage_access, do: Invoices.list_access_grants(invoice.id), else: []),
-           company_reviewers:
-             if(can_manage_access, do: list_company_reviewers(company.id), else: []),
+           members_requiring_grants:
+             if(can_manage_access, do: list_members_requiring_grants(company.id), else: []),
            payment_status: payment_status,
            invoice_payment_requests: invoice_payment_requests,
            html_preview: generate_preview(invoice),
@@ -386,19 +386,24 @@ defmodule KsefHubWeb.InvoiceLive.Show do
   @impl true
   def handle_event("copy_public_link", _params, socket) do
     invoice = socket.assigns.invoice
+    user_id = socket.assigns.current_user.id
 
-    {:ok, updated} = Invoices.ensure_public_token(invoice)
-    url = url(~p"/public/invoices/#{updated.id}?token=#{updated.public_token}")
+    case Invoices.ensure_public_token(invoice, user_id) do
+      {:ok, pt, created?} ->
+        url = url(~p"/public/invoices/#{invoice.id}?token=#{pt.token}")
 
-    if invoice.public_token != updated.public_token do
-      Events.invoice_public_link_generated(updated, actor_opts(socket))
+        if created? == :created do
+          Events.invoice_public_link_generated(invoice, actor_opts(socket))
+        end
+
+        {:noreply,
+         socket
+         |> push_event("copy_to_clipboard", %{text: url})
+         |> put_flash(:info, "Public link copied to clipboard.")}
+
+      {:error, _reason} ->
+        {:noreply, put_flash(socket, :error, "Could not generate public link.")}
     end
-
-    {:noreply,
-     socket
-     |> assign(:invoice, %{invoice | public_token: updated.public_token})
-     |> push_event("copy_to_clipboard", %{text: url})
-     |> put_flash(:info, "Public link copied to clipboard.")}
   end
 
   # --- Events: Exclude/Include ---
@@ -649,7 +654,7 @@ defmodule KsefHubWeb.InvoiceLive.Show do
          )
          |> put_flash(
            :info,
-           if(new_value, do: "Access restricted.", else: "Access opened to all reviewers.")
+           if(new_value, do: "Access restricted.", else: "Access opened to all approvers.")
          )}
 
       {:error, :income_always_restricted} ->
@@ -1352,7 +1357,7 @@ defmodule KsefHubWeb.InvoiceLive.Show do
     <div :if={@can_manage_access} id="access-control-section" class="mt-6">
       <.access_control_card
         access_grants={@access_grants}
-        company_reviewers={@company_reviewers}
+        members_requiring_grants={@members_requiring_grants}
         invoice={@invoice}
       />
     </div>
@@ -1645,25 +1650,25 @@ defmodule KsefHubWeb.InvoiceLive.Show do
   @spec humanize_field(String.t()) :: String.t()
   defp humanize_field(field), do: Map.get(@field_labels, field, String.replace(field, "_", " "))
 
-  @spec list_company_reviewers(Ecto.UUID.t()) :: [map()]
-  defp list_company_reviewers(company_id) do
+  @spec list_members_requiring_grants(Ecto.UUID.t()) :: [map()]
+  defp list_members_requiring_grants(company_id) do
     company_id
     |> Companies.list_members()
     |> Enum.reject(&Authorization.can?(&1.role, :view_all_invoice_types))
   end
 
   attr :access_grants, :list, required: true
-  attr :company_reviewers, :list, required: true
+  attr :members_requiring_grants, :list, required: true
   attr :invoice, :map, required: true
 
   @spec access_control_card(map()) :: Phoenix.LiveView.Rendered.t()
   defp access_control_card(assigns) do
     granted_user_ids = MapSet.new(assigns.access_grants, & &1.user_id)
 
-    ungrantable_reviewers =
-      Enum.reject(assigns.company_reviewers, &MapSet.member?(granted_user_ids, &1.user_id))
+    members_already_granted =
+      Enum.reject(assigns.members_requiring_grants, &MapSet.member?(granted_user_ids, &1.user_id))
 
-    assigns = assign(assigns, ungrantable_reviewers: ungrantable_reviewers)
+    assigns = assign(assigns, members_already_granted: members_already_granted)
 
     ~H"""
     <.card padding="p-4">
@@ -1680,7 +1685,7 @@ defmodule KsefHubWeb.InvoiceLive.Show do
               name={if(@invoice.access_restricted, do: "hero-lock-closed", else: "hero-users")}
               class="size-4 text-muted-foreground"
             />
-            {if @invoice.access_restricted, do: "Only people invited", else: "All reviewers"}
+            {if @invoice.access_restricted, do: "Only people invited", else: "All approvers"}
             <.icon name="hero-chevron-down" class="size-3 text-muted-foreground" />
           </button>
           <div
@@ -1695,14 +1700,14 @@ defmodule KsefHubWeb.InvoiceLive.Show do
               class="flex w-full items-center gap-2.5 px-3 py-2 text-sm hover:bg-shad-accent rounded-t-md"
             >
               <.icon name="hero-users" class="size-4 text-muted-foreground" />
-              <span>All reviewers</span>
+              <span>All approvers</span>
             </button>
             <div
               :if={!@invoice.access_restricted}
               class="flex w-full items-center gap-2.5 px-3 py-2 text-sm bg-shad-accent rounded-t-md"
             >
               <.icon name="hero-users" class="size-4 text-muted-foreground" />
-              <span>All reviewers</span>
+              <span>All approvers</span>
               <.icon name="hero-check" class="size-4 ml-auto" />
             </div>
 
@@ -1728,12 +1733,12 @@ defmodule KsefHubWeb.InvoiceLive.Show do
       </div>
 
       <p :if={!@invoice.access_restricted} class="text-sm text-muted-foreground">
-        All reviewers in the company can view this invoice.
+        All approvers in the company can view this invoice.
       </p>
 
       <div :if={@invoice.access_restricted}>
         <p class="text-sm text-muted-foreground mb-3">
-          Only invited reviewers can view this invoice. Owners, admins, and accountants always have access.
+          Only invited members can view this invoice. Owners, admins, and accountants always have access.
         </p>
 
         <div :if={@access_grants != []} class="space-y-0.5 mb-3">
@@ -1758,13 +1763,13 @@ defmodule KsefHubWeb.InvoiceLive.Show do
           </div>
         </div>
 
-        <div :if={@ungrantable_reviewers != []}>
+        <div :if={@members_already_granted != []}>
           <form phx-submit="grant_access" class="flex items-center gap-2">
             <select
               name="user_id"
               class="h-8 flex-1 rounded-md border border-input bg-background px-2 text-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
             >
-              <option :for={member <- @ungrantable_reviewers} value={member.user_id}>
+              <option :for={member <- @members_already_granted} value={member.user_id}>
                 {member.user.name || member.user.email}
               </option>
             </select>
@@ -1775,16 +1780,16 @@ defmodule KsefHubWeb.InvoiceLive.Show do
         </div>
 
         <p
-          :if={@ungrantable_reviewers == [] && @company_reviewers == []}
+          :if={@members_already_granted == [] && @members_requiring_grants == []}
           class="text-xs text-muted-foreground"
         >
-          No reviewers in this company. Add reviewers from team settings.
+          No approvers in this company. Add approvers from team settings.
         </p>
         <p
-          :if={@ungrantable_reviewers == [] && @company_reviewers != []}
+          :if={@members_already_granted == [] && @members_requiring_grants != []}
           class="text-xs text-muted-foreground"
         >
-          All reviewers have been invited.
+          All approvers have been invited.
         </p>
       </div>
     </.card>
