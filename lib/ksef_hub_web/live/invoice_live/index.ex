@@ -477,11 +477,9 @@ defmodule KsefHubWeb.InvoiceLive.Index do
             </.link>
             <.restricted_icon :if={inv.access_restricted} />
           </div>
-          <div
-            :if={counterparty_nip(inv, @filters[:type])}
-            class="font-mono text-[11px] text-muted-foreground mt-0.5"
-          >
-            {counterparty_nip(inv, @filters[:type])}
+          <% nip = counterparty_nip(inv, @filters[:type]) %>
+          <div :if={nip} class="font-mono text-[11px] text-muted-foreground mt-0.5">
+            {nip}
           </div>
         </:col>
         <%!-- Amount: gross on top, net below --%>

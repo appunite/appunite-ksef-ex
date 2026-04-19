@@ -489,7 +489,7 @@ defmodule KsefHubWeb.CertificateLive do
       <.card :if={@certificate_history != []} class="mt-6">
         <h2 class="text-base font-semibold">Certificate history</h2>
         <p class="text-sm text-muted-foreground mt-0.5 mb-4">
-          Superseded and revoked certs stay in the audit log.
+          Deactivated certs stay in the audit log.
         </p>
         <div class="space-y-2">
           <div
@@ -501,10 +501,10 @@ defmodule KsefHubWeb.CertificateLive do
                 {cert.fingerprint || cert.certificate_subject || "—"}
               </div>
               <div class="text-xs text-muted-foreground mt-0.5">
-                replaced on {format_date(cert.updated_at)}
+                deactivated on {format_date(cert.updated_at)}
               </div>
             </div>
-            <.badge variant="muted">superseded</.badge>
+            <.badge variant="muted">inactive</.badge>
           </div>
         </div>
       </.card>
@@ -561,13 +561,18 @@ defmodule KsefHubWeb.CertificateLive do
   defp format_expiry(date) do
     days_left = Date.diff(date, Date.utc_today())
     date_str = format_date(date)
+    n = abs(days_left)
 
     cond do
-      days_left <= 0 -> "#{date_str} · #{abs(days_left)} days ago"
+      days_left <= 0 -> "#{date_str} · #{n} #{pluralize_days(n)} ago"
       days_left == 1 -> "#{date_str} · 1 day left"
       true -> "#{date_str} · #{days_left} days left"
     end
   end
+
+  @spec pluralize_days(non_neg_integer()) :: String.t()
+  defp pluralize_days(1), do: "day"
+  defp pluralize_days(_), do: "days"
 
   @spec format_bytes(non_neg_integer()) :: String.t()
   defp format_bytes(bytes), do: KsefHubWeb.UploadHelpers.format_bytes(bytes)

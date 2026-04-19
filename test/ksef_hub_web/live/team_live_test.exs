@@ -69,10 +69,9 @@ defmodule KsefHubWeb.TeamLiveTest do
 
       {:ok, view, _html} = live(conn, ~p"/c/#{company.id}/settings/team")
       assert has_element?(view, "[data-testid='member-row-#{member.id}']")
-      assert has_element?(view, "[data-testid='member-link-#{member.id}']")
 
       view
-      |> element("[data-testid='member-link-#{member.id}']")
+      |> element("[data-testid='member-row-#{member.id}']")
       |> render_click()
 
       assert_redirect(view, "/c/#{company.id}/settings/team/members/#{membership.id}")
@@ -95,10 +94,9 @@ defmodule KsefHubWeb.TeamLiveTest do
 
       {:ok, view, _html} = live(conn, ~p"/c/#{company.id}/settings/team")
       assert has_element?(view, "[data-testid='invitation-row-#{invitation.id}']")
-      assert has_element?(view, "[data-testid='invitation-link-#{invitation.id}']")
 
       view
-      |> element("[data-testid='invitation-link-#{invitation.id}']")
+      |> element("[data-testid='invitation-row-#{invitation.id}']")
       |> render_click()
 
       assert_redirect(view, ~p"/c/#{company.id}/settings/team/invitations/#{invitation.id}")

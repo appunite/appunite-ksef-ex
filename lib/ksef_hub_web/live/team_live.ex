@@ -98,26 +98,21 @@ defmodule KsefHubWeb.TeamLive do
                 <tr
                   :for={{dom_id, member} <- @streams.members}
                   id={dom_id}
-                  class="group border-b border-border hover:bg-shad-accent transition-colors cursor-pointer"
+                  class="group border-b border-border hover:bg-shad-accent transition-colors cursor-pointer focus:outline-none focus:bg-shad-accent"
+                  phx-click={JS.navigate(member_path(@current_company.id, member))}
+                  phx-keydown={JS.navigate(member_path(@current_company.id, member))}
+                  phx-key="Enter"
+                  tabindex="0"
+                  role="button"
                   data-testid={"member-row-#{member.user.id}"}
                 >
-                  <td
-                    class="py-3 px-4"
-                    phx-click={JS.navigate(member_path(@current_company.id, member))}
-                    data-testid={"member-link-#{member.user.id}"}
-                  >
+                  <td class="py-3 px-4">
                     <span class="font-mono text-xs">{member.user.email}</span>
                   </td>
-                  <td
-                    class="py-3 px-4 text-sm"
-                    phx-click={JS.navigate(member_path(@current_company.id, member))}
-                  >
+                  <td class="py-3 px-4 text-sm">
                     {member.user.name || "-"}
                   </td>
-                  <td
-                    class="py-3 px-4"
-                    phx-click={JS.navigate(member_path(@current_company.id, member))}
-                  >
+                  <td class="py-3 px-4">
                     <.badge variant="muted">{role_label(member.role)}</.badge>
                     <.badge
                       :if={member.status == :blocked}
@@ -162,20 +157,18 @@ defmodule KsefHubWeb.TeamLive do
               <tr
                 :for={{dom_id, inv} <- @streams.pending_invitations}
                 id={dom_id}
-                class="group border-b border-border hover:bg-shad-accent transition-colors cursor-pointer"
+                class="group border-b border-border hover:bg-shad-accent transition-colors cursor-pointer focus:outline-none focus:bg-shad-accent"
+                phx-click={JS.navigate(invitation_path(@current_company.id, inv))}
+                phx-keydown={JS.navigate(invitation_path(@current_company.id, inv))}
+                phx-key="Enter"
+                tabindex="0"
+                role="button"
                 data-testid={"invitation-row-#{inv.id}"}
               >
-                <td
-                  class="py-3 px-4"
-                  phx-click={JS.navigate(invitation_path(@current_company.id, inv))}
-                  data-testid={"invitation-link-#{inv.id}"}
-                >
+                <td class="py-3 px-4">
                   <span class="font-mono text-xs">{inv.email}</span>
                 </td>
-                <td
-                  class="py-3 px-4"
-                  phx-click={JS.navigate(invitation_path(@current_company.id, inv))}
-                >
+                <td class="py-3 px-4">
                   <span class="font-mono text-xs text-muted-foreground">
                     {Calendar.strftime(inv.expires_at, "%Y-%m-%d")}
                   </span>
@@ -188,10 +181,7 @@ defmodule KsefHubWeb.TeamLive do
                     Expired
                   </.badge>
                 </td>
-                <td
-                  class="py-3 px-4"
-                  phx-click={JS.navigate(invitation_path(@current_company.id, inv))}
-                >
+                <td class="py-3 px-4">
                   <.badge variant="muted">{role_label(inv.role)}</.badge>
                 </td>
                 <td class="w-0 py-3 pr-3 pl-0">
