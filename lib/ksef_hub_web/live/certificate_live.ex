@@ -497,7 +497,7 @@ defmodule KsefHubWeb.CertificateLive do
             <div>
               <div class="font-mono text-sm">{cert.fingerprint || cert.certificate_subject || "—"}</div>
               <div class="text-xs text-muted-foreground mt-0.5">
-                replaced on {Calendar.strftime(cert.updated_at, "%Y-%m-%d")}
+                replaced on {format_date(cert.updated_at)}
               </div>
             </div>
             <.badge variant="muted">superseded</.badge>

@@ -38,6 +38,7 @@ defmodule KsefHubWeb.TeamLive do
     |> assign(:pending_invitations_count, length(pending_invitations))
   end
 
+  @spec role_label(Membership.role()) :: String.t()
   defp role_label(role), do: Membership.role_label(role)
 
   @spec invitation_expired?(Invitations.Invitation.t()) :: boolean()

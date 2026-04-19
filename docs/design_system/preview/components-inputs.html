@@ -9,7 +9,7 @@
   .err{border-color:var(--destructive)}
   .errtxt{color:var(--destructive);font-size:12px;display:flex;align-items:center;gap:6px}
 </style></head><body>
-<div class="f"><label class="lbl">NIP</label><input class="inp" value="5252457316"></div>
-<div class="f"><label class="lbl">Invoice number</label><input class="inp" placeholder="FV/2026/01/0017"></div>
-<div class="f"><label class="lbl">Email</label><input class="inp err" value="not-an-email"><span class="errtxt">⚠ must be a valid email</span></div>
+<div class="f"><label class="lbl" for="nip-input">NIP</label><input id="nip-input" class="inp" value="5252457316"></div>
+<div class="f"><label class="lbl" for="invoice-input">Invoice number</label><input id="invoice-input" class="inp" placeholder="FV/2026/01/0017"></div>
+<div class="f"><label class="lbl" for="email-input">Email</label><input id="email-input" type="email" class="inp err" value="not-an-email" aria-invalid="true" aria-describedby="email-error"><span id="email-error" class="errtxt">⚠ must be a valid email</span></div>
 </body></html>

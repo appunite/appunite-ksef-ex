@@ -123,7 +123,7 @@ const CERT = {
   serial: "03:9A:2B:F1:88:C4:0E:11",
   issued: "2025-01-14",
   expires: "2026-04-20",
-  daysLeft: 96,
+  daysLeft: 1,
   status: "ok",
 };
 

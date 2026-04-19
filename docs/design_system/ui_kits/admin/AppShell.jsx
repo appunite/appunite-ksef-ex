@@ -86,10 +86,39 @@ const AvatarMenu = ({ email, onLogout }) => {
   );
 };
 
-const AppShell = ({ page, onNav, children, company, companies, onPickCompany, user }) => (
+const MobileNav = ({ page, onNav }) => {
+  const [open, setOpen] = React.useState(false);
+  return (
+    <div className="relative md:hidden">
+      <button onClick={() => setOpen(o => !o)}
+        aria-label="Open menu"
+        aria-expanded={open}
+        className="inline-flex items-center justify-center h-9 w-9 rounded-md border border-[var(--border)] bg-[var(--background)] hover:bg-[var(--accent)] cursor-pointer transition-colors">
+        <Icon name="bars" size={16} />
+      </button>
+      {open && (
+        <>
+          <div className="fixed inset-0 z-40" onClick={() => setOpen(false)} />
+          <div className="absolute left-0 top-full mt-1 z-50 p-1 border border-[var(--border)] bg-[var(--popover)] rounded-md shadow-md w-56">
+            {NAV.map(item => (
+              <button key={item.path} onClick={() => { onNav(item.path); setOpen(false); }}
+                className={`flex w-full items-center gap-2 px-2 py-1.5 text-sm rounded-sm cursor-pointer transition-colors ${page === item.path ? "bg-[var(--accent)] font-medium" : "hover:bg-[var(--accent)]"}`}>
+                <Icon name={item.icon} size={14} />
+                {item.label}
+              </button>
+            ))}
+          </div>
+        </>
+      )}
+    </div>
+  );
+};
+
+const AppShell = ({ page, onNav, children, company, companies, onPickCompany, user, onLogout = () => {} }) => (
   <div className="min-h-screen flex flex-col bg-[var(--background)] text-[var(--foreground)]">
     <header className="sticky top-0 z-30 w-full border-b border-[var(--border)] bg-[color-mix(in_oklch,var(--background)_95%,transparent)] backdrop-blur">
       <div className="flex h-14 items-center px-4 lg:px-6 gap-4">
+        <MobileNav page={page} onNav={onNav} />
         <Logo />
         <nav className="hidden md:flex items-center gap-1 ml-4">
           {NAV.map(item => (
@@ -102,7 +131,7 @@ const AppShell = ({ page, onNav, children, company, companies, onPickCompany, us
         </nav>
         <div className="flex-1" />
         <CompanySelector current={company} companies={companies} onPick={onPickCompany} />
-        <AvatarMenu email={user.email} onLogout={() => {}} />
+        <AvatarMenu email={user.email} onLogout={onLogout} />
       </div>
     </header>
     <main className="flex-1 p-4 sm:p-6 lg:p-8">

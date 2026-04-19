@@ -71,6 +71,7 @@ defmodule KsefHubWeb.CompanyLive.Index do
         </:col>
         <:action>
           <.icon
+            :if={@can_manage_company}
             name="hero-chevron-right"
             class="size-3.5 text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity"
           />

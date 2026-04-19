@@ -84,7 +84,11 @@ const InvoiceRow = ({ inv, onClick }) => (
       {inv.nip && <div className="font-mono text-[11px] text-[var(--muted-foreground)] truncate">{inv.nip}</div>}
     </td>
     <td className="px-4 py-3 font-mono text-xs text-[var(--muted-foreground)] whitespace-nowrap" title={inv.date}>
-      {(() => { const d = new Date(inv.date); return d.toLocaleDateString("en-GB", { day: "2-digit", month: "short" }); })()}
+      {(() => {
+        const [y, m, d] = inv.date.split("-").map(Number);
+        const dt = new Date(y, m - 1, d);
+        return dt.toLocaleDateString("en-GB", { day: "2-digit", month: "short" });
+      })()}
     </td>
     <td className="px-4 py-3 text-right whitespace-nowrap">
       <div className="font-mono text-sm tabular-nums leading-tight">

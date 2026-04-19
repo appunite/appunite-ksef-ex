@@ -161,7 +161,13 @@ const SyncSchedulePanel = () => {
 };
 
 const AppearancePanel = () => {
-  const [theme, setTheme] = React.useState(() => document.documentElement.getAttribute("data-theme") || "light");
+  const [theme, setTheme] = React.useState(() => {
+    try {
+      const stored = localStorage.getItem("ksef-theme");
+      if (stored) return stored;
+    } catch (e) {}
+    return document.documentElement.getAttribute("data-theme") || "light";
+  });
   const set = (t) => {
     setTheme(t);
     if (t === "system") document.documentElement.removeAttribute("data-theme");

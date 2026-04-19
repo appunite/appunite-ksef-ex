@@ -100,7 +100,7 @@ Brand:     bg-brand-muted text-brand            border-brand/25
 ```
 
 > **Warning text:** `text-warning` is bright yellow — unreadable on a pale yellow background. Always use the CSS class `badge-warning-text` for warning text inside badges or similar surfaces. It resolves to `color-mix(in oklch, var(--color-warning) 60%, var(--foreground))`, producing a readable amber-brown in both light and dark mode.
-
+>
 > **Note:** `primary`, `secondary`, `accent` (without `shad-` prefix) are DaisyUI theme colors. Use `shad-primary`, `shad-secondary`, `shad-accent` for the shadcn variants.
 
 ---

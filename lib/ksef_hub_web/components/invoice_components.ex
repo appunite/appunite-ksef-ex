@@ -113,7 +113,8 @@ defmodule KsefHubWeb.InvoiceComponents do
   @doc """
   Renders a badge for the invoice kind. Shows a muted badge for plain VAT invoices,
   a purple badge for correction kinds, and an info badge for other non-standard kinds
-  (advance, simplified, etc.). Labels are rendered uppercase.
+  (advance, simplified, etc.). Labels are rendered as returned by
+  `KsefHub.Invoices.Invoice.invoice_kind_label/1` (mostly lowercase; `:vat` renders as `"VAT"`).
   """
   @spec invoice_kind_badge(map()) :: Phoenix.LiveView.Rendered.t()
   attr :kind, :atom, required: true
@@ -319,6 +320,7 @@ defmodule KsefHubWeb.InvoiceComponents do
   defp source_dot_color(:email), do: "bg-info"
   defp source_dot_color(:pdf_upload), do: "bg-warning"
   defp source_dot_color(:manual), do: "bg-muted-foreground"
+  defp source_dot_color(_), do: "bg-muted-foreground"
 
   @spec source_dot_label(atom()) :: String.t()
   defp source_dot_label(:ksef), do: "KSeF"

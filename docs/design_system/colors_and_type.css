@@ -155,11 +155,15 @@
     --warning: oklch(88.5% 0.199 91.936);
     --destructive: oklch(63.7% 0.237 25.331);
     --info: oklch(70.7% 0.165 254.624);
+    --purple: oklch(70% 0.2 293);
+    --purple-foreground: oklch(14.1% 0.005 285.823);
     --border: oklch(27.4% 0.006 286.033);
     --input: oklch(27.4% 0.006 286.033);
     --ring: oklch(84.3% 0.003 286);
     --brand: oklch(68% 0.13 185);
+    --brand-foreground: oklch(14.1% 0.005 285.823);
     --brand-muted: oklch(24% 0.04 185);
+    --brand-strong: oklch(80% 0.1 185);
   }
 }
 

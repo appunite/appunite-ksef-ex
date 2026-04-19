@@ -38,7 +38,7 @@ Key semantic pairs:
 
 ---
 
-## 2. The 10 rules that make it look right
+## 2. The 11 rules that make it look right
 
 These are the ones Claude Code gets wrong most often. Treat as constraints.
 
@@ -254,7 +254,7 @@ Fixed column order when applicable:
 2. **Per screen** in the real app, open a PR that links to the matching prototype file. In the PR description, paste:
    - Screenshot of prototype screen
    - Screenshot of current real screen
-   - Checklist of the 10 rules from §2
+   - Checklist of the 11 rules from §2
 3. **Ask Claude Code one screen at a time**, e.g.:
    > Port `app/views/payments/index.tsx` to match `ui_kits/admin/Payments.jsx`. Follow `docs/design-system/DESIGN_SYSTEM.md`. Reuse `Button`, `Badge`, `Card` from `app/components/ui/`. Keep existing data hooks. Output a diff, don't touch other files.
-4. **Review against §2**. Almost every miss is one of those 10 rules.
+4. **Review against §2**. Almost every miss is one of those 11 rules.

@@ -180,17 +180,21 @@ defmodule KsefHubWeb.InvoiceLive.Index do
   end
 
   def handle_event("trigger_sync", _params, socket) do
-    company_id = socket.assigns.current_company.id
+    if Authorization.can?(socket.assigns[:current_role], :trigger_sync) do
+      company_id = socket.assigns.current_company.id
 
-    case History.trigger_manual_sync(company_id, actor_opts(socket)) do
-      {:ok, _job} ->
-        {:noreply, put_flash(socket, :info, "Manual sync triggered.")}
+      case History.trigger_manual_sync(company_id, actor_opts(socket)) do
+        {:ok, _job} ->
+          {:noreply, put_flash(socket, :info, "Manual sync triggered.")}
 
-      {:error, :already_running} ->
-        {:noreply, put_flash(socket, :error, "A sync is already running.")}
+        {:error, :already_running} ->
+          {:noreply, put_flash(socket, :error, "A sync is already running.")}
 
-      {:error, _reason} ->
-        {:noreply, put_flash(socket, :error, "Manual sync failed.")}
+        {:error, _reason} ->
+          {:noreply, put_flash(socket, :error, "Manual sync failed.")}
+      end
+    else
+      {:noreply, put_flash(socket, :error, "Not authorized.")}
     end
   end
 

@@ -136,7 +136,7 @@ defmodule KsefHubWeb.PaymentRequestLiveTest do
       assert html =~ "PLN"
     end
 
-    test "voided payment request has no checkbox", %{
+    test "voided payment request has checkbox", %{
       conn: conn,
       company: company,
       owner: owner
@@ -155,8 +155,8 @@ defmodule KsefHubWeb.PaymentRequestLiveTest do
     end
 
     test "shows empty state", %{conn: conn, company: company} do
-      {:ok, _view, html} = live(conn, ~p"/c/#{company.id}/payment-requests")
-      assert html =~ "No data for selected period"
+      {:ok, view, _html} = live(conn, ~p"/c/#{company.id}/payment-requests")
+      assert has_element?(view, "p", "No data for selected period")
     end
 
     test "accountant can view payment requests", %{company: company} do

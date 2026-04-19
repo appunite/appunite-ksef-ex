@@ -71,12 +71,19 @@
               actions={<Button variant="primary"><Icon name="plus" size={14} /> Add company</Button>} />
             <Card padding="p-0">
               {COMPANIES.map((c, i) => (
-                <div key={c.id} className={`flex items-center justify-between px-5 py-3 ${i > 0 ? "border-t border-[var(--border)]" : ""}`}>
+                <div
+                  key={c.id}
+                  role="button"
+                  tabIndex={0}
+                  aria-label={`Open company ${c.name}`}
+                  onClick={() => {}}
+                  className={`group cursor-pointer flex items-center justify-between px-5 py-3 hover:bg-[var(--accent)] transition-colors ${i > 0 ? "border-t border-[var(--border)]" : ""}`}
+                >
                   <div>
                     <div className="text-sm font-medium">{c.name}</div>
                     <div className="text-xs font-mono text-[var(--muted-foreground)] mt-0.5">{c.nip}</div>
                   </div>
-                  <Button variant="ghost" size="sm">Open</Button>
+                  <Icon name="chevron-right" size={14} className="text-[var(--muted-foreground)] opacity-0 group-hover:opacity-100 transition-opacity" />
                 </div>
               ))}
             </Card>

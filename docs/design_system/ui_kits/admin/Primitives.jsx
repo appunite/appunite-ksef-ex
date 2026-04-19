@@ -28,6 +28,9 @@ const Icon = ({ name, size = 16, className = "" }) => {
     "moon": <path d="M21 12.8A9 9 0 1111.2 3a7 7 0 009.8 9.8z" />,
     "download": <path d="M12 4v12m-5-5l5 5 5-5M4 20h16" />,
     "lock": <><rect x="5" y="11" width="14" height="10" rx="2" /><path d="M8 11V7a4 4 0 018 0v4" /></>,
+    "tag": <path d="M2 12.5V4a2 2 0 012-2h8.5a1 1 0 01.7.3l8.5 8.5a1 1 0 010 1.4l-8.6 8.6a1 1 0 01-1.4 0l-8.5-8.5a1 1 0 01-.3-.7zM7 7h.01" />,
+    "hashtag": <path d="M5 9h14M5 15h14M10 3L8 21M16 3l-2 18" />,
+    "cash": <><rect x="3" y="6" width="18" height="12" rx="2" /><circle cx="12" cy="12" r="2.5" /><path d="M7 10v.01M17 14v.01" /></>,
   };
   return (
     <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor"

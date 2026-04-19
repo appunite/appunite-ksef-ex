@@ -64,7 +64,7 @@ const RecentSyncJobs = () => (
         </tr>
       </thead>
       <tbody>
-        {SYNC_JOBS.map(j => (
+        {(SYNC_JOBS ?? []).map(j => (
           <tr key={j.id} className="border-b border-[var(--border)] last:border-b-0 hover:bg-[var(--accent)]/50">
             <td className="px-5 py-2.5 font-mono text-xs text-[var(--muted-foreground)]">{j.inserted}</td>
             <td className="px-5 py-2.5">

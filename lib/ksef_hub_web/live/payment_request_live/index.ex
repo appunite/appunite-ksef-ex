@@ -39,7 +39,13 @@ defmodule KsefHubWeb.PaymentRequestLive.Index do
 
         _ ->
           empty = %{entries: [], page: 1, per_page: 25, total_count: 0, total_pages: 1}
-          empty_stats = %{pending_count: 0, pending_pln: Decimal.new(0), sent_this_month_pln: Decimal.new(0)}
+
+          empty_stats = %{
+            pending_count: 0,
+            pending_pln: Decimal.new(0),
+            sent_this_month_pln: Decimal.new(0)
+          }
+
           empty_counts = %{all: 0, pending: 0, paid: 0, voided: 0}
           {empty, empty_stats, empty_counts}
       end
@@ -138,7 +144,7 @@ defmodule KsefHubWeb.PaymentRequestLive.Index do
 
       selected =
         cond do
-          is_nil(pr) or not selectable?(pr) ->
+          is_nil(pr) ->
             socket.assigns.selected_ids
 
           MapSet.member?(socket.assigns.selected_ids, normalized_id) ->
@@ -156,10 +162,7 @@ defmodule KsefHubWeb.PaymentRequestLive.Index do
 
   def handle_event("toggle_select_all", _params, socket) do
     if socket.assigns.can_manage do
-      selectable_ids =
-        socket.assigns.payment_requests
-        |> Enum.filter(&selectable?/1)
-        |> MapSet.new(& &1.id)
+      selectable_ids = MapSet.new(socket.assigns.payment_requests, & &1.id)
 
       selected =
         if MapSet.equal?(socket.assigns.selected_ids, selectable_ids) do
@@ -256,10 +259,6 @@ defmodule KsefHubWeb.PaymentRequestLive.Index do
       "#{format_amount(total)} #{currency}"
     end)
   end
-
-  @spec selectable?(PaymentRequest.t()) :: boolean()
-  defp selectable?(%{status: status}) when status in [:voided, :paid], do: false
-  defp selectable?(_), do: true
 
   @spec markable_as_paid?(PaymentRequest.t()) :: boolean()
   defp markable_as_paid?(%{status: :pending}), do: true
@@ -411,7 +410,9 @@ defmodule KsefHubWeb.PaymentRequestLive.Index do
         </span>
         <span class="opacity-40">·</span>
         <span class="text-xs opacity-70">
-          {Enum.count(@payment_requests, fn pr -> MapSet.member?(@selected_ids, pr.id) && markable_as_paid?(pr) end)} of {MapSet.size(@selected_ids)} can be marked paid
+          {Enum.count(@payment_requests, fn pr ->
+            MapSet.member?(@selected_ids, pr.id) && markable_as_paid?(pr)
+          end)} of {MapSet.size(@selected_ids)} can be marked paid
         </span>
       </div>
       <div class="flex items-center gap-2">
