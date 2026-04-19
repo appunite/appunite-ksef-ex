@@ -167,6 +167,15 @@ defmodule KsefHub.Credentials do
   # User Certificates
   # ---------------------------------------------------------------------------
 
+  @doc "Returns all inactive (superseded/revoked) certificates for a user, newest first."
+  @spec list_inactive_user_certificates(Ecto.UUID.t()) :: [UserCertificate.t()]
+  def list_inactive_user_certificates(user_id) do
+    UserCertificate
+    |> where([uc], uc.user_id == ^user_id and uc.is_active == false)
+    |> order_by([uc], desc: uc.updated_at)
+    |> Repo.all()
+  end
+
   @doc "Returns the active user certificate for a user, or nil."
   @spec get_active_user_certificate(Ecto.UUID.t()) :: UserCertificate.t() | nil
   def get_active_user_certificate(user_id) do

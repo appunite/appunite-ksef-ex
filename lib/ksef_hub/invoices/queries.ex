@@ -41,6 +41,22 @@ defmodule KsefHub.Invoices.Queries do
   end
 
   @doc false
+  @spec do_count_invoices_by_type(Ecto.UUID.t(), keyword()) ::
+          %{income: non_neg_integer(), expense: non_neg_integer()}
+  def do_count_invoices_by_type(company_id, opts) do
+    rows =
+      Invoice
+      |> where([i], i.company_id == ^company_id)
+      |> AccessControl.maybe_filter_by_access(opts)
+      |> group_by([i], i.type)
+      |> select([i], {i.type, count(i.id)})
+      |> Repo.all()
+
+    %{income: 0, expense: 0}
+    |> Map.merge(Map.new(rows))
+  end
+
+  @doc false
   @spec apply_filters(Ecto.Queryable.t(), map()) :: Ecto.Query.t()
   def apply_filters(query, filters) do
     query = apply_status_filters(query, filters)

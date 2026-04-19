@@ -278,6 +278,7 @@ defmodule KsefHubWeb.CertificateLive do
     socket
     |> assign(
       user_certificate: nil,
+      certificate_history: [],
       active_credential: nil,
       show_upload_form: true,
       cert_expiry_status: :no_certificate
@@ -291,10 +292,12 @@ defmodule KsefHubWeb.CertificateLive do
     credential = Credentials.get_active_credential(company.id)
     show_form = socket.assigns[:show_upload_form] || is_nil(user_cert)
     cert_expiry = Credentials.certificate_expiry_status(company.id)
+    history = Credentials.list_inactive_user_certificates(user.id)
 
     socket
     |> assign(
       user_certificate: user_cert,
+      certificate_history: history,
       active_credential: credential,
       show_upload_form: show_form,
       cert_expiry_status: cert_expiry
@@ -320,24 +323,28 @@ defmodule KsefHubWeb.CertificateLive do
       
     <!-- Current Certificate -->
       <.card :if={@user_certificate} id="current-certificate" class="mt-6">
-        <h2 id="cert-heading" class="text-base font-semibold">Your Certificate</h2>
+        <div class="flex items-center justify-between mb-4">
+          <h2 id="cert-heading" class="text-base font-semibold">Your Certificate</h2>
+          <.badge variant={cert_status_variant(@user_certificate.not_after)}>
+            {cert_status_label(@user_certificate.not_after)}
+          </.badge>
+        </div>
         <.list>
-          <:item title="Issued To">
-            <span id="cert-subject">{cert_display_subject(@user_certificate)}</span>
-          </:item>
-          <:item title="Valid From">
-            {format_date(@user_certificate.not_before)}
-          </:item>
-          <:item title="Valid Until">
-            <span class={cert_expiry_class(@user_certificate.not_after)}>
-              {format_date(@user_certificate.not_after)}
+          <:item title="Subject">
+            <span id="cert-subject" class="font-mono text-xs">
+              {cert_display_subject(@user_certificate)}
             </span>
           </:item>
-          <:item :if={@user_certificate.fingerprint} title="Fingerprint">
+          <:item :if={@user_certificate.fingerprint} title="Serial">
             <span class="font-mono text-xs">{@user_certificate.fingerprint}</span>
           </:item>
-          <:item title="Uploaded">
-            {Calendar.strftime(@user_certificate.inserted_at, "%Y-%m-%d %H:%M UTC")}
+          <:item title="Issued">
+            <span class="font-mono text-xs">{format_date(@user_certificate.not_before)}</span>
+          </:item>
+          <:item title="Expires">
+            <span class={["font-mono text-xs", cert_expiry_class(@user_certificate.not_after)]}>
+              {format_expiry(@user_certificate.not_after)}
+            </span>
           </:item>
         </.list>
         <p
@@ -478,6 +485,29 @@ defmodule KsefHubWeb.CertificateLive do
           </.button>
         </.form>
       </.card>
+
+      <.card :if={@certificate_history != []} class="mt-6">
+        <h2 class="text-base font-semibold">Certificate history</h2>
+        <p class="text-sm text-muted-foreground mt-0.5 mb-4">
+          Deactivated certs stay in the audit log.
+        </p>
+        <div class="space-y-2">
+          <div
+            :for={cert <- @certificate_history}
+            class="flex items-center justify-between px-4 py-3 rounded-lg border border-border"
+          >
+            <div>
+              <div class="font-mono text-sm">
+                {cert.fingerprint || cert.certificate_subject || "—"}
+              </div>
+              <div class="text-xs text-muted-foreground mt-0.5">
+                deactivated on {format_date(cert.updated_at)}
+              </div>
+            </div>
+            <.badge variant="muted">inactive</.badge>
+          </div>
+        </div>
+      </.card>
     </.settings_layout>
     """
   end
@@ -498,6 +528,51 @@ defmodule KsefHubWeb.CertificateLive do
       true -> ""
     end
   end
+
+  @spec cert_status_variant(Date.t() | nil) :: String.t()
+  defp cert_status_variant(nil), do: "muted"
+
+  defp cert_status_variant(date) do
+    days_left = Date.diff(date, Date.utc_today())
+
+    cond do
+      days_left <= 0 -> "error"
+      days_left <= 30 -> "warning"
+      true -> "success"
+    end
+  end
+
+  @spec cert_status_label(Date.t() | nil) :: String.t()
+  defp cert_status_label(nil), do: "no certificate"
+
+  defp cert_status_label(date) do
+    days_left = Date.diff(date, Date.utc_today())
+
+    cond do
+      days_left <= 0 -> "expired"
+      days_left <= 30 -> "expiring soon"
+      true -> "✓ valid"
+    end
+  end
+
+  @spec format_expiry(Date.t() | nil) :: String.t()
+  defp format_expiry(nil), do: "-"
+
+  defp format_expiry(date) do
+    days_left = Date.diff(date, Date.utc_today())
+    date_str = format_date(date)
+    n = abs(days_left)
+
+    cond do
+      days_left <= 0 -> "#{date_str} · #{n} #{pluralize_days(n)} ago"
+      days_left == 1 -> "#{date_str} · 1 day left"
+      true -> "#{date_str} · #{days_left} days left"
+    end
+  end
+
+  @spec pluralize_days(non_neg_integer()) :: String.t()
+  defp pluralize_days(1), do: "day"
+  defp pluralize_days(_), do: "days"
 
   @spec format_bytes(non_neg_integer()) :: String.t()
   defp format_bytes(bytes), do: KsefHubWeb.UploadHelpers.format_bytes(bytes)

@@ -74,6 +74,17 @@ defmodule KsefHub.Invoices do
   end
 
   @doc """
+  Returns invoice counts grouped by type in a single query.
+
+  Useful for rendering tab count pills without N extra paginated queries.
+  """
+  @spec count_invoices_by_type(Ecto.UUID.t(), keyword()) ::
+          %{income: non_neg_integer(), expense: non_neg_integer()}
+  def count_invoices_by_type(company_id, opts \\ []) do
+    Queries.do_count_invoices_by_type(company_id, opts)
+  end
+
+  @doc """
   Returns a paginated result map with entries and metadata.
 
   ## Return value

@@ -1,0 +1,566 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>KSeF Hub -- One ledger for every invoice.</title>
+  <link rel="stylesheet" href="../../colors_and_type.css" />
+  <script src="https://cdn.tailwindcss.com"></script>
+  <style>
+    html, body { margin: 0; background: var(--background); color: var(--foreground); font-family: var(--font-sans); }
+    * { box-sizing: border-box; }
+    .container { max-width: 1120px; margin: 0 auto; padding: 0 24px; }
+    .eyebrow { font-size: 11px; text-transform: uppercase; letter-spacing: 0.12em; font-weight: 600; color: var(--brand); }
+    .hero-h1 {
+      font-size: clamp(40px, 5.2vw, 68px);
+      line-height: 1.02;
+      letter-spacing: -0.03em;
+      font-weight: 600;
+      text-wrap: balance;
+    }
+    .section-h2 {
+      font-size: clamp(28px, 3.2vw, 40px);
+      line-height: 1.1;
+      letter-spacing: -0.02em;
+      font-weight: 600;
+      text-wrap: balance;
+    }
+    .btn-primary {
+      display: inline-flex; align-items: center; gap: 6px;
+      height: 40px; padding: 0 18px; border-radius: 8px;
+      background: var(--foreground); color: var(--background);
+      font-size: 14px; font-weight: 500; text-decoration: none;
+      transition: opacity .15s;
+    }
+    .btn-primary:hover { opacity: .9; text-decoration: none; }
+    .btn-ghost {
+      display: inline-flex; align-items: center; gap: 6px;
+      height: 40px; padding: 0 14px; border-radius: 8px;
+      font-size: 14px; font-weight: 500; text-decoration: none;
+      color: var(--foreground);
+    }
+    .btn-ghost:hover { background: var(--accent); text-decoration: none; }
+    .nav-link {
+      color: var(--muted-foreground); font-size: 14px; text-decoration: none;
+      transition: color .15s;
+    }
+    .nav-link:hover { color: var(--foreground); text-decoration: none; }
+    /* subtle dot grid for hero */
+    .hero-bg {
+      background-image: radial-gradient(circle at 1px 1px, color-mix(in oklch, var(--foreground) 10%, transparent) 1px, transparent 0);
+      background-size: 22px 22px;
+    }
+    .card-flat {
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      background: var(--card);
+      padding: 28px;
+    }
+    .kbd {
+      font-family: var(--font-mono);
+      font-size: 11px;
+      padding: 2px 6px;
+      border: 1px solid var(--border);
+      border-bottom-width: 2px;
+      border-radius: 4px;
+      color: var(--muted-foreground);
+    }
+    .code-block {
+      font-family: var(--font-mono);
+      font-size: 12.5px;
+      line-height: 1.6;
+      color: var(--foreground);
+      background: oklch(14.1% 0.005 285.823);
+      color: #e4e4e7;
+      padding: 20px 24px;
+      border-radius: 10px;
+      overflow-x: auto;
+      white-space: pre;
+    }
+    .code-block .c-kw { color: #7dd3fc; }
+    .code-block .c-str { color: #86efac; }
+    .code-block .c-num { color: #fcd34d; }
+    .code-block .c-cm { color: #71717a; }
+    /* lattice animation */
+    @keyframes pulse-in {
+      0%, 100% { opacity: 0.35; }
+      50% { opacity: 1; }
+    }
+    .lattice-big .ln-1 { animation: pulse-in 2.6s ease-in-out infinite; }
+    .lattice-big .ln-2 { animation: pulse-in 2.6s ease-in-out infinite 0.6s; }
+    .lattice-big .ln-3 { animation: pulse-in 2.6s ease-in-out infinite 1.2s; }
+    .lattice-big .ln-4 { animation: pulse-in 2.6s ease-in-out infinite 1.8s; }
+
+    .source-pill {
+      display: inline-flex; align-items: center; gap: 6px;
+      padding: 5px 10px; border-radius: 999px;
+      border: 1px solid var(--border);
+      background: var(--card);
+      font-size: 12px;
+      font-family: var(--font-mono);
+    }
+
+    .footer a { color: var(--muted-foreground); }
+
+    .marquee {
+      display: flex; gap: 48px; align-items: center;
+      opacity: 0.65;
+      filter: grayscale(1);
+      flex-wrap: wrap;
+      justify-content: center;
+    }
+    .marquee span {
+      font-size: 14px; font-weight: 600; letter-spacing: -0.01em;
+      color: var(--muted-foreground);
+    }
+
+    .step-num {
+      font-family: var(--font-mono);
+      font-size: 11px;
+      color: var(--muted-foreground);
+      letter-spacing: 0.08em;
+    }
+  </style>
+</head>
+<body>
+
+<!-- Top bar -->
+<header class="border-b border-[var(--border)] sticky top-0 bg-[var(--background)]/90 backdrop-blur z-50">
+  <div class="container flex items-center justify-between h-14">
+    <a href="#" class="flex items-center gap-2 text-[var(--foreground)] no-underline">
+      <svg width="24" height="24" viewBox="0 0 48 48" fill="none">
+        <g fill="currentColor" opacity="0.25">
+          <circle cx="10" cy="10" r="2.5"/><circle cx="24" cy="10" r="2.5"/><circle cx="38" cy="10" r="2.5"/>
+          <circle cx="10" cy="24" r="2.5"/>                                   <circle cx="38" cy="24" r="2.5"/>
+          <circle cx="10" cy="38" r="2.5"/><circle cx="24" cy="38" r="2.5"/><circle cx="38" cy="38" r="2.5"/>
+        </g>
+        <circle cx="24" cy="24" r="4.5" fill="var(--brand)"/>
+        <g stroke="var(--brand)" stroke-width="2" stroke-linecap="round">
+          <line x1="24" y1="19.5" x2="24" y2="12"/>
+          <line x1="28.5" y1="24" x2="36" y2="24"/>
+          <line x1="24" y1="28.5" x2="24" y2="36"/>
+          <line x1="19.5" y1="24" x2="12" y2="24"/>
+        </g>
+      </svg>
+      <span class="text-sm font-bold tracking-tight">KSeF<span class="font-normal"> Hub</span></span>
+    </a>
+    <nav class="hidden md:flex items-center gap-6">
+      <a href="#features" class="nav-link">Features</a>
+      <a href="#ledger" class="nav-link">Ledger</a>
+      <a href="#api" class="nav-link">API</a>
+      <a href="#pricing" class="nav-link">Pricing</a>
+      <a href="../docs/index.html" class="nav-link">Docs</a>
+    </nav>
+    <div class="flex items-center gap-2">
+      <a href="../admin/index.html" class="btn-ghost">Log in</a>
+      <a href="#pricing" class="btn-primary">Start free</a>
+    </div>
+  </div>
+</header>
+
+<!-- HERO -->
+<section class="hero-bg border-b border-[var(--border)]">
+  <div class="container py-24 md:py-32">
+    <div class="grid lg:grid-cols-[1.1fr_1fr] gap-12 items-center">
+      <div>
+        <div class="eyebrow mb-5">v1.4 * Now with foreign-invoice ingest</div>
+        <h1 class="hero-h1 mb-6">One ledger for every<br/>invoice your company touches.</h1>
+        <p class="text-lg text-[var(--muted-foreground)] leading-relaxed mb-8 max-w-[580px]" style="text-wrap: pretty;">
+          KSeF Hub pulls from Poland's e-invoice system, accepts expenses from abroad, categorizes with ML, flags duplicates, and hands clean data to your accountant -- or to your next dashboard via API.
+        </p>
+        <div class="flex flex-wrap gap-3">
+          <a href="#pricing" class="btn-primary">
+            Start free
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M13 6l6 6-6 6"/></svg>
+          </a>
+          <a href="../admin/index.html" class="btn-ghost border border-[var(--border)]">
+            See the admin
+          </a>
+        </div>
+        <div class="mt-6 flex items-center gap-2 text-xs text-[var(--muted-foreground)] font-mono">
+          <span class="kbd">curl</span> <span>ksef-hub.pl/api/invoices</span>
+        </div>
+      </div>
+
+      <!-- Diagram: sources -> lattice ledger -> API/accountant -->
+      <div class="relative">
+        <svg viewBox="0 0 480 360" class="w-full h-auto lattice-big">
+          <!-- LEFT: sources -->
+          <g font-family="var(--font-mono)" font-size="11" fill="var(--muted-foreground)">
+            <rect x="10" y="40" width="120" height="32" rx="6" fill="var(--card)" stroke="var(--border)"/>
+            <text x="70" y="60" text-anchor="middle" fill="var(--foreground)">KSeF sync</text>
+            <rect x="10" y="95" width="120" height="32" rx="6" fill="var(--card)" stroke="var(--border)"/>
+            <text x="70" y="115" text-anchor="middle" fill="var(--foreground)">Email drop</text>
+            <rect x="10" y="150" width="120" height="32" rx="6" fill="var(--card)" stroke="var(--border)"/>
+            <text x="70" y="170" text-anchor="middle" fill="var(--foreground)">Foreign upload</text>
+            <rect x="10" y="205" width="120" height="32" rx="6" fill="var(--card)" stroke="var(--border)"/>
+            <text x="70" y="225" text-anchor="middle" fill="var(--foreground)">API ingest</text>
+            <rect x="10" y="260" width="120" height="32" rx="6" fill="var(--card)" stroke="var(--border)"/>
+            <text x="70" y="280" text-anchor="middle" fill="var(--foreground)">Manual entry</text>
+          </g>
+
+          <!-- Connections left -->
+          <g stroke="var(--brand)" stroke-width="1.5" fill="none" opacity="0.7">
+            <path d="M130 56 Q200 56 230 180" class="ln-1"/>
+            <path d="M130 111 Q200 111 230 180" class="ln-2"/>
+            <path d="M130 166 L230 180" class="ln-3"/>
+            <path d="M130 221 Q200 221 230 180" class="ln-4"/>
+            <path d="M130 276 Q200 276 230 180" class="ln-1"/>
+          </g>
+
+          <!-- CENTER: lattice ledger -->
+          <g transform="translate(200,130)">
+            <rect x="-4" y="-4" width="108" height="108" rx="18" fill="var(--card)" stroke="var(--border)"/>
+            <g fill="currentColor" opacity="0.25" color="var(--foreground)">
+              <circle cx="15" cy="15" r="3"/><circle cx="50" cy="15" r="3"/><circle cx="85" cy="15" r="3"/>
+              <circle cx="15" cy="50" r="3"/>                                  <circle cx="85" cy="50" r="3"/>
+              <circle cx="15" cy="85" r="3"/><circle cx="50" cy="85" r="3"/><circle cx="85" cy="85" r="3"/>
+            </g>
+            <circle cx="50" cy="50" r="6" fill="var(--brand)"/>
+            <g stroke="var(--brand)" stroke-width="2.4" stroke-linecap="round">
+              <line x1="50" y1="44" x2="50" y2="18"/>
+              <line x1="56" y1="50" x2="82" y2="50"/>
+              <line x1="50" y1="56" x2="50" y2="82"/>
+              <line x1="44" y1="50" x2="18" y2="50"/>
+            </g>
+            <text x="50" y="125" text-anchor="middle" font-size="11" font-family="var(--font-mono)" fill="var(--muted-foreground)">the ledger</text>
+          </g>
+
+          <!-- Connections right -->
+          <g stroke="var(--brand)" stroke-width="1.5" fill="none" opacity="0.7">
+            <path d="M310 180 Q350 100 370 100" class="ln-2"/>
+            <path d="M310 180 Q350 155 370 155" class="ln-3"/>
+            <path d="M310 180 Q350 210 370 210" class="ln-4"/>
+            <path d="M310 180 Q350 265 370 265" class="ln-1"/>
+          </g>
+
+          <!-- RIGHT: consumers -->
+          <g font-family="var(--font-mono)" font-size="11">
+            <rect x="370" y="85" width="100" height="32" rx="6" fill="var(--card)" stroke="var(--border)"/>
+            <text x="420" y="105" text-anchor="middle" fill="var(--foreground)">Accountant</text>
+            <rect x="370" y="140" width="100" height="32" rx="6" fill="var(--card)" stroke="var(--border)"/>
+            <text x="420" y="160" text-anchor="middle" fill="var(--foreground)">REST API</text>
+            <rect x="370" y="195" width="100" height="32" rx="6" fill="var(--card)" stroke="var(--border)"/>
+            <text x="420" y="215" text-anchor="middle" fill="var(--foreground)">Analytics</text>
+            <rect x="370" y="250" width="100" height="32" rx="6" fill="var(--card)" stroke="var(--border)"/>
+            <text x="420" y="270" text-anchor="middle" fill="var(--foreground)">Webhooks</text>
+          </g>
+        </svg>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- LOGO WALL -->
+<section class="border-b border-[var(--border)] py-10">
+  <div class="container">
+    <p class="text-center text-xs uppercase tracking-widest text-[var(--muted-foreground)] font-medium mb-5">
+      Finance teams running on KSeF Hub
+    </p>
+    <div class="marquee">
+      <span>Appunite</span>
+      <span>Softly sp. z o.o.</span>
+      <span>Branicka + Partners</span>
+      <span>Formax</span>
+      <span>KontoLab</span>
+      <span>PoRa Studio</span>
+      <span>Obrót.io</span>
+    </div>
+  </div>
+</section>
+
+<!-- FEATURES -->
+<section id="features" class="py-24 border-b border-[var(--border)]">
+  <div class="container">
+    <div class="max-w-[640px] mb-14">
+      <div class="eyebrow mb-4">Why KSeF Hub</div>
+      <h2 class="section-h2 mb-4">Every input. One source of truth.</h2>
+      <p class="text-base text-[var(--muted-foreground)] leading-relaxed" style="text-wrap: pretty;">
+        Most KSeF tools stop at download. KSeF Hub is the ledger that sits above the protocol: unified, categorized, permissioned, and API-addressable.
+      </p>
+    </div>
+
+    <div class="grid md:grid-cols-2 lg:grid-cols-3 gap-4">
+      <div class="card-flat">
+        <div class="w-9 h-9 rounded-lg bg-[color-mix(in_oklch,var(--brand)_15%,transparent)] flex items-center justify-center mb-4">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="var(--brand)" stroke-width="2"><path d="M21 12a9 9 0 11-9-9m9 9l-3-3m3 3l-3 3"/></svg>
+        </div>
+        <h3 class="text-base font-semibold mb-1.5">Live KSeF sync</h3>
+        <p class="text-sm text-[var(--muted-foreground)] leading-relaxed">XAdES-signed requests every 15 minutes. Certificate management, rotation, and revocation handled for you.</p>
+      </div>
+      <div class="card-flat">
+        <div class="w-9 h-9 rounded-lg bg-[color-mix(in_oklch,var(--brand)_15%,transparent)] flex items-center justify-center mb-4">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="var(--brand)" stroke-width="2"><circle cx="12" cy="12" r="9"/><path d="M3 12h18M12 3a15 15 0 010 18"/></svg>
+        </div>
+        <h3 class="text-base font-semibold mb-1.5">Foreign expenses, same ledger</h3>
+        <p class="text-sm text-[var(--muted-foreground)] leading-relaxed">Upload a PDF or forward an email. Hub parses, converts currency, and files it next to KSeF invoices.</p>
+      </div>
+      <div class="card-flat">
+        <div class="w-9 h-9 rounded-lg bg-[color-mix(in_oklch,var(--brand)_15%,transparent)] flex items-center justify-center mb-4">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="var(--brand)" stroke-width="2"><path d="M12 4l8 8-8 8-8-8z"/><circle cx="12" cy="12" r="2" fill="var(--brand)"/></svg>
+        </div>
+        <h3 class="text-base font-semibold mb-1.5">ML categorization</h3>
+        <p class="text-sm text-[var(--muted-foreground)] leading-relaxed">87% of invoices auto-categorized with visible confidence scores. Adjust once; the model remembers.</p>
+      </div>
+      <div class="card-flat">
+        <div class="w-9 h-9 rounded-lg bg-[color-mix(in_oklch,var(--brand)_15%,transparent)] flex items-center justify-center mb-4">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="var(--brand)" stroke-width="2"><rect x="4" y="4" width="7" height="7" rx="1"/><rect x="13" y="4" width="7" height="7" rx="1"/><rect x="4" y="13" width="7" height="7" rx="1"/><rect x="13" y="13" width="7" height="7" rx="1"/></svg>
+        </div>
+        <h3 class="text-base font-semibold mb-1.5">Duplicate detection</h3>
+        <p class="text-sm text-[var(--muted-foreground)] leading-relaxed">Same NIP, same brutto, same month? We flag it before your accountant sees it twice.</p>
+      </div>
+      <div class="card-flat">
+        <div class="w-9 h-9 rounded-lg bg-[color-mix(in_oklch,var(--brand)_15%,transparent)] flex items-center justify-center mb-4">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="var(--brand)" stroke-width="2"><circle cx="9" cy="8" r="3"/><circle cx="17" cy="8" r="3"/><path d="M3 20c0-3 3-5 6-5m5 5c0-3 3-5 6-5"/></svg>
+        </div>
+        <h3 class="text-base font-semibold mb-1.5">Accountant access</h3>
+        <p class="text-sm text-[var(--muted-foreground)] leading-relaxed">Invite your księgowa with read-only or edit permissions. Per-invoice visibility controls built in.</p>
+      </div>
+      <div class="card-flat">
+        <div class="w-9 h-9 rounded-lg bg-[color-mix(in_oklch,var(--brand)_15%,transparent)] flex items-center justify-center mb-4">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="var(--brand)" stroke-width="2"><path d="M8 4l-4 8 4 8M16 4l4 8-4 8"/></svg>
+        </div>
+        <h3 class="text-base font-semibold mb-1.5">API for everything</h3>
+        <p class="text-sm text-[var(--muted-foreground)] leading-relaxed">REST endpoints for invoices, expenses, and categories. Webhooks fire on sync. BI tools plug in directly.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- LEDGER DETAIL -->
+<section id="ledger" class="py-24 border-b border-[var(--border)]">
+  <div class="container">
+    <div class="grid lg:grid-cols-2 gap-16 items-center">
+      <div>
+        <div class="eyebrow mb-4">The ledger</div>
+        <h2 class="section-h2 mb-5">Unified row, whatever the source.</h2>
+        <p class="text-base text-[var(--muted-foreground)] leading-relaxed mb-6" style="text-wrap: pretty;">
+          KSeF, PDF, email drop, API ingest, manual entry -- every invoice lands with the same shape. Same filters, same categories, same permissions. Your accountant stops asking which folder the Stripe invoice is in.
+        </p>
+        <ul class="space-y-3 text-sm">
+          <li class="flex gap-3"><span class="text-[var(--brand)] mt-0.5">*</span><span><strong>Shared by default.</strong> One ledger per company; team members get scoped views.</span></li>
+          <li class="flex gap-3"><span class="text-[var(--brand)] mt-0.5">*</span><span><strong>Fully auditable.</strong> Every change is logged. KSeF XAdES signatures preserved.</span></li>
+          <li class="flex gap-3"><span class="text-[var(--brand)] mt-0.5">*</span><span><strong>Exportable.</strong> CSV, Excel, JSON, or live via API. No lock-in.</span></li>
+        </ul>
+      </div>
+
+      <!-- Stylized table -->
+      <div class="card-flat p-0 overflow-hidden">
+        <div class="flex items-center justify-between px-5 py-3 border-b border-[var(--border)]">
+          <div class="flex items-center gap-2">
+            <span class="source-pill"><span class="w-1.5 h-1.5 rounded-full bg-[var(--success)]"></span>KSeF</span>
+            <span class="source-pill"><span class="w-1.5 h-1.5 rounded-full bg-[var(--info)]"></span>Email</span>
+            <span class="source-pill"><span class="w-1.5 h-1.5 rounded-full bg-[var(--warning)]"></span>Manual</span>
+          </div>
+          <span class="text-xs text-[var(--muted-foreground)] font-mono">3 sources</span>
+        </div>
+        <table class="w-full text-sm">
+          <tbody class="divide-y divide-[var(--border)]">
+            <tr><td class="px-5 py-2.5 w-6"><span class="w-1.5 h-1.5 rounded-full bg-[var(--success)] inline-block"></span></td><td class="py-2.5 font-mono text-xs">FV/2026/01/0142</td><td class="py-2.5">Allegro sp. z o.o.</td><td class="py-2.5 text-right font-mono pr-5">1,224.00</td></tr>
+            <tr><td class="px-5 py-2.5"><span class="w-1.5 h-1.5 rounded-full bg-[var(--info)] inline-block"></span></td><td class="py-2.5 font-mono text-xs">INV-8821</td><td class="py-2.5">Stripe Payments Europe</td><td class="py-2.5 text-right font-mono pr-5">284.00</td></tr>
+            <tr><td class="px-5 py-2.5"><span class="w-1.5 h-1.5 rounded-full bg-[var(--success)] inline-block"></span></td><td class="py-2.5 font-mono text-xs">FV/2026/01/0139</td><td class="py-2.5">Netia S.A.</td><td class="py-2.5 text-right font-mono pr-5">492.50</td></tr>
+            <tr><td class="px-5 py-2.5"><span class="w-1.5 h-1.5 rounded-full bg-[var(--warning)] inline-block"></span></td><td class="py-2.5 font-mono text-xs">2026-0014</td><td class="py-2.5">Notion Labs, Inc.</td><td class="py-2.5 text-right font-mono pr-5">120.00</td></tr>
+            <tr><td class="px-5 py-2.5"><span class="w-1.5 h-1.5 rounded-full bg-[var(--success)] inline-block"></span></td><td class="py-2.5 font-mono text-xs">FV/2026/01/0131</td><td class="py-2.5">Orange Polska</td><td class="py-2.5 text-right font-mono pr-5">88.90</td></tr>
+            <tr><td class="px-5 py-2.5"><span class="w-1.5 h-1.5 rounded-full bg-[var(--info)] inline-block"></span></td><td class="py-2.5 font-mono text-xs">AR-2026-44</td><td class="py-2.5">Linear Orbit Inc.</td><td class="py-2.5 text-right font-mono pr-5">48.00</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- API -->
+<section id="api" class="py-24 border-b border-[var(--border)]">
+  <div class="container">
+    <div class="grid lg:grid-cols-2 gap-16 items-start">
+      <div>
+        <div class="eyebrow mb-4">API</div>
+        <h2 class="section-h2 mb-5">A REST endpoint for every row.</h2>
+        <p class="text-base text-[var(--muted-foreground)] leading-relaxed mb-8" style="text-wrap: pretty;">
+          If it's in the ledger, it's in the API. Pipe the ledger into your BI stack, your internal tooling, or your accountant's workflow. Full docs and typed SDKs ship with every plan.
+        </p>
+
+        <div class="space-y-4">
+          <div class="flex gap-4">
+            <div class="step-num pt-1">01</div>
+            <div>
+              <div class="font-medium text-sm mb-0.5">Generate a key</div>
+              <div class="text-sm text-[var(--muted-foreground)]">Settings &rarr; API keys. One click.</div>
+            </div>
+          </div>
+          <div class="flex gap-4">
+            <div class="step-num pt-1">02</div>
+            <div>
+              <div class="font-medium text-sm mb-0.5">Query the ledger</div>
+              <div class="text-sm text-[var(--muted-foreground)]">Filter by date, category, source, NIP, or free text.</div>
+            </div>
+          </div>
+          <div class="flex gap-4">
+            <div class="step-num pt-1">03</div>
+            <div>
+              <div class="font-medium text-sm mb-0.5">Subscribe to webhooks</div>
+              <div class="text-sm text-[var(--muted-foreground)]">Hear about new invoices, category changes, duplicate flags.</div>
+            </div>
+          </div>
+        </div>
+
+        <div class="mt-8">
+          <a href="../docs/index.html" class="btn-ghost border border-[var(--border)]">Read the docs
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M13 6l6 6-6 6"/></svg>
+          </a>
+        </div>
+      </div>
+
+      <div class="code-block"><span class="c-cm"># list invoices synced in the last 7 days</span>
+<span class="c-kw">curl</span> https://api.ksef-hub.pl/v1/invoices \
+  -H <span class="c-str">"Authorization: Bearer ksef_live_..."</span> \
+  -d <span class="c-str">"since=2026-04-11"</span>
+
+<span class="c-cm"># {</span>
+<span class="c-cm">#   "data": [</span>
+<span class="c-cm">#     {</span>
+<span class="c-cm">#       "id": "inv_8u3f1",</span>
+<span class="c-cm">#       "source": "ksef",</span>
+<span class="c-cm">#       "number": "FV/2026/04/0142",</span>
+<span class="c-cm">#       "seller": { "name": "Allegro sp. z o.o.", "nip": "PL5272636362" },</span>
+<span class="c-cm">#       "brutto": "1224.00",</span>
+<span class="c-cm">#       "currency": "PLN",</span>
+<span class="c-cm">#       "category": { "name": "Marketplace fees", "emoji": "&#128722;" },</span>
+<span class="c-cm">#       "status": "approved",</span>
+<span class="c-cm">#       "issued_at": "2026-04-14T09:02:11Z"</span>
+<span class="c-cm">#     }</span>
+<span class="c-cm">#   ],</span>
+<span class="c-cm">#   "has_more": true</span>
+<span class="c-cm"># }</span></div>
+    </div>
+  </div>
+</section>
+
+<!-- PRICING -->
+<section id="pricing" class="py-24 border-b border-[var(--border)]">
+  <div class="container">
+    <div class="text-center max-w-[560px] mx-auto mb-12">
+      <div class="eyebrow mb-4">Pricing</div>
+      <h2 class="section-h2 mb-4">Three plans. No per-seat games.</h2>
+      <p class="text-base text-[var(--muted-foreground)] leading-relaxed">
+        Every plan includes unlimited users, your accountant, and the full API.
+      </p>
+    </div>
+
+    <div class="grid md:grid-cols-3 gap-4 max-w-[980px] mx-auto">
+      <div class="card-flat">
+        <div class="text-sm font-medium mb-1">Solo</div>
+        <div class="text-xs text-[var(--muted-foreground)] mb-6">Sole proprietors (JDG)</div>
+        <div class="flex items-baseline gap-1 mb-1">
+          <span class="text-4xl font-semibold tracking-tight">49</span>
+          <span class="text-sm text-[var(--muted-foreground)]">PLN / mo</span>
+        </div>
+        <div class="text-xs text-[var(--muted-foreground)] mb-6">net, billed yearly</div>
+        <a href="#" class="btn-ghost border border-[var(--border)] w-full justify-center">Start free</a>
+        <ul class="mt-6 space-y-2 text-sm text-[var(--muted-foreground)]">
+          <li>Up to 200 invoices/mo</li>
+          <li>1 accountant seat</li>
+          <li>Email support</li>
+        </ul>
+      </div>
+
+      <div class="card-flat relative border-[var(--brand)]" style="border-width:1.5px;">
+        <div class="absolute -top-2.5 left-6 bg-[var(--brand)] text-[var(--brand-foreground)] text-[10px] uppercase tracking-widest font-bold px-2 py-0.5 rounded">Most picked</div>
+        <div class="text-sm font-medium mb-1">Team</div>
+        <div class="text-xs text-[var(--muted-foreground)] mb-6">Companies with ops folks</div>
+        <div class="flex items-baseline gap-1 mb-1">
+          <span class="text-4xl font-semibold tracking-tight">149</span>
+          <span class="text-sm text-[var(--muted-foreground)]">PLN / mo</span>
+        </div>
+        <div class="text-xs text-[var(--muted-foreground)] mb-6">net, billed yearly</div>
+        <a href="#" class="btn-primary w-full justify-center">Start free</a>
+        <ul class="mt-6 space-y-2 text-sm text-[var(--muted-foreground)]">
+          <li>Up to 2,000 invoices/mo</li>
+          <li>Unlimited team + accountant seats</li>
+          <li>Full API + webhooks</li>
+          <li>Priority support</li>
+        </ul>
+      </div>
+
+      <div class="card-flat">
+        <div class="text-sm font-medium mb-1">Scale</div>
+        <div class="text-xs text-[var(--muted-foreground)] mb-6">Agencies + accounting firms</div>
+        <div class="flex items-baseline gap-1 mb-1">
+          <span class="text-4xl font-semibold tracking-tight">custom</span>
+        </div>
+        <div class="text-xs text-[var(--muted-foreground)] mb-6">get in touch</div>
+        <a href="#" class="btn-ghost border border-[var(--border)] w-full justify-center">Talk to sales</a>
+        <ul class="mt-6 space-y-2 text-sm text-[var(--muted-foreground)]">
+          <li>Multi-company console</li>
+          <li>SSO (SAML / OIDC)</li>
+          <li>Dedicated infrastructure</li>
+          <li>SLA + named support</li>
+        </ul>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- FOOTER -->
+<footer class="footer py-14">
+  <div class="container">
+    <div class="grid md:grid-cols-4 gap-10">
+      <div>
+        <div class="flex items-center gap-2 mb-4">
+          <svg width="20" height="20" viewBox="0 0 48 48" fill="none">
+            <g fill="currentColor" opacity="0.25">
+              <circle cx="10" cy="10" r="2.5"/><circle cx="24" cy="10" r="2.5"/><circle cx="38" cy="10" r="2.5"/>
+              <circle cx="10" cy="24" r="2.5"/>                                   <circle cx="38" cy="24" r="2.5"/>
+              <circle cx="10" cy="38" r="2.5"/><circle cx="24" cy="38" r="2.5"/><circle cx="38" cy="38" r="2.5"/>
+            </g>
+            <circle cx="24" cy="24" r="4.5" fill="var(--brand)"/>
+            <g stroke="var(--brand)" stroke-width="2" stroke-linecap="round">
+              <line x1="24" y1="19.5" x2="24" y2="12"/>
+              <line x1="28.5" y1="24" x2="36" y2="24"/>
+              <line x1="24" y1="28.5" x2="24" y2="36"/>
+              <line x1="19.5" y1="24" x2="12" y2="24"/>
+            </g>
+          </svg>
+          <span class="text-sm font-bold tracking-tight">KSeF<span class="font-normal"> Hub</span></span>
+        </div>
+        <p class="text-xs text-[var(--muted-foreground)] leading-relaxed">
+          One ledger for every invoice your company touches. Made in Poznań.
+        </p>
+      </div>
+      <div>
+        <div class="text-xs uppercase tracking-widest text-[var(--muted-foreground)] font-medium mb-3">Product</div>
+        <ul class="space-y-2 text-sm">
+          <li><a href="#features" class="nav-link">Features</a></li>
+          <li><a href="#ledger" class="nav-link">Ledger</a></li>
+          <li><a href="#pricing" class="nav-link">Pricing</a></li>
+          <li><a href="#" class="nav-link">Changelog</a></li>
+        </ul>
+      </div>
+      <div>
+        <div class="text-xs uppercase tracking-widest text-[var(--muted-foreground)] font-medium mb-3">Developers</div>
+        <ul class="space-y-2 text-sm">
+          <li><a href="../docs/index.html" class="nav-link">Docs</a></li>
+          <li><a href="../docs/index.html#api" class="nav-link">API reference</a></li>
+          <li><a href="#" class="nav-link">Status</a></li>
+          <li><a href="#" class="nav-link">Security</a></li>
+        </ul>
+      </div>
+      <div>
+        <div class="text-xs uppercase tracking-widest text-[var(--muted-foreground)] font-medium mb-3">Company</div>
+        <ul class="space-y-2 text-sm">
+          <li><a href="#" class="nav-link">About</a></li>
+          <li><a href="#" class="nav-link">Contact</a></li>
+          <li><a href="#" class="nav-link">Privacy</a></li>
+          <li><a href="#" class="nav-link">Terms</a></li>
+        </ul>
+      </div>
+    </div>
+    <div class="mt-10 pt-6 border-t border-[var(--border)] flex items-center justify-between text-xs text-[var(--muted-foreground)]">
+      <span>(c) 2026 KSeF Hub. By Appunite.</span>
+      <span class="font-mono">v1.4.0 * all systems operational</span>
+    </div>
+  </div>
+</footer>
+
+</body>
+</html>

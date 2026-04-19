@@ -108,20 +108,33 @@ defmodule KsefHubWeb.FilterHelpers do
   Returns the updated filters map with the value added or removed from the list at `key`.
   Normalizes existing values to strings for comparison.
   """
-  @allowed_filter_fields ~w(statuses category_ids tags payment_statuses)a
+  @allowed_filter_fields ~w(statuses expense_category_ids tags payment_statuses)a
 
   @spec toggle_filter_value(map(), String.t(), String.t()) :: map()
   def toggle_filter_value(filters, field, value) do
-    key = Enum.find(@allowed_filter_fields, fn k -> Atom.to_string(k) == field end)
-    if is_nil(key), do: raise("Invalid filter field: #{inspect(field)}")
-    current = Enum.map(Map.get(filters, key, []), &to_string/1)
+    case Enum.find(@allowed_filter_fields, fn k -> Atom.to_string(k) == field end) do
+      nil ->
+        filters
 
-    updated =
-      if value in current,
-        do: List.delete(current, value),
-        else: current ++ [value]
+      key ->
+        current = Enum.map(Map.get(filters, key, []), &to_string/1)
 
-    Map.put(filters, key, updated)
+        updated =
+          if value in current,
+            do: List.delete(current, value),
+            else: current ++ [value]
+
+        Map.put(filters, key, updated)
+    end
+  end
+
+  @doc "Clears all selections for the given filter field, returning updated filters."
+  @spec clear_filter_field(map(), String.t()) :: map()
+  def clear_filter_field(filters, field) do
+    case Enum.find(@allowed_filter_fields, fn k -> Atom.to_string(k) == field end) do
+      nil -> filters
+      key -> Map.put(filters, key, [])
+    end
   end
 
   @doc "Converts an atom or string to a string, returning empty string for nil."

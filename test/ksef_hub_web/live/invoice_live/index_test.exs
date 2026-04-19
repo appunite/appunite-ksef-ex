@@ -39,7 +39,7 @@ defmodule KsefHubWeb.InvoiceLive.IndexTest do
 
     test "shows empty state when no invoices", %{conn: conn, company: company} do
       {:ok, _view, html} = live(conn, ~p"/c/#{company.id}/invoices")
-      assert html =~ "No invoices found"
+      assert html =~ "No data for selected period"
     end
   end
 
@@ -211,7 +211,7 @@ defmodule KsefHubWeb.InvoiceLive.IndexTest do
       {:ok, view, _html} = live(conn, ~p"/c/#{company.id}/invoices?type=expense")
 
       view
-      |> element("form[phx-change=filter]")
+      |> element("#date-filter-form")
       |> render_change(%{"filters" => %{"date_from" => "2026-01-01"}})
 
       assert_patched(
@@ -227,11 +227,10 @@ defmodule KsefHubWeb.InvoiceLive.IndexTest do
           ~p"/c/#{company.id}/invoices?type=income&statuses=pending"
         )
 
-      html = render(view)
-      assert html =~ "Status: Pending"
+      assert has_element?(view, ~s{button[phx-click]}, "Status")
 
       view
-      |> element("button", "Reset")
+      |> element("[phx-click=clear_filters]")
       |> render_click()
 
       assert_patched(view, "/c/#{company.id}/invoices?type=income")
@@ -240,14 +239,14 @@ defmodule KsefHubWeb.InvoiceLive.IndexTest do
 
   describe "type tabs" do
     test "renders type tabs for owner", %{conn: conn, company: company} do
-      {:ok, _view, html} = live(conn, ~p"/c/#{company.id}/invoices")
-      assert html =~ ~r/>\s*Income\s*<\/a>/
-      assert html =~ ~r/>\s*Expense\s*<\/a>/
+      {:ok, view, _html} = live(conn, ~p"/c/#{company.id}/invoices")
+      assert has_element?(view, ~s{a[href*="type=income"]}, "Income")
+      assert has_element?(view, ~s{a[href*="type=expense"]}, "Expense")
     end
 
     test "expense tab is active by default", %{conn: conn, company: company} do
       {:ok, view, _html} = live(conn, ~p"/c/#{company.id}/invoices")
-      assert has_element?(view, ~s{a.border-shad-primary}, "Expense")
+      assert has_element?(view, ~s{a[aria-current="page"]}, "Expense")
     end
 
     test "clicking Income tab filters to income invoices", %{conn: conn, company: company} do
@@ -450,7 +449,7 @@ defmodule KsefHubWeb.InvoiceLive.IndexTest do
       {:ok, view, _html} = live(conn, ~p"/c/#{company.id}/invoices?type=expense&page=2")
 
       view
-      |> element("form[phx-change=filter]")
+      |> element("#date-filter-form")
       |> render_change(%{"filters" => %{"date_from" => "2020-01-01"}})
 
       # Should not include page param (defaults to page 1)
@@ -505,7 +504,7 @@ defmodule KsefHubWeb.InvoiceLive.IndexTest do
       {:ok, _view, html} = live(conn, ~p"/c/#{company.id}/invoices")
 
       lock_pos = html |> :binary.match("Access restricted to invited members") |> elem(0)
-      badge_pos = html |> :binary.match("text-purple-400") |> elem(0)
+      badge_pos = html |> :binary.match("text-purple") |> elem(0)
 
       assert lock_pos < badge_pos
     end

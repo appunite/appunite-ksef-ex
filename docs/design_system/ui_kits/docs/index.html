@@ -1,0 +1,231 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>KSeF Hub -- Docs</title>
+  <link rel="stylesheet" href="../../colors_and_type.css" />
+  <script src="https://cdn.tailwindcss.com"></script>
+  <style>
+    html, body { margin: 0; background: var(--background); color: var(--foreground); font-family: var(--font-sans); }
+    * { box-sizing: border-box; }
+    .sidebar-link { display: block; padding: 5px 10px; font-size: 13px; color: var(--muted-foreground); border-radius: 6px; text-decoration: none; }
+    .sidebar-link:hover { background: var(--accent); color: var(--foreground); text-decoration: none; }
+    .sidebar-link.active { background: var(--accent); color: var(--foreground); font-weight: 500; }
+    .sidebar-section { font-size: 11px; text-transform: uppercase; letter-spacing: .08em; font-weight: 600; color: var(--muted-foreground); padding: 16px 10px 6px; }
+    .doc h1 { font-size: 32px; letter-spacing: -0.02em; font-weight: 600; margin: 0 0 8px; line-height: 1.15; }
+    .doc .lede { font-size: 16px; color: var(--muted-foreground); line-height: 1.6; margin: 0 0 28px; max-width: 680px; }
+    .doc h2 { font-size: 20px; letter-spacing: -0.015em; font-weight: 600; margin: 40px 0 12px; scroll-margin-top: 80px; }
+    .doc h3 { font-size: 15px; font-weight: 600; margin: 24px 0 8px; }
+    .doc p { font-size: 14px; line-height: 1.65; color: var(--foreground); margin: 0 0 12px; max-width: 720px; }
+    .doc p.muted { color: var(--muted-foreground); }
+    .doc ul { font-size: 14px; line-height: 1.65; padding-left: 20px; max-width: 720px; }
+    .doc code { font-family: var(--font-mono); font-size: 12.5px; background: var(--muted); padding: 1.5px 5px; border-radius: 4px; }
+    .doc a { color: var(--brand); text-decoration: none; font-weight: 500; }
+    .doc a:hover { text-decoration: underline; }
+    .code-block { font-family: var(--font-mono); font-size: 12.5px; line-height: 1.6; background: oklch(14.1% 0.005 285.823); color: #e4e4e7; padding: 16px 18px; border-radius: 8px; overflow-x: auto; white-space: pre; margin: 12px 0 20px; }
+    .code-block .c-kw { color: #7dd3fc; } .code-block .c-str { color: #86efac; } .code-block .c-num { color: #fcd34d; } .code-block .c-cm { color: #71717a; }
+    table.ref { width: 100%; border-collapse: collapse; font-size: 13px; margin: 14px 0; }
+    table.ref th, table.ref td { text-align: left; padding: 9px 12px; border-bottom: 1px solid var(--border); }
+    table.ref th { background: var(--muted); font-weight: 500; font-size: 11px; text-transform: uppercase; letter-spacing: .05em; color: var(--muted-foreground); }
+    table.ref code { background: transparent; padding: 0; }
+    .method { font-family: var(--font-mono); font-size: 11px; padding: 2px 6px; border-radius: 4px; font-weight: 600; letter-spacing: .02em; }
+    .method.get { background: color-mix(in oklch, var(--info) 15%, transparent); color: var(--info); }
+    .method.post { background: color-mix(in oklch, var(--success) 15%, transparent); color: var(--success); }
+    .callout { border: 1px solid var(--border); border-left: 3px solid var(--brand); border-radius: 6px; padding: 12px 14px; background: color-mix(in oklch, var(--brand) 4%, transparent); margin: 16px 0; font-size: 13px; line-height: 1.55; max-width: 720px; }
+    .callout strong { color: var(--foreground); }
+    .toc a { display: block; font-size: 12px; color: var(--muted-foreground); padding: 3px 0; text-decoration: none; }
+    .toc a:hover { color: var(--foreground); }
+    .toc a.l2 { padding-left: 12px; }
+    input.search { width: 100%; height: 32px; padding: 0 10px 0 30px; border: 1px solid var(--border); border-radius: 6px; background: var(--background); font-size: 13px; outline: none; }
+    input.search:focus { border-color: var(--ring); }
+  </style>
+</head>
+<body>
+
+<header class="border-b border-[var(--border)] sticky top-0 bg-[var(--background)]/95 backdrop-blur z-40">
+  <div class="max-w-[1280px] mx-auto px-6 flex items-center justify-between h-14">
+    <div class="flex items-center gap-6">
+      <a href="../marketing/index.html" class="flex items-center gap-2 text-[var(--foreground)] no-underline">
+        <svg width="22" height="22" viewBox="0 0 48 48" fill="none">
+          <g fill="currentColor" opacity="0.25"><circle cx="10" cy="10" r="2.5"/><circle cx="24" cy="10" r="2.5"/><circle cx="38" cy="10" r="2.5"/><circle cx="10" cy="24" r="2.5"/><circle cx="38" cy="24" r="2.5"/><circle cx="10" cy="38" r="2.5"/><circle cx="24" cy="38" r="2.5"/><circle cx="38" cy="38" r="2.5"/></g>
+          <circle cx="24" cy="24" r="4.5" fill="var(--brand)"/>
+          <g stroke="var(--brand)" stroke-width="2" stroke-linecap="round"><line x1="24" y1="19.5" x2="24" y2="12"/><line x1="28.5" y1="24" x2="36" y2="24"/><line x1="24" y1="28.5" x2="24" y2="36"/><line x1="19.5" y1="24" x2="12" y2="24"/></g>
+        </svg>
+        <span class="text-sm font-bold tracking-tight">KSeF<span class="font-normal"> Hub</span></span>
+        <span class="text-xs text-[var(--muted-foreground)] ml-1">docs</span>
+      </a>
+    </div>
+    <div class="flex items-center gap-4">
+      <div class="relative w-64 hidden md:block">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="absolute left-2.5 top-2.5 text-[var(--muted-foreground)]"><circle cx="11" cy="11" r="7"/><path d="M21 21l-4.3-4.3"/></svg>
+        <input class="search" placeholder="Search docs..." />
+      </div>
+      <a href="../admin/index.html" class="text-sm text-[var(--muted-foreground)] hover:text-[var(--foreground)] no-underline">Log in</a>
+    </div>
+  </div>
+</header>
+
+<div class="max-w-[1280px] mx-auto px-6 grid grid-cols-1 lg:grid-cols-[220px_1fr_200px] gap-8 py-8">
+
+  <!-- SIDEBAR -->
+  <aside class="lg:sticky lg:top-20 lg:self-start lg:max-h-[calc(100vh-88px)] lg:overflow-y-auto">
+    <div class="sidebar-section">Get started</div>
+    <a href="#overview" class="sidebar-link active">Overview</a>
+    <a href="#quickstart" class="sidebar-link">Quickstart</a>
+    <a href="#concepts" class="sidebar-link">Concepts</a>
+
+    <div class="sidebar-section">Guides</div>
+    <a href="#ksef-sync" class="sidebar-link">KSeF sync</a>
+    <a href="#foreign" class="sidebar-link">Foreign expenses</a>
+    <a href="#categories" class="sidebar-link">Categories &amp; ML</a>
+    <a href="#duplicates" class="sidebar-link">Duplicate detection</a>
+    <a href="#permissions" class="sidebar-link">Permissions</a>
+
+    <div class="sidebar-section">API reference</div>
+    <a href="#api" class="sidebar-link">Authentication</a>
+    <a href="#api-invoices" class="sidebar-link">Invoices</a>
+    <a href="#api-categories" class="sidebar-link">Categories</a>
+    <a href="#api-webhooks" class="sidebar-link">Webhooks</a>
+    <a href="#api-errors" class="sidebar-link">Errors</a>
+
+    <div class="sidebar-section">Support</div>
+    <a href="#" class="sidebar-link">Changelog</a>
+    <a href="#" class="sidebar-link">Status</a>
+    <a href="#" class="sidebar-link">Contact</a>
+  </aside>
+
+  <!-- CONTENT -->
+  <main class="doc min-w-0">
+    <div class="text-xs text-[var(--muted-foreground)] font-mono mb-4">Get started / Overview</div>
+    <h1 id="overview">Welcome to KSeF Hub</h1>
+    <p class="lede">One ledger for every invoice your company touches. KSeF Hub sits above Poland's KSeF protocol and absorbs everything else: foreign expenses, email drops, manual entry, API ingest. Built for companies that want a single source of truth across sources, users, and systems.</p>
+
+    <div class="callout">
+      <strong>New here?</strong> Start with the <a href="#quickstart">Quickstart</a> -- you'll connect KSeF, pull your first 30 days of invoices, and hit the API in under 10 minutes.
+    </div>
+
+    <h2 id="quickstart">Quickstart</h2>
+    <p>You'll need: a valid Polish NIP, a KSeF qualified certificate, and an admin email.</p>
+
+    <h3>1. Create a workspace</h3>
+    <p>Sign up at <code>ksef-hub.pl/register</code>. One workspace per company. Invite your team and accountant later.</p>
+
+    <h3>2. Connect KSeF</h3>
+    <p>Upload your qualified certificate in <strong>Settings -&gt; Certificates</strong>. We handle XAdES signing, session tokens, and rotation. No code required.</p>
+
+    <div class="code-block"><span class="c-cm"># Certificate upload via API (alternative to UI)</span>
+<span class="c-kw">curl</span> -X POST https://api.ksef-hub.pl/v1/certificates \
+  -H <span class="c-str">"Authorization: Bearer ksef_live_..."</span> \
+  -F <span class="c-str">"file=@qualified-cert.p12"</span> \
+  -F <span class="c-str">"passphrase=..."</span></div>
+
+    <h3>3. Trigger the first sync</h3>
+    <p>Hub pulls the last 30 days by default. After that, sync runs every 15 minutes in the background. You can force a sync from <strong>Dashboard -&gt; Sync now</strong>.</p>
+
+    <h3>4. Query the ledger</h3>
+    <div class="code-block"><span class="c-kw">curl</span> https://api.ksef-hub.pl/v1/invoices?limit=<span class="c-num">10</span> \
+  -H <span class="c-str">"Authorization: Bearer ksef_live_..."</span></div>
+
+    <h2 id="concepts">Concepts</h2>
+
+    <h3>The ledger</h3>
+    <p>The <strong>ledger</strong> is the single table of invoices + expenses for a workspace. Every row has a <code>source</code> field (<code>ksef</code>, <code>email</code>, <code>upload</code>, <code>api</code>, <code>manual</code>) but otherwise shares the same shape. Filters, permissions, and exports operate on the ledger as a whole.</p>
+
+    <h3>Sources</h3>
+    <ul>
+      <li><code>ksef</code> -- pulled via XAdES-signed API; full FA(3) XML preserved.</li>
+      <li><code>email</code> -- forwarded to <code>drop@yourco.ksef-hub.pl</code>; OCR'd on ingest.</li>
+      <li><code>upload</code> -- drag a PDF into the admin; parsed and filed.</li>
+      <li><code>api</code> -- posted directly via <code>POST /invoices</code>.</li>
+      <li><code>manual</code> -- entered by hand in the admin.</li>
+    </ul>
+
+    <h3>Permissions</h3>
+    <p>Three roles: <code>owner</code>, <code>member</code>, <code>accountant</code>. Accountants see everything read-only by default; owners can grant edit + approve. Per-invoice visibility can be scoped with labels.</p>
+
+    <h2 id="ksef-sync">Guide: KSeF sync</h2>
+    <p>Sync runs every 15 minutes. Each run signs a request with your certificate, fetches the delta, parses FA(3) XML, preserves signatures, and upserts into the ledger. Failed syncs retry with exponential backoff; after 6 failures we send a notification.</p>
+
+    <div class="callout">
+      <strong>Certificate expiry.</strong> We email at 90, 30, and 7 days before expiry. Upload a replacement any time -- the old cert stays valid until you mark it superseded.
+    </div>
+
+    <h2 id="api">API reference</h2>
+    <p class="muted">Base URL: <code>https://api.ksef-hub.pl/v1</code>. All requests require a <code>Bearer</code> token. Rate limit: 120 req/min per key.</p>
+
+    <h3 id="api-invoices">Invoices</h3>
+    <table class="ref">
+      <thead><tr><th>Method</th><th>Path</th><th>Description</th></tr></thead>
+      <tbody>
+        <tr><td><span class="method get">GET</span></td><td><code>/invoices</code></td><td>List invoices, newest first.</td></tr>
+        <tr><td><span class="method get">GET</span></td><td><code>/invoices/:id</code></td><td>Retrieve a single invoice.</td></tr>
+        <tr><td><span class="method post">POST</span></td><td><code>/invoices</code></td><td>Create an invoice from parsed data.</td></tr>
+        <tr><td><span class="method post">POST</span></td><td><code>/invoices/:id/approve</code></td><td>Mark an invoice approved.</td></tr>
+        <tr><td><span class="method post">POST</span></td><td><code>/invoices/:id/reject</code></td><td>Reject with a reason.</td></tr>
+      </tbody>
+    </table>
+
+    <h3>Filter parameters</h3>
+    <table class="ref">
+      <thead><tr><th>Param</th><th>Type</th><th>Description</th></tr></thead>
+      <tbody>
+        <tr><td><code>since</code></td><td>ISO date</td><td>Only invoices issued on/after this date.</td></tr>
+        <tr><td><code>source</code></td><td>enum</td><td>ksef, email, upload, api, manual</td></tr>
+        <tr><td><code>status</code></td><td>enum</td><td>pending, approved, rejected, needs_review</td></tr>
+        <tr><td><code>category_id</code></td><td>string</td><td>Restrict to one category.</td></tr>
+        <tr><td><code>q</code></td><td>string</td><td>Free-text search: seller, number, NIP.</td></tr>
+      </tbody>
+    </table>
+
+    <h3 id="api-webhooks">Webhooks</h3>
+    <p>Subscribe to ledger events. Payloads are signed with HMAC-SHA256; verify the <code>X-KSeF-Signature</code> header.</p>
+
+    <div class="code-block"><span class="c-cm"># Example: invoice.created</span>
+{
+  <span class="c-str">"event"</span>: <span class="c-str">"invoice.created"</span>,
+  <span class="c-str">"created_at"</span>: <span class="c-str">"2026-04-18T09:02:11Z"</span>,
+  <span class="c-str">"data"</span>: {
+    <span class="c-str">"id"</span>: <span class="c-str">"inv_8u3f1"</span>,
+    <span class="c-str">"source"</span>: <span class="c-str">"ksef"</span>,
+    <span class="c-str">"number"</span>: <span class="c-str">"FV/2026/04/0142"</span>,
+    <span class="c-str">"brutto"</span>: <span class="c-str">"1224.00"</span>,
+    <span class="c-str">"currency"</span>: <span class="c-str">"PLN"</span>
+  }
+}</div>
+
+    <h3 id="api-errors">Errors</h3>
+    <table class="ref">
+      <thead><tr><th>Code</th><th>Meaning</th></tr></thead>
+      <tbody>
+        <tr><td><code>401</code></td><td>Missing or invalid bearer token.</td></tr>
+        <tr><td><code>403</code></td><td>Key lacks permission for this resource.</td></tr>
+        <tr><td><code>404</code></td><td>Resource not found or hidden by scope.</td></tr>
+        <tr><td><code>422</code></td><td>Validation failed; see <code>errors</code> field.</td></tr>
+        <tr><td><code>429</code></td><td>Rate limit exceeded. Back off and retry.</td></tr>
+        <tr><td><code>503</code></td><td>KSeF upstream is down. Retry automatic.</td></tr>
+      </tbody>
+    </table>
+
+    <div class="border-t border-[var(--border)] mt-16 pt-6 flex justify-between text-sm">
+      <a href="#overview">&larr; Overview</a>
+      <a href="#api-errors">Errors &rarr;</a>
+    </div>
+  </main>
+
+  <!-- RIGHT TOC -->
+  <aside class="toc hidden lg:block lg:sticky lg:top-20 lg:self-start">
+    <div class="text-xs uppercase tracking-widest text-[var(--muted-foreground)] font-semibold mb-2">On this page</div>
+    <a href="#overview">Overview</a>
+    <a href="#quickstart">Quickstart</a>
+    <a href="#concepts">Concepts</a>
+    <a href="#ksef-sync">KSeF sync</a>
+    <a href="#api">API reference</a>
+    <a href="#api-invoices" class="l2">Invoices</a>
+    <a href="#api-webhooks" class="l2">Webhooks</a>
+    <a href="#api-errors" class="l2">Errors</a>
+  </aside>
+</div>
+
+</body>
+</html>

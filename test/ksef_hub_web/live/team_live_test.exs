@@ -69,11 +69,23 @@ defmodule KsefHubWeb.TeamLiveTest do
 
       {:ok, view, _html} = live(conn, ~p"/c/#{company.id}/settings/team")
       assert has_element?(view, "[data-testid='member-row-#{member.id}']")
-      assert has_element?(view, "[data-testid='member-link-#{member.id}']")
 
       view
-      |> element("[data-testid='member-link-#{member.id}']")
+      |> element("[data-testid='member-row-#{member.id}']")
       |> render_click()
+
+      assert_redirect(view, "/c/#{company.id}/settings/team/members/#{membership.id}")
+    end
+
+    test "Enter key on member row navigates to detail page", %{conn: conn, company: company} do
+      member = insert(:user, name: "Keyboard", email: "kbd@example.com")
+      membership = insert(:membership, user: member, company: company, role: :accountant)
+
+      {:ok, view, _html} = live(conn, ~p"/c/#{company.id}/settings/team")
+
+      view
+      |> element("[data-testid='member-row-#{member.id}']")
+      |> render_keydown(%{"key" => "Enter"})
 
       assert_redirect(view, "/c/#{company.id}/settings/team/members/#{membership.id}")
     end
@@ -95,11 +107,30 @@ defmodule KsefHubWeb.TeamLiveTest do
 
       {:ok, view, _html} = live(conn, ~p"/c/#{company.id}/settings/team")
       assert has_element?(view, "[data-testid='invitation-row-#{invitation.id}']")
-      assert has_element?(view, "[data-testid='invitation-link-#{invitation.id}']")
 
       view
-      |> element("[data-testid='invitation-link-#{invitation.id}']")
+      |> element("[data-testid='invitation-row-#{invitation.id}']")
       |> render_click()
+
+      assert_redirect(view, ~p"/c/#{company.id}/settings/team/invitations/#{invitation.id}")
+    end
+
+    test "Enter key on invitation row navigates to detail page", %{
+      conn: conn,
+      company: company,
+      owner: owner
+    } do
+      {:ok, %{invitation: invitation}} =
+        Invitations.create_invitation(owner.id, company.id, %{
+          email: "kbd-pending@example.com",
+          role: :approver
+        })
+
+      {:ok, view, _html} = live(conn, ~p"/c/#{company.id}/settings/team")
+
+      view
+      |> element("[data-testid='invitation-row-#{invitation.id}']")
+      |> render_keydown(%{"key" => "Enter"})
 
       assert_redirect(view, ~p"/c/#{company.id}/settings/team/invitations/#{invitation.id}")
     end

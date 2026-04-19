@@ -1,0 +1,24 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 220 48" role="img" aria-label="KSeF Hub">
+  <g transform="translate(4,4)">
+    <g fill="#cbd5e1">
+      <circle cx="6" cy="6" r="2.5"></circle>
+      <circle cx="20" cy="6" r="2.5"></circle>
+      <circle cx="34" cy="6" r="2.5"></circle>
+      <circle cx="6" cy="20" r="2.5"></circle>
+      <circle cx="34" cy="20" r="2.5"></circle>
+      <circle cx="6" cy="34" r="2.5"></circle>
+      <circle cx="20" cy="34" r="2.5"></circle>
+      <circle cx="34" cy="34" r="2.5"></circle>
+    </g>
+    <circle cx="20" cy="20" r="4.5" fill="#0D7A76"></circle>
+    <g stroke="#0D7A76" stroke-width="2" stroke-linecap="round">
+      <line x1="20" y1="15.5" x2="20" y2="8"></line>
+      <line x1="24.5" y1="20" x2="32" y2="20"></line>
+      <line x1="20" y1="24.5" x2="20" y2="32"></line>
+      <line x1="15.5" y1="20" x2="8" y2="20"></line>
+    </g>
+  </g>
+  <g transform="translate(58,16)" font-family="Geist, ui-sans-serif, system-ui, sans-serif">
+    <text x="0" y="16" font-size="19" font-weight="700" fill="currentColor" letter-spacing="-0.015em">KSeF<tspan font-weight="400"> Hub</tspan></text>
+  </g>
+</svg>

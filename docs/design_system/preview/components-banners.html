@@ -1,0 +1,15 @@
+<!doctype html>
+<html><head><meta charset="utf-8"><link rel="stylesheet" href="../colors_and_type.css">
+<style>
+  html,body{margin:0;padding:18px;background:var(--background);color:var(--foreground);font-family:var(--font-sans)}
+  .banner{display:flex;gap:12px;align-items:flex-start;padding:14px;border-radius:.5rem;border:1px solid;margin-bottom:10px}
+  .warn{background:color-mix(in oklch,var(--warning) 10%,transparent);border-color:color-mix(in oklch,var(--warning) 50%,transparent)}
+  .err{background:color-mix(in oklch,var(--destructive) 10%,transparent);border-color:color-mix(in oklch,var(--destructive) 50%,transparent)}
+  .ico{font-size:18px;line-height:1}
+  .t{font-size:13px;font-weight:500;margin-bottom:2px}
+  .d{font-size:12px;color:var(--muted-foreground)}
+  .d a{text-decoration:underline}
+</style></head><body>
+<div class="banner warn"><span class="ico">⚠</span><div><div class="t">Certificate expiring soon</div><div class="d">Your KSeF certificate expires in 5 days. Please <a href="#">generate and upload a new certificate</a> before it expires to avoid sync interruption.</div></div></div>
+<div class="banner err"><span class="ico" style="color:var(--destructive)">✕</span><div><div class="t">Certificate expired</div><div class="d">Your KSeF certificate has expired. KSeF sync is no longer working. Please <a href="#">upload a new certificate</a> to resume invoice synchronization.</div></div></div>
+</body></html>

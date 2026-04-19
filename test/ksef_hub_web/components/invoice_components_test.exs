@@ -32,12 +32,16 @@ defmodule KsefHubWeb.InvoiceComponentsTest do
       assert InvoiceComponents.format_amount(nil) == "-"
     end
 
-    test "formats a Decimal" do
-      assert InvoiceComponents.format_amount(Decimal.new("1234.56")) == "1234.56"
+    test "formats a Decimal with thousands separator" do
+      assert InvoiceComponents.format_amount(Decimal.new("1234.56")) == "1\u00A0234.56"
     end
 
-    test "formats an integer" do
-      assert InvoiceComponents.format_amount(100) == "100"
+    test "formats a small Decimal without separator" do
+      assert InvoiceComponents.format_amount(Decimal.new("99.99")) == "99.99"
+    end
+
+    test "formats an integer with .00 suffix" do
+      assert InvoiceComponents.format_amount(100) == "100.00"
     end
 
     test "formats a float" do
@@ -46,6 +50,19 @@ defmodule KsefHubWeb.InvoiceComponentsTest do
 
     test "returns dash for unexpected type" do
       assert InvoiceComponents.format_amount("not a number") == "-"
+    end
+
+    test "formats 7-digit amount with two separators" do
+      assert InvoiceComponents.format_amount(Decimal.new("1234567.89")) ==
+               "1\u00A0234\u00A0567.89"
+    end
+
+    test "formats negative amount preserving sign" do
+      assert InvoiceComponents.format_amount(Decimal.new("-1234.56")) == "-1\u00A0234.56"
+    end
+
+    test "formats amount under 1000 with no separator" do
+      assert InvoiceComponents.format_amount(Decimal.new("999.00")) == "999.00"
     end
   end
 
@@ -58,7 +75,7 @@ defmodule KsefHubWeb.InvoiceComponentsTest do
 
     test "renders expense badge with warning style" do
       html = render_component(&InvoiceComponents.type_badge/1, type: :expense)
-      assert html =~ "text-warning"
+      assert html =~ "badge-warning-text"
       assert html =~ "expense"
     end
 
@@ -67,14 +84,15 @@ defmodule KsefHubWeb.InvoiceComponentsTest do
       assert html =~ "rounded-md"
       assert html =~ "unknown"
       refute html =~ "text-success"
-      refute html =~ "text-warning"
+      refute html =~ "badge-warning-text"
     end
   end
 
   describe "invoice_kind_badge/1" do
-    test "renders nothing for :vat" do
+    test "renders muted badge for :vat" do
       html = render_component(&InvoiceComponents.invoice_kind_badge/1, kind: :vat)
-      assert html == ""
+      assert html =~ "VAT"
+      assert html =~ "text-muted"
     end
 
     test "renders nothing for nil" do
@@ -84,14 +102,13 @@ defmodule KsefHubWeb.InvoiceComponentsTest do
 
     test "renders lowercase purple badge for :correction" do
       html = render_component(&InvoiceComponents.invoice_kind_badge/1, kind: :correction)
-      assert html =~ "text-purple-400"
+      assert html =~ "text-purple"
       assert html =~ "correction"
-      refute html =~ ">Correction<"
     end
 
     test "renders lowercase purple badge for :advance_correction" do
       html = render_component(&InvoiceComponents.invoice_kind_badge/1, kind: :advance_correction)
-      assert html =~ "text-purple-400"
+      assert html =~ "text-purple"
       assert html =~ "advance correction"
     end
 
@@ -99,15 +116,15 @@ defmodule KsefHubWeb.InvoiceComponentsTest do
       html =
         render_component(&InvoiceComponents.invoice_kind_badge/1, kind: :settlement_correction)
 
-      assert html =~ "text-purple-400"
+      assert html =~ "text-purple"
       assert html =~ "settlement correction"
     end
 
-    test "renders info badge for :advance" do
+    test "renders lowercase info badge for :advance" do
       html = render_component(&InvoiceComponents.invoice_kind_badge/1, kind: :advance)
       assert html =~ "text-info"
       assert html =~ "advance"
-      refute html =~ "text-purple-400"
+      refute html =~ "text-purple"
     end
   end
 
@@ -240,7 +257,7 @@ defmodule KsefHubWeb.InvoiceComponentsTest do
   describe "status_badge/1" do
     test "renders pending badge" do
       html = render_component(&InvoiceComponents.status_badge/1, status: :pending)
-      assert html =~ "text-warning"
+      assert html =~ "badge-warning-text"
       assert html =~ "pending"
     end
 

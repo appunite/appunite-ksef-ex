@@ -357,6 +357,81 @@ defmodule KsefHub.PaymentRequests do
     |> Repo.all()
   end
 
+  @doc "Returns summary stats: pending count, pending PLN outflow, and PLN sent this month."
+  @spec payment_request_stats(Ecto.UUID.t()) :: %{
+          pending_count: non_neg_integer(),
+          pending_pln: Decimal.t(),
+          sent_this_month_pln: Decimal.t()
+        }
+  def payment_request_stats(company_id) do
+    base = from(p in PaymentRequest, where: p.company_id == ^company_id)
+    now = DateTime.utc_now()
+    today = DateTime.to_date(now)
+
+    month_start =
+      today
+      |> Date.beginning_of_month()
+      |> DateTime.new!(~T[00:00:00], "Etc/UTC")
+
+    next_month_start =
+      today
+      |> Date.beginning_of_month()
+      |> Date.shift(month: 1)
+      |> DateTime.new!(~T[00:00:00], "Etc/UTC")
+
+    pending_count = base |> where([p], p.status == :pending) |> Repo.aggregate(:count)
+
+    pending_pln =
+      base
+      |> where([p], p.status == :pending and p.currency == "PLN")
+      |> select([p], sum(p.amount))
+      |> Repo.one()
+      |> then(&(&1 || Decimal.new(0)))
+
+    sent_this_month_pln =
+      base
+      |> where(
+        [p],
+        p.status == :paid and p.currency == "PLN" and
+          p.paid_at >= ^month_start and p.paid_at < ^next_month_start
+      )
+      |> select([p], sum(p.amount))
+      |> Repo.one()
+      |> then(&(&1 || Decimal.new(0)))
+
+    %{
+      pending_count: pending_count,
+      pending_pln: pending_pln,
+      sent_this_month_pln: sent_this_month_pln
+    }
+  end
+
+  @doc "Returns count of payment requests grouped by status plus a total :all key."
+  @spec count_payment_requests_by_status(Ecto.UUID.t()) :: %{
+          all: non_neg_integer(),
+          pending: non_neg_integer(),
+          paid: non_neg_integer(),
+          voided: non_neg_integer()
+        }
+  def count_payment_requests_by_status(company_id) do
+    rows =
+      PaymentRequest
+      |> where([p], p.company_id == ^company_id)
+      |> group_by([p], p.status)
+      |> select([p], {p.status, count(p.id)})
+      |> Repo.all()
+
+    counts = Map.new(rows)
+    total = counts |> Map.values() |> Enum.sum()
+
+    %{
+      all: total,
+      pending: Map.get(counts, :pending, 0),
+      paid: Map.get(counts, :paid, 0),
+      voided: Map.get(counts, :voided, 0)
+    }
+  end
+
   # --- Private ---
 
   @spec extract_pagination(map()) :: {pos_integer(), pos_integer()}

@@ -27,6 +27,10 @@ defmodule KsefHubWeb.SettingsComponents do
     assigns = assign(assigns, :tabs, settings_tabs(assigns.current_company, assigns.current_role))
 
     ~H"""
+    <div class="mb-6 pb-6 border-b border-border">
+      <h1 class="text-lg font-semibold">Settings</h1>
+      <p class="text-sm text-muted-foreground">Company-level configuration</p>
+    </div>
     <div class="flex flex-col md:flex-row gap-6">
       <%!-- Sidebar: horizontal scroll on mobile, vertical on desktop --%>
       <nav class="md:w-56 shrink-0" aria-label="Settings">
@@ -49,7 +53,7 @@ defmodule KsefHubWeb.SettingsComponents do
       </nav>
 
       <%!-- Content area --%>
-      <div class="flex-1 min-w-0">
+      <div class="flex-1 min-w-0 rounded-xl border border-border bg-card p-6">
         {render_slot(@inner_block)}
       </div>
     </div>

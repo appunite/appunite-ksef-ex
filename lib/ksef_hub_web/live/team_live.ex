@@ -38,6 +38,7 @@ defmodule KsefHubWeb.TeamLive do
     |> assign(:pending_invitations_count, length(pending_invitations))
   end
 
+  @spec role_label(Membership.role()) :: String.t()
   defp role_label(role), do: Membership.role_label(role)
 
   @spec invitation_expired?(Invitations.Invitation.t()) :: boolean()
@@ -78,38 +79,40 @@ defmodule KsefHubWeb.TeamLive do
         <h2 class="text-base font-semibold mb-3">Members</h2>
         <div data-testid="member-list">
           <.table_container>
-            <table class="w-full table-fixed text-sm" data-testid="team-table">
+            <table class="w-full text-sm" data-testid="team-table">
               <thead>
                 <tr class="border-b border-border">
-                  <th class="text-left py-3 px-4 text-xs font-medium text-muted-foreground uppercase tracking-wide">
+                  <th class="text-left py-2.5 px-4 text-xs font-medium text-muted-foreground uppercase tracking-wide">
                     Email
                   </th>
-                  <th class="text-left py-3 px-4 text-xs font-medium text-muted-foreground uppercase tracking-wide">
+                  <th class="text-left py-2.5 px-4 text-xs font-medium text-muted-foreground uppercase tracking-wide">
                     Name
                   </th>
-                  <th class="text-left py-3 px-4 text-xs font-medium text-muted-foreground uppercase tracking-wide">
+                  <th class="text-left py-2.5 px-4 text-xs font-medium text-muted-foreground uppercase tracking-wide">
                     Role
                   </th>
+                  <th class="w-0 py-2.5 pr-3 pl-0"></th>
                 </tr>
               </thead>
               <tbody id="members-list" phx-update="stream">
                 <tr
                   :for={{dom_id, member} <- @streams.members}
                   id={dom_id}
-                  class="border-b border-border/50 hover:bg-muted/50 transition-colors"
+                  class="group border-b border-border hover:bg-shad-accent transition-colors cursor-pointer focus:outline-none focus:bg-shad-accent"
+                  phx-click={JS.navigate(member_path(@current_company.id, member))}
+                  phx-keydown={JS.navigate(member_path(@current_company.id, member))}
+                  phx-key="Enter"
+                  tabindex="0"
+                  role="button"
                   data-testid={"member-row-#{member.user.id}"}
                 >
-                  <td class="py-3.5 px-4">
-                    <.link
-                      navigate={member_path(@current_company.id, member)}
-                      class="hover:underline underline-offset-4"
-                      data-testid={"member-link-#{member.user.id}"}
-                    >
-                      {member.user.email}
-                    </.link>
+                  <td class="py-3 px-4">
+                    <span class="font-mono text-xs">{member.user.email}</span>
                   </td>
-                  <td class="py-3.5 px-4">{member.user.name || "-"}</td>
-                  <td class="py-3.5 px-4">
+                  <td class="py-3 px-4 text-sm">
+                    {member.user.name || "-"}
+                  </td>
+                  <td class="py-3 px-4">
                     <.badge variant="muted">{role_label(member.role)}</.badge>
                     <.badge
                       :if={member.status == :blocked}
@@ -120,6 +123,12 @@ defmodule KsefHubWeb.TeamLive do
                       Blocked
                     </.badge>
                   </td>
+                  <td class="w-0 py-3 pr-3 pl-0">
+                    <.icon
+                      name="hero-chevron-right"
+                      class="size-3.5 text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity"
+                    />
+                  </td>
                 </tr>
               </tbody>
             </table>
@@ -129,38 +138,40 @@ defmodule KsefHubWeb.TeamLive do
       <.card :if={@pending_invitations_count > 0} class="mt-6">
         <h2 class="text-base font-semibold mb-3">Pending Invitations</h2>
         <.table_container>
-          <table class="w-full table-fixed text-sm">
+          <table class="w-full text-sm">
             <thead>
               <tr class="border-b border-border">
-                <th class="text-left py-3 px-4 text-xs font-medium text-muted-foreground uppercase tracking-wide">
+                <th class="text-left py-2.5 px-4 text-xs font-medium text-muted-foreground uppercase tracking-wide">
                   Email
                 </th>
-                <th class="text-left py-3 px-4 text-xs font-medium text-muted-foreground uppercase tracking-wide">
+                <th class="text-left py-2.5 px-4 text-xs font-medium text-muted-foreground uppercase tracking-wide">
                   Expires
                 </th>
-                <th class="text-left py-3 px-4 text-xs font-medium text-muted-foreground uppercase tracking-wide">
+                <th class="text-left py-2.5 px-4 text-xs font-medium text-muted-foreground uppercase tracking-wide">
                   Role
                 </th>
+                <th class="w-0 py-2.5 pr-3 pl-0"></th>
               </tr>
             </thead>
             <tbody id="pending-invitations-list" phx-update="stream">
               <tr
                 :for={{dom_id, inv} <- @streams.pending_invitations}
                 id={dom_id}
-                class="border-b border-border/50 hover:bg-muted/50 transition-colors"
+                class="group border-b border-border hover:bg-shad-accent transition-colors cursor-pointer focus:outline-none focus:bg-shad-accent"
+                phx-click={JS.navigate(invitation_path(@current_company.id, inv))}
+                phx-keydown={JS.navigate(invitation_path(@current_company.id, inv))}
+                phx-key="Enter"
+                tabindex="0"
+                role="button"
                 data-testid={"invitation-row-#{inv.id}"}
               >
-                <td class="py-3.5 px-4">
-                  <.link
-                    navigate={invitation_path(@current_company.id, inv)}
-                    class="hover:underline underline-offset-4"
-                    data-testid={"invitation-link-#{inv.id}"}
-                  >
-                    {inv.email}
-                  </.link>
+                <td class="py-3 px-4">
+                  <span class="font-mono text-xs">{inv.email}</span>
                 </td>
-                <td class="py-3.5 px-4 text-muted-foreground">
-                  {Calendar.strftime(inv.expires_at, "%Y-%m-%d")}
+                <td class="py-3 px-4">
+                  <span class="font-mono text-xs text-muted-foreground">
+                    {Calendar.strftime(inv.expires_at, "%Y-%m-%d")}
+                  </span>
                   <.badge
                     :if={invitation_expired?(inv)}
                     variant="error"
@@ -170,8 +181,14 @@ defmodule KsefHubWeb.TeamLive do
                     Expired
                   </.badge>
                 </td>
-                <td class="py-3.5 px-4">
+                <td class="py-3 px-4">
                   <.badge variant="muted">{role_label(inv.role)}</.badge>
+                </td>
+                <td class="w-0 py-3 pr-3 pl-0">
+                  <.icon
+                    name="hero-chevron-right"
+                    class="size-3.5 text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity"
+                  />
                 </td>
               </tr>
             </tbody>

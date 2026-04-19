@@ -1081,7 +1081,11 @@ defmodule KsefHubWeb.InvoiceLive.Show do
           <div :if={@invoice.type == :expense} class="mb-3">
             <label class="text-sm text-muted-foreground">Category</label>
             <div class="mt-1" data-testid="category-display">
-              <.category_badge category={find_category(@invoice.expense_category_id, @categories)} />
+              <.category_badge
+                category={find_category(@invoice.expense_category_id, @categories)}
+                confidence={@invoice.prediction_expense_category_confidence}
+                prediction_status={@invoice.prediction_status}
+              />
             </div>
             <.prediction_hint
               predicted_at={@invoice.prediction_predicted_at}

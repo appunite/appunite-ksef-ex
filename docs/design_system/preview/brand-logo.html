@@ -1,0 +1,40 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <link rel="stylesheet" href="../colors_and_type.css">
+  <style>
+    html, body { margin: 0; padding: 20px; background: var(--background); color: var(--foreground); font-family: var(--font-sans); }
+    .row { display: flex; gap: 32px; align-items: center; flex-wrap: wrap; }
+    .lock { display: flex; align-items: center; gap: 10px; }
+    .word { font-size: 16px; font-weight: 700; letter-spacing: -0.015em; white-space: nowrap; }
+    .word .thin { font-weight: 400; }
+    .tag { font-size: 10px; color: var(--muted-foreground); text-transform: uppercase; letter-spacing: .06em; font-weight: 500; margin-top: 3px; }
+    .dark { background: oklch(14.1% 0.005 285.823); color: #fff; border-radius: .5rem; padding: 10px 14px; }
+    .sizes { display: flex; gap: 14px; align-items: center; margin-top: 14px; }
+    .sizes img { display: block; }
+  </style>
+</head>
+<body>
+  <div class="row">
+    <div class="lock">
+      <img src="../brand/logo-mark.svg?v=2" width="40" height="40">
+      <div style="display:flex;flex-direction:column;line-height:1;">
+        <span class="word">KSeF<span class="thin"> Hub</span></span>
+        <span class="tag">Lattice mark * teal #0D7A76</span>
+      </div>
+    </div>
+    <div class="dark lock">
+      <img src="../brand/logo-mark.svg?v=2" width="28" height="28" style="filter:brightness(2);">
+      <span class="word">KSeF<span class="thin"> Hub</span></span>
+    </div>
+  </div>
+  <div class="sizes">
+    <img src="../brand/logo-mark.svg?v=2" width="16" height="16">
+    <img src="../brand/logo-mark.svg?v=2" width="24" height="24">
+    <img src="../brand/logo-mark.svg?v=2" width="32" height="32">
+    <img src="../brand/logo-mark.svg?v=2" width="48" height="48">
+    <img src="../brand/logo-mark.svg?v=2" width="64" height="64">
+  </div>
+</body>
+</html>

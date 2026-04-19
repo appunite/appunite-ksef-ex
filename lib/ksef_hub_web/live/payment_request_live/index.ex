@@ -9,7 +9,7 @@ defmodule KsefHubWeb.PaymentRequestLive.Index do
   alias KsefHub.PaymentRequests.PaymentRequest
 
   import KsefHubWeb.InvoiceComponents,
-    only: [format_amount: 1, local_datetime: 1]
+    only: [format_amount: 1, format_date_short: 1, format_month: 1]
 
   import KsefHubWeb.FilterHelpers
 
@@ -25,28 +25,36 @@ defmodule KsefHubWeb.PaymentRequestLive.Index do
   @spec handle_params(map(), String.t(), Phoenix.LiveView.Socket.t()) ::
           {:noreply, Phoenix.LiveView.Socket.t()}
   def handle_params(params, _uri, socket) do
-    filters =
-      params
-      |> parse_filters()
-      |> Map.put_new(:statuses, [:pending])
-
+    filters = parse_filters(params)
     role = socket.assigns[:current_role]
 
-    result =
+    {result, stats, tab_counts} =
       case socket.assigns[:current_company] do
         %{id: company_id} ->
-          PaymentRequests.list_payment_requests_paginated(company_id, filters)
+          {
+            PaymentRequests.list_payment_requests_paginated(company_id, filters),
+            PaymentRequests.payment_request_stats(company_id),
+            PaymentRequests.count_payment_requests_by_status(company_id)
+          }
 
         _ ->
-          %{entries: [], page: 1, per_page: 25, total_count: 0, total_pages: 1}
+          empty = %{entries: [], page: 1, per_page: 25, total_count: 0, total_pages: 1}
+
+          empty_stats = %{
+            pending_count: 0,
+            pending_pln: Decimal.new(0),
+            sent_this_month_pln: Decimal.new(0)
+          }
+
+          empty_counts = %{all: 0, pending: 0, paid: 0, voided: 0}
+          {empty, empty_stats, empty_counts}
       end
 
     form = build_filters_form(filters)
     can_manage = Authorization.can?(role, :manage_payment_requests)
 
     filter_count =
-      statuses_count(filters) +
-        if(filters[:date_from], do: 1, else: 0) +
+      if(filters[:date_from], do: 1, else: 0) +
         if(filters[:date_to], do: 1, else: 0) +
         if(filters[:query] && String.trim(filters[:query]) != "", do: 1, else: 0)
 
@@ -56,6 +64,8 @@ defmodule KsefHubWeb.PaymentRequestLive.Index do
        filters: filters,
        form: form,
        filter_count: filter_count,
+       stats: stats,
+       tab_counts: tab_counts,
        page: result.page,
        per_page: result.per_page,
        total_count: result.total_count,
@@ -96,6 +106,32 @@ defmodule KsefHubWeb.PaymentRequestLive.Index do
     {:noreply, push_patch(socket, to: ~p"/c/#{company_id}/payment-requests")}
   end
 
+  def handle_event("void", %{"id" => id}, socket) do
+    if socket.assigns.can_manage do
+      company_id = socket.assigns.current_company.id
+
+      case PaymentRequests.void_payment_request(company_id, id, actor_opts(socket)) do
+        {:ok, _} ->
+          {:noreply,
+           socket
+           |> put_flash(:info, "Payment request voided.")
+           |> push_patch(
+             to:
+               ~p"/c/#{company_id}/payment-requests?#{filter_params_without_page(socket.assigns.filters)}"
+           )}
+
+        {:error, _} ->
+          {:noreply, put_flash(socket, :error, "Could not void payment request.")}
+      end
+    else
+      {:noreply, socket}
+    end
+  end
+
+  def handle_event("clear_selection", _params, socket) do
+    {:noreply, assign(socket, selected_ids: MapSet.new())}
+  end
+
   def handle_event("toggle_select", %{"id" => id}, socket) do
     if socket.assigns.can_manage do
       normalized_id =
@@ -108,7 +144,7 @@ defmodule KsefHubWeb.PaymentRequestLive.Index do
 
       selected =
         cond do
-          is_nil(pr) or not selectable?(pr) ->
+          is_nil(pr) ->
             socket.assigns.selected_ids
 
           MapSet.member?(socket.assigns.selected_ids, normalized_id) ->
@@ -126,10 +162,7 @@ defmodule KsefHubWeb.PaymentRequestLive.Index do
 
   def handle_event("toggle_select_all", _params, socket) do
     if socket.assigns.can_manage do
-      selectable_ids =
-        socket.assigns.payment_requests
-        |> Enum.filter(&selectable?/1)
-        |> MapSet.new(& &1.id)
+      selectable_ids = MapSet.new(socket.assigns.payment_requests, & &1.id)
 
       selected =
         if MapSet.equal?(socket.assigns.selected_ids, selectable_ids) do
@@ -173,16 +206,6 @@ defmodule KsefHubWeb.PaymentRequestLive.Index do
       {:noreply, push_event(socket, "download", %{url: url})}
     else
       {:noreply, socket}
-    end
-  end
-
-  @spec statuses_count(map()) :: non_neg_integer()
-  defp statuses_count(filters) do
-    default_statuses = MapSet.new([:pending])
-
-    case filters[:statuses] || [] do
-      [] -> 0
-      list -> if MapSet.new(list) == default_statuses, do: 0, else: length(list)
     end
   end
 
@@ -237,15 +260,50 @@ defmodule KsefHubWeb.PaymentRequestLive.Index do
     end)
   end
 
-  @spec selectable?(PaymentRequest.t()) :: boolean()
-  defp selectable?(%{status: status}) when status in [:voided, :paid], do: false
-  defp selectable?(_), do: true
+  @spec markable_as_paid?(PaymentRequest.t()) :: boolean()
+  defp markable_as_paid?(%{status: :pending}), do: true
+  defp markable_as_paid?(_), do: false
 
   @spec status_variant(atom()) :: String.t()
   defp status_variant(:pending), do: "warning"
   defp status_variant(:paid), do: "success"
   defp status_variant(:voided), do: "error"
   defp status_variant(_), do: "muted"
+
+  @spec status_label(atom()) :: String.t()
+  defp status_label(:pending), do: "pending"
+  defp status_label(:paid), do: "sent"
+  defp status_label(:voided), do: "voided"
+  defp status_label(other), do: to_string(other)
+
+  @spec current_tab_id(map()) :: String.t()
+  defp current_tab_id(%{statuses: [status]}), do: to_string(status)
+  defp current_tab_id(_), do: "all"
+
+  @spec tab_url(String.t(), map(), atom() | nil) :: String.t()
+  defp tab_url(company_id, filters, nil) do
+    params = build_query_params(Map.delete(filters, :statuses), %{})
+    ~p"/c/#{company_id}/payment-requests?#{params}"
+  end
+
+  defp tab_url(company_id, filters, status) when is_atom(status) do
+    params = build_query_params(Map.put(filters, :statuses, [status]), %{})
+    ~p"/c/#{company_id}/payment-requests?#{params}"
+  end
+
+  @spec date_sub_label(atom()) :: String.t()
+  defp date_sub_label(:voided), do: "VOIDED"
+  defp date_sub_label(_), do: ""
+
+  @spec pr_date(PaymentRequest.t()) :: Date.t()
+  defp pr_date(%{status: :paid, paid_at: paid_at}) when not is_nil(paid_at),
+    do: DateTime.to_date(paid_at)
+
+  defp pr_date(%{status: :voided, voided_at: voided_at}) when not is_nil(voided_at),
+    do: DateTime.to_date(voided_at)
+
+  defp pr_date(%{inserted_at: %NaiveDateTime{} = dt}), do: NaiveDateTime.to_date(dt)
+  defp pr_date(%{inserted_at: %DateTime{} = dt}), do: DateTime.to_date(dt)
 
   @impl true
   @spec render(map()) :: Phoenix.LiveView.Rendered.t()
@@ -261,105 +319,173 @@ defmodule KsefHubWeb.PaymentRequestLive.Index do
       </:actions>
     </.header>
 
-    <div class="space-y-2 mt-4 mb-6">
-      <div class="flex items-center gap-2 flex-wrap">
-        <.multi_select
-          id="status-filter"
-          label="Status"
-          field="statuses"
-          options={[{"Pending", "pending"}, {"Paid", "paid"}, {"Voided", "voided"}]}
-          selected={Enum.map(@filters[:statuses] || [], &to_string/1)}
-          open={@open_filter == "status-filter"}
+    <div class="grid grid-cols-1 sm:grid-cols-3 gap-3 mb-5">
+      <.card>
+        <div class="text-xs text-muted-foreground uppercase tracking-wide">Pending Outflow</div>
+        <div class="mt-1 text-2xl font-semibold tabular-nums">
+          {format_amount(@stats.pending_pln)}
+          <span class="text-sm font-mono text-muted-foreground ml-1.5">PLN</span>
+        </div>
+        <div class="text-xs text-muted-foreground mt-1">{@stats.pending_count} pending</div>
+      </.card>
+      <.card>
+        <div class="text-xs text-muted-foreground uppercase tracking-wide">Pending Count</div>
+        <div class="mt-1 text-2xl font-semibold tabular-nums">
+          {@stats.pending_count}
+        </div>
+        <div class="text-xs text-muted-foreground mt-1">awaiting payment</div>
+      </.card>
+      <.card>
+        <div class="text-xs text-muted-foreground uppercase tracking-wide">Sent This Month</div>
+        <div class="mt-1 text-2xl font-semibold tabular-nums">
+          {format_amount(@stats.sent_this_month_pln)}
+          <span class="text-sm font-mono text-muted-foreground ml-1.5">PLN</span>
+        </div>
+        <div class="text-xs text-muted-foreground mt-1">{format_month(Date.utc_today())}</div>
+      </.card>
+    </div>
+
+    <.status_tabs
+      active_id={current_tab_id(@filters)}
+      tabs={[
+        %{
+          id: "all",
+          label: "All",
+          count: @tab_counts.all,
+          href: tab_url(@current_company.id, @filters, nil)
+        },
+        %{
+          id: "pending",
+          label: "Pending",
+          count: @tab_counts.pending,
+          href: tab_url(@current_company.id, @filters, :pending)
+        },
+        %{
+          id: "paid",
+          label: "Sent",
+          count: @tab_counts.paid,
+          href: tab_url(@current_company.id, @filters, :paid)
+        },
+        %{
+          id: "voided",
+          label: "Voided",
+          count: @tab_counts.voided,
+          href: tab_url(@current_company.id, @filters, :voided)
+        }
+      ]}
+    />
+
+    <div class="flex items-center gap-2 flex-wrap mb-4">
+      <.form for={@form} id="pr-search-form" phx-change="filter" class="contents">
+        <.search_input
+          name={@form[:query].name}
+          value={@form[:query].value}
+          placeholder="Recipient, title, IBAN..."
+          phx-debounce="300"
+          class="w-48 lg:w-64"
         />
+      </.form>
+      <.form for={@form} id="pr-date-form" phx-change="filter" class="contents">
+        <.date_range_picker
+          id="pr-date-range"
+          from_name={@form[:date_from].name}
+          to_name={@form[:date_to].name}
+          from_value={@form[:date_from].value}
+          to_value={@form[:date_to].value}
+        />
+      </.form>
+      <.reset_filters_button :if={@filter_count > 0} />
+    </div>
 
-        <.form for={@form} id="pr-date-search-form" phx-change="filter" class="contents">
-          <.date_range_picker
-            id="pr-date-range"
-            from_name={@form[:date_from].name}
-            to_name={@form[:date_to].name}
-            from_value={@form[:date_from].value}
-            to_value={@form[:date_to].value}
-          />
-
-          <.reset_filters_button :if={@filter_count > 0} />
-
-          <.search_input
-            name={@form[:query].name}
-            value={@form[:query].value}
-            placeholder="Recipient, title, IBAN..."
-            phx-debounce="300"
-          />
-        </.form>
+    <div
+      :if={MapSet.size(@selected_ids) > 0}
+      class="flex items-center justify-between px-4 py-2.5 mb-0 rounded-t-lg bg-foreground text-background border border-border"
+      data-testid="bulk-actions-bar"
+    >
+      <div class="flex items-center gap-3 text-sm">
+        <span class="font-medium tabular-nums">{MapSet.size(@selected_ids)} selected</span>
+        <span class="opacity-40">·</span>
+        <span class="font-mono text-xs tabular-nums opacity-80">
+          {selected_totals_text(@payment_requests, @selected_ids)}
+        </span>
+        <span class="opacity-40">·</span>
+        <span class="text-xs opacity-70">
+          {Enum.count(@payment_requests, fn pr ->
+            MapSet.member?(@selected_ids, pr.id) && markable_as_paid?(pr)
+          end)} of {MapSet.size(@selected_ids)} can be marked paid
+        </span>
+      </div>
+      <div class="flex items-center gap-2">
+        <button
+          phx-click="clear_selection"
+          class="h-7 px-2.5 text-xs rounded-md border border-background/30 hover:bg-background/10 transition-all"
+        >
+          Clear
+        </button>
+        <button
+          :if={@can_manage}
+          phx-click="download_csv"
+          class="h-7 px-2.5 text-xs rounded-md border border-background/30 hover:bg-background/10 transition-all flex items-center gap-1.5"
+        >
+          <.icon name="hero-arrow-down-tray" class="size-3.5" /> Download CSV
+        </button>
+        <button
+          :if={@can_manage}
+          phx-click="mark_paid"
+          class="h-7 px-2.5 text-xs rounded-md bg-background/20 border border-background/30 hover:bg-background/30 transition-all flex items-center gap-1.5"
+        >
+          <.icon name="hero-check-circle" class="size-3.5" /> Mark as paid
+        </button>
       </div>
     </div>
 
-    <!-- Bulk actions bar -->
-    <div
-      :if={MapSet.size(@selected_ids) > 0}
-      class="flex items-center gap-3 mb-4 p-3 rounded-md border border-border bg-muted/50"
-      data-testid="bulk-actions-bar"
-    >
-      <span class="text-sm font-medium">
-        {MapSet.size(@selected_ids)} selected
-      </span>
-      <span class="text-sm text-muted-foreground font-mono">
-        {selected_totals_text(@payment_requests, @selected_ids)}
-      </span>
-      <div class="flex-1" />
-      <.button :if={@can_manage} size="sm" variant="success" phx-click="mark_paid">
-        <.icon name="hero-check-circle" class="size-4" /> Mark as paid
-      </.button>
-      <.button :if={@can_manage} size="sm" variant="outline" phx-click="download_csv">
-        <.icon name="hero-arrow-down-tray" class="size-4" /> Download CSV
-      </.button>
-    </div>
-
-    <!-- Payment Requests Table -->
-    <.table_container>
+    <.table_container class={MapSet.size(@selected_ids) > 0 && "rounded-t-none border-t-0"}>
       <table class="w-full text-sm">
-        <thead>
-          <tr class="border-b border-border">
-            <th :if={@can_manage} class="py-3 px-4 w-10">
+        <thead class="bg-muted/50 border-b border-border">
+          <tr>
+            <th :if={@can_manage} class="py-2.5 px-4 w-10">
               <input
                 type="checkbox"
                 class="checkbox checkbox-sm"
                 phx-click="toggle_select_all"
                 checked={
                   MapSet.size(@selected_ids) > 0 &&
-                    MapSet.size(@selected_ids) ==
-                      Enum.count(@payment_requests, &selectable?/1)
+                    MapSet.size(@selected_ids) == length(@payment_requests)
                 }
               />
             </th>
-            <th class="hidden lg:table-cell text-left py-3 px-4 text-xs font-medium text-muted-foreground uppercase tracking-wide w-36">
-              Created
+            <th class="text-left py-2.5 px-4 text-xs font-medium text-muted-foreground uppercase tracking-wide">
+              Counterparty
             </th>
-            <th class="text-left py-3 px-4 text-xs font-medium text-muted-foreground uppercase tracking-wide">
-              Recipient
+            <th class="hidden md:table-cell text-left py-2.5 px-4 text-xs font-medium text-muted-foreground uppercase tracking-wide">
+              Invoice
             </th>
-            <th class="hidden md:table-cell text-left py-3 px-4 text-xs font-medium text-muted-foreground uppercase tracking-wide">
-              Title
+            <th class="hidden md:table-cell text-left py-2.5 px-4 text-xs font-medium text-muted-foreground uppercase tracking-wide">
+              Reference
             </th>
-            <th class="text-right py-3 px-4 text-xs font-medium text-muted-foreground uppercase tracking-wide w-32">
+            <th class="text-right py-2.5 px-4 text-xs font-medium text-muted-foreground uppercase tracking-wide">
               Amount
             </th>
-            <th class="text-left py-3 px-4 text-xs font-medium text-muted-foreground uppercase tracking-wide w-20">
+            <th class="hidden lg:table-cell text-left py-2.5 px-4 text-xs font-medium text-muted-foreground uppercase tracking-wide">
+              Date
+            </th>
+            <th class="text-left py-2.5 px-4 text-xs font-medium text-muted-foreground uppercase tracking-wide">
               Status
             </th>
-            <th class="hidden lg:table-cell text-left py-3 px-4 text-xs font-medium text-muted-foreground uppercase tracking-wide w-36">
-              Paid
-            </th>
+            <th class="w-0 py-2.5 pr-3 pl-0"></th>
           </tr>
         </thead>
         <tbody id="payment-requests">
           <tr
             :for={pr <- @payment_requests}
             id={"pr-#{pr.id}"}
-            class="border-b border-border/50 hover:bg-muted/50 transition-colors"
+            class={[
+              "group border-b border-border hover:bg-shad-accent transition-colors",
+              @can_manage && "cursor-pointer"
+            ]}
           >
-            <td :if={@can_manage} class="py-3.5 px-4">
+            <td :if={@can_manage} class="py-3 px-4" onclick="event.stopPropagation()">
               <input
-                :if={selectable?(pr)}
                 type="checkbox"
                 class="checkbox checkbox-sm"
                 phx-click="toggle_select"
@@ -367,45 +493,108 @@ defmodule KsefHubWeb.PaymentRequestLive.Index do
                 checked={MapSet.member?(@selected_ids, pr.id)}
               />
             </td>
-            <td class="hidden lg:table-cell py-3.5 px-4">
-              <span class="whitespace-nowrap">
-                <.local_datetime at={pr.inserted_at} id={"pr-created-#{pr.id}"} />
-              </span>
-            </td>
-            <td class="py-3.5 px-4">
-              <.link
-                :if={@can_manage}
-                navigate={~p"/c/#{@current_company.id}/payment-requests/#{pr.id}/edit"}
-                class="text-shad-primary underline-offset-4 hover:underline"
-              >
+            <td
+              class="py-3 px-4"
+              phx-click={
+                if @can_manage,
+                  do: JS.navigate(~p"/c/#{@current_company.id}/payment-requests/#{pr.id}/edit")
+              }
+            >
+              <div class={["text-sm truncate", pr.status == :voided && "line-through opacity-60"]}>
                 {pr.recipient_name}
-              </.link>
-              <span :if={!@can_manage}>{pr.recipient_name}</span>
-              <div class="text-xs text-muted-foreground md:hidden">{pr.title}</div>
+              </div>
+              <div class="font-mono text-[11px] text-muted-foreground truncate">{pr.iban}</div>
             </td>
-            <td class="hidden md:table-cell py-3.5 px-4">{pr.title}</td>
-            <td class="py-3.5 px-4 text-right">
-              <span class="font-mono">{format_amount(pr.amount)}</span>
-              <span class="text-xs text-muted-foreground">{pr.currency}</span>
-            </td>
-            <td class="py-3.5 px-4">
-              <.badge variant={status_variant(pr.status)}>{pr.status}</.badge>
-            </td>
-            <td class="hidden lg:table-cell py-3.5 px-4">
-              <span :if={pr.paid_at} class="whitespace-nowrap">
-                <.local_datetime at={pr.paid_at} id={"pr-paid-#{pr.id}"} />
+            <td
+              class="hidden md:table-cell py-3 px-4"
+              phx-click={
+                if @can_manage,
+                  do: JS.navigate(~p"/c/#{@current_company.id}/payment-requests/#{pr.id}/edit")
+              }
+            >
+              <span :if={pr.invoice} class="font-mono text-xs tabular-nums truncate block">
+                {pr.invoice.invoice_number}
               </span>
-              <span :if={!pr.paid_at} class="text-muted-foreground">-</span>
+              <span :if={!pr.invoice} class="text-muted-foreground">-</span>
+            </td>
+            <td
+              class="hidden md:table-cell py-3 px-4"
+              phx-click={
+                if @can_manage,
+                  do: JS.navigate(~p"/c/#{@current_company.id}/payment-requests/#{pr.id}/edit")
+              }
+            >
+              <span class={[
+                "text-sm text-muted-foreground truncate block",
+                pr.status == :voided && "line-through opacity-60"
+              ]}>
+                {pr.title}
+              </span>
+            </td>
+            <td
+              class="py-3 px-4 text-right whitespace-nowrap"
+              phx-click={
+                if @can_manage,
+                  do: JS.navigate(~p"/c/#{@current_company.id}/payment-requests/#{pr.id}/edit")
+              }
+            >
+              <span class={[
+                "font-mono text-sm tabular-nums",
+                pr.status == :voided && "line-through opacity-60"
+              ]}>
+                {format_amount(pr.amount)}
+              </span>
+              <span class="text-xs text-muted-foreground ml-1">{pr.currency}</span>
+            </td>
+            <td
+              class="hidden lg:table-cell py-3 px-4"
+              phx-click={
+                if @can_manage,
+                  do: JS.navigate(~p"/c/#{@current_company.id}/payment-requests/#{pr.id}/edit")
+              }
+            >
+              <div class="font-mono text-xs tabular-nums text-muted-foreground whitespace-nowrap">
+                {format_date_short(pr_date(pr))}
+              </div>
+              <div :if={date_sub_label(pr.status) != ""} class="text-[10px] text-muted-foreground">
+                {date_sub_label(pr.status)}
+              </div>
+            </td>
+            <td
+              class="py-3 px-4"
+              phx-click={
+                if @can_manage,
+                  do: JS.navigate(~p"/c/#{@current_company.id}/payment-requests/#{pr.id}/edit")
+              }
+            >
+              <.badge variant={status_variant(pr.status)}>{status_label(pr.status)}</.badge>
+            </td>
+            <td class="w-0 py-3 pr-3 pl-0" onclick="event.stopPropagation()">
+              <div class="flex items-center gap-1">
+                <.button
+                  :if={pr.status == :pending && @can_manage}
+                  size="sm"
+                  variant="ghost"
+                  phx-click="void"
+                  phx-value-id={pr.id}
+                >
+                  <.icon name="hero-x-mark" class="size-4" />
+                </.button>
+                <.icon
+                  name="hero-chevron-right"
+                  class="size-3.5 text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity"
+                />
+              </div>
             </td>
           </tr>
         </tbody>
       </table>
 
       <.empty_state :if={@payment_requests == [] && @total_count == 0}>
-        No payment requests found matching your filters.
+        No data for selected period
       </.empty_state>
 
-      <div class="border-t border-border px-4 py-3">
+      <div class="px-4 py-3">
         <.pagination
           page={@page}
           per_page={@per_page}

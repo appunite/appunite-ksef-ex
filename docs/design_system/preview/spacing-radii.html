@@ -1,0 +1,22 @@
+<!doctype html>
+<html><head><meta charset="utf-8"><link rel="stylesheet" href="../colors_and_type.css">
+<style>
+  html,body{margin:0;padding:20px;background:var(--background);color:var(--foreground);font-family:var(--font-sans);font-size:13px}
+  .row{display:flex;gap:18px;align-items:center;margin-bottom:10px}
+  .r{background:var(--primary);height:36px;display:flex;align-items:center;justify-content:center;color:var(--primary-foreground);font-size:11px;font-family:var(--font-mono)}
+  .sm{border-radius:.25rem;width:56px}
+  .md{border-radius:.375rem;width:56px}
+  .lg{border-radius:.5rem;width:56px}
+  .xl{border-radius:.75rem;width:56px}
+  .full{border-radius:9999px;width:56px}
+  .lbl{font-family:var(--font-mono);font-size:10px;color:var(--muted-foreground)}
+</style></head><body>
+<div class="row">
+  <div class="r sm">.25</div>
+  <div class="r md">.375</div>
+  <div class="r lg">.5</div>
+  <div class="r xl">.75</div>
+  <div class="r full">∞</div>
+</div>
+<div class="lbl">sm (badge inner)&nbsp;&nbsp;&nbsp;md (field/input)&nbsp;&nbsp;&nbsp;default (button/card-inner)&nbsp;&nbsp;&nbsp;xl (card)&nbsp;&nbsp;&nbsp;full (pill/avatar)</div>
+</body></html>

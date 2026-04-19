@@ -1,0 +1,106 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>KSeF Hub — Admin UI kit</title>
+  <link rel="stylesheet" href="../../colors_and_type.css" />
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      safelist: [
+        "active:scale-[0.98]",
+        "active:opacity-80",
+        "focus:ring-1",
+        "focus:ring-[var(--ring)]",
+      ]
+    }
+  </script>
+  <script src="https://unpkg.com/react@18.3.1/umd/react.development.js" integrity="sha384-hD6/rw4ppMLGNu3tX5cjIb+uRZ7UkRJ6BPkLpg4hAu/6onKUg4lLsHAs9EBPT82L" crossorigin="anonymous"></script>
+  <script src="https://unpkg.com/react-dom@18.3.1/umd/react-dom.development.js" integrity="sha384-u6aeetuaXnQ38mYT8rp6sbXaQe3NL9t+IBXmnYxwkUI2Hw4bsp2Wvmx4yRQF1uAm" crossorigin="anonymous"></script>
+  <script src="https://unpkg.com/@babel/standalone@7.29.0/babel.min.js" integrity="sha384-m08KidiNqLdpJqLq95G/LEi8Qvjl/xUYll3QILypMoQ65QorJ9Lvtp2RXYGBFj1y" crossorigin="anonymous"></script>
+  <style>
+    html, body { margin: 0; background: var(--background); color: var(--foreground); font-family: var(--font-sans); }
+    * { box-sizing: border-box; }
+  </style>
+</head>
+<body>
+  <div id="root"></div>
+  <script type="text/babel" src="data.jsx"></script>
+  <script type="text/babel" src="Primitives.jsx"></script>
+  <script type="text/babel" src="AppShell.jsx"></script>
+  <script type="text/babel" src="InvoicesList.jsx"></script>
+  <script type="text/babel" src="InvoiceDetail.jsx"></script>
+  <script type="text/babel" src="Dashboard.jsx"></script>
+  <script type="text/babel" src="Settings.jsx"></script>
+  <script type="text/babel" src="Payments.jsx"></script>
+  <script type="text/babel" src="Login.jsx"></script>
+  <script type="text/babel">
+    const { useState, useEffect } = React;
+
+    function App() {
+      const [authed, setAuthed] = useState(() => localStorage.getItem("ksh_authed") === "1");
+      const [email, setEmail] = useState(() => localStorage.getItem("ksh_email") || "ops@appunite.com");
+      const [page, setPage] = useState(() => localStorage.getItem("ksh_page") || "invoices");
+      const [company, setCompany] = useState(COMPANIES[0]);
+      const [openInvoice, setOpenInvoice] = useState(null);
+
+      useEffect(() => { localStorage.setItem("ksh_authed", authed ? "1" : "0"); }, [authed]);
+      useEffect(() => { localStorage.setItem("ksh_email", email); }, [email]);
+      useEffect(() => { localStorage.setItem("ksh_page", page); }, [page]);
+
+      if (!authed) {
+        return <Login onSuccess={(e) => { setEmail(e); setAuthed(true); }} />;
+      }
+
+      let body;
+      if (openInvoice) {
+        body = <InvoiceDetail invoice={openInvoice} onBack={() => setOpenInvoice(null)} />;
+      } else if (page === "invoices") {
+        body = <InvoicesList onOpen={setOpenInvoice} />;
+      } else if (page === "dashboard") {
+        body = <Dashboard />;
+      } else if (page === "settings") {
+        body = <Settings />;
+      } else if (page === "payments") {
+        body = <Payments />;
+      } else if (page === "companies") {
+        body = (
+          <div>
+            <PageHeader title="Companies" subtitle={`${COMPANIES.length} companies`}
+              actions={<Button variant="primary"><Icon name="plus" size={14} /> Add company</Button>} />
+            <Card padding="p-0">
+              {COMPANIES.map((c, i) => (
+                <div
+                  key={c.id}
+                  role="button"
+                  tabIndex={0}
+                  aria-label={`Open company ${c.name}`}
+                  onClick={() => {}}
+                  className={`group cursor-pointer flex items-center justify-between px-5 py-3 hover:bg-[var(--accent)] transition-colors ${i > 0 ? "border-t border-[var(--border)]" : ""}`}
+                >
+                  <div>
+                    <div className="text-sm font-medium">{c.name}</div>
+                    <div className="text-xs font-mono text-[var(--muted-foreground)] mt-0.5">{c.nip}</div>
+                  </div>
+                  <Icon name="chevron-right" size={14} className="text-[var(--muted-foreground)] opacity-0 group-hover:opacity-100 transition-opacity" />
+                </div>
+              ))}
+            </Card>
+          </div>
+        );
+      }
+
+      return (
+        <AppShell page={page} onNav={(p) => { setOpenInvoice(null); setPage(p); }}
+          company={company} companies={COMPANIES} onPickCompany={setCompany}
+          user={{ email }}>
+          {body}
+        </AppShell>
+      );
+    }
+
+    ReactDOM.createRoot(document.getElementById("root")).render(<App />);
+  </script>
+</body>
+</html>

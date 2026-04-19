@@ -37,8 +37,27 @@ defmodule KsefHubWeb.Layouts do
             href={
               if @current_company, do: ~p"/c/#{@current_company.id}/invoices", else: ~p"/companies"
             }
-            class="mr-6"
+            class="mr-4"
           />
+          
+    <!-- Desktop nav -->
+          <nav :if={@current_company} class="hidden md:flex items-center gap-0.5">
+            <%= for item <- nav_items(@current_company, @current_role) do %>
+              <a
+                href={item.path}
+                class={[
+                  "flex items-center gap-1.5 px-2.5 py-1.5 text-sm rounded-md transition-colors",
+                  nav_active?(@current_path, item.path) &&
+                    "font-medium text-foreground bg-shad-accent",
+                  !nav_active?(@current_path, item.path) &&
+                    "text-muted-foreground hover:bg-shad-accent hover:text-foreground"
+                ]}
+              >
+                <.icon name={item.icon} class="size-3.5" />
+                {item.label}
+              </a>
+            <% end %>
+          </nav>
 
           <div class="flex-1" />
           
@@ -129,15 +148,10 @@ defmodule KsefHubWeb.Layouts do
                   {@current_user.email}
                 </div>
                 <div class="border-t border-border my-1"></div>
-                <.nav_item_list
-                  items={nav_items(@current_company, @current_role)}
-                  current_path={@current_path}
-                />
-                <div class="border-t border-border my-1"></div>
                 <.link
                   href={~p"/users/log-out"}
                   method="delete"
-                  class="flex items-center gap-2 px-2 py-1.5 text-sm rounded-sm hover:bg-shad-accent hover:text-shad-accent-foreground transition-colors"
+                  class="flex items-center gap-2 px-2 py-1.5 text-sm rounded-md hover:bg-shad-accent hover:text-shad-accent-foreground transition-colors"
                 >
                   <.icon name="hero-arrow-right-on-rectangle" class="size-4" /> Log out
                 </.link>

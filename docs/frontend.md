@@ -50,6 +50,10 @@ Use **shadcn/ui semantic tokens** — they adapt automatically to light/dark the
 | `bg-popover` | Dropdowns, tooltips |
 | `bg-muted` | Subtle fill (e.g. input bg, secondary row) |
 | `bg-shad-accent` | Hover highlight on interactive rows |
+| `bg-brand` | Brand teal fill (e.g. brand buttons) |
+| `bg-brand-muted` | Pale teal surface (e.g. brand badges) |
+| `bg-brand-strong` | Deeper teal for hover/press on brand elements |
+| `bg-purple/10` | Purple tinted surface (correction invoices) |
 
 ### Text
 
@@ -61,6 +65,9 @@ Use **shadcn/ui semantic tokens** — they adapt automatically to light/dark the
 | `text-popover-foreground` | Text inside popovers |
 | `text-shad-primary-foreground` | Text on primary-colored backgrounds |
 | `text-shad-accent-foreground` | Text on accent-colored backgrounds |
+| `text-brand` | Brand teal text |
+| `text-brand-foreground` | Text on brand-colored backgrounds |
+| `text-purple` | Purple semantic text |
 
 ### Borders & rings
 
@@ -84,12 +91,16 @@ Focus ring:        focus-visible:outline-none focus-visible:ring-1 focus-visible
 ### Status colors (shared by both shadcn and DaisyUI)
 
 ```text
-Success:   bg-success/10  text-success  border-success/20
-Warning:   bg-warning/10  text-warning  border-warning/20
-Error:     bg-error/10    text-error    border-error/20
-Info:      bg-info/10     text-info     border-info/20
+Success:   bg-success/10  text-success          border-success/20
+Warning:   bg-warning/10  badge-warning-text    border-warning/30   ← use class, not text-warning
+Error:     bg-error/10    text-error            border-error/20
+Info:      bg-info/10     text-info             border-info/20
+Purple:    bg-purple/10   text-purple           border-purple/20
+Brand:     bg-brand-muted text-brand            border-brand/25
 ```
 
+> **Warning text:** `text-warning` is bright yellow — unreadable on a pale yellow background. Always use the CSS class `badge-warning-text` for warning text inside badges or similar surfaces. It resolves to `color-mix(in oklch, var(--color-warning) 60%, var(--foreground))`, producing a readable amber-brown in both light and dark mode.
+>
 > **Note:** `primary`, `secondary`, `accent` (without `shad-` prefix) are DaisyUI theme colors. Use `shad-primary`, `shad-secondary`, `shad-accent` for the shadcn variants.
 
 ---
@@ -104,8 +115,8 @@ Globally imported in all LiveViews and templates.
 
 | Component | Key attrs | Notes |
 |-----------|-----------|-------|
-| `<.badge>` | `variant`: success\|warning\|error\|info\|muted\|default | Inline colored pill |
-| `<.button>` | `variant`: primary\|outline\|ghost\|destructive\|success\|warning; `size`: default\|sm\|icon | Renders `<.link>` when `navigate`/`patch`/`href` given |
+| `<.badge>` | `variant`: success\|warning\|error\|info\|muted\|default\|purple\|brand | Inline colored pill |
+| `<.button>` | `variant`: primary\|outline\|ghost\|destructive\|success\|warning\|brand; `size`: default\|sm\|icon | Renders `<.link>` when `navigate`/`patch`/`href` given |
 | `<.card>` | `class`, `padding` (default `"p-6"`) | Rounded border container |
 | `<.auth_card>` | `title`, `footer` slot | Centered card for auth pages |
 | `<.input>` | `field`, `type`, `label`, `errors` | Handles `FormField`; includes error display |
@@ -119,7 +130,7 @@ Globally imported in all LiveViews and templates.
 | `<.error>` | `inner_block` | Red error text with icon |
 | `<.list>` | `:item` slots with `title` attr | Key-value data list |
 | `<.file_upload_dropzone>` | `upload`, `label` | Drag-and-drop file input |
-| `<.logo>` | `href` | App logo |
+| `<.logo>` | `href` | App logo — inline SVG mark (teal `var(--brand)` circle + grid dots) with "KSeF Hub" text |
 | `<.nav_item_list>` | `items`, `current_path` | Sidebar navigation list |
 | `<.empty_state>` | `icon`, `title`, `description` | Centered empty-state placeholder |
 
@@ -143,6 +154,23 @@ Helpers: `format_date/1`, `format_amount/1`, `format_datetime/1`, `format_month/
 
 - `CertificateComponents` — certificate expiry alerts
 - `SettingsComponents` — settings page sidebar layout
+
+---
+
+## Brand Tokens
+
+The teal brand accent (`--brand`) is exposed as Tailwind utilities for use in features that need prominent brand presence (e.g. primary CTAs, onboarding, marketing-adjacent UI).
+
+| CSS variable | Light | Dark | Tailwind class |
+|---|---|---|---|
+| `--brand` | teal `oklch(52% 0.09 185)` | lighter teal `oklch(68% 0.13 185)` | `bg-brand` / `text-brand` |
+| `--brand-foreground` | white | dark | `text-brand-foreground` |
+| `--brand-muted` | pale teal surface | dark teal surface | `bg-brand-muted` |
+| `--brand-strong` | deeper teal for hover | bright teal for hover | `bg-brand-strong` |
+
+Use `<.button variant="brand">` for the primary brand CTA. Use `<.badge variant="brand">` for brand-tinted status pills.
+
+The `--purple` token (`oklch(62% 0.22 293)` light / `oklch(70% 0.2 293)` dark) is used for correction invoice UI (`<.badge variant="purple">`, correction-details banner).
 
 ---
 

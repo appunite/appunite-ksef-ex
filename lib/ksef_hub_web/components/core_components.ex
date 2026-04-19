@@ -104,7 +104,7 @@ defmodule KsefHubWeb.CoreComponents do
       <.badge variant="warning">Pending</.badge>
   """
   attr :variant, :string,
-    values: ~w(success warning error info muted default purple),
+    values: ~w(success warning error info muted default purple brand),
     default: "default"
 
   attr :class, :string, default: nil
@@ -115,12 +115,13 @@ defmodule KsefHubWeb.CoreComponents do
   def badge(assigns) do
     variant_classes = %{
       "success" => "bg-success/10 text-success border-success/20",
-      "warning" => "bg-warning/10 text-warning border-warning/20",
+      "warning" => "bg-warning/10 badge-warning-text border-warning/30",
       "error" => "bg-error/10 text-error border-error/20",
       "info" => "bg-info/10 text-info border-info/20",
       "muted" => "bg-muted text-muted-foreground border-border",
       "default" => "bg-muted text-muted-foreground border-border",
-      "purple" => "bg-purple-500/10 text-purple-400 border-purple-500/20"
+      "purple" => "bg-purple/10 text-purple border-purple/20",
+      "brand" => "bg-brand-muted text-brand border-brand/25"
     }
 
     assigns = assign(assigns, :variant_class, Map.fetch!(variant_classes, assigns.variant))
@@ -213,7 +214,7 @@ defmodule KsefHubWeb.CoreComponents do
   attr :class, :string, default: nil
 
   attr :variant, :string,
-    values: ~w(primary outline outline-destructive ghost destructive success warning)
+    values: ~w(primary outline outline-destructive ghost destructive success warning brand)
 
   attr :size, :string, values: ~w(default sm icon), default: "default"
   slot :inner_block, required: true
@@ -222,14 +223,15 @@ defmodule KsefHubWeb.CoreComponents do
     variants = %{
       "primary" => "bg-shad-primary text-shad-primary-foreground hover:bg-shad-primary/90",
       "outline" =>
-        "border border-input bg-background hover:bg-shad-accent hover:text-shad-accent-foreground",
-      "ghost" => "hover:bg-shad-accent hover:text-shad-accent-foreground",
+        "border border-input bg-background hover:bg-shad-accent hover:text-shad-accent-foreground active:opacity-80",
+      "ghost" => "hover:bg-shad-accent hover:text-shad-accent-foreground active:opacity-80",
       "outline-destructive" =>
-        "border border-shad-destructive text-shad-destructive bg-background hover:bg-shad-destructive/10",
+        "border border-shad-destructive text-shad-destructive bg-background hover:bg-shad-destructive/10 active:opacity-80",
       "destructive" =>
         "bg-shad-destructive text-shad-destructive-foreground hover:bg-shad-destructive/90",
       "success" => "bg-emerald-600 text-white hover:bg-emerald-600/90",
       "warning" => "bg-amber-500 text-white hover:bg-amber-500/90",
+      "brand" => "bg-brand text-brand-foreground hover:bg-brand-strong",
       nil => "bg-shad-primary text-shad-primary-foreground hover:bg-shad-primary/90"
     }
 
@@ -241,7 +243,7 @@ defmodule KsefHubWeb.CoreComponents do
 
     assigns =
       assign(assigns, :computed_class, [
-        "inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-md font-medium transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50 cursor-pointer",
+        "inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-md font-medium transition-all active:scale-[0.98] focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50 cursor-pointer",
         Map.fetch!(sizes, assigns.size),
         Map.fetch!(variants, assigns[:variant]),
         assigns.class
@@ -275,11 +277,31 @@ defmodule KsefHubWeb.CoreComponents do
   @spec logo(map()) :: Phoenix.LiveView.Rendered.t()
   def logo(assigns) do
     ~H"""
-    <a href={@href} class={["flex items-center gap-2", @class]}>
-      <.icon name="hero-document-text" class="size-5 text-foreground" />
-      <span class="flex flex-col items-start leading-tight">
-        <span class="text-sm font-bold tracking-tight">Invoi</span>
-        <span class="text-[9px] text-muted-foreground font-normal -mt-0.5">by Appunite</span>
+    <a href={@href} class={["flex items-center gap-2 text-foreground", @class]}>
+      <svg width="28" height="28" viewBox="0 0 48 48" fill="none" aria-hidden="true">
+        <g fill="currentColor" opacity="0.25">
+          <circle cx="10" cy="10" r="2.5" /><circle cx="24" cy="10" r="2.5" /><circle
+            cx="38"
+            cy="10"
+            r="2.5"
+          />
+          <circle cx="10" cy="24" r="2.5" /><circle cx="38" cy="24" r="2.5" />
+          <circle cx="10" cy="38" r="2.5" /><circle cx="24" cy="38" r="2.5" /><circle
+            cx="38"
+            cy="38"
+            r="2.5"
+          />
+        </g>
+        <circle cx="24" cy="24" r="4.5" fill="var(--brand)" />
+        <g stroke="var(--brand)" stroke-width="2" stroke-linecap="round">
+          <line x1="24" y1="19.5" x2="24" y2="12" />
+          <line x1="28.5" y1="24" x2="36" y2="24" />
+          <line x1="24" y1="28.5" x2="24" y2="36" />
+          <line x1="19.5" y1="24" x2="12" y2="24" />
+        </g>
+      </svg>
+      <span class="text-sm font-bold tracking-tight whitespace-nowrap">
+        KSeF<span class="font-normal"> Hub</span>
       </span>
     </a>
     """
@@ -308,7 +330,7 @@ defmodule KsefHubWeb.CoreComponents do
       <a
         href={item.path}
         class={[
-          "flex items-center gap-2 px-2 py-1.5 text-sm rounded-sm transition-colors",
+          "flex items-center gap-1.5 px-2.5 py-1.5 text-sm rounded-md transition-colors",
           nav_active?(@current_path, item.path) &&
             "font-medium text-foreground bg-shad-accent",
           !nav_active?(@current_path, item.path) &&
@@ -322,10 +344,11 @@ defmodule KsefHubWeb.CoreComponents do
     """
   end
 
+  @doc false
   @spec nav_active?(String.t() | nil, String.t()) :: boolean()
-  defp nav_active?(nil, _path), do: false
+  def nav_active?(nil, _path), do: false
 
-  defp nav_active?(current, path),
+  def nav_active?(current, path),
     do: current == path || Regex.match?(~r/^#{Regex.escape(path)}(\/|$)/, current)
 
   @doc """
@@ -589,7 +612,7 @@ defmodule KsefHubWeb.CoreComponents do
     ~H"""
     <header class={[
       @actions != [] && "flex items-center justify-between gap-6",
-      "pb-4 border-b border-border"
+      "pb-4 border-b border-border mb-6"
     ]}>
       <div>
         <h1 class="text-lg font-semibold leading-7 tracking-tight">
@@ -599,7 +622,7 @@ defmodule KsefHubWeb.CoreComponents do
           {render_slot(@subtitle)}
         </p>
       </div>
-      <div class="flex-none">{render_slot(@actions)}</div>
+      <div class="flex-none flex items-center gap-2">{render_slot(@actions)}</div>
     </header>
     """
   end
@@ -643,13 +666,13 @@ defmodule KsefHubWeb.CoreComponents do
           <th
             :for={col <- @col}
             class={[
-              "text-left py-3 px-4 text-xs font-medium text-muted-foreground uppercase tracking-wide",
+              "text-left py-2.5 px-4 text-xs font-medium text-muted-foreground uppercase tracking-wide",
               col[:class]
             ]}
           >
             {col[:label]}
           </th>
-          <th :if={@action != []} class="py-3 px-4">
+          <th :if={@action != []} class="w-0 py-2.5 pr-3 pl-0">
             <span class="sr-only">{gettext("Actions")}</span>
           </th>
         </tr>
@@ -658,16 +681,16 @@ defmodule KsefHubWeb.CoreComponents do
         <tr
           :for={row <- @rows}
           id={@row_id && @row_id.(row)}
-          class="border-b border-border/50 hover:bg-muted/50 transition-colors"
+          class="group border-b border-border hover:bg-shad-accent transition-colors"
         >
           <td
             :for={col <- @col}
             phx-click={@row_click && @row_click.(row)}
-            class={["py-3.5 px-4", @row_click && "hover:cursor-pointer", col[:class]]}
+            class={["py-3 px-4", @row_click && "hover:cursor-pointer", col[:class]]}
           >
             {render_slot(col, @row_item.(row))}
           </td>
-          <td :if={@action != []} class="w-0 py-3.5 px-4 font-semibold">
+          <td :if={@action != []} class="w-0 py-3 pr-3 pl-0">
             <div class="flex gap-4">
               <%= for action <- @action do %>
                 {render_slot(action, @row_item.(row))}
@@ -748,9 +771,9 @@ defmodule KsefHubWeb.CoreComponents do
   def list(assigns) do
     ~H"""
     <dl class="space-y-0 divide-y divide-border">
-      <div :for={item <- @item} class="flex justify-between gap-4 py-2.5">
-        <dt class="text-sm font-medium text-muted-foreground">{item.title}</dt>
-        <dd class="text-sm text-right">{render_slot(item)}</dd>
+      <div :for={item <- @item} class="flex gap-8 py-2.5">
+        <dt class="text-sm font-medium text-muted-foreground w-24 shrink-0">{item.title}</dt>
+        <dd class="text-sm">{render_slot(item)}</dd>
       </div>
     </dl>
     """
@@ -806,20 +829,13 @@ defmodule KsefHubWeb.CoreComponents do
   attr :selected, :list, default: [], doc: "list of currently selected values"
   attr :on_toggle, :string, default: "toggle_filter", doc: "event name for check/uncheck"
   attr :field, :string, required: true, doc: "filter field name sent in event"
+  attr :icon, :string, default: nil, doc: "optional heroicon name to show before the label"
   attr :searchable, :boolean, default: false, doc: "show search input for long lists"
   attr :open, :boolean, default: false, doc: "whether the popover is currently open"
 
   @spec multi_select(map()) :: Phoenix.LiveView.Rendered.t()
   def multi_select(assigns) do
-    selected_labels =
-      assigns.options
-      |> Enum.filter(fn {_label, value} -> value in assigns.selected end)
-      |> Enum.map(fn {label, _value} -> label end)
-
-    assigns =
-      assigns
-      |> assign(:count, length(assigns.selected))
-      |> assign(:selected_labels, selected_labels)
+    assigns = assign(assigns, :count, length(assigns.selected))
 
     ~H"""
     <div class="relative">
@@ -827,17 +843,21 @@ defmodule KsefHubWeb.CoreComponents do
         type="button"
         phx-click={JS.toggle(to: "##{@id}-popover") |> JS.push("open_filter", value: %{id: @id})}
         class={[
-          "inline-flex items-center gap-1.5 h-8 px-3 text-xs font-medium rounded-md border transition-colors cursor-pointer max-w-48",
+          "inline-flex items-center gap-1.5 h-8 px-2.5 text-xs font-medium rounded-md border transition-colors cursor-pointer",
           if(@count > 0,
-            do:
-              "border-shad-primary/50 bg-shad-primary/10 text-shad-primary hover:bg-shad-primary/20",
+            do: "border-foreground bg-shad-accent text-foreground",
             else:
               "border-input bg-background text-muted-foreground hover:bg-shad-accent hover:text-shad-accent-foreground"
           )
         ]}
       >
-        <span class="truncate">
-          {if @count > 0, do: "#{@label}: #{Enum.join(@selected_labels, ", ")}", else: @label}
+        <.icon :if={@icon} name={@icon} class="size-3.5 opacity-60 shrink-0" />
+        <span>{@label}</span>
+        <span
+          :if={@count > 0}
+          class="inline-flex items-center justify-center min-w-[16px] h-4 px-1 rounded-full bg-foreground text-background text-[10px] font-mono tabular-nums"
+        >
+          {@count}
         </span>
         <.icon name="hero-chevron-down" class="size-3 opacity-50 shrink-0" />
       </button>
@@ -860,13 +880,22 @@ defmodule KsefHubWeb.CoreComponents do
             class="w-full h-7 rounded-md border border-input bg-background px-2 text-xs focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
           />
         </div>
+        <div
+          :if={@count > 0}
+          phx-click={
+            JS.push("clear_filter_field", value: %{field: @field}) |> JS.hide(to: "##{@id}-popover")
+          }
+          class="px-2 py-1.5 text-xs text-muted-foreground hover:bg-shad-accent border-b border-border cursor-pointer transition-colors"
+        >
+          Clear selection
+        </div>
         <div id={"#{@id}-list"} class="max-h-48 overflow-y-auto p-1">
           <div
             :for={{label, value} <- @options}
             phx-click={@on_toggle}
             phx-value-field={@field}
             phx-value-value={value}
-            class="flex items-center gap-2 px-2 py-1.5 rounded-sm text-sm cursor-pointer hover:bg-shad-accent"
+            class="flex items-center gap-2 px-2 py-1.5 rounded-md text-sm cursor-pointer hover:bg-shad-accent"
             data-label={String.downcase(label)}
           >
             <input
@@ -897,10 +926,10 @@ defmodule KsefHubWeb.CoreComponents do
     <button
       type="button"
       phx-click="clear_filters"
-      class="text-xs text-muted-foreground hover:text-foreground cursor-pointer"
+      class="inline-flex items-center gap-1 h-8 px-2 rounded-md text-xs text-muted-foreground hover:text-foreground hover:bg-shad-accent cursor-pointer transition-colors"
       {@rest}
     >
-      Reset
+      <.icon name="hero-x-mark" class="size-3" /> Clear filters
     </button>
     """
   end
@@ -987,6 +1016,7 @@ defmodule KsefHubWeb.CoreComponents do
       |> assign(:to_value, to)
       |> assign(:range_value, range_value)
       |> assign(:has_value, range_value != nil)
+      |> assign(:range_label, format_date_range_label(from, to))
 
     ~H"""
     <div id={@id} phx-hook="DateRangePicker" class="relative">
@@ -1006,7 +1036,7 @@ defmodule KsefHubWeb.CoreComponents do
       >
         <.icon name="hero-calendar-days" class="size-3.5 opacity-60" />
         <span>
-          {if @has_value, do: "#{@from_value} – #{@to_value}", else: @label}
+          {if @has_value, do: @range_label, else: @label}
         </span>
       </button>
       <button
@@ -1023,7 +1053,7 @@ defmodule KsefHubWeb.CoreComponents do
       >
         <.icon name="hero-calendar-days" class="size-4 opacity-60" />
         <span>
-          {if @has_value, do: "#{@from_value} – #{@to_value}", else: @label}
+          {if @has_value, do: @range_label, else: @label}
         </span>
       </button>
 
@@ -1338,6 +1368,19 @@ defmodule KsefHubWeb.CoreComponents do
   defp date_to_iso(%Date{} = d), do: Date.to_iso8601(d)
   defp date_to_iso(s) when is_binary(s), do: s
 
+  @spec format_date_range_label(String.t() | nil, String.t() | nil) :: String.t() | nil
+  defp format_date_range_label(nil, _), do: nil
+  defp format_date_range_label(_, nil), do: nil
+
+  defp format_date_range_label(from_iso, to_iso) do
+    with {:ok, from} <- Date.from_iso8601(from_iso),
+         {:ok, to} <- Date.from_iso8601(to_iso) do
+      "#{Calendar.strftime(from, "%b %-d")} – #{Calendar.strftime(to, "%b %-d, %Y")}"
+    else
+      _ -> "#{from_iso} – #{to_iso}"
+    end
+  end
+
   @doc """
   Renders a standalone pagination footer with page info and navigation.
 
@@ -1463,6 +1506,7 @@ defmodule KsefHubWeb.CoreComponents do
   @doc """
   Returns CSS classes for an active/inactive tab in a tab bar.
   """
+  @deprecated "Use <.status_tabs> instead"
   @spec tab_class(boolean()) :: String.t()
   def tab_class(true),
     do: "px-4 py-2 text-sm font-medium border-b-2 -mb-px border-shad-primary text-shad-primary"
@@ -1470,4 +1514,62 @@ defmodule KsefHubWeb.CoreComponents do
   def tab_class(false),
     do:
       "px-4 py-2 text-sm font-medium border-b-2 -mb-px transition-colors border-transparent text-muted-foreground hover:text-foreground hover:border-border"
+
+  @doc """
+  Renders a design-system tab bar with count pills and underline active indicator.
+
+  Each tab receives:
+  - a count pill that inverts (foreground/background) when active
+  - an absolute 2px `bg-foreground` bottom bar when active
+
+  Tabs are rendered as `<.link patch={tab.href}>` — suitable for same-LiveView navigation.
+
+  ## Examples
+
+      <.status_tabs
+        active_id="expense"
+        tabs={[
+          %{id: "all",     label: "All",     count: 42, href: ~p"/c/\#{id}/invoices?type=all"},
+          %{id: "income",  label: "Income",  count: 10, href: ~p"/c/\#{id}/invoices?type=income"},
+          %{id: "expense", label: "Expense", count: 32, href: ~p"/c/\#{id}/invoices?type=expense"},
+        ]}
+      />
+  """
+  attr :tabs, :list,
+    required: true,
+    doc: "list of %{id: String.t(), label: String.t(), count: integer(), href: String.t()}"
+
+  attr :active_id, :string, required: true, doc: "id of the currently active tab"
+  attr :class, :string, default: nil
+
+  @spec status_tabs(map()) :: Phoenix.LiveView.Rendered.t()
+  def status_tabs(assigns) do
+    ~H"""
+    <div class={["-mt-2 mb-5 border-b border-border flex items-center", @class]}>
+      <.link
+        :for={tab <- @tabs}
+        patch={tab.href}
+        aria-current={tab.id == @active_id && "page"}
+        class={[
+          "relative -mb-px h-10 px-4 text-sm flex items-center gap-2 transition-colors whitespace-nowrap",
+          tab.id == @active_id && "text-foreground font-medium",
+          tab.id != @active_id && "text-muted-foreground hover:text-foreground"
+        ]}
+      >
+        {tab.label}
+        <span class={[
+          "inline-flex items-center justify-center min-w-[20px] h-[18px] px-1 rounded-full text-[11px] font-mono tabular-nums",
+          tab.id == @active_id && "bg-foreground text-background",
+          tab.id != @active_id && "bg-muted text-muted-foreground"
+        ]}>
+          {tab.count}
+        </span>
+        <span
+          :if={tab.id == @active_id}
+          class="absolute left-0 right-0 bottom-0 h-[3px] bg-foreground"
+        />
+      </.link>
+    </div>
+    """
+  end
 end
