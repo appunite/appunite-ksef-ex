@@ -11,7 +11,9 @@ defmodule KsefHubWeb.TeamLive.Invite do
   require Logger
 
   alias KsefHub.Companies.Company
+  alias KsefHub.Companies.Membership
   alias KsefHub.Invitations
+  alias KsefHub.Invitations.Invitation
   alias KsefHub.Invitations.InvitationNotifier
 
   @doc "Initializes the invite form with default email and role fields."
@@ -179,6 +181,8 @@ defmodule KsefHubWeb.TeamLive.Invite do
 
   @spec role_options() :: [{String.t(), String.t()}]
   defp role_options do
-    [{"Admin", "admin"}, {"Accountant", "accountant"}, {"Approver", "approver"}]
+    Enum.map(Invitation.invitable_roles(), fn role ->
+      {Membership.role_label(role), Atom.to_string(role)}
+    end)
   end
 end

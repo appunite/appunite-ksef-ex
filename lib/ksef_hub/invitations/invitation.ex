@@ -6,6 +6,7 @@ defmodule KsefHub.Invitations.Invitation do
   - `admin` — same as owner except cannot delete company or transfer ownership
   - `accountant` — read-only invoice access plus exports and API token management
   - `approver` — manages expense invoice workflow: approve/reject, trigger syncs
+  - `analyst` — read-only invoice access; same data scope as approver, no management actions
 
   The `owner` role cannot be invited — ownership is assigned only at company creation.
 
@@ -19,7 +20,7 @@ defmodule KsefHub.Invitations.Invitation do
   import Ecto.Changeset
 
   @type t :: %__MODULE__{}
-  @type invitation_role :: :admin | :accountant | :approver
+  @type invitation_role :: :admin | :accountant | :approver | :analyst
   @type invitation_status :: :pending | :accepted | :cancelled
 
   @primary_key {:id, :binary_id, autogenerate: true}
@@ -27,7 +28,7 @@ defmodule KsefHub.Invitations.Invitation do
 
   schema "invitations" do
     field :email, :string
-    field :role, Ecto.Enum, values: [:admin, :accountant, :approver]
+    field :role, Ecto.Enum, values: [:admin, :accountant, :approver, :analyst]
     field :token_hash, :string
     field :status, Ecto.Enum, values: [:pending, :accepted, :cancelled], default: :pending
     field :expires_at, :utc_datetime
