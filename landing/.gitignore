@@ -1,0 +1,10 @@
+dist/
+.astro/
+node_modules/
+*.log
+.env
+.env.production
+.DS_Store
+
+# Generated at build time by scripts/fetch-openapi.mjs
+public/openapi.json

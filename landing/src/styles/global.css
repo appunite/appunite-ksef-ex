@@ -1,0 +1,258 @@
+/* Fonts are loaded via <link rel="preconnect"> + <link rel="stylesheet"> in Base.astro.
+   Keeping them out of CSS @import avoids render-blocking twice (CSS download, then font CSS). */
+@import "tailwindcss";
+@import "./tokens.css";
+
+@layer base {
+  html,
+  body {
+    margin: 0;
+    background: var(--background);
+    color: var(--foreground);
+    font-family: var(--font-sans);
+  }
+
+  * {
+    box-sizing: border-box;
+  }
+}
+
+/* All custom component classes live in @layer components so any Tailwind
+   utility applied alongside them (p-0, py-24, bg-*, etc.) wins by default.
+   Without this, a `padding: 0 24px` shorthand here would silently override
+   `.py-24` because unlayered styles beat layered utilities. */
+@layer components {
+  .container-page {
+    max-width: 1120px;
+    margin-inline: auto;
+    padding-inline: 24px;
+  }
+
+  .eyebrow {
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 0.12em;
+    font-weight: 600;
+    color: var(--brand);
+  }
+
+  .hero-h1 {
+    font-size: clamp(40px, 5.2vw, 68px);
+    line-height: 1.02;
+    letter-spacing: -0.03em;
+    font-weight: 600;
+    text-wrap: balance;
+  }
+
+  .section-h2 {
+    font-size: clamp(28px, 3.2vw, 40px);
+    line-height: 1.1;
+    letter-spacing: -0.02em;
+    font-weight: 600;
+    text-wrap: balance;
+  }
+
+  .btn-primary {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    height: 40px;
+    padding-inline: 18px;
+    border-radius: 8px;
+    background: var(--foreground);
+    color: var(--background);
+    font-size: 14px;
+    font-weight: 500;
+    text-decoration: none;
+    transition: opacity 0.15s;
+  }
+  .btn-primary:hover {
+    opacity: 0.9;
+    text-decoration: none;
+  }
+
+  .btn-ghost {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    height: 40px;
+    padding-inline: 14px;
+    border-radius: 8px;
+    font-size: 14px;
+    font-weight: 500;
+    text-decoration: none;
+    color: var(--foreground);
+  }
+  .btn-ghost:hover {
+    background: var(--accent);
+    text-decoration: none;
+  }
+
+  .nav-link {
+    color: var(--muted-foreground);
+    font-size: 14px;
+    text-decoration: none;
+    transition: color 0.15s;
+  }
+  .nav-link:hover {
+    color: var(--foreground);
+    text-decoration: none;
+  }
+
+  .hero-bg {
+    background-image: radial-gradient(
+      circle at 1px 1px,
+      color-mix(in oklch, var(--foreground) 10%, transparent) 1px,
+      transparent 0
+    );
+    background-size: 22px 22px;
+  }
+
+  .card-flat {
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    background: var(--card);
+    padding: 28px;
+  }
+
+  .kbd {
+    font-family: var(--font-mono);
+    font-size: 11px;
+    padding-block: 2px;
+    padding-inline: 6px;
+    border-radius: 4px;
+    background: var(--muted);
+    color: var(--muted-foreground);
+    border: 1px solid var(--border);
+    letter-spacing: 0.04em;
+  }
+
+  .feat-icon {
+    width: 36px;
+    height: 36px;
+    border-radius: 8px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    background: var(--muted);
+    color: var(--foreground);
+  }
+
+  .tag-pill {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding-block: 4px;
+    padding-inline: 10px;
+    border-radius: 999px;
+    font-size: 12px;
+    font-weight: 500;
+    border: 1px solid var(--border);
+    background: var(--card);
+    color: var(--muted-foreground);
+  }
+  .tag-pill .dot {
+    width: 6px;
+    height: 6px;
+    border-radius: 999px;
+    background: var(--brand);
+  }
+
+  pre code {
+    font-family: var(--font-mono);
+    font-size: 12.5px;
+    line-height: 1.6;
+  }
+
+  .code-block {
+    background: color-mix(in oklch, var(--code-bg) 96%, var(--brand));
+    color: var(--code-fg);
+    border-radius: 12px;
+    padding-block: 20px;
+    padding-inline: 22px;
+    overflow-x: auto;
+  }
+  .code-block .k { color: #7dd3fc; }
+  .code-block .s { color: #fde68a; }
+  .code-block .n { color: #86efac; }
+  .code-block .c { color: #94a3b8; }
+  .code-block .p { color: #c4b5fd; }
+
+  /* Markdown prose (blog posts and anywhere rendered from .md). */
+  .prose {
+    color: var(--foreground);
+    font-size: 16px;
+    line-height: 1.65;
+    max-width: 680px;
+  }
+  .prose > * + * { margin-top: 1.15em; }
+  .prose p { text-wrap: pretty; }
+  .prose h1 {
+    font-size: clamp(28px, 3vw, 40px);
+    font-weight: 600;
+    letter-spacing: -0.02em;
+    line-height: 1.15;
+    margin-top: 1.6em;
+    text-wrap: balance;
+  }
+  .prose h2 {
+    font-size: 22px;
+    font-weight: 600;
+    letter-spacing: -0.01em;
+    line-height: 1.3;
+    margin-top: 2em;
+    text-wrap: balance;
+  }
+  .prose h3 {
+    font-size: 17px;
+    font-weight: 600;
+    margin-top: 1.6em;
+  }
+  .prose ul, .prose ol { padding-left: 1.25em; }
+  .prose ul { list-style: disc; }
+  .prose ol { list-style: decimal; }
+  .prose li + li { margin-top: 0.4em; }
+  .prose li::marker { color: var(--muted-foreground); }
+  .prose strong { font-weight: 600; color: var(--foreground); }
+  .prose a {
+    color: var(--brand);
+    text-decoration: underline;
+    text-underline-offset: 3px;
+  }
+  .prose a:hover { color: var(--brand-strong); }
+  .prose code {
+    font-family: var(--font-mono);
+    font-size: 0.9em;
+    padding: 2px 6px;
+    border-radius: 4px;
+    background: var(--muted);
+    color: var(--foreground);
+    border: 1px solid var(--border);
+  }
+  .prose pre {
+    background: var(--code-bg);
+    color: var(--code-fg);
+    padding: 18px 20px;
+    border-radius: 10px;
+    overflow-x: auto;
+    font-size: 13px;
+    line-height: 1.6;
+  }
+  .prose pre code {
+    background: transparent;
+    border: 0;
+    padding: 0;
+    color: inherit;
+  }
+  .prose blockquote {
+    border-left: 2px solid var(--border);
+    padding-left: 1em;
+    color: var(--muted-foreground);
+    font-style: italic;
+  }
+  .prose hr {
+    border: 0;
+    border-top: 1px solid var(--border);
+    margin: 2.5em 0;
+  }
+}

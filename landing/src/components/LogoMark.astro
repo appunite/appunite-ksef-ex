@@ -1,0 +1,28 @@
+---
+interface Props {
+  size?: number;
+  withSpokes?: boolean;
+}
+const { size = 24, withSpokes = true } = Astro.props;
+---
+<svg width={size} height={size} viewBox="0 0 48 48" fill="none">
+  <g fill="currentColor" opacity="0.25">
+    <circle cx="10" cy="10" r="2.5" />
+    <circle cx="24" cy="10" r="2.5" />
+    <circle cx="38" cy="10" r="2.5" />
+    <circle cx="10" cy="24" r="2.5" />
+    <circle cx="38" cy="24" r="2.5" />
+    <circle cx="10" cy="38" r="2.5" />
+    <circle cx="24" cy="38" r="2.5" />
+    <circle cx="38" cy="38" r="2.5" />
+  </g>
+  <circle cx="24" cy="24" r="4.5" fill="var(--brand)" />
+  {withSpokes && (
+    <g stroke="var(--brand)" stroke-width="2" stroke-linecap="round">
+      <line x1="24" y1="19.5" x2="24" y2="12" />
+      <line x1="28.5" y1="24" x2="36" y2="24" />
+      <line x1="24" y1="28.5" x2="24" y2="36" />
+      <line x1="19.5" y1="24" x2="12" y2="24" />
+    </g>
+  )}
+</svg>

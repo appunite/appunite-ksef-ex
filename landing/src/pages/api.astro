@@ -1,0 +1,33 @@
+---
+import Base from "../layouts/Base.astro";
+import Nav from "../components/Nav.astro";
+import { getLocaleFromUrl, useTranslations } from "../i18n";
+
+const locale = getLocaleFromUrl(Astro.url);
+const t = useTranslations(locale);
+
+const base = import.meta.env.BASE_URL;
+const specUrl = (base.endsWith("/") ? base : `${base}/`) + "openapi.json";
+---
+<Base title={t.apiDocs.seoTitle} description={t.apiDocs.seoDescription}>
+  <Nav />
+  <main id="scalar-root">
+    <script
+      id="api-reference"
+      type="application/json"
+      data-url={specUrl}
+      is:inline
+    ></script>
+    <script
+      src="https://cdn.jsdelivr.net/npm/@scalar/api-reference@1"
+      is:inline
+    ></script>
+  </main>
+</Base>
+
+<style>
+  /* Let Scalar manage its own scrolling; Nav stays sticky above it. */
+  main#scalar-root {
+    min-height: calc(100vh - 3.5rem);
+  }
+</style>

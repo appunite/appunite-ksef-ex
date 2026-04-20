@@ -1,0 +1,291 @@
+{
+  "seo": {
+    "title": "KSeF Hub — Open-source invoice ledger for Poland's KSeF",
+    "description": "Open-source, self-hostable invoice ledger for Poland's KSeF (Krajowy System e-Faktur). Automatic sync, OCR for PDF invoices, ML categorization, REST API. Self-host or managed."
+  },
+  "nav": {
+    "features": "Features",
+    "ledger": "Ledger",
+    "api": "API",
+    "selfHost": "Self-host",
+    "blog": "Blog",
+    "docs": "Docs",
+    "github": "GitHub"
+  },
+  "blog": {
+    "eyebrow": "Blog",
+    "heading": "What's new in KSeF Hub.",
+    "subhead": "Release notes, technical deep-dives, and updates on Poland's KSeF rollout.",
+    "readMore": "Read more",
+    "backToBlog": "All posts",
+    "publishedOn": "Published",
+    "updatedOn": "Updated",
+    "emptyState": "Blog posts in English are coming soon.",
+    "subscribeRss": "Subscribe via RSS"
+  },
+  "hero": {
+    "pillOpenSource": "Open source · AGPL-3.0",
+    "pillSelfHost": "Self-host or managed",
+    "titleLine1": "One ledger for every",
+    "titleLine2": "invoice your company touches.",
+    "subhead": "Pulls from Poland's KSeF on a schedule, accepts PDFs by inbound email, categorizes with ML, flags duplicates, and hands clean data to your accountant — or to your next dashboard via API. Ship it yourself or let us run it.",
+    "ctaSelfHost": "Self-host",
+    "ctaGithub": "Star on GitHub",
+    "or": "or"
+  },
+  "trust": {
+    "data": {
+      "title": "Your data, your server",
+      "body": "Self-host the whole thing. No telemetry, no lock-in."
+    },
+    "multi": {
+      "title": "Multi-company by default",
+      "body": "One install, every NIP. Switch context from the nav."
+    },
+    "audit": {
+      "title": "Full audit log",
+      "body": "Every sync, approve, reject, export — timestamped, immutable."
+    },
+    "sync": {
+      "title": "Hands-free sync",
+      "body": "Cron-driven pulls from KSeF. No manual logins."
+    }
+  },
+  "why": {
+    "eyebrow": "Why it exists",
+    "heading": "The KSeF portal wasn't built for the people using it.",
+    "para1": "As of 2026, every Polish company has to pull invoices from Krajowy System e-Faktur (KSeF), reconcile them with the PDFs that still arrive by email, and hand the whole mess to their accountant. Doing that by hand through the government portal is a daily tax on your time.",
+    "para2": "KSeF Hub is the missing operating layer: a proper UI, a REST API, ML that learns your categories, and permissioned access for the people who help you run the business. It's open source so you can audit it, fork it, or run it yourself — and managed if you'd rather not."
+  },
+  "featuresSection": {
+    "eyebrow": "Features",
+    "heading": "Everything you were doing by hand, automated.",
+    "subhead": "From ingest to export. Each piece works independently; together they replace the spreadsheet-plus-email workflow most companies run today."
+  },
+  "features": {
+    "ksefSync": {
+      "title": "Periodic KSeF sync",
+      "body": "Scheduled pulls from the government e-invoice system. Certificate stays on your server; no browser logins, no stale sessions."
+    },
+    "multiCompany": {
+      "title": "Every company in one place",
+      "body": "Add as many NIPs as you like. The admin switches context in one click — no separate logins per entity."
+    },
+    "email": {
+      "title": "PDFs, OCR, inbound email",
+      "body": "Forward an expense to your company inbox. We extract NIP, amounts, dates with OCR and drop it into the same ledger as KSeF rows."
+    },
+    "ml": {
+      "title": "ML categories, per company",
+      "body": "Models train on your company's corrections, not a global dataset. Predictions at ≥80% confidence auto-apply; anything lower arrives flagged for review. Never predicts a category you haven't configured."
+    },
+    "corrections": {
+      "title": "Correction invoices, linked",
+      "body": "KSeF issues corrections (faktura korygująca) as separate documents. Each is modeled with a link to the original, a reason, and the affected period — one timeline, not two unrelated rows."
+    },
+    "approval": {
+      "title": "Approval with trust tiers",
+      "body": "KSeF invoices stay pending until a human signs off. Team uploads with complete extraction can auto-approve on arrival — opt-in per company. Every row is pending, approved, rejected, or excluded (kept for audit, off the books)."
+    },
+    "payments": {
+      "title": "Bank-ready payment transfers",
+      "body": "Export Polish bank-transfer CSVs (rachunek_zleceniodawcy) from approved expenses. Multi-currency, per-company bank accounts, bulk select across vendors. Mark paid in bulk; the ledger updates atomically."
+    },
+    "certificate": {
+      "title": "KSeF certificate management",
+      "body": "Upload once, expiry tracked, renewal reminders. Stored encrypted on your server, never in a third-party cloud."
+    },
+    "accountant": {
+      "title": "Accountant access",
+      "body": "Scoped read + export. Your accountant pulls monthly packages directly; no more zipped email attachments."
+    },
+    "perInvoice": {
+      "title": "Per-invoice permissions",
+      "body": "Share a single row with a stakeholder without exposing the rest. Approver, editor, viewer — revoke in one click."
+    },
+    "activity": {
+      "title": "Activity log, end-to-end",
+      "body": "Who synced, who approved, who exported, who changed the category. Every action is timestamped and attributable."
+    },
+    "api": {
+      "title": "REST API, webhooks",
+      "body": "Every row has an endpoint. Pipe into your BI stack, trigger your own workflows on new approvals, or build a custom UI on top."
+    }
+  },
+  "ledger": {
+    "eyebrow": "The ledger",
+    "heading": "Unified row, whatever the source.",
+    "body": "KSeF rows, emailed PDFs, and manual foreign invoices all land in the same table with the same fields. Sources are marked with a single-character dot so you can spot outliers without a legend lookup.",
+    "bullets": [
+      "Status + payment state, always visible",
+      "Amount gross-on-top, net-below — the real reading order for accountants",
+      "Multi-select: bulk approve, reject, export, mark paid",
+      "Date range + Status + Category + Tag filters, combinable"
+    ],
+    "tableTitle": "/invoices",
+    "rowCount": "126 rows",
+    "cols": {
+      "number": "Number",
+      "seller": "Seller",
+      "date": "Date",
+      "amount": "Amount",
+      "status": "Status"
+    },
+    "statuses": {
+      "approved": "approved",
+      "pending": "pending",
+      "duplicate": "duplicate",
+      "excluded": "excluded"
+    },
+    "sources": {
+      "ksef": "KSeF",
+      "email": "email",
+      "pdf": "PDF",
+      "api": "API"
+    }
+  },
+  "api": {
+    "eyebrow": "Developers",
+    "heading": "A REST API for KSeF — every invoice as an endpoint.",
+    "body": "Read invoices, trigger syncs, mark payments, subscribe to events. Everything the admin UI does is available over HTTP.",
+    "endpoints": [
+      { "method": "GET", "label": "/v1/invoices — paginated, filterable" },
+      { "method": "POST", "label": "/v1/invoices/:id/approve" },
+      { "method": "POST", "label": "/v1/syncs — trigger on demand" },
+      { "method": "HOOK", "label": "invoice.created, invoice.approved, sync.failed" }
+    ],
+    "cta": "Read the docs",
+    "codeComment1": "# Fetch this month's approved expenses for one NIP"
+  },
+  "apiDocs": {
+    "seoTitle": "KSeF Hub — API reference",
+    "seoDescription": "Interactive REST API reference for KSeF Hub. Every endpoint, schema, and response shape, generated from the live OpenAPI spec."
+  },
+  "os": {
+    "eyebrow": "Open source",
+    "heading": "Audit it. Fork it. Run it.",
+    "body": "KSeF Hub is licensed AGPL-3.0. Read every line, check every migration, run it in your own datacenter. If you improve it, upstream the patch — or fork it and ship your own flavour.",
+    "cards": {
+      "license": {
+        "label": "License",
+        "value": "AGPL-3.0",
+        "body": "Copyleft. Use it, host it for yourself — if you offer it as a service, your modifications go back to the community."
+      },
+      "stack": {
+        "label": "Stack",
+        "value": "Elixir · Phoenix · LiveView",
+        "body": "A BEAM server. Handles thousands of syncs concurrently on a single small VM. Boring tech, long runway."
+      },
+      "selfHost": {
+        "label": "Self-host",
+        "value": "docker compose",
+        "body": "One .env, one container per service. Postgres, Oban, the Phoenix app, an OCR worker. Bring your own reverse proxy."
+      },
+      "community": {
+        "label": "Community",
+        "value": "github.com / discord",
+        "body": "Issues, RFCs, and a weekly open call. Built by founders who'd rather not touch the government portal ever again."
+      }
+    }
+  },
+  "pricing": {
+    "eyebrow": "Get started",
+    "heading": "Run it yourself, or hand it to us.",
+    "body": "Same code, same features. Pick how much you want to operate.",
+    "selfHost": {
+      "label": "Self-host",
+      "price": "Free",
+      "tagline": "AGPL-3.0. Bring your own hardware.",
+      "cta": "Clone on GitHub",
+      "features": [
+        "Full feature set, no gating",
+        "Unlimited companies, users, invoices",
+        "Your Postgres, your backups",
+        "Community support"
+      ]
+    },
+    "enterprise": {
+      "label": "Enterprise",
+      "price": "Custom",
+      "tagline": "Managed, dedicated, onboarded.",
+      "cta": "Contact us",
+      "features": [
+        "We host, monitor, back up, upgrade",
+        "Private VPC, EU data residency",
+        "SSO, audit export, custom retention",
+        "Named support & SLA"
+      ]
+    }
+  },
+  "faq": {
+    "eyebrow": "FAQ",
+    "heading": "Questions people ask before they install.",
+    "items": [
+      {
+        "q": "What is KSeF?",
+        "a": "KSeF (Krajowy System e-Faktur) is Poland's national e-invoice system. From 2026 every registered company must issue and receive invoices through KSeF. KSeF Hub sits on top of it and handles the integration, so your team doesn't have to touch the government portal."
+      },
+      {
+        "q": "Can I self-host KSeF Hub?",
+        "a": "Yes. KSeF Hub is AGPL-3.0 licensed and ships as a docker-compose stack: Postgres, the Phoenix app, and a couple of sidecars. Bring your own reverse proxy and you're live in under an hour. There's also a managed version if you'd rather not operate it yourself."
+      },
+      {
+        "q": "Which KSeF certificates does KSeF Hub support?",
+        "a": "Person certificates (tied to PESEL) and company (NIP) certificates. Certificates are user-scoped, so one uploaded cert authenticates KSeF sessions for every company the user has access to. Certificates stay encrypted at rest on your server — never in a third-party cloud."
+      },
+      {
+        "q": "Does it handle correction invoices (faktura korygująca)?",
+        "a": "Yes. KSeF Hub models the full KSeF invoice taxonomy: standard, corrections, advances, simplified, and settlements. Correction invoices are linked to their originals with a reason and the affected period — one timeline, not two unrelated rows."
+      },
+      {
+        "q": "How does ML categorization work?",
+        "a": "Models train on your company's corrections, not a global dataset. Predictions at ≥80% confidence auto-apply; anything lower arrives flagged for review. The model never predicts a category that isn't already on your list."
+      },
+      {
+        "q": "Is there a REST API?",
+        "a": "Yes. Every row in the ledger is exposed over HTTP. Endpoints for reading invoices, triggering syncs, approving payments, and webhooks for invoice.created, invoice.approved, and sync.failed. Bearer-token auth."
+      }
+    ]
+  },
+  "closing": {
+    "heading": "Stop forwarding PDFs. Run one ledger.",
+    "body": "Clone the repo, spin up a container, point it at your KSeF certificate. Your ledger is live in under an hour.",
+    "ctaClone": "Clone on GitHub"
+  },
+  "footer": {
+    "tagline": "Open-source ledger for Polish companies. AGPL-3.0.",
+    "cols": {
+      "product": {
+        "heading": "Product",
+        "links": [
+          { "label": "Features", "href": "#features" },
+          { "label": "Ledger", "href": "#ledger" },
+          { "label": "API", "href": "#api" },
+          { "label": "Pricing", "href": "#self-host" }
+        ]
+      },
+      "devs": {
+        "heading": "Developers",
+        "links": [
+          { "label": "API reference", "href": "/api" },
+          { "label": "GitHub", "href": "https://github.com/appunite/appunite-ksef-ex" },
+          { "label": "Changelog", "href": "https://github.com/appunite/appunite-ksef-ex/releases" }
+        ]
+      },
+      "community": {
+        "heading": "Community",
+        "links": [
+          { "label": "Discussions", "href": "https://github.com/appunite/appunite-ksef-ex/discussions" },
+          { "label": "Contribute", "href": "https://github.com/appunite/appunite-ksef-ex" },
+          { "label": "Roadmap", "href": "https://github.com/appunite/appunite-ksef-ex/issues" }
+        ]
+      }
+    },
+    "copyright": "© 2026 KSeF Hub contributors. Built in Poland.",
+    "license": "AGPL-3.0",
+    "contactLabel": "Contact"
+  },
+  "langSwitcher": {
+    "ariaLabel": "Change language"
+  }
+}

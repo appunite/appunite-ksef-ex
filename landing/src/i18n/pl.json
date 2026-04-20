@@ -1,0 +1,291 @@
+{
+  "seo": {
+    "title": "KSeF Hub — open source rejestr faktur KSeF dla polskich firm",
+    "description": "Open source, self-hostowany rejestr faktur z Krajowego Systemu e-Faktur (KSeF). Automatyczna synchronizacja, OCR dla PDF-ów, kategoryzacja ML, REST API. Hostuj u siebie albo zarządzane."
+  },
+  "nav": {
+    "features": "Funkcje",
+    "ledger": "Rejestr",
+    "api": "API",
+    "selfHost": "Self-host",
+    "blog": "Blog",
+    "docs": "Dokumentacja",
+    "github": "GitHub"
+  },
+  "blog": {
+    "eyebrow": "Blog",
+    "heading": "Co nowego w KSeF Hub.",
+    "subhead": "Notatki z wydań, techniczne pogłębienia i aktualizacje o wdrożeniu KSeF w Polsce.",
+    "readMore": "Czytaj dalej",
+    "backToBlog": "Wszystkie wpisy",
+    "publishedOn": "Opublikowano",
+    "updatedOn": "Zaktualizowano",
+    "emptyState": "Wpisy w tej wersji językowej pojawią się wkrótce.",
+    "subscribeRss": "Subskrybuj przez RSS"
+  },
+  "hero": {
+    "pillOpenSource": "Open source · AGPL-3.0",
+    "pillSelfHost": "Self-host albo zarządzane",
+    "titleLine1": "Jeden rejestr dla każdej",
+    "titleLine2": "faktury w Twojej firmie.",
+    "subhead": "Cyklicznie pobiera faktury z KSeF, przyjmuje PDF-y mailem, kategoryzuje je ML-em, wykrywa duplikaty i przekazuje czyste dane Twojej księgowej — albo Twojemu dashboardowi przez API. Hostuj u siebie albo pozwól nam to zrobić za Ciebie.",
+    "ctaSelfHost": "Self-host",
+    "ctaGithub": "Daj gwiazdkę na GitHubie",
+    "or": "lub"
+  },
+  "trust": {
+    "data": {
+      "title": "Twoje dane, Twój serwer",
+      "body": "Hostuj całość u siebie. Bez telemetrii, bez vendor lock-in."
+    },
+    "multi": {
+      "title": "Wiele firm, jedna instalacja",
+      "body": "Jedna instancja, wszystkie NIP-y. Przełączaj kontekst z paska nawigacji."
+    },
+    "audit": {
+      "title": "Pełen dziennik audytu",
+      "body": "Każda synchronizacja, zatwierdzenie, odrzucenie, eksport — z datą i niezmienne."
+    },
+    "sync": {
+      "title": "Automatyczna synchronizacja",
+      "body": "Cykliczne pobieranie z KSeF. Żadnych ręcznych logowań."
+    }
+  },
+  "why": {
+    "eyebrow": "Po co to",
+    "heading": "Portal KSeF nie powstał z myślą o ludziach, którzy z niego korzystają.",
+    "para1": "Od 2026 roku każda polska firma musi pobierać faktury z Krajowego Systemu e-Faktur (KSeF), dopasowywać je do PDF-ów, które wciąż przychodzą mailem, i przekazywać cały ten bałagan księgowej. Robienie tego ręcznie przez portal rządowy to codzienny podatek od Twojego czasu.",
+    "para2": "KSeF Hub to brakująca warstwa operacyjna: porządny interfejs, REST API, ML uczący się Twoich kategorii i uprawnienia dla ludzi, którzy pomagają Ci prowadzić firmę. Open source, więc możesz audytować, forkować albo uruchomić u siebie — albo korzystać z wersji zarządzanej, jeśli wolisz."
+  },
+  "featuresSection": {
+    "eyebrow": "Funkcje",
+    "heading": "Wszystko, co wymagało pracy ręcznej — teraz zautomatyzowane.",
+    "subhead": "Od zaciągnięcia po eksport. Każdy element działa osobno; razem zastępują schemat arkusz-plus-mail, który prowadzi dziś większość firm."
+  },
+  "features": {
+    "ksefSync": {
+      "title": "Cykliczna synchronizacja z KSeF",
+      "body": "Zaplanowane pobieranie z rządowego systemu e-faktur. Certyfikat pozostaje na Twoim serwerze — żadnych logowań w przeglądarce ani wygasłych sesji."
+    },
+    "multiCompany": {
+      "title": "Każda firma w jednym miejscu",
+      "body": "Dodaj dowolną liczbę NIP-ów. Panel przełącza kontekst jednym kliknięciem — bez osobnych logowań dla każdego podmiotu."
+    },
+    "email": {
+      "title": "PDF-y, OCR, poczta przychodząca",
+      "body": "Prześlij fakturę-wydatek na firmową skrzynkę. Wyciągamy NIP, kwoty i daty OCR-em i wrzucamy ją do tego samego rejestru, co wiersze z KSeF."
+    },
+    "ml": {
+      "title": "Kategorie ML, per firma",
+      "body": "Modele uczą się na korektach Twojej firmy, a nie na globalnym zbiorze. Przewidywania z pewnością ≥80% stosują się automatycznie; poniżej — trafiają do weryfikacji. Nigdy nie przewidują kategorii, której nie ma na Twojej liście."
+    },
+    "corrections": {
+      "title": "Faktury korygujące, powiązane",
+      "body": "KSeF wystawia korekty jako osobne dokumenty. Każda jest modelowana z linkiem do oryginału, powodem i okresem, którego dotyczy — jedna oś czasu, a nie dwa niepowiązane wiersze."
+    },
+    "approval": {
+      "title": "Zatwierdzanie z poziomami zaufania",
+      "body": "Faktury z KSeF pozostają oczekujące do momentu zatwierdzenia przez człowieka. Faktury od członków zespołu z kompletną ekstrakcją mogą być zatwierdzane automatycznie — opcja do włączenia per firma. Każdy wiersz jest oczekujący, zatwierdzony, odrzucony albo wyłączony (zachowany do audytu, poza księgami)."
+    },
+    "payments": {
+      "title": "Przelewy gotowe do banku",
+      "body": "Eksport plików CSV w formacie polskiego przelewu bankowego (rachunek_zleceniodawcy) z zatwierdzonych wydatków. Wiele walut, konta bankowe per firma, masowy wybór wielu dostawców. Oznaczaj jako zapłacone hurtowo — rejestr aktualizuje się atomowo."
+    },
+    "certificate": {
+      "title": "Zarządzanie certyfikatami KSeF",
+      "body": "Wgraj raz, data wygaśnięcia śledzona, przypomnienia o odnowieniu. Przechowywane w formie zaszyfrowanej na Twoim serwerze, nigdy w chmurze trzeciej strony."
+    },
+    "accountant": {
+      "title": "Dostęp dla księgowej",
+      "body": "Ograniczony odczyt i eksport. Twoja księgowa pobiera miesięczne paczki bezpośrednio — koniec z zipami w mailu."
+    },
+    "perInvoice": {
+      "title": "Uprawnienia na poziomie faktury",
+      "body": "Udostępnij pojedynczy wiersz osobie zainteresowanej, nie pokazując reszty. Zatwierdzający, edytujący, przeglądający — cofnij dostęp jednym kliknięciem."
+    },
+    "activity": {
+      "title": "Pełen dziennik aktywności",
+      "body": "Kto synchronizował, kto zatwierdził, kto eksportował, kto zmienił kategorię. Każda akcja ma znacznik czasu i przypisanego autora."
+    },
+    "api": {
+      "title": "REST API, webhooki",
+      "body": "Każdy wiersz ma endpoint. Wepnij w swój stack BI, uruchamiaj własne workflow przy nowych zatwierdzeniach albo zbuduj własny UI."
+    }
+  },
+  "ledger": {
+    "eyebrow": "Rejestr",
+    "heading": "Jednolity wiersz, niezależnie od źródła.",
+    "body": "Wiersze z KSeF, PDF-y z maila i ręczne faktury zagraniczne — wszystko trafia do tej samej tabeli z tymi samymi polami. Źródła oznaczone jedną kropką, żeby było widać odchylenia bez zaglądania do legendy.",
+    "bullets": [
+      "Status i stan płatności zawsze widoczne",
+      "Kwota brutto na górze, netto pod spodem — tak jak czytają księgowi",
+      "Wybór wielu wierszy: masowe zatwierdzanie, odrzucanie, eksport, oznaczanie jako zapłacone",
+      "Filtry zakres dat + status + kategoria + tag, łączone dowolnie"
+    ],
+    "tableTitle": "/invoices",
+    "rowCount": "126 wierszy",
+    "cols": {
+      "number": "Numer",
+      "seller": "Sprzedawca",
+      "date": "Data",
+      "amount": "Kwota",
+      "status": "Status"
+    },
+    "statuses": {
+      "approved": "zatwierdzona",
+      "pending": "oczekująca",
+      "duplicate": "duplikat",
+      "excluded": "wyłączona"
+    },
+    "sources": {
+      "ksef": "KSeF",
+      "email": "email",
+      "pdf": "PDF",
+      "api": "API"
+    }
+  },
+  "api": {
+    "eyebrow": "Dla developerów",
+    "heading": "REST API do KSeF — każda faktura jako endpoint.",
+    "body": "Czytaj faktury, wywołuj synchronizacje, oznaczaj płatności, subskrybuj zdarzenia. Wszystko, co robi panel administracyjny, jest dostępne po HTTP.",
+    "endpoints": [
+      { "method": "GET", "label": "/v1/invoices — paginowane, filtrowalne" },
+      { "method": "POST", "label": "/v1/invoices/:id/approve" },
+      { "method": "POST", "label": "/v1/syncs — uruchom na żądanie" },
+      { "method": "HOOK", "label": "invoice.created, invoice.approved, sync.failed" }
+    ],
+    "cta": "Czytaj dokumentację",
+    "codeComment1": "# Pobierz zatwierdzone wydatki z tego miesiąca dla jednego NIP-u"
+  },
+  "apiDocs": {
+    "seoTitle": "KSeF Hub — dokumentacja API",
+    "seoDescription": "Interaktywna dokumentacja REST API KSeF Hub. Każdy endpoint, schemat i struktura odpowiedzi, generowane z działającej specyfikacji OpenAPI."
+  },
+  "os": {
+    "eyebrow": "Open source",
+    "heading": "Audytuj. Forkuj. Uruchom.",
+    "body": "KSeF Hub jest na licencji AGPL-3.0. Przeczytaj każdą linijkę, sprawdź każdą migrację, uruchom we własnej serwerowni. Jeśli coś ulepszysz, wyślij upstream — albo sforkuj i wypuść własną wersję.",
+    "cards": {
+      "license": {
+        "label": "Licencja",
+        "value": "AGPL-3.0",
+        "body": "Copyleft. Używaj, hostuj u siebie — jeśli oferujesz to jako usługę, Twoje modyfikacje wracają do społeczności."
+      },
+      "stack": {
+        "label": "Stack",
+        "value": "Elixir · Phoenix · LiveView",
+        "body": "Serwer BEAM. Obsługuje tysiące synchronizacji równolegle na jednej małej maszynie. Nudna, sprawdzona technologia."
+      },
+      "selfHost": {
+        "label": "Self-host",
+        "value": "docker compose",
+        "body": "Jeden .env, jeden kontener na usługę. Postgres, Oban, aplikacja Phoenix, worker OCR. Reverse proxy przynieś własny."
+      },
+      "community": {
+        "label": "Społeczność",
+        "value": "github.com / discord",
+        "body": "Zgłoszenia, RFC i cotygodniowe otwarte spotkanie. Zbudowane przez założycieli, którzy woleliby nigdy więcej nie dotykać portalu rządowego."
+      }
+    }
+  },
+  "pricing": {
+    "eyebrow": "Zacznij",
+    "heading": "Uruchom u siebie albo daj nam to robić.",
+    "body": "Ten sam kod, te same funkcje. Wybierz, ile pracy chcesz wziąć na siebie.",
+    "selfHost": {
+      "label": "Self-host",
+      "price": "Za darmo",
+      "tagline": "AGPL-3.0. Przynieś własny sprzęt.",
+      "cta": "Sklonuj z GitHuba",
+      "features": [
+        "Pełna funkcjonalność, bez ograniczeń",
+        "Nielimitowane firmy, użytkownicy, faktury",
+        "Twój Postgres, Twoje kopie zapasowe",
+        "Wsparcie społeczności"
+      ]
+    },
+    "enterprise": {
+      "label": "Enterprise",
+      "price": "Wyceniane",
+      "tagline": "Zarządzane, dedykowane, wdrożone.",
+      "cta": "Skontaktuj się",
+      "features": [
+        "Hostujemy, monitorujemy, robimy kopie, aktualizujemy",
+        "Prywatny VPC, dane w UE",
+        "SSO, eksport audytu, niestandardowa retencja",
+        "Dedykowane wsparcie i SLA"
+      ]
+    }
+  },
+  "faq": {
+    "eyebrow": "FAQ",
+    "heading": "Pytania, które zadają, zanim zainstalują.",
+    "items": [
+      {
+        "q": "Co to jest KSeF?",
+        "a": "KSeF (Krajowy System e-Faktur) to rządowy system e-faktur w Polsce. Od 2026 roku każda zarejestrowana firma musi wystawiać i odbierać faktury przez KSeF. KSeF Hub jest warstwą operacyjną na tym systemie — Twój zespół nie musi już dotykać portalu rządowego."
+      },
+      {
+        "q": "Czy mogę hostować KSeF Hub u siebie?",
+        "a": "Tak. KSeF Hub jest na licencji AGPL-3.0 i dostarczany jako stack docker compose: Postgres, aplikacja Phoenix i kilka sidecarów. Przynieś własny reverse proxy i ruszasz w niecałą godzinę. Dostępna jest też wersja zarządzana, jeśli wolisz nie prowadzić tego sam."
+      },
+      {
+        "q": "Jakie certyfikaty KSeF obsługuje KSeF Hub?",
+        "a": "Certyfikaty osobowe (powiązane z PESEL) i firmowe (NIP). Każdy certyfikat jest przypisany do użytkownika, więc jeden wgrany certyfikat uwierzytelnia sesje KSeF dla wszystkich firm, do których użytkownik ma dostęp. Certyfikaty są szyfrowane w spoczynku na Twoim serwerze — nigdy w chmurze trzeciej strony."
+      },
+      {
+        "q": "Czy obsługuje faktury korygujące?",
+        "a": "Tak. KSeF Hub modeluje pełną taksonomię faktur KSeF: standardowe, korygujące, zaliczkowe, uproszczone i rozliczeniowe. Faktury korygujące są powiązane z oryginałami wraz z powodem i okresem, którego dotyczą — jedna oś czasu, a nie dwa niepowiązane wiersze."
+      },
+      {
+        "q": "Jak działa kategoryzacja ML?",
+        "a": "Modele uczą się na korektach Twojej firmy, a nie na globalnym zbiorze. Przewidywania z pewnością ≥80% stosują się automatycznie; poniżej — trafiają do weryfikacji. Model nigdy nie przewidzi kategorii, której nie ma na Twojej liście."
+      },
+      {
+        "q": "Czy udostępniacie REST API?",
+        "a": "Tak. Każdy wiersz w rejestrze jest dostępny po HTTP. Endpointy do czytania faktur, wywoływania synchronizacji, zatwierdzania płatności, plus webhooki dla invoice.created, invoice.approved i sync.failed. Autoryzacja przez Bearer token."
+      }
+    ]
+  },
+  "closing": {
+    "heading": "Przestań przesyłać PDF-y. Prowadź jeden rejestr.",
+    "body": "Sklonuj repo, uruchom kontener, podłącz certyfikat KSeF. Twój rejestr działa w niecałą godzinę.",
+    "ctaClone": "Sklonuj z GitHuba"
+  },
+  "footer": {
+    "tagline": "Open-source'owy rejestr faktur dla polskich firm. AGPL-3.0.",
+    "cols": {
+      "product": {
+        "heading": "Produkt",
+        "links": [
+          { "label": "Funkcje", "href": "#features" },
+          { "label": "Rejestr", "href": "#ledger" },
+          { "label": "API", "href": "#api" },
+          { "label": "Cennik", "href": "#self-host" }
+        ]
+      },
+      "devs": {
+        "heading": "Dla developerów",
+        "links": [
+          { "label": "Dokumentacja API", "href": "/api" },
+          { "label": "GitHub", "href": "https://github.com/appunite/appunite-ksef-ex" },
+          { "label": "Changelog", "href": "https://github.com/appunite/appunite-ksef-ex/releases" }
+        ]
+      },
+      "community": {
+        "heading": "Społeczność",
+        "links": [
+          { "label": "Dyskusje", "href": "https://github.com/appunite/appunite-ksef-ex/discussions" },
+          { "label": "Współtwórz", "href": "https://github.com/appunite/appunite-ksef-ex" },
+          { "label": "Roadmapa", "href": "https://github.com/appunite/appunite-ksef-ex/issues" }
+        ]
+      }
+    },
+    "copyright": "© 2026 Współtwórcy KSeF Hub. Zbudowane w Polsce.",
+    "license": "AGPL-3.0",
+    "contactLabel": "Kontakt"
+  },
+  "langSwitcher": {
+    "ariaLabel": "Zmień język"
+  }
+}

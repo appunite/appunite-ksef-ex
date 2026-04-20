@@ -183,6 +183,21 @@ lib/
     └── router.ex
 ```
 
+## Landing Page
+
+Public marketing site lives in [`landing/`](landing/) — a standalone **Astro 5 + Tailwind v4 + TypeScript** project with i18n (Polish default, English alternate). **No coupling to the Phoenix app**: separate build, separate deploy, separate container.
+
+Deployed automatically to GitHub Pages by [`.github/workflows/landing.yml`](.github/workflows/landing.yml) whenever `landing/**` changes. The Elixir `ci.yml` ignores landing-only diffs.
+
+```bash
+cd landing
+npm install
+npm run dev        # http://localhost:4321/appunite-ksef-ex/
+npm run build      # → landing/dist/
+```
+
+See [`landing/README.md`](landing/README.md) for component structure and i18n conventions. For Claude Code conventions inside that folder, see [`landing/CLAUDE.md`](landing/CLAUDE.md).
+
 ## Documentation
 
 - [`docs/prd.md`](docs/prd.md) — Product Requirements Document

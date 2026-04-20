@@ -262,3 +262,17 @@ end
 KSeF (Krajowy System e-Faktur) is Poland's national e-invoice system. Invoices are synced via an authenticated XADES API session, parsed from FA(3) XML format, and stored in the database. When parser logic improves, existing invoices can be re-parsed from stored XML without a full re-sync.
 
 For authentication flow, rate limits, session rules, re-parsing, and FA(3) details, see `docs/ksef.md`.
+
+## Landing Page (separate Astro project)
+
+Public marketing site lives in [`landing/`](landing/) — an independent **Astro 5 + Tailwind v4 + TypeScript** project deployed to GitHub Pages. It has **zero runtime coupling** to the Phoenix app: no shared container, no shared build, no cross-imports.
+
+**When working inside `landing/`, follow [`landing/CLAUDE.md`](landing/CLAUDE.md) instead of this file.** The conventions are different:
+
+- Astro components, not HEEx
+- Tailwind v4 via Vite plugin (no `tailwind.config.js`)
+- i18n-first — every user-visible string goes through `src/i18n/{en,pl}.json`, never hardcoded
+- Design tokens are a one-time port of `assets/css/app.css`; resync manually on brand changes
+- Deployment is path-filtered: `.github/workflows/landing.yml` fires only on `landing/**` changes; the Elixir `ci.yml` adds `paths-ignore: ['landing/**']` so landing-only commits don't burn Phoenix CI
+
+Avoid mixing landing changes and Phoenix changes in a single PR — they deploy independently and the CI workflows are deliberately decoupled.
