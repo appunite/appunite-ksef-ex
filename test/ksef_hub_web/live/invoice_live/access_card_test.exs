@@ -16,6 +16,7 @@ defmodule KsefHubWeb.InvoiceLive.AccessCardTest do
       assert AccessCard.access_summary_label(inv, []) == "No one invited"
       assert AccessCard.access_summary_label(inv, [%{}]) == "1 person has access"
       assert AccessCard.access_summary_label(inv, [%{}, %{}]) == "2 people have access"
+
       assert AccessCard.access_summary_label(inv, Enum.map(1..5, fn _ -> %{} end)) ==
                "5 people have access"
     end
@@ -46,6 +47,7 @@ defmodule KsefHubWeb.InvoiceLive.AccessCardTest do
         palette = AccessCard.role_palette(role)
         assert is_binary(palette)
         assert palette != ""
+
         refute palette == "bg-muted text-muted-foreground",
                "role #{inspect(role)} should have a distinct palette, not the neutral default"
       end

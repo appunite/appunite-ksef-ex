@@ -392,7 +392,7 @@ Use the `<.empty_state>` component with one of three tones:
 
 Invoice detail tabs (Line items / Payments / Notes / Comments / Access), Dashboard tiles for new tenants, Companies list (new tenant), Settings → Certificates (no cert uploaded), Sync jobs (no runs yet), Payments list (new tenant). See DESIGN_SYSTEM.md §7 for the full copy table — reuse those strings, don't invent new ones.
 
-> **Porting note.** `<.empty_state>` in `CoreComponents` currently accepts only `icon` + inner block. Before porting the pattern into real LiveViews, extend the component to add `title`, `description`, `tone`, and an `<:action>` slot (mirrors the prototype's `<EmptyState>` in `docs/design_system/ui_kits/admin/Primitives.jsx`). Update the existing call sites (`<.empty_state icon="...">inner text</.empty_state>`) in the same PR.
+> **Legacy shape.** `<.empty_state>` still accepts a bare `inner_block` with optional `icon` for simple one-liners (`<.empty_state>No items found.</.empty_state>`). Prefer the rich `title` + `description` + `<:action>` shape for new callers — the legacy path is kept only so existing pages don't need to be ported all at once.
 
 ---
 

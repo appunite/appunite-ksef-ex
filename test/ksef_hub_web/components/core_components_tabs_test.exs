@@ -16,8 +16,8 @@ defmodule KsefHubWeb.CoreComponents.TabsTest do
           active: :payments,
           class: nil,
           tabs: [
-            %{id: :payments, label: "Payments", count: 3, patch: "/x?tab=payments"},
-            %{id: :activity, label: "Activity", count: 12, patch: "/x?tab=activity"}
+            %{id: :payments, label: "Payments", count: 3},
+            %{id: :activity, label: "Activity", count: 12}
           ]
         })
 
@@ -32,8 +32,8 @@ defmodule KsefHubWeb.CoreComponents.TabsTest do
           active: :activity,
           class: nil,
           tabs: [
-            %{id: :payments, label: "Payments", count: 3, patch: "/x?tab=payments"},
-            %{id: :activity, label: "Activity", count: 12, patch: "/x?tab=activity"}
+            %{id: :payments, label: "Payments", count: 3},
+            %{id: :activity, label: "Activity", count: 12}
           ]
         })
 
@@ -48,13 +48,13 @@ defmodule KsefHubWeb.CoreComponents.TabsTest do
           active: :access,
           class: nil,
           tabs: [
-            %{id: :access, label: "Access", count: nil, patch: "/x?tab=access"}
+            %{id: :access, label: "Access", count: nil}
           ]
         })
 
       # No badge span — the tab label stands alone.
       assert html =~ "Access"
-      refute html =~ ~s(min-w-[1.25rem])
+      refute html =~ ~s(min-w-[20px])
     end
 
     test "marks inactive tabs with aria-selected=false and muted border" do
@@ -63,8 +63,8 @@ defmodule KsefHubWeb.CoreComponents.TabsTest do
           active: :payments,
           class: nil,
           tabs: [
-            %{id: :payments, label: "Payments", count: 0, patch: "/x?tab=payments"},
-            %{id: :activity, label: "Activity", count: 0, patch: "/x?tab=activity"}
+            %{id: :payments, label: "Payments", count: 0},
+            %{id: :activity, label: "Activity", count: 0}
           ]
         })
 
@@ -74,27 +74,28 @@ defmodule KsefHubWeb.CoreComponents.TabsTest do
       assert html =~ "border-transparent"
     end
 
-    test "uses patch attribute for navigation (phx-link=patch)" do
+    test "dispatches select_tab via phx-click with the tab id as value" do
       html =
         render_tabs(%{
           active: :comments,
           class: nil,
           tabs: [
-            %{id: :comments, label: "Comments", count: 1, patch: "/foo?tab=comments"}
+            %{id: :comments, label: "Comments", count: 1}
           ]
         })
 
-      assert html =~ ~s(href="/foo?tab=comments")
-      assert html =~ ~s(data-phx-link="patch")
+      assert html =~ ~s(phx-click="select_tab")
+      assert html =~ ~s(phx-value-id="comments")
+      refute html =~ ~s(data-phx-link="patch")
     end
 
-    test "tablist role is applied on the nav and role=tab on each link" do
+    test "tablist role is applied on the nav and role=tab on each button" do
       html =
         render_tabs(%{
           active: :payments,
           class: nil,
           tabs: [
-            %{id: :payments, label: "Payments", count: 1, patch: "/x?tab=payments"}
+            %{id: :payments, label: "Payments", count: 1}
           ]
         })
 
@@ -108,7 +109,7 @@ defmodule KsefHubWeb.CoreComponents.TabsTest do
           active: :payments,
           class: "mb-4",
           tabs: [
-            %{id: :payments, label: "Payments", count: 1, patch: "/x?tab=payments"}
+            %{id: :payments, label: "Payments", count: 1}
           ]
         })
 

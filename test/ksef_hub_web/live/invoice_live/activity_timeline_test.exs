@@ -15,7 +15,8 @@ defmodule KsefHubWeb.InvoiceLive.ActivityTimelineTest do
     end
 
     test "unknown status falls through to the default branch (gray)" do
-      palette = ActivityTimeline.icon_palette("invoice.status_changed", %{"new_status" => "weird"})
+      palette =
+        ActivityTimeline.icon_palette("invoice.status_changed", %{"new_status" => "weird"})
 
       assert palette =~ "muted"
     end
@@ -44,6 +45,29 @@ defmodule KsefHubWeb.InvoiceLive.ActivityTimelineTest do
 
     test "payment request events are emerald" do
       assert ActivityTimeline.icon_palette("payment_request.created", %{}) =~ "emerald"
+    end
+
+    test "comment events are purple" do
+      assert ActivityTimeline.icon_palette("invoice.comment_added", %{}) =~ "purple"
+      assert ActivityTimeline.icon_palette("invoice.comment_edited", %{}) =~ "purple"
+      assert ActivityTimeline.icon_palette("invoice.comment_deleted", %{}) =~ "purple"
+    end
+
+    test "access_changed and public_link_generated are purple" do
+      assert ActivityTimeline.icon_palette("invoice.access_changed", %{}) =~ "purple"
+      assert ActivityTimeline.icon_palette("invoice.public_link_generated", %{}) =~ "purple"
+    end
+
+    test "excluded is amber, included is emerald" do
+      assert ActivityTimeline.icon_palette("invoice.excluded", %{}) =~ "amber"
+      assert ActivityTimeline.icon_palette("invoice.included", %{}) =~ "emerald"
+    end
+
+    test "palette uses the softened tinted style, not saturated solids" do
+      # Prior iteration used bg-*-600 text-white; current uses bg-*-100.
+      palette = ActivityTimeline.icon_palette("invoice.classification_changed", %{})
+      assert palette =~ "bg-blue-100"
+      refute palette =~ "bg-blue-600"
     end
   end
 

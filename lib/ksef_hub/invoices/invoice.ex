@@ -129,6 +129,11 @@ defmodule KsefHub.Invoices.Invoice do
   def data_editable?(%__MODULE__{source: source}) when source in @editable_sources, do: true
   def data_editable?(%__MODULE__{}), do: false
 
+  @doc "Returns whether the invoice has a non-blank user note."
+  @spec has_note?(t()) :: boolean()
+  def has_note?(%__MODULE__{note: note}) when is_binary(note), do: String.trim(note) != ""
+  def has_note?(%__MODULE__{}), do: false
+
   @doc "Returns a human-readable display label for the invoice source."
   @spec source_label(invoice_source()) :: String.t()
   def source_label(:ksef), do: "KSeF"

@@ -102,7 +102,7 @@ defmodule KsefHubWeb.InvoiceLive.ActivityTimeline do
           <div class="min-w-0 flex-1 pt-1">
             <div class="text-sm">
               <span class="font-medium">{entry.actor_label || "System"}</span>
-              <span class="text-muted-foreground"> · {describe_action(entry)}</span>
+              <span class="text-muted-foreground"> ·   {describe_action(entry)}</span>
             </div>
             <div class="mt-0.5 font-mono text-xs text-muted-foreground">
               <.local_datetime at={entry.inserted_at} id={"activity-ts-#{entry.id}"} />
@@ -135,23 +135,48 @@ defmodule KsefHubWeb.InvoiceLive.ActivityTimeline do
     """
   end
 
+  @palette_blue "bg-blue-100 text-blue-700 dark:bg-blue-900/40 dark:text-blue-300"
+  @palette_purple "bg-purple-100 text-purple-700 dark:bg-purple-900/40 dark:text-purple-300"
+  @palette_emerald "bg-emerald-100 text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-300"
+  @palette_amber "bg-amber-100 text-amber-700 dark:bg-amber-900/40 dark:text-amber-300"
+  @palette_red "bg-red-100 text-red-700 dark:bg-red-900/40 dark:text-red-300"
+  @palette_muted "bg-muted text-muted-foreground"
+
+  # Exact-match action → palette. Evaluated before the prefix rules below.
+  @action_palette %{
+    "invoice.re_extraction_triggered" => @palette_blue,
+    "invoice.access_changed" => @palette_purple,
+    "invoice.public_link_generated" => @palette_purple,
+    "invoice.excluded" => @palette_amber,
+    "invoice.included" => @palette_emerald
+  }
+
+  # Prefix → palette. First match wins.
+  @action_prefix_palette [
+    {"invoice.classification", @palette_blue},
+    {"invoice.extraction", @palette_blue},
+    {"invoice.comment", @palette_purple},
+    {"invoice.duplicate", @palette_amber},
+    {"payment_request", @palette_emerald}
+  ]
+
   @doc "Returns Tailwind classes for the icon background based on action category."
   @spec icon_palette(String.t(), map()) :: String.t()
-  def icon_palette("invoice.status_changed", %{"new_status" => "approved"}),
-    do: "bg-emerald-600 text-white"
-
-  def icon_palette("invoice.status_changed", %{"new_status" => "rejected"}),
-    do: "bg-red-600 text-white"
+  def icon_palette("invoice.status_changed", %{"new_status" => "approved"}), do: @palette_emerald
+  def icon_palette("invoice.status_changed", %{"new_status" => "rejected"}), do: @palette_red
 
   def icon_palette(action, _metadata) do
-    cond do
-      String.starts_with?(action, "invoice.classification") -> "bg-blue-600 text-white"
-      String.starts_with?(action, "invoice.extraction") -> "bg-blue-600 text-white"
-      action == "invoice.re_extraction_triggered" -> "bg-blue-600 text-white"
-      String.starts_with?(action, "invoice.duplicate") -> "bg-amber-500 text-white"
-      String.starts_with?(action, "payment_request") -> "bg-emerald-600 text-white"
-      true -> "bg-muted text-muted-foreground"
+    case Map.fetch(@action_palette, action) do
+      {:ok, palette} -> palette
+      :error -> palette_for_prefix(action)
     end
+  end
+
+  @spec palette_for_prefix(String.t()) :: String.t()
+  defp palette_for_prefix(action) do
+    Enum.find_value(@action_prefix_palette, @palette_muted, fn {prefix, palette} ->
+      if String.starts_with?(action, prefix), do: palette
+    end)
   end
 
   @doc "Returns a human-readable description for an audit log entry."
@@ -225,7 +250,7 @@ defmodule KsefHubWeb.InvoiceLive.ActivityTimeline do
     action |> String.replace(".", " ") |> String.replace("_", " ")
   end
 
-  @doc "Returns a human-readable label for an invoice field name (e.g. \"seller_nip\" → \"seller NIP\")."
+  @doc ~S"Returns a human-readable label for an invoice field name (e.g. `seller_nip` → `seller NIP`)."
   @spec humanize_field(String.t()) :: String.t()
   def humanize_field(field), do: Map.get(@field_labels, field, String.replace(field, "_", " "))
 end

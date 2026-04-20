@@ -3,6 +3,24 @@ defmodule KsefHub.Invoices.InvoiceTest do
 
   alias KsefHub.Invoices.Invoice
 
+  describe "has_note?/1" do
+    test "returns true when the invoice has a non-blank note" do
+      assert Invoice.has_note?(%Invoice{note: "some context"})
+    end
+
+    test "returns false when the note is nil" do
+      refute Invoice.has_note?(%Invoice{note: nil})
+    end
+
+    test "returns false when the note is an empty string" do
+      refute Invoice.has_note?(%Invoice{note: ""})
+    end
+
+    test "returns false when the note contains only whitespace" do
+      refute Invoice.has_note?(%Invoice{note: "   \n\t"})
+    end
+  end
+
   describe "source_label/1" do
     test "returns display labels for all known sources" do
       assert Invoice.source_label(:ksef) == "KSeF"

@@ -479,7 +479,10 @@ defmodule KsefHubWeb.InvoiceLive.Index do
             <.restricted_icon :if={inv.access_restricted} />
           </div>
           <% nip = counterparty_nip(inv, @filters[:type]) %>
-          <div :if={nip} class="font-mono text-[11px] text-muted-foreground mt-0.5 truncate max-w-[220px]">
+          <div
+            :if={nip}
+            class="font-mono text-[11px] text-muted-foreground mt-0.5 truncate max-w-[220px]"
+          >
             {nip}
           </div>
         </:col>

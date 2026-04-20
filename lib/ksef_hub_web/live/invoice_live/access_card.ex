@@ -14,7 +14,7 @@ defmodule KsefHubWeb.InvoiceLive.AccessCard do
 
   alias Phoenix.LiveView.JS
 
-  import KsefHubWeb.CoreComponents, only: [button: 1, card: 1, icon: 1]
+  import KsefHubWeb.CoreComponents, only: [avatar: 1, button: 1, card: 1, icon: 1]
 
   # ---------------------------------------------------------------------------
   # Public entry point
@@ -311,12 +311,7 @@ defmodule KsefHubWeb.InvoiceLive.AccessCard do
   defp user_cell(assigns) do
     ~H"""
     <div class="flex items-center gap-3">
-      <div class={[
-        "flex items-center justify-center size-8 rounded-full text-xs font-semibold shrink-0",
-        avatar_palette(@user)
-      ]}>
-        {avatar_initials(@user)}
-      </div>
+      <.avatar user={@user} />
       <div class="min-w-0">
         <div class="font-medium truncate">{@user.name || @user.email}</div>
         <div :if={@user.name} class="text-xs text-muted-foreground truncate">{@user.email}</div>
@@ -402,38 +397,4 @@ defmodule KsefHubWeb.InvoiceLive.AccessCard do
     do: role |> Atom.to_string() |> String.capitalize()
 
   def role_label(_), do: "—"
-
-  # ---------------------------------------------------------------------------
-  # Avatar helpers (private)
-  # ---------------------------------------------------------------------------
-
-  @spec avatar_initials(map()) :: String.t()
-  defp avatar_initials(%{name: name}) when is_binary(name) and name != "" do
-    name
-    |> String.split(~r/\s+/, trim: true)
-    |> Enum.take(2)
-    |> Enum.map_join("", &String.first/1)
-    |> String.upcase()
-  end
-
-  defp avatar_initials(%{email: email}) when is_binary(email) do
-    email |> String.first() |> String.upcase()
-  end
-
-  defp avatar_initials(_), do: "?"
-
-  @spec avatar_palette(map()) :: String.t()
-  defp avatar_palette(%{id: id}) when is_binary(id) do
-    palettes = [
-      "bg-emerald-100 text-emerald-800 dark:bg-emerald-900/40 dark:text-emerald-300",
-      "bg-blue-100 text-blue-800 dark:bg-blue-900/40 dark:text-blue-300",
-      "bg-purple-100 text-purple-800 dark:bg-purple-900/40 dark:text-purple-300",
-      "bg-amber-100 text-amber-800 dark:bg-amber-900/40 dark:text-amber-300",
-      "bg-rose-100 text-rose-800 dark:bg-rose-900/40 dark:text-rose-300"
-    ]
-
-    Enum.at(palettes, :erlang.phash2(id, length(palettes)))
-  end
-
-  defp avatar_palette(_), do: "bg-muted text-muted-foreground"
 end

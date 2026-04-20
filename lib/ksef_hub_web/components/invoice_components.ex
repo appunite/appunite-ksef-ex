@@ -103,7 +103,7 @@ defmodule KsefHubWeb.InvoiceComponents do
     ~H"""
     <.link
       navigate={~p"/c/#{@company_id}/invoices/#{@invoice_id}"}
-      class="text-shad-primary underline-offset-4 hover:underline"
+      class="text-shad-primary font-medium underline underline-offset-4 hover:opacity-80"
     >
       {render_slot(@inner_block)}
     </.link>
@@ -775,7 +775,9 @@ defmodule KsefHubWeb.InvoiceComponents do
           </td>
         </tr>
         <tr :if={@invoice.purchase_order} class="border-b border-border/50 last:border-0">
-          <td class="py-1.5 pr-3 text-xs uppercase tracking-wider text-muted-foreground whitespace-nowrap">PO</td>
+          <td class="py-1.5 pr-3 text-xs uppercase tracking-wider text-muted-foreground whitespace-nowrap">
+            PO
+          </td>
           <td class="py-1.5 font-mono break-all">
             {@invoice.purchase_order}
           </td>
