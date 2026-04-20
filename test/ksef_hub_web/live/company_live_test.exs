@@ -27,16 +27,18 @@ defmodule KsefHubWeb.CompanyLiveTest do
   end
 
   describe "CompanyLive.Index — create new company" do
-    test "user with no companies sees New Company button and can create one", %{conn: conn} do
+    test "user with no companies sees empty state and can create one", %{conn: conn} do
       user = insert(:user)
 
-      # Index page shows button
       {:ok, view, html} =
         conn
         |> log_in_user(user)
         |> live("/companies")
 
-      assert html =~ "New Company"
+      assert html =~ "Add your first company"
+      assert html =~ "Register a NIP to start syncing invoices"
+      assert html =~ "or wait for an invitation"
+      refute has_element?(view, "#companies")
       assert has_element?(view, ~s(a[href="/companies/new"]), "New Company")
 
       # Can navigate to /companies/new and submit

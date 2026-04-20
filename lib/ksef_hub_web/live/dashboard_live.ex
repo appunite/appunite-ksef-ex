@@ -371,16 +371,40 @@ defmodule KsefHubWeb.DashboardLive do
     <div :if={@current_company} class="grid grid-cols-1 lg:grid-cols-2 gap-6 mt-6">
       <.card padding="p-5">
         <h2 class="text-base font-semibold mb-3">Monthly Expenses</h2>
-        <div id="expense-bar-chart" phx-hook="ExpenseBarChart" phx-update="ignore" class="h-64">
+        <div
+          :if={@expense_monthly != []}
+          id="expense-bar-chart"
+          phx-hook="ExpenseBarChart"
+          phx-update="ignore"
+          class="h-64"
+        >
           <canvas></canvas>
         </div>
+        <.empty_state
+          :if={@expense_monthly == []}
+          icon="hero-chart-bar"
+          title="No expenses yet"
+          description="Once expense invoices arrive via KSeF sync or PDF upload, monthly totals will appear here."
+        />
       </.card>
 
       <.card padding="p-5">
         <h2 class="text-base font-semibold mb-3">Expenses by Category</h2>
-        <div id="category-donut-chart" phx-hook="CategoryDonutChart" phx-update="ignore" class="h-64">
+        <div
+          :if={@expense_by_category != []}
+          id="category-donut-chart"
+          phx-hook="CategoryDonutChart"
+          phx-update="ignore"
+          class="h-64"
+        >
           <canvas></canvas>
         </div>
+        <.empty_state
+          :if={@expense_by_category == []}
+          icon="hero-chart-pie"
+          title="No categorised expenses"
+          description="Approve a few expenses and the classifier will start grouping them by category."
+        />
       </.card>
     </div>
 

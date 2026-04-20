@@ -76,7 +76,7 @@ defmodule KsefHubWeb.TokenLive do
           </.button>
         </:actions>
       </.header>
-      <.table_container class="mt-6">
+      <.table_container :if={@tokens_count > 0} class="mt-6">
         <.table
           id="tokens"
           rows={@streams.tokens}
@@ -116,9 +116,13 @@ defmodule KsefHubWeb.TokenLive do
         </.table>
       </.table_container>
 
-      <.empty_state :if={@tokens_count == 0}>
-        No API tokens yet. Create one to get started.
-      </.empty_state>
+      <.empty_state
+        :if={@tokens_count == 0}
+        icon="hero-key"
+        title="No API tokens yet"
+        description="Create a token to let scripts or third-party tools call the KSeF Hub API on your behalf."
+        class="mt-6"
+      />
     </.settings_layout>
     """
   end

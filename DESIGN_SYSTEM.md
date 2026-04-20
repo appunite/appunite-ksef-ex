@@ -259,7 +259,7 @@ Use the `<EmptyState>` component. Three tones:
 | Surface | State | Tone | Copy |
 |---|---|---|---|
 | Dashboard tile | New tenant, no invoices yet | `default` | *No invoices this month yet* — Sync runs hourly, or add one manually. |
-| Companies | New tenant | `default` | *Add your first company* — Register a NIP to start syncing invoices. |
+| Companies | New tenant | `default` | *Add your first company* — Register a NIP to start syncing invoices, or wait for an invitation from an existing company. |
 | Settings → Certificates | Not uploaded | `warning` | *No certificate uploaded* — Upload a XAdES certificate to enable KSeF sync. |
 | Sync jobs | New tenant | `default` | *No sync jobs yet* — KSeF sync runs hourly, or trigger one manually. |
 | Payments list | New tenant | `default` | *No payment requests yet* — Approve an expense to generate your first payment. |

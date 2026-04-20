@@ -47,7 +47,7 @@ defmodule KsefHubWeb.CompanyLive.Index do
       </:actions>
     </.header>
 
-    <.table_container class="mt-6">
+    <.table_container :if={@companies_with_creds != []} class="mt-6">
       <.table
         id="companies"
         rows={@companies_with_creds}
@@ -79,9 +79,13 @@ defmodule KsefHubWeb.CompanyLive.Index do
       </.table>
     </.table_container>
 
-    <.empty_state :if={@companies_with_creds == []}>
-      No companies yet. Create one to get started.
-    </.empty_state>
+    <.empty_state
+      :if={@companies_with_creds == []}
+      icon="hero-building-office-2"
+      title="Add your first company"
+      description="Register a NIP to start syncing invoices, or wait for an invitation from an existing company."
+      class="mt-6"
+    />
     """
   end
 end
