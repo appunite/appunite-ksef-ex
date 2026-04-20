@@ -173,6 +173,18 @@ const LocalTime = {
   }
 }
 
+// Selects the entire contents of a text input on click — convenient for
+// read-only URLs users typically want to copy.
+const SelectOnClick = {
+  mounted() {
+    this._handler = () => this.el.select()
+    this.el.addEventListener("click", this._handler)
+  },
+  destroyed() {
+    this.el.removeEventListener("click", this._handler)
+  }
+}
+
 // Shared calendar picker hook logic.
 // calendarSelector: CSS selector for the Cally web component
 // onSelect: (hook, calendarValue) => void — updates hidden inputs from the selected value
@@ -340,7 +352,7 @@ const csrfToken = document.querySelector("meta[name='csrf-token']").getAttribute
 const liveSocket = new LiveSocket("/live", Socket, {
   longPollFallbackMs: 2500,
   params: {_csrf_token: csrfToken},
-  hooks: {...colocatedHooks, ExpenseBarChart, CategoryDonutChart, MultiSelectSearch, LocalTime, DateRangePicker, DatePicker, MonthRangePicker},
+  hooks: {...colocatedHooks, ExpenseBarChart, CategoryDonutChart, MultiSelectSearch, LocalTime, SelectOnClick, DateRangePicker, DatePicker, MonthRangePicker},
 })
 
 // Show progress bar on live navigation and form submits

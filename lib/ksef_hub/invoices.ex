@@ -191,6 +191,15 @@ defmodule KsefHub.Invoices do
           | {:error, Ecto.Changeset.t()}
   defdelegate ensure_public_token(invoice, user_id), to: PublicTokens
 
+  @doc "Returns the current non-expired public token for an (invoice, user), or nil."
+  @spec get_public_token_for(Ecto.UUID.t(), Ecto.UUID.t()) ::
+          KsefHub.Invoices.InvoicePublicToken.t() | nil
+  defdelegate get_public_token_for(invoice_id, user_id), to: PublicTokens
+
+  @doc "Revokes the public sharing token for a given (invoice, user) pair."
+  @spec revoke_public_token(Ecto.UUID.t(), Ecto.UUID.t()) :: :ok
+  defdelegate revoke_public_token(invoice_id, user_id), to: PublicTokens
+
   @doc "Deletes all public sharing tokens created by a user within a company; returns count deleted."
   @spec delete_public_tokens_for_user(Ecto.UUID.t(), Ecto.UUID.t()) :: non_neg_integer()
   defdelegate delete_public_tokens_for_user(user_id, company_id), to: PublicTokens

@@ -26,12 +26,12 @@ defmodule KsefHub.Invoices.AccessControl do
   # Public API
   # -------------------------------------------------------------------
 
-  @doc "Lists access grants for an invoice, with user preloaded."
+  @doc "Lists access grants for an invoice, with the grantee and granter users preloaded."
   @spec list_access_grants(Ecto.UUID.t()) :: [InvoiceAccessGrant.t()]
   def list_access_grants(invoice_id) do
     InvoiceAccessGrant
     |> where([g], g.invoice_id == ^invoice_id)
-    |> preload(:user)
+    |> preload([:user, :granted_by])
     |> order_by([g], asc: g.inserted_at)
     |> Repo.all()
   end

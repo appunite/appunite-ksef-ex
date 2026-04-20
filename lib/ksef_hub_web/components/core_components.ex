@@ -265,6 +265,65 @@ defmodule KsefHubWeb.CoreComponents do
   end
 
   @doc """
+  Renders a horizontal tab bar with optional count badges.
+
+  Each tab is a map with `:id` (atom), `:label` (string), `:patch` (URL for
+  `phx-patch` navigation), and an optional `:count` (integer or `nil`). A `nil`
+  count hides the badge entirely. The `active` attr matches against `:id`.
+
+  ## Examples
+
+      <.tabs
+        active={@active_tab}
+        tabs={[
+          %{id: :payments, label: "Payments", count: 3, patch: ~p"/foo?tab=payments"},
+          %{id: :access, label: "Access", count: nil, patch: ~p"/foo?tab=access"}
+        ]}
+      />
+  """
+  attr :tabs, :list, required: true
+  attr :active, :atom, required: true
+  attr :class, :string, default: nil
+
+  @spec tabs(map()) :: Phoenix.LiveView.Rendered.t()
+  def tabs(assigns) do
+    ~H"""
+    <div class={["border-b border-border", @class]}>
+      <nav class="-mb-px flex items-center gap-6 overflow-x-auto" role="tablist">
+        <.link
+          :for={tab <- @tabs}
+          patch={tab.patch}
+          role="tab"
+          aria-selected={to_string(tab.id == @active)}
+          data-testid={"tab-#{tab.id}"}
+          class={[
+            "flex items-center gap-2 pb-2 text-sm font-medium border-b-2 whitespace-nowrap transition-colors",
+            if(tab.id == @active,
+              do: "border-foreground text-foreground",
+              else: "border-transparent text-muted-foreground hover:text-foreground"
+            )
+          ]}
+        >
+          {tab.label}
+          <span
+            :if={tab.count}
+            class={[
+              "inline-flex items-center justify-center min-w-[1.25rem] h-5 px-1.5 rounded text-xs font-medium",
+              if(tab.id == @active,
+                do: "bg-foreground text-background",
+                else: "bg-muted text-muted-foreground"
+              )
+            ]}
+          >
+            {tab.count}
+          </span>
+        </.link>
+      </nav>
+    </div>
+    """
+  end
+
+  @doc """
   Renders the application logo with icon and text.
 
   ## Examples

@@ -15,6 +15,8 @@ defmodule KsefHubWeb.InvoiceLive.Show do
   alias KsefHub.Invoices
   alias KsefHub.Invoices.{CostLine, Invoice}
   alias KsefHub.PaymentRequests
+  alias KsefHubWeb.InvoiceLive.AccessCard
+  alias KsefHubWeb.InvoiceLive.ActivityTimeline
 
   import KsefHubWeb.InvoiceComponents
 
@@ -79,6 +81,8 @@ defmodule KsefHubWeb.InvoiceLive.Show do
 
         activity_entries = ActivityLog.list_invoice_timeline(company.id, invoice.id)
 
+        public_link = build_public_link(invoice, user_id)
+
         {:ok,
          socket
          |> assign(
@@ -96,7 +100,10 @@ defmodule KsefHubWeb.InvoiceLive.Show do
              if(can_manage_access, do: Invoices.list_access_grants(invoice.id), else: []),
            members_requiring_grants:
              if(can_manage_access, do: list_members_requiring_grants(company.id), else: []),
+           member_roles:
+             if(can_manage_access, do: member_role_lookup(company.id), else: %{}),
            payment_status: payment_status,
+           public_link: public_link,
            invoice_payment_requests: invoice_payment_requests,
            html_preview: generate_preview(invoice),
            categories: Invoices.list_categories(company.id),
@@ -107,6 +114,8 @@ defmodule KsefHubWeb.InvoiceLive.Show do
            editing_note: false,
            note_form: note_form(invoice),
            activity_log_empty: activity_entries == [],
+           activity_log_count: length(activity_entries),
+           active_tab: :activity,
            comments: Invoices.list_invoice_comments(company.id, invoice.id),
            comment_form: comment_form(),
            extracting: false,
@@ -121,12 +130,62 @@ defmodule KsefHubWeb.InvoiceLive.Show do
     end
   end
 
+  @valid_tabs ~w(payments activity comments access)
+
+  @impl true
+  @spec handle_params(map(), String.t(), Phoenix.LiveView.Socket.t()) ::
+          {:noreply, Phoenix.LiveView.Socket.t()}
+  def handle_params(params, _url, %{assigns: %{invoice: _}} = socket) do
+    tabs = visible_tabs(socket.assigns)
+    tab_ids = Enum.map(tabs, & &1.id)
+
+    requested =
+      case params["tab"] do
+        t when t in @valid_tabs -> String.to_existing_atom(t)
+        _ -> nil
+      end
+
+    active = if requested in tab_ids, do: requested, else: List.first(tab_ids) || :activity
+
+    {:noreply, assign(socket, active_tab: active, visible_tabs: tabs)}
+  end
+
+  def handle_params(_params, _url, socket), do: {:noreply, socket}
+
+  @spec visible_tabs(map()) :: [map()]
+  defp visible_tabs(assigns) do
+    payments_visible? =
+      (assigns.invoice.type == :expense and assigns.can_manage_payment_requests) or
+        (assigns.can_view_payment_requests and assigns.invoice_payment_requests != [])
+
+    company_id = assigns.current_company.id
+    invoice_id = assigns.invoice.id
+    access_count = if assigns.invoice.access_restricted, do: length(assigns.access_grants), else: nil
+
+    [
+      {:payments, "Payments", length(assigns.invoice_payment_requests), payments_visible?},
+      {:activity, "Activity", assigns.activity_log_count, true},
+      {:comments, "Comments", length(assigns.comments), true},
+      {:access, "Access", access_count, assigns.can_mutate || assigns.can_manage_access}
+    ]
+    |> Enum.filter(fn {_, _, _, visible} -> visible end)
+    |> Enum.map(fn {id, label, count, _} ->
+      %{
+        id: id,
+        label: label,
+        count: count,
+        patch: ~p"/c/#{company_id}/invoices/#{invoice_id}?#{[tab: id]}"
+      }
+    end)
+  end
+
   # --- Authorization guard ---
   # Catch-all for mutation events when the user lacks permission.
 
   @mutation_events ~w(re_extract dismiss_extraction_warning dismiss_duplicate confirm_duplicate
     toggle_edit save_edit edit_note save_note
-    edit_billing_date save_billing_date cancel_billing_date copy_public_link
+    edit_billing_date save_billing_date cancel_billing_date
+    copy_public_link create_public_link revoke_public_link
     exclude include)
 
   @approve_events ~w(approve reject reset_status)
@@ -384,7 +443,7 @@ defmodule KsefHubWeb.InvoiceLive.Show do
   # --- Events: Share ---
 
   @impl true
-  def handle_event("copy_public_link", _params, socket) do
+  def handle_event("create_public_link", _params, socket) do
     invoice = socket.assigns.invoice
     user_id = socket.assigns.current_user.id
 
@@ -398,12 +457,41 @@ defmodule KsefHubWeb.InvoiceLive.Show do
 
         {:noreply,
          socket
+         |> assign(:public_link, url)
          |> push_event("copy_to_clipboard", %{text: url})
-         |> put_flash(:info, "Public link copied to clipboard.")}
+         |> put_flash(:info, "Public link created and copied to clipboard.")}
 
       {:error, _reason} ->
         {:noreply, put_flash(socket, :error, "Could not generate public link.")}
     end
+  end
+
+  @impl true
+  def handle_event("copy_public_link", _params, %{assigns: %{public_link: url}} = socket)
+      when is_binary(url) do
+    {:noreply,
+     socket
+     |> push_event("copy_to_clipboard", %{text: url})
+     |> put_flash(:info, "Public link copied to clipboard.")}
+  end
+
+  def handle_event("copy_public_link", _params, socket) do
+    # No active link to copy — shouldn't be reachable from the UI (button only
+    # renders when @public_link is set). Guard against direct event dispatch.
+    {:noreply, put_flash(socket, :error, "No share link to copy. Create one first.")}
+  end
+
+  @impl true
+  def handle_event("revoke_public_link", _params, socket) do
+    invoice = socket.assigns.invoice
+    user_id = socket.assigns.current_user.id
+
+    :ok = Invoices.revoke_public_token(invoice.id, user_id)
+
+    {:noreply,
+     socket
+     |> assign(:public_link, nil)
+     |> put_flash(:info, "Public link revoked.")}
   end
 
   # --- Events: Exclude/Include ---
@@ -756,6 +844,7 @@ defmodule KsefHubWeb.InvoiceLive.Show do
     {:noreply,
      socket
      |> assign(:activity_log_empty, false)
+     |> update(:activity_log_count, &(&1 + 1))
      |> stream_insert(:activity_log, audit_log, at: 0)}
   end
 
@@ -870,10 +959,10 @@ defmodule KsefHubWeb.InvoiceLive.Show do
                 @invoice.expense_approval_status == :pending &&
                 @invoice.duplicate_status != :confirmed
             }
-            variant="success"
-            phx-click="approve"
+            variant="outline"
+            phx-click="reject"
           >
-            Approve
+            <.icon name="hero-x-circle" class="size-4" /> Reject
           </.button>
           <.button
             :if={
@@ -881,10 +970,10 @@ defmodule KsefHubWeb.InvoiceLive.Show do
                 @invoice.expense_approval_status == :pending &&
                 @invoice.duplicate_status != :confirmed
             }
-            variant="destructive"
-            phx-click="reject"
+            variant="primary"
+            phx-click="approve"
           >
-            Reject
+            <.icon name="hero-check" class="size-4" /> Approve
           </.button>
           <div :if={@invoice.xml_file || @invoice.pdf_file} class="relative">
             <.button
@@ -932,13 +1021,6 @@ defmodule KsefHubWeb.InvoiceLive.Show do
               phx-click-away={JS.hide(to: "#actions-menu")}
             >
               <button
-                phx-click="copy_public_link"
-                data-testid="copy-public-link"
-                class={dropdown_item_class()}
-              >
-                <.icon name="hero-link" class="size-4" /> Share
-              </button>
-              <button
                 :if={!@invoice.is_excluded}
                 phx-click="exclude"
                 data-testid="exclude-btn"
@@ -985,7 +1067,7 @@ defmodule KsefHubWeb.InvoiceLive.Show do
         <span>Missing required fields: </span>
         <span class="font-medium">
           {Invoices.missing_critical_fields(@invoice)
-          |> Enum.map_join(", ", &humanize_field(Atom.to_string(&1)))}
+          |> Enum.map_join(", ", &ActivityTimeline.humanize_field(Atom.to_string(&1)))}
         </span>
         <span :if={@data_editable} class="text-base-content/60">
           — please fill them in or dismiss.
@@ -1032,16 +1114,16 @@ defmodule KsefHubWeb.InvoiceLive.Show do
       <div class="space-y-4">
         <.card padding="p-4">
           <div class="flex items-center justify-between mb-2">
-            <div class="flex items-center gap-2">
-              <h2 class="text-base font-semibold">Details</h2>
-              <span
-                :if={!@data_editable}
-                class="inline-flex items-center gap-1 rounded-md bg-muted px-2 py-0.5 text-xs text-muted-foreground"
-                data-testid="ksef-locked-badge"
-              >
-                <.icon name="hero-lock-closed" class="size-3" /> Data fields locked — KSeF invoice
-              </span>
-            </div>
+            <h2 class="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+              Details
+            </h2>
+            <span
+              :if={!@data_editable}
+              class="inline-flex items-center gap-1 rounded-md bg-muted px-2 py-0.5 text-xs text-muted-foreground"
+              data-testid="ksef-locked-badge"
+            >
+              <.icon name="hero-lock-closed" class="size-3" /> Data fields locked — KSeF invoice
+            </span>
             <.button
               :if={@can_mutate && @data_editable && !@editing}
               size="sm"
@@ -1067,7 +1149,9 @@ defmodule KsefHubWeb.InvoiceLive.Show do
         <!-- Category & Tags Card -->
         <.card padding="p-4">
           <div class="flex items-center justify-between mb-2">
-            <h2 class="text-base font-semibold">Classification</h2>
+            <h2 class="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+              Classification
+            </h2>
             <.link
               :if={@can_set_category || @can_set_tags}
               navigate={~p"/c/#{@current_company.id}/invoices/#{@invoice.id}/classify"}
@@ -1143,7 +1227,9 @@ defmodule KsefHubWeb.InvoiceLive.Show do
         <!-- Billing Period Card -->
         <.card padding="p-4">
           <div class="flex items-center justify-between mb-2">
-            <h2 class="text-base font-semibold">Billing Period</h2>
+            <h2 class="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+              Billing Period
+            </h2>
             <.button
               :if={@can_mutate && !@editing_billing_date}
               variant="outline"
@@ -1189,7 +1275,9 @@ defmodule KsefHubWeb.InvoiceLive.Show do
         <!-- Note Card -->
         <.card padding="p-4">
           <div class="flex items-center justify-between mb-2">
-            <h2 class="text-base font-semibold">Note</h2>
+            <h2 class="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+              Note
+            </h2>
             <.button
               :if={@can_mutate && !@editing_note}
               variant="outline"
@@ -1235,7 +1323,9 @@ defmodule KsefHubWeb.InvoiceLive.Show do
       </div>
       <!-- Preview -->
       <.card class="h-full" padding="p-4 flex flex-col h-full">
-        <h2 class="text-base font-semibold mb-2">Preview</h2>
+        <h2 class="mb-2 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+          Preview
+        </h2>
         <div
           :if={@html_preview}
           class="border border-border rounded-lg overflow-hidden flex-1 min-h-[600px]"
@@ -1267,111 +1357,120 @@ defmodule KsefHubWeb.InvoiceLive.Show do
         </p>
       </.card>
     </div>
-    <!-- Payment Requests Section -->
-    <div
-      :if={
-        (@invoice.type == :expense && @can_manage_payment_requests) ||
-          (@can_view_payment_requests && @invoice_payment_requests != [])
-      }
-      id="payment-requests-section"
-      class="mt-6"
-    >
-      <div class="rounded-lg border border-border p-4">
-        <div class="flex items-center justify-between mb-3">
-          <h2 class="text-base font-semibold">Payment Requests</h2>
-          <.button
-            :if={@can_manage_payment_requests && @invoice.type == :expense}
-            size="sm"
-            variant="outline"
-            navigate={~p"/c/#{@current_company.id}/payment-requests/new?invoice_id=#{@invoice.id}"}
-          >
-            <.icon name="hero-plus" class="size-3.5" /> Add
-          </.button>
-        </div>
-        <p :if={@invoice_payment_requests == []} class="text-sm text-muted-foreground py-2">
-          No payment requests yet.
-        </p>
-        <table :if={@invoice_payment_requests != []} class="w-full text-sm">
-          <thead>
-            <tr class="border-b border-border">
-              <th class="text-left py-2 px-2 text-xs font-medium text-muted-foreground uppercase">
-                Title
-              </th>
-              <th class="text-right py-2 px-2 text-xs font-medium text-muted-foreground uppercase">
-                Amount
-              </th>
-              <th class="text-center py-2 px-2 text-xs font-medium text-muted-foreground uppercase">
-                Status
-              </th>
-              <th class="text-left py-2 px-2 text-xs font-medium text-muted-foreground uppercase">
-                Paid
-              </th>
-              <th class="text-left py-2 px-2 text-xs font-medium text-muted-foreground uppercase">
-                IBAN
-              </th>
-            </tr>
-          </thead>
-          <tbody>
-            <tr
-              :for={pr <- @invoice_payment_requests}
-              class="border-b border-border/50 last:border-0"
-            >
-              <td class="py-2 px-2">
-                <.link
-                  :if={@can_manage_payment_requests}
-                  navigate={~p"/c/#{@current_company.id}/payment-requests/#{pr.id}/edit"}
-                  class="text-shad-primary underline-offset-4 hover:underline"
-                >
-                  {pr.title}
-                </.link>
-                <span :if={!@can_manage_payment_requests}>{pr.title}</span>
-              </td>
-              <td class="py-2 px-2 text-right font-mono">
-                {format_amount(pr.amount)}
-                <span class="text-xs text-muted-foreground">{pr.currency}</span>
-              </td>
-              <td class="py-2 px-2 text-center">
-                <.payment_badge status={pr.status} />
-              </td>
-              <td class="py-2 px-2">
-                <.local_datetime at={pr.paid_at} id={"inv-pr-paid-#{pr.id}"} />
-              </td>
-              <td class="py-2 px-2 font-mono break-all">
-                {pr.iban || "-"}
-              </td>
-            </tr>
-          </tbody>
-        </table>
-      </div>
-    </div>
-
-    <!-- Comments Section (below grid) -->
+    <!-- Tabbed Sections: Payments / Activity / Comments / Access -->
     <div class="mt-6">
-      <.comments_card
-        comments={@comments}
-        comment_form={@comment_form}
-        comment_form_key={@comment_form_key}
-        editing_comment_id={@editing_comment_id}
-        edit_comment_form={@edit_comment_form}
-        current_user_id={@current_user.id}
-      />
-    </div>
+      <.tabs tabs={@visible_tabs} active={@active_tab} class="mb-4" />
 
-    <!-- Access Control Section -->
-    <div :if={@can_manage_access} id="access-control-section" class="mt-6">
-      <.access_control_card
-        access_grants={@access_grants}
-        members_requiring_grants={@members_requiring_grants}
-        invoice={@invoice}
-      />
-    </div>
+      <div
+        :if={@active_tab == :payments}
+        id="payment-requests-section"
+        role="tabpanel"
+      >
+        <.card padding="p-4">
+          <div
+            :if={@can_manage_payment_requests && @invoice.type == :expense}
+            class="flex justify-end mb-3"
+          >
+            <.button
+              size="sm"
+              variant="outline"
+              navigate={~p"/c/#{@current_company.id}/payment-requests/new?invoice_id=#{@invoice.id}"}
+            >
+              <.icon name="hero-plus" class="size-3.5" /> Add
+            </.button>
+          </div>
+          <p :if={@invoice_payment_requests == []} class="text-sm text-muted-foreground py-2">
+            No payment requests yet.
+          </p>
+          <table :if={@invoice_payment_requests != []} class="w-full text-sm">
+            <thead>
+              <tr class="border-b border-border">
+                <th class="text-left py-2 px-2 text-xs font-medium text-muted-foreground uppercase">
+                  Title
+                </th>
+                <th class="text-right py-2 px-2 text-xs font-medium text-muted-foreground uppercase">
+                  Amount
+                </th>
+                <th class="text-center py-2 px-2 text-xs font-medium text-muted-foreground uppercase">
+                  Status
+                </th>
+                <th class="text-left py-2 px-2 text-xs font-medium text-muted-foreground uppercase">
+                  Paid
+                </th>
+                <th class="text-left py-2 px-2 text-xs font-medium text-muted-foreground uppercase">
+                  IBAN
+                </th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr
+                :for={pr <- @invoice_payment_requests}
+                class="border-b border-border/50 last:border-0"
+              >
+                <td class="py-2 px-2">
+                  <.link
+                    :if={@can_manage_payment_requests}
+                    navigate={~p"/c/#{@current_company.id}/payment-requests/#{pr.id}/edit"}
+                    class="text-shad-primary underline-offset-4 hover:underline"
+                  >
+                    {pr.title}
+                  </.link>
+                  <span :if={!@can_manage_payment_requests}>{pr.title}</span>
+                </td>
+                <td class="py-2 px-2 text-right font-mono">
+                  {format_amount(pr.amount)}
+                  <span class="text-xs text-muted-foreground">{pr.currency}</span>
+                </td>
+                <td class="py-2 px-2 text-center">
+                  <.payment_badge status={pr.status} />
+                </td>
+                <td class="py-2 px-2">
+                  <.local_datetime at={pr.paid_at} id={"inv-pr-paid-#{pr.id}"} />
+                </td>
+                <td class="py-2 px-2 font-mono break-all">
+                  {pr.iban || "-"}
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </.card>
+      </div>
 
-    <!-- Activity Log Timeline -->
-    <div class="mt-6" id="activity-log-section">
-      <.activity_timeline
-        activity_log={@streams.activity_log}
-        activity_log_empty={@activity_log_empty}
-      />
+      <div :if={@active_tab == :activity} id="activity-log-section" role="tabpanel">
+        <.card padding="p-4">
+          <ActivityTimeline.timeline
+            activity_log={@streams.activity_log}
+            activity_log_empty={@activity_log_empty}
+          />
+        </.card>
+      </div>
+
+      <div :if={@active_tab == :comments} role="tabpanel">
+        <.comments_card
+          comments={@comments}
+          comment_form={@comment_form}
+          comment_form_key={@comment_form_key}
+          editing_comment_id={@editing_comment_id}
+          edit_comment_form={@edit_comment_form}
+          current_user_id={@current_user.id}
+        />
+      </div>
+
+      <div
+        :if={@active_tab == :access && (@can_mutate || @can_manage_access)}
+        id="access-control-section"
+        role="tabpanel"
+      >
+        <AccessCard.access_card
+          access_grants={@access_grants}
+          members_requiring_grants={@members_requiring_grants}
+          member_roles={@member_roles}
+          invoice={@invoice}
+          public_link={@public_link}
+          can_manage_access={@can_manage_access}
+          can_share={@can_mutate}
+        />
+      </div>
     </div>
     """
   end
@@ -1387,8 +1486,6 @@ defmodule KsefHubWeb.InvoiceLive.Show do
   defp comments_card(assigns) do
     ~H"""
     <.card padding="p-4">
-      <h2 class="text-base font-semibold mb-2">Comments</h2>
-
       <div :if={@comments == []} class="text-sm text-muted-foreground italic">
         No comments yet
       </div>
@@ -1469,191 +1566,6 @@ defmodule KsefHubWeb.InvoiceLive.Show do
     """
   end
 
-  attr :activity_log, :list, required: true
-  attr :activity_log_empty, :boolean, required: true
-
-  @spec activity_timeline(map()) :: Phoenix.LiveView.Rendered.t()
-  defp activity_timeline(assigns) do
-    ~H"""
-    <.card padding="p-4">
-      <h2 class="text-base font-semibold mb-4">Activity</h2>
-
-      <div :if={@activity_log_empty} class="text-sm text-muted-foreground italic">
-        No activity recorded yet
-      </div>
-
-      <ul
-        :if={!@activity_log_empty}
-        id="activity-log-stream"
-        phx-update="stream"
-        class="timeline timeline-vertical timeline-compact"
-      >
-        <li :for={{dom_id, entry} <- @activity_log} id={dom_id}>
-          <hr class="first:hidden" />
-          <div class="timeline-start text-xs text-muted-foreground whitespace-nowrap">
-            {relative_time(entry.inserted_at)}
-          </div>
-          <div class="timeline-middle">
-            <.activity_icon action={entry.action} />
-          </div>
-          <div class="timeline-end timeline-box py-1.5 px-3 text-sm border-border bg-background">
-            <span class="font-medium">{entry.actor_label || "System"}</span>
-            <span class="text-muted-foreground ml-1">{describe_action(entry)}</span>
-          </div>
-          <hr class="last:hidden" />
-        </li>
-      </ul>
-    </.card>
-    """
-  end
-
-  @action_icons %{
-    "invoice.created" => "hero-plus-circle",
-    "invoice.status_changed" => "hero-check-circle",
-    "invoice.classification_changed" => "hero-tag",
-    "invoice.excluded" => "hero-eye-slash",
-    "invoice.included" => "hero-eye",
-    "invoice.access_changed" => "hero-lock-closed",
-    "invoice.public_link_generated" => "hero-link",
-    "invoice.downloaded" => "hero-arrow-down-tray",
-    "invoice.note_updated" => "hero-pencil",
-    "invoice.billing_date_changed" => "hero-calendar",
-    "invoice.updated" => "hero-pencil-square"
-  }
-
-  @action_prefix_icons [
-    {"invoice.comment_", "hero-chat-bubble-left"},
-    {"invoice.duplicate_", "hero-document-duplicate"},
-    {"invoice.extraction_", "hero-document-magnifying-glass"},
-    {"payment_request.", "hero-banknotes"}
-  ]
-
-  attr :action, :string, required: true
-
-  @spec activity_icon(map()) :: Phoenix.LiveView.Rendered.t()
-  defp activity_icon(assigns) do
-    assigns = assign(assigns, :icon_name, icon_for_action(assigns.action))
-
-    ~H"""
-    <.icon name={@icon_name} class="size-4 text-muted-foreground" />
-    """
-  end
-
-  @spec icon_for_action(String.t()) :: String.t()
-  defp icon_for_action(action) do
-    Map.get(@action_icons, action) || icon_for_action_prefix(action)
-  end
-
-  @spec icon_for_action_prefix(String.t()) :: String.t()
-  defp icon_for_action_prefix(action) do
-    @action_prefix_icons
-    |> Enum.find_value(fn {prefix, icon} ->
-      if String.starts_with?(action, prefix), do: icon
-    end)
-    |> Kernel.||("hero-information-circle")
-  end
-
-  @static_descriptions %{
-    "invoice.comment_added" => "added a comment",
-    "invoice.comment_edited" => "edited a comment",
-    "invoice.comment_deleted" => "deleted a comment",
-    "invoice.excluded" => "excluded invoice",
-    "invoice.included" => "included invoice",
-    "invoice.public_link_generated" => "generated public link",
-    "invoice.duplicate_detected" => "duplicate detected",
-    "invoice.duplicate_confirmed" => "confirmed as duplicate",
-    "invoice.duplicate_dismissed" => "dismissed duplicate",
-    "invoice.note_updated" => "updated note",
-    "invoice.billing_date_changed" => "changed billing date",
-    "invoice.extraction_completed" => "extraction completed",
-    "invoice.re_extraction_triggered" => "triggered re-extraction",
-    "invoice.extraction_dismissed" => "dismissed extraction warning",
-    "payment_request.created" => "created payment request",
-    "payment_request.paid" => "marked payment as paid",
-    "payment_request.voided" => "voided payment request"
-  }
-
-  @spec describe_action(map()) :: String.t()
-  defp describe_action(%{action: action, metadata: metadata}) do
-    case Map.fetch(@static_descriptions, action) do
-      {:ok, desc} ->
-        desc
-
-      :error ->
-        describe_dynamic_action(action, metadata)
-    end
-  end
-
-  @spec describe_dynamic_action(String.t(), map()) :: String.t()
-  defp describe_dynamic_action("invoice.created", metadata) do
-    case metadata["source"] do
-      nil -> "added invoice"
-      source -> "added invoice via #{source}"
-    end
-  end
-
-  defp describe_dynamic_action("invoice.status_changed", metadata) do
-    "changed status to #{metadata["new_status"] || "unknown"}"
-  end
-
-  defp describe_dynamic_action("invoice.classification_changed", metadata) do
-    field = metadata["field"] || "classification"
-    old_name = metadata["old_name"]
-    new_name = metadata["new_name"]
-
-    cond do
-      old_name && new_name -> "updated #{field} from #{old_name} to #{new_name}"
-      new_name -> "set #{field} to #{new_name}"
-      old_name -> "removed #{field} #{old_name}"
-      true -> "updated #{field}"
-    end
-  end
-
-  defp describe_dynamic_action("invoice.access_changed", metadata) do
-    "changed access to #{metadata["change_type"] || "access"}"
-  end
-
-  defp describe_dynamic_action("invoice.downloaded", metadata) do
-    "downloaded #{metadata["format"] || "file"}"
-  end
-
-  defp describe_dynamic_action("invoice.updated", metadata) do
-    case metadata["changed_fields"] do
-      fields when is_list(fields) and fields != [] ->
-        humanized = Enum.map_join(fields, ", ", &humanize_field/1)
-        "updated #{humanized}"
-
-      _ ->
-        "updated invoice fields"
-    end
-  end
-
-  defp describe_dynamic_action(action, _metadata) do
-    action |> String.replace(".", " ") |> String.replace("_", " ")
-  end
-
-  @field_labels %{
-    "seller_name" => "seller name",
-    "seller_nip" => "seller NIP",
-    "buyer_name" => "buyer name",
-    "buyer_nip" => "buyer NIP",
-    "invoice_number" => "invoice number",
-    "issue_date" => "issue date",
-    "sales_date" => "sales date",
-    "due_date" => "due date",
-    "net_amount" => "net amount",
-    "gross_amount" => "gross amount",
-    "extraction_status" => "extraction status",
-    "billing_date_from" => "billing from",
-    "billing_date_to" => "billing to",
-    "seller_address" => "seller address",
-    "buyer_address" => "buyer address",
-    "purchase_order" => "PO number"
-  }
-
-  @spec humanize_field(String.t()) :: String.t()
-  defp humanize_field(field), do: Map.get(@field_labels, field, String.replace(field, "_", " "))
-
   @spec list_members_requiring_grants(Ecto.UUID.t()) :: [map()]
   defp list_members_requiring_grants(company_id) do
     company_id
@@ -1661,143 +1573,19 @@ defmodule KsefHubWeb.InvoiceLive.Show do
     |> Enum.reject(&Authorization.can?(&1.role, :view_all_invoice_types))
   end
 
-  attr :access_grants, :list, required: true
-  attr :members_requiring_grants, :list, required: true
-  attr :invoice, :map, required: true
+  @spec member_role_lookup(Ecto.UUID.t()) :: %{optional(Ecto.UUID.t()) => atom()}
+  defp member_role_lookup(company_id) do
+    company_id
+    |> Companies.list_members()
+    |> Map.new(fn m -> {m.user_id, m.role} end)
+  end
 
-  @spec access_control_card(map()) :: Phoenix.LiveView.Rendered.t()
-  defp access_control_card(assigns) do
-    granted_user_ids = MapSet.new(assigns.access_grants, & &1.user_id)
-
-    members_already_granted =
-      Enum.reject(assigns.members_requiring_grants, &MapSet.member?(granted_user_ids, &1.user_id))
-
-    assigns = assign(assigns, members_already_granted: members_already_granted)
-
-    ~H"""
-    <.card padding="p-4">
-      <h2 class="text-base font-semibold mb-3">Access</h2>
-
-      <div class="flex items-center gap-2 mb-3">
-        <div class="relative">
-          <button
-            type="button"
-            phx-click={JS.toggle(to: "#access-mode-menu")}
-            class="inline-flex items-center gap-1.5 rounded-md border border-input bg-background px-3 py-1.5 text-sm font-medium hover:bg-accent hover:text-accent-foreground"
-          >
-            <.icon
-              name={if(@invoice.access_restricted, do: "hero-lock-closed", else: "hero-users")}
-              class="size-4 text-muted-foreground"
-            />
-            {if @invoice.access_restricted, do: "Only people invited", else: "All approvers"}
-            <.icon name="hero-chevron-down" class="size-3 text-muted-foreground" />
-          </button>
-          <div
-            id="access-mode-menu"
-            class="hidden absolute left-0 top-full mt-1 z-50 w-56 rounded-md border border-border bg-popover text-popover-foreground shadow-md"
-            phx-click-away={JS.hide(to: "#access-mode-menu")}
-          >
-            <button
-              :if={@invoice.access_restricted}
-              type="button"
-              phx-click={JS.hide(to: "#access-mode-menu") |> JS.push("toggle_access_restricted")}
-              class="flex w-full items-center gap-2.5 px-3 py-2 text-sm hover:bg-shad-accent rounded-t-md"
-            >
-              <.icon name="hero-users" class="size-4 text-muted-foreground" />
-              <span>All approvers</span>
-            </button>
-            <div
-              :if={!@invoice.access_restricted}
-              class="flex w-full items-center gap-2.5 px-3 py-2 text-sm bg-shad-accent rounded-t-md"
-            >
-              <.icon name="hero-users" class="size-4 text-muted-foreground" />
-              <span>All approvers</span>
-              <.icon name="hero-check" class="size-4 ml-auto" />
-            </div>
-
-            <button
-              :if={!@invoice.access_restricted}
-              type="button"
-              phx-click={JS.hide(to: "#access-mode-menu") |> JS.push("toggle_access_restricted")}
-              class="flex w-full items-center gap-2.5 px-3 py-2 text-sm hover:bg-shad-accent rounded-b-md"
-            >
-              <.icon name="hero-lock-closed" class="size-4 text-muted-foreground" />
-              <span>Only people invited</span>
-            </button>
-            <div
-              :if={@invoice.access_restricted}
-              class="flex w-full items-center gap-2.5 px-3 py-2 text-sm bg-shad-accent rounded-b-md"
-            >
-              <.icon name="hero-lock-closed" class="size-4 text-muted-foreground" />
-              <span>Only people invited</span>
-              <.icon name="hero-check" class="size-4 ml-auto" />
-            </div>
-          </div>
-        </div>
-      </div>
-
-      <p :if={!@invoice.access_restricted} class="text-sm text-muted-foreground">
-        All approvers in the company can view this invoice.
-      </p>
-
-      <div :if={@invoice.access_restricted}>
-        <p class="text-sm text-muted-foreground mb-3">
-          Only invited members can view this invoice. Owners, admins, and accountants always have access.
-        </p>
-
-        <div :if={@access_grants != []} class="space-y-0.5 mb-3">
-          <div
-            :for={grant <- @access_grants}
-            class="flex items-center justify-between py-1.5 px-2 rounded hover:bg-muted group"
-          >
-            <div class="flex items-center gap-2 text-sm">
-              <div class="flex items-center justify-center size-6 rounded-full bg-muted text-xs font-medium uppercase">
-                {String.first(grant.user.name || grant.user.email)}
-              </div>
-              <span>{grant.user.name || grant.user.email}</span>
-            </div>
-            <button
-              phx-click="revoke_access"
-              phx-value-user_id={grant.user_id}
-              class="opacity-0 group-hover:opacity-100 focus:opacity-100 focus-visible:opacity-100 text-muted-foreground hover:text-shad-destructive transition-opacity"
-              aria-label={"Remove #{grant.user.name || grant.user.email}"}
-            >
-              <.icon name="hero-x-mark" class="size-4" />
-            </button>
-          </div>
-        </div>
-
-        <div :if={@members_already_granted != []}>
-          <form phx-submit="grant_access" class="flex items-center gap-2">
-            <select
-              name="user_id"
-              class="h-8 flex-1 rounded-md border border-input bg-background px-2 text-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
-            >
-              <option :for={member <- @members_already_granted} value={member.user_id}>
-                {member.user.name || member.user.email}
-              </option>
-            </select>
-            <.button type="submit" size="sm" variant="outline">
-              Invite
-            </.button>
-          </form>
-        </div>
-
-        <p
-          :if={@members_already_granted == [] && @members_requiring_grants == []}
-          class="text-xs text-muted-foreground"
-        >
-          No approvers in this company. Add approvers from team settings.
-        </p>
-        <p
-          :if={@members_already_granted == [] && @members_requiring_grants != []}
-          class="text-xs text-muted-foreground"
-        >
-          All approvers have been invited.
-        </p>
-      </div>
-    </.card>
-    """
+  @spec build_public_link(Invoice.t(), Ecto.UUID.t()) :: String.t() | nil
+  defp build_public_link(invoice, user_id) do
+    case Invoices.get_public_token_for(invoice.id, user_id) do
+      nil -> nil
+      pt -> url(~p"/public/invoices/#{invoice.id}?token=#{pt.token}")
+    end
   end
 
   attr :title, :string, required: true

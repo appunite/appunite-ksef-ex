@@ -155,8 +155,8 @@ defmodule KsefHubWeb.InvoiceLive.ShowTest do
         status: :pending
       )
 
-      {:ok, _view, html} = live(conn, ~p"/c/#{company.id}/invoices/#{invoice.id}")
-      assert html =~ "Payment Requests"
+      {:ok, view, html} = live(conn, ~p"/c/#{company.id}/invoices/#{invoice.id}")
+      assert has_element?(view, "#payment-requests-section")
       assert html =~ "PR Vendor Payment"
       assert html =~ "500.00"
     end
@@ -228,12 +228,13 @@ defmodule KsefHubWeb.InvoiceLive.ShowTest do
     test "generates token and pushes clipboard event", %{conn: conn, company: company} do
       invoice = insert(:invoice, company: company)
 
-      {:ok, view, _html} = live(conn, ~p"/c/#{company.id}/invoices/#{invoice.id}")
+      {:ok, view, _html} = live(conn, ~p"/c/#{company.id}/invoices/#{invoice.id}?tab=access")
+      assert has_element?(view, ~s([data-testid="create-public-link"]))
+
+      html = view |> element(~s([data-testid="create-public-link"])) |> render_click()
+
+      assert html =~ "Public link created and copied to clipboard."
       assert has_element?(view, ~s([data-testid="copy-public-link"]))
-
-      html = view |> element(~s([data-testid="copy-public-link"])) |> render_click()
-
-      assert html =~ "Public link copied to clipboard."
     end
 
     test "is idempotent — reuses existing token for the same user", %{
@@ -243,8 +244,8 @@ defmodule KsefHubWeb.InvoiceLive.ShowTest do
     } do
       invoice = insert(:invoice, company: company)
 
-      {:ok, view, _html} = live(conn, ~p"/c/#{company.id}/invoices/#{invoice.id}")
-      view |> element(~s([data-testid="copy-public-link"])) |> render_click()
+      {:ok, view, _html} = live(conn, ~p"/c/#{company.id}/invoices/#{invoice.id}?tab=access")
+      view |> element(~s([data-testid="create-public-link"])) |> render_click()
       view |> element(~s([data-testid="copy-public-link"])) |> render_click()
 
       import Ecto.Query
@@ -258,6 +259,90 @@ defmodule KsefHubWeb.InvoiceLive.ShowTest do
         )
 
       assert count == 1
+    end
+
+    test "revoke_public_link deletes the token and returns the banner to disabled state", %{
+      conn: conn,
+      company: company,
+      user: user
+    } do
+      invoice = insert(:invoice, company: company)
+
+      {:ok, view, _html} = live(conn, ~p"/c/#{company.id}/invoices/#{invoice.id}?tab=access")
+      view |> element(~s([data-testid="create-public-link"])) |> render_click()
+
+      assert has_element?(view, ~s([data-testid="public-link-url"]))
+      assert has_element?(view, ~s([data-testid="copy-public-link"]))
+
+      html = view |> element(~s([data-testid="revoke-public-link"])) |> render_click()
+
+      assert html =~ "Public link revoked."
+      assert has_element?(view, ~s([data-testid="create-public-link"]))
+      refute has_element?(view, ~s([data-testid="public-link-url"]))
+      assert Invoices.get_public_token_for(invoice.id, user.id) == nil
+    end
+
+    test "copy_public_link without an active link flashes an error", %{
+      conn: conn,
+      company: company
+    } do
+      invoice = insert(:invoice, company: company)
+
+      {:ok, view, _html} = live(conn, ~p"/c/#{company.id}/invoices/#{invoice.id}?tab=access")
+
+      html = render_click(view, "copy_public_link")
+
+      assert html =~ "No share link to copy"
+    end
+
+    test "accountant without update permission cannot create a share link", %{conn: _conn} do
+      {:ok, accountant} =
+        KsefHub.Accounts.get_or_create_google_user(%{
+          uid: "g-accountant-share-1",
+          email: "accountant-share@example.com",
+          name: "Analyst Share"
+        })
+
+      company = insert(:company)
+      insert(:membership, user: accountant, company: company, role: :accountant)
+
+      conn = build_conn() |> log_in_user(accountant, %{current_company_id: company.id})
+      invoice = insert(:invoice, type: :expense, company: company)
+
+      stub(KsefHub.PdfRenderer.Mock, :generate_html, fn _xml, _meta -> {:error, :no_xml} end)
+
+      {:ok, view, _html} = live(conn, ~p"/c/#{company.id}/invoices/#{invoice.id}?tab=access")
+
+      html = render_click(view, "create_public_link")
+      assert html =~ "permission to modify this invoice"
+      assert Invoices.get_public_token_for(invoice.id, accountant.id) == nil
+    end
+
+    test "accountant without update permission cannot revoke a share link", %{conn: _conn} do
+      {:ok, accountant} =
+        KsefHub.Accounts.get_or_create_google_user(%{
+          uid: "g-accountant-share-2",
+          email: "accountant-share-2@example.com",
+          name: "Analyst Share 2"
+        })
+
+      company = insert(:company)
+      insert(:membership, user: accountant, company: company, role: :accountant)
+
+      conn = build_conn() |> log_in_user(accountant, %{current_company_id: company.id})
+      invoice = insert(:invoice, type: :expense, company: company)
+
+      # Pre-seed a token as if an admin had created one
+      {:ok, pt, _} = Invoices.ensure_public_token(invoice, accountant.id)
+
+      stub(KsefHub.PdfRenderer.Mock, :generate_html, fn _xml, _meta -> {:error, :no_xml} end)
+
+      {:ok, view, _html} = live(conn, ~p"/c/#{company.id}/invoices/#{invoice.id}?tab=access")
+
+      html = render_click(view, "revoke_public_link")
+      assert html =~ "permission to modify this invoice"
+      # Token still exists — revoke was blocked
+      assert Invoices.get_public_token_for(invoice.id, accountant.id).id == pt.id
     end
   end
 
@@ -1171,7 +1256,7 @@ defmodule KsefHubWeb.InvoiceLive.ShowTest do
     test "access control card is visible for owner", %{conn: conn, company: company} do
       invoice = insert(:invoice, type: :expense, company: company)
 
-      {:ok, view, _html} = live(conn, ~p"/c/#{company.id}/invoices/#{invoice.id}")
+      {:ok, view, _html} = live(conn, ~p"/c/#{company.id}/invoices/#{invoice.id}?tab=access")
       assert has_element?(view, "#access-control-section")
       assert has_element?(view, "#access-mode-menu")
     end
@@ -1200,16 +1285,62 @@ defmodule KsefHubWeb.InvoiceLive.ShowTest do
     test "toggling access restriction works", %{conn: conn, company: company} do
       invoice = insert(:invoice, type: :expense, company: company)
 
-      {:ok, view, _html} = live(conn, ~p"/c/#{company.id}/invoices/#{invoice.id}")
+      {:ok, view, _html} = live(conn, ~p"/c/#{company.id}/invoices/#{invoice.id}?tab=access")
 
       # Use the event directly since the button has JS command chain, not simple phx-click
       html = render_click(view, "toggle_access_restricted")
 
-      assert html =~ "Only people invited"
-      assert html =~ "Owners, admins, and accountants always have access"
+      assert html =~ "Invited only"
+      assert html =~ "owners, admins, and accountants"
 
       updated = Invoices.get_invoice!(company.id, invoice.id)
       assert updated.access_restricted == true
+    end
+
+    test "team-default mode shows info message, not a user list", %{conn: conn, company: company} do
+      invoice = insert(:invoice, type: :expense, company: company, access_restricted: false)
+
+      {:ok, _view, html} = live(conn, ~p"/c/#{company.id}/invoices/#{invoice.id}?tab=access")
+
+      assert html =~ "Team default"
+      assert html =~ "Team members with invoice-viewing permission"
+      refute html =~ "Granted by"
+      refute html =~ "<thead"
+    end
+
+    test "invited-only mode with no grants shows empty state", %{conn: conn, company: company} do
+      invoice = insert(:invoice, type: :expense, company: company, access_restricted: true)
+
+      {:ok, _view, html} = live(conn, ~p"/c/#{company.id}/invoices/#{invoice.id}?tab=access")
+
+      assert html =~ "No one invited"
+      assert html =~ "No one has been invited yet"
+      refute html =~ "Granted by"
+    end
+
+    test "invited-only mode renders grants table with user/role/granter/on columns", %{
+      conn: conn,
+      company: company,
+      user: granter
+    } do
+      grantee = insert(:user, name: "Jane Doe", email: "jane@example.com")
+      insert(:membership, user: grantee, company: company, role: :approver)
+
+      invoice = insert(:invoice, type: :expense, company: company, access_restricted: true)
+
+      {:ok, _grant} = Invoices.grant_access(invoice.id, grantee.id, granter.id)
+
+      {:ok, view, html} = live(conn, ~p"/c/#{company.id}/invoices/#{invoice.id}?tab=access")
+
+      assert html =~ "1 person has access"
+      assert html =~ "Jane Doe"
+      assert html =~ "jane@example.com"
+      assert html =~ "Approver"
+      # Granter's name (test user from setup block)
+      assert html =~ "Granted by"
+      # Date is today in YYYY-MM-DD format
+      today = Date.to_string(Date.utc_today())
+      assert has_element?(view, "td", today)
     end
 
     test "grant and revoke access events work", %{conn: conn, company: company} do
@@ -1219,7 +1350,7 @@ defmodule KsefHubWeb.InvoiceLive.ShowTest do
       reviewer = insert(:user, name: "Granted Reviewer")
       insert(:membership, user: reviewer, company: company, role: :approver)
 
-      {:ok, view, _html} = live(conn, ~p"/c/#{company.id}/invoices/#{invoice.id}")
+      {:ok, view, _html} = live(conn, ~p"/c/#{company.id}/invoices/#{invoice.id}?tab=access")
 
       # Grant access
       view

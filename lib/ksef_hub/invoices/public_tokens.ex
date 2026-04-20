@@ -65,6 +65,30 @@ defmodule KsefHub.Invoices.PublicTokens do
   end
 
   @doc """
+  Returns the current non-expired public token for an (invoice, user) pair, or
+  `nil` if none exists. Non-mutating — does not create a token.
+  """
+  @spec get_public_token_for(Ecto.UUID.t(), Ecto.UUID.t()) :: InvoicePublicToken.t() | nil
+  def get_public_token_for(invoice_id, user_id)
+      when is_binary(invoice_id) and is_binary(user_id) do
+    get_valid_user_token(invoice_id, user_id)
+  end
+
+  @doc """
+  Revokes (deletes) the public sharing token for a given (invoice, user) pair.
+  Returns `:ok` whether or not a token was present.
+  """
+  @spec revoke_public_token(Ecto.UUID.t(), Ecto.UUID.t()) :: :ok
+  def revoke_public_token(invoice_id, user_id)
+      when is_binary(invoice_id) and is_binary(user_id) do
+    InvoicePublicToken
+    |> where([pt], pt.invoice_id == ^invoice_id and pt.user_id == ^user_id)
+    |> Repo.delete_all()
+
+    :ok
+  end
+
+  @doc """
   Deletes all public sharing tokens created by a user for invoices belonging
   to a given company. Called when a member is blocked to immediately invalidate
   any links they may have shared.
