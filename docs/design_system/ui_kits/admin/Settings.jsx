@@ -21,7 +21,23 @@ const SettingsNav = ({ active, onNav }) => {
   );
 };
 
-const CertificatePanel = () => (
+const CertificatePanel = () => {
+  const empty = window.KSH_EMPTY_DEMO;
+  if (empty) {
+    return (
+      <div className="space-y-4">
+        <Card padding="p-0">
+          <EmptyState
+            tone="warning"
+            icon="lock"
+            title="No certificate uploaded"
+            sub="Upload a XAdES certificate to enable KSeF sync. Without it, the hub cannot sign outbound requests."
+            action={<Button variant="primary"><Icon name="upload" size={13} /> Upload certificate</Button>} />
+        </Card>
+      </div>
+    );
+  }
+  return (
   <div className="space-y-4">
     <Card>
       <div className="flex items-start justify-between">
@@ -65,7 +81,8 @@ const CertificatePanel = () => (
       </ul>
     </Card>
   </div>
-);
+  );
+};
 
 const ApiKeysPanel = () => {
   const keys = [

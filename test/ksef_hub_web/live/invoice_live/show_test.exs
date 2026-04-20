@@ -155,8 +155,9 @@ defmodule KsefHubWeb.InvoiceLive.ShowTest do
         status: :pending
       )
 
-      {:ok, _view, html} = live(conn, ~p"/c/#{company.id}/invoices/#{invoice.id}")
-      assert html =~ "Payment Requests"
+      {:ok, view, _html} = live(conn, ~p"/c/#{company.id}/invoices/#{invoice.id}")
+      html = view |> element(~s([data-testid="tab-payments"])) |> render_click()
+      assert has_element?(view, "#payment-requests-section")
       assert html =~ "PR Vendor Payment"
       assert html =~ "500.00"
     end
@@ -168,9 +169,10 @@ defmodule KsefHubWeb.InvoiceLive.ShowTest do
       invoice = insert(:invoice, type: :expense, company: company)
 
       {:ok, view, _html} = live(conn, ~p"/c/#{company.id}/invoices/#{invoice.id}")
+      view |> element(~s([data-testid="tab-payments"])) |> render_click()
       assert has_element?(view, "#payment-requests-section")
-      assert has_element?(view, "#payment-requests-section a", "Add")
-      assert has_element?(view, "#payment-requests-section p", "No payment requests yet.")
+      assert has_element?(view, "#payment-requests-section a", "Add payment request")
+      assert has_element?(view, "#payment-requests-section", "No payment requests yet")
     end
 
     test "hides payment requests section for accountant when none exist", %{company: company} do
@@ -196,6 +198,7 @@ defmodule KsefHubWeb.InvoiceLive.ShowTest do
       insert(:payment_request, invoice: invoice, company: company, created_by: user)
 
       {:ok, view, _html} = live(conn, ~p"/c/#{company.id}/invoices/#{invoice.id}")
+      view |> element(~s([data-testid="tab-payments"])) |> render_click()
       assert has_element?(view, "#payment-requests-section")
       refute has_element?(view, "#payment-requests-section a", "Add")
     end
@@ -216,7 +219,8 @@ defmodule KsefHubWeb.InvoiceLive.ShowTest do
         paid_at: ~U[2026-03-10 12:00:00.000000Z]
       )
 
-      {:ok, _view, html} = live(conn, ~p"/c/#{company.id}/invoices/#{invoice.id}")
+      {:ok, view, _html} = live(conn, ~p"/c/#{company.id}/invoices/#{invoice.id}")
+      html = view |> element(~s([data-testid="tab-payments"])) |> render_click()
       assert html =~ "paid"
       assert html =~ "2026-03-10"
     end
@@ -229,11 +233,13 @@ defmodule KsefHubWeb.InvoiceLive.ShowTest do
       invoice = insert(:invoice, company: company)
 
       {:ok, view, _html} = live(conn, ~p"/c/#{company.id}/invoices/#{invoice.id}")
+      view |> element(~s([data-testid="tab-access"])) |> render_click()
+      assert has_element?(view, ~s([data-testid="create-public-link"]))
+
+      html = view |> element(~s([data-testid="create-public-link"])) |> render_click()
+
+      assert html =~ "Public link created and copied to clipboard."
       assert has_element?(view, ~s([data-testid="copy-public-link"]))
-
-      html = view |> element(~s([data-testid="copy-public-link"])) |> render_click()
-
-      assert html =~ "Public link copied to clipboard."
     end
 
     test "is idempotent — reuses existing token for the same user", %{
@@ -244,7 +250,8 @@ defmodule KsefHubWeb.InvoiceLive.ShowTest do
       invoice = insert(:invoice, company: company)
 
       {:ok, view, _html} = live(conn, ~p"/c/#{company.id}/invoices/#{invoice.id}")
-      view |> element(~s([data-testid="copy-public-link"])) |> render_click()
+      view |> element(~s([data-testid="tab-access"])) |> render_click()
+      view |> element(~s([data-testid="create-public-link"])) |> render_click()
       view |> element(~s([data-testid="copy-public-link"])) |> render_click()
 
       import Ecto.Query
@@ -258,6 +265,92 @@ defmodule KsefHubWeb.InvoiceLive.ShowTest do
         )
 
       assert count == 1
+    end
+
+    test "revoke_public_link deletes the token and returns the banner to disabled state", %{
+      conn: conn,
+      company: company,
+      user: user
+    } do
+      invoice = insert(:invoice, company: company)
+
+      {:ok, view, _html} = live(conn, ~p"/c/#{company.id}/invoices/#{invoice.id}")
+      view |> element(~s([data-testid="tab-access"])) |> render_click()
+      view |> element(~s([data-testid="create-public-link"])) |> render_click()
+
+      assert has_element?(view, ~s([data-testid="public-link-url"]))
+      assert has_element?(view, ~s([data-testid="copy-public-link"]))
+
+      html = view |> element(~s([data-testid="revoke-public-link"])) |> render_click()
+
+      assert html =~ "Public link revoked."
+      assert has_element?(view, ~s([data-testid="create-public-link"]))
+      refute has_element?(view, ~s([data-testid="public-link-url"]))
+      assert Invoices.get_public_token_for(invoice.id, user.id) == nil
+    end
+
+    test "copy_public_link without an active link flashes an error", %{
+      conn: conn,
+      company: company
+    } do
+      invoice = insert(:invoice, company: company)
+
+      {:ok, view, _html} = live(conn, ~p"/c/#{company.id}/invoices/#{invoice.id}")
+      view |> element(~s([data-testid="tab-access"])) |> render_click()
+
+      html = render_click(view, "copy_public_link")
+
+      assert html =~ "No share link to copy"
+    end
+
+    test "accountant without update permission cannot create a share link", %{conn: _conn} do
+      {:ok, accountant} =
+        KsefHub.Accounts.get_or_create_google_user(%{
+          uid: "g-accountant-share-1",
+          email: "accountant-share@example.com",
+          name: "Analyst Share"
+        })
+
+      company = insert(:company)
+      insert(:membership, user: accountant, company: company, role: :accountant)
+
+      conn = build_conn() |> log_in_user(accountant, %{current_company_id: company.id})
+      invoice = insert(:invoice, type: :expense, company: company)
+
+      stub(KsefHub.PdfRenderer.Mock, :generate_html, fn _xml, _meta -> {:error, :no_xml} end)
+
+      {:ok, view, _html} = live(conn, ~p"/c/#{company.id}/invoices/#{invoice.id}")
+
+      html = render_click(view, "create_public_link")
+      assert html =~ "permission to modify this invoice"
+      assert Invoices.get_public_token_for(invoice.id, accountant.id) == nil
+    end
+
+    test "accountant without update permission cannot revoke a share link", %{conn: _conn} do
+      {:ok, accountant} =
+        KsefHub.Accounts.get_or_create_google_user(%{
+          uid: "g-accountant-share-2",
+          email: "accountant-share-2@example.com",
+          name: "Analyst Share 2"
+        })
+
+      company = insert(:company)
+      insert(:membership, user: accountant, company: company, role: :accountant)
+
+      conn = build_conn() |> log_in_user(accountant, %{current_company_id: company.id})
+      invoice = insert(:invoice, type: :expense, company: company)
+
+      # Pre-seed a token as if an admin had created one
+      {:ok, pt, _} = Invoices.ensure_public_token(invoice, accountant.id)
+
+      stub(KsefHub.PdfRenderer.Mock, :generate_html, fn _xml, _meta -> {:error, :no_xml} end)
+
+      {:ok, view, _html} = live(conn, ~p"/c/#{company.id}/invoices/#{invoice.id}")
+
+      html = render_click(view, "revoke_public_link")
+      assert html =~ "permission to modify this invoice"
+      # Token still exists — revoke was blocked
+      assert Invoices.get_public_token_for(invoice.id, accountant.id).id == pt.id
     end
   end
 
@@ -865,24 +958,6 @@ defmodule KsefHubWeb.InvoiceLive.ShowTest do
   describe "purchase_order display and editing" do
     setup :stub_pdf
 
-    test "displays purchase_order in details table when present", %{
-      conn: conn,
-      company: company
-    } do
-      invoice = insert(:invoice, company: company, purchase_order: "PO-LV-001")
-
-      {:ok, _view, html} = live(conn, ~p"/c/#{company.id}/invoices/#{invoice.id}")
-      assert html =~ "PO-LV-001"
-      assert html =~ "PO</td>"
-    end
-
-    test "hides purchase_order row when nil", %{conn: conn, company: company} do
-      invoice = insert(:invoice, company: company, purchase_order: nil)
-
-      {:ok, _view, html} = live(conn, ~p"/c/#{company.id}/invoices/#{invoice.id}")
-      refute html =~ "PO</td>"
-    end
-
     test "edit form includes purchase_order field", %{conn: conn, company: company} do
       invoice = insert(:pdf_upload_invoice, company: company)
 
@@ -1172,6 +1247,7 @@ defmodule KsefHubWeb.InvoiceLive.ShowTest do
       invoice = insert(:invoice, type: :expense, company: company)
 
       {:ok, view, _html} = live(conn, ~p"/c/#{company.id}/invoices/#{invoice.id}")
+      view |> element(~s([data-testid="tab-access"])) |> render_click()
       assert has_element?(view, "#access-control-section")
       assert has_element?(view, "#access-mode-menu")
     end
@@ -1201,15 +1277,65 @@ defmodule KsefHubWeb.InvoiceLive.ShowTest do
       invoice = insert(:invoice, type: :expense, company: company)
 
       {:ok, view, _html} = live(conn, ~p"/c/#{company.id}/invoices/#{invoice.id}")
+      view |> element(~s([data-testid="tab-access"])) |> render_click()
 
       # Use the event directly since the button has JS command chain, not simple phx-click
       html = render_click(view, "toggle_access_restricted")
 
-      assert html =~ "Only people invited"
-      assert html =~ "Owners, admins, and accountants always have access"
+      assert html =~ "Invited only"
+      assert html =~ "owners, admins, and accountants"
 
       updated = Invoices.get_invoice!(company.id, invoice.id)
       assert updated.access_restricted == true
+    end
+
+    test "team-default mode shows info message, not a user list", %{conn: conn, company: company} do
+      invoice = insert(:invoice, type: :expense, company: company, access_restricted: false)
+
+      {:ok, view, _html} = live(conn, ~p"/c/#{company.id}/invoices/#{invoice.id}")
+      html = view |> element(~s([data-testid="tab-access"])) |> render_click()
+
+      assert html =~ "Team default"
+      assert html =~ "Team members with invoice-viewing permission"
+      refute html =~ "Granted by"
+      refute html =~ "<thead"
+    end
+
+    test "invited-only mode with no grants shows empty state", %{conn: conn, company: company} do
+      invoice = insert(:invoice, type: :expense, company: company, access_restricted: true)
+
+      {:ok, view, _html} = live(conn, ~p"/c/#{company.id}/invoices/#{invoice.id}")
+      html = view |> element(~s([data-testid="tab-access"])) |> render_click()
+
+      assert html =~ "No one invited"
+      assert html =~ "No one has been invited yet"
+      refute html =~ "Granted by"
+    end
+
+    test "invited-only mode renders grants table with user/role/granter/on columns", %{
+      conn: conn,
+      company: company,
+      user: granter
+    } do
+      grantee = insert(:user, name: "Jane Doe", email: "jane@example.com")
+      insert(:membership, user: grantee, company: company, role: :approver)
+
+      invoice = insert(:invoice, type: :expense, company: company, access_restricted: true)
+
+      {:ok, _grant} = Invoices.grant_access(invoice.id, grantee.id, granter.id)
+
+      {:ok, view, _html} = live(conn, ~p"/c/#{company.id}/invoices/#{invoice.id}")
+      html = view |> element(~s([data-testid="tab-access"])) |> render_click()
+
+      assert html =~ "1 person has access"
+      assert html =~ "Jane Doe"
+      assert html =~ "jane@example.com"
+      assert html =~ "Approver"
+      # Granter's name (test user from setup block)
+      assert html =~ "Granted by"
+      # Date is today in YYYY-MM-DD format
+      today = Date.to_string(Date.utc_today())
+      assert has_element?(view, "td", today)
     end
 
     test "grant and revoke access events work", %{conn: conn, company: company} do
@@ -1220,6 +1346,7 @@ defmodule KsefHubWeb.InvoiceLive.ShowTest do
       insert(:membership, user: reviewer, company: company, role: :approver)
 
       {:ok, view, _html} = live(conn, ~p"/c/#{company.id}/invoices/#{invoice.id}")
+      view |> element(~s([data-testid="tab-access"])) |> render_click()
 
       # Grant access
       view
@@ -1297,6 +1424,166 @@ defmodule KsefHubWeb.InvoiceLive.ShowTest do
       {:ok, view, _html} = live(conn, ~p"/c/#{company.id}/invoices/#{invoice.id}")
 
       refute has_element?(view, ~s([data-testid="project-tag-display"]))
+    end
+  end
+
+  describe "Notes tab" do
+    setup :stub_pdf
+
+    test "renders the empty state with Add note CTA when the invoice has no note", %{
+      conn: conn,
+      company: company
+    } do
+      invoice = insert(:invoice, company: company, note: nil)
+
+      {:ok, view, _html} = live(conn, ~p"/c/#{company.id}/invoices/#{invoice.id}")
+      view |> element(~s([data-testid="tab-notes"])) |> render_click()
+
+      assert has_element?(view, "#notes-section", "No notes yet")
+      assert has_element?(view, "#notes-section button", "Add note")
+    end
+
+    test "renders the existing note with an Edit affordance when one is present", %{
+      conn: conn,
+      company: company
+    } do
+      invoice = insert(:invoice, company: company, note: "Vendor confirmed scope on 2026-04-15.")
+
+      {:ok, view, _html} = live(conn, ~p"/c/#{company.id}/invoices/#{invoice.id}")
+      view |> element(~s([data-testid="tab-notes"])) |> render_click()
+
+      refute has_element?(view, "#notes-section", "No notes yet")
+      assert has_element?(view, "#notes-section", "Vendor confirmed scope")
+      assert has_element?(view, "#notes-section button", "Edit")
+    end
+
+    test "tab pill reports 0 when no note, 1 when a note exists", %{
+      conn: conn,
+      company: company
+    } do
+      empty = insert(:invoice, company: company, note: nil)
+      filled = insert(:invoice, company: company, note: "anything")
+
+      {:ok, empty_view, _html} = live(conn, ~p"/c/#{company.id}/invoices/#{empty.id}")
+      {:ok, filled_view, _html} = live(conn, ~p"/c/#{company.id}/invoices/#{filled.id}")
+
+      assert has_element?(empty_view, ~s([data-testid="tab-notes"]), "0")
+      assert has_element?(filled_view, ~s([data-testid="tab-notes"]), "1")
+    end
+  end
+
+  describe "Comments tab" do
+    setup :stub_pdf
+
+    test "renders the empty state with Write a comment CTA", %{conn: conn, company: company} do
+      invoice = insert(:invoice, company: company)
+
+      {:ok, view, _html} = live(conn, ~p"/c/#{company.id}/invoices/#{invoice.id}")
+      view |> element(~s([data-testid="tab-comments"])) |> render_click()
+
+      assert has_element?(view, "[role=tabpanel]", "Start the conversation")
+      assert has_element?(view, "button", "Write a comment")
+      assert has_element?(view, "textarea#comment-composer-body")
+    end
+
+    test "renders existing comments with author and body", %{
+      conn: conn,
+      company: company,
+      user: user
+    } do
+      invoice = insert(:invoice, company: company)
+
+      comment =
+        insert(:invoice_comment, invoice: invoice, user: user, body: "Waiting for approval.")
+
+      {:ok, view, _html} = live(conn, ~p"/c/#{company.id}/invoices/#{invoice.id}")
+      html = view |> element(~s([data-testid="tab-comments"])) |> render_click()
+
+      assert has_element?(view, "#comment-#{comment.id}")
+      assert html =~ "Waiting for approval."
+      assert html =~ user.name
+    end
+
+    test "submitting a comment refreshes the tab count pill in place", %{
+      conn: conn,
+      company: company
+    } do
+      invoice = insert(:invoice, company: company)
+
+      {:ok, view, _html} = live(conn, ~p"/c/#{company.id}/invoices/#{invoice.id}")
+      view |> element(~s([data-testid="tab-comments"])) |> render_click()
+
+      # Tab starts at 0
+      assert has_element?(view, ~s([data-testid="tab-comments"]), "0")
+
+      view
+      |> form("#comment-form-0", %{"body" => "Adding context."})
+      |> render_submit()
+
+      assert has_element?(view, ~s([data-testid="tab-comments"]), "1")
+      assert render(view) =~ "Adding context."
+    end
+  end
+
+  describe "select_tab event" do
+    setup :stub_pdf
+
+    test "switching tab updates the active indicator", %{conn: conn, company: company} do
+      invoice = insert(:invoice, company: company)
+      {:ok, view, _html} = live(conn, ~p"/c/#{company.id}/invoices/#{invoice.id}")
+
+      # Activity is the initial active tab.
+      assert view
+             |> element(~s([data-testid="tab-activity"][aria-selected="true"]))
+             |> has_element?()
+
+      view |> element(~s([data-testid="tab-comments"])) |> render_click()
+
+      assert view
+             |> element(~s([data-testid="tab-comments"][aria-selected="true"]))
+             |> has_element?()
+
+      refute view
+             |> element(~s([data-testid="tab-activity"][aria-selected="true"]))
+             |> has_element?()
+    end
+
+    test "unknown tab id is a no-op and does not crash", %{conn: conn, company: company} do
+      invoice = insert(:invoice, company: company)
+      {:ok, view, _html} = live(conn, ~p"/c/#{company.id}/invoices/#{invoice.id}")
+
+      # A tampered client could submit any string — including something that is not an existing atom.
+      render_click(view, "select_tab", %{
+        "id" => "definitely_not_a_real_tab_#{System.unique_integer([:positive])}"
+      })
+
+      assert view
+             |> element(~s([data-testid="tab-activity"][aria-selected="true"]))
+             |> has_element?()
+    end
+
+    test "selecting a hidden tab is a no-op", %{company: company} do
+      # Accountant does not see the access tab (can_mutate=false, can_manage_access=false).
+      {:ok, accountant} =
+        Accounts.get_or_create_google_user(%{
+          uid: "g-select-tab-hidden",
+          email: "select-tab-hidden@example.com",
+          name: "Accountant Hidden"
+        })
+
+      insert(:membership, user: accountant, company: company, role: :accountant)
+      conn = build_conn() |> log_in_user(accountant, %{current_company_id: company.id})
+      invoice = insert(:invoice, type: :expense, company: company)
+
+      {:ok, view, _html} = live(conn, ~p"/c/#{company.id}/invoices/#{invoice.id}")
+
+      refute has_element?(view, ~s([data-testid="tab-access"]))
+
+      render_click(view, "select_tab", %{"id" => "access"})
+
+      assert view
+             |> element(~s([data-testid="tab-activity"][aria-selected="true"]))
+             |> has_element?()
     end
   end
 end

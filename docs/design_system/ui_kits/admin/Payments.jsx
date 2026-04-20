@@ -75,13 +75,13 @@ const RowCheckbox = ({ checked, indeterminate, onChange, ariaLabel }) => {
   );
 };
 
-const StatusTabs = ({ value, onChange, data }) => {
+const StatusTabs = ({ value, onChange }) => {
   const counts = React.useMemo(() => ({
-    all: data.length,
-    pending: data.filter(p => p.status === "pending").length,
-    sent: data.filter(p => p.status === "sent").length,
-    voided: data.filter(p => p.status === "voided").length,
-  }), [data]);
+    all: PAYMENT_REQUESTS.length,
+    pending: PAYMENT_REQUESTS.filter(p => p.status === "pending").length,
+    sent: PAYMENT_REQUESTS.filter(p => p.status === "sent").length,
+    voided: PAYMENT_REQUESTS.filter(p => p.status === "voided").length,
+  }), []);
   const tabs = [
     { id: "all", label: "All" },
     { id: "pending", label: "Pending" },
@@ -243,10 +243,10 @@ const Payments = () => {
     .reduce((s, p) => s + parseFloat(p.amount.replace(/\s/g, "")), 0);
 
   const selectedCount = selected.size;
-  const selectedTotalsByCurrency = selectedRows.reduce((acc, p) => {
-    acc[p.currency] = (acc[p.currency] || 0) + parseFloat(p.amount.replace(/\s/g, ""));
-    return acc;
-  }, {});
+  const selectedTotalPLN = selectedRows
+    .filter(p => p.currency === "PLN")
+    .reduce((s, p) => s + parseFloat(p.amount.replace(/\s/g, "")), 0);
+  const selectedCurrencies = Array.from(new Set(selectedRows.map(p => p.currency)));
 
   return (
     <div>
@@ -283,7 +283,7 @@ const Payments = () => {
         </Card>
       </div>
 
-      <StatusTabs value={status} onChange={setStatus} data={data} />
+      <StatusTabs value={status} onChange={setStatus} />
 
       <div className="rounded-lg border border-[var(--border)] overflow-hidden bg-[var(--card)]">
         {/* Bulk action bar */}
@@ -293,12 +293,10 @@ const Payments = () => {
               <span className="font-medium tabular-nums">{selectedCount} selected</span>
               <span className="opacity-60">·</span>
               <span className="font-mono text-xs tabular-nums opacity-80">
-                {Object.entries(selectedTotalsByCurrency).map(([cur, total], i) => (
-                  <span key={cur}>
-                    {i > 0 && <span className="mx-1 opacity-50">·</span>}
-                    {total.toLocaleString("pl-PL", { minimumFractionDigits: 2, maximumFractionDigits: 2 })} {cur}
-                  </span>
-                ))}
+                {selectedTotalPLN.toLocaleString("pl-PL", { minimumFractionDigits: 2, maximumFractionDigits: 2 })} PLN
+                {selectedCurrencies.filter(c => c !== "PLN").length > 0 && (
+                  <span className="ml-1.5 opacity-70">+ {selectedCurrencies.filter(c => c !== "PLN").join(", ")}</span>
+                )}
               </span>
               {selectedPending.length < selectedCount && (
                 <span className="text-xs opacity-70">

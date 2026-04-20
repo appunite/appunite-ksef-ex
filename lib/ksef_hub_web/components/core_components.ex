@@ -265,6 +265,72 @@ defmodule KsefHubWeb.CoreComponents do
   end
 
   @doc """
+  Renders a horizontal tab bar with optional count badges.
+
+  Each tab is a map with `:id` (atom), `:label` (string), and an optional
+  `:count` (integer or `nil`). A `nil` count hides the badge entirely. The
+  `active` attr matches against `:id`.
+
+  Tab selection is dispatched via `phx-click="select_tab"` with
+  `phx-value-id={tab.id}` — the parent LiveView must handle the event and
+  update its active-tab assign. Selection is not reflected in the URL, so
+  the browser back button leaves the page rather than stepping through tabs.
+
+  ## Examples
+
+      <.tabs
+        active={@active_tab}
+        tabs={[
+          %{id: :payments, label: "Payments", count: 3},
+          %{id: :access, label: "Access", count: nil}
+        ]}
+      />
+  """
+  attr :tabs, :list, required: true
+  attr :active, :atom, required: true
+  attr :class, :string, default: nil
+
+  @spec tabs(map()) :: Phoenix.LiveView.Rendered.t()
+  def tabs(assigns) do
+    ~H"""
+    <div class={["border-b border-border", @class]}>
+      <nav class="-mb-px flex items-center gap-6 overflow-x-auto" role="tablist">
+        <button
+          :for={tab <- @tabs}
+          type="button"
+          phx-click="select_tab"
+          phx-value-id={tab.id}
+          role="tab"
+          aria-selected={to_string(tab.id == @active)}
+          data-testid={"tab-#{tab.id}"}
+          class={[
+            "flex items-center gap-2 pb-2 text-sm font-medium border-b-2 whitespace-nowrap transition-colors cursor-pointer",
+            if(tab.id == @active,
+              do: "border-foreground text-foreground",
+              else: "border-transparent text-muted-foreground hover:text-foreground"
+            )
+          ]}
+        >
+          {tab.label}
+          <span
+            :if={tab.count}
+            class={[
+              "inline-flex items-center justify-center min-w-[20px] h-[18px] px-1 rounded text-[11px] font-mono tabular-nums",
+              if(tab.id == @active,
+                do: "bg-foreground text-background",
+                else: "bg-muted text-muted-foreground"
+              )
+            ]}
+          >
+            {tab.count}
+          </span>
+        </button>
+      </nav>
+    </div>
+    """
+  end
+
+  @doc """
   Renders the application logo with icon and text.
 
   ## Examples
@@ -732,19 +798,74 @@ defmodule KsefHubWeb.CoreComponents do
   end
 
   @doc """
-  Renders a centered empty-state message, shown when a list has no results.
+  Renders a Pattern B zero-data surface — see `docs/frontend.md` §Empty states.
+
+  Two shapes are supported:
+
+    * **Rich** — `title` + optional `description` + optional `<:action>`. Use this for
+      invoice-detail tabs, dashboard tiles, and other "nothing here yet" surfaces.
+    * **Legacy** — bare `inner_block` with optional `icon`. Kept for existing
+      callers; prefer the rich shape for new code.
+
+  Tones:
+
+    * `:default` — neutral muted tone
+    * `:locked`  — feature doesn't apply (no CTA; explain why)
+    * `:warning` — something failed; always pair with a retry action
 
   ## Examples
 
+      <.empty_state
+        icon="hero-chat-bubble-oval-left"
+        title="Start the conversation"
+        description="@mention a teammate to pull them into this invoice."
+      >
+        <:action>
+          <.button variant="outline" size="sm" phx-click="focus_composer">
+            Write a comment
+          </.button>
+        </:action>
+      </.empty_state>
+
       <.empty_state :if={@items == []}>No items found.</.empty_state>
-      <.empty_state icon="hero-arrow-down-tray" class="py-12">No exports yet.</.empty_state>
   """
   attr :icon, :string, default: nil
+  attr :title, :string, default: nil
+  attr :description, :string, default: nil
+  attr :tone, :atom, default: :default, values: [:default, :locked, :warning]
   attr :class, :string, default: nil
   attr :rest, :global
-  slot :inner_block, required: true
+  slot :action
+  slot :inner_block
 
   @spec empty_state(map()) :: Phoenix.LiveView.Rendered.t()
+  def empty_state(%{title: title} = assigns) when is_binary(title) do
+    assigns = assign(assigns, :tone_classes, empty_state_tone(assigns.tone))
+
+    ~H"""
+    <div
+      class={["flex flex-col items-center text-center gap-3 py-14 px-6", @class]}
+      {@rest}
+    >
+      <span class={[
+        "inline-flex items-center justify-center size-10 rounded-full border",
+        @tone_classes
+      ]}>
+        <.icon :if={@icon} name={@icon} class="size-[18px]" />
+      </span>
+      <div class="space-y-1 max-w-sm">
+        <div class="text-sm font-medium text-foreground">{@title}</div>
+        <p :if={@description} class="text-xs text-muted-foreground leading-relaxed">
+          {@description}
+        </p>
+      </div>
+      <div :if={@action != []} class="mt-1">
+        {render_slot(@action)}
+      </div>
+    </div>
+    """
+  end
+
   def empty_state(assigns) do
     ~H"""
     <div class={["text-center text-muted-foreground py-8", @class]} {@rest}>
@@ -753,6 +874,86 @@ defmodule KsefHubWeb.CoreComponents do
     </div>
     """
   end
+
+  @spec empty_state_tone(atom()) :: String.t()
+  defp empty_state_tone(:locked),
+    do: "bg-muted text-muted-foreground border-border opacity-80"
+
+  defp empty_state_tone(:warning),
+    do:
+      "bg-amber-100 text-amber-800 border-amber-200 dark:bg-amber-900/30 dark:text-amber-300 dark:border-amber-900/50"
+
+  defp empty_state_tone(_),
+    do: "bg-muted text-muted-foreground border-border"
+
+  @doc """
+  Renders a circular user avatar showing initials on a deterministic tinted background.
+
+  Initials are derived from `:name` (first two words) or `:email` (first letter),
+  falling back to `"?"`. The palette is chosen by hashing `:id` so each user
+  gets a stable color across the app.
+
+  ## Examples
+
+      <.avatar user={@current_user} />
+      <.avatar user={@comment.user} class="size-7" />
+  """
+  attr :user, :map, required: true
+  attr :class, :string, default: "size-8"
+  attr :rest, :global
+
+  @spec avatar(map()) :: Phoenix.LiveView.Rendered.t()
+  def avatar(assigns) do
+    assigns =
+      assigns
+      |> assign_new(:initials, fn -> avatar_initials(assigns.user) end)
+      |> assign_new(:palette, fn -> avatar_palette(assigns.user) end)
+
+    ~H"""
+    <span
+      class={[
+        "inline-flex items-center justify-center rounded-full text-xs font-semibold shrink-0",
+        @palette,
+        @class
+      ]}
+      {@rest}
+    >
+      {@initials}
+    </span>
+    """
+  end
+
+  @doc "Initials derived from a user's name (first two words) or email."
+  @spec avatar_initials(map()) :: String.t()
+  def avatar_initials(%{name: name}) when is_binary(name) and name != "" do
+    name
+    |> String.split(~r/\s+/, trim: true)
+    |> Enum.take(2)
+    |> Enum.map_join("", &String.first/1)
+    |> String.upcase()
+  end
+
+  def avatar_initials(%{email: email}) when is_binary(email) and email != "" do
+    email |> String.first() |> String.upcase()
+  end
+
+  def avatar_initials(_), do: "?"
+
+  @doc "Deterministic Tailwind palette class for an avatar, hashed from the user's id."
+  @spec avatar_palette(map()) :: String.t()
+  def avatar_palette(%{id: id}) when is_binary(id) do
+    palettes = [
+      "bg-emerald-100 text-emerald-800 dark:bg-emerald-900/40 dark:text-emerald-300",
+      "bg-blue-100 text-blue-800 dark:bg-blue-900/40 dark:text-blue-300",
+      "bg-purple-100 text-purple-800 dark:bg-purple-900/40 dark:text-purple-300",
+      "bg-amber-100 text-amber-800 dark:bg-amber-900/40 dark:text-amber-300",
+      "bg-rose-100 text-rose-800 dark:bg-rose-900/40 dark:text-rose-300"
+    ]
+
+    Enum.at(palettes, :erlang.phash2(id, length(palettes)))
+  end
+
+  def avatar_palette(_), do: "bg-muted text-muted-foreground"
 
   @doc """
   Renders a data list.
@@ -1558,7 +1759,7 @@ defmodule KsefHubWeb.CoreComponents do
       >
         {tab.label}
         <span class={[
-          "inline-flex items-center justify-center min-w-[20px] h-[18px] px-1 rounded-full text-[11px] font-mono tabular-nums",
+          "inline-flex items-center justify-center min-w-[20px] h-[18px] px-1 rounded text-[11px] font-mono tabular-nums",
           tab.id == @active_id && "bg-foreground text-background",
           tab.id != @active_id && "bg-muted text-muted-foreground"
         ]}>

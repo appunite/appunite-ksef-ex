@@ -66,7 +66,7 @@ Use this skill whenever you're designing **anything KSeF Hub-branded** -- admin 
 | Expiring soon | "Your KSeF certificate expires in 5 days." |
 | Duplicate suspected | "This invoice may be a duplicate. View original." |
 | Connection lost flash | "We can't find the internet" * "Attempting to reconnect" |
-| Empty state | "No data for selected period" |
+| Empty state (filter result, table has data elsewhere) | "No data for selected period" — *for zero-data states (`<EmptyState>`), see `DESIGN_SYSTEM.md` §7 at the repo root* |
 | Pagination | "Showing 1-25 of 412 invoices" * "Page 3 of 17" |
 | Manual action | "Sync Now" * "Not a duplicate" * "Confirm duplicate" |
 | Prediction hint | "Predicted with 87.3% probability, feel free to adjust" * "Manually adjusted" |
@@ -129,15 +129,14 @@ Use this skill whenever you're designing **anything KSeF Hub-branded** -- admin 
 
 ### Animation
 
-- **Only** what LiveView already does: `topbar` loading indicator (`#29d` blue, 300ms show delay), `motion-safe:animate-spin` on loading icons, CSS transitions on hover/focus/press (`transition-all`, ~150ms ease-out default).
+- **Only** what LiveView already does: `topbar` loading indicator (`#29d` blue, 300ms show delay), `motion-safe:animate-spin` on loading icons, CSS transitions on hover/focus (`transition-colors`, ~150ms default).
 - Flash toasts: `transition-all ease-out 300ms` on show, `ease-in 200ms` on hide, combined translate-y + scale + opacity. See `show/hide` helpers.
 - No bounces, no entrance choreography, no scroll-jacking in marketing.
 
 ### Hover & press
 
 - **Hover:** `hover:bg-shad-accent hover:text-shad-accent-foreground` for ghost/outline buttons and nav items. For primary buttons: `hover:bg-shad-primary/90`. Links: `underline-offset-4 hover:underline`.
-- **Press / active:** buttons use `active:scale-[0.98]`; outline/ghost variants additionally get `active:opacity-80`.
-- **Focus:** `focus-visible:ring-1 focus-visible:ring-ring`.
+- **Press / active:** no custom active state; rely on browser focus + `focus-visible:ring-1 focus-visible:ring-ring`.
 - **Disabled:** `disabled:pointer-events-none disabled:opacity-50`.
 - **Cursor:** `cursor-pointer` is explicitly applied to interactive elements -- it is not the browser default here because Tailwind resets it.
 

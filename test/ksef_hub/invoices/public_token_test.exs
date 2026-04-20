@@ -141,6 +141,86 @@ defmodule KsefHub.Invoices.PublicTokenTest do
     end
   end
 
+  describe "get_public_token_for/2" do
+    test "returns the token when one exists for the given (invoice, user) pair" do
+      invoice = insert(:invoice)
+      user = insert(:user)
+
+      {:ok, %InvoicePublicToken{id: id}, :created} =
+        Invoices.ensure_public_token(invoice, user.id)
+
+      assert %InvoicePublicToken{id: ^id} = Invoices.get_public_token_for(invoice.id, user.id)
+    end
+
+    test "returns nil when no token exists" do
+      invoice = insert(:invoice)
+      user = insert(:user)
+
+      assert Invoices.get_public_token_for(invoice.id, user.id) == nil
+    end
+
+    test "returns nil for an expired token" do
+      invoice = insert(:invoice)
+      user = insert(:user)
+
+      {:ok, pt, _} = Invoices.ensure_public_token(invoice, user.id)
+
+      # Manually expire
+      Repo.update_all(
+        from(t in InvoicePublicToken, where: t.id == ^pt.id),
+        set: [expires_at: DateTime.add(DateTime.utc_now(), -1, :day)]
+      )
+
+      assert Invoices.get_public_token_for(invoice.id, user.id) == nil
+    end
+
+    test "does not leak tokens across users for the same invoice" do
+      invoice = insert(:invoice)
+      user_a = insert(:user)
+      user_b = insert(:user)
+
+      {:ok, _pt, _} = Invoices.ensure_public_token(invoice, user_a.id)
+
+      assert Invoices.get_public_token_for(invoice.id, user_b.id) == nil
+    end
+  end
+
+  describe "revoke_public_token/2" do
+    test "deletes the token and makes it unusable" do
+      invoice = insert(:invoice)
+      user = insert(:user)
+
+      {:ok, pt, _} = Invoices.ensure_public_token(invoice, user.id)
+      assert Invoices.get_invoice_by_public_token(pt.token) != nil
+
+      assert {:ok, :revoked} = Invoices.revoke_public_token(invoice.id, user.id)
+
+      assert Repo.get(InvoicePublicToken, pt.id) == nil
+      assert Invoices.get_invoice_by_public_token(pt.token) == nil
+    end
+
+    test "is a no-op when no token exists" do
+      invoice = insert(:invoice)
+      user = insert(:user)
+
+      assert {:ok, :no_op} = Invoices.revoke_public_token(invoice.id, user.id)
+    end
+
+    test "only affects the target (invoice, user) pair" do
+      invoice = insert(:invoice)
+      user_a = insert(:user)
+      user_b = insert(:user)
+
+      {:ok, _, _} = Invoices.ensure_public_token(invoice, user_a.id)
+      {:ok, pt_b, _} = Invoices.ensure_public_token(invoice, user_b.id)
+
+      {:ok, :revoked} = Invoices.revoke_public_token(invoice.id, user_a.id)
+
+      # b's token survives
+      assert Repo.get(InvoicePublicToken, pt_b.id) != nil
+    end
+  end
+
   describe "delete_public_tokens_for_user/2" do
     test "deletes all tokens for the user within the given company" do
       company = insert(:company)

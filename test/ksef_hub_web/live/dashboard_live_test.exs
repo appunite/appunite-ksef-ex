@@ -50,6 +50,26 @@ defmodule KsefHubWeb.DashboardLiveTest do
     end
   end
 
+  describe "chart empty states" do
+    test "renders Pattern B empty states when no expenses exist", %{conn: conn, company: company} do
+      {:ok, view, html} = live(conn, ~p"/c/#{company.id}/dashboard")
+      assert html =~ "No expenses yet"
+      assert html =~ "No categorised expenses"
+      refute has_element?(view, "#expense-bar-chart")
+      refute has_element?(view, "#category-donut-chart")
+    end
+
+    test "hides empty states once an expense exists", %{conn: conn, company: company} do
+      insert(:invoice, type: :expense, company: company, net_amount: Decimal.new("250.00"))
+
+      {:ok, view, html} = live(conn, ~p"/c/#{company.id}/dashboard")
+      refute html =~ "No expenses yet"
+      refute html =~ "No categorised expenses"
+      assert has_element?(view, "#expense-bar-chart")
+      assert has_element?(view, "#category-donut-chart")
+    end
+  end
+
   describe "PubSub" do
     test "refreshes on sync completed event", %{conn: conn, company: company} do
       {:ok, view, _html} = live(conn, ~p"/c/#{company.id}/dashboard")

@@ -441,8 +441,8 @@ defmodule KsefHubWeb.PaymentRequestLive.Index do
 
     <.table_container class={MapSet.size(@selected_ids) > 0 && "rounded-t-none border-t-0"}>
       <table class="w-full text-sm">
-        <thead class="bg-muted/50 border-b border-border">
-          <tr>
+        <thead>
+          <tr class="border-b border-border">
             <th :if={@can_manage} class="py-2.5 px-4 w-10">
               <input
                 type="checkbox"
@@ -484,7 +484,7 @@ defmodule KsefHubWeb.PaymentRequestLive.Index do
               @can_manage && "cursor-pointer"
             ]}
           >
-            <td :if={@can_manage} class="py-3 px-4" onclick="event.stopPropagation()">
+            <td :if={@can_manage} class="py-3 px-4">
               <input
                 type="checkbox"
                 class="checkbox checkbox-sm"
@@ -500,10 +500,20 @@ defmodule KsefHubWeb.PaymentRequestLive.Index do
                   do: JS.navigate(~p"/c/#{@current_company.id}/payment-requests/#{pr.id}/edit")
               }
             >
-              <div class={["text-sm truncate", pr.status == :voided && "line-through opacity-60"]}>
-                {pr.recipient_name}
+              <div class="max-w-[220px]">
+                <div
+                  class={["text-sm truncate", pr.status == :voided && "line-through opacity-60"]}
+                  title={pr.recipient_name}
+                >
+                  {pr.recipient_name}
+                </div>
+                <div
+                  class="font-mono text-[11px] text-muted-foreground truncate"
+                  title={pr.iban}
+                >
+                  {pr.iban}
+                </div>
               </div>
-              <div class="font-mono text-[11px] text-muted-foreground truncate">{pr.iban}</div>
             </td>
             <td
               class="hidden md:table-cell py-3 px-4"
@@ -512,10 +522,16 @@ defmodule KsefHubWeb.PaymentRequestLive.Index do
                   do: JS.navigate(~p"/c/#{@current_company.id}/payment-requests/#{pr.id}/edit")
               }
             >
-              <span :if={pr.invoice} class="font-mono text-xs tabular-nums truncate block">
-                {pr.invoice.invoice_number}
-              </span>
-              <span :if={!pr.invoice} class="text-muted-foreground">-</span>
+              <div class="max-w-[140px]">
+                <span
+                  :if={pr.invoice}
+                  class="font-mono text-xs tabular-nums truncate block"
+                  title={pr.invoice.invoice_number}
+                >
+                  {pr.invoice.invoice_number}
+                </span>
+                <span :if={!pr.invoice} class="text-muted-foreground">-</span>
+              </div>
             </td>
             <td
               class="hidden md:table-cell py-3 px-4"
@@ -524,12 +540,17 @@ defmodule KsefHubWeb.PaymentRequestLive.Index do
                   do: JS.navigate(~p"/c/#{@current_company.id}/payment-requests/#{pr.id}/edit")
               }
             >
-              <span class={[
-                "text-sm text-muted-foreground truncate block",
-                pr.status == :voided && "line-through opacity-60"
-              ]}>
-                {pr.title}
-              </span>
+              <div class="max-w-[260px]">
+                <span
+                  class={[
+                    "text-sm text-muted-foreground truncate block",
+                    pr.status == :voided && "line-through opacity-60"
+                  ]}
+                  title={pr.title}
+                >
+                  {pr.title}
+                </span>
+              </div>
             </td>
             <td
               class="py-3 px-4 text-right whitespace-nowrap"
@@ -569,7 +590,7 @@ defmodule KsefHubWeb.PaymentRequestLive.Index do
             >
               <.badge variant={status_variant(pr.status)}>{status_label(pr.status)}</.badge>
             </td>
-            <td class="w-0 py-3 pr-3 pl-0" onclick="event.stopPropagation()">
+            <td class="w-0 py-3 pr-3 pl-0">
               <div class="flex items-center gap-1">
                 <.button
                   :if={pr.status == :pending && @can_manage}

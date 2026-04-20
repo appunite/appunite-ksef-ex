@@ -6,16 +6,6 @@
   <title>KSeF Hub — Admin UI kit</title>
   <link rel="stylesheet" href="../../colors_and_type.css" />
   <script src="https://cdn.tailwindcss.com"></script>
-  <script>
-    tailwind.config = {
-      safelist: [
-        "active:scale-[0.98]",
-        "active:opacity-80",
-        "focus:ring-1",
-        "focus:ring-[var(--ring)]",
-      ]
-    }
-  </script>
   <script src="https://unpkg.com/react@18.3.1/umd/react.development.js" integrity="sha384-hD6/rw4ppMLGNu3tX5cjIb+uRZ7UkRJ6BPkLpg4hAu/6onKUg4lLsHAs9EBPT82L" crossorigin="anonymous"></script>
   <script src="https://unpkg.com/react-dom@18.3.1/umd/react-dom.development.js" integrity="sha384-u6aeetuaXnQ38mYT8rp6sbXaQe3NL9t+IBXmnYxwkUI2Hw4bsp2Wvmx4yRQF1uAm" crossorigin="anonymous"></script>
   <script src="https://unpkg.com/@babel/standalone@7.29.0/babel.min.js" integrity="sha384-m08KidiNqLdpJqLq95G/LEi8Qvjl/xUYll3QILypMoQ65QorJ9Lvtp2RXYGBFj1y" crossorigin="anonymous"></script>
@@ -38,12 +28,37 @@
   <script type="text/babel">
     const { useState, useEffect } = React;
 
+    const TWEAK_DEFAULTS = /*EDITMODE-BEGIN*/{
+      "emptyDemo": false
+    }/*EDITMODE-END*/;
+
     function App() {
       const [authed, setAuthed] = useState(() => localStorage.getItem("ksh_authed") === "1");
       const [email, setEmail] = useState(() => localStorage.getItem("ksh_email") || "ops@appunite.com");
       const [page, setPage] = useState(() => localStorage.getItem("ksh_page") || "invoices");
       const [company, setCompany] = useState(COMPANIES[0]);
       const [openInvoice, setOpenInvoice] = useState(null);
+      const [tweaksOpen, setTweaksOpen] = useState(false);
+      const [emptyDemo, setEmptyDemo] = useState(TWEAK_DEFAULTS.emptyDemo);
+
+      // expose as global for deep components to read
+      window.KSH_EMPTY_DEMO = emptyDemo;
+
+      useEffect(() => {
+        const handler = (e) => {
+          if (e.data?.type === "__activate_edit_mode") setTweaksOpen(true);
+          else if (e.data?.type === "__deactivate_edit_mode") setTweaksOpen(false);
+        };
+        window.addEventListener("message", handler);
+        window.parent.postMessage({ type: "__edit_mode_available" }, "*");
+        return () => window.removeEventListener("message", handler);
+      }, []);
+
+      const setEmpty = (v) => {
+        setEmptyDemo(v);
+        window.KSH_EMPTY_DEMO = v;
+        window.parent.postMessage({ type: "__edit_mode_set_keys", edits: { emptyDemo: v } }, "*");
+      };
 
       useEffect(() => { localStorage.setItem("ksh_authed", authed ? "1" : "0"); }, [authed]);
       useEffect(() => { localStorage.setItem("ksh_email", email); }, [email]);
@@ -65,25 +80,24 @@
       } else if (page === "payments") {
         body = <Payments />;
       } else if (page === "companies") {
+        const cos = window.KSH_EMPTY_DEMO ? [] : COMPANIES;
         body = (
           <div>
-            <PageHeader title="Companies" subtitle={`${COMPANIES.length} companies`}
+            <PageHeader title="Companies" subtitle={`${cos.length} ${cos.length === 1 ? "company" : "companies"}`}
               actions={<Button variant="primary"><Icon name="plus" size={14} /> Add company</Button>} />
-            <Card padding="p-0">
-              {COMPANIES.map((c, i) => (
-                <div
-                  key={c.id}
-                  role="button"
-                  tabIndex={0}
-                  aria-label={`Open company ${c.name}`}
-                  onClick={() => {}}
-                  className={`group cursor-pointer flex items-center justify-between px-5 py-3 hover:bg-[var(--accent)] transition-colors ${i > 0 ? "border-t border-[var(--border)]" : ""}`}
-                >
+            <Card padding={cos.length === 0 ? "p-0" : "p-0"}>
+              {cos.length === 0 ? (
+                <EmptyState icon="building"
+                  title="Add your first company"
+                  sub="Register a NIP to start syncing invoices from KSeF. You can add additional companies later."
+                  action={<Button variant="primary"><Icon name="plus" size={13} /> Register NIP</Button>} />
+              ) : cos.map((c, i) => (
+                <div key={c.id} className={`flex items-center justify-between px-5 py-3 ${i > 0 ? "border-t border-[var(--border)]" : ""}`}>
                   <div>
                     <div className="text-sm font-medium">{c.name}</div>
                     <div className="text-xs font-mono text-[var(--muted-foreground)] mt-0.5">{c.nip}</div>
                   </div>
-                  <Icon name="chevron-right" size={14} className="text-[var(--muted-foreground)] opacity-0 group-hover:opacity-100 transition-opacity" />
+                  <Button variant="ghost" size="sm">Open</Button>
                 </div>
               ))}
             </Card>
@@ -92,11 +106,39 @@
       }
 
       return (
-        <AppShell page={page} onNav={(p) => { setOpenInvoice(null); setPage(p); }}
-          company={company} companies={COMPANIES} onPickCompany={setCompany}
-          user={{ email }}>
-          {body}
-        </AppShell>
+        <React.Fragment>
+          <AppShell page={page} onNav={(p) => { setOpenInvoice(null); setPage(p); }}
+            company={company} companies={COMPANIES} onPickCompany={setCompany}
+            user={{ email }}>
+            {body}
+          </AppShell>
+          {tweaksOpen && (
+            <div className="fixed bottom-4 right-4 z-50 w-72 rounded-lg border border-[var(--border)] bg-[var(--popover)] shadow-lg">
+              <div className="flex items-center justify-between px-4 py-2.5 border-b border-[var(--border)]">
+                <h3 className="text-sm font-semibold">Tweaks</h3>
+                <button onClick={() => setTweaksOpen(false)} className="text-[var(--muted-foreground)] hover:text-[var(--foreground)] cursor-pointer">
+                  <Icon name="x-mark" size={14} />
+                </button>
+              </div>
+              <div className="p-4">
+                <label className="flex items-start gap-3 cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={emptyDemo}
+                    onChange={(e) => setEmpty(e.target.checked)}
+                    className="mt-0.5"
+                  />
+                  <span>
+                    <span className="text-sm font-medium block">Demo empty states</span>
+                    <span className="text-xs text-[var(--muted-foreground)] block mt-0.5">
+                      Swap Dashboard, Companies, Settings → Certificates to their zero-data views.
+                    </span>
+                  </span>
+                </label>
+              </div>
+            </div>
+          )}
+        </React.Fragment>
       );
     }
 

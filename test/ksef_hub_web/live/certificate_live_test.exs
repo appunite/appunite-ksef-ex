@@ -68,8 +68,7 @@ defmodule KsefHubWeb.CertificateLiveTest do
 
     test "shows empty state when no certificate", %{conn: conn, company: company} do
       {:ok, view, _html} = live(conn, ~p"/c/#{company.id}/settings/certificates")
-      assert has_element?(view, "#no-certificate")
-      assert render(view) =~ "No Certificate Configured"
+      assert has_element?(view, "#no-certificate", "No certificate uploaded")
     end
 
     test "URL company_id takes precedence over session company", %{conn: conn, user: user} do

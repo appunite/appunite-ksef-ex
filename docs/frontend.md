@@ -4,6 +4,8 @@ Styling approach: **shadcn/ui semantic color tokens** as the primary design syst
 
 Config lives in `assets/css/app.css` (no `tailwind.config.js`).
 
+> **Before building or restyling any UI surface**, invoke the `/ksef-hub-design` skill or open `DESIGN_SYSTEM.md`. The prototype kit (`docs/design_system/ui_kits/admin/*.jsx` + `colors_and_type.css`) is the visual source of truth — match its components, tokens, and copy rather than inventing your own. This guide is the Phoenix-side contract (component API, naming, layout); the kit is the visual one.
+
 ---
 
 ## Layout
@@ -132,7 +134,7 @@ Globally imported in all LiveViews and templates.
 | `<.file_upload_dropzone>` | `upload`, `label` | Drag-and-drop file input |
 | `<.logo>` | `href` | App logo — inline SVG mark (teal `var(--brand)` circle + grid dots) with "KSeF Hub" text |
 | `<.nav_item_list>` | `items`, `current_path` | Sidebar navigation list |
-| `<.empty_state>` | `icon`, `title`, `description` | Centered empty-state placeholder |
+| `<.empty_state>` | `icon`, `title`, `description`, `tone` (`:default` \| `:locked` \| `:warning`), `:action` slot | Pattern B zero-data surface — see [Empty states](#empty-states). Does **not** cover filter-empty (Pattern A); that uses a terse inline string. |
 
 ### InvoiceComponents (`KsefHubWeb.InvoiceComponents`)
 
@@ -281,14 +283,48 @@ end
 </.table>
 ```
 
-**Empty state**
+**Empty state** — two patterns, chosen by the decision rule in [Empty states](#empty-states).
 
 ```heex
+<%!-- Pattern A: filter-empty (a list has data, current filters hide all of it) --%>
+<tbody :if={@invoices == []}>
+  <tr>
+    <td colspan="6" class="text-center text-muted-foreground py-12 text-sm">
+      No data for selected period
+    </td>
+  </tr>
+</tbody>
+
+<%!-- Pattern B: zero-data (nothing exists yet for this record/feature) --%>
 <.empty_state
   icon="hero-document-text"
-  title="No invoices"
-  description="Upload a PDF or wait for the next KSeF sync."
+  title="No notes yet"
+  description="Notes are private to your team. Use them to record decisions or context."
+>
+  <:action>
+    <.button size="sm" variant="primary" phx-click="add_note">Add note</.button>
+  </:action>
+</.empty_state>
+
+<%!-- Pattern B, locked tone: feature doesn't apply to this record --%>
+<.empty_state
+  tone={:locked}
+  icon="hero-lock-closed"
+  title="Payments don't apply here"
+  description="Income and rejected invoices don't generate outgoing transfers."
 />
+
+<%!-- Pattern B, warning tone: something failed and needs action --%>
+<.empty_state
+  tone={:warning}
+  icon="hero-exclamation-triangle"
+  title="Line items couldn't be extracted"
+  description="The OCR run failed. Retry extraction or enter items manually."
+>
+  <:action>
+    <.button size="sm" variant="primary" phx-click="retry_extraction">Retry extraction</.button>
+  </:action>
+</.empty_state>
 ```
 
 **Loading spinner**
@@ -312,6 +348,51 @@ defp tab_class(false), do: "text-muted-foreground hover:text-foreground"
   <button class={tab_class(@tab == :expense)} phx-click="set_tab" phx-value-tab="expense">Expense</button>
 </div>
 ```
+
+---
+
+## Empty states
+
+Two distinct patterns. Pick one by asking: **"Would clearing filters reveal content?"** If yes → Pattern A. If no → Pattern B.
+
+The canonical visual spec and copy table live in `DESIGN_SYSTEM.md` §7. This section is the Phoenix-side contract: the decision rule, the component's API, and the short rules porters must follow.
+
+### Pattern A — Filter-empty
+
+*A list has data, but current filters hide all of it.* Resolution (clear filters) lives above the table, not here.
+
+- Copy: `"No data for selected period"` — **exact string, no variations.**
+- Styling: `text-center text-muted-foreground py-12 text-sm`, rendered inside the `<tbody>` or below an empty table body.
+- **No icon, no CTA.** Do not reach for `<.empty_state>` — that's Pattern B.
+
+Used by: Invoices list, Payments list, Sync jobs, Companies search, any future table.
+
+### Pattern B — Zero-data
+
+*There is genuinely nothing here yet for this record or feature — clearing filters would not help.*
+
+Use the `<.empty_state>` component with one of three tones:
+
+| Tone        | When                                                                     | CTA?                                  |
+|-------------|--------------------------------------------------------------------------|---------------------------------------|
+| `:default`  | Nothing here yet, but the user could create something                    | Optional `<:action>` (primary, `sm`)  |
+| `:locked`   | Feature doesn't apply to this record (e.g. Payments on an income invoice)| Never — don't fake-tease a feature    |
+| `:warning`  | Something failed (OCR, sync) and needs user action                       | Always — a `Retry …` action           |
+
+### Rules
+
+1. **Max 140 chars in `description`.** One sentence. No marketing fluff.
+2. **Never use the filter-empty string as a Pattern B description.** Copy must match the real cause.
+3. **CTAs from empty states are never destructive.** No "Delete invoice" on empty Payments.
+4. **Locked states don't show disabled CTAs.** State *why* it doesn't apply, then stop.
+5. **No illustrations, no confetti, no color** beyond the tone's semantic tint. Same `<.icon>` system used everywhere.
+6. **Activity logs are never empty.** A fetch event always exists — don't wire an empty state for Activity.
+
+### Where the component is used
+
+Invoice detail tabs (Line items / Payments / Notes / Comments / Access), Dashboard tiles for new tenants, Companies list (new tenant), Settings → Certificates (no cert uploaded), Sync jobs (no runs yet), Payments list (new tenant). See DESIGN_SYSTEM.md §7 for the full copy table — reuse those strings, don't invent new ones.
+
+> **Legacy shape.** `<.empty_state>` still accepts a bare `inner_block` with optional `icon` for simple one-liners (`<.empty_state>No items found.</.empty_state>`). Prefer the rich `title` + `description` + `<:action>` shape for new callers — the legacy path is kept only so existing pages don't need to be ported all at once.
 
 ---
 

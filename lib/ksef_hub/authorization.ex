@@ -11,7 +11,7 @@ defmodule KsefHub.Authorization do
   - `:admin` — same as owner except cannot delete company or transfer ownership
   - `:approver` — manages expense invoice workflow: approve/reject, trigger syncs, own API tokens
   - `:accountant` — read-only access to all invoice types plus exports
-  - `:analyst` — read-only access to invoices; same data scope as approver, no management actions
+  - `:analyst` — read-only access to invoices; can view syncs and manage own API tokens
   """
 
   alias KsefHub.Companies
@@ -68,7 +68,7 @@ defmodule KsefHub.Authorization do
                             :view_payment_requests
                           ])
 
-  @analyst_permissions MapSet.new([:view_invoices])
+  @analyst_permissions MapSet.new([:view_invoices, :view_syncs, :manage_tokens])
 
   @doc """
   Checks whether the given role has the specified permission.

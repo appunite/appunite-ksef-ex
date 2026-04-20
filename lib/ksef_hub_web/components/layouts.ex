@@ -181,8 +181,8 @@ defmodule KsefHubWeb.Layouts do
     [
       {nil, nil, "Invoices", ~p"/c/#{id}/invoices", "hero-document-text"},
       {nil, :view_payment_requests, "Payments", ~p"/c/#{id}/payment-requests", "hero-banknotes"},
-      {nil, nil, "Dashboard", ~p"/c/#{id}/dashboard", "hero-home"},
-      {nil, :manage_company, "Companies", ~p"/companies", "hero-building-office-2"},
+      {nil, :view_dashboard, "Dashboard", ~p"/c/#{id}/dashboard", "hero-home"},
+      {nil, nil, "Companies", ~p"/companies", "hero-building-office-2"},
       {nil, nil, "Settings", ~p"/c/#{id}/settings", "hero-cog-6-tooth"}
     ]
     |> Enum.filter(fn {_section, perm, _label, _path, _icon} ->

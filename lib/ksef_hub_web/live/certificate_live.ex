@@ -369,14 +369,14 @@ defmodule KsefHubWeb.CertificateLive do
           </.button>
         </div>
       </.card>
-      
-    <!-- Empty State -->
-      <.card :if={!@user_certificate} id="no-certificate" class="mt-6" padding="p-8 text-center">
-        <.icon name="hero-shield-exclamation" class="size-12 text-muted-foreground mx-auto" />
-        <h2 class="text-base font-semibold mt-3">No Certificate Configured</h2>
-        <p class="text-sm text-muted-foreground mt-1">
-          Upload a certificate to enable KSeF synchronization.
-        </p>
+
+      <.card :if={!@user_certificate} id="no-certificate" class="mt-6" padding="p-0">
+        <.empty_state
+          tone={:warning}
+          icon="hero-shield-exclamation"
+          title="No certificate uploaded"
+          description="Upload a XAdES certificate to enable KSeF sync."
+        />
       </.card>
       
     <!-- Upload Form -->

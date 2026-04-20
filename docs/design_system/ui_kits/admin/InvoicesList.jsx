@@ -367,4 +367,4 @@ const InvoicesList = ({ onOpen }) => {
   );
 };
 
-Object.assign(window, { InvoicesList });
+Object.assign(window, { InvoicesList, StatusBadge, KindBadge, TypePill, PaymentBadge });

@@ -90,13 +90,13 @@ defmodule KsefHubWeb.SyncLive do
         Syncs
         <:subtitle>KSeF invoice sync history</:subtitle>
         <:actions>
-          <.button phx-click="trigger_sync">
+          <.button :if={Authorization.can?(@current_role, :trigger_sync)} phx-click="trigger_sync">
             <.icon name="hero-arrow-path" class="size-4" /> Sync Now
           </.button>
         </:actions>
       </.header>
 
-      <.table_container class="mt-6">
+      <.table_container :if={@jobs_count > 0} class="mt-6">
         <.table id="syncs" rows={@streams.jobs} row_id={fn {id, _} -> id end}>
           <:col :let={{id, job}} label="Time">
             <.local_datetime at={job.inserted_at} id={"#{id}-time"} />
@@ -125,10 +125,13 @@ defmodule KsefHubWeb.SyncLive do
         </.table>
       </.table_container>
 
-      <div :if={@jobs_count == 0} class="text-center py-12">
-        <.icon name="hero-arrow-path" class="size-8 text-muted-foreground mx-auto mb-2" />
-        <p class="text-muted-foreground">No sync runs yet.</p>
-      </div>
+      <.empty_state
+        :if={@jobs_count == 0}
+        icon="hero-arrow-path"
+        title="No sync jobs yet"
+        description="KSeF sync runs hourly, or trigger one manually."
+        class="mt-6"
+      />
     </.settings_layout>
     """
   end

@@ -30,7 +30,7 @@ defmodule KsefHubWeb.SyncLiveTest do
 
     test "shows empty state when no sync jobs", %{conn: conn, company: company} do
       {:ok, _view, html} = live(conn, ~p"/c/#{company.id}/settings/syncs")
-      assert html =~ "No sync runs yet"
+      assert html =~ "No sync jobs yet"
     end
 
     test "shows sync jobs in table", %{conn: conn, company: company} do
@@ -42,7 +42,7 @@ defmodule KsefHubWeb.SyncLiveTest do
 
       {:ok, _view, html} = live(conn, ~p"/c/#{company.id}/settings/syncs")
       assert html =~ "completed"
-      refute html =~ "No sync runs yet"
+      refute html =~ "No sync jobs yet"
     end
   end
 

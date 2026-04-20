@@ -27,16 +27,18 @@ defmodule KsefHubWeb.CompanyLiveTest do
   end
 
   describe "CompanyLive.Index — create new company" do
-    test "user with no companies sees New Company button and can create one", %{conn: conn} do
+    test "user with no companies sees empty state and can create one", %{conn: conn} do
       user = insert(:user)
 
-      # Index page shows button
       {:ok, view, html} =
         conn
         |> log_in_user(user)
         |> live("/companies")
 
-      assert html =~ "New Company"
+      assert html =~ "Add your first company"
+      assert html =~ "Register a NIP to start syncing invoices"
+      assert html =~ "or wait for an invitation"
+      refute has_element?(view, "#companies")
       assert has_element?(view, ~s(a[href="/companies/new"]), "New Company")
 
       # Can navigate to /companies/new and submit
@@ -55,6 +57,29 @@ defmodule KsefHubWeb.CompanyLiveTest do
 
       membership = Companies.get_membership(user.id, new_company.id)
       assert membership.role == :owner
+    end
+
+    test "analyst in one company can create their own company and become owner", %{conn: conn} do
+      user = insert(:user)
+      existing = insert(:company)
+      insert(:membership, user: user, company: existing, role: :analyst)
+
+      {:ok, view, _html} =
+        conn
+        |> log_in_user(user, %{current_company_id: existing.id})
+        |> live("/companies/new")
+
+      view
+      |> form("form[phx-submit=save]", company: %{name: "Analyst Own Corp", nip: "1020304050"})
+      |> render_submit()
+
+      new_company =
+        user.id
+        |> Companies.list_companies_for_user()
+        |> Enum.find(&(&1.name == "Analyst Own Corp"))
+
+      assert new_company
+      assert Companies.get_membership(user.id, new_company.id).role == :owner
     end
 
     test "creating a company auto-creates owner membership", %{conn: conn} do

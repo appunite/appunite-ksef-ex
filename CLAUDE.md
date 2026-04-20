@@ -186,6 +186,8 @@ Every module **must** have:
 
 Before writing inline HTML in a LiveView template, check `CoreComponents` first. Domain-specific components live in `InvoiceComponents`, `CertificateComponents`, and `SettingsComponents`. Extract shared patterns when they appear 3+ times. For the full component reference, color tokens, DaisyUI usage, layout system, typography, and common page patterns, see `docs/frontend.md`. When generating frontend code, use the `/frontend` skill.
 
+For **visual** decisions (what a new surface should look like, empty-state copy, badge tones, layout density), the source of truth is the prototype kit under `docs/design_system/`. Invoke the `/ksef-hub-design` skill or read `DESIGN_SYSTEM.md` before designing any new UI — don't invent tokens, patterns, or copy that aren't already in the kit.
+
 ## Testing
 
 We follow TDD (red-green-refactor). Prefer using ExUnit with `async: true` when safe (avoid for DB or integration tests that share resources), ExMachina for test data factories, and Mox for mocking external services. For test structure, factory patterns, Mox setup, and fixture conventions, see `docs/tests.md`.
