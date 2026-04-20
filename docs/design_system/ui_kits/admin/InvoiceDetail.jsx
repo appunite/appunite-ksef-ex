@@ -230,11 +230,24 @@ const MetaPane = ({ inv }) => (
 // --- tab strip --------------------------------------------------------------
 
 const TabStrip = ({ value, onChange, tabs }) => (
-  <div className="mb-5 border-b border-[var(--border)] flex items-center gap-0 overflow-x-auto">
+  <div role="tablist" className="mb-5 border-b border-[var(--border)] flex items-center gap-0 overflow-x-auto">
     {tabs.map(t => {
       const active = value === t.id;
       return (
-        <button key={t.id} onClick={() => onChange(t.id)}
+        <button
+          key={t.id}
+          role="tab"
+          id={`tab-${t.id}`}
+          aria-controls={`panel-${t.id}`}
+          aria-selected={active}
+          tabIndex={active ? 0 : -1}
+          onClick={() => onChange(t.id)}
+          onKeyDown={e => {
+            if (e.key === "Enter" || e.key === " ") {
+              e.preventDefault();
+              onChange(t.id);
+            }
+          }}
           className={`relative -mb-px h-10 px-4 text-sm cursor-pointer transition-colors flex items-center gap-2 whitespace-nowrap ${active ? "text-[var(--foreground)] font-medium" : "text-[var(--muted-foreground)] hover:text-[var(--foreground)]"}`}>
           {t.label}
           <span className={`inline-flex items-center justify-center min-w-[20px] h-[18px] px-1 rounded text-[11px] font-mono tabular-nums ${active ? "bg-[var(--foreground)] text-[var(--background)]" : "bg-[var(--muted)] text-[var(--muted-foreground)]"}`}>{t.count}</span>
@@ -506,14 +519,16 @@ const renderCommentBody = (body) =>
         : <React.Fragment key={i}>{part}</React.Fragment>
     );
 
+const lookupComments = (invId) =>
+  invId in window.DETAIL_COMMENTS ? window.DETAIL_COMMENTS[invId] : window.DETAIL_COMMENTS.default;
+
 const CommentsTab = ({ inv }) => {
-  const lookup = () => inv.id in window.DETAIL_COMMENTS ? window.DETAIL_COMMENTS[inv.id] : window.DETAIL_COMMENTS.default;
-  const [comments, setComments] = React.useState(lookup);
+  const [comments, setComments] = React.useState(() => lookupComments(inv.id));
   const [text, setText] = React.useState("");
   const composerRef = React.useRef(null);
 
   React.useEffect(() => {
-    setComments(lookup());
+    setComments(lookupComments(inv.id));
   }, [inv.id]);
 
   const submit = () => {
@@ -759,7 +774,7 @@ const InvoiceDetail = ({ invoice, onBack }) => {
       {/* tab strip + content */}
       <div className="pt-2">
         <TabStrip value={tab} onChange={setTab} tabs={tabs} />
-        <div>
+        <div role="tabpanel" id={`panel-${tab}`} aria-labelledby={`tab-${tab}`}>
           {tab === "line-items" && <LineItemsTab inv={inv} />}
           {tab === "payments" && <PaymentsTab inv={inv} />}
           {tab === "activity" && <ActivityTab inv={inv} />}

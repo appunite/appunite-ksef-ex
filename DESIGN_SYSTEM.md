@@ -86,7 +86,7 @@ Use these exact components from `Primitives.jsx`. Don't re-implement.
 ### `<EmptyState icon title sub action tone>`
 - The canonical zero-data surface. See §7 for when to use it vs. the filter-empty string.
 - `tone`: `default | locked | warning`
-- `action` is an optional `<Button>` (primary, `size="sm"`).
+- `action` is an optional `<Button size="sm">` — typically `variant="primary"` for a direct CTA (e.g. *Add note*) or `variant="outline"` for a softer nudge (e.g. *Write a comment*).
 - `title` max ~40 chars; `sub` max ~140 chars. No marketing fluff.
 
 ### `<PageHeader title subtitle actions>`
