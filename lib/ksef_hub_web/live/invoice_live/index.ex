@@ -451,7 +451,7 @@ defmodule KsefHubWeb.InvoiceLive.Index do
         <%!-- Invoice number (truncated for UUID-style) --%>
         <:col :let={inv} label="Number" class="w-44">
           <span
-            class="font-mono text-xs tabular-nums truncate block w-full"
+            class="font-mono text-xs tabular-nums truncate block max-w-[160px]"
             title={inv.invoice_number}
           >
             {inv.invoice_number || "—"}
@@ -468,17 +468,18 @@ defmodule KsefHubWeb.InvoiceLive.Index do
           :let={inv}
           label={if @filters[:type] == :income, do: "Buyer", else: "Seller"}
         >
-          <div class="flex items-center gap-1.5">
+          <div class="flex items-center gap-1.5 min-w-0 max-w-[220px]">
             <.link
               navigate={~p"/c/#{@current_company.id}/invoices/#{inv.id}"}
-              class="text-sm truncate max-w-[200px] hover:underline underline-offset-4"
+              class="text-sm truncate block min-w-0 hover:underline underline-offset-4"
+              title={counterparty_name(inv, @filters[:type])}
             >
               {counterparty_name(inv, @filters[:type])}
             </.link>
             <.restricted_icon :if={inv.access_restricted} />
           </div>
           <% nip = counterparty_nip(inv, @filters[:type]) %>
-          <div :if={nip} class="font-mono text-[11px] text-muted-foreground mt-0.5">
+          <div :if={nip} class="font-mono text-[11px] text-muted-foreground mt-0.5 truncate max-w-[220px]">
             {nip}
           </div>
         </:col>
