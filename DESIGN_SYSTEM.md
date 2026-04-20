@@ -252,7 +252,7 @@ Use the `<EmptyState>` component. Three tones:
 | Payments | Invoice is income or rejected | `locked` | *Payments don't apply here* — Income and rejected invoices don't generate outgoing transfers. |
 | Notes | None | `default` | *No notes yet* — Notes are private to your team. Use them to record decisions or context. |
 | Comments | None | `default` | *Start the conversation* — @mention a teammate to pull them in. |
-| Access | Only owner | `default` | *Only you have access* — Share this invoice with teammates to collaborate. |
+| Access | Owner only | `default` | *You're the sole user with access* — Share this invoice with teammates to collaborate. |
 
 ### App-wide examples
 
