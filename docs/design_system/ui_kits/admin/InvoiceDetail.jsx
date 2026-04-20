@@ -496,6 +496,16 @@ const NotesTab = ({ inv }) => {
 
 // --- tab: comments ----------------------------------------------------------
 
+const renderCommentBody = (body) =>
+  body
+    .split(/(@[\w\s.]+?(?=[,\s]|$))/g)
+    .filter(part => part !== "")
+    .map((part, i) =>
+      part.startsWith("@")
+        ? <span key={i} className="font-medium text-[var(--info)]">{part}</span>
+        : <React.Fragment key={i}>{part}</React.Fragment>
+    );
+
 const CommentsTab = ({ inv }) => {
   const lookup = () => inv.id in window.DETAIL_COMMENTS ? window.DETAIL_COMMENTS[inv.id] : window.DETAIL_COMMENTS.default;
   const [comments, setComments] = React.useState(lookup);
@@ -543,8 +553,9 @@ const CommentsTab = ({ inv }) => {
                 <div className={`inline-block text-sm leading-relaxed rounded-2xl px-3.5 py-2 ${mine
                   ? "bg-[var(--foreground)] text-[var(--background)] rounded-tr-sm"
                   : "bg-[var(--muted)] text-[var(--foreground)] rounded-tl-sm"}`}
-                  dangerouslySetInnerHTML={{ __html: c.body.replace(/@([\w\s.]+)(?=[,\s])/g, '<span class="font-medium text-[var(--info)]">@$1</span>') }}
-                />
+                >
+                  {renderCommentBody(c.body)}
+                </div>
               </div>
             </div>
           );

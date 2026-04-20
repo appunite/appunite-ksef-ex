@@ -268,11 +268,11 @@ Use the `<EmptyState>` component. Three tones:
 
 ## 8. Handoff workflow (recommended)
 
-1. **Commit this file + the prototype** into the real repo under `docs/design-system/`.
+1. **Commit this file + the prototype** into the real repo under `docs/design_system/` (this file lives at the repo root as `DESIGN_SYSTEM.md`; the HTML/JSX kit lives under `docs/design_system/`).
 2. **Per screen** in the real app, open a PR that links to the matching prototype file. In the PR description, paste:
    - Screenshot of prototype screen
    - Screenshot of current real screen
    - Checklist of the 10 rules from §2
 3. **Ask Claude Code one screen at a time**, e.g.:
-   > Port `app/views/payments/index.tsx` to match `ui_kits/admin/Payments.jsx`. Follow `docs/design-system/DESIGN_SYSTEM.md`. Reuse `Button`, `Badge`, `Card` from `app/components/ui/`. Keep existing data hooks. Output a diff, don't touch other files.
+   > Port `app/views/payments/index.tsx` to match `docs/design_system/ui_kits/admin/Payments.jsx`. Follow `DESIGN_SYSTEM.md` at the repo root. Reuse `Button`, `Badge`, `Card` from `app/components/ui/`. Keep existing data hooks. Output a diff, don't touch other files.
 4. **Review against §2**. Almost every miss is one of those 10 rules.

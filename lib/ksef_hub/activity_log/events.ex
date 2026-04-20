@@ -72,6 +72,12 @@ defmodule KsefHub.ActivityLog.Events do
     emit(build_invoice_event("invoice.public_link_generated", invoice, opts))
   end
 
+  @doc "Public sharing link was revoked."
+  @spec invoice_public_link_revoked(map(), keyword()) :: :ok
+  def invoice_public_link_revoked(invoice, opts \\ []) do
+    emit(build_invoice_event("invoice.public_link_revoked", invoice, opts))
+  end
+
   @doc "Invoice re-extraction was triggered."
   @spec invoice_re_extraction_triggered(map(), keyword()) :: :ok
   def invoice_re_extraction_triggered(invoice, opts \\ []) do

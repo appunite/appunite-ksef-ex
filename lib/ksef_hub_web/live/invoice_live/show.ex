@@ -478,6 +478,7 @@ defmodule KsefHubWeb.InvoiceLive.Show do
     user_id = socket.assigns.current_user.id
 
     :ok = Invoices.revoke_public_token(invoice.id, user_id)
+    Events.invoice_public_link_revoked(invoice, actor_opts(socket))
 
     {:noreply,
      socket
@@ -735,6 +736,7 @@ defmodule KsefHubWeb.InvoiceLive.Show do
            invoice: reload_details(updated, socket),
            access_grants: Invoices.list_access_grants(updated.id)
          )
+         |> refresh_tabs()
          |> put_flash(
            :info,
            if(new_value, do: "Access restricted.", else: "Access opened to all approvers.")
@@ -759,7 +761,10 @@ defmodule KsefHubWeb.InvoiceLive.Show do
 
     case Invoices.grant_access(invoice.id, user_id, granted_by_id, actor_opts(socket)) do
       {:ok, _grant} ->
-        {:noreply, assign(socket, access_grants: Invoices.list_access_grants(invoice.id))}
+        {:noreply,
+         socket
+         |> assign(access_grants: Invoices.list_access_grants(invoice.id))
+         |> refresh_tabs()}
 
       {:error, _} ->
         {:noreply, put_flash(socket, :error, "Failed to grant access.")}
@@ -776,7 +781,10 @@ defmodule KsefHubWeb.InvoiceLive.Show do
 
     case Invoices.revoke_access(invoice.id, user_id, actor_opts(socket)) do
       {:ok, _} ->
-        {:noreply, assign(socket, access_grants: Invoices.list_access_grants(invoice.id))}
+        {:noreply,
+         socket
+         |> assign(access_grants: Invoices.list_access_grants(invoice.id))
+         |> refresh_tabs()}
 
       {:error, _} ->
         {:noreply, put_flash(socket, :error, "Failed to revoke access.")}
@@ -840,7 +848,8 @@ defmodule KsefHubWeb.InvoiceLive.Show do
      socket
      |> assign(:activity_log_empty, false)
      |> update(:activity_log_count, &(&1 + 1))
-     |> stream_insert(:activity_log, audit_log, at: 0)}
+     |> stream_insert(:activity_log, audit_log, at: 0)
+     |> refresh_tabs()}
   end
 
   def handle_info(msg, socket) do

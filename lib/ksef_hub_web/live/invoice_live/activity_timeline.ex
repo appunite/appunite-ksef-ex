@@ -24,6 +24,7 @@ defmodule KsefHubWeb.InvoiceLive.ActivityTimeline do
     "invoice.included" => "hero-eye",
     "invoice.access_changed" => "hero-lock-closed",
     "invoice.public_link_generated" => "hero-link",
+    "invoice.public_link_revoked" => "hero-link-slash",
     "invoice.downloaded" => "hero-arrow-down-tray",
     "invoice.note_updated" => "hero-pencil",
     "invoice.billing_date_changed" => "hero-calendar",
@@ -44,6 +45,7 @@ defmodule KsefHubWeb.InvoiceLive.ActivityTimeline do
     "invoice.excluded" => "excluded invoice",
     "invoice.included" => "included invoice",
     "invoice.public_link_generated" => "generated public link",
+    "invoice.public_link_revoked" => "revoked public link",
     "invoice.duplicate_detected" => "duplicate detected",
     "invoice.duplicate_confirmed" => "confirmed as duplicate",
     "invoice.duplicate_dismissed" => "dismissed duplicate",
@@ -102,7 +104,7 @@ defmodule KsefHubWeb.InvoiceLive.ActivityTimeline do
           <div class="min-w-0 flex-1 pt-1">
             <div class="text-sm">
               <span class="font-medium">{entry.actor_label || "System"}</span>
-              <span class="text-muted-foreground"> ·   {describe_action(entry)}</span>
+              <span class="text-muted-foreground">{" · " <> describe_action(entry)}</span>
             </div>
             <div class="mt-0.5 font-mono text-xs text-muted-foreground">
               <.local_datetime at={entry.inserted_at} id={"activity-ts-#{entry.id}"} />
@@ -147,6 +149,7 @@ defmodule KsefHubWeb.InvoiceLive.ActivityTimeline do
     "invoice.re_extraction_triggered" => @palette_blue,
     "invoice.access_changed" => @palette_purple,
     "invoice.public_link_generated" => @palette_purple,
+    "invoice.public_link_revoked" => @palette_amber,
     "invoice.excluded" => @palette_amber,
     "invoice.included" => @palette_emerald
   }

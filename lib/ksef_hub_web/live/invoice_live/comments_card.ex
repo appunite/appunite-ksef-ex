@@ -32,6 +32,7 @@ defmodule KsefHubWeb.InvoiceLive.CommentsCard do
   attr :edit_comment_form, :map, default: nil
   attr :current_user, :map, required: true
 
+  @doc "Renders the comments tab card: empty state or threaded comment list plus a composer."
   @spec comments_card(map()) :: Phoenix.LiveView.Rendered.t()
   def comments_card(assigns) do
     assigns = assign(assigns, :composer_id, @composer_id)

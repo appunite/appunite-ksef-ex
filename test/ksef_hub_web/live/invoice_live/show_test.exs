@@ -1553,7 +1553,9 @@ defmodule KsefHubWeb.InvoiceLive.ShowTest do
       {:ok, view, _html} = live(conn, ~p"/c/#{company.id}/invoices/#{invoice.id}")
 
       # A tampered client could submit any string — including something that is not an existing atom.
-      render_click(view, "select_tab", %{"id" => "definitely_not_a_real_tab_#{System.unique_integer([:positive])}"})
+      render_click(view, "select_tab", %{
+        "id" => "definitely_not_a_real_tab_#{System.unique_integer([:positive])}"
+      })
 
       assert view
              |> element(~s([data-testid="tab-activity"][aria-selected="true"]))

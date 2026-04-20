@@ -14,6 +14,7 @@ const StatCard = ({ label, value, delta, deltaTone = "muted", mono = true, hint 
 );
 
 const SyncHealthChart = () => {
+  const empty = window.KSH_EMPTY_DEMO;
   // Mini area-style chart built from SVG rects — no libs
   const data = [2, 4, 3, 5, 2, 3, 4, 6, 3, 3, 2, 4, 3, 2, 4, 5, 3, 4, 3, 2, 4, 3, 6, 3];
   const fails = [0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0];
@@ -25,24 +26,31 @@ const SyncHealthChart = () => {
           <h2 className="text-sm font-semibold">Sync health</h2>
           <p className="text-xs text-[var(--muted-foreground)]">Last 24 hours · hourly jobs</p>
         </div>
-        <Badge variant="success"><Icon name="check" size={10} /> operational</Badge>
+        {!empty && <Badge variant="success"><Icon name="check" size={10} /> operational</Badge>}
       </div>
-      <svg viewBox="0 0 480 120" className="w-full h-32">
-        {data.map((d, i) => {
-          const h = (d / max) * 90;
-          const x = i * 20 + 2;
-          const failed = fails[i] > 0;
-          return (
-            <rect key={i} x={x} y={110 - h} width={16} height={h} rx={2}
-              fill={failed ? "var(--destructive)" : "var(--brand)"}
-              opacity={failed ? 1 : 0.85} />
-          );
-        })}
-        <line x1="0" y1="110" x2="480" y2="110" stroke="var(--border)" />
-      </svg>
-      <div className="flex justify-between text-[10px] text-[var(--muted-foreground)] font-mono mt-1">
-        <span>00:00</span><span>06:00</span><span>12:00</span><span>18:00</span><span>now</span>
-      </div>
+      {empty ? (
+        <EmptyState icon="arrow-path" title="No sync runs recorded yet"
+          sub="KSeF sync runs hourly once a certificate is uploaded." />
+      ) : (
+        <>
+          <svg viewBox="0 0 480 120" className="w-full h-32">
+            {data.map((d, i) => {
+              const h = (d / max) * 90;
+              const x = i * 20 + 2;
+              const failed = fails[i] > 0;
+              return (
+                <rect key={i} x={x} y={110 - h} width={16} height={h} rx={2}
+                  fill={failed ? "var(--destructive)" : "var(--brand)"}
+                  opacity={failed ? 1 : 0.85} />
+              );
+            })}
+            <line x1="0" y1="110" x2="480" y2="110" stroke="var(--border)" />
+          </svg>
+          <div className="flex justify-between text-[10px] text-[var(--muted-foreground)] font-mono mt-1">
+            <span>00:00</span><span>06:00</span><span>12:00</span><span>18:00</span><span>now</span>
+          </div>
+        </>
+      )}
     </Card>
   );
 };
@@ -121,25 +129,32 @@ const Dashboard = () => {
       <div className="lg:col-span-2"><SyncHealthChart /></div>
       <Card>
         <h2 className="text-sm font-semibold mb-3">Queue</h2>
-        <dl className="space-y-2.5 text-sm">
-          <div className="flex justify-between items-center gap-3">
-            <dt className="text-[var(--muted-foreground)] truncate">Pending approval</dt>
-            <dd className="flex-none"><Badge variant="warning">24</Badge></dd>
-          </div>
-          <div className="flex justify-between items-center gap-3">
-            <dt className="text-[var(--muted-foreground)] truncate">Needs review</dt>
-            <dd className="flex-none"><Badge variant="info">6</Badge></dd>
-          </div>
-          <div className="flex justify-between items-center gap-3">
-            <dt className="text-[var(--muted-foreground)] truncate">Suspected duplicates</dt>
-            <dd className="flex-none"><Badge variant="warning">2</Badge></dd>
-          </div>
-          <div className="flex justify-between items-center gap-3">
-            <dt className="text-[var(--muted-foreground)] truncate">Failed extraction</dt>
-            <dd className="flex-none"><Badge variant="error">1</Badge></dd>
-          </div>
-        </dl>
-        <Button variant="outline" size="sm" className="w-full mt-4">Open queue</Button>
+        {empty ? (
+          <EmptyState icon="inbox" title="Nothing in the queue"
+            sub="Items awaiting approval or review show up here." />
+        ) : (
+          <>
+            <dl className="space-y-2.5 text-sm">
+              <div className="flex justify-between items-center gap-3">
+                <dt className="text-[var(--muted-foreground)] truncate">Pending approval</dt>
+                <dd className="flex-none"><Badge variant="warning">24</Badge></dd>
+              </div>
+              <div className="flex justify-between items-center gap-3">
+                <dt className="text-[var(--muted-foreground)] truncate">Needs review</dt>
+                <dd className="flex-none"><Badge variant="info">6</Badge></dd>
+              </div>
+              <div className="flex justify-between items-center gap-3">
+                <dt className="text-[var(--muted-foreground)] truncate">Suspected duplicates</dt>
+                <dd className="flex-none"><Badge variant="warning">2</Badge></dd>
+              </div>
+              <div className="flex justify-between items-center gap-3">
+                <dt className="text-[var(--muted-foreground)] truncate">Failed extraction</dt>
+                <dd className="flex-none"><Badge variant="error">1</Badge></dd>
+              </div>
+            </dl>
+            <Button variant="outline" size="sm" className="w-full mt-4">Open queue</Button>
+          </>
+        )}
       </Card>
     </div>
 

@@ -149,7 +149,7 @@ const EmptyState = ({ icon = "info", title, sub, action, tone = "default", class
         <div className="text-sm font-medium text-[var(--foreground)]">{title}</div>
         {sub && <div className="text-xs text-[var(--muted-foreground)] leading-relaxed">{sub}</div>}
       </div>
-      {action && <div className="mt-1">{action}</div>}
+      {action && tone !== "locked" && <div className="mt-1">{action}</div>}
     </div>
   );
 };
