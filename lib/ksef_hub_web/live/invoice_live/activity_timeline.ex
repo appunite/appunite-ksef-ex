@@ -23,17 +23,21 @@ defmodule KsefHubWeb.InvoiceLive.ActivityTimeline do
     "invoice.excluded" => "hero-eye-slash",
     "invoice.included" => "hero-eye",
     "invoice.access_changed" => "hero-lock-closed",
+    "invoice.access_granted" => "hero-user-plus",
+    "invoice.access_revoked" => "hero-user-minus",
     "invoice.public_link_generated" => "hero-link",
     "invoice.public_link_revoked" => "hero-link-slash",
     "invoice.downloaded" => "hero-arrow-down-tray",
     "invoice.note_updated" => "hero-pencil",
     "invoice.billing_date_changed" => "hero-calendar",
+    "invoice.re_extraction_triggered" => "hero-arrow-path",
     "invoice.updated" => "hero-pencil-square"
   }
 
   @action_prefix_icons [
     {"invoice.comment_", "hero-chat-bubble-left"},
     {"invoice.duplicate_", "hero-document-duplicate"},
+    {"invoice.re_extraction_", "hero-arrow-path"},
     {"invoice.extraction_", "hero-document-magnifying-glass"},
     {"payment_request.", "hero-banknotes"}
   ]
@@ -53,6 +57,8 @@ defmodule KsefHubWeb.InvoiceLive.ActivityTimeline do
     "invoice.billing_date_changed" => "changed billing date",
     "invoice.extraction_completed" => "extraction completed",
     "invoice.re_extraction_triggered" => "triggered re-extraction",
+    "invoice.access_granted" => "granted invoice access",
+    "invoice.access_revoked" => "revoked invoice access",
     "invoice.extraction_dismissed" => "dismissed extraction warning",
     "payment_request.created" => "created payment request",
     "payment_request.paid" => "marked payment as paid",
@@ -148,6 +154,8 @@ defmodule KsefHubWeb.InvoiceLive.ActivityTimeline do
   @action_palette %{
     "invoice.re_extraction_triggered" => @palette_blue,
     "invoice.access_changed" => @palette_purple,
+    "invoice.access_granted" => @palette_purple,
+    "invoice.access_revoked" => @palette_amber,
     "invoice.public_link_generated" => @palette_purple,
     "invoice.public_link_revoked" => @palette_amber,
     "invoice.excluded" => @palette_amber,

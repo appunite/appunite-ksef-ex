@@ -197,7 +197,7 @@ defmodule KsefHub.Invoices do
   defdelegate get_public_token_for(invoice_id, user_id), to: PublicTokens
 
   @doc "Revokes the public sharing token for a given (invoice, user) pair."
-  @spec revoke_public_token(Ecto.UUID.t(), Ecto.UUID.t()) :: :ok
+  @spec revoke_public_token(Ecto.UUID.t(), Ecto.UUID.t()) :: {:ok, :revoked | :no_op}
   defdelegate revoke_public_token(invoice_id, user_id), to: PublicTokens
 
   @doc "Deletes all public sharing tokens created by a user within a company; returns count deleted."

@@ -667,7 +667,7 @@ const InvoiceDetail = ({ invoice, onBack }) => {
   // on `undefined`).
   const notes = inv.id in window.DETAIL_NOTES ? window.DETAIL_NOTES[inv.id] : window.DETAIL_NOTES.default;
   const comments = inv.id in window.DETAIL_COMMENTS ? window.DETAIL_COMMENTS[inv.id] : window.DETAIL_COMMENTS.default;
-  const payments = window.DETAIL_PAYMENTS[inv.id] || [];
+  const payments = window.DETAIL_PAYMENTS[inv.id] || window.DETAIL_PAYMENTS.default;
   const activity = window.DETAIL_ACTIVITY[inv.id] || window.DETAIL_ACTIVITY.default;
   const access = window.DETAIL_ACCESS.default;
 

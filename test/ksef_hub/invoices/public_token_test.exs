@@ -193,7 +193,7 @@ defmodule KsefHub.Invoices.PublicTokenTest do
       {:ok, pt, _} = Invoices.ensure_public_token(invoice, user.id)
       assert Invoices.get_invoice_by_public_token(pt.token) != nil
 
-      assert :ok = Invoices.revoke_public_token(invoice.id, user.id)
+      assert {:ok, :revoked} = Invoices.revoke_public_token(invoice.id, user.id)
 
       assert Repo.get(InvoicePublicToken, pt.id) == nil
       assert Invoices.get_invoice_by_public_token(pt.token) == nil
@@ -203,7 +203,7 @@ defmodule KsefHub.Invoices.PublicTokenTest do
       invoice = insert(:invoice)
       user = insert(:user)
 
-      assert :ok = Invoices.revoke_public_token(invoice.id, user.id)
+      assert {:ok, :no_op} = Invoices.revoke_public_token(invoice.id, user.id)
     end
 
     test "only affects the target (invoice, user) pair" do
@@ -214,7 +214,7 @@ defmodule KsefHub.Invoices.PublicTokenTest do
       {:ok, _, _} = Invoices.ensure_public_token(invoice, user_a.id)
       {:ok, pt_b, _} = Invoices.ensure_public_token(invoice, user_b.id)
 
-      :ok = Invoices.revoke_public_token(invoice.id, user_a.id)
+      {:ok, :revoked} = Invoices.revoke_public_token(invoice.id, user_a.id)
 
       # b's token survives
       assert Repo.get(InvoicePublicToken, pt_b.id) != nil

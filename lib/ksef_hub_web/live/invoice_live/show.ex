@@ -477,8 +477,10 @@ defmodule KsefHubWeb.InvoiceLive.Show do
     invoice = socket.assigns.invoice
     user_id = socket.assigns.current_user.id
 
-    :ok = Invoices.revoke_public_token(invoice.id, user_id)
-    Events.invoice_public_link_revoked(invoice, actor_opts(socket))
+    case Invoices.revoke_public_token(invoice.id, user_id) do
+      {:ok, :revoked} -> Events.invoice_public_link_revoked(invoice, actor_opts(socket))
+      {:ok, :no_op} -> :ok
+    end
 
     {:noreply,
      socket
@@ -1315,7 +1317,10 @@ defmodule KsefHubWeb.InvoiceLive.Show do
             title="No payment requests yet"
             description="Create a payment request to record how this expense will be paid."
           >
-            <:action :if={@can_manage_payment_requests && @invoice.type == :expense}>
+            <:action :if={
+              @can_manage_payment_requests && @invoice.type == :expense &&
+                @invoice.expense_approval_status != :rejected
+            }>
               <.button
                 size="sm"
                 navigate={

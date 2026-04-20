@@ -240,7 +240,7 @@ Use the `<EmptyState>` component. Three tones:
 2. **Never use the filter-empty string for a zero-data state** — copy must match the real cause.
 3. **CTAs from empty states are never destructive.** No "Delete invoice" on empty Payments.
 4. **Locked states don't show disabled CTAs.** State *why* it doesn't apply, then stop.
-5. **No illustrations, no confetti, no color.** Same muted circle icon used everywhere else.
+5. **No illustrations, no confetti, no color.** Same muted circle icon used everywhere else. *Exception:* `tone="warning"` (see `EmptyState` in `Primitives.jsx`) applies the warning tint to the circle icon because the state signals a real failure that needs attention; it must still pair with a succinct `sub` and a retry CTA. All other tones stay colorless.
 6. **Activity logs are never empty.** A fetch event always exists — don't ship an empty state for Activity.
 
 ### Invoice detail tab examples

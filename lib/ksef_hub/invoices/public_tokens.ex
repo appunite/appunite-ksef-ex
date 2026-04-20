@@ -76,16 +76,18 @@ defmodule KsefHub.Invoices.PublicTokens do
 
   @doc """
   Revokes (deletes) the public sharing token for a given (invoice, user) pair.
-  Returns `:ok` whether or not a token was present.
+  Returns `{:ok, :revoked}` when a token was removed, `{:ok, :no_op}` otherwise —
+  callers use this to decide whether to emit an activity event.
   """
-  @spec revoke_public_token(Ecto.UUID.t(), Ecto.UUID.t()) :: :ok
+  @spec revoke_public_token(Ecto.UUID.t(), Ecto.UUID.t()) :: {:ok, :revoked | :no_op}
   def revoke_public_token(invoice_id, user_id)
       when is_binary(invoice_id) and is_binary(user_id) do
-    InvoicePublicToken
-    |> where([pt], pt.invoice_id == ^invoice_id and pt.user_id == ^user_id)
-    |> Repo.delete_all()
+    {count, _} =
+      InvoicePublicToken
+      |> where([pt], pt.invoice_id == ^invoice_id and pt.user_id == ^user_id)
+      |> Repo.delete_all()
 
-    :ok
+    if count > 0, do: {:ok, :revoked}, else: {:ok, :no_op}
   end
 
   @doc """
