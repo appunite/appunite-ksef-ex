@@ -38,7 +38,7 @@ Key semantic pairs:
 
 ---
 
-## 2. The 11 rules that make it look right
+## 2. The 10 rules that make it look right
 
 These are the ones Claude Code gets wrong most often. Treat as constraints.
 
@@ -47,12 +47,11 @@ These are the ones Claude Code gets wrong most often. Treat as constraints.
 3. **Status → always a `<Badge variant="…">`** (not a raw span). Variants: `success | warning | error | info | muted | purple | brand`. Never colored dots alone.
 4. **Row density is tight.** Table cells: `px-4 py-3`. Headers: `px-4 py-2.5 text-xs uppercase tracking-wide text-[var(--muted-foreground)] font-medium` on `bg-[var(--muted)]/50`. No extra padding "to breathe."
 5. **Row hover is `bg-[var(--accent)]`.** Selected row gets the same. A trailing chevron may appear on hover only: `opacity-0 group-hover:opacity-100`.
-6. **Empty state string: "No data for selected period".** Centered, `text-sm text-[var(--muted-foreground)]`, `py-12`. Don't invent copy.
+6. **Empty states follow the two-pattern rule in §7.** Filter-empty = terse string `"No data for selected period"`. Zero-data empty = `<EmptyState>` component. Never mix them.
 7. **Bulk action bar on selection**: inverted — `bg-[var(--foreground)] text-[var(--background)]` above the table header row, with count · summary · actions (secondary inline buttons, not full `Button` components inside).
 8. **Tabs above tables**: underline style. Active tab has a 2px bottom bar (`bg-[var(--foreground)]`), inactive is `text-[var(--muted-foreground)]`. Each tab shows a count pill (see §4).
 9. **Summary tiles are always 3-up** (`grid grid-cols-1 sm:grid-cols-3 gap-3 mb-5`). Structure: uppercase label, `text-2xl font-semibold tabular-nums` value, muted sub-line. Currency suffix in `font-mono text-[var(--muted-foreground)]`.
 10. **Focus rings are thin.** `focus:ring-1 focus:ring-[var(--ring)]`, never `ring-2` or `ring-offset-*`. No glowy focus.
-11. **Interaction feel is `transition-all` + `active:scale-[0.98]`, nothing else.** All interactive elements animate with `transition-all` (150ms ease-out default). Hover = `opacity-90` on filled variants, `bg-[var(--accent)]` on outline/ghost. Pressed = `active:scale-[0.98]` on buttons; outline/ghost also get `active:opacity-80`. Row hover stays `bg-[var(--accent)]` — no scale. Never add box-shadow lifts, color shifts, or `hover:-translate-*` transforms.
 
 ---
 
@@ -66,9 +65,6 @@ Use these exact components from `Primitives.jsx`. Don't re-implement.
 - Heights are fixed: `default h-9`, `sm h-7`, `icon h-9 w-9`
 - Always `rounded-md` (not pill, not square)
 - Icon before label with `gap-2`
-- Base always includes: `transition-all active:scale-[0.98] focus:ring-1 focus:ring-[var(--ring)]`
-- Filled variants (`primary`, `destructive`, `brand`): `hover:opacity-90`
-- Unfilled variants (`outline`, `ghost`): `hover:bg-[var(--accent)]` + `active:opacity-80`
 
 ### `<Badge variant>`
 - Variants as listed in rule 3
@@ -86,6 +82,12 @@ Use these exact components from `Primitives.jsx`. Don't re-implement.
 ### `<Icon name size>`
 - Fixed 24×24 viewBox, `stroke="currentColor" strokeWidth="1.5"`. Size in px.
 - Only use names present in `Primitives.jsx`. If you need a new one, add it there — don't inline SVGs elsewhere.
+
+### `<EmptyState icon title sub action tone>`
+- The canonical zero-data surface. See §7 for when to use it vs. the filter-empty string.
+- `tone`: `default | locked | warning`
+- `action` is an optional `<Button>` (primary, `size="sm"`).
+- `title` max ~40 chars; `sub` max ~140 chars. No marketing fluff.
 
 ### `<PageHeader title subtitle actions>`
 - Every page starts with this. Bottom border, `mb-6`.
@@ -172,45 +174,7 @@ Bottom-right, auto-dismiss 3.2s. `fixed bottom-6 right-6 z-50 px-3.5 py-2.5 roun
 
 ---
 
-## 5. Typography inventory (table-specific)
-
-The 4-tier rule — use this to decide any unlisted element:
-- `text-sm (14px) sans` — human-readable primary text (names, titles)
-- `text-xs (12px) mono tabular-nums` — identifiers, dates, currency codes, copy-paste strings
-- `text-[11px] mono tabular-nums muted` — secondary line under a primary (NIP, IBAN, net amount)
-- `text-[10px]` — tertiary labels (date sub-labels, confidence %, void reasons)
-
-### Table header (`<thead>`)
-| Element | Size | Weight | Notes |
-|---------|------|--------|-------|
-| Column label | `text-xs` | `font-medium` | `uppercase tracking-wide text-muted-foreground` |
-| Header row | `py-2.5` | — | `bg-muted/50 border-b` |
-
-### Table body (`<tbody>`)
-| Cell content | Size | Font | Notes |
-|-------------|------|------|-------|
-| Primary text (seller, counterparty name) | `text-sm` | sans | truncated |
-| IDs / invoice numbers / references | `text-xs` | mono | `tabular-nums` |
-| Secondary mono line (NIP, IBAN under name) | `text-[11px]` | mono | `text-muted-foreground` |
-| Amount (gross / primary) | `text-sm` | mono | `tabular-nums whitespace-nowrap leading-tight` |
-| Currency suffix | `text-xs` | — | `text-muted-foreground ml-1` |
-| Net amount (under gross) | `text-[11px]` | mono | `tabular-nums text-muted-foreground` |
-| Date | `text-xs` | mono | `tabular-nums text-muted-foreground whitespace-nowrap` |
-| Status / Kind badge text | `text-xs` | `font-medium` | via `<Badge>` |
-| Category badge text | `text-xs` | sans | |
-| Category confidence (`· 82%`) | `text-[10px]` | sans | `text-muted-foreground` |
-
-### Above/below the table
-| Element | Size | Notes |
-|---------|------|-------|
-| Tab label | `text-sm` | active: `font-medium` |
-| Tab count pill | `text-[11px] mono` | `min-w-[20px] h-[18px]` |
-| Filter chips / date picker / search | `text-xs` | `h-8` controls |
-| Pagination text | `text-xs` | `text-muted-foreground` |
-
----
-
-## 6. Column conventions (invoice-like tables)
+## 5. Column conventions (invoice-like tables)
 
 Fixed column order when applicable:
 
@@ -225,7 +189,7 @@ Fixed column order when applicable:
 
 ---
 
-## 7. Do / Don't
+## 6. Do / Don't
 
 **Do**
 - Reach for existing primitives first (`Badge`, `Button`, `Card`, `Input`, `Icon`).
@@ -236,8 +200,6 @@ Fixed column order when applicable:
 
 **Don't**
 - Don't add gradients, emoji, drop shadows on cards, or colored left borders on rows.
-- Don't add `hover:-translate-*`, shadow lifts, or color-shift hover effects on buttons — use `hover:opacity-90` (filled) or `hover:bg-[var(--accent)]` (outline/ghost) only.
-- Don't use `transition-colors` on buttons — always `transition-all` so the native `:active` state animates too.
 - Don't introduce solid-filled status pills (always tinted).
 - Don't use `<div>`s where `<Badge>` should go.
 - Don't add new colors outside the token set — compose with `color-mix(in oklch, var(--x) 10%, transparent)` if you need a faint surface.
@@ -248,13 +210,69 @@ Fixed column order when applicable:
 
 ---
 
+## 7. Empty states
+
+Two distinct patterns. Pick by asking: **"Would clearing filters reveal content?"**
+
+### Pattern A — Filter-empty
+*A list has data, but current filters hide all of it.*
+
+- Copy: `"No data for selected period"` — exact string, no variations.
+- Styling: `text-sm text-[var(--muted-foreground)] py-12` centered inside the table body.
+- **No icon, no CTA.** The resolution (clear filters) lives above the table.
+
+Used by: Invoices list, Payments list, Sync jobs, Companies search, any future table.
+
+### Pattern B — Zero-data
+*There is genuinely nothing here yet, for this record or feature.*
+
+Use the `<EmptyState>` component. Three tones:
+
+| Tone | When | CTA? |
+|---|---|---|
+| `default` | Nothing here yet, but the user could create something | Optional primary CTA |
+| `locked` | Feature doesn't apply to this record (e.g. Payments on an income invoice) | Never — don't fake-tease a feature |
+| `warning` | Something failed (OCR, sync) and needs user action | Always — `Retry …` |
+
+### Rules
+
+1. **One paragraph, max 140 chars** in `sub`. No marketing fluff.
+2. **Never use the filter-empty string for a zero-data state** — copy must match the real cause.
+3. **CTAs from empty states are never destructive.** No "Delete invoice" on empty Payments.
+4. **Locked states don't show disabled CTAs.** State *why* it doesn't apply, then stop.
+5. **No illustrations, no confetti, no color.** Same muted circle icon used everywhere else.
+6. **Activity logs are never empty.** A fetch event always exists — don't ship an empty state for Activity.
+
+### Invoice detail tab examples
+
+| Tab | Condition | Tone | Copy |
+|---|---|---|---|
+| Line items | `extraction=failed` | `warning` | *Line items couldn't be extracted* — The OCR run failed. Retry or enter items manually. |
+| Payments | No requests, invoice is expense + approved | `default` | *No payment requests yet* — Create one to schedule a transfer for this invoice. |
+| Payments | Invoice is income or rejected | `locked` | *Payments don't apply here* — Income and rejected invoices don't generate outgoing transfers. |
+| Notes | None | `default` | *No notes yet* — Notes are private to your team. Use them to record decisions or context. |
+| Comments | None | `default` | *Start the conversation* — @mention a teammate to pull them in. |
+| Access | Only owner | `default` | *Only you have access* — Share this invoice with teammates to collaborate. |
+
+### App-wide examples
+
+| Surface | State | Tone | Copy |
+|---|---|---|---|
+| Dashboard tile | New tenant, no invoices yet | `default` | *No invoices this month yet* — Sync runs hourly, or add one manually. |
+| Companies | New tenant | `default` | *Add your first company* — Register a NIP to start syncing invoices. |
+| Settings → Certificates | Not uploaded | `warning` | *No certificate uploaded* — Upload a XAdES certificate to enable KSeF sync. |
+| Sync jobs | New tenant | `default` | *No sync jobs yet* — KSeF sync runs hourly, or trigger one manually. |
+| Payments list | New tenant | `default` | *No payment requests yet* — Approve an expense to generate your first payment. |
+
+---
+
 ## 8. Handoff workflow (recommended)
 
 1. **Commit this file + the prototype** into the real repo under `docs/design-system/`.
 2. **Per screen** in the real app, open a PR that links to the matching prototype file. In the PR description, paste:
    - Screenshot of prototype screen
    - Screenshot of current real screen
-   - Checklist of the 11 rules from §2
+   - Checklist of the 10 rules from §2
 3. **Ask Claude Code one screen at a time**, e.g.:
    > Port `app/views/payments/index.tsx` to match `ui_kits/admin/Payments.jsx`. Follow `docs/design-system/DESIGN_SYSTEM.md`. Reuse `Button`, `Badge`, `Card` from `app/components/ui/`. Keep existing data hooks. Output a diff, don't touch other files.
-4. **Review against §2**. Almost every miss is one of those 11 rules.
+4. **Review against §2**. Almost every miss is one of those 10 rules.

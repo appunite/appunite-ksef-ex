@@ -47,12 +47,20 @@ const SyncHealthChart = () => {
   );
 };
 
-const RecentSyncJobs = () => (
+const RecentSyncJobs = () => {
+  const empty = window.KSH_EMPTY_DEMO;
+  const jobs = empty ? [] : SYNC_JOBS;
+  return (
   <Card padding="p-0">
     <div className="flex items-center justify-between gap-3 px-5 py-3 border-b border-[var(--border)]">
       <h2 className="text-sm font-semibold whitespace-nowrap">Recent sync jobs</h2>
       <Button variant="ghost" size="sm" className="flex-none">View all</Button>
     </div>
+    {jobs.length === 0 ? (
+      <EmptyState icon="arrow-path" title="No sync jobs yet"
+        sub="KSeF sync runs hourly, or trigger one manually."
+        action={<Button variant="primary" size="sm"><Icon name="arrow-path" size={13} /> Sync now</Button>} />
+    ) : (
     <table className="w-full text-sm">
       <thead>
         <tr className="text-xs uppercase tracking-wide text-[var(--muted-foreground)] border-b border-[var(--border)]">
@@ -64,7 +72,7 @@ const RecentSyncJobs = () => (
         </tr>
       </thead>
       <tbody>
-        {(SYNC_JOBS ?? []).map(j => (
+        {jobs.map(j => (
           <tr key={j.id} className="border-b border-[var(--border)] last:border-b-0 hover:bg-[var(--accent)]/50">
             <td className="px-5 py-2.5 font-mono text-xs text-[var(--muted-foreground)]">{j.inserted}</td>
             <td className="px-5 py-2.5">
@@ -80,27 +88,33 @@ const RecentSyncJobs = () => (
         ))}
       </tbody>
     </table>
+    )}
   </Card>
-);
+  );
+};
 
-const Dashboard = () => (
+const Dashboard = () => {
+  const empty = window.KSH_EMPTY_DEMO;
+  return (
   <div>
     <PageHeader
       title="Dashboard"
       subtitle="Sync status · last 30 days"
       actions={<Button variant="outline"><Icon name="arrow-path" size={14} /> Sync now</Button>} />
 
+    {!empty && (
     <Banner variant="warning" icon="warning" title="Your KSeF certificate expires in 96 days."
       actions={<Button variant="outline" size="sm">Manage certificates</Button>}>
       Certificate for <span className="font-mono">CN=Appunite sp. z o.o.</span> will require renewal before
       <span className="font-mono"> 2026-04-20</span>. Schedule the replacement early to avoid sync interruption.
     </Banner>
+    )}
 
     <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-4">
-      <StatCard label="Invoices synced" value="412" delta="+17 this week" deltaTone="up" />
-      <StatCard label="Pending review" value="24" delta="3 over 7 days" deltaTone="down" />
-      <StatCard label="Auto-categorized" value="87.3%" hint="vs 82.1% last month" />
-      <StatCard label="Sync uptime" value="99.84%" hint="30-day rolling" />
+      <StatCard label="Invoices synced" value={empty ? "0" : "412"} delta={empty ? "No invoices this month yet" : "+17 this week"} deltaTone={empty ? "muted" : "up"} />
+      <StatCard label="Pending review" value={empty ? "0" : "24"} delta={empty ? "—" : "3 over 7 days"} deltaTone={empty ? "muted" : "down"} />
+      <StatCard label="Auto-categorized" value={empty ? "—" : "87.3%"} hint={empty ? "Needs ≥20 invoices to train" : "vs 82.1% last month"} />
+      <StatCard label="Sync uptime" value={empty ? "—" : "99.84%"} hint={empty ? "No sync runs recorded" : "30-day rolling"} />
     </div>
 
     <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
@@ -133,6 +147,7 @@ const Dashboard = () => (
       <RecentSyncJobs />
     </div>
   </div>
-);
+  );
+};
 
 Object.assign(window, { Dashboard });

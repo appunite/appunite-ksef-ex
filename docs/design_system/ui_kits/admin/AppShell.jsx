@@ -114,7 +114,7 @@ const MobileNav = ({ page, onNav }) => {
   );
 };
 
-const AppShell = ({ page, onNav, children, company, companies, onPickCompany, user, onLogout = () => {} }) => (
+const AppShell = ({ page, onNav, children, company, companies, onPickCompany, user }) => (
   <div className="min-h-screen flex flex-col bg-[var(--background)] text-[var(--foreground)]">
     <header className="sticky top-0 z-30 w-full border-b border-[var(--border)] bg-[color-mix(in_oklch,var(--background)_95%,transparent)] backdrop-blur">
       <div className="flex h-14 items-center px-4 lg:px-6 gap-4">
@@ -131,7 +131,7 @@ const AppShell = ({ page, onNav, children, company, companies, onPickCompany, us
         </nav>
         <div className="flex-1" />
         <CompanySelector current={company} companies={companies} onPick={onPickCompany} />
-        <AvatarMenu email={user.email} onLogout={onLogout} />
+        <AvatarMenu email={user.email} onLogout={() => {}} />
       </div>
     </header>
     <main className="flex-1 p-4 sm:p-6 lg:p-8">

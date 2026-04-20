@@ -27,10 +27,18 @@ const Icon = ({ name, size = 16, className = "" }) => {
     "sun": <><circle cx="12" cy="12" r="4" /><path d="M12 2v2M12 20v2M4 12H2M22 12h-2M5 5l1.5 1.5M17.5 17.5L19 19M5 19l1.5-1.5M17.5 6.5L19 5" /></>,
     "moon": <path d="M21 12.8A9 9 0 1111.2 3a7 7 0 009.8 9.8z" />,
     "download": <path d="M12 4v12m-5-5l5 5 5-5M4 20h16" />,
+    "upload": <path d="M12 20V8m-5 5l5-5 5 5M4 4h16" />,
     "lock": <><rect x="5" y="11" width="14" height="10" rx="2" /><path d="M8 11V7a4 4 0 018 0v4" /></>,
-    "tag": <path d="M2 12.5V4a2 2 0 012-2h8.5a1 1 0 01.7.3l8.5 8.5a1 1 0 010 1.4l-8.6 8.6a1 1 0 01-1.4 0l-8.5-8.5a1 1 0 01-.3-.7zM7 7h.01" />,
-    "hashtag": <path d="M5 9h14M5 15h14M10 3L8 21M16 3l-2 18" />,
-    "cash": <><rect x="3" y="6" width="18" height="12" rx="2" /><circle cx="12" cy="12" r="2.5" /><path d="M7 10v.01M17 14v.01" /></>,
+    "edit": <path d="M16 3l5 5-11 11H5v-5L16 3zM14 5l5 5" />,
+    "trash": <path d="M5 7h14M10 7V4h4v3M6 7l1 13h10l1-13M10 11v6M14 11v6" />,
+    "chat": <path d="M21 12a8 8 0 01-11.3 7.3L4 21l1.7-5.7A8 8 0 1121 12z" />,
+    "user-plus": <><circle cx="9" cy="8" r="4" /><path d="M2 21a7 7 0 0114 0M18 9v6M15 12h6" /></>,
+    "expand": <path d="M4 10V4h6M20 14v6h-6M4 4l7 7M20 20l-7-7" />,
+    "zoom-in": <><circle cx="11" cy="11" r="6" /><path d="M20 20l-4-4M11 8v6M8 11h6" /></>,
+    "zoom-out": <><circle cx="11" cy="11" r="6" /><path d="M20 20l-4-4M8 11h6" /></>,
+    "sync": <path d="M4 12a8 8 0 0115-3m1 3a8 8 0 01-15 3M20 4v5h-5M4 20v-5h5" />,
+    "sparkles": <path d="M12 3l2 5 5 2-5 2-2 5-2-5-5-2 5-2z" />,
+    "link": <path d="M10 14a4 4 0 015.66 0l3 3a4 4 0 01-5.66 5.66l-1-1M14 10a4 4 0 00-5.66 0l-3 3a4 4 0 005.66 5.66l1-1" />,
   };
   return (
     <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor"
@@ -49,14 +57,14 @@ const Button = ({ variant = "primary", size = "default", children, onClick, clas
   };
   const variants = {
     primary: "bg-[var(--primary)] text-[var(--primary-foreground)] hover:opacity-90",
-    outline: "border border-[var(--input)] bg-[var(--background)] hover:bg-[var(--accent)] active:opacity-80",
-    ghost: "hover:bg-[var(--accent)] hover:text-[var(--accent-foreground)] active:opacity-80",
+    outline: "border border-[var(--input)] bg-[var(--background)] hover:bg-[var(--accent)]",
+    ghost: "hover:bg-[var(--accent)] hover:text-[var(--accent-foreground)]",
     destructive: "bg-[var(--destructive)] text-[var(--destructive-foreground)] hover:opacity-90",
     brand: "bg-[var(--brand)] text-[var(--brand-foreground)] hover:opacity-90",
   };
   return (
     <button onClick={onClick}
-      className={`inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-md font-medium transition-all active:scale-[0.98] focus:outline-none focus:ring-1 focus:ring-[var(--ring)] disabled:opacity-50 disabled:pointer-events-none cursor-pointer ${sizes[size]} ${variants[variant]} ${className}`}
+      className={`inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-md font-medium transition-all focus:outline-none focus-visible:ring-1 focus-visible:ring-[var(--ring)] disabled:opacity-50 disabled:pointer-events-none cursor-pointer ${sizes[size]} ${variants[variant]} ${className}`}
       {...rest}>
       {children}
     </button>
@@ -119,4 +127,31 @@ const Logo = ({ size = 28 }) => (
   </a>
 );
 
-Object.assign(window, { Icon, Button, Badge, Card, Input, Logo });
+// EmptyState — canonical empty surface for tabs, tiles, and lists where
+// "zero data" is a real state (not a filter result). See DESIGN_SYSTEM.md §7.
+//
+// tones:
+//   default — normal zero-data (muted circle + optional CTA)
+//   locked  — feature doesn't apply to this record (no CTA)
+//   warning — something failed and needs attention (warning-tinted icon)
+const EmptyState = ({ icon = "info", title, sub, action, tone = "default", className = "" }) => {
+  const tones = {
+    default: "bg-[var(--muted)] text-[var(--muted-foreground)] border-[var(--border)]",
+    locked: "bg-[var(--muted)] text-[var(--muted-foreground)] border-[var(--border)] opacity-80",
+    warning: "bg-[color-mix(in_oklch,var(--warning)_12%,transparent)] text-[var(--warning)] border-[color-mix(in_oklch,var(--warning)_30%,transparent)]",
+  };
+  return (
+    <div className={`flex flex-col items-center text-center gap-3 py-14 px-6 ${className}`}>
+      <span className={`inline-flex items-center justify-center w-10 h-10 rounded-full border ${tones[tone]}`}>
+        <Icon name={icon} size={18} />
+      </span>
+      <div className="space-y-1 max-w-sm">
+        <div className="text-sm font-medium text-[var(--foreground)]">{title}</div>
+        {sub && <div className="text-xs text-[var(--muted-foreground)] leading-relaxed">{sub}</div>}
+      </div>
+      {action && <div className="mt-1">{action}</div>}
+    </div>
+  );
+};
+
+Object.assign(window, { Icon, Button, Badge, Card, Input, Logo, EmptyState });

@@ -123,7 +123,7 @@ const CERT = {
   serial: "03:9A:2B:F1:88:C4:0E:11",
   issued: "2025-01-14",
   expires: "2026-04-20",
-  daysLeft: 1,
+  daysLeft: 96,
   status: "ok",
 };
 
@@ -164,4 +164,76 @@ INVOICES.forEach((inv, idx) => {
   if (inv.currency !== "PLN") inv.tags.push("reimbursable");
 });
 
-Object.assign(window, { COMPANIES, INVOICES, SYNC_JOBS, CERT, CATEGORIES, TAGS });
+// Demo activity/notes/comments/access/payments for invoice detail tabs.
+// Keyed by invoice id; we populate a few richly and a default fallback for the rest.
+
+const DETAIL_ACTIVITY = {
+  default: [
+    { id: "a1", icon: "arrow-path", actor: "KSeF sync", verb: "fetched invoice from KSeF", ts: "2026-04-14 09:02 UTC" },
+    { id: "a2", icon: "bolt", actor: "Classifier", verb: "predicted category Software (92%)", ts: "2026-04-14 09:02 UTC" },
+    { id: "a3", icon: "check", actor: "Maciej K.", verb: "approved invoice", ts: "2026-04-14 10:11 UTC" },
+  ],
+  i05: [
+    { id: "a1", icon: "arrow-path", actor: "KSeF sync", verb: "fetched invoice from KSeF", ts: "2026-04-15 07:02 UTC" },
+    { id: "a2", icon: "duplicate", actor: "Dedup", verb: "flagged as possible duplicate of FV/2026/01/0014 (91.4%)", ts: "2026-04-15 07:02 UTC" },
+    { id: "a3", icon: "warning", actor: "Classifier", verb: "low confidence on category (61%)", ts: "2026-04-15 07:02 UTC" },
+    { id: "a4", icon: "cog", actor: "Ana S.", verb: "opened invoice for review", ts: "2026-04-15 09:34 UTC" },
+    { id: "a5", icon: "cog", actor: "Ana S.", verb: "changed category from Software to Telecom", ts: "2026-04-15 09:35 UTC" },
+  ],
+  i14: [
+    { id: "a1", icon: "arrow-path", actor: "KSeF sync", verb: "fetched invoice from KSeF", ts: "2026-04-09 12:05 UTC" },
+    { id: "a2", icon: "error", actor: "Extractor", verb: "failed to extract line items (OCR timeout)", ts: "2026-04-09 12:05 UTC" },
+    { id: "a3", icon: "info", actor: "System", verb: "status set to needs_review", ts: "2026-04-09 12:05 UTC" },
+  ],
+};
+
+const DETAIL_NOTES = {
+  default: [
+    { id: "n1", author: "Maciej K.", initials: "MK", ts: "2026-04-14 10:14 UTC",
+      body: "Matches Q2 SaaS budget line. Approved; paid via virtual card." },
+  ],
+  i01: [], // demo: empty notes state
+  i05: [
+    { id: "n1", author: "Ana S.", initials: "AS", ts: "2026-04-15 09:40 UTC",
+      body: "This looks like a re-post of the January invoice. Same NIP, same brutto, reversed sign. Waiting for Orange to confirm before rejecting." },
+    { id: "n2", author: "Maciej K.", initials: "MK", ts: "2026-04-15 14:22 UTC",
+      body: "Called Orange support — it's a correction pair with the cancelled Jan line. We should keep both, mark this one as the correction, and approve." },
+  ],
+};
+
+const DETAIL_COMMENTS = {
+  default: [
+    { id: "c1", author: "Maciej K.", initials: "MK", ts: "10:11",
+      body: "Approving — this is the standard monthly charge.", ownMine: false },
+  ],
+  i01: [], // demo: empty comments state
+  i05: [
+    { id: "c1", author: "Ana S.", initials: "AS", ts: "09:34",
+      body: "@Maciej K. can you check with Orange before I reject this?", ownMine: false },
+    { id: "c2", author: "Maciej K.", initials: "MK", ts: "14:20",
+      body: "On it.", ownMine: false },
+    { id: "c3", author: "Maciej K.", initials: "MK", ts: "14:22",
+      body: "Confirmed — it's a correction pair, keeping both.", ownMine: false },
+    { id: "c4", author: "You", initials: "OP", ts: "14:31",
+      body: "Thanks. Marking as correction and approving.", ownMine: true },
+  ],
+};
+
+const DETAIL_ACCESS = {
+  default: [
+    { id: "u1", name: "Maciej Kowalski", email: "maciej@appunite.com", initials: "MK", role: "approver", grantedBy: "Owner", grantedOn: "2025-11-02" },
+    { id: "u2", name: "Ana Sobczak", email: "ana@appunite.com", initials: "AS", role: "editor", grantedBy: "Maciej K.", grantedOn: "2026-01-08" },
+    { id: "u3", name: "Piotr Nowak", email: "piotr@appunite.com", initials: "PN", role: "viewer", grantedBy: "Maciej K.", grantedOn: "2026-03-21" },
+  ],
+};
+
+const DETAIL_PAYMENTS = {
+  i01: [{ id: "p01", counterparty: "Google Ireland Ltd.", amount: "1 525.20", currency: "PLN", scheduledFor: "2026-04-22", status: "pending" }],
+  i02: [{ id: "p02", counterparty: "Google Ireland Ltd.", amount: "1 525.20", currency: "PLN", scheduledFor: "2026-04-15", sentAt: "2026-04-15 09:12 UTC", status: "sent" }],
+  i08: [{ id: "p06", counterparty: "Netia S.A.", amount: "492.50", currency: "PLN", scheduledFor: "2026-04-14", sentAt: "2026-04-14 11:03 UTC", status: "sent" }],
+  i17: [{ id: "p11", counterparty: "Restauracja Karmnik", amount: "200.00", currency: "PLN", scheduledFor: "2026-04-08", status: "voided" }],
+  default: [],
+};
+
+Object.assign(window, { COMPANIES, INVOICES, SYNC_JOBS, CERT, CATEGORIES, TAGS,
+  DETAIL_ACTIVITY, DETAIL_NOTES, DETAIL_COMMENTS, DETAIL_ACCESS, DETAIL_PAYMENTS });
