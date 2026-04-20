@@ -59,6 +59,29 @@ defmodule KsefHubWeb.CompanyLiveTest do
       assert membership.role == :owner
     end
 
+    test "analyst in one company can create their own company and become owner", %{conn: conn} do
+      user = insert(:user)
+      existing = insert(:company)
+      insert(:membership, user: user, company: existing, role: :analyst)
+
+      {:ok, view, _html} =
+        conn
+        |> log_in_user(user, %{current_company_id: existing.id})
+        |> live("/companies/new")
+
+      view
+      |> form("form[phx-submit=save]", company: %{name: "Analyst Own Corp", nip: "1020304050"})
+      |> render_submit()
+
+      new_company =
+        user.id
+        |> Companies.list_companies_for_user()
+        |> Enum.find(&(&1.name == "Analyst Own Corp"))
+
+      assert new_company
+      assert Companies.get_membership(user.id, new_company.id).role == :owner
+    end
+
     test "creating a company auto-creates owner membership", %{conn: conn} do
       user = insert(:user)
       # User needs at least one company to not be redirected to /companies/new

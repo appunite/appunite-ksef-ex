@@ -90,7 +90,7 @@ defmodule KsefHubWeb.SyncLive do
         Syncs
         <:subtitle>KSeF invoice sync history</:subtitle>
         <:actions>
-          <.button phx-click="trigger_sync">
+          <.button :if={Authorization.can?(@current_role, :trigger_sync)} phx-click="trigger_sync">
             <.icon name="hero-arrow-path" class="size-4" /> Sync Now
           </.button>
         </:actions>

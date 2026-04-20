@@ -158,17 +158,56 @@ defmodule KsefHubWeb.LiveAuthTest do
                |> live(~p"/c/#{company.id}/invoices")
     end
 
-    test "analyst is denied settings page", %{conn: conn} do
+    test "analyst can access general settings page", %{conn: conn} do
       user = insert(:user)
       company = insert(:company)
       insert(:membership, user: user, company: company, role: :analyst)
 
-      expected_path = "/c/#{company.id}/invoices"
-
-      assert {:error, {:redirect, %{to: ^expected_path}}} =
+      assert {:ok, _view, html} =
                conn
                |> log_in_user(user, %{current_company_id: company.id})
                |> live(~p"/c/#{company.id}/settings")
+
+      assert html =~ "Theme"
+    end
+
+    test "analyst can access syncs settings but does not see Sync Now button", %{conn: conn} do
+      user = insert(:user)
+      company = insert(:company)
+      insert(:membership, user: user, company: company, role: :analyst)
+
+      {:ok, view, _html} =
+        conn
+        |> log_in_user(user, %{current_company_id: company.id})
+        |> live(~p"/c/#{company.id}/settings/syncs")
+
+      refute has_element?(view, "button", "Sync Now")
+    end
+
+    test "approver sees Sync Now button on syncs settings", %{conn: conn} do
+      user = insert(:user)
+      company = insert(:company)
+      insert(:membership, user: user, company: company, role: :approver)
+
+      {:ok, view, _html} =
+        conn
+        |> log_in_user(user, %{current_company_id: company.id})
+        |> live(~p"/c/#{company.id}/settings/syncs")
+
+      assert has_element?(view, "button", "Sync Now")
+    end
+
+    test "analyst can access API tokens settings", %{conn: conn} do
+      user = insert(:user)
+      company = insert(:company)
+      insert(:membership, user: user, company: company, role: :analyst)
+
+      assert {:ok, _view, html} =
+               conn
+               |> log_in_user(user, %{current_company_id: company.id})
+               |> live(~p"/c/#{company.id}/settings/tokens")
+
+      assert html =~ "API Tokens"
     end
   end
 end

@@ -125,7 +125,7 @@ defmodule KsefHub.AuthorizationTest do
   end
 
   describe "analyst" do
-    @viewer_allowed [:view_invoices]
+    @viewer_allowed [:view_invoices, :view_syncs, :manage_tokens]
 
     @viewer_denied @all_permissions -- @viewer_allowed
 
@@ -155,8 +155,8 @@ defmodule KsefHub.AuthorizationTest do
       refute Authorization.can?(:analyst, :update_invoice)
     end
 
-    test "cannot manage tokens" do
-      refute Authorization.can?(:analyst, :manage_tokens)
+    test "cannot trigger syncs" do
+      refute Authorization.can?(:analyst, :trigger_sync)
     end
 
     test "cannot see all invoice types (access_restricted filter applies)" do
