@@ -109,6 +109,18 @@ models.restart: ## Restart Cloud Run to pick up new models from GCS
 		--update-env-vars=MODELS_REV=$$(date +%s)
 	@echo "Service restarting — new models will be loaded."
 
+models.train: ## Show instructions for training new models
+	@echo "To train new models:"
+	@echo "  1. Clone the classifier repo:"
+	@echo "     git clone $(CLASSIFIER_REPO) /tmp/au-payroll-model-categories"
+	@echo "  2. Follow training instructions in that repo (make train)"
+	@echo "  3. Copy trained models here:"
+	@echo "     cp /tmp/au-payroll-model-categories/models/*.joblib ml-models/"
+	@echo "  4. Upload to GCS and restart:"
+	@echo "     make models.upload models.restart"
+	@echo "  5. Commit updated models:"
+	@echo "     git add ml-models/ && git commit -m 'chore: update ML models'"
+
 # --- Landing ---
 # Thin dispatchers for the standalone Astro project in ./landing.
 # The landing is deliberately decoupled from Phoenix; these targets exist for
@@ -128,16 +140,4 @@ landing.preview: ## Serve the built landing locally
 
 landing.check: ## Run landing quality gates (i18n parity + typecheck). Mirrors CI.
 	cd landing && npm run test:i18n && npm run check
-
-models.train: ## Show instructions for training new models
-	@echo "To train new models:"
-	@echo "  1. Clone the classifier repo:"
-	@echo "     git clone $(CLASSIFIER_REPO) /tmp/au-payroll-model-categories"
-	@echo "  2. Follow training instructions in that repo (make train)"
-	@echo "  3. Copy trained models here:"
-	@echo "     cp /tmp/au-payroll-model-categories/models/*.joblib ml-models/"
-	@echo "  4. Upload to GCS and restart:"
-	@echo "     make models.upload models.restart"
-	@echo "  5. Commit updated models:"
-	@echo "     git add ml-models/ && git commit -m 'chore: update ML models'"
 

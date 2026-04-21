@@ -31,7 +31,8 @@
     "subhead": "Cyklicznie pobiera faktury z KSeF, przyjmuje PDF-y mailem, kategoryzuje je ML-em, wykrywa duplikaty i przekazuje czyste dane Twojej księgowej — albo Twojemu dashboardowi przez API. Hostuj u siebie albo pozwól nam to zrobić za Ciebie.",
     "ctaSelfHost": "Self-host",
     "ctaGithub": "Daj gwiazdkę na GitHubie",
-    "or": "lub"
+    "or": "lub",
+    "diagramTitle": "Źródła faktur przepływają do jednego rejestru, a stamtąd do konsumentów."
   },
   "trust": {
     "data": {

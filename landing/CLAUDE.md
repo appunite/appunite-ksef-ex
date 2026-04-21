@@ -21,7 +21,7 @@ When editing files here, follow this document — not the root `CLAUDE.md`, whic
 
 ## Directory structure
 
-```
+```text
 landing/
 ├── public/                     # served verbatim (robots.txt, favicon.svg)
 ├── src/
@@ -29,7 +29,7 @@ landing/
 │   ├── components/             # one .astro per page section + shared atoms
 │   ├── i18n/
 │   │   ├── en.json             # authoritative content dictionary
-│   │   ├── pl.json             # Polish (translation pending; currently == en.json)
+│   │   ├── pl.json             # Polish (translated)
 │   │   ├── index.ts            # useTranslations, getLocaleFromUrl, localizedUrl
 │   │   └── README.md
 │   ├── layouts/Base.astro      # <html>, <head>, SEO
@@ -52,7 +52,7 @@ landing/
 ### Adding or changing a string
 
 1. Add the key to `src/i18n/en.json` under the appropriate section.
-2. Mirror it in `src/i18n/pl.json` (currently a copy of `en.json` — translation is incremental; keep keys and structure identical).
+2. Mirror it in `src/i18n/pl.json` with the Polish translation. Keep keys and structure identical — the `Dictionary` type is derived from `en.json`, so drift surfaces at compile time.
 3. Read it in the component:
 
    ```astro

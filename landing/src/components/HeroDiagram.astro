@@ -1,9 +1,8 @@
 ---
-import { getLocaleFromUrl } from "../i18n";
+import { getLocaleFromUrl, useTranslations } from "../i18n";
 const locale = getLocaleFromUrl(Astro.url);
-const diagramTitle = locale === "pl"
-  ? "Źródła faktur przepływają do jednego rejestru, a stamtąd do konsumentów."
-  : "Invoice sources flow into one ledger, then out to consumers.";
+const t = useTranslations(locale);
+const diagramTitle = t.hero.diagramTitle;
 ---
 <div class="relative">
   <svg viewBox="0 0 480 360" class="w-full h-auto" role="img" aria-labelledby="hero-diagram-title">

@@ -7,10 +7,10 @@ export type Locale = (typeof locales)[number];
 
 export type Dictionary = typeof en;
 
-const dicts: Record<Locale, Dictionary> = {
+const dicts = {
   en,
-  pl: pl as Dictionary,
-};
+  pl,
+} satisfies Record<Locale, Dictionary>;
 
 export function isLocale(value: string): value is Locale {
   return (locales as readonly string[]).includes(value);

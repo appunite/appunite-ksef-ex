@@ -27,6 +27,7 @@ Quick reference for developers. Before touching a feature area:
 | Invoice access control | `invoices/access_control.ex` |
 | API tokens | `accounts/api_tokens.ex` |
 | Payment CSV export | `payment_requests/` |
+| Public landing page | `landing/` — Astro 5 + Tailwind v4 static marketing site (i18n, blog, RSS, sitemap, GitHub Pages deploy) |
 
 ---
 
@@ -105,3 +106,4 @@ Read only the ADR(s) relevant to your task — the summaries below tell you whic
 | 0045-rename-expense-invoice-columns.md | Rename Expense-Specific Invoice Columns | Accepted | 11 expense-only columns prefixed with `expense_`/`prediction_expense_`; breaking API change |
 | 0046-per-user-public-invoice-tokens.md | Per-User Public Invoice Tokens | Accepted | Per-(invoice, user) tokens in `invoice_public_tokens` table; only SHA-256 digest stored; 30-day TTL; revoked on member block |
 | 0047-approver-analyst-roles.md | Approver and Analyst Roles | Accepted | Rename `:reviewer` → `:approver` and `:viewer` → `:analyst`; analyst has same data scope as approver (access grants required for restricted invoices) |
+| 0048-public-landing-page.md | Public Landing Page as Standalone Astro Project | Accepted | Ship marketing site as separate Astro 5 + Tailwind v4 project in `landing/`, deployed to GitHub Pages; zero runtime coupling with Phoenix |

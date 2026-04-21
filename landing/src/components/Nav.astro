@@ -16,10 +16,10 @@ const home = localizedUrl(locale);
       <span class="text-sm font-bold tracking-tight">KSeF<span class="font-normal"> Hub</span></span>
     </a>
     <nav class="hidden md:flex items-center gap-6">
-      <a href="#features" class="nav-link">{t.nav.features}</a>
-      <a href="#ledger" class="nav-link">{t.nav.ledger}</a>
-      <a href="#api" class="nav-link">{t.nav.api}</a>
-      <a href="#self-host" class="nav-link">{t.nav.selfHost}</a>
+      <a href={`${home}#features`} class="nav-link">{t.nav.features}</a>
+      <a href={`${home}#ledger`} class="nav-link">{t.nav.ledger}</a>
+      <a href={`${home}#api`} class="nav-link">{t.nav.api}</a>
+      <a href={`${home}#self-host`} class="nav-link">{t.nav.selfHost}</a>
       <a href={localizedUrl(locale, "blog")} class="nav-link">{t.nav.blog}</a>
       <a href={localizedUrl(locale, "api")} class="nav-link">{t.nav.docs}</a>
       <a href={repoUrl} class="nav-link inline-flex items-center gap-1.5">

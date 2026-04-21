@@ -17,7 +17,7 @@ const cards = [
       <div>
         <div class="eyebrow mb-3">{t.os.eyebrow}</div>
         <h2 class="section-h2">{t.os.heading}</h2>
-        <p class="text-[var(--muted-foreground)] text-lg leading-relaxed mt-5">{t.os.body}</p>
+        <p class="text-[var(--muted-foreground)] text-lg leading-relaxed mt-5" style="text-wrap: pretty;">{t.os.body}</p>
       </div>
       <div class="grid sm:grid-cols-2 gap-4">
         {cards.map((c) => (

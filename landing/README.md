@@ -22,7 +22,7 @@ npm run preview      # serves dist/ locally
 
 ## Structure
 
-```
+```text
 src/
 ├── assets/                         # SVGs imported by components
 ├── components/                     # one .astro per page section + shared atoms

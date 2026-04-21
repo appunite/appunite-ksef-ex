@@ -9,8 +9,8 @@
    [data-theme="dark"]). Follows OS preference when no
    [data-theme] attr is set.
 
-   The Geist font @import lives in global.css (must precede
-   @import "tailwindcss" to satisfy CSS @import ordering).
+   Geist is loaded via a <link rel="stylesheet"> in Base.astro
+   (see the header note in global.css); no @import here.
    ============================================================ */
 
 :root {

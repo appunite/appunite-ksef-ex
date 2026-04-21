@@ -1,5 +1,6 @@
 ---
 import {
+  getPathWithoutLocale,
   locales,
   localizedUrl,
   defaultLocale,
@@ -34,11 +35,12 @@ const rssUrl = asset(rssPath);
 const site = Astro.site?.toString().replace(/\/$/, "") ?? "";
 const canonical = new URL(Astro.url.pathname, Astro.site).toString();
 
+const currentPath = getPathWithoutLocale(Astro.url);
 const alternates = locales.map((loc) => ({
   hreflang: loc,
-  href: `${site}${localizedUrl(loc)}`,
+  href: `${site}${localizedUrl(loc, currentPath)}`,
 }));
-const xDefault = `${site}${localizedUrl(defaultLocale)}`;
+const xDefault = `${site}${localizedUrl(defaultLocale, currentPath)}`;
 
 const ogLocaleMap: Record<Locale, string> = {
   pl: "pl_PL",

@@ -31,7 +31,8 @@
     "subhead": "Pulls from Poland's KSeF on a schedule, accepts PDFs by inbound email, categorizes with ML, flags duplicates, and hands clean data to your accountant — or to your next dashboard via API. Ship it yourself or let us run it.",
     "ctaSelfHost": "Self-host",
     "ctaGithub": "Star on GitHub",
-    "or": "or"
+    "or": "or",
+    "diagramTitle": "Invoice sources flow into one ledger, then out to consumers."
   },
   "trust": {
     "data": {

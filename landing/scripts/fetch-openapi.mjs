@@ -26,7 +26,7 @@ async function fileExists(path) {
 }
 
 try {
-  const res = await fetch(SPEC_URL);
+  const res = await fetch(SPEC_URL, { signal: AbortSignal.timeout(30_000) });
   if (!res.ok) {
     throw new Error(`HTTP ${res.status} ${res.statusText}`);
   }

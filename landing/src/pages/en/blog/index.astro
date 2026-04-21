@@ -61,9 +61,16 @@ const pageTitle = `${t.blog.heading} — KSeF Hub`;
                     {post.data.title}
                   </a>
                 </h2>
-                <p class="text-[15px] text-[var(--muted-foreground)] leading-relaxed" style="text-wrap: pretty;">
+                <p class="text-[15px] text-[var(--muted-foreground)] leading-relaxed mb-3" style="text-wrap: pretty;">
                   {post.data.description}
                 </p>
+                {post.data.tags.length > 0 && (
+                  <div class="flex flex-wrap gap-1.5 text-[11px] text-[var(--muted-foreground)]">
+                    {post.data.tags.map((tag) => (
+                      <span class="tag-pill">{tag}</span>
+                    ))}
+                  </div>
+                )}
               </div>
             </li>
           ))}

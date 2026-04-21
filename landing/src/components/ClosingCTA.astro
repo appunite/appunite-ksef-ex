@@ -9,7 +9,7 @@ const t = useTranslations(locale);
 <section class="py-24">
   <div class="container-page text-center max-w-[720px] mx-auto">
     <h2 class="section-h2 mb-5">{t.closing.heading}</h2>
-    <p class="text-lg text-[var(--muted-foreground)] mb-8">{t.closing.body}</p>
+    <p class="text-lg text-[var(--muted-foreground)] mb-8" style="text-wrap: pretty;">{t.closing.body}</p>
     <div class="flex flex-wrap gap-3 justify-center">
       <a href={repoUrl} class="btn-primary">
         <GitHubIcon size={14} />

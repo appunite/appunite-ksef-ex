@@ -10,7 +10,7 @@ const docsHref = localizedUrl(locale, "api");
     <div>
       <div class="eyebrow mb-3">{t.api.eyebrow}</div>
       <h2 class="section-h2 mb-5">{t.api.heading}</h2>
-      <p class="text-[var(--muted-foreground)] text-lg leading-relaxed mb-6">{t.api.body}</p>
+      <p class="text-[var(--muted-foreground)] text-lg leading-relaxed mb-6" style="text-wrap: pretty;">{t.api.body}</p>
       <ul class="space-y-3 text-sm">
         {t.api.endpoints.map((ep) => (
           <li class="flex items-start gap-3"><span class="kbd">{ep.method}</span> <span>{ep.label}</span></li>
