@@ -16,7 +16,7 @@ When editing files here, follow this document — not the root `CLAUDE.md`, whic
 - **Tailwind v4** — via `@tailwindcss/vite` plugin; Tailwind imports live in `src/styles/global.css` (`@import "tailwindcss";`). Do not reintroduce a `tailwind.config.js` — v4 uses `@theme` in CSS.
 - **TypeScript** — Astro default, `strict` preset
 - **`@astrojs/sitemap`** — auto-emits sitemap with hreflang alternates
-- **Node 20 LTS** — pinned via `.tool-versions` (nodejs 20.18.1)
+- **Node 24** — pinned via `.tool-versions` (nodejs 24.3.0); needs npm ≥ 10.9 to populate cross-platform `optionalDependencies` in the lockfile (rolldown native bindings, npm/cli#4828)
 - **npm**
 
 ## Directory structure

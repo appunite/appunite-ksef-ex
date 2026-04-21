@@ -2,6 +2,8 @@
 
 Dedicated microservice for Poland's **National e-Invoice System (KSeF)**. Handles the complexity of KSeF integration — certificate authentication, XADES signing, FA(3) XML parsing, invoice sync, ML-based categorization, PDF generation — exposing clean REST APIs and a LiveView admin UI.
 
+**Marketing site:** [appunite.github.io/appunite-ksef-ex](https://appunite.github.io/appunite-ksef-ex/) · [English](https://appunite.github.io/appunite-ksef-ex/en/) — source in [`landing/`](landing/).
+
 ## Why
 
 Embedding KSeF complexity (certificate auth, XADES signing, XML parsing, rate limits, gov.pl stylesheets) into every consumer app is wrong. **KSeF Hub** owns it all in one place and provides simple APIs.

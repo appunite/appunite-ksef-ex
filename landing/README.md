@@ -45,6 +45,7 @@ src/
 │   │   └── rss.xml.ts              # PL RSS feed endpoint
 │   └── en/blog/
 │       ├── index.astro             # EN blog index
+│       ├── [...slug].astro         # EN post template
 │       └── rss.xml.ts              # EN RSS feed endpoint
 └── styles/
     ├── tokens.css                  # design tokens — ported from ../assets/css/app.css
@@ -151,15 +152,16 @@ Feed readers pick this up from any page, not just the blog index.
 - Update the feed URL if you add posts. Posts are discovered via `getCollection("blog")`.
 - Change the locale mapping. The feed already filters by `data.locale` and emits the matching `<language>` tag.
 
-### Known gotcha — local darwin-arm64
+### Known gotcha — rolldown native bindings (npm/cli#4828)
 
-On a fresh clone on an Apple Silicon Mac, `npm install` sometimes fails to pull the right `rolldown` native binding (a known npm optional-deps bug). If you see `Cannot find module '@rolldown/binding-darwin-arm64'`, run:
+Vite 8 (peer of Astro 5.18+) uses rolldown, whose native bindings ship via npm `optionalDependencies`. npm < 10.9 had a bug where only the install host's platform binding was recorded in `package-lock.json`, breaking `npm ci` on other platforms. The checked-in lockfile already includes all 15 platform entries; don't regenerate it on an older npm.
+
+If you see `Cannot find module '@rolldown/binding-<platform>'`:
 
 ```bash
-rm -rf node_modules
+npm --version          # need >= 10.9 (Node 24 ships 11+)
+rm -rf node_modules package-lock.json
 npm install
-# if still broken:
-npm install --no-save @rolldown/binding-darwin-arm64
 ```
 
-CI (Ubuntu) is unaffected — the `linux-x64-gnu` binding resolves cleanly.
+The project pins Node 24 in `.tool-versions` specifically so `npm ci` on CI gets a fix-level npm.
