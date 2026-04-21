@@ -74,6 +74,13 @@ jobs:
             './landing/dist/**/*.html'
           fail: true
 
+      # The symlink above is a self-cycle (dist/appunite-ksef-ex -> .);
+      # upload-pages-artifact follows symlinks when tar'ing dist/, so
+      # leaving it in place would recurse forever. Remove it before
+      # upload so the artifact contains one copy of each file.
+      - name: Clean up link-check symlink
+        run: rm -f dist/appunite-ksef-ex
+
       - name: Upload Pages artifact
         uses: actions/upload-pages-artifact@v3
         with:
