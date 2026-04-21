@@ -1,0 +1,42 @@
+---
+import LogoMark from "./LogoMark.astro";
+import GitHubIcon from "./GitHubIcon.astro";
+import LangSwitcher from "./LangSwitcher.astro";
+import {
+  getLocaleFromUrl,
+  localizedUrl,
+  useTranslations,
+  type Locale,
+} from "../i18n";
+import { repoUrl } from "../config";
+
+interface Props {
+  availableLocales?: readonly Locale[];
+}
+const { availableLocales } = Astro.props;
+
+const locale = getLocaleFromUrl(Astro.url);
+const t = useTranslations(locale);
+const home = localizedUrl(locale);
+---
+<header class="border-b border-[var(--border)] sticky top-0 bg-[var(--background)]/90 backdrop-blur z-50">
+  <div class="container-page flex items-center justify-between h-14">
+    <a href={home} class="flex items-center gap-2 text-[var(--foreground)] no-underline">
+      <LogoMark size={24} />
+      <span class="text-sm font-bold tracking-tight">KSeF<span class="font-normal"> Hub</span></span>
+    </a>
+    <nav class="hidden md:flex items-center gap-6">
+      <a href={`${home}#features`} class="nav-link">{t.nav.features}</a>
+      <a href={`${home}#ledger`} class="nav-link">{t.nav.ledger}</a>
+      <a href={`${home}#api`} class="nav-link">{t.nav.api}</a>
+      <a href={`${home}#self-host`} class="nav-link">{t.nav.selfHost}</a>
+      <a href={localizedUrl(locale, "blog")} class="nav-link">{t.nav.blog}</a>
+      <a href={localizedUrl(locale, "api")} class="nav-link">{t.nav.docs}</a>
+      <a href={repoUrl} class="nav-link inline-flex items-center gap-1.5">
+        <GitHubIcon size={13} />
+        {t.nav.github}
+      </a>
+      <LangSwitcher availableLocales={availableLocales} />
+    </nav>
+  </div>
+</header>

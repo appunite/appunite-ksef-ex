@@ -2,8 +2,14 @@ name: CI
 
 on:
   pull_request:
+    paths-ignore:
+      - 'landing/**'
+      - '.github/workflows/landing.yml'
   push:
     branches: [main]
+    paths-ignore:
+      - 'landing/**'
+      - '.github/workflows/landing.yml'
 
 env:
   MIX_ENV: test

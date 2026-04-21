@@ -1,0 +1,44 @@
+---
+import {
+  getLocaleFromUrl,
+  getPathWithoutLocale,
+  locales,
+  localeLabels,
+  localizedUrl,
+  useTranslations,
+  type Locale,
+} from "../i18n";
+
+interface Props {
+  availableLocales?: readonly Locale[];
+}
+const { availableLocales = locales } = Astro.props;
+
+const current = getLocaleFromUrl(Astro.url);
+const path = getPathWithoutLocale(Astro.url);
+const t = useTranslations(current);
+const visibleLocales = locales.filter((loc) => availableLocales.includes(loc));
+---
+<nav class="flex items-center gap-1 text-xs" aria-label={t.langSwitcher.ariaLabel}>
+  {visibleLocales.map((loc: Locale, i: number) => (
+    <>
+      {i > 0 && <span class="text-[var(--muted-foreground)] opacity-50">·</span>}
+      {loc === current ? (
+        <span
+          class="px-1.5 py-0.5 font-medium text-[var(--foreground)]"
+          aria-current="page"
+        >
+          {localeLabels[loc]}
+        </span>
+      ) : (
+        <a
+          href={localizedUrl(loc, path)}
+          class="nav-link px-1.5 py-0.5"
+          hreflang={loc}
+        >
+          {localeLabels[loc]}
+        </a>
+      )}
+    </>
+  ))}
+</nav>

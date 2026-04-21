@@ -1,0 +1,33 @@
+---
+import { getLocaleFromUrl, useTranslations } from "../i18n";
+
+const locale = getLocaleFromUrl(Astro.url);
+const t = useTranslations(locale);
+
+const cards = [
+  t.os.cards.license,
+  t.os.cards.stack,
+  t.os.cards.selfHost,
+  t.os.cards.community,
+];
+---
+<section class="py-24 border-b border-[var(--border)] bg-[var(--muted)]">
+  <div class="container-page">
+    <div class="grid lg:grid-cols-[1fr_1.2fr] gap-12 items-start">
+      <div>
+        <div class="eyebrow mb-3">{t.os.eyebrow}</div>
+        <h2 class="section-h2">{t.os.heading}</h2>
+        <p class="text-[var(--muted-foreground)] text-lg leading-relaxed mt-5" style="text-wrap: pretty;">{t.os.body}</p>
+      </div>
+      <div class="grid sm:grid-cols-2 gap-4">
+        {cards.map((c) => (
+          <div class="card-flat">
+            <div class="text-xs uppercase tracking-wide text-[var(--muted-foreground)] font-medium mb-1">{c.label}</div>
+            <div class="font-mono text-sm">{c.value}</div>
+            <p class="text-sm text-[var(--muted-foreground)] mt-3 leading-relaxed">{c.body}</p>
+          </div>
+        ))}
+      </div>
+    </div>
+  </div>
+</section>

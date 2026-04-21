@@ -1,0 +1,4 @@
+User-agent: *
+Allow: /
+
+Sitemap: https://appunite.github.io/appunite-ksef-ex/sitemap-index.xml

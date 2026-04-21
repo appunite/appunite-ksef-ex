@@ -1,0 +1,115 @@
+---
+import { getCollection, render, type CollectionEntry } from "astro:content";
+import Base from "../../layouts/Base.astro";
+import Nav from "../../components/Nav.astro";
+import Footer from "../../components/Footer.astro";
+import {
+  getLocaleFromUrl,
+  localizedUrl,
+  useTranslations,
+  type Locale,
+} from "../../i18n";
+
+export async function getStaticPaths() {
+  const allPosts = await getCollection("blog", ({ data }) => !data.draft);
+  const posts = allPosts.filter((p) => p.data.locale === "pl");
+  const slugsByLocale = new Map<string, Set<Locale>>();
+  for (const p of allPosts) {
+    const slug = p.id.split("/").slice(1).join("/");
+    if (!slugsByLocale.has(slug)) slugsByLocale.set(slug, new Set());
+    slugsByLocale.get(slug)!.add(p.data.locale as Locale);
+  }
+  return posts.map((post) => {
+    const slug = post.id.split("/").slice(1).join("/");
+    const available = Array.from(slugsByLocale.get(slug) ?? new Set(["pl"]));
+    return {
+      params: { slug },
+      props: { post, availableLocales: available as readonly Locale[] },
+    };
+  });
+}
+
+interface Props {
+  post: CollectionEntry<"blog">;
+  availableLocales: readonly Locale[];
+}
+
+const { post, availableLocales } = Astro.props;
+const { Content } = await render(post);
+
+const locale = getLocaleFromUrl(Astro.url);
+const t = useTranslations(locale);
+
+const dateFmt = new Intl.DateTimeFormat("pl-PL", {
+  year: "numeric",
+  month: "long",
+  day: "numeric",
+});
+---
+<Base
+  title={`${post.data.title} — KSeF Hub`}
+  description={post.data.description}
+  ogType="article"
+  publishedTime={post.data.publishedAt}
+  modifiedTime={post.data.updatedAt}
+  availableLocales={availableLocales}
+>
+  <Nav availableLocales={availableLocales} />
+  <article class="py-20">
+    <div class="container-page">
+      <div class="mb-10 max-w-[720px]">
+        <a
+          href={localizedUrl(locale, "blog")}
+          class="nav-link text-xs uppercase tracking-wide inline-flex items-center gap-1 mb-6"
+        >
+          ← {t.blog.backToBlog}
+        </a>
+        <h1 class="text-3xl md:text-4xl font-semibold tracking-tight leading-tight mb-5" style="text-wrap: balance; letter-spacing:-0.02em">
+          {post.data.title}
+        </h1>
+        <div class="flex items-center gap-3 text-xs text-[var(--muted-foreground)] font-mono">
+          <time datetime={post.data.publishedAt.toISOString()}>
+            {t.blog.publishedOn}: {dateFmt.format(post.data.publishedAt)}
+          </time>
+          {post.data.updatedAt && (
+            <>
+              <span>·</span>
+              <time datetime={post.data.updatedAt.toISOString()}>
+                {t.blog.updatedOn}: {dateFmt.format(post.data.updatedAt)}
+              </time>
+            </>
+          )}
+          <span>·</span>
+          <span>{post.data.author}</span>
+        </div>
+      </div>
+
+      <div class="prose">
+        <Content />
+      </div>
+
+      {post.data.tags.length > 0 && (
+        <div class="max-w-[680px] mt-14 pt-6 border-t border-[var(--border)] flex flex-wrap gap-1.5 text-[11px] text-[var(--muted-foreground)]">
+          {post.data.tags.map((tag) => (
+            <span class="tag-pill">{tag}</span>
+          ))}
+        </div>
+      )}
+    </div>
+  </article>
+
+  <script type="application/ld+json" is:inline set:html={JSON.stringify({
+    "@context": "https://schema.org",
+    "@type": "BlogPosting",
+    headline: post.data.title,
+    description: post.data.description,
+    datePublished: post.data.publishedAt.toISOString(),
+    ...(post.data.updatedAt ? { dateModified: post.data.updatedAt.toISOString() } : {}),
+    author: { "@type": "Organization", name: post.data.author },
+    inLanguage: post.data.locale,
+    keywords: post.data.tags.join(", "),
+    url: new URL(Astro.url.pathname, Astro.site).toString(),
+  }).replace(/</g, "\\u003c")} />
+
+  <Footer />
+</Base>

@@ -1,0 +1,44 @@
+# Dependabot keeps the landing's npm deps and all GitHub Actions pinned.
+# Elixir/Mix deps for the Phoenix app are tracked separately (not here).
+
+version: 2
+updates:
+  # Landing static site (Astro + Tailwind + plugins)
+  - package-ecosystem: npm
+    directory: /landing
+    schedule:
+      interval: weekly
+      day: monday
+      time: "06:00"
+      timezone: Europe/Warsaw
+    open-pull-requests-limit: 5
+    groups:
+      astro:
+        patterns:
+          - astro
+          - "@astrojs/*"
+      tailwind:
+        patterns:
+          - tailwindcss
+          - "@tailwindcss/*"
+      dev-tooling:
+        dependency-type: development
+    labels:
+      - dependencies
+      - landing
+    commit-message:
+      prefix: "chore(landing)"
+      include: scope
+
+  # GitHub Actions used across .github/workflows/*
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: monthly
+    open-pull-requests-limit: 3
+    labels:
+      - dependencies
+      - ci
+    commit-message:
+      prefix: "chore(ci)"
+      include: scope

@@ -1,0 +1,82 @@
+---
+import { getCollection } from "astro:content";
+import Base from "../../../layouts/Base.astro";
+import Nav from "../../../components/Nav.astro";
+import Footer from "../../../components/Footer.astro";
+import { getLocaleFromUrl, localizedUrl, useTranslations } from "../../../i18n";
+
+const locale = getLocaleFromUrl(Astro.url);
+const t = useTranslations(locale);
+
+const posts = (
+  await getCollection(
+    "blog",
+    ({ data }) => data.locale === "en" && !data.draft,
+  )
+).sort((a, b) => b.data.publishedAt.getTime() - a.data.publishedAt.getTime());
+
+const dateFmt = new Intl.DateTimeFormat("en-US", {
+  year: "numeric",
+  month: "long",
+  day: "numeric",
+});
+
+const slugOf = (id: string) => id.split("/").slice(1).join("/");
+
+const pageTitle = `${t.blog.heading} — KSeF Hub`;
+---
+<Base title={pageTitle} description={t.blog.subhead}>
+  <Nav />
+  <section class="py-24 border-b border-[var(--border)]">
+    <div class="container-page">
+      <div class="max-w-[720px] mb-14">
+        <div class="flex items-center justify-between mb-3">
+          <div class="eyebrow">{t.blog.eyebrow}</div>
+          <a href="rss.xml" class="nav-link text-xs inline-flex items-center gap-1.5" aria-label={t.blog.subscribeRss}>
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M3.75 6.75a.75.75 0 01.75-.75c8.284 0 15 6.716 15 15a.75.75 0 01-1.5 0c0-7.456-6.044-13.5-13.5-13.5a.75.75 0 01-.75-.75zM3 12a.75.75 0 01.75-.75c5.385 0 9.75 4.365 9.75 9.75a.75.75 0 01-1.5 0c0-4.556-3.694-8.25-8.25-8.25A.75.75 0 013 12zm0 6.75a1.5 1.5 0 113 0 1.5 1.5 0 01-3 0z"/></svg>
+            RSS
+          </a>
+        </div>
+        <h1 class="section-h2 mb-4">{t.blog.heading}</h1>
+        <p class="text-[var(--muted-foreground)] text-lg">{t.blog.subhead}</p>
+      </div>
+
+      {posts.length === 0 ? (
+        <p class="text-[var(--muted-foreground)]">{t.blog.emptyState}</p>
+      ) : (
+        <ul class="space-y-10 max-w-[820px] border-t border-[var(--border)] pt-10">
+          {posts.map((post) => (
+            <li class="grid md:grid-cols-[160px_1fr] gap-6 md:gap-10">
+              <div class="text-xs uppercase tracking-wide text-[var(--muted-foreground)] font-mono pt-1">
+                <time datetime={post.data.publishedAt.toISOString()}>
+                  {dateFmt.format(post.data.publishedAt)}
+                </time>
+              </div>
+              <div>
+                <h2 class="text-[19px] font-semibold leading-snug mb-2" style="letter-spacing:-0.01em">
+                  <a
+                    href={localizedUrl(locale, `blog/${slugOf(post.id)}`)}
+                    class="text-[var(--foreground)] no-underline hover:underline"
+                  >
+                    {post.data.title}
+                  </a>
+                </h2>
+                <p class="text-[15px] text-[var(--muted-foreground)] leading-relaxed mb-3" style="text-wrap: pretty;">
+                  {post.data.description}
+                </p>
+                {post.data.tags.length > 0 && (
+                  <div class="flex flex-wrap gap-1.5 text-[11px] text-[var(--muted-foreground)]">
+                    {post.data.tags.map((tag) => (
+                      <span class="tag-pill">{tag}</span>
+                    ))}
+                  </div>
+                )}
+              </div>
+            </li>
+          ))}
+        </ul>
+      )}
+    </div>
+  </section>
+  <Footer />
+</Base>

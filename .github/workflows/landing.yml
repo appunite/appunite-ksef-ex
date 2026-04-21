@@ -1,0 +1,107 @@
+name: Landing
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'landing/**'
+      - '.github/workflows/landing.yml'
+  pull_request:
+    paths:
+      - 'landing/**'
+      - '.github/workflows/landing.yml'
+  workflow_dispatch:
+
+# Default to least-privilege. Deploy job widens to `pages: write`.
+permissions:
+  contents: read
+
+# PR builds cancel prior runs for the same ref (save minutes when pushing in
+# quick succession). The Pages deploy job keeps its own cancel-in-progress=false
+# group so concurrent deploys never trample each other.
+concurrency:
+  group: landing-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+jobs:
+  build:
+    name: Build
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    defaults:
+      run:
+        working-directory: landing
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version-file: landing/.tool-versions
+          cache: npm
+          cache-dependency-path: landing/package-lock.json
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: i18n parity
+        run: npm run test:i18n
+
+      - name: Typecheck
+        run: npm run check
+
+      - name: Build
+        run: npm run build
+
+      # Astro emits absolute paths prefixed with the deploy `base`
+      # (/appunite-ksef-ex/...). Lychee resolves them against --root-dir, which
+      # points at dist/. A self-symlink dist/appunite-ksef-ex -> . makes the
+      # prefix collapse onto dist contents without a dev server.
+      - name: Prepare dist for link check
+        run: ln -sfn . dist/appunite-ksef-ex
+
+      - name: Check links (built HTML, internal + external)
+        uses: lycheeverse/lychee-action@v2
+        with:
+          args: >-
+            --no-progress
+            --max-concurrency 8
+            --accept 200..=299,403,429
+            --exclude-path landing/dist/_astro
+            --root-dir ${{ github.workspace }}/landing/dist
+            --exclude ^https?://appunite\.github\.io/appunite-ksef-ex
+            --exclude ^https?://github\.com/appunite/appunite-ksef-ex/discussions
+            './landing/dist/**/*.html'
+          fail: true
+
+      # The symlink above is a self-cycle (dist/appunite-ksef-ex -> .);
+      # upload-pages-artifact follows symlinks when tar'ing dist/, so
+      # leaving it in place would recurse forever. Remove it before
+      # upload so the artifact contains one copy of each file.
+      - name: Clean up link-check symlink
+        run: rm -f dist/appunite-ksef-ex
+
+      - name: Upload Pages artifact
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: landing/dist
+
+  deploy:
+    name: Deploy
+    needs: [build]
+    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      pages: write
+      id-token: write
+    concurrency:
+      group: pages
+      cancel-in-progress: false
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4

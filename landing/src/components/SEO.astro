@@ -1,0 +1,131 @@
+---
+import {
+  getPathWithoutLocale,
+  locales,
+  localizedUrl,
+  defaultLocale,
+  type Locale,
+} from "../i18n";
+import { repoUrl } from "../config";
+
+interface Props {
+  title: string;
+  description: string;
+  locale: Locale;
+  ogType?: "website" | "article";
+  publishedTime?: Date;
+  modifiedTime?: Date;
+  // Locales where the current page exists. Defaults to all locales (correct
+  // for static pages that exist everywhere). Pages that aren't translated in
+  // every locale — e.g. a blog post published only in PL — must pass the
+  // actual subset so hreflang alternates and og:locale:alternate don't point
+  // at pages that 404.
+  availableLocales?: readonly Locale[];
+}
+const {
+  title,
+  description,
+  locale,
+  ogType = "website",
+  publishedTime,
+  modifiedTime,
+  availableLocales = locales,
+} = Astro.props;
+
+const base = import.meta.env.BASE_URL;
+const asset = (path: string) =>
+  (base.endsWith("/") ? base : `${base}/`) + path.replace(/^\//, "");
+
+const rssPath = locale === defaultLocale ? "blog/rss.xml" : `${locale}/blog/rss.xml`;
+const rssUrl = asset(rssPath);
+
+const site = Astro.site?.toString().replace(/\/$/, "") ?? "";
+const canonical = new URL(Astro.url.pathname, Astro.site).toString();
+
+const currentPath = getPathWithoutLocale(Astro.url);
+const alternates = availableLocales.map((loc) => ({
+  hreflang: loc,
+  href: `${site}${localizedUrl(loc, currentPath)}`,
+}));
+// x-default points to whichever locale the page is actually available in
+// (prefers defaultLocale). Falls back to the current locale if defaultLocale
+// isn't in the availableLocales list.
+const xDefaultLocale = availableLocales.includes(defaultLocale)
+  ? defaultLocale
+  : locale;
+const xDefault = `${site}${localizedUrl(xDefaultLocale, currentPath)}`;
+
+const ogLocaleMap: Record<Locale, string> = {
+  pl: "pl_PL",
+  en: "en_US",
+};
+const ogLocale = ogLocaleMap[locale];
+const ogLocaleAlternates = availableLocales
+  .filter((l) => l !== locale)
+  .map((l) => ogLocaleMap[l]);
+
+// Social preview image. Falls back to the SVG mark until a real 1200x630 PNG
+// is designed (see follow-ups in landing/CLAUDE.md and landing/README.md).
+const socialImage = `${site}${asset("favicon.svg")}`;
+
+const jsonLd: Record<string, unknown>[] = [
+  {
+    "@context": "https://schema.org",
+    "@type": "SoftwareApplication",
+    name: "KSeF Hub",
+    description,
+    applicationCategory: "BusinessApplication",
+    operatingSystem: "Linux, macOS",
+    offers: { "@type": "Offer", price: "0", priceCurrency: "USD" },
+    license: "https://www.gnu.org/licenses/agpl-3.0.html",
+    url: canonical,
+    inLanguage: locale,
+  },
+  {
+    "@context": "https://schema.org",
+    "@type": "Organization",
+    name: "KSeF Hub",
+    url: `${site}${localizedUrl(defaultLocale)}`,
+    logo: socialImage,
+    sameAs: [repoUrl],
+  },
+];
+---
+<title>{title}</title>
+<meta name="description" content={description} />
+<link rel="canonical" href={canonical} />
+
+<link rel="icon" type="image/svg+xml" href={asset("favicon.svg")} />
+<link rel="apple-touch-icon" href={asset("favicon.svg")} />
+<link rel="alternate" type="application/rss+xml" title="KSeF Hub Blog" href={rssUrl} />
+<meta name="theme-color" content="#ffffff" media="(prefers-color-scheme: light)" />
+<meta name="theme-color" content="#24272b" media="(prefers-color-scheme: dark)" />
+
+{alternates.map((a) => (
+  <link rel="alternate" hreflang={a.hreflang} href={a.href} />
+))}
+<link rel="alternate" hreflang="x-default" href={xDefault} />
+
+<meta property="og:type" content={ogType} />
+<meta property="og:title" content={title} />
+<meta property="og:description" content={description} />
+<meta property="og:url" content={canonical} />
+<meta property="og:site_name" content="KSeF Hub" />
+<meta property="og:locale" content={ogLocale} />
+{ogLocaleAlternates.map((alt) => (
+  <meta property="og:locale:alternate" content={alt} />
+))}
+<meta property="og:image" content={socialImage} />
+{publishedTime && (
+  <meta property="article:published_time" content={publishedTime.toISOString()} />
+)}
+{modifiedTime && (
+  <meta property="article:modified_time" content={modifiedTime.toISOString()} />
+)}
+
+<meta name="twitter:card" content="summary_large_image" />
+<meta name="twitter:title" content={title} />
+<meta name="twitter:description" content={description} />
+<meta name="twitter:image" content={socialImage} />
+
+<script type="application/ld+json" is:inline set:html={JSON.stringify(jsonLd)} />

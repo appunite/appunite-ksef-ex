@@ -1,0 +1,76 @@
+---
+import { getLocaleFromUrl, useTranslations } from "../i18n";
+const locale = getLocaleFromUrl(Astro.url);
+const t = useTranslations(locale);
+const diagramTitle = t.hero.diagramTitle;
+---
+<div class="relative">
+  <svg viewBox="0 0 480 360" class="w-full h-auto" role="img" aria-labelledby="hero-diagram-title">
+    <title id="hero-diagram-title">{diagramTitle}</title>
+    <defs>
+      <marker id="arr" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+        <path d="M0 0L10 5L0 10z" fill="var(--border)" />
+      </marker>
+    </defs>
+
+    <g font-family="var(--font-mono)" font-size="11" fill="var(--muted-foreground)">
+      <rect x="8" y="30" width="128" height="30" rx="6" fill="var(--card)" stroke="var(--border)" />
+      <text x="22" y="50">KSeF</text>
+      <circle cx="122" cy="45" r="3" fill="var(--brand)" />
+
+      <rect x="8" y="74" width="128" height="30" rx="6" fill="var(--card)" stroke="var(--border)" />
+      <text x="22" y="94">inbound email</text>
+
+      <rect x="8" y="118" width="128" height="30" rx="6" fill="var(--card)" stroke="var(--border)" />
+      <text x="22" y="138">PDF + OCR</text>
+
+      <rect x="8" y="162" width="128" height="30" rx="6" fill="var(--card)" stroke="var(--border)" />
+      <text x="22" y="182">foreign / manual</text>
+    </g>
+
+    <g stroke="var(--border)" stroke-width="1" fill="none" marker-end="url(#arr)">
+      <path d="M136 45 Q 180 45 200 160" />
+      <path d="M136 89 Q 180 110 205 168" />
+      <path d="M136 133 Q 180 140 210 170" />
+      <path d="M136 177 Q 180 180 210 178" />
+    </g>
+
+    <g transform="translate(220 120)">
+      <rect x="0" y="0" width="80" height="120" rx="12" fill="var(--card)" stroke="var(--border)" />
+      <g fill="color-mix(in oklch, var(--foreground) 18%, transparent)">
+        <circle cx="18" cy="22" r="2.2" /><circle cx="40" cy="22" r="2.2" /><circle cx="62" cy="22" r="2.2" />
+        <circle cx="18" cy="60" r="2.2" /><circle cx="62" cy="60" r="2.2" />
+        <circle cx="18" cy="98" r="2.2" /><circle cx="40" cy="98" r="2.2" /><circle cx="62" cy="98" r="2.2" />
+      </g>
+      <circle cx="40" cy="60" r="4.5" fill="var(--brand)" />
+      <g stroke="var(--brand)" stroke-width="2" stroke-linecap="round">
+        <line x1="40" y1="55" x2="40" y2="27" />
+        <line x1="45" y1="60" x2="58" y2="60" />
+        <line x1="40" y1="65" x2="40" y2="93" />
+        <line x1="35" y1="60" x2="22" y2="60" />
+      </g>
+      <text x="40" y="146" text-anchor="middle" font-family="var(--font-mono)" font-size="10" fill="var(--muted-foreground)">ledger</text>
+    </g>
+
+    <g stroke="var(--border)" stroke-width="1" fill="none" marker-end="url(#arr)">
+      <path d="M300 150 Q 340 50 350 45" />
+      <path d="M300 170 Q 340 95 350 89" />
+      <path d="M300 190 Q 340 140 350 133" />
+      <path d="M300 200 Q 340 180 350 177" />
+    </g>
+
+    <g font-family="var(--font-mono)" font-size="11" fill="var(--muted-foreground)">
+      <rect x="350" y="30" width="128" height="30" rx="6" fill="var(--card)" stroke="var(--border)" />
+      <text x="362" y="50">accountant export</text>
+
+      <rect x="350" y="74" width="128" height="30" rx="6" fill="var(--card)" stroke="var(--border)" />
+      <text x="362" y="94">REST API</text>
+
+      <rect x="350" y="118" width="128" height="30" rx="6" fill="var(--card)" stroke="var(--border)" />
+      <text x="362" y="138">payment transfers</text>
+
+      <rect x="350" y="162" width="128" height="30" rx="6" fill="var(--card)" stroke="var(--border)" />
+      <text x="362" y="182">BI / dashboards</text>
+    </g>
+  </svg>
+</div>

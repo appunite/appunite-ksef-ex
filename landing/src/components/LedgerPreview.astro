@@ -1,0 +1,126 @@
+---
+import { getLocaleFromUrl, useTranslations } from "../i18n";
+
+const locale = getLocaleFromUrl(Astro.url);
+const t = useTranslations(locale);
+
+// Rows are illustrative; numbers/vendors are intentionally static across
+// locales so the table reads the same visually. Only the status cell is
+// translated via `t.ledger.statuses`.
+const rows = [
+  {
+    number: "FV/2026/04/118",
+    seller: "Orange Polska",
+    date: "18 Apr",
+    gross: "1,427.00",
+    net: "1,160.16",
+    statusKey: "approved" as const,
+    sourceColor: "var(--brand)",
+    statusColor: "var(--success)",
+  },
+  {
+    number: "inv-ff3d1b",
+    seller: "Cloudflare Inc.",
+    date: "17 Apr",
+    gross: "820.00",
+    net: "820.00",
+    statusKey: "pending" as const,
+    sourceColor: "#6b9bff",
+    statusColor: "var(--info)",
+  },
+  {
+    number: "2026-04-17-002",
+    seller: "Grupa Maspex",
+    date: "17 Apr",
+    gross: "314.00",
+    net: "255.28",
+    statusKey: "duplicate" as const,
+    sourceColor: "#f59e0b",
+    statusColor: "var(--warning)",
+  },
+  {
+    number: "FV/2026/04/071",
+    seller: "Linear, Inc.",
+    date: "14 Apr",
+    gross: "960.00",
+    net: "780.49",
+    statusKey: "approved" as const,
+    sourceColor: "var(--brand)",
+    statusColor: "var(--success)",
+  },
+  {
+    number: "API-2026-0042",
+    seller: "Stripe Payments",
+    date: "12 Apr",
+    gross: "42.00",
+    net: "42.00",
+    statusKey: "excluded" as const,
+    sourceColor: "#a78bfa",
+    statusColor: "var(--muted-foreground)",
+  },
+];
+
+const legend = [
+  { label: t.ledger.sources.ksef, color: "var(--brand)" },
+  { label: t.ledger.sources.email, color: "#6b9bff" },
+  { label: t.ledger.sources.pdf, color: "#f59e0b" },
+  { label: t.ledger.sources.api, color: "#a78bfa" },
+];
+---
+<section id="ledger" class="py-24 border-b border-[var(--border)]">
+  <div class="container-page grid lg:grid-cols-[1fr_1.2fr] gap-12 items-start">
+    <div>
+      <div class="eyebrow mb-3">{t.ledger.eyebrow}</div>
+      <h2 class="section-h2 mb-5">{t.ledger.heading}</h2>
+      <p class="text-[var(--muted-foreground)] text-lg leading-relaxed mb-6">{t.ledger.body}</p>
+      <ul class="space-y-3 text-sm">
+        {t.ledger.bullets.map((b) => (
+          <li class="flex items-start gap-3">
+            <span class="feat-icon" style="width:28px;height:28px">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M20 6L9 17l-5-5"/></svg>
+            </span>
+            <span>{b}</span>
+          </li>
+        ))}
+      </ul>
+    </div>
+
+    <div class="card-flat p-0 overflow-hidden">
+      <div class="px-4 py-2.5 border-b border-[var(--border)] flex items-center gap-3 text-xs text-[var(--muted-foreground)]">
+        <span class="font-mono">{t.ledger.tableTitle}</span>
+        <span class="ml-auto">{t.ledger.rowCount}</span>
+      </div>
+      <table class="w-full text-[12.5px]">
+        <thead>
+          <tr class="text-[10px] uppercase tracking-wider text-[var(--muted-foreground)] border-b border-[var(--border)]">
+            <th class="text-left font-medium py-2.5 pl-4">{t.ledger.cols.number}</th>
+            <th class="text-left font-medium py-2.5">{t.ledger.cols.seller}</th>
+            <th class="text-left font-medium py-2.5">{t.ledger.cols.date}</th>
+            <th class="text-right font-medium py-2.5 pr-4">{t.ledger.cols.amount}</th>
+            <th class="text-left font-medium py-2.5">{t.ledger.cols.status}</th>
+          </tr>
+        </thead>
+        <tbody class="font-mono">
+          {rows.map((row, i) => (
+            <tr class={i < rows.length - 1 ? "border-b border-[var(--border)]" : ""}>
+              <td class="py-2 pl-4 flex items-center gap-2">
+                <span class="w-1.5 h-1.5 rounded-full" style={`background:${row.sourceColor}`}></span>{row.number}
+              </td>
+              <td>{row.seller}</td>
+              <td>{row.date}</td>
+              <td class="text-right pr-4">{row.gross} <span class="text-[var(--muted-foreground)] text-[10px]">/ {row.net}</span></td>
+              <td><span style={`color:${row.statusColor}`}>{t.ledger.statuses[row.statusKey]}</span></td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+      <div class="px-4 py-2 border-t border-[var(--border)] flex items-center gap-3 text-[11px] text-[var(--muted-foreground)] font-mono">
+        {legend.map((l) => (
+          <span class="inline-flex items-center gap-1.5">
+            <span class="w-1.5 h-1.5 rounded-full" style={`background:${l.color}`}></span>{l.label}
+          </span>
+        ))}
+      </div>
+    </div>
+  </div>
+</section>

@@ -1,0 +1,38 @@
+---
+import { getLocaleFromUrl, useTranslations } from "../i18n";
+
+const locale = getLocaleFromUrl(Astro.url);
+const t = useTranslations(locale);
+
+const items = [
+  {
+    icon: `<path d="M12 2l8 4v6c0 5-3.5 8.5-8 10-4.5-1.5-8-5-8-10V6z"/>`,
+    copy: t.trust.data,
+  },
+  {
+    icon: `<rect x="3" y="4" width="18" height="16" rx="2"/><path d="M3 10h18"/>`,
+    copy: t.trust.multi,
+  },
+  {
+    icon: `<path d="M4 12h16M4 6h16M4 18h10"/>`,
+    copy: t.trust.audit,
+  },
+  {
+    icon: `<path d="M8 2v4M16 2v4M3 10h18"/><rect x="3" y="6" width="18" height="16" rx="2"/>`,
+    copy: t.trust.sync,
+  },
+];
+---
+<div class="mt-16 grid md:grid-cols-4 gap-6 text-sm">
+  {items.map((item) => (
+    <div class="flex items-start gap-3">
+      <div class="feat-icon">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" set:html={item.icon} />
+      </div>
+      <div>
+        <div class="font-medium">{item.copy.title}</div>
+        <div class="text-[var(--muted-foreground)] text-[13px] leading-relaxed" style="text-wrap: pretty;">{item.copy.body}</div>
+      </div>
+    </div>
+  ))}
+</div>

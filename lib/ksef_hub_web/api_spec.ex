@@ -36,7 +36,7 @@ defmodule KsefHubWeb.ApiSpec do
   @spec info() :: Info.t()
   defp info do
     %Info{
-      title: "Invoi API",
+      title: "KSeF Hub API",
       version: "1.0.0",
       description: """
       REST API for Poland's National e-Invoice System (KSeF).

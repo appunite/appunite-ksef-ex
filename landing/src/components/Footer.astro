@@ -1,0 +1,57 @@
+---
+import LogoMark from "./LogoMark.astro";
+import { getLocaleFromUrl, localizedUrl, useTranslations } from "../i18n";
+import { contactEmail, contactMailto } from "../config";
+
+const locale = getLocaleFromUrl(Astro.url);
+const t = useTranslations(locale);
+
+// Hrefs starting with "/" are internal routes — resolve through localizedUrl
+// so the deploy `base` + locale prefix are applied consistently. Everything
+// else (hash anchors, http(s), mailto:) is used verbatim.
+function resolveHref(href: string): string {
+  if (href.startsWith("/") && !href.startsWith("//")) {
+    return localizedUrl(locale, href.slice(1));
+  }
+  return href;
+}
+
+const cols = [
+  t.footer.cols.product,
+  t.footer.cols.devs,
+  t.footer.cols.community,
+];
+---
+<footer class="border-t border-[var(--border)] py-12">
+  <div class="container-page flex flex-col md:flex-row gap-8 justify-between">
+    <div class="max-w-[320px]">
+      <div class="flex items-center gap-2 mb-3">
+        <LogoMark size={20} withSpokes={false} />
+        <span class="text-sm font-bold">KSeF Hub</span>
+      </div>
+      <p class="text-sm text-[var(--muted-foreground)] leading-relaxed">{t.footer.tagline}</p>
+      <p class="text-sm text-[var(--muted-foreground)] mt-3">
+        {t.footer.contactLabel}:
+        <a href={contactMailto} class="underline underline-offset-4 hover:text-[var(--foreground)]">{contactEmail}</a>
+      </p>
+    </div>
+    <div class="grid grid-cols-2 md:grid-cols-3 gap-8 text-sm">
+      {cols.map((col) => (
+        <div>
+          <div class="text-[11px] uppercase tracking-wide text-[var(--muted-foreground)] font-semibold mb-3">{col.heading}</div>
+          <ul class="space-y-2">
+            {col.links.map((link) => (
+              <li><a href={resolveHref(link.href)} class="nav-link">{link.label}</a></li>
+            ))}
+          </ul>
+        </div>
+      ))}
+    </div>
+  </div>
+  <div class="container-page mt-10 pt-6 border-t border-[var(--border)] flex flex-col md:flex-row gap-3 justify-between text-xs text-[var(--muted-foreground)]">
+    <div>{t.footer.copyright}</div>
+    <div class="flex items-center gap-4">
+      <span>{t.footer.license}</span>
+    </div>
+  </div>
+</footer>

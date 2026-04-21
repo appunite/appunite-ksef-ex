@@ -1,0 +1,60 @@
+---
+import "../styles/global.css";
+import SEO from "../components/SEO.astro";
+import {
+  getLocaleFromUrl,
+  localeHtmlLang,
+  useTranslations,
+  type Locale,
+} from "../i18n";
+
+interface Props {
+  title?: string;
+  description?: string;
+  ogType?: "website" | "article";
+  publishedTime?: Date;
+  modifiedTime?: Date;
+  availableLocales?: readonly Locale[];
+}
+
+const {
+  title,
+  description,
+  ogType = "website",
+  publishedTime,
+  modifiedTime,
+  availableLocales,
+} = Astro.props;
+
+const locale = getLocaleFromUrl(Astro.url);
+const t = useTranslations(locale);
+const resolvedTitle = title ?? t.seo.title;
+const resolvedDescription = description ?? t.seo.description;
+---
+<!doctype html>
+<html lang={localeHtmlLang[locale]}>
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      rel="stylesheet"
+      href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700&family=Geist+Mono:wght@400;500&display=swap"
+    />
+
+    <SEO
+      title={resolvedTitle}
+      description={resolvedDescription}
+      locale={locale}
+      ogType={ogType}
+      publishedTime={publishedTime}
+      modifiedTime={modifiedTime}
+      availableLocales={availableLocales}
+    />
+  </head>
+  <body>
+    <slot />
+  </body>
+</html>

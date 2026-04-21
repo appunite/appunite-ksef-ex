@@ -3,7 +3,8 @@
        docker.build docker.run docker.up docker.down \
        db.setup db.migrate db.reset db.rollback \
        deploy \
-       models.upload models.restart models.train
+       models.upload models.restart models.train \
+       landing.install landing.dev landing.build landing.preview landing.check
 
 APP_NAME := ksef-hub
 DOCKER_TAG := $(APP_NAME):latest
@@ -119,4 +120,24 @@ models.train: ## Show instructions for training new models
 	@echo "     make models.upload models.restart"
 	@echo "  5. Commit updated models:"
 	@echo "     git add ml-models/ && git commit -m 'chore: update ML models'"
+
+# --- Landing ---
+# Thin dispatchers for the standalone Astro project in ./landing.
+# The landing is deliberately decoupled from Phoenix; these targets exist for
+# discoverability only, they do not link the two builds.
+
+landing.install: ## Install landing deps (clean install, lockfile-pinned)
+	cd landing && npm ci
+
+landing.dev: ## Start landing dev server (http://localhost:4321/appunite-ksef-ex/)
+	cd landing && npm run dev
+
+landing.build: ## Build landing to landing/dist/
+	cd landing && npm run build
+
+landing.preview: ## Serve the built landing locally
+	cd landing && npm run preview
+
+landing.check: ## Run landing quality gates (i18n parity + typecheck). Mirrors CI.
+	cd landing && npm run test:i18n && npm run check
 

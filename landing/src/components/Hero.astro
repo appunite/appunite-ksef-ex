@@ -1,0 +1,45 @@
+---
+import GitHubIcon from "./GitHubIcon.astro";
+import HeroDiagram from "./HeroDiagram.astro";
+import TrustStrip from "./TrustStrip.astro";
+import { getLocaleFromUrl, useTranslations } from "../i18n";
+import { repoUrl } from "../config";
+
+const locale = getLocaleFromUrl(Astro.url);
+const t = useTranslations(locale);
+---
+<section class="hero-bg border-b border-[var(--border)]">
+  <div class="container-page py-24 md:py-32">
+    <div class="grid lg:grid-cols-[1.1fr_1fr] gap-12 items-center">
+      <div>
+        <div class="flex items-center gap-2 mb-5">
+          <span class="tag-pill"><span class="dot"></span> {t.hero.pillOpenSource}</span>
+          <span class="tag-pill">{t.hero.pillSelfHost}</span>
+        </div>
+        <h1 class="hero-h1 mb-6">{t.hero.titleLine1}<br />{t.hero.titleLine2}</h1>
+        <p class="text-lg text-[var(--muted-foreground)] leading-relaxed mb-8 max-w-[580px]" style="text-wrap: pretty;">
+          {t.hero.subhead}
+        </p>
+        <div class="flex flex-wrap gap-3">
+          <a href="#self-host" class="btn-primary">
+            {t.hero.ctaSelfHost}
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M13 6l6 6-6 6"/></svg>
+          </a>
+          <a href={repoUrl} class="btn-ghost border border-[var(--border)]">
+            <GitHubIcon size={14} />
+            {t.hero.ctaGithub}
+          </a>
+        </div>
+        <div class="mt-7 flex items-center gap-3 text-xs text-[var(--muted-foreground)] font-mono">
+          <span class="kbd">docker compose up</span>
+          <span>{t.hero.or}</span>
+          <span class="kbd">mix release</span>
+        </div>
+      </div>
+
+      <HeroDiagram />
+    </div>
+
+    <TrustStrip />
+  </div>
+</section>
