@@ -53,6 +53,13 @@ jobs:
       - name: Build
         run: npm run build
 
+      # Astro emits absolute paths prefixed with the deploy `base`
+      # (/appunite-ksef-ex/...). Lychee resolves them against --root-dir, which
+      # points at dist/. A self-symlink dist/appunite-ksef-ex -> . makes the
+      # prefix collapse onto dist contents without a dev server.
+      - name: Prepare dist for link check
+        run: ln -sfn . landing/dist/appunite-ksef-ex
+
       - name: Check links (built HTML, internal + external)
         uses: lycheeverse/lychee-action@v2
         with:
@@ -61,6 +68,9 @@ jobs:
             --max-concurrency 8
             --accept 200..=299,403,429
             --exclude-path landing/dist/_astro
+            --root-dir ${{ github.workspace }}/landing/dist
+            --exclude ^https?://appunite\.github\.io/appunite-ksef-ex
+            --exclude ^https?://github\.com/appunite/appunite-ksef-ex/discussions
             './landing/dist/**/*.html'
           fail: true
 

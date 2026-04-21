@@ -3,24 +3,38 @@ import { getCollection, render, type CollectionEntry } from "astro:content";
 import Base from "../../layouts/Base.astro";
 import Nav from "../../components/Nav.astro";
 import Footer from "../../components/Footer.astro";
-import { getLocaleFromUrl, localizedUrl, useTranslations } from "../../i18n";
+import {
+  getLocaleFromUrl,
+  localizedUrl,
+  useTranslations,
+  type Locale,
+} from "../../i18n";
 
 export async function getStaticPaths() {
-  const posts = await getCollection(
-    "blog",
-    ({ data }) => data.locale === "pl" && !data.draft,
-  );
-  return posts.map((post) => ({
-    params: { slug: post.id.split("/").slice(1).join("/") },
-    props: { post },
-  }));
+  const allPosts = await getCollection("blog", ({ data }) => !data.draft);
+  const posts = allPosts.filter((p) => p.data.locale === "pl");
+  const slugsByLocale = new Map<string, Set<Locale>>();
+  for (const p of allPosts) {
+    const slug = p.id.split("/").slice(1).join("/");
+    if (!slugsByLocale.has(slug)) slugsByLocale.set(slug, new Set());
+    slugsByLocale.get(slug)!.add(p.data.locale as Locale);
+  }
+  return posts.map((post) => {
+    const slug = post.id.split("/").slice(1).join("/");
+    const available = Array.from(slugsByLocale.get(slug) ?? new Set(["pl"]));
+    return {
+      params: { slug },
+      props: { post, availableLocales: available as readonly Locale[] },
+    };
+  });
 }
 
 interface Props {
   post: CollectionEntry<"blog">;
+  availableLocales: readonly Locale[];
 }
 
-const { post } = Astro.props;
+const { post, availableLocales } = Astro.props;
 const { Content } = await render(post);
 
 const locale = getLocaleFromUrl(Astro.url);
@@ -38,8 +52,9 @@ const dateFmt = new Intl.DateTimeFormat("pl-PL", {
   ogType="article"
   publishedTime={post.data.publishedAt}
   modifiedTime={post.data.updatedAt}
+  availableLocales={availableLocales}
 >
-  <Nav />
+  <Nav availableLocales={availableLocales} />
   <article class="py-20">
     <div class="container-page">
       <div class="mb-10 max-w-[720px]">
@@ -94,7 +109,7 @@ const dateFmt = new Intl.DateTimeFormat("pl-PL", {
     inLanguage: post.data.locale,
     keywords: post.data.tags.join(", "),
     url: new URL(Astro.url.pathname, Astro.site).toString(),
-  })} />
+  }).replace(/</g, "\\u003c")} />
 
   <Footer />
 </Base>

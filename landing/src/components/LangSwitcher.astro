@@ -9,12 +9,18 @@ import {
   type Locale,
 } from "../i18n";
 
+interface Props {
+  availableLocales?: readonly Locale[];
+}
+const { availableLocales = locales } = Astro.props;
+
 const current = getLocaleFromUrl(Astro.url);
 const path = getPathWithoutLocale(Astro.url);
 const t = useTranslations(current);
+const visibleLocales = locales.filter((loc) => availableLocales.includes(loc));
 ---
 <nav class="flex items-center gap-1 text-xs" aria-label={t.langSwitcher.ariaLabel}>
-  {locales.map((loc: Locale, i: number) => (
+  {visibleLocales.map((loc: Locale, i: number) => (
     <>
       {i > 0 && <span class="text-[var(--muted-foreground)] opacity-50">·</span>}
       {loc === current ? (

@@ -15,6 +15,12 @@ interface Props {
   ogType?: "website" | "article";
   publishedTime?: Date;
   modifiedTime?: Date;
+  // Locales where the current page exists. Defaults to all locales (correct
+  // for static pages that exist everywhere). Pages that aren't translated in
+  // every locale — e.g. a blog post published only in PL — must pass the
+  // actual subset so hreflang alternates and og:locale:alternate don't point
+  // at pages that 404.
+  availableLocales?: readonly Locale[];
 }
 const {
   title,
@@ -23,6 +29,7 @@ const {
   ogType = "website",
   publishedTime,
   modifiedTime,
+  availableLocales = locales,
 } = Astro.props;
 
 const base = import.meta.env.BASE_URL;
@@ -36,18 +43,24 @@ const site = Astro.site?.toString().replace(/\/$/, "") ?? "";
 const canonical = new URL(Astro.url.pathname, Astro.site).toString();
 
 const currentPath = getPathWithoutLocale(Astro.url);
-const alternates = locales.map((loc) => ({
+const alternates = availableLocales.map((loc) => ({
   hreflang: loc,
   href: `${site}${localizedUrl(loc, currentPath)}`,
 }));
-const xDefault = `${site}${localizedUrl(defaultLocale, currentPath)}`;
+// x-default points to whichever locale the page is actually available in
+// (prefers defaultLocale). Falls back to the current locale if defaultLocale
+// isn't in the availableLocales list.
+const xDefaultLocale = availableLocales.includes(defaultLocale)
+  ? defaultLocale
+  : locale;
+const xDefault = `${site}${localizedUrl(xDefaultLocale, currentPath)}`;
 
 const ogLocaleMap: Record<Locale, string> = {
   pl: "pl_PL",
   en: "en_US",
 };
 const ogLocale = ogLocaleMap[locale];
-const ogLocaleAlternates = locales
+const ogLocaleAlternates = availableLocales
   .filter((l) => l !== locale)
   .map((l) => ogLocaleMap[l]);
 

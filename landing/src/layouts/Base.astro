@@ -5,6 +5,7 @@ import {
   getLocaleFromUrl,
   localeHtmlLang,
   useTranslations,
+  type Locale,
 } from "../i18n";
 
 interface Props {
@@ -13,6 +14,7 @@ interface Props {
   ogType?: "website" | "article";
   publishedTime?: Date;
   modifiedTime?: Date;
+  availableLocales?: readonly Locale[];
 }
 
 const {
@@ -21,6 +23,7 @@ const {
   ogType = "website",
   publishedTime,
   modifiedTime,
+  availableLocales,
 } = Astro.props;
 
 const locale = getLocaleFromUrl(Astro.url);
@@ -48,6 +51,7 @@ const resolvedDescription = description ?? t.seo.description;
       ogType={ogType}
       publishedTime={publishedTime}
       modifiedTime={modifiedTime}
+      availableLocales={availableLocales}
     />
   </head>
   <body>

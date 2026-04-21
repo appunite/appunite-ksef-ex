@@ -2,8 +2,18 @@
 import LogoMark from "./LogoMark.astro";
 import GitHubIcon from "./GitHubIcon.astro";
 import LangSwitcher from "./LangSwitcher.astro";
-import { getLocaleFromUrl, localizedUrl, useTranslations } from "../i18n";
+import {
+  getLocaleFromUrl,
+  localizedUrl,
+  useTranslations,
+  type Locale,
+} from "../i18n";
 import { repoUrl } from "../config";
+
+interface Props {
+  availableLocales?: readonly Locale[];
+}
+const { availableLocales } = Astro.props;
 
 const locale = getLocaleFromUrl(Astro.url);
 const t = useTranslations(locale);
@@ -26,7 +36,7 @@ const home = localizedUrl(locale);
         <GitHubIcon size={13} />
         {t.nav.github}
       </a>
-      <LangSwitcher />
+      <LangSwitcher availableLocales={availableLocales} />
     </nav>
   </div>
 </header>
