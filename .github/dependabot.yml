@@ -29,6 +29,17 @@ updates:
       # this entry once the Astro tooling publishes a TS 6-compatible release.
       - dependency-name: typescript
         update-types: ["version-update:semver-major"]
+      # Astro 6 ships a newer Vite (rolldown-vite) whose plugin-config shape
+      # (BindingViteResolvePluginConfig.resolveOptions now requires
+      # tsconfigPaths) breaks @tailwindcss/vite@4.2.3 at build time — the
+      # tailwind + astro groups bump independently, so a lone astro major
+      # has no way to succeed until the tailwind Vite plugin catches up.
+      # Re-enable by removing this entry once @tailwindcss/vite releases a
+      # version compatible with Astro 6's Vite.
+      - dependency-name: astro
+        update-types: ["version-update:semver-major"]
+      - dependency-name: "@astrojs/*"
+        update-types: ["version-update:semver-major"]
     labels:
       - dependencies
       - landing
