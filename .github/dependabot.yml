@@ -23,6 +23,12 @@ updates:
           - "@tailwindcss/*"
       dev-tooling:
         dependency-type: development
+    ignore:
+      # TypeScript 6 is blocked until @astrojs/check / @astrojs/language-server
+      # widens its peer range (currently typescript@^5). Re-enable by removing
+      # this entry once the Astro tooling publishes a TS 6-compatible release.
+      - dependency-name: typescript
+        update-types: ["version-update:semver-major"]
     labels:
       - dependencies
       - landing
