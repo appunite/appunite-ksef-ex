@@ -58,7 +58,7 @@ jobs:
       # points at dist/. A self-symlink dist/appunite-ksef-ex -> . makes the
       # prefix collapse onto dist contents without a dev server.
       - name: Prepare dist for link check
-        run: ln -sfn . landing/dist/appunite-ksef-ex
+        run: ln -sfn . dist/appunite-ksef-ex
 
       - name: Check links (built HTML, internal + external)
         uses: lycheeverse/lychee-action@v2
