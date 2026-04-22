@@ -37,33 +37,42 @@ ALLOCATIONS = {
 TOTAL_CPU = sum(a["cpu"] for a in ALLOCATIONS.values())
 TOTAL_MEM_MB = sum(a["mem_mb"] for a in ALLOCATIONS.values())
 
-# Cloud Run gen2 pricing (europe-west1, request-based, as of 2026)
+# Cloud Run gen2 pricing (europe-west1, request-based)
+# Source: https://cloud.google.com/run/pricing (retrieved 2026-04-22)
 VCPU_PER_SEC = 0.00002400
 MEM_PER_GIB_SEC = 0.00000250
 
 CONTAINER_ORDER = ["ksef-hub", "invoice-extractor", "invoice-classifier", "pdf-renderer"]
 
 
+def _run_gcloud(args):
+    """Run a gcloud command, raising a clear error if gcloud is missing."""
+    try:
+        return subprocess.run(
+            ["gcloud", *args],
+            capture_output=True, text=True, check=True,
+        )
+    except FileNotFoundError:
+        print("Error: gcloud CLI not found in PATH.", file=sys.stderr)
+        print("Install it from https://cloud.google.com/sdk/docs/install", file=sys.stderr)
+        sys.exit(1)
+    except subprocess.CalledProcessError as e:
+        print(f"Error running gcloud {' '.join(args)}:", file=sys.stderr)
+        print(e.stderr.strip(), file=sys.stderr)
+        sys.exit(1)
+
+
 def ensure_project():
     """Set gcloud project to PROJECT_ID if not already active."""
-    result = subprocess.run(
-        ["gcloud", "config", "get-value", "project"],
-        capture_output=True, text=True,
-    )
+    result = _run_gcloud(["config", "get-value", "project"])
     current = result.stdout.strip()
     if current != PROJECT_ID:
         print(f"Switching gcloud project: {current} -> {PROJECT_ID}")
-        subprocess.run(
-            ["gcloud", "config", "set", "project", PROJECT_ID],
-            capture_output=True, text=True, check=True,
-        )
+        _run_gcloud(["config", "set", "project", PROJECT_ID])
 
 
 def get_token():
-    result = subprocess.run(
-        ["gcloud", "auth", "print-access-token"],
-        capture_output=True, text=True, check=True,
-    )
+    result = _run_gcloud(["auth", "print-access-token"])
     return result.stdout.strip()
 
 
@@ -83,10 +92,19 @@ def query_monitoring(token, metric_type, aligner, reducer=None, group_by=None, a
 
     url = f"{BASE_URL}?{urllib.parse.urlencode(params)}"
     resp = subprocess.run(
-        ["curl", "-s", "-H", f"Authorization: Bearer {token}", url],
+        ["curl", "-s", "-f", "-H", f"Authorization: Bearer {token}", url],
         capture_output=True, text=True,
     )
-    return json.loads(resp.stdout)
+    if resp.returncode != 0:
+        print(f"Error fetching {metric_type}: curl exited {resp.returncode}", file=sys.stderr)
+        print(f"  stderr: {resp.stderr.strip()}", file=sys.stderr)
+        return {}
+    try:
+        return json.loads(resp.stdout)
+    except json.JSONDecodeError:
+        print(f"Error parsing response for {metric_type}:", file=sys.stderr)
+        print(f"  body: {resp.stdout[:200]}", file=sys.stderr)
+        return {}
 
 
 def extract_values(data, label_key=None):
@@ -127,7 +145,12 @@ def fetch_memory(token, start, end):
 
 
 def fetch_cpu_aggregate(token, start, end):
-    """CPU utilization (aggregate, all containers) at p50 and p99."""
+    """CPU utilization (aggregate, all containers) at p50 and p99.
+
+    The utilizations metric has no container_name label, so it returns a single
+    aggregated series. We concatenate all series values defensively in case the
+    API ever returns multiple series (e.g. across revisions).
+    """
     cpu = {}
     for pct_name, aligner in [("p50", "ALIGN_PERCENTILE_50"), ("p99", "ALIGN_PERCENTILE_99")]:
         data = query_monitoring(
@@ -137,9 +160,12 @@ def fetch_cpu_aggregate(token, start, end):
             reducer="REDUCE_MAX",
             start=start, end=end,
         )
+        all_values = []
         for _, values in extract_values(data).items():
-            cpu[f"{pct_name}_avg"] = sum(values) / len(values)
-            cpu[f"{pct_name}_max"] = max(values)
+            all_values.extend(values)
+        if all_values:
+            cpu[f"{pct_name}_avg"] = sum(all_values) / len(all_values)
+            cpu[f"{pct_name}_max"] = max(all_values)
     return cpu
 
 
