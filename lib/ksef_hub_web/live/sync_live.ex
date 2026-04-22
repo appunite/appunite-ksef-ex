@@ -39,15 +39,12 @@ defmodule KsefHubWeb.SyncLive do
 
   def handle_info({:sync_running_changed, running?}, socket) do
     socket = SyncStatusLive.handle_running_changed(socket, running?)
-
-    # When a sync starts elsewhere, surface the new "executing" row immediately.
-    if running? do
-      company = socket.assigns.current_company
-      jobs = if company, do: History.list_sync_jobs(company.id), else: []
-      {:noreply, socket |> assign(jobs_count: length(jobs)) |> stream(:jobs, jobs, reset: true)}
-    else
-      {:noreply, socket}
-    end
+    # Refresh on both edges: a start surfaces the new "executing" row; a stop
+    # replaces it with the terminal state (completed/retryable/discarded),
+    # which matters when the sync failed and no :sync_completed broadcast fires.
+    company = socket.assigns.current_company
+    jobs = if company, do: History.list_sync_jobs(company.id), else: []
+    {:noreply, socket |> assign(jobs_count: length(jobs)) |> stream(:jobs, jobs, reset: true)}
   end
 
   @doc "Handles manual sync trigger with nil company guard and full error handling."
@@ -106,6 +103,7 @@ defmodule KsefHubWeb.SyncLive do
         <:actions>
           <.button
             :if={Authorization.can?(@current_role, :trigger_sync)}
+            id="sync-button"
             phx-click="trigger_sync"
             disabled={@sync_running}
           >

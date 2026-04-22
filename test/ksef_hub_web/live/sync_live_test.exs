@@ -83,11 +83,11 @@ defmodule KsefHubWeb.SyncLiveTest do
         args: %{"company_id" => company.id}
       )
 
-      {:ok, _view, html} = live(conn, ~p"/c/#{company.id}/settings/syncs")
+      {:ok, view, html} = live(conn, ~p"/c/#{company.id}/settings/syncs")
 
       assert html =~ "Syncing…"
       refute html =~ ">\n              Sync Now"
-      assert html =~ ~r/<button[^>]*disabled/
+      assert has_element?(view, "button#sync-button[disabled]")
     end
 
     test "disables the button when another client starts a sync", %{
@@ -96,18 +96,20 @@ defmodule KsefHubWeb.SyncLiveTest do
     } do
       {:ok, view, html} = live(conn, ~p"/c/#{company.id}/settings/syncs")
       assert html =~ "Sync Now"
+      refute has_element?(view, "button#sync-button[disabled]")
 
       send(view.pid, {:sync_running_changed, true})
 
       html = render(view)
       assert html =~ "Syncing…"
-      assert html =~ ~r/<button[^>]*disabled/
+      assert has_element?(view, "button#sync-button[disabled]")
 
       send(view.pid, {:sync_running_changed, false})
 
       html = render(view)
       assert html =~ "Sync Now"
       refute html =~ "Syncing…"
+      refute has_element?(view, "button#sync-button[disabled]")
     end
   end
 end
