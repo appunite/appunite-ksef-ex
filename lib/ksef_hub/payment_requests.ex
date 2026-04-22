@@ -114,15 +114,18 @@ defmodule KsefHub.PaymentRequests do
   Only pending requests can be edited. Returns `{:error, :not_editable}` for
   paid or voided requests.
   """
-  @spec update_payment_request(PaymentRequest.t(), Ecto.UUID.t(), map()) ::
+  @spec update_payment_request(PaymentRequest.t(), Ecto.UUID.t(), map(), keyword()) ::
           {:ok, PaymentRequest.t()} | {:error, :not_editable} | {:error, Ecto.Changeset.t()}
-  def update_payment_request(%PaymentRequest{status: :pending} = pr, user_id, attrs) do
+  def update_payment_request(pr, user_id, attrs, opts \\ [])
+
+  def update_payment_request(%PaymentRequest{status: :pending} = pr, user_id, attrs, opts) do
     pr
     |> PaymentRequest.changeset(Map.put(attrs, :updated_by_id, user_id))
-    |> TrackedRepo.update(user_id: user_id)
+    |> TrackedRepo.update(Keyword.put_new(opts, :user_id, user_id))
   end
 
-  def update_payment_request(%PaymentRequest{}, _user_id, _attrs), do: {:error, :not_editable}
+  def update_payment_request(%PaymentRequest{}, _user_id, _attrs, _opts),
+    do: {:error, :not_editable}
 
   # --- Pre-fill from invoice ---
 

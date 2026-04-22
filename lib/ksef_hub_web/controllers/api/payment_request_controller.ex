@@ -9,6 +9,7 @@ defmodule KsefHubWeb.Api.PaymentRequestController do
   use OpenApiSpex.ControllerSpecs
 
   import KsefHubWeb.ChangesetHelpers
+  import KsefHubWeb.Api.ApiHelpers, only: [api_actor_opts: 1]
   import KsefHubWeb.JsonHelpers, only: [atomize_keys: 2, payment_request_json: 1]
 
   alias KsefHub.PaymentRequests
@@ -107,7 +108,7 @@ defmodule KsefHubWeb.Api.PaymentRequestController do
     user_id = conn.assigns.api_token.created_by_id
     attrs = atomize_keys(params, @create_allowed_keys)
 
-    case PaymentRequests.create_payment_request(company_id, user_id, attrs) do
+    case PaymentRequests.create_payment_request(company_id, user_id, attrs, api_actor_opts(conn)) do
       {:ok, pr} ->
         conn
         |> put_status(:created)
@@ -143,7 +144,7 @@ defmodule KsefHubWeb.Api.PaymentRequestController do
   def mark_paid(conn, %{"id" => id}) do
     company_id = conn.assigns.current_company.id
 
-    case PaymentRequests.mark_as_paid(company_id, id) do
+    case PaymentRequests.mark_as_paid(company_id, id, api_actor_opts(conn)) do
       {:ok, pr} ->
         json(conn, %{data: payment_request_json(pr)})
 
@@ -178,7 +179,7 @@ defmodule KsefHubWeb.Api.PaymentRequestController do
   def void(conn, %{"id" => id}) do
     company_id = conn.assigns.current_company.id
 
-    case PaymentRequests.void_payment_request(company_id, id) do
+    case PaymentRequests.void_payment_request(company_id, id, api_actor_opts(conn)) do
       {:ok, pr} ->
         json(conn, %{data: payment_request_json(pr)})
 
