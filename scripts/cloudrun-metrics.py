@@ -91,10 +91,18 @@ def query_monitoring(token, metric_type, aligner, reducer=None, group_by=None, a
         params["aggregation.crossSeriesReducer"] = reducer
 
     url = f"{BASE_URL}?{urllib.parse.urlencode(params)}"
-    resp = subprocess.run(
-        ["curl", "-s", "-f", "-H", f"Authorization: Bearer {token}", url],
-        capture_output=True, text=True,
-    )
+    try:
+        resp = subprocess.run(
+            ["curl", "-s", "-f", "-H", f"Authorization: Bearer {token}", url],
+            capture_output=True, text=True,
+            timeout=30,
+        )
+    except FileNotFoundError:
+        print("Error: curl binary not found in PATH.", file=sys.stderr)
+        sys.exit(1)
+    except subprocess.TimeoutExpired:
+        print(f"Error fetching {metric_type}: curl request timed out", file=sys.stderr)
+        return {}
     if resp.returncode != 0:
         print(f"Error fetching {metric_type}: curl exited {resp.returncode}", file=sys.stderr)
         print(f"  stderr: {resp.stderr.strip()}", file=sys.stderr)
@@ -195,11 +203,10 @@ def fetch_billing(token, start, end):
         reducer="REDUCE_SUM",
         start=start, end=end,
     )
-    total = 0
     daily = []
     for _, values in extract_values(data).items():
-        daily = values
-        total = sum(values)
+        daily.extend(values)
+    total = sum(daily)
     return {"daily_seconds": daily, "total_seconds": total}
 
 
@@ -318,6 +325,9 @@ def write_json(days, mem, cpu, instances, billing):
 
 def main():
     days = int(sys.argv[1]) if len(sys.argv) > 1 and sys.argv[1].isdigit() else 7
+    if days < 1:
+        print(f"Error: days must be >= 1 (got {days})", file=sys.stderr)
+        sys.exit(1)
     mode = sys.argv[2] if len(sys.argv) > 2 else ""
 
     now = datetime.now(timezone.utc)
