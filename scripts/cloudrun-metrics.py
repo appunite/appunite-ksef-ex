@@ -25,24 +25,19 @@ from datetime import datetime, timedelta, timezone
 
 PROJECT_ID = "au-ksef-ex"
 SERVICE_NAME = "ksef-hub"
+REGION = "europe-west1"
 BASE_URL = f"https://monitoring.googleapis.com/v3/projects/{PROJECT_ID}/timeSeries"
-
-# Resource allocations from cloud-run/service.yaml
-ALLOCATIONS = {
-    "ksef-hub":             {"cpu": 1.0, "mem_mb": 384},
-    "pdf-renderer":         {"cpu": 0.5, "mem_mb": 128},
-    "invoice-extractor":    {"cpu": 0.5, "mem_mb": 320},
-    "invoice-classifier":   {"cpu": 0.5, "mem_mb": 256},
-}
-TOTAL_CPU = sum(a["cpu"] for a in ALLOCATIONS.values())
-TOTAL_MEM_MB = sum(a["mem_mb"] for a in ALLOCATIONS.values())
 
 # Cloud Run gen2 pricing (europe-west1, request-based)
 # Source: https://cloud.google.com/run/pricing (retrieved 2026-04-22)
 VCPU_PER_SEC = 0.00002400
 MEM_PER_GIB_SEC = 0.00000250
 
-CONTAINER_ORDER = ["ksef-hub", "invoice-extractor", "invoice-classifier", "pdf-renderer"]
+# Populated at runtime from the deployed Cloud Run service (see fetch_allocations).
+ALLOCATIONS = {}
+TOTAL_CPU = 0.0
+TOTAL_MEM_MB = 0
+CONTAINER_ORDER = []
 
 
 def _run_gcloud(args):
@@ -65,6 +60,66 @@ def _run_gcloud(args):
 def get_token():
     result = _run_gcloud(["auth", "print-access-token"])
     return result.stdout.strip()
+
+
+def _parse_cpu(value):
+    """Parse Kubernetes CPU quantity ('1', '0.5', '500m') → vCPU as float."""
+    s = str(value).strip()
+    if s.endswith("m"):
+        return int(s[:-1]) / 1000
+    return float(s)
+
+
+def _parse_memory_mib(value):
+    """Parse Kubernetes memory quantity → MiB (to match /1024/1024 byte conversion used elsewhere)."""
+    # Ordered longest-suffix first so 'Mi' matches before 'M'.
+    units = [
+        ("Ki", 1 / 1024),
+        ("Mi", 1),
+        ("Gi", 1024),
+        ("Ti", 1024 * 1024),
+        ("K",  1000 / (1024 * 1024)),
+        ("M",  1000 * 1000 / (1024 * 1024)),
+        ("G",  1000 * 1000 * 1000 / (1024 * 1024)),
+    ]
+    s = str(value).strip()
+    for suffix, mult in units:
+        if s.endswith(suffix):
+            return int(float(s[:-len(suffix)]) * mult)
+    return int(int(s) / (1024 * 1024))  # bare bytes
+
+
+def fetch_allocations():
+    """Fetch per-container CPU/memory limits from the live Cloud Run service.
+
+    Returns a dict {container_name: {"cpu": vcpu, "mem_mb": mib}} matching the
+    shape previously defined as a hardcoded constant. Uses gcloud instead of
+    parsing service.yaml so the report reflects what is actually deployed.
+    """
+    result = _run_gcloud([
+        "run", "services", "describe", SERVICE_NAME,
+        "--region", REGION,
+        "--project", PROJECT_ID,
+        "--format", "json",
+    ])
+    try:
+        spec = json.loads(result.stdout)
+        containers = spec["spec"]["template"]["spec"]["containers"]
+    except (json.JSONDecodeError, KeyError) as e:
+        print(f"Error parsing gcloud run services describe output: {e}", file=sys.stderr)
+        sys.exit(1)
+
+    allocations = {}
+    for c in containers:
+        limits = c.get("resources", {}).get("limits", {}) or {}
+        if "cpu" not in limits or "memory" not in limits:
+            print(f"Warning: container {c.get('name')!r} has no resource limits set", file=sys.stderr)
+            continue
+        allocations[c["name"]] = {
+            "cpu": _parse_cpu(limits["cpu"]),
+            "mem_mb": _parse_memory_mib(limits["memory"]),
+        }
+    return allocations
 
 
 def query_monitoring(token, metric_type, aligner, reducer=None, group_by=None, alignment_period="86400s", start=None, end=None):
@@ -329,6 +384,18 @@ def main():
     print(f" Cloud Run Resource Report: {SERVICE_NAME}")
     print(f" Period: last {days} day(s)  ({start} -> {end})")
     print("=" * 60)
+
+    global ALLOCATIONS, TOTAL_CPU, TOTAL_MEM_MB, CONTAINER_ORDER
+    ALLOCATIONS = fetch_allocations()
+    TOTAL_CPU = sum(a["cpu"] for a in ALLOCATIONS.values())
+    TOTAL_MEM_MB = sum(a["mem_mb"] for a in ALLOCATIONS.values())
+    # Display the main service first, then sidecars sorted by memory descending.
+    sidecars = sorted(
+        (n for n in ALLOCATIONS if n != SERVICE_NAME),
+        key=lambda n: ALLOCATIONS[n]["mem_mb"],
+        reverse=True,
+    )
+    CONTAINER_ORDER = ([SERVICE_NAME] if SERVICE_NAME in ALLOCATIONS else []) + sidecars
 
     token = get_token()
 
