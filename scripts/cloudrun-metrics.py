@@ -415,6 +415,10 @@ def main():
         print(f"Error: days must be >= 1 (got {days})", file=sys.stderr)
         sys.exit(1)
     mode = sys.argv[2] if len(sys.argv) > 2 else ""
+    if mode and mode not in ("--csv", "--json"):
+        print(f"Error: unknown mode {mode!r}", file=sys.stderr)
+        print("Usage: cloudrun-metrics.py [DAYS] [--csv|--json]", file=sys.stderr)
+        sys.exit(1)
 
     now = datetime.now(timezone.utc)
     end = now.strftime("%Y-%m-%dT%H:%M:%SZ")
