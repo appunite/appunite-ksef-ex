@@ -18,9 +18,13 @@ Usage:
 """
 
 import json
+import platform
+import ssl
 import subprocess
 import sys
+import urllib.error
 import urllib.parse
+import urllib.request
 from datetime import datetime, timedelta, timezone
 
 PROJECT_ID = "au-ksef-ex"
@@ -40,16 +44,41 @@ TOTAL_MEM_MB = 0
 CONTAINER_ORDER = []
 
 
+def _build_ssl_context():
+    """Return an SSL context with a usable CA bundle.
+
+    python.org-packaged macOS Python ships with an empty default trust store
+    unless 'Install Certificates.command' has been run, so urllib.request
+    fails with CERTIFICATE_VERIFY_FAILED out of the box. When the default
+    context has no CAs loaded, fall back to the macOS system bundle at
+    /etc/ssl/cert.pem.
+    """
+    ctx = ssl.create_default_context()
+    if not ctx.get_ca_certs() and platform.system() == "Darwin":
+        try:
+            ctx.load_verify_locations(cafile="/etc/ssl/cert.pem")
+        except OSError:
+            pass
+    return ctx
+
+
+SSL_CONTEXT = _build_ssl_context()
+
+
 def _run_gcloud(args):
-    """Run a gcloud command, raising a clear error if gcloud is missing."""
+    """Run a gcloud command, raising a clear error if gcloud is missing or hangs."""
     try:
         return subprocess.run(
             ["gcloud", *args],
             capture_output=True, text=True, check=True,
+            timeout=30,
         )
     except FileNotFoundError:
         print("Error: gcloud CLI not found in PATH.", file=sys.stderr)
         print("Install it from https://cloud.google.com/sdk/docs/install", file=sys.stderr)
+        sys.exit(1)
+    except subprocess.TimeoutExpired:
+        print(f"Error: gcloud {' '.join(args)} timed out after 30s.", file=sys.stderr)
         sys.exit(1)
     except subprocess.CalledProcessError as e:
         print(f"Error running gcloud {' '.join(args)}:", file=sys.stderr)
@@ -137,32 +166,40 @@ def query_monitoring(token, metric_type, aligner, reducer=None, group_by=None, a
         params["aggregation.crossSeriesReducer"] = reducer
 
     url = f"{BASE_URL}?{urllib.parse.urlencode(params)}"
+    # In-process HTTP keeps the bearer token off the process argv (ps / /proc/PID/cmdline).
+    req = urllib.request.Request(url, headers={"Authorization": f"Bearer {token}"})
     try:
-        resp = subprocess.run(
-            ["curl", "-s", "-f", "-H", f"Authorization: Bearer {token}", url],
-            capture_output=True, text=True,
-            timeout=30,
-        )
-    except FileNotFoundError:
-        print("Error: curl binary not found in PATH.", file=sys.stderr)
-        sys.exit(1)
-    except subprocess.TimeoutExpired:
-        print(f"Error fetching {metric_type}: curl request timed out", file=sys.stderr)
+        with urllib.request.urlopen(req, timeout=30, context=SSL_CONTEXT) as resp:
+            body = resp.read().decode("utf-8")
+    except urllib.error.HTTPError as e:
+        err_body = ""
+        try:
+            err_body = e.read().decode("utf-8", errors="replace")
+        except Exception:
+            pass
+        print(f"Error fetching {metric_type}: HTTP {e.code} {e.reason}", file=sys.stderr)
+        if err_body:
+            print(f"  body: {err_body[:200]}", file=sys.stderr)
         return {}
-    if resp.returncode != 0:
-        print(f"Error fetching {metric_type}: curl exited {resp.returncode}", file=sys.stderr)
-        print(f"  stderr: {resp.stderr.strip()}", file=sys.stderr)
+    except urllib.error.URLError as e:
+        print(f"Error fetching {metric_type}: {e.reason}", file=sys.stderr)
         return {}
     try:
-        return json.loads(resp.stdout)
+        return json.loads(body)
     except json.JSONDecodeError:
         print(f"Error parsing response for {metric_type}:", file=sys.stderr)
-        print(f"  body: {resp.stdout[:200]}", file=sys.stderr)
+        print(f"  body: {body[:200]}", file=sys.stderr)
         return {}
 
 
 def extract_values(data, label_key=None):
-    """Extract {label: [values]} from time series response."""
+    """Extract {label: [values]} from a time series response.
+
+    Multiple series sharing the same label (the unlabeled '_aggregate' case, or
+    label_key collisions across revisions) are concatenated rather than
+    overwritten, so aggregate consumers like fetch_cpu_aggregate and
+    fetch_billing see every point.
+    """
     results = {}
     for ts in data.get("timeSeries", []):
         if label_key:
@@ -175,7 +212,7 @@ def extract_values(data, label_key=None):
             val = float(v.get("doubleValue", v.get("int64Value", 0)))
             values.append(val)
         if values:
-            results[label] = values
+            results.setdefault(label, []).extend(values)
     return results
 
 
@@ -259,7 +296,10 @@ def fetch_billing(token, start, end):
 def print_report(days, mem, cpu, instances, billing):
     total_s = billing["total_seconds"]
     total_h = total_s / 3600
-    daily_avg_h = total_h / max(len(billing["daily_seconds"]), 1)
+    # Divide by the requested window, not the number of returned points —
+    # days with zero billable time don't produce a point and would otherwise
+    # inflate the "per day" average. main() already enforces days >= 1.
+    daily_avg_h = total_h / days
 
     print()
     print("MEMORY USAGE")
