@@ -62,15 +62,6 @@ def _run_gcloud(args):
         sys.exit(1)
 
 
-def ensure_project():
-    """Set gcloud project to PROJECT_ID if not already active."""
-    result = _run_gcloud(["config", "get-value", "project"])
-    current = result.stdout.strip()
-    if current != PROJECT_ID:
-        print(f"Switching gcloud project: {current} -> {PROJECT_ID}")
-        _run_gcloud(["config", "set", "project", PROJECT_ID])
-
-
 def get_token():
     result = _run_gcloud(["auth", "print-access-token"])
     return result.stdout.strip()
@@ -339,7 +330,6 @@ def main():
     print(f" Period: last {days} day(s)  ({start} -> {end})")
     print("=" * 60)
 
-    ensure_project()
     token = get_token()
 
     mem = fetch_memory(token, start, end)
