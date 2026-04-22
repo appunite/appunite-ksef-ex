@@ -14,27 +14,34 @@ defmodule KsefHubWeb.SyncLive do
 
   alias KsefHub.Authorization
   alias KsefHub.Sync.History
+  alias KsefHubWeb.SyncStatusLive
 
   @doc "Subscribes to sync PubSub topic and loads sync job history."
   @impl true
   def mount(_params, _session, socket) do
     company = socket.assigns.current_company
-
-    if connected?(socket) && company do
-      Phoenix.PubSub.subscribe(KsefHub.PubSub, "sync:status:#{company.id}")
-    end
-
     jobs = if company, do: History.list_sync_jobs(company.id), else: []
 
     {:ok,
      socket
      |> assign(page_title: "Syncs", jobs_count: length(jobs))
-     |> stream(:jobs, jobs)}
+     |> stream(:jobs, jobs)
+     |> SyncStatusLive.mount(company && company.id)}
   end
 
   @doc "Handles PubSub sync completion events by refreshing the job list."
   @impl true
   def handle_info({:sync_completed, _stats}, socket) do
+    company = socket.assigns.current_company
+    jobs = if company, do: History.list_sync_jobs(company.id), else: []
+    {:noreply, socket |> assign(jobs_count: length(jobs)) |> stream(:jobs, jobs, reset: true)}
+  end
+
+  def handle_info({:sync_running_changed, running?}, socket) do
+    socket = SyncStatusLive.handle_running_changed(socket, running?)
+    # Refresh on both edges: a start surfaces the new "executing" row; a stop
+    # replaces it with the terminal state (completed/retryable/discarded),
+    # which matters when the sync failed and no :sync_completed broadcast fires.
     company = socket.assigns.current_company
     jobs = if company, do: History.list_sync_jobs(company.id), else: []
     {:noreply, socket |> assign(jobs_count: length(jobs)) |> stream(:jobs, jobs, reset: true)}
@@ -64,12 +71,16 @@ defmodule KsefHubWeb.SyncLive do
 
         {:noreply,
          socket
+         |> SyncStatusLive.handle_running_changed(true)
          |> assign(jobs_count: length(jobs))
          |> stream(:jobs, jobs, reset: true)
          |> put_flash(:info, "Manual sync triggered.")}
 
       {:error, :already_running} ->
-        {:noreply, put_flash(socket, :error, "A sync is already running.")}
+        {:noreply,
+         socket
+         |> SyncStatusLive.handle_running_changed(true)
+         |> put_flash(:error, "A sync is already running.")}
 
       {:error, reason} ->
         Logger.error("Manual sync failed: #{inspect(reason)}")
@@ -90,8 +101,16 @@ defmodule KsefHubWeb.SyncLive do
         Syncs
         <:subtitle>KSeF invoice sync history</:subtitle>
         <:actions>
-          <.button :if={Authorization.can?(@current_role, :trigger_sync)} phx-click="trigger_sync">
-            <.icon name="hero-arrow-path" class="size-4" /> Sync Now
+          <.button
+            :if={Authorization.can?(@current_role, :trigger_sync)}
+            id="sync-button"
+            phx-click="trigger_sync"
+            disabled={@sync_running}
+          >
+            <.icon
+              name="hero-arrow-path"
+              class={"size-4 #{if @sync_running, do: "motion-safe:animate-spin"}"}
+            /> {if @sync_running, do: "Syncing…", else: "Sync Now"}
           </.button>
         </:actions>
       </.header>
