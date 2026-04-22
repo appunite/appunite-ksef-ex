@@ -10,6 +10,7 @@ defmodule KsefHubWeb.InvoiceLive.Index do
   alias KsefHub.Invoices.Invoice
   alias KsefHub.PaymentRequests
   alias KsefHub.Sync.History
+  alias KsefHubWeb.SyncStatusLive
 
   import KsefHubWeb.CertificateComponents, only: [cert_expiry_alert: 1]
   import KsefHubWeb.InvoiceComponents
@@ -29,14 +30,18 @@ defmodule KsefHubWeb.InvoiceLive.Index do
     cert_status =
       if company_id, do: Credentials.certificate_expiry_status(company_id), else: :no_certificate
 
-    {:ok,
-     assign(socket,
-       page_title: "Invoices",
-       categories: if(company_id, do: Invoices.list_categories(company_id), else: []),
-       all_tags: [],
-       cert_status: cert_status,
-       open_filter: nil
-     )}
+    socket =
+      socket
+      |> assign(
+        page_title: "Invoices",
+        categories: if(company_id, do: Invoices.list_categories(company_id), else: []),
+        all_tags: [],
+        cert_status: cert_status,
+        open_filter: nil
+      )
+      |> SyncStatusLive.mount(company_id)
+
+    {:ok, socket}
   end
 
   @impl true
@@ -186,10 +191,16 @@ defmodule KsefHubWeb.InvoiceLive.Index do
 
       case History.trigger_manual_sync(company_id, actor_opts(socket)) do
         {:ok, _job} ->
-          {:noreply, put_flash(socket, :info, "Manual sync triggered.")}
+          {:noreply,
+           socket
+           |> SyncStatusLive.handle_running_changed(true)
+           |> put_flash(:info, "Manual sync triggered.")}
 
         {:error, :already_running} ->
-          {:noreply, put_flash(socket, :error, "A sync is already running.")}
+          {:noreply,
+           socket
+           |> SyncStatusLive.handle_running_changed(true)
+           |> put_flash(:error, "A sync is already running.")}
 
         {:error, _reason} ->
           {:noreply, put_flash(socket, :error, "Manual sync failed.")}
@@ -198,6 +209,13 @@ defmodule KsefHubWeb.InvoiceLive.Index do
       {:noreply, put_flash(socket, :error, "Not authorized.")}
     end
   end
+
+  @impl true
+  def handle_info({:sync_running_changed, running?}, socket) do
+    {:noreply, SyncStatusLive.handle_running_changed(socket, running?)}
+  end
+
+  def handle_info({:sync_completed, _stats}, socket), do: {:noreply, socket}
 
   @spec build_query_params(map(), map()) :: map()
   defp build_query_params(filters, form_params) do
@@ -313,8 +331,16 @@ defmodule KsefHubWeb.InvoiceLive.Index do
       Invoices
       <:subtitle>Invoices for {@current_company.name}</:subtitle>
       <:actions>
-        <.button :if={@can_sync} variant="outline" phx-click="trigger_sync">
-          <.icon name="hero-arrow-path" class="size-4" /> Sync now
+        <.button
+          :if={@can_sync}
+          variant="outline"
+          phx-click="trigger_sync"
+          disabled={@sync_running}
+        >
+          <.icon
+            name="hero-arrow-path"
+            class={"size-4 #{if @sync_running, do: "motion-safe:animate-spin"}"}
+          /> {if @sync_running, do: "Syncing…", else: "Sync now"}
         </.button>
         <.button :if={@can_create} navigate={~p"/c/#{@current_company.id}/invoices/upload"}>
           <.icon name="hero-arrow-up-tray" class="size-4" /> Upload PDF

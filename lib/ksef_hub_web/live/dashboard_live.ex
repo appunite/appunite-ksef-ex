@@ -60,6 +60,8 @@ defmodule KsefHubWeb.DashboardLive do
     {:noreply, socket}
   end
 
+  def handle_info({:sync_running_changed, _running?}, socket), do: {:noreply, socket}
+
   @impl true
   @spec handle_event(String.t(), map(), Phoenix.LiveView.Socket.t()) ::
           {:noreply, Phoenix.LiveView.Socket.t()}

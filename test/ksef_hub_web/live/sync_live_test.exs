@@ -74,18 +74,40 @@ defmodule KsefHubWeb.SyncLiveTest do
       assert html =~ "Manual sync triggered"
     end
 
-    test "shows error when sync is already running", %{conn: conn, company: company} do
+    test "disables the button while a sync is already running", %{
+      conn: conn,
+      company: company
+    } do
       insert(:sync_job,
         state: "executing",
         args: %{"company_id" => company.id}
       )
 
-      {:ok, view, _html} = live(conn, ~p"/c/#{company.id}/settings/syncs")
+      {:ok, _view, html} = live(conn, ~p"/c/#{company.id}/settings/syncs")
 
-      view |> element("button", "Sync Now") |> render_click()
+      assert html =~ "Syncing…"
+      refute html =~ ">\n              Sync Now"
+      assert html =~ ~r/<button[^>]*disabled/
+    end
+
+    test "disables the button when another client starts a sync", %{
+      conn: conn,
+      company: company
+    } do
+      {:ok, view, html} = live(conn, ~p"/c/#{company.id}/settings/syncs")
+      assert html =~ "Sync Now"
+
+      send(view.pid, {:sync_running_changed, true})
 
       html = render(view)
-      assert html =~ "already running"
+      assert html =~ "Syncing…"
+      assert html =~ ~r/<button[^>]*disabled/
+
+      send(view.pid, {:sync_running_changed, false})
+
+      html = render(view)
+      assert html =~ "Sync Now"
+      refute html =~ "Syncing…"
     end
   end
 end

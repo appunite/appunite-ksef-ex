@@ -32,6 +32,17 @@ defmodule KsefHub.Sync.History do
   end
 
   @doc """
+  Returns true if a sync job for the company is queued, scheduled, or executing.
+  """
+  @spec sync_running?(Ecto.UUID.t()) :: boolean()
+  def sync_running?(company_id) do
+    Oban.Job
+    |> where([j], j.worker == @worker and j.state in ["available", "scheduled", "executing"])
+    |> where([j], fragment("?->>'company_id' = ?", j.args, ^company_id))
+    |> Repo.exists?()
+  end
+
+  @doc """
   Inserts a manual sync job for a company if no sync is currently executing.
 
   Returns `{:ok, job}` or `{:error, :already_running}`.
@@ -39,13 +50,7 @@ defmodule KsefHub.Sync.History do
   @spec trigger_manual_sync(Ecto.UUID.t(), keyword()) ::
           {:ok, Oban.Job.t()} | {:error, :already_running | Ecto.Changeset.t()}
   def trigger_manual_sync(company_id, opts \\ []) do
-    pending_or_running =
-      Oban.Job
-      |> where([j], j.worker == @worker and j.state in ["available", "scheduled", "executing"])
-      |> where([j], fragment("?->>'company_id' = ?", j.args, ^company_id))
-      |> Repo.exists?()
-
-    if pending_or_running do
+    if sync_running?(company_id) do
       {:error, :already_running}
     else
       case %{company_id: company_id, manual: true}

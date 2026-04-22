@@ -25,6 +25,24 @@ defmodule KsefHub.Sync.SyncWorker do
   """
   @impl Oban.Worker
   def perform(%Oban.Job{args: %{"company_id" => company_id}} = job) do
+    broadcast_sync_running(company_id, true)
+
+    try do
+      do_perform(job, company_id)
+    after
+      broadcast_sync_running(company_id, false)
+    end
+  end
+
+  # Legacy: support jobs without company_id (backward compat during migration)
+  def perform(%Oban.Job{}) do
+    Logger.info("Sync skipped: job missing company_id arg")
+    :ok
+  end
+
+  @spec do_perform(Oban.Job.t(), Ecto.UUID.t()) ::
+          :ok | {:cancel, term()} | {:error, term()}
+  defp do_perform(job, company_id) do
     with {:ok, credential} <- load_active_credential(company_id),
          :ok <- verify_owner_certificate(company_id),
          {:ok, access_token} <- get_access_token(company_id) do
@@ -71,12 +89,6 @@ defmodule KsefHub.Sync.SyncWorker do
         store_meta(job, %{"error" => inspect(reason)})
         {:error, reason}
     end
-  end
-
-  # Legacy: support jobs without company_id (backward compat during migration)
-  def perform(%Oban.Job{}) do
-    Logger.info("Sync skipped: job missing company_id arg")
-    :ok
   end
 
   @spec load_active_credential(Ecto.UUID.t()) ::
@@ -227,11 +239,17 @@ defmodule KsefHub.Sync.SyncWorker do
 
   @spec broadcast_sync_completed(Ecto.UUID.t(), map()) :: :ok
   defp broadcast_sync_completed(company_id, stats) do
-    case Phoenix.PubSub.broadcast(
-           KsefHub.PubSub,
-           "sync:status:#{company_id}",
-           {:sync_completed, stats}
-         ) do
+    broadcast(company_id, {:sync_completed, stats})
+  end
+
+  @spec broadcast_sync_running(Ecto.UUID.t(), boolean()) :: :ok
+  defp broadcast_sync_running(company_id, running?) do
+    broadcast(company_id, {:sync_running_changed, running?})
+  end
+
+  @spec broadcast(Ecto.UUID.t(), term()) :: :ok
+  defp broadcast(company_id, message) do
+    case Phoenix.PubSub.broadcast(KsefHub.PubSub, "sync:status:#{company_id}", message) do
       :ok ->
         :ok
 
