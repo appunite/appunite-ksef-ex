@@ -13,7 +13,6 @@ spec:
         autoscaling.knative.dev/minScale: "0"
         autoscaling.knative.dev/maxScale: "2"
         run.googleapis.com/execution-environment: gen2
-        run.googleapis.com/container-dependencies: '{"ksef-hub":["pdf-renderer","invoice-extractor","invoice-classifier"]}'
         run.googleapis.com/startup-cpu-boost: "true"
     spec:
       containerConcurrency: 80

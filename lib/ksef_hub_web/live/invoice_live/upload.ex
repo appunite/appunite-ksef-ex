@@ -12,6 +12,7 @@ defmodule KsefHubWeb.InvoiceLive.Upload do
   alias KsefHub.Authorization
   alias KsefHub.Companies.Company
   alias KsefHub.Invoices
+  alias KsefHub.ServiceHealth
 
   import KsefHubWeb.UploadHelpers, only: [format_bytes: 1, upload_error_to_string: 1]
 
@@ -20,6 +21,12 @@ defmodule KsefHubWeb.InvoiceLive.Upload do
   @spec mount(map(), map(), Phoenix.LiveView.Socket.t()) ::
           {:ok, Phoenix.LiveView.Socket.t()}
   def mount(_params, _session, socket) do
+    if connected?(socket) do
+      Task.Supervisor.start_child(KsefHub.TaskSupervisor, fn ->
+        ServiceHealth.warm_upload_sidecars()
+      end)
+    end
+
     {:ok,
      socket
      |> assign(page_title: "Upload PDF Invoice", uploading: false, upload_refs: MapSet.new())

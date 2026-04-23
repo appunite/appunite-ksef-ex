@@ -11,6 +11,7 @@ defmodule KsefHub.InvoiceExtractor.Client do
   require Logger
 
   @receive_timeout 120_000
+  @max_retries 3
   @output_schema Path.join(__DIR__, "output_schema.json")
                  |> File.read!()
                  |> Jason.decode!()
@@ -24,7 +25,7 @@ defmodule KsefHub.InvoiceExtractor.Client do
          {:ok, token} <- fetch_token() do
       filename = opts |> Keyword.get(:filename, "invoice.pdf") |> sanitize_filename()
       context = Keyword.get(opts, :context)
-      do_extract(base_url, token, pdf_binary, filename, context)
+      do_extract(base_url, token, pdf_binary, filename, context, @max_retries)
     end
   end
 
@@ -51,16 +52,32 @@ defmodule KsefHub.InvoiceExtractor.Client do
     end
   end
 
-  @spec do_extract(String.t(), String.t(), binary(), String.t(), String.t() | nil) ::
+  @spec do_extract(
+          String.t(),
+          String.t(),
+          binary(),
+          String.t(),
+          String.t() | nil,
+          non_neg_integer()
+        ) ::
           {:ok, map()} | {:error, term()}
-  defp do_extract(base_url, token, pdf_binary, filename, context) do
-    case base_url
-         |> build_req()
-         |> Req.post(
-           url: "/extract",
-           form_multipart: build_form_parts(pdf_binary, filename, context),
-           headers: [{"authorization", "Bearer #{token}"}]
-         ) do
+  defp do_extract(base_url, token, pdf_binary, filename, context, retries) do
+    result =
+      base_url
+      |> build_req()
+      |> Req.post(
+        url: "/extract",
+        form_multipart: build_form_parts(pdf_binary, filename, context),
+        headers: [{"authorization", "Bearer #{token}"}]
+      )
+
+    case result do
+      {:error, %Req.TransportError{reason: :econnrefused}} when retries > 0 ->
+        delay = Application.get_env(:ksef_hub, :extractor_retry_delay_ms, 1_000)
+        Logger.warning("Invoice extractor not ready, retrying in #{delay}ms (#{retries} left)")
+        Process.sleep(delay)
+        do_extract(base_url, token, pdf_binary, filename, context, retries - 1)
+
       {:ok, %{status: 200, body: %{"success" => true, "data" => data}}} when is_map(data) ->
         {:ok, data}
 
@@ -69,7 +86,6 @@ defmodule KsefHub.InvoiceExtractor.Client do
 
       {:ok, %{status: status}} ->
         Logger.error("Invoice extractor returned #{status} for /extract")
-
         {:error, {:extractor_error, status}}
 
       {:error, %{__struct__: struct_name} = reason} ->
