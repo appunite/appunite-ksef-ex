@@ -445,24 +445,35 @@ defmodule KsefHubWeb.SettingsLive.Services do
     uri = URI.parse(url)
 
     with true <- uri.scheme in ["http", "https"],
-         true <- is_binary(uri.host) and uri.host != "" do
-      host = String.to_charlist(uri.host)
-
-      case :inet.getaddr(host, :inet) do
-        {:ok, ip4} ->
-          if ip4_private?(ip4), do: {:error, :disallowed_target}, else: :ok
-
-        {:error, _} ->
-          case :inet.getaddr(host, :inet6) do
-            {:ok, ip6} ->
-              if ip6_private?(ip6), do: {:error, :disallowed_target}, else: :ok
-
-            {:error, _} ->
-              {:error, :disallowed_target}
-          end
-      end
+         true <- is_binary(uri.host) and uri.host != "",
+         :ok <- resolved_ip_allowed?(String.to_charlist(uri.host)) do
+      :ok
     else
       _ -> {:error, :disallowed_target}
+    end
+  end
+
+  @spec resolved_ip_allowed?(charlist()) :: :ok | {:error, :disallowed_target}
+  defp resolved_ip_allowed?(host) do
+    case resolve_ip(host) do
+      {:ok, :v4, ip4} -> if ip4_private?(ip4), do: {:error, :disallowed_target}, else: :ok
+      {:ok, :v6, ip6} -> if ip6_private?(ip6), do: {:error, :disallowed_target}, else: :ok
+      :error -> {:error, :disallowed_target}
+    end
+  end
+
+  @spec resolve_ip(charlist()) ::
+          {:ok, :v4, :inet.ip4_address()} | {:ok, :v6, :inet.ip6_address()} | :error
+  defp resolve_ip(host) do
+    case :inet.getaddr(host, :inet) do
+      {:ok, ip4} ->
+        {:ok, :v4, ip4}
+
+      {:error, _} ->
+        case :inet.getaddr(host, :inet6) do
+          {:ok, ip6} -> {:ok, :v6, ip6}
+          {:error, _} -> :error
+        end
     end
   end
 
