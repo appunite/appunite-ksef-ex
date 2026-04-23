@@ -135,7 +135,7 @@ defmodule KsefHubWeb.SettingsLive.ServicesTest do
       assert updated.updated_by_id == user.id
     end
 
-    test "failed probe then edit then resubmit saves the edited value", %{
+    test "SSRF-blocked URL shows error flash and cannot be saved", %{
       conn: conn,
       company: company
     } do
@@ -148,45 +148,30 @@ defmodule KsefHubWeb.SettingsLive.ServicesTest do
         tag_confidence_threshold: "0.90"
       }
 
-      # First submit — the SSRF check blocks the private IP, triggering a probe failure
+      # Submit with a private IP — SSRF check blocks it, no "Save anyway" offered
       view
       |> form("form[phx-submit=save]", classifier: form_params)
       |> render_submit()
 
-      # Allow the async health check task to complete and send its result back
       Process.sleep(100)
       html = render(view)
 
-      assert html =~ "Save anyway"
+      assert html =~ "private or internal network"
+      refute html =~ "Save anyway"
 
-      # User edits the form — this should clear the stale pending_params
-      edited_params = %{form_params | url: "http://10.0.0.2:8888"}
+      # Config was not saved
+      config = ServiceConfig.get_or_create_classifier_config(company.id)
+      refute config.enabled
 
+      # Editing the form clears the error state
       view
-      |> form("form[phx-submit=save]", classifier: edited_params)
+      |> form("form[phx-submit=save]",
+        classifier: %{form_params | url: "http://10.0.0.2:8888"}
+      )
       |> render_change()
 
       html = render(view)
       refute html =~ "Save anyway"
-
-      # Resubmit with the edited URL — probe fails again
-      view
-      |> form("form[phx-submit=save]", classifier: edited_params)
-      |> render_submit()
-
-      Process.sleep(100)
-      html = render(view)
-
-      assert html =~ "Save anyway"
-
-      # Confirm save — should persist the EDITED url, not the original
-      view |> element("button", "Save anyway") |> render_click()
-
-      config = ServiceConfig.get_or_create_classifier_config(company.id)
-      assert config.url == "http://10.0.0.2:8888"
-      assert config.enabled == true
-      assert config.category_confidence_threshold == 0.80
-      assert config.tag_confidence_threshold == 0.90
     end
 
     test "company configs are isolated", %{conn: conn, company: company} do

@@ -255,7 +255,8 @@ defmodule KsefHubWeb.SettingsLive.Services do
      assign(socket,
        form: to_form(changeset, as: :classifier),
        pending_params: nil,
-       confirm_save: false
+       confirm_save: false,
+       active_health_ref: nil
      )}
   end
 
@@ -334,8 +335,20 @@ defmodule KsefHubWeb.SettingsLive.Services do
         )
 
       case health_result do
-        :ok -> do_save(socket, params)
-        _error -> {:noreply, assign(socket, confirm_save: true, pending_params: params)}
+        :ok ->
+          do_save(socket, params)
+
+        {:error, :disallowed_target} ->
+          {:noreply,
+           socket
+           |> put_flash(
+             :error,
+             "Cannot save: URL points to a private or internal network address."
+           )
+           |> assign(confirm_save: false, pending_params: nil)}
+
+        _error ->
+          {:noreply, assign(socket, confirm_save: true, pending_params: params)}
       end
     else
       {:noreply, socket}
@@ -446,34 +459,31 @@ defmodule KsefHubWeb.SettingsLive.Services do
 
     with true <- uri.scheme in ["http", "https"],
          true <- is_binary(uri.host) and uri.host != "",
-         :ok <- resolved_ip_allowed?(String.to_charlist(uri.host)) do
+         :ok <- resolved_ips_allowed?(String.to_charlist(uri.host)) do
       :ok
     else
       _ -> {:error, :disallowed_target}
     end
   end
 
-  @spec resolved_ip_allowed?(charlist()) :: :ok | {:error, :disallowed_target}
-  defp resolved_ip_allowed?(host) do
-    case resolve_ip(host) do
-      {:ok, :v4, ip4} -> if ip4_private?(ip4), do: {:error, :disallowed_target}, else: :ok
-      {:ok, :v6, ip6} -> if ip6_private?(ip6), do: {:error, :disallowed_target}, else: :ok
-      :error -> {:error, :disallowed_target}
+  @spec resolved_ips_allowed?(charlist()) :: :ok | {:error, :disallowed_target}
+  defp resolved_ips_allowed?(host) do
+    v4 = resolve_addrs(host, :inet)
+    v6 = resolve_addrs(host, :inet6)
+
+    cond do
+      v4 == [] and v6 == [] -> {:error, :disallowed_target}
+      Enum.any?(v4, &ip4_private?/1) -> {:error, :disallowed_target}
+      Enum.any?(v6, &ip6_private?/1) -> {:error, :disallowed_target}
+      true -> :ok
     end
   end
 
-  @spec resolve_ip(charlist()) ::
-          {:ok, :v4, :inet.ip4_address()} | {:ok, :v6, :inet.ip6_address()} | :error
-  defp resolve_ip(host) do
-    case :inet.getaddr(host, :inet) do
-      {:ok, ip4} ->
-        {:ok, :v4, ip4}
-
-      {:error, _} ->
-        case :inet.getaddr(host, :inet6) do
-          {:ok, ip6} -> {:ok, :v6, ip6}
-          {:error, _} -> :error
-        end
+  @spec resolve_addrs(charlist(), :inet | :inet6) :: [:inet.ip_address()]
+  defp resolve_addrs(host, family) do
+    case :inet.getaddrs(host, family) do
+      {:ok, addrs} -> addrs
+      {:error, _} -> []
     end
   end
 
