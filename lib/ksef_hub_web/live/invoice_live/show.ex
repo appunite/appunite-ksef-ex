@@ -108,6 +108,7 @@ defmodule KsefHubWeb.InvoiceLive.Show do
            invoice_payment_requests: invoice_payment_requests,
            html_preview: nil,
            preview_ref: nil,
+           preview_loading: false,
            categories: Invoices.list_categories(company.id),
            editing: auto_edit && can_mutate,
            edit_form: build_edit_form(invoice),
@@ -136,16 +137,19 @@ defmodule KsefHubWeb.InvoiceLive.Show do
 
   @spec start_preview_task(Phoenix.LiveView.Socket.t(), Invoice.t()) ::
           Phoenix.LiveView.Socket.t()
-  defp start_preview_task(socket, invoice) do
+  defp start_preview_task(socket, %{xml_file: %{content: content}} = invoice)
+       when is_binary(content) and content != "" do
     if connected?(socket) do
       task =
         Task.Supervisor.async_nolink(KsefHub.TaskSupervisor, fn -> generate_preview(invoice) end)
 
-      assign(socket, preview_ref: task.ref)
+      assign(socket, preview_ref: task.ref, preview_loading: true)
     else
       socket
     end
   end
+
+  defp start_preview_task(socket, _invoice), do: socket
 
   @spec refresh_tabs(Phoenix.LiveView.Socket.t()) :: Phoenix.LiveView.Socket.t()
   defp refresh_tabs(socket), do: assign(socket, :visible_tabs, visible_tabs(socket.assigns))
@@ -862,12 +866,12 @@ defmodule KsefHubWeb.InvoiceLive.Show do
 
   def handle_info({ref, html}, %{assigns: %{preview_ref: ref}} = socket) when is_reference(ref) do
     Process.demonitor(ref, [:flush])
-    {:noreply, assign(socket, html_preview: html, preview_ref: nil)}
+    {:noreply, assign(socket, html_preview: html, preview_ref: nil, preview_loading: false)}
   end
 
   def handle_info({:DOWN, ref, :process, _pid, _reason}, %{assigns: %{preview_ref: ref}} = socket)
       when is_reference(ref) do
-    {:noreply, assign(socket, preview_ref: nil)}
+    {:noreply, assign(socket, preview_ref: nil, preview_loading: false)}
   end
 
   def handle_info({:new_activity, audit_log}, socket) do
@@ -1296,6 +1300,12 @@ defmodule KsefHubWeb.InvoiceLive.Show do
           Preview
         </h2>
         <div
+          :if={@preview_loading}
+          class="flex items-center justify-center flex-1 min-h-[600px] text-muted-foreground text-sm"
+        >
+          Loading preview&hellip;
+        </div>
+        <div
           :if={@html_preview}
           class="border border-border rounded-lg overflow-hidden flex-1 min-h-[600px]"
         >
@@ -1308,7 +1318,7 @@ defmodule KsefHubWeb.InvoiceLive.Show do
           </iframe>
         </div>
         <div
-          :if={!@html_preview && @invoice.pdf_file}
+          :if={!@preview_loading && !@html_preview && @invoice.pdf_file}
           class="border border-border rounded-lg overflow-hidden flex-1 min-h-[600px]"
         >
           <iframe
@@ -1319,7 +1329,7 @@ defmodule KsefHubWeb.InvoiceLive.Show do
           </iframe>
         </div>
         <p
-          :if={!@html_preview && !@invoice.pdf_file}
+          :if={!@preview_loading && !@html_preview && !@invoice.pdf_file}
           class="text-muted-foreground text-sm"
         >
           No preview available. XML content may be missing.

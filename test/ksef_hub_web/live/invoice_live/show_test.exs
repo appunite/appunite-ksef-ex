@@ -77,6 +77,8 @@ defmodule KsefHubWeb.InvoiceLive.ShowTest do
       end)
 
       {:ok, view, _html} = live(conn, ~p"/c/#{company.id}/invoices/#{invoice.id}")
+      # Allow the async preview task to complete
+      :timer.sleep(100)
       assert render(view) =~ "preview"
     end
   end

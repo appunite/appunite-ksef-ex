@@ -22,7 +22,9 @@ defmodule KsefHubWeb.InvoiceLive.Upload do
           {:ok, Phoenix.LiveView.Socket.t()}
   def mount(_params, _session, socket) do
     if connected?(socket) do
-      Task.start(fn -> ServiceHealth.warm_upload_sidecars() end)
+      Task.Supervisor.start_child(KsefHub.TaskSupervisor, fn ->
+        ServiceHealth.warm_upload_sidecars()
+      end)
     end
 
     {:ok,
