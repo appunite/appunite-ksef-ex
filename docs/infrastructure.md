@@ -121,7 +121,7 @@ ML-based category and tag prediction using a LightGBM model. Model weights are l
 | Resources | 512Mi RAM · 1 CPU |
 | Startup probe | `GET /health` · 5s delay · 5s period · 10 failures |
 | Liveness probe | `GET /health` · 30s period · 3 failures |
-| Auth | Bearer token via `INVOICE_CLASSIFIER_API_TOKEN` secret |
+| Auth | Bearer token via `INVOICE_CLASSIFIER_API_TOKEN` secret (overridable per-company in Settings → Services) |
 | Volume mount | `/app/models` ← `gs://au-ksef-ex-ml-models` (read-only, GCS FUSE) |
 | Env vars (app) | `INVOICE_CLASSIFIER_URL=http://localhost:3003` · `INVOICE_CLASSIFIER_API_TOKEN` |
 | Confidence threshold | ≥ 80% auto-applied; below threshold queued for manual review |
@@ -160,8 +160,8 @@ All secrets are injected as environment variables at runtime via GCP Secret Mana
 | `credential-encryption-key` | `CREDENTIAL_ENCRYPTION_KEY` | app | AES-256-GCM encryption for PKCS12 certs |
 | `mailgun-signing-key` | `MAILGUN_SIGNING_KEY` | app | Inbound webhook verification |
 | `mailgun-api-key` | `MAILGUN_API_KEY` | app | Outbound email sending |
-| `invoice-extractor-api-token` | `INVOICE_EXTRACTOR_API_TOKEN` | app + extractor sidecar | Bearer auth between app and extractor |
-| `invoice-classifier-api-token` | `INVOICE_CLASSIFIER_API_TOKEN` | app + classifier sidecar | Bearer auth between app and classifier |
+| `invoice-extractor-api-token` | `INVOICE_EXTRACTOR_API_TOKEN` / `API_TOKEN` | app + extractor sidecar | Bearer auth between app and extractor |
+| `invoice-classifier-api-token` | `INVOICE_CLASSIFIER_API_TOKEN` / `API_TOKEN` | app + classifier sidecar | Bearer auth between app and classifier |
 | `anthropic-api-key` | `ANTHROPIC_API_KEY` | extractor sidecar | Claude API calls for PDF extraction |
 
 ---

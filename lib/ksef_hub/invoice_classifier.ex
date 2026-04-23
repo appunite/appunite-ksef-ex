@@ -4,8 +4,8 @@ defmodule KsefHub.InvoiceClassifier do
   prediction for expense invoices using the au-payroll-model-categories sidecar.
 
   Auto-applies predictions when confidence meets configurable thresholds:
-  - Category: default 71%, set via `CATEGORY_CONFIDENCE_THRESHOLD` env var
-  - Tag: default 95%, set via `TAG_CONFIDENCE_THRESHOLD` env var
+  - Category: default 71%, via `CATEGORY_CONFIDENCE_THRESHOLD` env var or Settings → Services
+  - Tag: default 95%, via `TAG_CONFIDENCE_THRESHOLD` env var or Settings → Services
 
   Categories require a matching record in the company to be auto-applied.
   Tags are free-form strings — all tags from the probability distribution

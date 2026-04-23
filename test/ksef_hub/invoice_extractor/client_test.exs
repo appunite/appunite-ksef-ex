@@ -5,6 +5,21 @@ defmodule KsefHub.InvoiceExtractor.ClientTest do
 
   @moduletag capture_log: true
 
+  # DB seeds load URLs into Application env on boot — clear them for isolation
+  setup do
+    url = Application.get_env(:ksef_hub, :invoice_extractor_url)
+    token = Application.get_env(:ksef_hub, :invoice_extractor_api_token)
+    Application.delete_env(:ksef_hub, :invoice_extractor_url)
+    Application.delete_env(:ksef_hub, :invoice_extractor_api_token)
+
+    on_exit(fn ->
+      if url, do: Application.put_env(:ksef_hub, :invoice_extractor_url, url)
+      if token, do: Application.put_env(:ksef_hub, :invoice_extractor_api_token, token)
+    end)
+
+    :ok
+  end
+
   describe "extract/2" do
     test "returns error when URL not configured" do
       assert {:error, :extractor_not_configured} = Client.extract("pdf data", [])
@@ -12,6 +27,8 @@ defmodule KsefHub.InvoiceExtractor.ClientTest do
 
     test "returns error when token not configured" do
       Application.put_env(:ksef_hub, :invoice_extractor_url, "http://localhost:9000")
+      Application.delete_env(:ksef_hub, :invoice_extractor_api_token)
+
       on_exit(fn -> Application.delete_env(:ksef_hub, :invoice_extractor_url) end)
 
       assert {:error, :extractor_token_not_configured} = Client.extract("pdf data", [])

@@ -5,10 +5,23 @@ defmodule KsefHub.InvoiceClassifier.ClientTest do
 
   @moduletag capture_log: true
 
+  # DB seeds load URLs into Application env on boot — clear them for isolation
+  setup do
+    url = Application.get_env(:ksef_hub, :invoice_classifier_url)
+    token = Application.get_env(:ksef_hub, :invoice_classifier_api_token)
+    Application.delete_env(:ksef_hub, :invoice_classifier_url)
+    Application.delete_env(:ksef_hub, :invoice_classifier_api_token)
+
+    on_exit(fn ->
+      if url, do: Application.put_env(:ksef_hub, :invoice_classifier_url, url)
+      if token, do: Application.put_env(:ksef_hub, :invoice_classifier_api_token, token)
+    end)
+
+    :ok
+  end
+
   describe "predict_category/1" do
     test "returns error when URL not configured" do
-      Application.delete_env(:ksef_hub, :invoice_classifier_url)
-
       assert {:error, :classifier_not_configured} =
                Client.predict_category(%{invoice_title: "Test"})
     end
@@ -73,8 +86,6 @@ defmodule KsefHub.InvoiceClassifier.ClientTest do
 
   describe "predict_tag/1" do
     test "returns error when URL not configured" do
-      Application.delete_env(:ksef_hub, :invoice_classifier_url)
-
       assert {:error, :classifier_not_configured} =
                Client.predict_tag(%{invoice_title: "Test"})
     end
@@ -138,8 +149,6 @@ defmodule KsefHub.InvoiceClassifier.ClientTest do
 
   describe "health/0" do
     test "returns error when URL not configured" do
-      Application.delete_env(:ksef_hub, :invoice_classifier_url)
-
       assert {:error, :classifier_not_configured} = Client.health()
     end
 
