@@ -133,7 +133,7 @@ defmodule KsefHubWeb.PaymentRequestLive.Form do
     user_id = socket.assigns.current_user.id
     attrs = merge_address_fields(params)
 
-    case PaymentRequests.create_payment_request(company_id, user_id, attrs) do
+    case PaymentRequests.create_payment_request(company_id, user_id, attrs, actor_opts(socket)) do
       {:ok, _payment_request} ->
         {:noreply,
          socket
@@ -151,7 +151,12 @@ defmodule KsefHubWeb.PaymentRequestLive.Form do
 
     user_id = socket.assigns.current_user.id
 
-    case PaymentRequests.update_payment_request(socket.assigns.payment_request, user_id, attrs) do
+    case PaymentRequests.update_payment_request(
+           socket.assigns.payment_request,
+           user_id,
+           attrs,
+           actor_opts(socket)
+         ) do
       {:ok, _payment_request} ->
         {:noreply,
          socket
