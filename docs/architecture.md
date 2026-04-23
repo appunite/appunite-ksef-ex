@@ -19,6 +19,7 @@ Quick reference for developers. Before touching a feature area:
 | Public invoice sharing (token links) | `invoices/public_tokens.ex`, `invoices/invoice_public_token.ex`, `live/invoice_live/public_show.ex` |
 | Invoice approval & auto-approval | `invoices.ex` (`approve_invoice`), `invoices/auto_approval.ex` |
 | Invoice categories & ML classification | `invoices/category.ex`, `invoice_classifier/` |
+| Per-company classifier config | `service_config.ex`, `service_config/classifier_config.ex`, `live/settings_live/services.ex` |
 | PDF generation | `pdf_renderer.ex`, `pdf_renderer/client.ex` |
 | PDF extraction (expense uploads) | `invoice_extractor/` |
 | Inbound email invoices | `inbound_email/` |
@@ -107,3 +108,4 @@ Read only the ADR(s) relevant to your task — the summaries below tell you whic
 | 0046-per-user-public-invoice-tokens.md | Per-User Public Invoice Tokens | Accepted | Per-(invoice, user) tokens in `invoice_public_tokens` table; only SHA-256 digest stored; 30-day TTL; revoked on member block |
 | 0047-approver-analyst-roles.md | Approver and Analyst Roles | Accepted | Rename `:reviewer` → `:approver` and `:viewer` → `:analyst`; analyst has same data scope as approver (access grants required for restricted invoices) |
 | 0048-public-landing-page.md | Public Landing Page as Standalone Astro Project | Accepted | Ship marketing site as separate Astro 5 + Tailwind v4 project in `landing/`, deployed to GitHub Pages; zero runtime coupling with Phoenix |
+| 0049-per-company-classifier-config.md | Per-Company Classifier Configuration | Accepted | Company-scoped classifier settings in `classifier_configs` table with env-var fallback; only classifier supports per-company overrides |

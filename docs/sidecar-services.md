@@ -145,12 +145,14 @@ Or use `make models.train` to see these instructions at any time.
 
 ### Main app (ksef-hub)
 
+Sidecar configuration comes from environment variables (see below). The **invoice classifier** can additionally be overridden per-company via **Settings → Services** in the admin UI (stored in the `classifier_configs` table). When a company's override is enabled, DB values take precedence over env vars for that company's classification operations.
+
 | Variable | Service | Description |
 |----------|---------|-------------|
-| `PDF_RENDERER_URL` | pdf-renderer | Sidecar URL (`http://localhost:3001`) |
-| `INVOICE_EXTRACTOR_URL` | invoice-extractor | Sidecar URL (`http://localhost:3002`) |
+| `PDF_RENDERER_URL` | pdf-renderer | Sidecar URL (default: `http://localhost:3001`) |
+| `INVOICE_EXTRACTOR_URL` | invoice-extractor | Sidecar URL (default: `http://localhost:3002`) |
 | `INVOICE_EXTRACTOR_API_TOKEN` | invoice-extractor | Bearer token for authentication |
-| `INVOICE_CLASSIFIER_URL` | invoice-classifier | Sidecar URL (`http://localhost:3003`) |
+| `INVOICE_CLASSIFIER_URL` | invoice-classifier | Sidecar URL (default: `http://localhost:3003`) |
 | `INVOICE_CLASSIFIER_API_TOKEN` | invoice-classifier | Bearer token for authentication |
 
 ### Invoice extractor sidecar
