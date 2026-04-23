@@ -52,7 +52,14 @@ defmodule KsefHub.InvoiceExtractor.Client do
     end
   end
 
-  @spec do_extract(String.t(), String.t(), binary(), String.t(), String.t() | nil, non_neg_integer()) ::
+  @spec do_extract(
+          String.t(),
+          String.t(),
+          binary(),
+          String.t(),
+          String.t() | nil,
+          non_neg_integer()
+        ) ::
           {:ok, map()} | {:error, term()}
   defp do_extract(base_url, token, pdf_binary, filename, context, retries) do
     result =
