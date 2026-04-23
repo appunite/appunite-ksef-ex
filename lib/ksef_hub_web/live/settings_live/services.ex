@@ -8,7 +8,6 @@ defmodule KsefHubWeb.SettingsLive.Services do
   use KsefHubWeb, :live_view
 
   alias KsefHub.ServiceConfig
-  alias KsefHub.ServiceConfig.ClassifierConfig
 
   import KsefHubWeb.SettingsComponents, only: [settings_layout: 1]
 
@@ -29,10 +28,17 @@ defmodule KsefHubWeb.SettingsLive.Services do
         health: nil,
         confirm_save: false,
         pending_params: nil,
-        docs_expanded: false
+        docs_expanded: false,
+        active_health_ref: nil
       )
 
-    if connected?(socket), do: check_health_async(config, env)
+    socket =
+      if connected?(socket) do
+        ref = check_health_async(config, env)
+        assign(socket, active_health_ref: ref, health: :checking)
+      else
+        socket
+      end
 
     {:ok, socket}
   end
@@ -242,7 +248,7 @@ defmodule KsefHubWeb.SettingsLive.Services do
   def handle_event("validate", %{"classifier" => params}, socket) do
     changeset =
       socket.assigns.config
-      |> ClassifierConfig.changeset(params)
+      |> ServiceConfig.change_classifier_config(params)
       |> Map.put(:action, :validate)
 
     {:noreply, assign(socket, form: to_form(changeset, as: :classifier))}
@@ -262,11 +268,12 @@ defmodule KsefHubWeb.SettingsLive.Services do
     url = resolve_check_url(params, socket)
 
     if url do
-      Task.Supervisor.async_nolink(KsefHub.TaskSupervisor, fn ->
-        {:pre_save_health, params, check_url_health(url)}
-      end)
+      %{ref: ref} =
+        Task.Supervisor.async_nolink(KsefHub.TaskSupervisor, fn ->
+          {:pre_save_health, params, check_url_health(url)}
+        end)
 
-      {:noreply, assign(socket, health: :checking)}
+      {:noreply, assign(socket, health: :checking, active_health_ref: ref)}
     else
       do_save(socket, params)
     end
@@ -284,8 +291,8 @@ defmodule KsefHubWeb.SettingsLive.Services do
 
   @impl true
   def handle_event("check_health", _params, socket) do
-    check_health_async(socket.assigns.config, socket.assigns.env_defaults)
-    {:noreply, assign(socket, health: :checking)}
+    ref = check_health_async(socket.assigns.config, socket.assigns.env_defaults)
+    {:noreply, assign(socket, health: :checking, active_health_ref: ref)}
   end
 
   @impl true
@@ -298,19 +305,35 @@ defmodule KsefHubWeb.SettingsLive.Services do
   @impl true
   def handle_info({ref, {:health_result, result}}, socket) do
     Process.demonitor(ref, [:flush])
-    {:noreply, assign(socket, health: if(result == :ok, do: :ok, else: {:error, result}))}
+
+    if ref == socket.assigns.active_health_ref do
+      {:noreply,
+       assign(socket,
+         health: if(result == :ok, do: :ok, else: {:error, result}),
+         active_health_ref: nil
+       )}
+    else
+      {:noreply, socket}
+    end
   end
 
   @impl true
   def handle_info({ref, {:pre_save_health, params, health_result}}, socket) do
     Process.demonitor(ref, [:flush])
 
-    socket =
-      assign(socket, health: if(health_result == :ok, do: :ok, else: {:error, health_result}))
+    if ref == socket.assigns.active_health_ref do
+      socket =
+        assign(socket,
+          health: if(health_result == :ok, do: :ok, else: {:error, health_result}),
+          active_health_ref: nil
+        )
 
-    case health_result do
-      :ok -> do_save(socket, params)
-      _error -> {:noreply, assign(socket, confirm_save: true, pending_params: params)}
+      case health_result do
+        :ok -> do_save(socket, params)
+        _error -> {:noreply, assign(socket, confirm_save: true, pending_params: params)}
+      end
+    else
+      {:noreply, socket}
     end
   end
 
@@ -321,9 +344,7 @@ defmodule KsefHubWeb.SettingsLive.Services do
 
   @spec do_save(Phoenix.LiveView.Socket.t(), map()) :: {:noreply, Phoenix.LiveView.Socket.t()}
   defp do_save(socket, params) do
-    params = Map.put(params, "updated_by_id", socket.assigns.current_user.id)
-
-    case ServiceConfig.update_classifier_config(socket.assigns.config, params) do
+    case ServiceConfig.update_classifier_config(socket.assigns.config, params, actor_opts(socket)) do
       {:ok, updated} ->
         env = ServiceConfig.env_defaults()
 
@@ -348,7 +369,7 @@ defmodule KsefHubWeb.SettingsLive.Services do
     end
   end
 
-  @spec build_form(ClassifierConfig.t(), map()) :: Phoenix.HTML.Form.t()
+  @spec build_form(ServiceConfig.ClassifierConfig.t(), map()) :: Phoenix.HTML.Form.t()
   defp build_form(config, env) do
     attrs = %{
       "enabled" => config.enabled,
@@ -360,7 +381,7 @@ defmodule KsefHubWeb.SettingsLive.Services do
     }
 
     config
-    |> ClassifierConfig.changeset(attrs)
+    |> ServiceConfig.change_classifier_config(attrs)
     |> Map.put(:action, nil)
     |> to_form(as: :classifier)
   end
@@ -377,19 +398,22 @@ defmodule KsefHubWeb.SettingsLive.Services do
     end
   end
 
-  @spec check_health_async(ClassifierConfig.t(), map()) :: :ok
+  @spec check_health_async(ServiceConfig.ClassifierConfig.t(), map()) :: reference()
   defp check_health_async(config, env) do
     url = if config.enabled, do: config.url, else: env.url
 
     if url do
-      Task.Supervisor.async_nolink(KsefHub.TaskSupervisor, fn ->
-        {:health_result, check_url_health(url)}
-      end)
-    else
-      send(self(), {make_ref(), {:health_result, {:error, :not_configured}}})
-    end
+      %{ref: ref} =
+        Task.Supervisor.async_nolink(KsefHub.TaskSupervisor, fn ->
+          {:health_result, check_url_health(url)}
+        end)
 
-    :ok
+      ref
+    else
+      ref = make_ref()
+      send(self(), {ref, {:health_result, {:error, :not_configured}}})
+      ref
+    end
   end
 
   @spec check_url_health(String.t()) :: :ok | {:error, term()}

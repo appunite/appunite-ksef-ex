@@ -117,13 +117,16 @@ defmodule KsefHubWeb.SettingsLive.ServicesTest do
       config = ServiceConfig.get_or_create_classifier_config(company.id)
 
       {:ok, updated} =
-        ServiceConfig.update_classifier_config(config, %{
-          "enabled" => true,
-          "url" => "http://custom:9000",
-          "category_confidence_threshold" => "0.85",
-          "tag_confidence_threshold" => "0.90",
-          "updated_by_id" => user.id
-        })
+        ServiceConfig.update_classifier_config(
+          config,
+          %{
+            "enabled" => true,
+            "url" => "http://custom:9000",
+            "category_confidence_threshold" => "0.85",
+            "tag_confidence_threshold" => "0.90"
+          },
+          user_id: user.id
+        )
 
       assert updated.enabled == true
       assert updated.url == "http://custom:9000"

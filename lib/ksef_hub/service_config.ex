@@ -9,6 +9,7 @@ defmodule KsefHub.ServiceConfig do
   the global env-var defaults for that company's operations.
   """
 
+  alias KsefHub.ActivityLog.TrackedRepo
   alias KsefHub.Credentials.Encryption
   alias KsefHub.Repo
   alias KsefHub.ServiceConfig.ClassifierConfig
@@ -40,23 +41,31 @@ defmodule KsefHub.ServiceConfig do
   end
 
   @doc """
+  Returns a changeset for a classifier config, suitable for form building and validation.
+  """
+  @spec change_classifier_config(ClassifierConfig.t(), map()) :: Ecto.Changeset.t()
+  def change_classifier_config(%ClassifierConfig{} = config, attrs \\ %{}) do
+    ClassifierConfig.changeset(config, attrs)
+  end
+
+  @doc """
   Updates a classifier config, encrypting the API token if provided.
 
-  The `updated_by_id` is set server-side and not accepted via the changeset
-  to prevent form input from overriding the actor.
+  Actor metadata (`user_id`, `actor_label`) is passed via `opts` and forwarded
+  to TrackedRepo for activity log emission. The `updated_by_id` field is derived
+  from `opts[:user_id]` server-side.
   """
-  @spec update_classifier_config(ClassifierConfig.t(), map()) ::
+  @spec update_classifier_config(ClassifierConfig.t(), map(), keyword()) ::
           {:ok, ClassifierConfig.t()} | {:error, Ecto.Changeset.t()}
-  def update_classifier_config(%ClassifierConfig{} = config, attrs) do
+  def update_classifier_config(%ClassifierConfig{} = config, attrs, opts \\ []) do
     changeset = ClassifierConfig.changeset(config, attrs)
 
-    # Set updated_by_id server-side (not accepted via changeset cast)
-    updated_by_id = Map.get(attrs, "updated_by_id") || Map.get(attrs, :updated_by_id)
-
+    # Set updated_by_id from actor opts, not from form attrs
     changeset =
-      if updated_by_id,
-        do: Ecto.Changeset.put_change(changeset, :updated_by_id, updated_by_id),
-        else: changeset
+      case Keyword.get(opts, :user_id) do
+        nil -> changeset
+        user_id -> Ecto.Changeset.put_change(changeset, :updated_by_id, user_id)
+      end
 
     # Handle API token: Ecto casts "" to nil, so check raw params for explicit blank
     changeset =
@@ -72,7 +81,10 @@ defmodule KsefHub.ServiceConfig do
           Ecto.Changeset.put_change(changeset, :api_token_encrypted, encrypted)
       end
 
-    Repo.update(changeset)
+    TrackedRepo.update(
+      changeset,
+      opts ++ [action: "classifier_config.updated"]
+    )
   end
 
   @doc """
