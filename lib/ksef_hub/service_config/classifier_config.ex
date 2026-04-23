@@ -51,8 +51,7 @@ defmodule KsefHub.ServiceConfig.ClassifierConfig do
       :url,
       :api_token,
       :category_confidence_threshold,
-      :tag_confidence_threshold,
-      :updated_by_id
+      :tag_confidence_threshold
     ])
     |> validate_when_enabled()
   end

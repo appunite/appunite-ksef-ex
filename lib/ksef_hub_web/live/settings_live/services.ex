@@ -395,7 +395,7 @@ defmodule KsefHubWeb.SettingsLive.Services do
   @spec check_url_health(String.t()) :: :ok | {:error, term()}
   defp check_url_health(url) do
     case Req.get(
-           url: url <> "/health",
+           url: String.trim_trailing(url, "/") <> "/health",
            receive_timeout: 5_000,
            retry: false,
            connect_options: [timeout: 3_000]

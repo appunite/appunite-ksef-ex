@@ -134,19 +134,21 @@ defmodule KsefHub.ServiceConfigTest do
       config_a = ServiceConfig.get_or_create_classifier_config(company_a.id)
       config_b = ServiceConfig.get_or_create_classifier_config(company_b.id)
 
-      ServiceConfig.update_classifier_config(config_a, %{
-        "enabled" => true,
-        "url" => "http://model-a:9000",
-        "category_confidence_threshold" => "0.71",
-        "tag_confidence_threshold" => "0.95"
-      })
+      {:ok, _} =
+        ServiceConfig.update_classifier_config(config_a, %{
+          "enabled" => true,
+          "url" => "http://model-a:9000",
+          "category_confidence_threshold" => "0.71",
+          "tag_confidence_threshold" => "0.95"
+        })
 
-      ServiceConfig.update_classifier_config(config_b, %{
-        "enabled" => true,
-        "url" => "http://model-b:9001",
-        "category_confidence_threshold" => "0.71",
-        "tag_confidence_threshold" => "0.95"
-      })
+      {:ok, _} =
+        ServiceConfig.update_classifier_config(config_b, %{
+          "enabled" => true,
+          "url" => "http://model-b:9001",
+          "category_confidence_threshold" => "0.71",
+          "tag_confidence_threshold" => "0.95"
+        })
 
       a = ServiceConfig.get_classifier_config(company_a.id)
       b = ServiceConfig.get_classifier_config(company_b.id)

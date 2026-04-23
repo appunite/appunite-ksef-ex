@@ -41,11 +41,22 @@ defmodule KsefHub.ServiceConfig do
 
   @doc """
   Updates a classifier config, encrypting the API token if provided.
+
+  The `updated_by_id` is set server-side and not accepted via the changeset
+  to prevent form input from overriding the actor.
   """
   @spec update_classifier_config(ClassifierConfig.t(), map()) ::
           {:ok, ClassifierConfig.t()} | {:error, Ecto.Changeset.t()}
   def update_classifier_config(%ClassifierConfig{} = config, attrs) do
     changeset = ClassifierConfig.changeset(config, attrs)
+
+    # Set updated_by_id server-side (not accepted via changeset cast)
+    updated_by_id = Map.get(attrs, "updated_by_id") || Map.get(attrs, :updated_by_id)
+
+    changeset =
+      if updated_by_id,
+        do: Ecto.Changeset.put_change(changeset, :updated_by_id, updated_by_id),
+        else: changeset
 
     # Handle API token: Ecto casts "" to nil, so check raw params for explicit blank
     changeset =

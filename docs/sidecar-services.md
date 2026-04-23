@@ -145,7 +145,7 @@ Or use `make models.train` to see these instructions at any time.
 
 ### Main app (ksef-hub)
 
-Sidecar configuration comes from environment variables (see below). The **invoice classifier** can additionally be overridden per-company via **Settings → Services** in the admin UI (stored in the `classifier_configs` table). When a company's override is enabled, DB values take precedence over env vars for that company's classification operations.
+Sidecar configuration comes from environment variables (see below). The **invoice classifier** has a per-company override UI in **Settings → Services** (stored in the `classifier_configs` table), but the classification pipeline does not yet read those DB overrides — it still uses global `Application.get_env` settings (see `lib/ksef_hub/invoice_classifier.ex`). The per-company override UI is available but the runtime wiring is pending (see ADR-0049), so DB values do not currently take precedence over env vars.
 
 | Variable | Service | Description |
 |----------|---------|-------------|

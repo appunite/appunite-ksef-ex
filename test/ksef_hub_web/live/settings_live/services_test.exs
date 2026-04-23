@@ -137,21 +137,23 @@ defmodule KsefHubWeb.SettingsLive.ServicesTest do
 
       config = ServiceConfig.get_or_create_classifier_config(company.id)
 
-      ServiceConfig.update_classifier_config(config, %{
-        "enabled" => true,
-        "url" => "http://a:9000",
-        "category_confidence_threshold" => "0.71",
-        "tag_confidence_threshold" => "0.95"
-      })
+      {:ok, _} =
+        ServiceConfig.update_classifier_config(config, %{
+          "enabled" => true,
+          "url" => "http://a:9000",
+          "category_confidence_threshold" => "0.71",
+          "tag_confidence_threshold" => "0.95"
+        })
 
       other_config = ServiceConfig.get_or_create_classifier_config(other_company.id)
 
-      ServiceConfig.update_classifier_config(other_config, %{
-        "enabled" => true,
-        "url" => "http://b:9001",
-        "category_confidence_threshold" => "0.71",
-        "tag_confidence_threshold" => "0.95"
-      })
+      {:ok, _} =
+        ServiceConfig.update_classifier_config(other_config, %{
+          "enabled" => true,
+          "url" => "http://b:9001",
+          "category_confidence_threshold" => "0.71",
+          "tag_confidence_threshold" => "0.95"
+        })
 
       # Each company sees its own config
       {:ok, _view, html} = live(conn, ~p"/c/#{company.id}/settings/services")
