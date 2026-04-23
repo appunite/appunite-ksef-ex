@@ -14,6 +14,12 @@ defmodule KsefHubWeb.InvoiceLive.UploadTest do
   setup :set_mox_global
   setup :verify_on_exit!
 
+  setup do
+    stub(KsefHub.InvoiceExtractor.Mock, :health, fn -> {:ok, %{"status" => "ok"}} end)
+    stub(KsefHub.InvoiceClassifier.Mock, :health, fn -> {:ok, %{"status" => "ok"}} end)
+    :ok
+  end
+
   setup %{conn: conn} do
     {:ok, user} =
       Accounts.get_or_create_google_user(%{

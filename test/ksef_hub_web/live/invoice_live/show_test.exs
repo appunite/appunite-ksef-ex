@@ -76,8 +76,8 @@ defmodule KsefHubWeb.InvoiceLive.ShowTest do
         {:ok, "<html>preview</html>"}
       end)
 
-      {:ok, _view, html} = live(conn, ~p"/c/#{company.id}/invoices/#{invoice.id}")
-      assert html =~ "preview"
+      {:ok, view, _html} = live(conn, ~p"/c/#{company.id}/invoices/#{invoice.id}")
+      assert render(view) =~ "preview"
     end
   end
 

@@ -106,7 +106,8 @@ defmodule KsefHubWeb.InvoiceLive.Show do
            payment_status: payment_status,
            public_link: public_link,
            invoice_payment_requests: invoice_payment_requests,
-           html_preview: generate_preview(invoice),
+           html_preview: nil,
+           preview_ref: nil,
            categories: Invoices.list_categories(company.id),
            editing: auto_edit && can_mutate,
            edit_form: build_edit_form(invoice),
@@ -128,7 +129,18 @@ defmodule KsefHubWeb.InvoiceLive.Show do
            tag_confidence_threshold: InvoiceClassifier.tag_confidence_threshold()
          )
          |> stream(:activity_log, activity_entries)
+         |> start_preview_task(invoice)
          |> refresh_tabs()}
+    end
+  end
+
+  @spec start_preview_task(Phoenix.LiveView.Socket.t(), Invoice.t()) :: Phoenix.LiveView.Socket.t()
+  defp start_preview_task(socket, invoice) do
+    if connected?(socket) do
+      task = Task.Supervisor.async_nolink(KsefHub.TaskSupervisor, fn -> generate_preview(invoice) end)
+      assign(socket, preview_ref: task.ref)
+    else
+      socket
     end
   end
 
@@ -843,6 +855,16 @@ defmodule KsefHubWeb.InvoiceLive.Show do
      socket
      |> assign(extracting: false, extract_ref: nil)
      |> put_flash(:error, "Re-extraction crashed. Please try again.")}
+  end
+
+  def handle_info({ref, html}, %{assigns: %{preview_ref: ref}} = socket) when is_reference(ref) do
+    Process.demonitor(ref, [:flush])
+    {:noreply, assign(socket, html_preview: html, preview_ref: nil)}
+  end
+
+  def handle_info({:DOWN, ref, :process, _pid, _reason}, %{assigns: %{preview_ref: ref}} = socket)
+      when is_reference(ref) do
+    {:noreply, assign(socket, preview_ref: nil)}
   end
 
   def handle_info({:new_activity, audit_log}, socket) do

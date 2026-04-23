@@ -60,6 +60,27 @@ defmodule KsefHub.InvoiceExtractor.ClientTest do
                Client.extract("pdf data", filename: "test.pdf")
     end
 
+    test "retries on econnrefused and succeeds when service becomes available" do
+      setup_extractor_config()
+
+      {:ok, attempts} = Agent.start_link(fn -> 0 end)
+
+      Req.Test.stub(Client, fn conn ->
+        attempt = Agent.get_and_update(attempts, fn n -> {n, n + 1} end)
+
+        if attempt == 0 do
+          Req.Test.transport_error(conn, :econnrefused)
+        else
+          Req.Test.json(conn, %{"seller_nip" => "1234567890"})
+        end
+      end)
+
+      assert {:ok, %{"seller_nip" => "1234567890"}} =
+               Client.extract("pdf data", filename: "test.pdf")
+
+      assert Agent.get(attempts, & &1) == 2
+    end
+
     test "sends context as form field when provided in opts" do
       setup_extractor_config()
 

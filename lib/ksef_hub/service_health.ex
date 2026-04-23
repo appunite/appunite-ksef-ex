@@ -15,12 +15,28 @@ defmodule KsefHub.ServiceHealth do
   """
   @spec check_all() :: results()
   def check_all do
-    services = [
+    check_services([
       {:pdf_renderer, &pdf_renderer().health/0},
       {:invoice_extractor, &invoice_extractor().health/0},
       {:invoice_classifier, &invoice_classifier().health/0}
-    ]
+    ])
+  end
 
+  @doc """
+  Warms the sidecars required for PDF upload processing (extractor + classifier).
+
+  Called on the upload LiveView mount to use idle file-browsing time productively.
+  """
+  @spec warm_upload_sidecars() :: results()
+  def warm_upload_sidecars do
+    check_services([
+      {:invoice_extractor, &invoice_extractor().health/0},
+      {:invoice_classifier, &invoice_classifier().health/0}
+    ])
+  end
+
+  @spec check_services([{atom(), (-> {:ok, map()} | {:error, term()})}]) :: results()
+  defp check_services(services) do
     services
     |> Enum.map(fn {name, check_fn} ->
       {name, Task.async(fn -> safe_check(check_fn) end)}
