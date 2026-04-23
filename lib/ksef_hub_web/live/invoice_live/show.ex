@@ -134,10 +134,13 @@ defmodule KsefHubWeb.InvoiceLive.Show do
     end
   end
 
-  @spec start_preview_task(Phoenix.LiveView.Socket.t(), Invoice.t()) :: Phoenix.LiveView.Socket.t()
+  @spec start_preview_task(Phoenix.LiveView.Socket.t(), Invoice.t()) ::
+          Phoenix.LiveView.Socket.t()
   defp start_preview_task(socket, invoice) do
     if connected?(socket) do
-      task = Task.Supervisor.async_nolink(KsefHub.TaskSupervisor, fn -> generate_preview(invoice) end)
+      task =
+        Task.Supervisor.async_nolink(KsefHub.TaskSupervisor, fn -> generate_preview(invoice) end)
+
       assign(socket, preview_ref: task.ref)
     else
       socket
