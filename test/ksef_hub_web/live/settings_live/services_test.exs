@@ -135,6 +135,60 @@ defmodule KsefHubWeb.SettingsLive.ServicesTest do
       assert updated.updated_by_id == user.id
     end
 
+    test "failed probe then edit then resubmit saves the edited value", %{
+      conn: conn,
+      company: company
+    } do
+      {:ok, view, _html} = live(conn, ~p"/c/#{company.id}/settings/services")
+
+      form_params = %{
+        enabled: true,
+        url: "http://10.0.0.1:9999",
+        category_confidence_threshold: "0.80",
+        tag_confidence_threshold: "0.90"
+      }
+
+      # First submit — the SSRF check blocks the private IP, triggering a probe failure
+      view
+      |> form("form[phx-submit=save]", classifier: form_params)
+      |> render_submit()
+
+      # Allow the async health check task to complete and send its result back
+      Process.sleep(100)
+      html = render(view)
+
+      assert html =~ "Save anyway"
+
+      # User edits the form — this should clear the stale pending_params
+      edited_params = %{form_params | url: "http://10.0.0.2:8888"}
+
+      view
+      |> form("form[phx-submit=save]", classifier: edited_params)
+      |> render_change()
+
+      html = render(view)
+      refute html =~ "Save anyway"
+
+      # Resubmit with the edited URL — probe fails again
+      view
+      |> form("form[phx-submit=save]", classifier: edited_params)
+      |> render_submit()
+
+      Process.sleep(100)
+      html = render(view)
+
+      assert html =~ "Save anyway"
+
+      # Confirm save — should persist the EDITED url, not the original
+      view |> element("button", "Save anyway") |> render_click()
+
+      config = ServiceConfig.get_or_create_classifier_config(company.id)
+      assert config.url == "http://10.0.0.2:8888"
+      assert config.enabled == true
+      assert config.category_confidence_threshold == 0.80
+      assert config.tag_confidence_threshold == 0.90
+    end
+
     test "company configs are isolated", %{conn: conn, company: company} do
       other_company = insert(:company)
 

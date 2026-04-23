@@ -251,16 +251,20 @@ defmodule KsefHubWeb.SettingsLive.Services do
       |> ServiceConfig.change_classifier_config(params)
       |> Map.put(:action, :validate)
 
-    {:noreply, assign(socket, form: to_form(changeset, as: :classifier))}
+    {:noreply,
+     assign(socket,
+       form: to_form(changeset, as: :classifier),
+       pending_params: nil,
+       confirm_save: false
+     )}
   end
 
   @impl true
   def handle_event("save", %{"classifier" => params}, socket) do
-    # Blank token means "keep existing"
+    # nil token means "keep existing"; "" means "clear token"
     params =
       case params["api_token"] do
         nil -> Map.delete(params, "api_token")
-        "" -> Map.delete(params, "api_token")
         _ -> params
       end
 
@@ -291,7 +295,8 @@ defmodule KsefHubWeb.SettingsLive.Services do
 
   @impl true
   def handle_event("check_health", _params, socket) do
-    ref = check_health_async(socket.assigns.config, socket.assigns.env_defaults)
+    temp_config = Ecto.Changeset.apply_changes(socket.assigns.form.source)
+    ref = check_health_async(temp_config, socket.assigns.env_defaults)
     {:noreply, assign(socket, health: :checking, active_health_ref: ref)}
   end
 
@@ -418,17 +423,62 @@ defmodule KsefHubWeb.SettingsLive.Services do
 
   @spec check_url_health(String.t()) :: :ok | {:error, term()}
   defp check_url_health(url) do
-    case Req.get(
-           url: String.trim_trailing(url, "/") <> "/health",
-           receive_timeout: 5_000,
-           retry: false,
-           connect_options: [timeout: 3_000]
-         ) do
-      {:ok, %{status: 200}} -> :ok
-      {:ok, %{status: status}} -> {:error, {:http_error, status}}
-      {:error, reason} -> {:error, reason}
+    with :ok <- host_allowed?(url) do
+      case Req.get(
+             url: String.trim_trailing(url, "/") <> "/health",
+             receive_timeout: 5_000,
+             retry: false,
+             redirect: false,
+             connect_options: [timeout: 3_000]
+           ) do
+        {:ok, %{status: 200}} -> :ok
+        {:ok, %{status: status}} -> {:error, {:http_error, status}}
+        {:error, reason} -> {:error, reason}
+      end
     end
   rescue
     e -> {:error, Exception.message(e)}
   end
+
+  @spec host_allowed?(String.t()) :: :ok | {:error, :disallowed_target}
+  defp host_allowed?(url) do
+    uri = URI.parse(url)
+
+    with true <- uri.scheme in ["http", "https"],
+         true <- is_binary(uri.host) and uri.host != "" do
+      host = String.to_charlist(uri.host)
+
+      case :inet.getaddr(host, :inet) do
+        {:ok, ip4} ->
+          if ip4_private?(ip4), do: {:error, :disallowed_target}, else: :ok
+
+        {:error, _} ->
+          case :inet.getaddr(host, :inet6) do
+            {:ok, ip6} ->
+              if ip6_private?(ip6), do: {:error, :disallowed_target}, else: :ok
+
+            {:error, _} ->
+              {:error, :disallowed_target}
+          end
+      end
+    else
+      _ -> {:error, :disallowed_target}
+    end
+  end
+
+  @spec ip4_private?(:inet.ip4_address()) :: boolean()
+  defp ip4_private?({127, _, _, _}), do: true
+  defp ip4_private?({10, _, _, _}), do: true
+  defp ip4_private?({172, b, _, _}) when b >= 16 and b <= 31, do: true
+  defp ip4_private?({192, 168, _, _}), do: true
+  defp ip4_private?({169, 254, _, _}), do: true
+  defp ip4_private?({100, b, _, _}) when b >= 64 and b <= 127, do: true
+  defp ip4_private?({0, _, _, _}), do: true
+  defp ip4_private?(_), do: false
+
+  @spec ip6_private?(:inet.ip6_address()) :: boolean()
+  defp ip6_private?({0, 0, 0, 0, 0, 0, 0, 1}), do: true
+  defp ip6_private?({w, _, _, _, _, _, _, _}) when w >= 0xFE80 and w <= 0xFEBF, do: true
+  defp ip6_private?({w, _, _, _, _, _, _, _}) when w >= 0xFC00 and w <= 0xFDFF, do: true
+  defp ip6_private?(_), do: false
 end
