@@ -270,20 +270,21 @@ defmodule KsefHubWeb.ExportLive.Index do
               </select>
             </div>
 
-            <div class="space-y-1">
-              <label class="label cursor-pointer justify-start gap-2 items-start whitespace-normal">
-                <input type="hidden" name="only_new" value="false" />
+            <div>
+              <input type="hidden" name="only_new" value="false" />
+              <label class="flex cursor-pointer items-center gap-2">
                 <input
                   type="checkbox"
                   name="only_new"
                   value="true"
                   checked={@only_new}
-                  class="size-4 shrink-0 mt-0.5 rounded border border-input bg-background accent-shad-primary"
+                  class="size-4 shrink-0 rounded border border-input bg-background accent-shad-primary"
                 />
-                <span class="text-sm font-medium">
-                  Only new invoices (not previously exported by me)
-                </span>
+                <span class="text-sm font-medium">New invoices only</span>
               </label>
+              <p class="text-xs text-muted-foreground mt-0.5 ml-6">
+                Export invoices not previously exported by me
+              </p>
             </div>
 
             <div

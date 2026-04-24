@@ -500,4 +500,107 @@ defmodule KsefHub.ExportsTest do
       assert updated.invoice_count == 0
     end
   end
+
+  describe "list_training_invoices/3" do
+    test "returns approved invoices in date range", %{company: company} do
+      insert(:invoice,
+        company: company,
+        issue_date: ~D[2026-01-15],
+        type: :expense,
+        expense_approval_status: :approved
+      )
+
+      insert(:invoice,
+        company: company,
+        issue_date: ~D[2026-01-20],
+        type: :income
+      )
+
+      # Outside range
+      insert(:invoice,
+        company: company,
+        issue_date: ~D[2026-02-15],
+        type: :expense,
+        expense_approval_status: :approved
+      )
+
+      invoices = Exports.list_training_invoices(company.id, ~D[2026-01-01], ~D[2026-01-31])
+      assert length(invoices) == 2
+    end
+
+    test "includes all invoice types", %{company: company} do
+      insert(:invoice,
+        company: company,
+        issue_date: ~D[2026-01-15],
+        type: :expense,
+        expense_approval_status: :approved
+      )
+
+      insert(:invoice,
+        company: company,
+        issue_date: ~D[2026-01-20],
+        type: :income
+      )
+
+      invoices = Exports.list_training_invoices(company.id, ~D[2026-01-01], ~D[2026-01-31])
+      types = Enum.map(invoices, & &1.type)
+      assert :expense in types
+      assert :income in types
+    end
+
+    test "excludes duplicates", %{company: company} do
+      original =
+        insert(:invoice,
+          company: company,
+          issue_date: ~D[2026-01-15],
+          type: :expense,
+          expense_approval_status: :approved
+        )
+
+      insert(:invoice,
+        company: company,
+        issue_date: ~D[2026-01-15],
+        type: :expense,
+        expense_approval_status: :approved,
+        duplicate_of: original
+      )
+
+      invoices = Exports.list_training_invoices(company.id, ~D[2026-01-01], ~D[2026-01-31])
+      assert length(invoices) == 1
+    end
+
+    test "preloads payment_requests and category", %{company: company} do
+      category = insert(:category, company: company)
+
+      inv =
+        insert(:invoice,
+          company: company,
+          issue_date: ~D[2026-01-15],
+          type: :expense,
+          expense_approval_status: :approved,
+          category: category
+        )
+
+      insert(:payment_request, invoice: inv, company: company)
+
+      [invoice] = Exports.list_training_invoices(company.id, ~D[2026-01-01], ~D[2026-01-31])
+      assert Ecto.assoc_loaded?(invoice.payment_requests)
+      assert Ecto.assoc_loaded?(invoice.category)
+      assert length(invoice.payment_requests) == 1
+      assert invoice.category.id == category.id
+    end
+
+    test "includes excluded invoices", %{company: company} do
+      insert(:invoice,
+        company: company,
+        issue_date: ~D[2026-01-15],
+        type: :expense,
+        expense_approval_status: :approved,
+        is_excluded: true
+      )
+
+      invoices = Exports.list_training_invoices(company.id, ~D[2026-01-01], ~D[2026-01-31])
+      assert length(invoices) == 1
+    end
+  end
 end

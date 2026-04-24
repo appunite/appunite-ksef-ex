@@ -94,6 +94,30 @@ defmodule KsefHub.Exports do
     |> Repo.all()
   end
 
+  @doc """
+  Lists invoices for training CSV export with extended preloads.
+
+  Unlike `list_exportable_invoices/1`, this takes a company_id and date range
+  directly — no ExportBatch required, no download tracking. Includes all invoice
+  types with no date range cap (CSV generation is fast, unlike PDF rendering).
+  """
+  @spec list_training_invoices(Ecto.UUID.t(), Date.t(), Date.t()) :: [Invoice.t()]
+  def list_training_invoices(company_id, date_from, date_to) do
+    %{
+      company_id: company_id,
+      date_from: date_from,
+      date_to: date_to,
+      invoice_type: nil,
+      only_new: false,
+      user_id: nil,
+      category_id: nil
+    }
+    |> exportable_invoices_query()
+    |> order_by([i], asc: i.issue_date, asc: i.invoice_number)
+    |> preload([:category, :payment_requests, :created_by, :inbound_email])
+    |> Repo.all()
+  end
+
   @doc "Counts invoices matching the given export filters without loading them."
   @spec count_exportable_invoices(Ecto.UUID.t(), map()) :: non_neg_integer()
   def count_exportable_invoices(company_id, filters) do

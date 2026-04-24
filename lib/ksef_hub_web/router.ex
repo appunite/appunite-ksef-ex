@@ -231,6 +231,7 @@ defmodule KsefHubWeb.Router do
     get "/invoices/:id/pdf", InvoicePdfController, :show
     get "/invoices/:id/xml", InvoicePdfController, :xml
     get "/exports/:id/download", ExportController, :download
+    get "/training-csv", TrainingCsvController, :download
   end
 
   # OpenAPI spec (public, no auth required)
