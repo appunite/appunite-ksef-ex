@@ -1,9 +1,10 @@
 defmodule KsefHub.ServiceConfig.ClassifierConfig do
   @moduledoc """
-  Per-company configuration for the invoice classifier sidecar.
+  Per-company configuration for the invoice classifier service.
 
-  When `enabled` is true, these values override the global env-var defaults.
-  When `enabled` is false (default), the app uses env vars from `runtime.exs`.
+  When `enabled` is true, invoice classification runs using the configured
+  URL, token, and thresholds. When `enabled` is false (default), no
+  classification is performed for the company.
   """
 
   use Ecto.Schema
@@ -11,6 +12,22 @@ defmodule KsefHub.ServiceConfig.ClassifierConfig do
   import Ecto.Changeset
 
   alias KsefHub.Companies.Company
+
+  @default_category_threshold 0.71
+  @default_tag_threshold 0.95
+  @default_url "http://localhost:3003"
+
+  @doc "Returns the default category confidence threshold."
+  @spec default_category_threshold() :: float()
+  def default_category_threshold, do: @default_category_threshold
+
+  @doc "Returns the default tag confidence threshold."
+  @spec default_tag_threshold() :: float()
+  def default_tag_threshold, do: @default_tag_threshold
+
+  @doc "Returns the default classifier service URL."
+  @spec default_url() :: String.t()
+  def default_url, do: @default_url
 
   @type t :: %__MODULE__{
           id: Ecto.UUID.t() | nil,

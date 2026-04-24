@@ -3,7 +3,7 @@ defmodule KsefHub.InvoiceClassifier.StubClient do
   @behaviour KsefHub.InvoiceClassifier.Behaviour
 
   @impl true
-  def predict_category(_input) do
+  def predict_category(_input, _config) do
     {:ok,
      %{
        "predicted_label" => "unknown:category",
@@ -14,7 +14,7 @@ defmodule KsefHub.InvoiceClassifier.StubClient do
   end
 
   @impl true
-  def predict_tag(_input) do
+  def predict_tag(_input, _config) do
     {:ok,
      %{
        "predicted_label" => "unknown-tag",
@@ -25,7 +25,7 @@ defmodule KsefHub.InvoiceClassifier.StubClient do
   end
 
   @impl true
-  def health do
+  def health(_config) do
     {:ok, %{"status" => "ok"}}
   end
 end

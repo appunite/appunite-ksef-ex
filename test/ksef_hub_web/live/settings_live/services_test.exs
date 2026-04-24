@@ -55,14 +55,14 @@ defmodule KsefHubWeb.SettingsLive.ServicesTest do
   end
 
   describe "page rendering" do
-    test "renders classifier page with override disabled by default", %{
+    test "renders classifier page with classification disabled by default", %{
       conn: conn,
       company: company
     } do
       {:ok, _view, html} = live(conn, ~p"/c/#{company.id}/settings/services")
 
       assert html =~ "Invoice Classifier"
-      assert html =~ "Using environment variable defaults"
+      assert html =~ "Classification is disabled"
     end
 
     test "shows threshold inputs", %{conn: conn, company: company} do

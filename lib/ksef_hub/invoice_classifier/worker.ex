@@ -2,7 +2,8 @@ defmodule KsefHub.InvoiceClassifier.Worker do
   @moduledoc """
   Oban worker that runs ML classification for newly created expense invoices.
 
-  Enqueued after invoice creation (sync or manual). Skips income invoices,
+  Enqueued after invoice creation (sync or manual). Only runs when the
+  company's classifier config is enabled. Skips income invoices,
   already-manual predictions, and missing invoices. Cancels permanently on
   configuration errors (won't help to retry).
 
@@ -18,6 +19,7 @@ defmodule KsefHub.InvoiceClassifier.Worker do
 
   alias KsefHub.InvoiceClassifier
   alias KsefHub.Invoices
+  alias KsefHub.ServiceConfig
 
   @doc """
   Conditionally enqueues a classification job for an expense invoice.
@@ -49,17 +51,14 @@ defmodule KsefHub.InvoiceClassifier.Worker do
   def maybe_enqueue(_invoice, _opts), do: :skip
 
   @doc """
-  Oban entry point: classifies an expense invoice via the ML sidecar.
+  Oban entry point: classifies an expense invoice via the ML classifier service.
 
-  Looks up the invoice by `"invoice_id"` and `"company_id"` from job args.
-  Returns `:ok` on success, `{:cancel, reason}` for non-retryable cases
-  (missing invoice, non-expense, already manual, service not configured),
+  First checks if the company has classification enabled. If not, the job is
+  cancelled. Otherwise, looks up the invoice and runs classification using
+  the company's classifier config (URL, token, thresholds).
+
+  Returns `:ok` on success, `{:cancel, reason}` for non-retryable cases,
   or `{:error, term()}` for transient failures.
-
-  When classification completes (success or cancel) and `"on_complete"` args
-  are present, the chained worker is enqueued. On transient errors, the chain
-  is NOT triggered — Oban will retry the job, and the chain runs after success
-  or final cancellation.
   """
   @impl Oban.Worker
   @spec perform(Oban.Job.t()) :: :ok | {:cancel, String.t()} | {:error, term()}
@@ -67,27 +66,40 @@ defmodule KsefHub.InvoiceClassifier.Worker do
     %{"invoice_id" => invoice_id, "company_id" => company_id} = args
 
     result =
-      case Invoices.get_invoice(company_id, invoice_id) do
-        nil ->
-          {:cancel, "invoice not found"}
+      case ServiceConfig.get_classifier_config(company_id) do
+        %{enabled: true} = config ->
+          classify_invoice(company_id, invoice_id, config)
 
-        %{prediction_status: :manual} ->
-          {:cancel, "already manually classified"}
-
-        %{type: :expense} = invoice ->
-          run_classification(invoice)
-
-        _non_expense ->
-          {:cancel, "not an expense invoice"}
+        _ ->
+          {:cancel, "classification not enabled for this company"}
       end
 
     maybe_run_on_complete(result, args)
     result
   end
 
-  @spec run_classification(Invoices.Invoice.t()) :: :ok | {:cancel, String.t()} | {:error, term()}
-  defp run_classification(invoice) do
-    case InvoiceClassifier.predict_and_apply(invoice) do
+  @spec classify_invoice(Ecto.UUID.t(), Ecto.UUID.t(), ServiceConfig.ClassifierConfig.t()) ::
+          :ok | {:cancel, String.t()} | {:error, term()}
+  defp classify_invoice(company_id, invoice_id, config) do
+    case Invoices.get_invoice(company_id, invoice_id) do
+      nil ->
+        {:cancel, "invoice not found"}
+
+      %{prediction_status: :manual} ->
+        {:cancel, "already manually classified"}
+
+      %{type: :expense} = invoice ->
+        run_classification(invoice, config)
+
+      _non_expense ->
+        {:cancel, "not an expense invoice"}
+    end
+  end
+
+  @spec run_classification(Invoices.Invoice.t(), ServiceConfig.ClassifierConfig.t()) ::
+          :ok | {:cancel, String.t()} | {:error, term()}
+  defp run_classification(invoice, config) do
+    case InvoiceClassifier.predict_and_apply(invoice, config) do
       {:ok, _invoice} ->
         :ok
 

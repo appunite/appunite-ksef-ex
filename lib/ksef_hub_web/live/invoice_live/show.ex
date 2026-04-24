@@ -85,6 +85,8 @@ defmodule KsefHubWeb.InvoiceLive.Show do
 
         public_link = build_public_link(invoice, user_id)
 
+        {cat_threshold, tag_threshold} = InvoiceClassifier.thresholds_for_company(company.id)
+
         {:ok,
          socket
          |> assign(
@@ -126,8 +128,8 @@ defmodule KsefHubWeb.InvoiceLive.Show do
            comment_form_key: 0,
            editing_comment_id: nil,
            edit_comment_form: nil,
-           category_confidence_threshold: InvoiceClassifier.category_confidence_threshold(),
-           tag_confidence_threshold: InvoiceClassifier.tag_confidence_threshold()
+           category_confidence_threshold: cat_threshold,
+           tag_confidence_threshold: tag_threshold
          )
          |> stream(:activity_log, activity_entries)
          |> start_preview_task(invoice)

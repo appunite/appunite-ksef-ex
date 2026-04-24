@@ -16,7 +16,6 @@ defmodule KsefHubWeb.InvoiceLive.UploadTest do
 
   setup do
     stub(KsefHub.InvoiceExtractor.Mock, :health, fn -> {:ok, %{"status" => "ok"}} end)
-    stub(KsefHub.InvoiceClassifier.Mock, :health, fn -> {:ok, %{"status" => "ok"}} end)
     :ok
   end
 

@@ -3,6 +3,10 @@ defmodule KsefHub.ServiceHealth do
   Shared health-check logic for companion services.
 
   Used by both the startup health check task and the `/healthz/services` endpoint.
+
+  Note: the invoice classifier is excluded from global health checks because it is
+  configured per-company in the database. Per-company health checks are available
+  in the Classifier settings page.
   """
 
   @type check_result :: :ok | {:error, term()}
@@ -17,21 +21,20 @@ defmodule KsefHub.ServiceHealth do
   def check_all do
     check_services([
       {:pdf_renderer, &pdf_renderer().health/0},
-      {:invoice_extractor, &invoice_extractor().health/0},
-      {:invoice_classifier, &invoice_classifier().health/0}
+      {:invoice_extractor, &invoice_extractor().health/0}
     ])
   end
 
   @doc """
-  Warms the sidecars required for PDF upload processing (extractor + classifier).
+  Warms the sidecars required for PDF upload processing (extractor only).
 
   Called on the upload LiveView mount to use idle file-browsing time productively.
+  The classifier is per-company and not warmed here.
   """
   @spec warm_upload_sidecars() :: results()
   def warm_upload_sidecars do
     check_services([
-      {:invoice_extractor, &invoice_extractor().health/0},
-      {:invoice_classifier, &invoice_classifier().health/0}
+      {:invoice_extractor, &invoice_extractor().health/0}
     ])
   end
 
@@ -66,8 +69,4 @@ defmodule KsefHub.ServiceHealth do
   @spec invoice_extractor() :: module()
   defp invoice_extractor,
     do: Application.get_env(:ksef_hub, :invoice_extractor, KsefHub.InvoiceExtractor.Client)
-
-  @spec invoice_classifier() :: module()
-  defp invoice_classifier,
-    do: Application.get_env(:ksef_hub, :invoice_classifier, KsefHub.InvoiceClassifier.Client)
 end

@@ -17,14 +17,12 @@ defmodule KsefHubWeb.HealthControllerTest do
     test "returns 200 when all services are healthy", %{conn: conn} do
       KsefHub.PdfRenderer.Mock |> expect(:health, fn -> {:ok, %{"status" => "ok"}} end)
       KsefHub.InvoiceExtractor.Mock |> expect(:health, fn -> {:ok, %{"status" => "ok"}} end)
-      KsefHub.InvoiceClassifier.Mock |> expect(:health, fn -> {:ok, %{"status" => "ok"}} end)
 
       conn = get(conn, ~p"/healthz/services")
 
       assert json_response(conn, 200) == %{
                "pdf_renderer" => "ok",
-               "invoice_extractor" => "ok",
-               "invoice_classifier" => "ok"
+               "invoice_extractor" => "ok"
              }
     end
 
@@ -34,14 +32,11 @@ defmodule KsefHubWeb.HealthControllerTest do
       KsefHub.InvoiceExtractor.Mock
       |> expect(:health, fn -> {:error, {:extractor_error, 500}} end)
 
-      KsefHub.InvoiceClassifier.Mock |> expect(:health, fn -> {:ok, %{"status" => "ok"}} end)
-
       conn = get(conn, ~p"/healthz/services")
 
       assert json_response(conn, 503) == %{
                "pdf_renderer" => "ok",
-               "invoice_extractor" => "unhealthy",
-               "invoice_classifier" => "ok"
+               "invoice_extractor" => "unhealthy"
              }
     end
 
@@ -52,15 +47,11 @@ defmodule KsefHubWeb.HealthControllerTest do
       KsefHub.InvoiceExtractor.Mock
       |> expect(:health, fn -> {:error, :extractor_not_configured} end)
 
-      KsefHub.InvoiceClassifier.Mock
-      |> expect(:health, fn -> {:error, :classifier_not_configured} end)
-
       conn = get(conn, ~p"/healthz/services")
 
       assert json_response(conn, 503) == %{
                "pdf_renderer" => "unhealthy",
-               "invoice_extractor" => "unhealthy",
-               "invoice_classifier" => "unhealthy"
+               "invoice_extractor" => "unhealthy"
              }
     end
   end

@@ -80,6 +80,8 @@ defmodule KsefHubWeb.InvoiceLive.Classify do
     category_cost_line_map =
       Map.new(categories, fn c -> {c.id, c.default_cost_line} end)
 
+    {cat_threshold, tag_threshold} = InvoiceClassifier.thresholds_for_company(company.id)
+
     {:ok,
      socket
      |> assign(
@@ -102,8 +104,8 @@ defmodule KsefHubWeb.InvoiceLive.Classify do
        project_tag_form_key: 0,
        show_all_tags: false,
        show_all_project_tags: false,
-       category_confidence_threshold: InvoiceClassifier.category_confidence_threshold(),
-       tag_confidence_threshold: InvoiceClassifier.tag_confidence_threshold(),
+       category_confidence_threshold: cat_threshold,
+       tag_confidence_threshold: tag_threshold,
        expanded_group: expanded_group_for(invoice.expense_category_id, categories)
      )}
   end
