@@ -65,7 +65,6 @@ defmodule KsefHubWeb.SettingsLive.Services do
 
       <div class="mt-6">
         <div class="rounded-xl border border-border bg-card p-6">
-
           <.simple_form for={@form} phx-change="validate" phx-submit="save">
             <div class="space-y-4">
               <.input
@@ -206,7 +205,6 @@ defmodule KsefHubWeb.SettingsLive.Services do
               </p>
             </div>
           </div>
-
         </div>
       </div>
 
@@ -346,6 +344,7 @@ defmodule KsefHubWeb.SettingsLive.Services do
     {:noreply, assign(socket, docs_expanded: !socket.assigns.docs_expanded)}
   end
 
+  @impl true
   def handle_event("update_training_dates", params, socket) do
     {:noreply,
      socket

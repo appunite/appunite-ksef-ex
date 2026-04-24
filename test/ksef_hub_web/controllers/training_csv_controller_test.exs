@@ -25,7 +25,9 @@ defmodule KsefHubWeb.TrainingCsvControllerTest do
 
       assert conn.status == 200
       assert get_resp_header(conn, "content-type") |> hd() =~ "text/csv"
-      assert get_resp_header(conn, "content-disposition") |> hd() =~ "training_2026-01-01_2026-01-31.csv"
+
+      assert get_resp_header(conn, "content-disposition") |> hd() =~
+               "training_2026-01-01_2026-01-31.csv"
 
       body = conn.resp_body
       # Starts with UTF-8 BOM

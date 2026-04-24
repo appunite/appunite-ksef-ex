@@ -8,7 +8,6 @@ defmodule KsefHubWeb.TrainingCsvController do
 
   alias KsefHub.Authorization
   alias KsefHub.Exports
-  alias KsefHub.Exports.CsvBuilder
 
   @doc "Downloads an extended CSV of invoices for ML training."
   @spec download(Plug.Conn.t(), map()) :: Plug.Conn.t()
@@ -37,7 +36,7 @@ defmodule KsefHubWeb.TrainingCsvController do
          {:ok, date_to} <- Date.from_iso8601(date_to_str),
          :ok <- validate_date_order(date_from, date_to) do
       invoices = Exports.list_training_invoices(company_id, date_from, date_to)
-      csv_binary = CsvBuilder.build(invoices, extended: true)
+      csv_binary = Exports.build_training_csv(invoices, extended: true)
       filename = "training_#{date_from}_#{date_to}.csv"
       send_attachment(conn, "text/csv", filename, csv_binary)
     else

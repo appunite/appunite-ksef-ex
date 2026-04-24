@@ -152,7 +152,8 @@ defmodule KsefHubWeb.SettingsLive.ServicesTest do
       |> form("form[phx-submit=save]", classifier: form_params)
       |> render_submit()
 
-      Process.sleep(100)
+      # Wait for the async health-check task to deliver its result
+      Process.sleep(50)
       html = render(view)
 
       assert html =~ "Save anyway"
@@ -210,9 +211,8 @@ defmodule KsefHubWeb.SettingsLive.ServicesTest do
 
     test "download link includes date range params", %{conn: conn, company: company} do
       {:ok, _view, html} = live(conn, ~p"/c/#{company.id}/settings/services")
-      assert html =~ "training-csv"
-      assert html =~ "date_from="
-      assert html =~ "date_to="
+
+      assert html =~ ~r/href="[^"]*\/training-csv\?[^"]*date_from=[^&"]+[^"]*&amp;date_to=[^"]+"/
     end
   end
 end

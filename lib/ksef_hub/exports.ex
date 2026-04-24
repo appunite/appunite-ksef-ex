@@ -94,6 +94,10 @@ defmodule KsefHub.Exports do
     |> Repo.all()
   end
 
+  @doc "Builds an extended training CSV binary from a list of invoices."
+  @spec build_training_csv([Invoice.t()], keyword()) :: binary()
+  defdelegate build_training_csv(invoices, opts \\ []), to: CsvBuilder, as: :build
+
   @doc """
   Lists invoices for training CSV export with extended preloads.
 
