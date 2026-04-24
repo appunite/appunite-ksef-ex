@@ -12,6 +12,20 @@ defmodule KsefHub.ServiceConfig do
   alias KsefHub.Repo
   alias KsefHub.ServiceConfig.ClassifierConfig
 
+  @doc "Returns the default classifier settings (URL and confidence thresholds)."
+  @spec classifier_defaults() :: %{
+          url: String.t(),
+          category_threshold: float(),
+          tag_threshold: float()
+        }
+  def classifier_defaults do
+    %{
+      url: ClassifierConfig.default_url(),
+      category_threshold: ClassifierConfig.default_category_threshold(),
+      tag_threshold: ClassifierConfig.default_tag_threshold()
+    }
+  end
+
   @doc "Returns the classifier config for a company, or nil if none exists."
   @spec get_classifier_config(Ecto.UUID.t()) :: ClassifierConfig.t() | nil
   def get_classifier_config(company_id) do

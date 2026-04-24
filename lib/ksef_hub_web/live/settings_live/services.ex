@@ -9,7 +9,6 @@ defmodule KsefHubWeb.SettingsLive.Services do
   use KsefHubWeb, :live_view
 
   alias KsefHub.ServiceConfig
-  alias KsefHub.ServiceConfig.ClassifierConfig
 
   import KsefHubWeb.SettingsComponents, only: [settings_layout: 1]
 
@@ -38,7 +37,7 @@ defmodule KsefHubWeb.SettingsLive.Services do
       )
 
     socket =
-      if connected?(socket) do
+      if connected?(socket) and config.enabled do
         ref = check_health_async(config)
         assign(socket, active_health_ref: ref, health: :checking)
       else
@@ -84,7 +83,7 @@ defmodule KsefHubWeb.SettingsLive.Services do
                   field={@form[:url]}
                   type="url"
                   label="URL"
-                  placeholder={ClassifierConfig.default_url()}
+                  placeholder={ServiceConfig.classifier_defaults().url}
                 />
 
                 <.input
@@ -110,7 +109,7 @@ defmodule KsefHubWeb.SettingsLive.Services do
                     field={@form[:category_confidence_threshold]}
                     type="number"
                     label="Category confidence threshold"
-                    placeholder={to_string(ClassifierConfig.default_category_threshold())}
+                    placeholder={to_string(ServiceConfig.classifier_defaults().category_threshold)}
                     step="0.01"
                     min="0.01"
                     max="0.99"
@@ -119,7 +118,7 @@ defmodule KsefHubWeb.SettingsLive.Services do
                     field={@form[:tag_confidence_threshold]}
                     type="number"
                     label="Tag confidence threshold"
-                    placeholder={to_string(ClassifierConfig.default_tag_threshold())}
+                    placeholder={to_string(ServiceConfig.classifier_defaults().tag_threshold)}
                     step="0.01"
                     min="0.01"
                     max="0.99"
@@ -304,8 +303,8 @@ defmodule KsefHubWeb.SettingsLive.Services do
         _ -> params
       end
 
-    # Health check the URL before saving (only if enabled with a custom URL)
-    url = resolve_check_url(params, socket)
+    # Health check the URL before saving (only if enabled with a submitted URL)
+    url = resolve_check_url(params)
 
     if url do
       %{ref: ref} =
@@ -448,16 +447,12 @@ defmodule KsefHubWeb.SettingsLive.Services do
     |> to_form(as: :classifier)
   end
 
-  @spec resolve_check_url(map(), Phoenix.LiveView.Socket.t()) :: String.t() | nil
-  defp resolve_check_url(params, socket) do
+  @spec resolve_check_url(map()) :: String.t() | nil
+  defp resolve_check_url(params) do
     enabled = params["enabled"] in ["true", true]
     url = params["url"]
 
-    cond do
-      enabled && is_binary(url) && url != "" -> url
-      enabled -> socket.assigns.config.url
-      true -> nil
-    end
+    if enabled && is_binary(url) && url != "", do: url
   end
 
   @spec check_health_async(ServiceConfig.ClassifierConfig.t()) :: reference()
