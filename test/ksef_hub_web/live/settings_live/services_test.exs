@@ -134,7 +134,7 @@ defmodule KsefHubWeb.SettingsLive.ServicesTest do
       assert updated.updated_by_id == user.id
     end
 
-    test "private network URL shows save-anyway confirmation", %{
+    test "unreachable URL shows save-anyway confirmation", %{
       conn: conn,
       company: company
     } do
@@ -142,18 +142,18 @@ defmodule KsefHubWeb.SettingsLive.ServicesTest do
 
       form_params = %{
         enabled: true,
-        url: "http://10.0.0.1:9999",
+        url: "http://127.0.0.1:19999",
         category_confidence_threshold: "0.80",
         tag_confidence_threshold: "0.90"
       }
 
-      # Submit with a private IP — shows confirmation dialog
+      # Submit with an unreachable URL — shows confirmation dialog
       view
       |> form("form[phx-submit=save]", classifier: form_params)
       |> render_submit()
 
-      # Wait for the async health-check task to deliver its result
-      Process.sleep(50)
+      # Wait for the async health-check task (connection refused is fast)
+      Process.sleep(200)
       html = render(view)
 
       assert html =~ "Save anyway"
@@ -169,7 +169,7 @@ defmodule KsefHubWeb.SettingsLive.ServicesTest do
 
       config = ServiceConfig.get_or_create_classifier_config(company.id)
       assert config.enabled
-      assert config.url == "http://10.0.0.1:9999"
+      assert config.url == "http://127.0.0.1:19999"
     end
 
     test "company configs are isolated", %{conn: conn, company: company} do

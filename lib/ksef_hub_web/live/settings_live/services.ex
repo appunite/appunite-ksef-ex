@@ -480,70 +480,18 @@ defmodule KsefHubWeb.SettingsLive.Services do
 
   @spec check_url_health(String.t()) :: :ok | {:error, term()}
   defp check_url_health(url) do
-    with :ok <- host_allowed?(url) do
-      case Req.get(
-             url: String.trim_trailing(url, "/") <> "/health",
-             receive_timeout: 5_000,
-             retry: false,
-             redirect: false,
-             connect_options: [timeout: 3_000]
-           ) do
-        {:ok, %{status: 200}} -> :ok
-        {:ok, %{status: status}} -> {:error, {:http_error, status}}
-        {:error, reason} -> {:error, reason}
-      end
+    case Req.get(
+           url: String.trim_trailing(url, "/") <> "/health",
+           receive_timeout: 5_000,
+           retry: false,
+           redirect: false,
+           connect_options: [timeout: 3_000]
+         ) do
+      {:ok, %{status: 200}} -> :ok
+      {:ok, %{status: status}} -> {:error, {:http_error, status}}
+      {:error, reason} -> {:error, reason}
     end
   rescue
     e -> {:error, Exception.message(e)}
   end
-
-  @spec host_allowed?(String.t()) :: :ok | {:error, :disallowed_target}
-  defp host_allowed?(url) do
-    uri = URI.parse(url)
-
-    with true <- uri.scheme in ["http", "https"],
-         true <- is_binary(uri.host) and uri.host != "",
-         :ok <- resolved_ips_allowed?(String.to_charlist(uri.host)) do
-      :ok
-    else
-      _ -> {:error, :disallowed_target}
-    end
-  end
-
-  @spec resolved_ips_allowed?(charlist()) :: :ok | {:error, :disallowed_target}
-  defp resolved_ips_allowed?(host) do
-    v4 = resolve_addrs(host, :inet)
-    v6 = resolve_addrs(host, :inet6)
-
-    cond do
-      v4 == [] and v6 == [] -> {:error, :disallowed_target}
-      Enum.any?(v4, &ip4_private?/1) -> {:error, :disallowed_target}
-      Enum.any?(v6, &ip6_private?/1) -> {:error, :disallowed_target}
-      true -> :ok
-    end
-  end
-
-  @spec resolve_addrs(charlist(), :inet | :inet6) :: [:inet.ip_address()]
-  defp resolve_addrs(host, family) do
-    case :inet.getaddrs(host, family) do
-      {:ok, addrs} -> addrs
-      {:error, _} -> []
-    end
-  end
-
-  @spec ip4_private?(:inet.ip4_address()) :: boolean()
-  defp ip4_private?({127, _, _, _}), do: true
-  defp ip4_private?({10, _, _, _}), do: true
-  defp ip4_private?({172, b, _, _}) when b >= 16 and b <= 31, do: true
-  defp ip4_private?({192, 168, _, _}), do: true
-  defp ip4_private?({169, 254, _, _}), do: true
-  defp ip4_private?({100, b, _, _}) when b >= 64 and b <= 127, do: true
-  defp ip4_private?({0, _, _, _}), do: true
-  defp ip4_private?(_), do: false
-
-  @spec ip6_private?(:inet.ip6_address()) :: boolean()
-  defp ip6_private?({0, 0, 0, 0, 0, 0, 0, 1}), do: true
-  defp ip6_private?({w, _, _, _, _, _, _, _}) when w >= 0xFE80 and w <= 0xFEBF, do: true
-  defp ip6_private?({w, _, _, _, _, _, _, _}) when w >= 0xFC00 and w <= 0xFDFF, do: true
-  defp ip6_private?(_), do: false
 end
