@@ -222,7 +222,10 @@ defmodule KsefHub.InvoiceClassifierTest do
                InvoiceClassifier.predict_and_apply(invoice, config)
     end
 
-    test "sets predicted when only tag is above tag threshold", %{company: company, config: config} do
+    test "sets predicted when only tag is above tag threshold", %{
+      company: company,
+      config: config
+    } do
       invoice = insert(:manual_invoice, company: company, type: :expense)
 
       expect_predictions(
@@ -310,7 +313,10 @@ defmodule KsefHub.InvoiceClassifierTest do
       assert updated.tags == []
     end
 
-    test "returns error when category succeeds but tag prediction fails", %{company: company, config: config} do
+    test "returns error when category succeeds but tag prediction fails", %{
+      company: company,
+      config: config
+    } do
       invoice = insert(:manual_invoice, company: company, type: :expense)
 
       KsefHub.InvoiceClassifier.Mock
@@ -327,7 +333,8 @@ defmodule KsefHub.InvoiceClassifierTest do
         {:error, {:request_failed, :timeout}}
       end)
 
-      assert {:error, {:request_failed, :timeout}} = InvoiceClassifier.predict_and_apply(invoice, config)
+      assert {:error, {:request_failed, :timeout}} =
+               InvoiceClassifier.predict_and_apply(invoice, config)
 
       # Invoice should be unchanged since tag call failed before apply
       reloaded = Invoices.get_invoice!(company.id, invoice.id)
@@ -363,7 +370,10 @@ defmodule KsefHub.InvoiceClassifierTest do
       assert "monthly" in updated.tags
     end
 
-    test "does not apply when just below threshold boundaries", %{company: company, config: config} do
+    test "does not apply when just below threshold boundaries", %{
+      company: company,
+      config: config
+    } do
       {:ok, _category} = Invoices.create_category(company.id, %{identifier: "finance:invoices"})
 
       invoice = insert(:manual_invoice, company: company, type: :expense)
@@ -392,7 +402,10 @@ defmodule KsefHub.InvoiceClassifierTest do
       assert updated.tags == []
     end
 
-    test "stores full probability distributions even when below thresholds", %{company: company, config: config} do
+    test "stores full probability distributions even when below thresholds", %{
+      company: company,
+      config: config
+    } do
       invoice = insert(:manual_invoice, company: company, type: :expense)
 
       cat_probs = %{"finance:invoices" => 0.60, "hr:payroll" => 0.30, "other:misc" => 0.10}

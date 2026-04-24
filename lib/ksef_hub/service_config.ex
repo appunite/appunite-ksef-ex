@@ -84,5 +84,4 @@ defmodule KsefHub.ServiceConfig do
       opts ++ [action: "classifier_config.updated"]
     )
   end
-
 end

@@ -28,14 +28,15 @@ defmodule KsefHub.InvoiceClassifier do
   @spec thresholds_for_company(Ecto.UUID.t()) :: {float(), float()}
   def thresholds_for_company(company_id) do
     case ServiceConfig.get_classifier_config(company_id) do
-      %ClassifierConfig{
-        category_confidence_threshold: cat,
-        tag_confidence_threshold: tag
-      }
-      when is_float(cat) and is_float(tag) ->
-        {cat, tag}
+      %ClassifierConfig{} = config ->
+        {
+          config.category_confidence_threshold ||
+            ClassifierConfig.default_category_threshold(),
+          config.tag_confidence_threshold ||
+            ClassifierConfig.default_tag_threshold()
+        }
 
-      _ ->
+      nil ->
         {ClassifierConfig.default_category_threshold(), ClassifierConfig.default_tag_threshold()}
     end
   end
@@ -133,7 +134,8 @@ defmodule KsefHub.InvoiceClassifier do
 
     matching_category = find_category_by_identifier(company_id, cat_identifier)
 
-    cat_threshold = config.category_confidence_threshold || ClassifierConfig.default_category_threshold()
+    cat_threshold =
+      config.category_confidence_threshold || ClassifierConfig.default_category_threshold()
 
     confident_category? =
       cat_confidence >= cat_threshold and matching_category != nil

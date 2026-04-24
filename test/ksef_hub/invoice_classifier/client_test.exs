@@ -26,7 +26,9 @@ defmodule KsefHub.InvoiceClassifier.ClientTest do
         })
       end)
 
-      assert {:ok, result} = Client.predict_category(%{invoice_title: "Office supplies"}, @test_config)
+      assert {:ok, result} =
+               Client.predict_category(%{invoice_title: "Office supplies"}, @test_config)
+
       assert result["predicted_label"] == "operations:infrastructure"
       assert result["confidence"] == 0.95
       assert result["model_version"] == "1.0.0"
@@ -82,7 +84,9 @@ defmodule KsefHub.InvoiceClassifier.ClientTest do
         })
       end)
 
-      assert {:ok, result} = Client.predict_tag(%{invoice_title: "Monthly subscription"}, @test_config)
+      assert {:ok, result} =
+               Client.predict_tag(%{invoice_title: "Monthly subscription"}, @test_config)
+
       assert result["predicted_label"] == "benefit-books-formula"
       assert result["confidence"] == 0.88
       assert result["model_version"] == "1.0.0"
