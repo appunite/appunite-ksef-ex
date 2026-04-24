@@ -14,6 +14,7 @@ defmodule KsefHub.InvoiceClassifier.WorkerTest do
 
   setup do
     company = insert(:company)
+    insert(:classifier_config, company: company)
     %{company: company}
   end
 
@@ -94,35 +95,31 @@ defmodule KsefHub.InvoiceClassifier.WorkerTest do
       assert {:cancel, "already manually classified"} = Worker.perform(job)
     end
 
-    test "cancels when classification service is not configured", %{company: company} do
-      invoice = insert(:manual_invoice, company: company, type: :expense)
-
-      KsefHub.InvoiceClassifier.Mock
-      |> expect(:predict_category, fn _input ->
-        {:error, :classifier_not_configured}
-      end)
-      |> expect(:predict_tag, fn _input ->
-        {:ok,
-         %{
-           "predicted_label" => "x",
-           "confidence" => 0.0,
-           "model_version" => "v1.0",
-           "probabilities" => %{}
-         }}
-      end)
+    test "cancels when classification is not enabled for company" do
+      company_without_config = insert(:company)
+      invoice = insert(:manual_invoice, company: company_without_config, type: :expense)
 
       job = build_job(invoice)
-      assert {:cancel, "classification service not configured"} = Worker.perform(job)
+      assert {:cancel, "classification not enabled for this company"} = Worker.perform(job)
+    end
+
+    test "cancels when classifier config is disabled" do
+      disabled_company = insert(:company)
+      insert(:classifier_config, company: disabled_company, enabled: false)
+      invoice = insert(:manual_invoice, company: disabled_company, type: :expense)
+
+      job = build_job(invoice)
+      assert {:cancel, "classification not enabled for this company"} = Worker.perform(job)
     end
 
     test "returns error for transient failures to allow retry", %{company: company} do
       invoice = insert(:manual_invoice, company: company, type: :expense)
 
       KsefHub.InvoiceClassifier.Mock
-      |> expect(:predict_category, fn _input ->
+      |> expect(:predict_category, fn _input, _config ->
         {:error, {:request_failed, :timeout}}
       end)
-      |> expect(:predict_tag, fn _input ->
+      |> expect(:predict_tag, fn _input, _config ->
         {:error, {:request_failed, :timeout}}
       end)
 
@@ -187,10 +184,10 @@ defmodule KsefHub.InvoiceClassifier.WorkerTest do
       invoice = insert(:manual_invoice, company: company, type: :expense)
 
       KsefHub.InvoiceClassifier.Mock
-      |> expect(:predict_category, fn _input ->
+      |> expect(:predict_category, fn _input, _config ->
         {:error, {:request_failed, :timeout}}
       end)
-      |> expect(:predict_tag, fn _input ->
+      |> expect(:predict_tag, fn _input, _config ->
         {:error, {:request_failed, :timeout}}
       end)
 
@@ -231,7 +228,7 @@ defmodule KsefHub.InvoiceClassifier.WorkerTest do
   @spec expect_successful_predictions() :: :ok
   defp expect_successful_predictions do
     KsefHub.InvoiceClassifier.Mock
-    |> expect(:predict_category, fn _input ->
+    |> expect(:predict_category, fn _input, _config ->
       {:ok,
        %{
          "predicted_label" => "some:category",
@@ -240,7 +237,7 @@ defmodule KsefHub.InvoiceClassifier.WorkerTest do
          "probabilities" => %{}
        }}
     end)
-    |> expect(:predict_tag, fn _input ->
+    |> expect(:predict_tag, fn _input, _config ->
       {:ok,
        %{
          "predicted_label" => "some-tag",

@@ -1,11 +1,11 @@
 defmodule KsefHub.InvoiceClassifier do
   @moduledoc """
   Invoice classification context. Orchestrates ML-based category and tag
-  prediction for expense invoices using the au-payroll-model-categories sidecar.
+  prediction for invoices using the company's configured classifier service.
 
-  Auto-applies predictions when confidence meets configurable thresholds:
-  - Category: default 71%, via `CATEGORY_CONFIDENCE_THRESHOLD` env var or Settings → Services
-  - Tag: default 95%, via `TAG_CONFIDENCE_THRESHOLD` env var or Settings → Services
+  Auto-applies predictions when confidence meets the company's configured thresholds:
+  - Category threshold: configurable per company (default 0.71)
+  - Tag threshold: configurable per company (default 0.95)
 
   Categories require a matching record in the company to be auto-applied.
   Tags are free-form strings — all tags from the probability distribution
@@ -17,41 +17,52 @@ defmodule KsefHub.InvoiceClassifier do
 
   require Logger
 
+  alias KsefHub.Credentials.Encryption
   alias KsefHub.Invoices
   alias KsefHub.Invoices.{Category, Invoice}
   alias KsefHub.Repo
+  alias KsefHub.ServiceConfig
+  alias KsefHub.ServiceConfig.ClassifierConfig
 
-  @doc "Returns the current category confidence threshold (0.0–1.0) from application config."
-  @spec category_confidence_threshold() :: float()
-  def category_confidence_threshold,
-    do: Application.get_env(:ksef_hub, :category_confidence_threshold, 0.71)
+  @doc "Returns the confidence thresholds for a company from its ClassifierConfig."
+  @spec thresholds_for_company(Ecto.UUID.t()) :: {float(), float()}
+  def thresholds_for_company(company_id) do
+    case ServiceConfig.get_classifier_config(company_id) do
+      %ClassifierConfig{} = config ->
+        {
+          config.category_confidence_threshold ||
+            ClassifierConfig.default_category_threshold(),
+          config.tag_confidence_threshold ||
+            ClassifierConfig.default_tag_threshold()
+        }
 
-  @doc "Returns the current tag confidence threshold (0.0–1.0) from application config."
-  @spec tag_confidence_threshold() :: float()
-  def tag_confidence_threshold,
-    do: Application.get_env(:ksef_hub, :tag_confidence_threshold, 0.95)
+      nil ->
+        {ClassifierConfig.default_category_threshold(), ClassifierConfig.default_tag_threshold()}
+    end
+  end
 
   @doc """
-  Runs category and tag prediction for an expense invoice, then applies
-  results based on confidence threshold.
+  Runs category and tag prediction for an expense invoice using the given
+  classifier config, then applies results based on confidence thresholds.
 
   Returns `{:ok, invoice}` on success, `{:error, reason}` on failure,
   or `{:skip, reason}` when prediction is not applicable.
   """
-  @spec predict_and_apply(Invoice.t()) ::
+  @spec predict_and_apply(Invoice.t(), ClassifierConfig.t()) ::
           {:ok, Invoice.t()} | {:error, term()} | {:skip, atom()}
-  def predict_and_apply(%Invoice{type: :expense} = invoice) do
+  def predict_and_apply(%Invoice{type: :expense} = invoice, %ClassifierConfig{} = config) do
+    client_config = build_client_config(config)
     input = build_input(invoice)
     client = invoice_classifier()
 
     cat_task =
       Task.Supervisor.async_nolink(KsefHub.TaskSupervisor, fn ->
-        client.predict_category(input)
+        client.predict_category(input, client_config)
       end)
 
     tag_task =
       Task.Supervisor.async_nolink(KsefHub.TaskSupervisor, fn ->
-        client.predict_tag(input)
+        client.predict_tag(input, client_config)
       end)
 
     [cat_result, tag_result] =
@@ -71,11 +82,33 @@ defmodule KsefHub.InvoiceClassifier do
 
     with {:ok, cat} <- cat_result,
          {:ok, tag} <- tag_result do
-      apply_predictions(invoice, cat, tag)
+      apply_predictions(invoice, cat, tag, config)
     end
   end
 
-  def predict_and_apply(%Invoice{}), do: {:skip, :not_expense}
+  def predict_and_apply(%Invoice{}, _config), do: {:skip, :not_expense}
+
+  @spec build_client_config(ClassifierConfig.t()) :: map()
+  defp build_client_config(%ClassifierConfig{} = config) do
+    %{
+      url: config.url,
+      api_token: decrypt_token(config.api_token_encrypted)
+    }
+  end
+
+  @spec decrypt_token(binary() | nil) :: String.t() | nil
+  defp decrypt_token(nil), do: nil
+
+  defp decrypt_token(encrypted) do
+    case Encryption.decrypt(encrypted) do
+      {:ok, token} ->
+        token
+
+      {:error, reason} ->
+        Logger.warning("Failed to decrypt classifier API token: #{inspect(reason)}")
+        nil
+    end
+  end
 
   @spec build_input(Invoice.t()) :: map()
   defp build_input(invoice) do
@@ -91,24 +124,28 @@ defmodule KsefHub.InvoiceClassifier do
     }
   end
 
-  @spec apply_predictions(Invoice.t(), map(), map()) ::
+  @spec apply_predictions(Invoice.t(), map(), map(), ClassifierConfig.t()) ::
           {:ok, Invoice.t()} | {:error, term()}
-  defp apply_predictions(invoice, cat_result, tag_result) do
-    resolution = resolve_predictions(invoice.company_id, cat_result, tag_result)
+  defp apply_predictions(invoice, cat_result, tag_result, config) do
+    resolution = resolve_predictions(invoice.company_id, cat_result, tag_result, config)
     persist_and_apply(invoice, resolution)
   end
 
-  @spec resolve_predictions(Ecto.UUID.t(), map(), map()) :: map()
-  defp resolve_predictions(company_id, cat_result, tag_result) do
+  @spec resolve_predictions(Ecto.UUID.t(), map(), map(), ClassifierConfig.t()) :: map()
+  defp resolve_predictions(company_id, cat_result, tag_result, config) do
     cat_identifier = cat_result["predicted_label"]
     cat_confidence = cat_result["confidence"] || 0.0
 
     matching_category = find_category_by_identifier(company_id, cat_identifier)
 
-    confident_category? =
-      cat_confidence >= category_confidence_threshold() and matching_category != nil
+    cat_threshold =
+      config.category_confidence_threshold || ClassifierConfig.default_category_threshold()
 
-    confident_tags = extract_confident_tags(tag_result)
+    confident_category? =
+      cat_confidence >= cat_threshold and matching_category != nil
+
+    tag_threshold = config.tag_confidence_threshold || ClassifierConfig.default_tag_threshold()
+    confident_tags = extract_confident_tags(tag_result, tag_threshold)
 
     %{
       attrs:
@@ -123,10 +160,8 @@ defmodule KsefHub.InvoiceClassifier do
     }
   end
 
-  @spec extract_confident_tags(map()) :: [String.t()]
-  defp extract_confident_tags(tag_result) do
-    threshold = tag_confidence_threshold()
-
+  @spec extract_confident_tags(map(), float()) :: [String.t()]
+  defp extract_confident_tags(tag_result, threshold) do
     (tag_result["probabilities"] || %{})
     |> Enum.filter(fn {_tag, prob} -> prob >= threshold end)
     |> Enum.sort_by(fn {_tag, prob} -> prob end, :desc)

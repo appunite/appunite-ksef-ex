@@ -53,45 +53,8 @@ if invoice_extractor_api_token = System.get_env("INVOICE_EXTRACTOR_API_TOKEN") d
   config :ksef_hub, :invoice_extractor_api_token, invoice_extractor_api_token
 end
 
-if invoice_classifier_url = System.get_env("INVOICE_CLASSIFIER_URL") do
-  if config_env() == :prod do
-    uri = URI.parse(invoice_classifier_url)
-
-    if uri.scheme != "https" and uri.host not in ~w(localhost 127.0.0.1 ::1 0.0.0.0) do
-      raise """
-      INVOICE_CLASSIFIER_URL must use HTTPS in production (unless localhost sidecar).
-      Got: #{invoice_classifier_url}
-      """
-    end
-  end
-
-  config :ksef_hub, :invoice_classifier_url, invoice_classifier_url
-end
-
-if invoice_classifier_api_token = System.get_env("INVOICE_CLASSIFIER_API_TOKEN") do
-  config :ksef_hub, :invoice_classifier_api_token, invoice_classifier_api_token
-end
-
 if anthropic_api_key = System.get_env("ANTHROPIC_API_KEY") do
   config :ksef_hub, :anthropic_api_key, anthropic_api_key
-end
-
-for {env_var, config_key} <- [
-      {"CATEGORY_CONFIDENCE_THRESHOLD", :category_confidence_threshold},
-      {"TAG_CONFIDENCE_THRESHOLD", :tag_confidence_threshold}
-    ] do
-  if threshold_env = System.get_env(env_var) do
-    case Float.parse(threshold_env) do
-      {val, ""} when val > 0.0 and val < 1.0 ->
-        config :ksef_hub, config_key, val
-
-      _ ->
-        raise """
-        #{env_var} must be a float between 0.0 and 1.0 (exclusive).
-        Got: #{inspect(threshold_env)}
-        """
-    end
-  end
 end
 
 if sync_interval_env = System.get_env("SYNC_INTERVAL_MINUTES") do

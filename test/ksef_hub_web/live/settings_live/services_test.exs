@@ -55,14 +55,14 @@ defmodule KsefHubWeb.SettingsLive.ServicesTest do
   end
 
   describe "page rendering" do
-    test "renders classifier page with override disabled by default", %{
+    test "renders classifier page with classification disabled by default", %{
       conn: conn,
       company: company
     } do
       {:ok, _view, html} = live(conn, ~p"/c/#{company.id}/settings/services")
 
       assert html =~ "Invoice Classifier"
-      assert html =~ "Using environment variable defaults"
+      assert html =~ "Classification is disabled"
     end
 
     test "shows threshold inputs", %{conn: conn, company: company} do
@@ -134,7 +134,7 @@ defmodule KsefHubWeb.SettingsLive.ServicesTest do
       assert updated.updated_by_id == user.id
     end
 
-    test "private network URL shows save-anyway confirmation", %{
+    test "unreachable URL shows save-anyway confirmation", %{
       conn: conn,
       company: company
     } do
@@ -142,19 +142,26 @@ defmodule KsefHubWeb.SettingsLive.ServicesTest do
 
       form_params = %{
         enabled: true,
-        url: "http://10.0.0.1:9999",
+        url: "http://127.0.0.1:19999",
         category_confidence_threshold: "0.80",
         tag_confidence_threshold: "0.90"
       }
 
-      # Submit with a private IP — shows confirmation dialog
+      # Submit with an unreachable URL — shows confirmation dialog
       view
       |> form("form[phx-submit=save]", classifier: form_params)
       |> render_submit()
 
-      # Wait for the async health-check task to deliver its result
-      Process.sleep(50)
-      html = render(view)
+      # Poll until the async health-check task completes and renders "Save anyway"
+      html =
+        Enum.reduce_while(1..20, nil, fn _, _acc ->
+          Process.sleep(100)
+          html = render(view)
+
+          if html =~ "Save anyway",
+            do: {:halt, html},
+            else: {:cont, html}
+        end)
 
       assert html =~ "Save anyway"
 
@@ -169,7 +176,7 @@ defmodule KsefHubWeb.SettingsLive.ServicesTest do
 
       config = ServiceConfig.get_or_create_classifier_config(company.id)
       assert config.enabled
-      assert config.url == "http://10.0.0.1:9999"
+      assert config.url == "http://127.0.0.1:19999"
     end
 
     test "company configs are isolated", %{conn: conn, company: company} do

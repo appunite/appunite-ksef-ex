@@ -1,18 +1,30 @@
 defmodule KsefHub.ServiceConfig do
   @moduledoc """
-  Context for per-company sidecar service configuration.
+  Context for per-company classifier service configuration.
 
-  Currently supports the invoice classifier only (the main per-company use case).
-  PDF renderer and invoice extractor use global env vars exclusively.
-
-  When a company's classifier config is **enabled**, its values override
-  the global env-var defaults for that company's operations.
+  Each company has its own classifier config stored in the database.
+  Classification is disabled by default and must be explicitly enabled
+  with a URL, token, and confidence thresholds.
   """
 
   alias KsefHub.ActivityLog.TrackedRepo
   alias KsefHub.Credentials.Encryption
   alias KsefHub.Repo
   alias KsefHub.ServiceConfig.ClassifierConfig
+
+  @doc "Returns the default classifier settings (URL and confidence thresholds)."
+  @spec classifier_defaults() :: %{
+          url: String.t(),
+          category_threshold: float(),
+          tag_threshold: float()
+        }
+  def classifier_defaults do
+    %{
+      url: ClassifierConfig.default_url(),
+      category_threshold: ClassifierConfig.default_category_threshold(),
+      tag_threshold: ClassifierConfig.default_tag_threshold()
+    }
+  end
 
   @doc "Returns the classifier config for a company, or nil if none exists."
   @spec get_classifier_config(Ecto.UUID.t()) :: ClassifierConfig.t() | nil
@@ -85,19 +97,5 @@ defmodule KsefHub.ServiceConfig do
       changeset,
       opts ++ [action: "classifier_config.updated"]
     )
-  end
-
-  @doc """
-  Returns the current env-var defaults for display in the UI.
-  """
-  @spec env_defaults() :: map()
-  def env_defaults do
-    %{
-      url: Application.get_env(:ksef_hub, :invoice_classifier_url),
-      api_token_configured: Application.get_env(:ksef_hub, :invoice_classifier_api_token) != nil,
-      category_confidence_threshold:
-        Application.get_env(:ksef_hub, :category_confidence_threshold, 0.71),
-      tag_confidence_threshold: Application.get_env(:ksef_hub, :tag_confidence_threshold, 0.95)
-    }
   end
 end

@@ -18,6 +18,7 @@ defmodule KsefHub.Factory do
   alias KsefHub.Invitations.Invitation
   alias KsefHub.Invoices.{Category, Invoice, InvoiceAccessGrant, InvoiceComment}
   alias KsefHub.PaymentRequests.PaymentRequest
+  alias KsefHub.ServiceConfig.ClassifierConfig
   alias KsefHub.Sync.Checkpoint
 
   @doc "Builds a `User` with sequenced email and google_uid."
@@ -378,6 +379,18 @@ defmodule KsefHub.Factory do
     %Checkpoint{
       checkpoint_type: :income,
       last_seen_timestamp: DateTime.utc_now(),
+      company: build(:company)
+    }
+  end
+
+  @doc "Builds a `ClassifierConfig` with enabled defaults for testing."
+  @spec classifier_config_factory() :: ClassifierConfig.t()
+  def classifier_config_factory do
+    %ClassifierConfig{
+      enabled: true,
+      url: ClassifierConfig.default_url(),
+      category_confidence_threshold: ClassifierConfig.default_category_threshold(),
+      tag_confidence_threshold: ClassifierConfig.default_tag_threshold(),
       company: build(:company)
     }
   end

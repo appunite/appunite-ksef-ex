@@ -2,8 +2,8 @@ defmodule KsefHubWeb.SettingsLive.Services do
   @moduledoc """
   Settings page for the invoice classifier service per company.
 
-  By default, the classifier uses global env-var configuration. When enabled,
-  the company's custom URL, token, and thresholds override the defaults.
+  Classification is disabled by default. When enabled with a URL, token,
+  and thresholds, invoice classification runs for the company.
   Also provides training data CSV export for ML model training.
   """
   use KsefHubWeb, :live_view
@@ -17,7 +17,6 @@ defmodule KsefHubWeb.SettingsLive.Services do
   def mount(_params, _session, socket) do
     company_id = socket.assigns.current_company.id
     config = ServiceConfig.get_or_create_classifier_config(company_id)
-    env = ServiceConfig.env_defaults()
 
     today = Date.utc_today()
     three_months_ago = Date.add(today, -90)
@@ -27,8 +26,7 @@ defmodule KsefHubWeb.SettingsLive.Services do
       |> assign(
         page_title: "Invoice Classifier",
         config: config,
-        env_defaults: env,
-        form: build_form(config, env),
+        form: build_form(config),
         health: nil,
         confirm_save: false,
         pending_params: nil,
@@ -39,8 +37,8 @@ defmodule KsefHubWeb.SettingsLive.Services do
       )
 
     socket =
-      if connected?(socket) do
-        ref = check_health_async(config, env)
+      if connected?(socket) and config.enabled do
+        ref = check_health_async(config)
         assign(socket, active_health_ref: ref, health: :checking)
       else
         socket
@@ -70,11 +68,11 @@ defmodule KsefHubWeb.SettingsLive.Services do
               <.input
                 field={@form[:enabled]}
                 type="checkbox"
-                label="Override environment variables with custom settings"
+                label="Enable invoice classification"
               />
 
               <p :if={!@form[:enabled].value} class="text-sm text-muted-foreground -mt-2">
-                Using environment variable defaults. Enable to configure custom values for this company.
+                Classification is disabled. Enable to configure the classifier service.
               </p>
 
               <fieldset
@@ -85,7 +83,7 @@ defmodule KsefHubWeb.SettingsLive.Services do
                   field={@form[:url]}
                   type="url"
                   label="URL"
-                  placeholder={@env_defaults.url || "http://localhost:3003"}
+                  placeholder={ServiceConfig.classifier_defaults().url}
                 />
 
                 <.input
@@ -93,11 +91,9 @@ defmodule KsefHubWeb.SettingsLive.Services do
                   type="password"
                   label="API Token"
                   placeholder={
-                    cond do
-                      @config.api_token_encrypted -> "configured (leave blank to keep)"
-                      @env_defaults.api_token_configured -> "using env var (leave blank to keep)"
-                      true -> "not configured"
-                    end
+                    if @config.api_token_encrypted,
+                      do: "configured (leave blank to keep)",
+                      else: "not configured"
                   }
                   autocomplete="off"
                 />
@@ -113,7 +109,7 @@ defmodule KsefHubWeb.SettingsLive.Services do
                     field={@form[:category_confidence_threshold]}
                     type="number"
                     label="Category confidence threshold"
-                    placeholder={to_string(@env_defaults.category_confidence_threshold)}
+                    placeholder={to_string(ServiceConfig.classifier_defaults().category_threshold)}
                     step="0.01"
                     min="0.01"
                     max="0.99"
@@ -122,7 +118,7 @@ defmodule KsefHubWeb.SettingsLive.Services do
                     field={@form[:tag_confidence_threshold]}
                     type="number"
                     label="Tag confidence threshold"
-                    placeholder={to_string(@env_defaults.tag_confidence_threshold)}
+                    placeholder={to_string(ServiceConfig.classifier_defaults().tag_threshold)}
                     step="0.01"
                     min="0.01"
                     max="0.99"
@@ -307,8 +303,8 @@ defmodule KsefHubWeb.SettingsLive.Services do
         _ -> params
       end
 
-    # Health check the URL before saving (only if enabled with a custom URL)
-    url = resolve_check_url(params, socket)
+    # Health check the URL before saving (only if enabled with a submitted URL)
+    url = resolve_check_url(params)
 
     if url do
       %{ref: ref} =
@@ -335,7 +331,7 @@ defmodule KsefHubWeb.SettingsLive.Services do
   @impl true
   def handle_event("check_health", _params, socket) do
     temp_config = Ecto.Changeset.apply_changes(socket.assigns.form.source)
-    ref = check_health_async(temp_config, socket.assigns.env_defaults)
+    ref = check_health_async(temp_config)
     {:noreply, assign(socket, health: :checking, active_health_ref: ref)}
   end
 
@@ -415,14 +411,12 @@ defmodule KsefHubWeb.SettingsLive.Services do
   defp do_save(socket, params) do
     case ServiceConfig.update_classifier_config(socket.assigns.config, params, actor_opts(socket)) do
       {:ok, updated} ->
-        env = ServiceConfig.env_defaults()
-
         {:noreply,
          socket
          |> put_flash(:info, "Classifier configuration saved.")
          |> assign(
            config: updated,
-           form: build_form(updated, env),
+           form: build_form(updated),
            confirm_save: false,
            pending_params: nil
          )}
@@ -438,15 +432,13 @@ defmodule KsefHubWeb.SettingsLive.Services do
     end
   end
 
-  @spec build_form(ServiceConfig.ClassifierConfig.t(), map()) :: Phoenix.HTML.Form.t()
-  defp build_form(config, env) do
+  @spec build_form(ServiceConfig.ClassifierConfig.t()) :: Phoenix.HTML.Form.t()
+  defp build_form(config) do
     attrs = %{
       "enabled" => config.enabled,
-      "url" => config.url || env.url,
-      "category_confidence_threshold" =>
-        config.category_confidence_threshold || env.category_confidence_threshold,
-      "tag_confidence_threshold" =>
-        config.tag_confidence_threshold || env.tag_confidence_threshold
+      "url" => config.url,
+      "category_confidence_threshold" => config.category_confidence_threshold,
+      "tag_confidence_threshold" => config.tag_confidence_threshold
     }
 
     config
@@ -455,21 +447,17 @@ defmodule KsefHubWeb.SettingsLive.Services do
     |> to_form(as: :classifier)
   end
 
-  @spec resolve_check_url(map(), Phoenix.LiveView.Socket.t()) :: String.t() | nil
-  defp resolve_check_url(params, socket) do
+  @spec resolve_check_url(map()) :: String.t() | nil
+  defp resolve_check_url(params) do
     enabled = params["enabled"] in ["true", true]
     url = params["url"]
 
-    cond do
-      enabled && is_binary(url) && url != "" -> url
-      enabled -> socket.assigns.config.url || socket.assigns.env_defaults.url
-      true -> nil
-    end
+    if enabled && is_binary(url) && url != "", do: url
   end
 
-  @spec check_health_async(ServiceConfig.ClassifierConfig.t(), map()) :: reference()
-  defp check_health_async(config, env) do
-    url = if config.enabled, do: config.url, else: env.url
+  @spec check_health_async(ServiceConfig.ClassifierConfig.t()) :: reference()
+  defp check_health_async(config) do
+    url = if config.enabled, do: config.url
 
     if url do
       %{ref: ref} =
@@ -487,70 +475,18 @@ defmodule KsefHubWeb.SettingsLive.Services do
 
   @spec check_url_health(String.t()) :: :ok | {:error, term()}
   defp check_url_health(url) do
-    with :ok <- host_allowed?(url) do
-      case Req.get(
-             url: String.trim_trailing(url, "/") <> "/health",
-             receive_timeout: 5_000,
-             retry: false,
-             redirect: false,
-             connect_options: [timeout: 3_000]
-           ) do
-        {:ok, %{status: 200}} -> :ok
-        {:ok, %{status: status}} -> {:error, {:http_error, status}}
-        {:error, reason} -> {:error, reason}
-      end
+    case Req.get(
+           url: String.trim_trailing(url, "/") <> "/health",
+           receive_timeout: 5_000,
+           retry: false,
+           redirect: false,
+           connect_options: [timeout: 3_000]
+         ) do
+      {:ok, %{status: 200}} -> :ok
+      {:ok, %{status: status}} -> {:error, {:http_error, status}}
+      {:error, reason} -> {:error, reason}
     end
   rescue
     e -> {:error, Exception.message(e)}
   end
-
-  @spec host_allowed?(String.t()) :: :ok | {:error, :disallowed_target}
-  defp host_allowed?(url) do
-    uri = URI.parse(url)
-
-    with true <- uri.scheme in ["http", "https"],
-         true <- is_binary(uri.host) and uri.host != "",
-         :ok <- resolved_ips_allowed?(String.to_charlist(uri.host)) do
-      :ok
-    else
-      _ -> {:error, :disallowed_target}
-    end
-  end
-
-  @spec resolved_ips_allowed?(charlist()) :: :ok | {:error, :disallowed_target}
-  defp resolved_ips_allowed?(host) do
-    v4 = resolve_addrs(host, :inet)
-    v6 = resolve_addrs(host, :inet6)
-
-    cond do
-      v4 == [] and v6 == [] -> {:error, :disallowed_target}
-      Enum.any?(v4, &ip4_private?/1) -> {:error, :disallowed_target}
-      Enum.any?(v6, &ip6_private?/1) -> {:error, :disallowed_target}
-      true -> :ok
-    end
-  end
-
-  @spec resolve_addrs(charlist(), :inet | :inet6) :: [:inet.ip_address()]
-  defp resolve_addrs(host, family) do
-    case :inet.getaddrs(host, family) do
-      {:ok, addrs} -> addrs
-      {:error, _} -> []
-    end
-  end
-
-  @spec ip4_private?(:inet.ip4_address()) :: boolean()
-  defp ip4_private?({127, _, _, _}), do: true
-  defp ip4_private?({10, _, _, _}), do: true
-  defp ip4_private?({172, b, _, _}) when b >= 16 and b <= 31, do: true
-  defp ip4_private?({192, 168, _, _}), do: true
-  defp ip4_private?({169, 254, _, _}), do: true
-  defp ip4_private?({100, b, _, _}) when b >= 64 and b <= 127, do: true
-  defp ip4_private?({0, _, _, _}), do: true
-  defp ip4_private?(_), do: false
-
-  @spec ip6_private?(:inet.ip6_address()) :: boolean()
-  defp ip6_private?({0, 0, 0, 0, 0, 0, 0, 1}), do: true
-  defp ip6_private?({w, _, _, _, _, _, _, _}) when w >= 0xFE80 and w <= 0xFEBF, do: true
-  defp ip6_private?({w, _, _, _, _, _, _, _}) when w >= 0xFC00 and w <= 0xFDFF, do: true
-  defp ip6_private?(_), do: false
 end
