@@ -152,9 +152,16 @@ defmodule KsefHubWeb.SettingsLive.ServicesTest do
       |> form("form[phx-submit=save]", classifier: form_params)
       |> render_submit()
 
-      # Wait for the async health-check task (connection refused is fast)
-      Process.sleep(200)
-      html = render(view)
+      # Poll until the async health-check task completes and renders "Save anyway"
+      html =
+        Enum.reduce_while(1..20, nil, fn _, _acc ->
+          Process.sleep(100)
+          html = render(view)
+
+          if html =~ "Save anyway",
+            do: {:halt, html},
+            else: {:cont, html}
+        end)
 
       assert html =~ "Save anyway"
 
