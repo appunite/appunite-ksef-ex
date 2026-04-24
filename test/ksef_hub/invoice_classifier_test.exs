@@ -438,8 +438,16 @@ defmodule KsefHub.InvoiceClassifierTest do
   end
 
   describe "thresholds_for_company/1" do
-    test "returns thresholds from classifier config", %{company: company} do
-      assert {0.71, 0.95} = InvoiceClassifier.thresholds_for_company(company.id)
+    test "returns thresholds from classifier config", %{company: _company} do
+      company = insert(:company)
+
+      insert(:classifier_config,
+        company: company,
+        category_confidence_threshold: 0.60,
+        tag_confidence_threshold: 0.85
+      )
+
+      assert {0.60, 0.85} = InvoiceClassifier.thresholds_for_company(company.id)
     end
 
     test "returns defaults when no config exists" do

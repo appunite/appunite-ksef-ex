@@ -101,8 +101,12 @@ defmodule KsefHub.InvoiceClassifier do
 
   defp decrypt_token(encrypted) do
     case Encryption.decrypt(encrypted) do
-      {:ok, token} -> token
-      {:error, _} -> nil
+      {:ok, token} ->
+        token
+
+      {:error, reason} ->
+        Logger.warning("Failed to decrypt classifier API token: #{inspect(reason)}")
+        nil
     end
   end
 
