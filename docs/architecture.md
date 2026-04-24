@@ -13,6 +13,7 @@ Quick reference for developers. Before touching a feature area:
 | Feature | Key files |
 |---------|-----------|
 | Invoice export (ZIP + CSV) | `lib/ksef_hub/exports.ex`, `exports/csv_builder.ex`, `exports/export_batch.ex`, `live/export_live/index.ex` |
+| Training CSV export | `lib/ksef_hub/exports.ex` (`list_training_invoices/3`), `exports/csv_builder.ex` (`extended: true`), `controllers/training_csv_controller.ex` |
 | KSeF sync | `lib/ksef_hub/sync/sync_worker.ex`, `sync/invoice_fetcher.ex`, `ksef_client/` |
 | FA(3) XML parsing | `invoices/parser.ex`, `docs/fa3-xml.md` (field mapping reference) |
 | Invoice CRUD & business logic | `lib/ksef_hub/invoices.ex` (facade) + `invoices/` sub-modules |
@@ -109,3 +110,4 @@ Read only the ADR(s) relevant to your task — the summaries below tell you whic
 | 0047-approver-analyst-roles.md | Approver and Analyst Roles | Accepted | Rename `:reviewer` → `:approver` and `:viewer` → `:analyst`; analyst has same data scope as approver (access grants required for restricted invoices) |
 | 0048-public-landing-page.md | Public Landing Page as Standalone Astro Project | Accepted | Ship marketing site as separate Astro 5 + Tailwind v4 project in `landing/`, deployed to GitHub Pages; zero runtime coupling with Phoenix |
 | 0049-per-company-classifier-config.md | Per-Company Classifier Configuration | Accepted | Company-scoped classifier settings in `classifier_configs` table with env-var fallback; only classifier supports per-company overrides |
+| 0050-classifier-deployment-strategy.md | Classifier Deployment Strategy | Proposed | Multi-tenant ML model serving — managed training with flexible deployment (self-hosted on Vertex AI/SageMaker or our managed infra) |

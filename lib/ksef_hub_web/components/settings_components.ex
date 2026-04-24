@@ -76,7 +76,7 @@ defmodule KsefHubWeb.SettingsComponents do
       {:manage_certificates, "Certificates", ~p"/c/#{id}/settings/certificates",
        "hero-shield-check"},
       {:manage_team, "Activity Log", ~p"/c/#{id}/settings/activity-log", "hero-clock"},
-      {:manage_services, "Services", ~p"/c/#{id}/settings/services", "hero-server-stack"}
+      {:manage_services, "Classifier", ~p"/c/#{id}/settings/services", "hero-cpu-chip"}
     ]
     |> Enum.filter(fn {perm, _label, _path, _icon} ->
       is_nil(perm) or Authorization.can?(role, perm)

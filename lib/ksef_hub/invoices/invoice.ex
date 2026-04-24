@@ -88,6 +88,7 @@ defmodule KsefHub.Invoices.Invoice do
     belongs_to :pdf_file, KsefHub.Files.File
     field :tags, {:array, :string}, default: []
     has_many :comments, KsefHub.Invoices.InvoiceComment
+    has_many :payment_requests, KsefHub.PaymentRequests.PaymentRequest
     belongs_to :created_by, KsefHub.Accounts.User
     has_one :inbound_email, KsefHub.InboundEmail.InboundEmail
     has_many :access_grants, KsefHub.Invoices.InvoiceAccessGrant

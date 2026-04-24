@@ -16,13 +16,12 @@ defmodule KsefHubWeb.SettingsLive.ServicesTest do
   end
 
   describe "access control" do
-    test "owner can access services page", %{conn: conn, company: company} do
+    test "owner can access classifier page", %{conn: conn, company: company} do
       {:ok, _view, html} = live(conn, ~p"/c/#{company.id}/settings/services")
-      assert html =~ "Services"
       assert html =~ "Invoice Classifier"
     end
 
-    test "admin can access services page", %{conn: conn, company: company} do
+    test "admin can access classifier page", %{conn: conn, company: company} do
       admin = insert(:user)
       insert(:membership, user: admin, company: company, role: :admin)
       admin_conn = log_in_user(conn, admin, %{current_company_id: company.id})
@@ -31,7 +30,7 @@ defmodule KsefHubWeb.SettingsLive.ServicesTest do
       assert html =~ "Invoice Classifier"
     end
 
-    test "approver cannot access services page", %{conn: conn, company: company} do
+    test "approver cannot access classifier page", %{conn: conn, company: company} do
       approver = insert(:user)
       insert(:membership, user: approver, company: company, role: :approver)
       approver_conn = log_in_user(conn, approver, %{current_company_id: company.id})
@@ -42,21 +41,21 @@ defmodule KsefHubWeb.SettingsLive.ServicesTest do
                live(approver_conn, ~p"/c/#{company.id}/settings/services")
     end
 
-    test "services tab visible only to owner/admin", %{conn: conn, company: company} do
+    test "classifier tab visible only to owner/admin", %{conn: conn, company: company} do
       {:ok, view, _html} = live(conn, ~p"/c/#{company.id}/settings")
-      assert has_element?(view, "nav[aria-label='Settings'] a", "Services")
+      assert has_element?(view, "nav[aria-label='Settings'] a", "Classifier")
 
       approver = insert(:user)
       insert(:membership, user: approver, company: company, role: :approver)
       approver_conn = log_in_user(conn, approver, %{current_company_id: company.id})
 
       {:ok, view, _html} = live(approver_conn, ~p"/c/#{company.id}/settings")
-      refute has_element?(view, "nav[aria-label='Settings'] a", "Services")
+      refute has_element?(view, "nav[aria-label='Settings'] a", "Classifier")
     end
   end
 
   describe "page rendering" do
-    test "renders classifier card with override disabled by default", %{
+    test "renders classifier page with override disabled by default", %{
       conn: conn,
       company: company
     } do
@@ -135,7 +134,7 @@ defmodule KsefHubWeb.SettingsLive.ServicesTest do
       assert updated.updated_by_id == user.id
     end
 
-    test "SSRF-blocked URL shows error flash and cannot be saved", %{
+    test "private network URL shows save-anyway confirmation", %{
       conn: conn,
       company: company
     } do
@@ -148,30 +147,29 @@ defmodule KsefHubWeb.SettingsLive.ServicesTest do
         tag_confidence_threshold: "0.90"
       }
 
-      # Submit with a private IP — SSRF check blocks it, no "Save anyway" offered
+      # Submit with a private IP — shows confirmation dialog
       view
       |> form("form[phx-submit=save]", classifier: form_params)
       |> render_submit()
 
-      Process.sleep(100)
+      # Wait for the async health-check task to deliver its result
+      Process.sleep(50)
       html = render(view)
 
-      assert html =~ "private or internal network"
-      refute html =~ "Save anyway"
+      assert html =~ "Save anyway"
 
-      # Config was not saved
+      # Config not saved yet (pending confirmation)
       config = ServiceConfig.get_or_create_classifier_config(company.id)
       refute config.enabled
 
-      # Editing the form clears the error state
+      # Confirm save succeeds
       view
-      |> form("form[phx-submit=save]",
-        classifier: %{form_params | url: "http://10.0.0.2:8888"}
-      )
-      |> render_change()
+      |> element("button", "Save anyway")
+      |> render_click()
 
-      html = render(view)
-      refute html =~ "Save anyway"
+      config = ServiceConfig.get_or_create_classifier_config(company.id)
+      assert config.enabled
+      assert config.url == "http://10.0.0.1:9999"
     end
 
     test "company configs are isolated", %{conn: conn, company: company} do
@@ -201,6 +199,20 @@ defmodule KsefHubWeb.SettingsLive.ServicesTest do
       {:ok, _view, html} = live(conn, ~p"/c/#{company.id}/settings/services")
       assert html =~ "http://a:9000"
       refute html =~ "http://b:9001"
+    end
+  end
+
+  describe "training data export" do
+    test "renders training data export section", %{conn: conn, company: company} do
+      {:ok, _view, html} = live(conn, ~p"/c/#{company.id}/settings/services")
+      assert html =~ "Training Data Export"
+      assert html =~ "Export Training CSV"
+    end
+
+    test "download link includes date range params", %{conn: conn, company: company} do
+      {:ok, _view, html} = live(conn, ~p"/c/#{company.id}/settings/services")
+
+      assert html =~ ~r/href="[^"]*\/training-csv\?[^"]*date_from=[^&"]+[^"]*&amp;date_to=[^"]+"/
     end
   end
 end

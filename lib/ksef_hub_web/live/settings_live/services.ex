@@ -1,9 +1,10 @@
 defmodule KsefHubWeb.SettingsLive.Services do
   @moduledoc """
-  Settings page for configuring the invoice classifier sidecar per company.
+  Settings page for the invoice classifier service per company.
 
   By default, the classifier uses global env-var configuration. When enabled,
   the company's custom URL, token, and thresholds override the defaults.
+  Also provides training data CSV export for ML model training.
   """
   use KsefHubWeb, :live_view
 
@@ -18,10 +19,13 @@ defmodule KsefHubWeb.SettingsLive.Services do
     config = ServiceConfig.get_or_create_classifier_config(company_id)
     env = ServiceConfig.env_defaults()
 
+    today = Date.utc_today()
+    three_months_ago = Date.add(today, -90)
+
     socket =
       socket
       |> assign(
-        page_title: "Services",
+        page_title: "Invoice Classifier",
         config: config,
         env_defaults: env,
         form: build_form(config, env),
@@ -29,7 +33,9 @@ defmodule KsefHubWeb.SettingsLive.Services do
         confirm_save: false,
         pending_params: nil,
         docs_expanded: false,
-        active_health_ref: nil
+        active_health_ref: nil,
+        training_date_from: Date.to_iso8601(three_months_ago),
+        training_date_to: Date.to_iso8601(today)
       )
 
     socket =
@@ -53,19 +59,12 @@ defmodule KsefHubWeb.SettingsLive.Services do
       current_role={@current_role}
     >
       <.header>
-        Services
-        <:subtitle>Configure sidecar service connections for this company</:subtitle>
+        Invoice Classifier
+        <:subtitle>ML-based category and tag classification</:subtitle>
       </.header>
 
       <div class="mt-6">
         <div class="rounded-xl border border-border bg-card p-6">
-          <div class="mb-4">
-            <h3 class="text-base font-semibold">Invoice Classifier</h3>
-            <p class="text-sm text-muted-foreground mt-1">
-              ML-based category and tag classification for expense invoices.
-            </p>
-          </div>
-
           <.simple_form for={@form} phx-change="validate" phx-submit="save">
             <div class="space-y-4">
               <.input
@@ -145,7 +144,7 @@ defmodule KsefHubWeb.SettingsLive.Services do
             class="mt-4 rounded-lg border border-warning/50 bg-warning/10 p-4"
           >
             <p class="text-sm font-medium text-warning">
-              Service is not responding at this URL. Save anyway?
+              Service health check failed. This may be expected for localhost or private network URLs. Save anyway?
             </p>
             <div class="mt-3 flex gap-2">
               <.button size="sm" variant="warning" phx-click="confirm_save">
@@ -206,6 +205,45 @@ defmodule KsefHubWeb.SettingsLive.Services do
               </p>
             </div>
           </div>
+        </div>
+      </div>
+
+      <div class="mt-6">
+        <div class="rounded-xl border border-border bg-card p-6">
+          <div class="mb-4">
+            <h3 class="text-base font-semibold">Training Data Export</h3>
+            <p class="text-sm text-muted-foreground mt-1">
+              Export invoice data as CSV for ML model training.
+            </p>
+          </div>
+
+          <form phx-change="update_training_dates" class="space-y-4">
+            <div class="space-y-1">
+              <label class="label"><span class="text-sm font-medium">Issue Date Range</span></label>
+              <.date_range_picker
+                id="training-date-range"
+                from_name="training_date_from"
+                to_name="training_date_to"
+                from_value={@training_date_from}
+                to_value={@training_date_to}
+                size="default"
+              />
+            </div>
+
+            <.button
+              href={
+                ~p"/c/#{@current_company.id}/training-csv?date_from=#{@training_date_from}&date_to=#{@training_date_to}"
+              }
+              target="_blank"
+            >
+              <.icon name="hero-arrow-down-tray" class="size-4" /> Export Training CSV
+            </.button>
+
+            <p class="text-xs text-muted-foreground">
+              Includes all approved expenses and income invoices with payment status,
+              ML predictions, confidence scores, and category identifiers.
+            </p>
+          </form>
         </div>
       </div>
     </.settings_layout>
@@ -306,6 +344,28 @@ defmodule KsefHubWeb.SettingsLive.Services do
     {:noreply, assign(socket, docs_expanded: !socket.assigns.docs_expanded)}
   end
 
+  @impl true
+  @spec handle_event(String.t(), map(), Phoenix.LiveView.Socket.t()) ::
+          {:noreply, Phoenix.LiveView.Socket.t()}
+  def handle_event("update_training_dates", params, socket) do
+    date_from = params["training_date_from"]
+    date_to = params["training_date_to"]
+
+    {:noreply,
+     assign(socket,
+       training_date_from:
+         if(date_from in [nil, ""],
+           do: socket.assigns.training_date_from,
+           else: date_from
+         ),
+       training_date_to:
+         if(date_to in [nil, ""],
+           do: socket.assigns.training_date_to,
+           else: date_to
+         )
+     )}
+  end
+
   # --- Async results ---
 
   @impl true
@@ -337,15 +397,6 @@ defmodule KsefHubWeb.SettingsLive.Services do
       case health_result do
         :ok ->
           do_save(socket, params)
-
-        {:error, :disallowed_target} ->
-          {:noreply,
-           socket
-           |> put_flash(
-             :error,
-             "Cannot save: URL points to a private or internal network address."
-           )
-           |> assign(confirm_save: false, pending_params: nil)}
 
         _error ->
           {:noreply, assign(socket, confirm_save: true, pending_params: params)}

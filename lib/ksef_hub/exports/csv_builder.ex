@@ -3,7 +3,7 @@ defmodule KsefHub.Exports.CsvBuilder do
 
   alias KsefHub.Invoices.Invoice
 
-  @headers [
+  @standard_headers [
     "Invoice Number",
     "Issue Date",
     "Sales Date",
@@ -38,21 +38,41 @@ defmodule KsefHub.Exports.CsvBuilder do
     "Correction Reason"
   ]
 
+  @extended_headers [
+    "Invoice ID",
+    "Company ID",
+    "Cost Line",
+    "Project Tag",
+    "Is Excluded",
+    "Access Restricted",
+    "Payment Status",
+    "Payment Date",
+    "Category Identifier",
+    "Prediction Status",
+    "Predicted Category",
+    "Predicted Tag",
+    "Category Confidence %",
+    "Tag Confidence %",
+    "Extraction Status"
+  ]
+
   @doc "Builds a CSV binary (UTF-8 with BOM) from a list of invoices."
-  @spec build([Invoice.t()]) :: binary()
-  def build(invoices) do
-    rows = Enum.map(invoices, &invoice_to_row/1)
+  @spec build([Invoice.t()], keyword()) :: binary()
+  def build(invoices, opts \\ []) do
+    extended = Keyword.get(opts, :extended, false)
+    headers = if extended, do: @standard_headers ++ @extended_headers, else: @standard_headers
+    rows = Enum.map(invoices, &invoice_to_row(&1, extended))
 
     csv =
-      [@headers | rows]
+      [headers | rows]
       |> Enum.map_join("\r\n", &encode_row/1)
 
     <<0xEF, 0xBB, 0xBF>> <> csv <> "\r\n"
   end
 
-  @spec invoice_to_row(Invoice.t()) :: [String.t()]
-  defp invoice_to_row(invoice) do
-    [
+  @spec invoice_to_row(Invoice.t(), boolean()) :: [String.t()]
+  defp invoice_to_row(invoice, extended) do
+    standard = [
       s(invoice.invoice_number),
       format_date(invoice.issue_date),
       format_date(invoice.sales_date),
@@ -86,7 +106,73 @@ defmodule KsefHub.Exports.CsvBuilder do
       s(invoice.corrected_invoice_ksef_number),
       s(invoice.correction_reason)
     ]
+
+    if extended do
+      standard ++ extended_fields(invoice)
+    else
+      standard
+    end
   end
+
+  @spec extended_fields(Invoice.t()) :: [String.t()]
+  defp extended_fields(invoice) do
+    {payment_status, payment_date} = extract_payment_info(invoice)
+
+    [
+      s(invoice.id),
+      s(invoice.company_id),
+      s(invoice.expense_cost_line),
+      s(invoice.project_tag),
+      format_boolean(invoice.is_excluded),
+      format_boolean(invoice.access_restricted),
+      payment_status,
+      payment_date,
+      format_category_identifier(invoice),
+      s(invoice.prediction_status),
+      s(invoice.prediction_expense_category_name),
+      s(invoice.prediction_expense_tag_name),
+      format_confidence(invoice.prediction_expense_category_confidence),
+      format_confidence(invoice.prediction_expense_tag_confidence),
+      s(invoice.extraction_status)
+    ]
+  end
+
+  @spec extract_payment_info(Invoice.t()) :: {String.t(), String.t()}
+  defp extract_payment_info(%{payment_requests: prs}) when is_list(prs) do
+    case Enum.find(prs, &(&1.status == :paid)) do
+      %{status: status, paid_at: paid_at} ->
+        {s(status), format_datetime(paid_at)}
+
+      nil ->
+        case List.first(prs) do
+          nil -> {"", ""}
+          %{status: status} -> {s(status), ""}
+        end
+    end
+  end
+
+  defp extract_payment_info(_), do: {"", ""}
+
+  @spec format_category_identifier(Invoice.t()) :: String.t()
+  defp format_category_identifier(%{category: %{identifier: id}}) when is_binary(id), do: id
+  defp format_category_identifier(_), do: ""
+
+  @spec format_boolean(boolean() | nil) :: String.t()
+  defp format_boolean(true), do: "true"
+  defp format_boolean(false), do: "false"
+  defp format_boolean(nil), do: ""
+
+  @spec format_confidence(float() | nil) :: String.t()
+  defp format_confidence(nil), do: ""
+
+  defp format_confidence(value) when is_float(value) do
+    value
+    |> Kernel.*(100)
+    |> Float.round(1)
+    |> Float.to_string()
+  end
+
+  # --- Shared formatting helpers ---
 
   @spec s(term()) :: String.t()
   defp s(nil), do: ""
