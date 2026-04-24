@@ -345,12 +345,24 @@ defmodule KsefHubWeb.SettingsLive.Services do
   end
 
   @impl true
+  @spec handle_event(String.t(), map(), Phoenix.LiveView.Socket.t()) ::
+          {:noreply, Phoenix.LiveView.Socket.t()}
   def handle_event("update_training_dates", params, socket) do
+    date_from = params["training_date_from"]
+    date_to = params["training_date_to"]
+
     {:noreply,
-     socket
-     |> assign(
-       training_date_from: params["training_date_from"] || socket.assigns.training_date_from,
-       training_date_to: params["training_date_to"] || socket.assigns.training_date_to
+     assign(socket,
+       training_date_from:
+         if(date_from in [nil, ""],
+           do: socket.assigns.training_date_from,
+           else: date_from
+         ),
+       training_date_to:
+         if(date_to in [nil, ""],
+           do: socket.assigns.training_date_to,
+           else: date_to
+         )
      )}
   end
 
