@@ -67,7 +67,7 @@ defmodule KsefHub.InvoiceClassifier do
 
     [cat_result, tag_result] =
       [cat_task, tag_task]
-      |> Task.yield_many(:timer.seconds(20))
+      |> Task.yield_many(:timer.seconds(30))
       |> Enum.map(fn
         {_task, {:ok, result}} ->
           result

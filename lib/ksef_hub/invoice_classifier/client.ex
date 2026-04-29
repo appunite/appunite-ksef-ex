@@ -13,7 +13,7 @@ defmodule KsefHub.InvoiceClassifier.Client do
 
   require Logger
 
-  @receive_timeout 15_000
+  @receive_timeout 25_000
 
   @doc "Predicts a category for the given invoice input."
   @spec predict_category(map(), map()) :: {:ok, map()} | {:error, term()}
