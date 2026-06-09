@@ -1067,6 +1067,18 @@ defmodule KsefHubWeb.Api.InvoiceControllerTest do
       assert Jason.decode!(conn.resp_body)["data"]["category"]["id"] == category.id
     end
 
+    test "assigns a category to a KSeF invoice (category is an internal field)", %{conn: conn} do
+      %{company: company, token: token} = create_user_with_token(:owner)
+      category = insert(:category, company: company)
+      invoice = insert(:invoice, source: :ksef, type: :expense, company: company)
+
+      body = Jason.encode!(%{expense_category_id: category.id})
+      conn = conn |> api_conn(token) |> put("/api/invoices/#{invoice.id}/category", body)
+
+      assert conn.status == 200
+      assert Jason.decode!(conn.resp_body)["data"]["category"]["id"] == category.id
+    end
+
     test "clears category with null", %{conn: conn} do
       %{company: company, token: token} = create_user_with_token(:owner)
       category = insert(:category, company: company)
@@ -1934,6 +1946,126 @@ defmodule KsefHubWeb.Api.InvoiceControllerTest do
 
       assert conn.status == 200
       assert Jason.decode!(conn.resp_body)["data"]["project_tag"] == "My Project"
+    end
+  end
+
+  describe "set_billing_date" do
+    test "sets billing period on a KSeF invoice (single month)", %{conn: conn} do
+      %{company: company, token: token} = create_user_with_token(:owner)
+      invoice = insert(:invoice, source: :ksef, company: company)
+
+      body = Jason.encode!(%{billing_date_from: "2026-05-01", billing_date_to: "2026-05-01"})
+      conn = conn |> api_conn(token) |> put("/api/invoices/#{invoice.id}/billing-date", body)
+
+      assert conn.status == 200
+      data = Jason.decode!(conn.resp_body)["data"]
+      assert data["billing_date_from"] == "2026-05-01"
+      assert data["billing_date_to"] == "2026-05-01"
+    end
+
+    test "sets billing period on a KSeF invoice (multi-month)", %{conn: conn} do
+      %{company: company, token: token} = create_user_with_token(:owner)
+      invoice = insert(:invoice, source: :ksef, type: :expense, company: company)
+
+      body = Jason.encode!(%{billing_date_from: "2026-01-01", billing_date_to: "2026-03-01"})
+      conn = conn |> api_conn(token) |> put("/api/invoices/#{invoice.id}/billing-date", body)
+
+      assert conn.status == 200
+      data = Jason.decode!(conn.resp_body)["data"]
+      assert data["billing_date_from"] == "2026-01-01"
+      assert data["billing_date_to"] == "2026-03-01"
+    end
+
+    test "clears billing period when both fields are null", %{conn: conn} do
+      %{company: company, token: token} = create_user_with_token(:owner)
+
+      invoice =
+        insert(:invoice,
+          source: :ksef,
+          company: company,
+          billing_date_from: ~D[2026-01-01],
+          billing_date_to: ~D[2026-01-01]
+        )
+
+      body = Jason.encode!(%{billing_date_from: nil, billing_date_to: nil})
+      conn = conn |> api_conn(token) |> put("/api/invoices/#{invoice.id}/billing-date", body)
+
+      assert conn.status == 200
+      data = Jason.decode!(conn.resp_body)["data"]
+      assert is_nil(data["billing_date_from"])
+      assert is_nil(data["billing_date_to"])
+    end
+
+    test "returns 422 when billing_date_to is before billing_date_from", %{conn: conn} do
+      %{company: company, token: token} = create_user_with_token(:owner)
+      invoice = insert(:invoice, source: :ksef, type: :expense, company: company)
+
+      body = Jason.encode!(%{billing_date_from: "2026-03-01", billing_date_to: "2026-01-01"})
+      conn = conn |> api_conn(token) |> put("/api/invoices/#{invoice.id}/billing-date", body)
+
+      assert conn.status == 422
+    end
+
+    test "returns 422 when date is not first of month", %{conn: conn} do
+      %{company: company, token: token} = create_user_with_token(:owner)
+      invoice = insert(:invoice, source: :ksef, company: company)
+
+      body = Jason.encode!(%{billing_date_from: "2026-05-15", billing_date_to: "2026-05-15"})
+      conn = conn |> api_conn(token) |> put("/api/invoices/#{invoice.id}/billing-date", body)
+
+      assert conn.status == 422
+    end
+
+    test "returns 422 for multi-month range on income invoice", %{conn: conn} do
+      %{company: company, token: token} = create_user_with_token(:owner)
+      invoice = insert(:invoice, source: :ksef, type: :income, company: company)
+
+      body = Jason.encode!(%{billing_date_from: "2026-01-01", billing_date_to: "2026-03-01"})
+      conn = conn |> api_conn(token) |> put("/api/invoices/#{invoice.id}/billing-date", body)
+
+      assert conn.status == 422
+    end
+
+    test "returns 422 when only one field is provided", %{conn: conn} do
+      %{company: company, token: token} = create_user_with_token(:owner)
+      invoice = insert(:invoice, source: :ksef, type: :expense, company: company)
+
+      body = Jason.encode!(%{billing_date_from: "2026-05-01"})
+      conn = conn |> api_conn(token) |> put("/api/invoices/#{invoice.id}/billing-date", body)
+
+      assert conn.status == 422
+    end
+
+    test "returns 422 on empty body without silently clearing billing dates", %{conn: conn} do
+      %{company: company, token: token} = create_user_with_token(:owner)
+
+      invoice =
+        insert(:invoice,
+          source: :ksef,
+          company: company,
+          billing_date_from: ~D[2026-01-01],
+          billing_date_to: ~D[2026-01-01]
+        )
+
+      body = Jason.encode!(%{})
+      conn = conn |> api_conn(token) |> put("/api/invoices/#{invoice.id}/billing-date", body)
+
+      assert conn.status == 422
+      assert Jason.decode!(conn.resp_body)["error"] =~ "required"
+
+      reloaded = KsefHub.Repo.get!(KsefHub.Invoices.Invoice, invoice.id)
+      assert reloaded.billing_date_from == ~D[2026-01-01]
+      assert reloaded.billing_date_to == ~D[2026-01-01]
+    end
+
+    test "returns 403 for accountant role", %{conn: conn} do
+      {:ok, %{company: company, token: token}} = create_user_with_token(:accountant)
+      invoice = insert(:invoice, source: :ksef, company: company)
+
+      body = Jason.encode!(%{billing_date_from: "2026-05-01", billing_date_to: "2026-05-01"})
+      conn = conn |> api_conn(token) |> put("/api/invoices/#{invoice.id}/billing-date", body)
+
+      assert conn.status == 403
     end
   end
 
