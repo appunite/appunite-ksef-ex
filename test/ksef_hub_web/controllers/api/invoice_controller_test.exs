@@ -2036,6 +2036,28 @@ defmodule KsefHubWeb.Api.InvoiceControllerTest do
       assert conn.status == 422
     end
 
+    test "returns 422 on empty body without silently clearing billing dates", %{conn: conn} do
+      %{company: company, token: token} = create_user_with_token(:owner)
+
+      invoice =
+        insert(:invoice,
+          source: :ksef,
+          company: company,
+          billing_date_from: ~D[2026-01-01],
+          billing_date_to: ~D[2026-01-01]
+        )
+
+      body = Jason.encode!(%{})
+      conn = conn |> api_conn(token) |> put("/api/invoices/#{invoice.id}/billing-date", body)
+
+      assert conn.status == 422
+      assert Jason.decode!(conn.resp_body)["error"] =~ "required"
+
+      reloaded = KsefHub.Repo.get!(KsefHub.Invoices.Invoice, invoice.id)
+      assert reloaded.billing_date_from == ~D[2026-01-01]
+      assert reloaded.billing_date_to == ~D[2026-01-01]
+    end
+
     test "returns 403 for accountant role", %{conn: conn} do
       {:ok, %{company: company, token: token}} = create_user_with_token(:accountant)
       invoice = insert(:invoice, source: :ksef, company: company)

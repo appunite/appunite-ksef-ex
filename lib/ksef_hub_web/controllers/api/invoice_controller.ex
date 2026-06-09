@@ -1108,11 +1108,24 @@ defmodule KsefHubWeb.Api.InvoiceController do
     user_id = conn.assigns.api_token.created_by_id
     invoice = Invoices.get_invoice!(company_id, id, role: role, user_id: user_id)
 
-    attrs = %{
-      billing_date_from: params["billing_date_from"],
-      billing_date_to: params["billing_date_to"]
-    }
+    case require_billing_date_keys(params) do
+      :ok ->
+        attrs = %{
+          billing_date_from: params["billing_date_from"],
+          billing_date_to: params["billing_date_to"]
+        }
 
+        do_set_billing_date(conn, invoice, attrs)
+
+      {:error, msg} ->
+        conn
+        |> put_status(:unprocessable_entity)
+        |> json(%{error: msg})
+    end
+  end
+
+  @spec do_set_billing_date(Plug.Conn.t(), Invoice.t(), map()) :: Plug.Conn.t()
+  defp do_set_billing_date(conn, %Invoice{} = invoice, attrs) do
     case Invoices.update_billing_date(invoice, attrs, api_actor_opts(conn)) do
       {:ok, updated} ->
         json(conn, %{data: invoice_json(updated)})
@@ -1121,6 +1134,14 @@ defmodule KsefHubWeb.Api.InvoiceController do
         conn
         |> put_status(:unprocessable_entity)
         |> json(%{error: changeset_errors(changeset)})
+    end
+  end
+
+  @spec require_billing_date_keys(map()) :: :ok | {:error, String.t()}
+  defp require_billing_date_keys(params) do
+    case {Map.has_key?(params, "billing_date_from"), Map.has_key?(params, "billing_date_to")} do
+      {true, true} -> :ok
+      _ -> {:error, "billing_date_from and billing_date_to are required (use null to clear)"}
     end
   end
 
