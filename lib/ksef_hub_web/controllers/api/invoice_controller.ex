@@ -25,7 +25,8 @@ defmodule KsefHubWeb.Api.InvoiceController do
   plug KsefHubWeb.Plugs.RequirePermission, :create_invoice when action in [:create, :upload]
 
   plug KsefHubWeb.Plugs.RequirePermission,
-       :update_invoice when action in [:update, :confirm_duplicate, :dismiss_duplicate]
+       :update_invoice
+       when action in [:update, :set_billing_date, :confirm_duplicate, :dismiss_duplicate]
 
   plug KsefHubWeb.Plugs.RequirePermission,
        :approve_invoice when action in [:approve, :reject, :reset_status]
@@ -1070,6 +1071,52 @@ defmodule KsefHubWeb.Api.InvoiceController do
       invoice = Invoices.get_invoice_with_details!(company_id, id, role: role, user_id: user_id)
       json(conn, %{data: invoice_json(invoice)})
     else
+      {:error, changeset} ->
+        conn
+        |> put_status(:unprocessable_entity)
+        |> json(%{error: changeset_errors(changeset)})
+    end
+  end
+
+  operation(:set_billing_date,
+    summary: "Set invoice billing period",
+    description:
+      "Sets or clears the billing period (billing_date_from, billing_date_to) on an invoice. Editable on all invoices including KSeF-synced ones, because billing period is an internal field, not part of KSeF data.",
+    parameters: [
+      id: [
+        in: :path,
+        description: "Invoice UUID.",
+        schema: %Schema{type: :string, format: :uuid}
+      ]
+    ],
+    request_body: {"Billing period", "application/json", Schemas.SetBillingDateRequest},
+    responses: %{
+      200 => {"Updated invoice", "application/json", Schemas.InvoiceResponse},
+      401 =>
+        {"Unauthorized — missing or invalid API token", "application/json", Schemas.ErrorResponse},
+      403 => {"Forbidden — insufficient permissions", "application/json", Schemas.ErrorResponse},
+      404 => {"Invoice not found", "application/json", Schemas.ErrorResponse},
+      422 => {"Validation error", "application/json", Schemas.ErrorResponse}
+    }
+  )
+
+  @doc "Sets or clears the billing period on an invoice."
+  @spec set_billing_date(Plug.Conn.t(), map()) :: Plug.Conn.t()
+  def set_billing_date(conn, %{"id" => id} = params) do
+    company_id = conn.assigns.current_company.id
+    role = conn.assigns[:current_role]
+    user_id = conn.assigns.api_token.created_by_id
+    invoice = Invoices.get_invoice!(company_id, id, role: role, user_id: user_id)
+
+    attrs = %{
+      billing_date_from: params["billing_date_from"],
+      billing_date_to: params["billing_date_to"]
+    }
+
+    case Invoices.update_billing_date(invoice, attrs, api_actor_opts(conn)) do
+      {:ok, updated} ->
+        json(conn, %{data: invoice_json(updated)})
+
       {:error, changeset} ->
         conn
         |> put_status(:unprocessable_entity)

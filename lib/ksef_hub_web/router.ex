@@ -259,6 +259,7 @@ defmodule KsefHubWeb.Router do
     put "/invoices/:id/category", InvoiceController, :set_category
     put "/invoices/:id/tags", InvoiceController, :set_tags
     put "/invoices/:id/project-tag", InvoiceController, :set_project_tag
+    put "/invoices/:id/billing-date", InvoiceController, :set_billing_date
     get "/project-tags", InvoiceController, :list_project_tags
     get "/invoices/:id/access", InvoiceController, :get_access
     put "/invoices/:id/access", InvoiceController, :set_access
