@@ -19,6 +19,10 @@ defmodule KsefHub.Exports.ExportBatch do
 
     field :date_from, :date
     field :date_to, :date
+
+    # Which invoice date column the range applies to. Persisted because the
+    # export runs asynchronously in a worker that reads the batch back.
+    field :date_field, Ecto.Enum, values: [:issue, :sales], default: :issue
     field :invoice_type, :string
     field :only_new, :boolean, default: false
     field :invoice_count, :integer
@@ -38,7 +42,7 @@ defmodule KsefHub.Exports.ExportBatch do
   @spec changeset(t(), map()) :: Ecto.Changeset.t()
   def changeset(batch, attrs) do
     batch
-    |> cast(attrs, [:date_from, :date_to, :invoice_type, :only_new, :category_id])
+    |> cast(attrs, [:date_from, :date_to, :date_field, :invoice_type, :only_new, :category_id])
     |> validate_required([:date_from, :date_to])
     |> validate_invoice_type()
     |> validate_date_range()

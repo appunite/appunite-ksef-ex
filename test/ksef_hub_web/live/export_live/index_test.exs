@@ -5,6 +5,7 @@ defmodule KsefHubWeb.ExportLive.IndexTest do
   import KsefHub.Factory
 
   alias KsefHub.Accounts
+  alias KsefHub.Exports.ExportBatch
   alias KsefHub.Repo
 
   setup %{conn: conn} do
@@ -190,6 +191,94 @@ defmodule KsefHubWeb.ExportLive.IndexTest do
       html = view |> element("form[phx-submit=export]") |> render_submit()
 
       assert html =~ "Export failed"
+    end
+  end
+
+  describe "date column" do
+    test "renders the issue/sale selector with issue selected by default", %{
+      conn: conn,
+      company: company
+    } do
+      {:ok, view, html} = live(conn, ~p"/c/#{company.id}/settings/exports")
+
+      assert html =~ ~s(name="date_field")
+      assert has_element?(view, ~s{input[name="date_field"][value="issue"][checked]})
+      refute has_element?(view, ~s{input[name="date_field"][value="sales"][checked]})
+    end
+
+    test "records an issue-date export by default", %{conn: conn, company: company} do
+      {:ok, view, _html} = live(conn, ~p"/c/#{company.id}/settings/exports")
+
+      view
+      |> element("form[phx-submit=export]")
+      |> render_change(%{date_from: "2026-01-01", date_to: "2026-01-31", invoice_type: "expense"})
+
+      html = view |> element("form[phx-submit=export]") |> render_submit()
+
+      assert html =~ "Export started"
+      refute html =~ "sale date"
+      assert Repo.one!(ExportBatch).date_field == :issue
+    end
+
+    test "records a sale-date export when the selector is switched", %{
+      conn: conn,
+      company: company
+    } do
+      {:ok, view, _html} = live(conn, ~p"/c/#{company.id}/settings/exports")
+
+      view
+      |> element("form[phx-submit=export]")
+      |> render_change(%{
+        date_from: "2026-01-01",
+        date_to: "2026-01-31",
+        date_field: "sales",
+        invoice_type: "expense"
+      })
+
+      html = view |> element("form[phx-submit=export]") |> render_submit()
+
+      assert html =~ "Export started"
+      assert html =~ "sale date"
+      assert Repo.one!(ExportBatch).date_field == :sales
+    end
+
+    test "preview counts against the selected date column", %{conn: conn, company: company} do
+      insert(:invoice,
+        company: company,
+        type: :expense,
+        expense_approval_status: :approved,
+        issue_date: ~D[2025-12-20],
+        sales_date: ~D[2026-01-10]
+      )
+
+      {:ok, view, _html} = live(conn, ~p"/c/#{company.id}/settings/exports")
+
+      view
+      |> element("form[phx-submit=export]")
+      |> render_change(%{date_from: "2026-01-01", date_to: "2026-01-31", invoice_type: "expense"})
+
+      issue_html =
+        view
+        |> element("form[phx-submit=export]")
+        |> render_submit(%{"_action" => "preview"})
+
+      assert issue_html =~ "0 invoices match"
+
+      view
+      |> element("form[phx-submit=export]")
+      |> render_change(%{
+        date_from: "2026-01-01",
+        date_to: "2026-01-31",
+        date_field: "sales",
+        invoice_type: "expense"
+      })
+
+      sales_html =
+        view
+        |> element("form[phx-submit=export]")
+        |> render_submit(%{"_action" => "preview"})
+
+      assert sales_html =~ "1 invoice matches"
     end
   end
 

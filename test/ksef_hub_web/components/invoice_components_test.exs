@@ -16,6 +16,89 @@ defmodule KsefHubWeb.InvoiceComponentsTest do
     end
   end
 
+  describe "format_date_short/2" do
+    test "returns em dash for nil" do
+      assert InvoiceComponents.format_date_short(nil) == "\u2014"
+    end
+
+    test "formats a Date without the year by default" do
+      assert InvoiceComponents.format_date_short(~D[2025-04-17]) == "17 Apr"
+    end
+
+    test "appends the year when asked" do
+      assert InvoiceComponents.format_date_short(~D[2025-04-17], year: true) == "17 Apr 2025"
+    end
+  end
+
+  describe "invoice_dates/1" do
+    test "renders only the issue date when the sale date matches" do
+      html =
+        render_component(&InvoiceComponents.invoice_dates/1,
+          issue_date: ~D[2026-09-08],
+          sales_date: ~D[2026-09-08]
+        )
+
+      assert html =~ "8 Sep"
+      refute html =~ "sale"
+    end
+
+    test "stacks the sale date below the issue date when they differ" do
+      html =
+        render_component(&InvoiceComponents.invoice_dates/1,
+          issue_date: ~D[2026-09-08],
+          sales_date: ~D[2026-08-31]
+        )
+
+      assert html =~ "8 Sep"
+      assert html =~ "31 Aug"
+      assert html =~ "sale"
+    end
+
+    test "includes the year on both lines when the dates straddle a year boundary" do
+      html =
+        render_component(&InvoiceComponents.invoice_dates/1,
+          issue_date: ~D[2026-01-05],
+          sales_date: ~D[2025-12-31]
+        )
+
+      assert html =~ "5 Jan 2026"
+      assert html =~ "31 Dec 2025"
+    end
+
+    test "renders only the issue date when the sale date is missing" do
+      html =
+        render_component(&InvoiceComponents.invoice_dates/1,
+          issue_date: ~D[2026-09-08],
+          sales_date: nil
+        )
+
+      assert html =~ "8 Sep"
+      refute html =~ "sale"
+    end
+
+    test "renders the sale date alone when the issue date is missing" do
+      html =
+        render_component(&InvoiceComponents.invoice_dates/1,
+          issue_date: nil,
+          sales_date: ~D[2026-08-31]
+        )
+
+      assert html =~ "31 Aug"
+      assert html =~ "sale"
+    end
+
+    test "spells both dates out in the cell tooltip" do
+      html =
+        render_component(&InvoiceComponents.invoice_dates/1,
+          issue_date: ~D[2026-09-08],
+          sales_date: ~D[2026-08-31]
+        )
+
+      assert html =~ "Issued 2026-09-08"
+      assert html =~ "Sale 2026-08-31"
+    end
+  end
+
   describe "format_datetime/1" do
     test "returns dash for nil" do
       assert InvoiceComponents.format_datetime(nil) == "-"
@@ -85,6 +168,23 @@ defmodule KsefHubWeb.InvoiceComponentsTest do
       assert html =~ "unknown"
       refute html =~ "text-success"
       refute html =~ "badge-warning-text"
+    end
+  end
+
+  describe "project_tag_badge/1" do
+    test "renders the tag in a pill" do
+      html = render_component(&InvoiceComponents.project_tag_badge/1, tag: "Allegro Design")
+
+      assert html =~ "Allegro Design"
+      assert html =~ ~s(title="Allegro Design")
+      assert html =~ "rounded-md"
+    end
+
+    test "renders a dash when the invoice has no project tag" do
+      html = render_component(&InvoiceComponents.project_tag_badge/1, tag: nil)
+
+      assert html =~ "-"
+      refute html =~ "rounded-md"
     end
   end
 

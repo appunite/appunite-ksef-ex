@@ -1199,6 +1199,16 @@ defmodule KsefHubWeb.CoreComponents do
     default: "sm",
     doc: "sm = compact filter-bar pill, default = full-width form input"
 
+  attr :field_name, :string,
+    default: nil,
+    doc: "form field name for the date-column selector; omit to hide the selector"
+
+  attr :field_value, :any, default: nil, doc: "currently selected date-column value"
+
+  attr :field_options, :list,
+    default: [],
+    doc: "{label, value} pairs for the date-column selector; the first is the default"
+
   @spec date_range_picker(map()) :: Phoenix.LiveView.Rendered.t()
   def date_range_picker(assigns) do
     from = date_to_iso(assigns.from_value)
@@ -1218,6 +1228,7 @@ defmodule KsefHubWeb.CoreComponents do
       |> assign(:range_value, range_value)
       |> assign(:has_value, range_value != nil)
       |> assign(:range_label, format_date_range_label(from, to))
+      |> assign(:field_prefix, date_field_prefix(assigns.field_options, assigns.field_value))
 
     ~H"""
     <div id={@id} phx-hook="DateRangePicker" class="relative">
@@ -1237,6 +1248,7 @@ defmodule KsefHubWeb.CoreComponents do
       >
         <.icon name="hero-calendar-days" class="size-3.5 opacity-60" />
         <span>
+          <span :if={@field_prefix && @has_value} class="opacity-70">{@field_prefix} ·</span>
           {if @has_value, do: @range_label, else: @label}
         </span>
       </button>
@@ -1254,11 +1266,32 @@ defmodule KsefHubWeb.CoreComponents do
       >
         <.icon name="hero-calendar-days" class="size-4 opacity-60" />
         <span>
+          <span :if={@field_prefix && @has_value} class="opacity-70">{@field_prefix} ·</span>
           {if @has_value, do: @range_label, else: @label}
         </span>
       </button>
 
       <.calendar_popover>
+        <div
+          :if={@field_name && @field_options != []}
+          class="flex items-center gap-1 px-3 pt-3 pb-1"
+        >
+          <label
+            :for={{option_label, option_value} <- @field_options}
+            class="cursor-pointer"
+          >
+            <input
+              type="radio"
+              name={@field_name}
+              value={option_value}
+              checked={to_string(@field_value) == to_string(option_value)}
+              class="sr-only peer"
+            />
+            <span class="inline-flex items-center h-7 px-2.5 text-xs font-medium rounded-md border border-transparent text-muted-foreground transition-colors hover:text-foreground peer-checked:border-input peer-checked:bg-shad-accent peer-checked:text-shad-accent-foreground">
+              {option_label}
+            </span>
+          </label>
+        </div>
         <calendar-range class="cally" value={@range_value} first-day-of-week="1">
           <.calendar_nav_arrows />
           <calendar-month></calendar-month>
@@ -1579,6 +1612,23 @@ defmodule KsefHubWeb.CoreComponents do
       "#{Calendar.strftime(from, "%b %-d")} – #{Calendar.strftime(to, "%b %-d, %Y")}"
     else
       _ -> "#{from_iso} – #{to_iso}"
+    end
+  end
+
+  # Label shown on the trigger when the range targets a non-default date column.
+  # The first option is the default and stays unlabelled, so the pill only grows
+  # when the user has actually switched columns.
+  @spec date_field_prefix(list(), any()) :: String.t() | nil
+  defp date_field_prefix([], _value), do: nil
+  defp date_field_prefix(_options, nil), do: nil
+
+  defp date_field_prefix([{_label, default_value} | _] = options, value) do
+    if to_string(value) == to_string(default_value) do
+      nil
+    else
+      Enum.find_value(options, fn {label, option_value} ->
+        to_string(option_value) == to_string(value) && label
+      end)
     end
   end
 

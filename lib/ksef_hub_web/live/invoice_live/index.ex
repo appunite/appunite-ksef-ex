@@ -139,6 +139,7 @@ defmodule KsefHubWeb.InvoiceLive.Index do
       "type" => to_string_or_empty(filters[:type]),
       "date_from" => (filters[:date_from] && Date.to_iso8601(filters[:date_from])) || "",
       "date_to" => (filters[:date_to] && Date.to_iso8601(filters[:date_to])) || "",
+      "date_field" => to_string(filters[:date_field] || :issue),
       "query" => filters[:query] || ""
     }
     |> to_form(as: :filters)
@@ -229,11 +230,26 @@ defmodule KsefHubWeb.InvoiceLive.Index do
     end)
     |> maybe_put("date_from", form_params["date_from"] || date_to_string(filters[:date_from]))
     |> maybe_put("date_to", form_params["date_to"] || date_to_string(filters[:date_to]))
+    |> maybe_put(
+      "date_field",
+      non_default_date_field(form_params["date_field"] || filters[:date_field])
+    )
     |> maybe_put("query", form_params["query"] || filters[:query])
     |> maybe_put("expense_category_ids", join_list(filters[:expense_category_ids]))
     |> maybe_put_list("tags[]", filters[:tags])
     |> maybe_put("payment_statuses", join_list(filters[:payment_statuses]))
   end
+
+  # The date range targets the issue date unless the user picks the sale date.
+  @spec parse_date_field(String.t() | nil) :: :issue | :sales
+  defp parse_date_field("sales"), do: :sales
+  defp parse_date_field(_param), do: :issue
+
+  # Only the non-default column is worth a URL param, so plain issue-date
+  # ranges keep the short links they had before.
+  @spec non_default_date_field(String.t() | atom() | nil) :: String.t() | nil
+  defp non_default_date_field(field) when field in ["sales", :sales], do: "sales"
+  defp non_default_date_field(_field), do: nil
 
   @spec tab_url(String.t(), map(), atom()) :: String.t()
   defp tab_url(company_id, filters, type) do
@@ -257,6 +273,13 @@ defmodule KsefHubWeb.InvoiceLive.Index do
     user_id = assigns[:current_user] && assigns.current_user.id
     Invoices.count_invoices_by_type(company_id, role: role, user_id: user_id)
   end
+
+  # Expense rows are classified by category, income rows by project tag — one
+  # column, two meanings, so the header has to follow the active tab.
+  @spec classification_column_label(atom() | nil) :: String.t()
+  defp classification_column_label(:expense), do: "Category"
+  defp classification_column_label(:income), do: "Project"
+  defp classification_column_label(_type), do: ""
 
   @spec counterparty_nip(map(), atom() | nil) :: String.t() | nil
   defp counterparty_nip(invoice, :income), do: invoice.buyer_nip
@@ -304,6 +327,7 @@ defmodule KsefHubWeb.InvoiceLive.Index do
     end)
     |> maybe_put_date(:date_from, params["date_from"])
     |> maybe_put_date(:date_to, params["date_to"])
+    |> Map.put(:date_field, parse_date_field(params["date_field"]))
     |> maybe_put_search(:query, params["query"])
     |> then(fn map ->
       if is_income do
@@ -410,6 +434,9 @@ defmodule KsefHubWeb.InvoiceLive.Index do
           to_name={@form[:date_to].name}
           from_value={@form[:date_from].value}
           to_value={@form[:date_to].value}
+          field_name={@form[:date_field].name}
+          field_value={@form[:date_field].value}
+          field_options={[{"Issued", "issue"}, {"Sale", "sales"}]}
         />
       </.form>
       <.multi_select
@@ -483,11 +510,9 @@ defmodule KsefHubWeb.InvoiceLive.Index do
             {inv.invoice_number || "—"}
           </span>
         </:col>
-        <%!-- Date: "17 Apr" --%>
-        <:col :let={inv} label="Date" class="w-20">
-          <span class="font-mono text-xs tabular-nums text-muted-foreground whitespace-nowrap">
-            {format_date_short(inv.issue_date)}
-          </span>
+        <%!-- Date: issue date, with the sale date below it when the two differ --%>
+        <:col :let={inv} label="Date" class="w-24">
+          <.invoice_dates issue_date={inv.issue_date} sales_date={inv.sales_date} />
         </:col>
         <%!-- Counterparty name + NIP below --%>
         <:col
@@ -520,10 +545,10 @@ defmodule KsefHubWeb.InvoiceLive.Index do
         <:col :let={inv} label="Kind" class="w-24">
           <.invoice_kind_badge kind={inv.invoice_kind} />
         </:col>
-        <%!-- Category: shown on expense, empty spacer on income (keeps layout balanced) --%>
+        <%!-- Classification: category on expense, project tag on income --%>
         <:col
           :let={inv}
-          label={if @filters[:type] == :expense, do: "Category", else: ""}
+          label={classification_column_label(@filters[:type])}
           class={if @filters[:type] == :income, do: "w-40", else: nil}
         >
           <.category_badge
@@ -532,6 +557,7 @@ defmodule KsefHubWeb.InvoiceLive.Index do
             confidence={inv.prediction_expense_category_confidence}
             prediction_status={inv.prediction_status}
           />
+          <.project_tag_badge :if={@filters[:type] == :income} tag={inv.project_tag} />
         </:col>
         <%!-- Status: shown on expense, empty spacer on income (keeps layout balanced) --%>
         <:col :let={inv} label={if @filters[:type] == :expense, do: "Status", else: ""} class="w-32">

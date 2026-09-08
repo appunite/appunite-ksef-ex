@@ -46,7 +46,7 @@ defmodule KsefHubWeb.ExportController do
           actor_label: user.name || user.email
         )
 
-        filename = "invoices_#{batch.date_from}_#{batch.date_to}.zip"
+        filename = Exports.export_filename(batch)
         send_attachment(conn, "application/zip", filename, content)
 
       %{status: :completed} ->

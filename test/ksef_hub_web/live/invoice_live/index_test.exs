@@ -220,6 +220,88 @@ defmodule KsefHubWeb.InvoiceLive.IndexTest do
       )
     end
 
+    test "switching the date column to sale puts date_field in the URL", %{
+      conn: conn,
+      company: company
+    } do
+      {:ok, view, _html} = live(conn, ~p"/c/#{company.id}/invoices?type=expense")
+
+      view
+      |> element("#date-filter-form")
+      |> render_change(%{"filters" => %{"date_field" => "sales", "date_from" => "2026-01-01"}})
+
+      assert_patched(
+        view,
+        "/c/#{company.id}/invoices?date_field=sales&date_from=2026-01-01&statuses=pending%2Capproved&type=expense"
+      )
+    end
+
+    test "the default issue-date column stays out of the URL", %{conn: conn, company: company} do
+      {:ok, view, _html} = live(conn, ~p"/c/#{company.id}/invoices?type=expense")
+
+      view
+      |> element("#date-filter-form")
+      |> render_change(%{"filters" => %{"date_field" => "issue", "date_from" => "2026-01-01"}})
+
+      assert_patched(
+        view,
+        "/c/#{company.id}/invoices?date_from=2026-01-01&statuses=pending%2Capproved&type=expense"
+      )
+    end
+
+    test "date range filters on the sale date when date_field=sales", %{
+      conn: conn,
+      company: company
+    } do
+      insert(:invoice,
+        type: :expense,
+        company: company,
+        seller_name: "Sold In June",
+        issue_date: ~D[2026-05-20],
+        sales_date: ~D[2026-06-10]
+      )
+
+      insert(:invoice,
+        type: :expense,
+        company: company,
+        seller_name: "Issued In June",
+        issue_date: ~D[2026-06-15],
+        sales_date: ~D[2026-05-31]
+      )
+
+      {:ok, view, _html} =
+        live(
+          conn,
+          ~p"/c/#{company.id}/invoices?type=expense&statuses=&date_from=2026-06-01&date_to=2026-06-30&date_field=sales"
+        )
+
+      html = render(view)
+      assert html =~ "Sold In June"
+      refute html =~ "Issued In June"
+    end
+
+    test "income tab shows the project tag column", %{conn: conn, company: company} do
+      insert(:invoice,
+        type: :income,
+        company: company,
+        buyer_name: "Tagged Buyer",
+        project_tag: "Allegro Design"
+      )
+
+      {:ok, view, html} = live(conn, ~p"/c/#{company.id}/invoices?type=income")
+
+      assert has_element?(view, "th", "Project")
+      refute has_element?(view, "th", "Category")
+      assert html =~ "Allegro Design"
+    end
+
+    test "expense tab keeps the category column", %{conn: conn, company: company} do
+      {:ok, view, _html} = live(conn, ~p"/c/#{company.id}/invoices?type=expense")
+
+      assert has_element?(view, "th", "Category")
+      refute has_element?(view, "th", "Project")
+    end
+
     test "clear_filters preserves type param", %{conn: conn, company: company} do
       {:ok, view, _html} =
         live(

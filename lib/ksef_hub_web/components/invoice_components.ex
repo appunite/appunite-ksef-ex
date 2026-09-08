@@ -414,6 +414,28 @@ defmodule KsefHubWeb.InvoiceComponents do
     """
   end
 
+  @doc """
+  Renders an invoice's project tag as a pill, or "-" when it has none.
+
+  Shares `category_badge/1`'s shape so the two read as the same kind of column
+  cell — expense rows carry a category there, income rows a project tag.
+  """
+  @spec project_tag_badge(map()) :: Phoenix.LiveView.Rendered.t()
+  attr :tag, :string, default: nil
+
+  def project_tag_badge(assigns) do
+    ~H"""
+    <span
+      :if={@tag}
+      class="inline-flex items-center px-2 py-0.5 rounded-md border border-border bg-muted/50 text-xs text-foreground whitespace-nowrap max-w-[200px]"
+      title={@tag}
+    >
+      <span class="truncate">{@tag}</span>
+    </span>
+    <span :if={!@tag} class="text-muted-foreground">-</span>
+    """
+  end
+
   @doc "Renders a list of tag badges, or \"-\" when empty."
   @spec tag_list(map()) :: Phoenix.LiveView.Rendered.t()
   attr :tags, :list, default: []
@@ -554,15 +576,86 @@ defmodule KsefHubWeb.InvoiceComponents do
     """
   end
 
+  @doc """
+  Renders an invoice's issue date with the sale date stacked below it.
+
+  Mirrors `invoice_amount/1`: primary value on top, muted qualifier line below,
+  so the pair costs no extra column width and no extra row height (neighbouring
+  cells already run two lines).
+
+  The sale line is rendered only when the sale date actually differs from the
+  issue date — they match on roughly two thirds of invoices, where a repeated
+  date would read as noise rather than signal. Both dates are always spelled
+  out in full in the cell tooltip.
+
+  ## Examples
+
+      <.invoice_dates issue_date={inv.issue_date} sales_date={inv.sales_date} />
+  """
+  attr :issue_date, :any, required: true, doc: "document issue date (Date or nil)"
+
+  attr :sales_date, :any,
+    default: nil,
+    doc: "sale date, shown as a secondary line when it differs from the issue date"
+
+  @spec invoice_dates(map()) :: Phoenix.LiveView.Rendered.t()
+  def invoice_dates(assigns) do
+    assigns =
+      assigns
+      |> assign(:show_sales_date?, show_sales_date?(assigns.issue_date, assigns.sales_date))
+      |> assign(:with_year?, different_years?(assigns.issue_date, assigns.sales_date))
+
+    ~H"""
+    <div
+      class="font-mono text-xs tabular-nums leading-tight text-muted-foreground whitespace-nowrap"
+      title={invoice_dates_title(@issue_date, @sales_date)}
+    >
+      {format_date_short(@issue_date, year: @with_year?)}
+    </div>
+    <div
+      :if={@show_sales_date?}
+      class="font-mono text-[11px] tabular-nums leading-tight text-muted-foreground/70 mt-0.5 whitespace-nowrap"
+    >
+      {format_date_short(@sales_date, year: @with_year?)} <span class="opacity-70">sale</span>
+    </div>
+    """
+  end
+
+  @spec show_sales_date?(Date.t() | nil, Date.t() | nil) :: boolean()
+  defp show_sales_date?(nil, %Date{}), do: true
+  defp show_sales_date?(_issue_date, nil), do: false
+  defp show_sales_date?(issue_date, sales_date), do: Date.compare(issue_date, sales_date) != :eq
+
+  @spec different_years?(Date.t() | nil, Date.t() | nil) :: boolean()
+  defp different_years?(%Date{year: issue_year}, %Date{year: sales_year}),
+    do: issue_year != sales_year
+
+  defp different_years?(_issue_date, _sales_date), do: false
+
+  @spec invoice_dates_title(Date.t() | nil, Date.t() | nil) :: String.t()
+  defp invoice_dates_title(issue_date, sales_date),
+    do: "Issued #{format_date(issue_date)} · Sale #{format_date(sales_date)}"
+
   @doc "Formats a date as YYYY-MM-DD, or returns \"-\" for nil."
   @spec format_date(Date.t() | nil) :: String.t()
   def format_date(nil), do: "-"
   def format_date(date), do: Calendar.strftime(date, "%Y-%m-%d")
 
-  @doc "Formats a date as \"17 Apr\" for compact table display."
-  @spec format_date_short(Date.t() | nil) :: String.t()
-  def format_date_short(nil), do: "—"
-  def format_date_short(date), do: Calendar.strftime(date, "%-d %b")
+  @doc """
+  Formats a date as "17 Apr" for compact table display.
+
+  Pass `year: true` to render "17 Apr 2025" instead — needed when two dates in
+  the same cell straddle a year boundary and the day/month alone is ambiguous.
+  """
+  @spec format_date_short(Date.t() | nil, keyword()) :: String.t()
+  def format_date_short(date, opts \\ [])
+  def format_date_short(nil, _opts), do: "—"
+
+  def format_date_short(date, opts) do
+    if Keyword.get(opts, :year, false),
+      do: Calendar.strftime(date, "%-d %b %Y"),
+      else: Calendar.strftime(date, "%-d %b")
+  end
 
   @doc "Formats a date as \"Mon YYYY\" for billing period display."
   @spec format_month(Date.t() | nil) :: String.t()
