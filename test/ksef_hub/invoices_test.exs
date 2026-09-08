@@ -589,6 +589,97 @@ defmodule KsefHub.InvoicesTest do
       assert [%{invoice_number: "no-sales-date"}] = result
     end
 
+    test "orders pages by the sale date when date_field is :sales", %{company: company} do
+      # Issue-date order is the exact reverse of sale-date order, so the two
+      # orderings cannot be confused for one another.
+      for {number, issue_date, sales_date} <- [
+            {"sold-1st", ~D[2025-06-04], ~D[2025-06-25]},
+            {"sold-2nd", ~D[2025-06-03], ~D[2025-06-20]},
+            {"sold-3rd", ~D[2025-06-02], ~D[2025-06-15]},
+            {"sold-4th", ~D[2025-06-01], ~D[2025-06-10]}
+          ] do
+        insert(:invoice,
+          company: company,
+          invoice_number: number,
+          issue_date: issue_date,
+          sales_date: sales_date
+        )
+      end
+
+      filters = %{date_field: :sales, per_page: 2}
+
+      page_1 = Invoices.list_invoices(company.id, Map.put(filters, :page, 1))
+      page_2 = Invoices.list_invoices(company.id, Map.put(filters, :page, 2))
+
+      assert Enum.map(page_1 ++ page_2, & &1.invoice_number) ==
+               ["sold-1st", "sold-2nd", "sold-3rd", "sold-4th"]
+    end
+
+    test "sale-date ordering falls back to the issue date when sales_date is missing", %{
+      company: company
+    } do
+      insert(:invoice,
+        company: company,
+        invoice_number: "no-sales-date",
+        issue_date: ~D[2025-06-20],
+        sales_date: nil
+      )
+
+      insert(:invoice,
+        company: company,
+        invoice_number: "sold-earlier",
+        issue_date: ~D[2025-06-01],
+        sales_date: ~D[2025-06-10]
+      )
+
+      result = Invoices.list_invoices(company.id, %{date_field: :sales})
+
+      assert Enum.map(result, & &1.invoice_number) == ["no-sales-date", "sold-earlier"]
+    end
+
+    test "sale-date ordering keeps the inserted_at tie-breaker", %{company: company} do
+      # Same effective sale date on both rows, so only the tie-breakers decide.
+      insert(:invoice,
+        company: company,
+        invoice_number: "inserted-earlier",
+        issue_date: ~D[2025-06-01],
+        sales_date: ~D[2025-06-15],
+        inserted_at: ~N[2025-06-16 09:00:00]
+      )
+
+      insert(:invoice,
+        company: company,
+        invoice_number: "inserted-later",
+        issue_date: ~D[2025-06-02],
+        sales_date: ~D[2025-06-15],
+        inserted_at: ~N[2025-06-16 10:00:00]
+      )
+
+      result = Invoices.list_invoices(company.id, %{date_field: :sales})
+
+      assert Enum.map(result, & &1.invoice_number) == ["inserted-later", "inserted-earlier"]
+    end
+
+    test "orders by the issue date when no date_field is given", %{company: company} do
+      insert(:invoice,
+        company: company,
+        invoice_number: "issued-later",
+        issue_date: ~D[2025-06-04],
+        sales_date: ~D[2025-06-10]
+      )
+
+      insert(:invoice,
+        company: company,
+        invoice_number: "issued-earlier",
+        issue_date: ~D[2025-06-01],
+        sales_date: ~D[2025-06-25]
+      )
+
+      result = Invoices.list_invoices(company.id, %{})
+
+      assert Enum.map(result, & &1.invoice_number) == ["issued-later", "issued-earlier"]
+    end
+
     test "filters by seller_nip", %{company: company} do
       insert(:invoice, seller_nip: "1111111111", company: company)
       insert(:invoice, seller_nip: "2222222222", company: company)

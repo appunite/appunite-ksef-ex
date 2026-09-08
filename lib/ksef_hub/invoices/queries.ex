@@ -23,7 +23,7 @@ defmodule KsefHub.Invoices.Queries do
     |> where([i], i.company_id == ^company_id)
     |> apply_filters(filters)
     |> AccessControl.maybe_filter_by_access(opts)
-    |> order_by([i], desc: i.issue_date, desc: i.inserted_at, asc: i.id)
+    |> order_by_date_field(filters[:date_field])
     |> limit(^per_page)
     |> offset(^((page - 1) * per_page))
     |> Repo.all()
@@ -132,6 +132,23 @@ defmodule KsefHub.Invoices.Queries do
   # -------------------------------------------------------------------
   # Private helpers
   # -------------------------------------------------------------------
+
+  # Pages are ordered by whichever column the range filtered on, so a sale-date
+  # listing reads in the order it was selected rather than by a column outside
+  # the requested period. Tie-breakers are unchanged, which is what keeps
+  # pagination stable across pages.
+  @spec order_by_date_field(Ecto.Queryable.t(), atom() | nil) :: Ecto.Query.t()
+  defp order_by_date_field(query, :sales) do
+    order_by(query, [i],
+      desc: coalesce(i.sales_date, i.issue_date),
+      desc: i.inserted_at,
+      asc: i.id
+    )
+  end
+
+  defp order_by_date_field(query, _date_field) do
+    order_by(query, [i], desc: i.issue_date, desc: i.inserted_at, asc: i.id)
+  end
 
   # A date range applies to the issue date by default, or to the sale date when
   # `:date_field` is `:sales`. The sale date is coalesced to the issue date
