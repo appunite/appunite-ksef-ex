@@ -1,0 +1,17 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "ksef-hub",
+      "runtimeExecutable": "mix",
+      "runtimeArgs": ["phx.server"],
+      "port": 4000
+    },
+    {
+      "name": "landing",
+      "runtimeExecutable": "npm",
+      "runtimeArgs": ["--prefix", "landing", "run", "dev"],
+      "port": 4321
+    }
+  ]
+}
