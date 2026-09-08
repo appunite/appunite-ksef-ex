@@ -516,6 +516,79 @@ defmodule KsefHub.InvoicesTest do
       assert length(result) == 1
     end
 
+    test "date range targets the issue date by default", %{company: company} do
+      insert(:invoice,
+        issue_date: ~D[2025-06-15],
+        sales_date: ~D[2025-05-31],
+        company: company,
+        invoice_number: "issued-in-june"
+      )
+
+      insert(:invoice,
+        issue_date: ~D[2025-05-20],
+        sales_date: ~D[2025-06-10],
+        company: company,
+        invoice_number: "sold-in-june"
+      )
+
+      result =
+        Invoices.list_invoices(company.id, %{date_from: ~D[2025-06-01], date_to: ~D[2025-06-30]})
+
+      assert [%{invoice_number: "issued-in-june"}] = result
+    end
+
+    test "date range targets the sale date when date_field is :sales", %{company: company} do
+      insert(:invoice,
+        issue_date: ~D[2025-06-15],
+        sales_date: ~D[2025-05-31],
+        company: company,
+        invoice_number: "issued-in-june"
+      )
+
+      insert(:invoice,
+        issue_date: ~D[2025-05-20],
+        sales_date: ~D[2025-06-10],
+        company: company,
+        invoice_number: "sold-in-june"
+      )
+
+      result =
+        Invoices.list_invoices(company.id, %{
+          date_from: ~D[2025-06-01],
+          date_to: ~D[2025-06-30],
+          date_field: :sales
+        })
+
+      assert [%{invoice_number: "sold-in-june"}] = result
+    end
+
+    test "sale date range falls back to the issue date when sales_date is missing", %{
+      company: company
+    } do
+      insert(:invoice,
+        issue_date: ~D[2025-06-15],
+        sales_date: nil,
+        company: company,
+        invoice_number: "no-sales-date"
+      )
+
+      insert(:invoice,
+        issue_date: ~D[2025-01-10],
+        sales_date: nil,
+        company: company,
+        invoice_number: "out-of-range"
+      )
+
+      result =
+        Invoices.list_invoices(company.id, %{
+          date_from: ~D[2025-06-01],
+          date_to: ~D[2025-06-30],
+          date_field: :sales
+        })
+
+      assert [%{invoice_number: "no-sales-date"}] = result
+    end
+
     test "filters by seller_nip", %{company: company} do
       insert(:invoice, seller_nip: "1111111111", company: company)
       insert(:invoice, seller_nip: "2222222222", company: company)

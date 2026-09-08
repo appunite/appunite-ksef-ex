@@ -22,7 +22,7 @@ defmodule KsefHub.Exports do
   ## Parameters
     * `user_id` - the requesting user's ID
     * `company_id` - the company to export invoices for
-    * `params` - map with :date_from, :date_to, optional :invoice_type, :only_new
+    * `params` - map with :date_from, :date_to, optional :date_field, :invoice_type, :only_new
   """
   @spec create_export(Ecto.UUID.t(), Ecto.UUID.t(), map(), keyword()) ::
           {:ok, ExportBatch.t()} | {:error, Ecto.Changeset.t()}
@@ -89,7 +89,7 @@ defmodule KsefHub.Exports do
   def list_exportable_invoices(%ExportBatch{} = batch) do
     batch
     |> exportable_invoices_query()
-    |> order_by([i], asc: i.issue_date, asc: i.invoice_number)
+    |> order_by_date_field(batch.date_field)
     |> preload([:category, :xml_file, :pdf_file, :created_by, :inbound_email])
     |> Repo.all()
   end
@@ -111,6 +111,7 @@ defmodule KsefHub.Exports do
       company_id: company_id,
       date_from: date_from,
       date_to: date_to,
+      date_field: :issue,
       invoice_type: nil,
       only_new: false,
       user_id: nil,
@@ -121,6 +122,20 @@ defmodule KsefHub.Exports do
     |> preload([:category, :payment_requests, :created_by, :inbound_email])
     |> Repo.all()
   end
+
+  @doc """
+  Builds the download filename for an export batch.
+
+  Sale-date batches carry a marker, because the date range alone no longer
+  identifies the contents — the same range exported by issue date and by sale
+  date yields different invoices. Issue-date batches keep their original name.
+  """
+  @spec export_filename(ExportBatch.t()) :: String.t()
+  def export_filename(%ExportBatch{date_field: :sales} = batch),
+    do: "invoices_sale_#{batch.date_from}_#{batch.date_to}.zip"
+
+  def export_filename(%ExportBatch{} = batch),
+    do: "invoices_#{batch.date_from}_#{batch.date_to}.zip"
 
   @doc "Counts invoices matching the given export filters without loading them."
   @spec count_exportable_invoices(Ecto.UUID.t(), map()) :: non_neg_integer()
@@ -263,7 +278,7 @@ defmodule KsefHub.Exports do
   @spec store_zip_file(ExportBatch.t(), binary()) ::
           {:ok, Files.File.t()} | {:error, Ecto.Changeset.t()}
   defp store_zip_file(batch, zip_binary) do
-    filename = "invoices_#{batch.date_from}_#{batch.date_to}.zip"
+    filename = export_filename(batch)
 
     Files.create_export_file(%{
       content: zip_binary,
@@ -303,6 +318,7 @@ defmodule KsefHub.Exports do
          company_id: company_id,
          date_from: date_from,
          date_to: date_to,
+         date_field: date_field,
          invoice_type: invoice_type,
          only_new: only_new,
          user_id: user_id,
@@ -312,10 +328,39 @@ defmodule KsefHub.Exports do
     |> where([i], i.company_id == ^company_id)
     |> where([i], i.type == :income or i.expense_approval_status == :approved)
     |> where([i], is_nil(i.duplicate_of_id))
-    |> where([i], i.issue_date >= ^date_from and i.issue_date <= ^date_to)
+    |> filter_date_range(date_from, date_to, date_field)
     |> maybe_filter_type(invoice_type)
     |> maybe_filter_category(invoice_type, category_id)
     |> maybe_filter_only_new(only_new, user_id)
+  end
+
+  # Ranges over the issue date by default, or the sale date when the batch asks
+  # for it. The sale date is coalesced to the issue date so invoices that arrive
+  # without one still land in the period they were issued in, rather than
+  # dropping out of the export entirely.
+  @spec filter_date_range(Ecto.Queryable.t(), Date.t(), Date.t(), atom() | nil) :: Ecto.Query.t()
+  defp filter_date_range(query, date_from, date_to, :sales) do
+    where(
+      query,
+      [i],
+      coalesce(i.sales_date, i.issue_date) >= ^date_from and
+        coalesce(i.sales_date, i.issue_date) <= ^date_to
+    )
+  end
+
+  defp filter_date_range(query, date_from, date_to, _date_field) do
+    where(query, [i], i.issue_date >= ^date_from and i.issue_date <= ^date_to)
+  end
+
+  # Sorts by the column that defined the exported period, so a sale-date export
+  # does not come back ordered by dates outside its own range.
+  @spec order_by_date_field(Ecto.Queryable.t(), atom() | nil) :: Ecto.Query.t()
+  defp order_by_date_field(query, :sales) do
+    order_by(query, [i], asc: coalesce(i.sales_date, i.issue_date), asc: i.invoice_number)
+  end
+
+  defp order_by_date_field(query, _date_field) do
+    order_by(query, [i], asc: i.issue_date, asc: i.invoice_number)
   end
 
   @spec to_filter_struct(map(), Ecto.UUID.t()) :: map()
@@ -324,6 +369,7 @@ defmodule KsefHub.Exports do
       company_id: company_id,
       date_from: filters[:date_from],
       date_to: filters[:date_to],
+      date_field: filters[:date_field],
       invoice_type: filters[:invoice_type],
       only_new: filters[:only_new],
       user_id: filters[:user_id],

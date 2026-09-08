@@ -194,23 +194,35 @@ function calendarPickerHook(calendarSelector, onSelect) {
       this.calendar = this.el.querySelector(calendarSelector)
       this.trigger = this.el.querySelector("[data-trigger]")
       this.popover = this.el.querySelector("[data-popover]")
+      this.open = false
 
       this.trigger.addEventListener("click", (e) => {
         e.preventDefault()
-        this.popover.classList.toggle("hidden")
+        this.setOpen(!this.open)
       })
 
       this._onOutsideClick = (e) => {
-        if (!this.el.contains(e.target)) {
-          this.popover.classList.add("hidden")
-        }
+        if (!this.el.contains(e.target)) this.setOpen(false)
       }
       document.addEventListener("click", this._onOutsideClick)
 
       this.calendar.addEventListener("change", () => {
         onSelect(this, this.calendar.value)
-        this.popover.classList.add("hidden")
+        this.setOpen(false)
       })
+    },
+
+    // Controls inside the popover (e.g. the date-column selector) push a
+    // phx-change, and the resulting patch re-renders the server's `hidden`
+    // class. Re-assert the open state so the popover does not snap shut
+    // mid-interaction.
+    updated() {
+      this.popover.classList.toggle("hidden", !this.open)
+    },
+
+    setOpen(open) {
+      this.open = open
+      this.popover.classList.toggle("hidden", !open)
     },
 
     destroyed() {

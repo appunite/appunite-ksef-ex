@@ -359,6 +359,244 @@ defmodule KsefHub.ExportsTest do
     end
   end
 
+  describe "date_field" do
+    test "create_export/3 defaults the date column to issue", %{user: user, company: company} do
+      {:ok, batch} =
+        Exports.create_export(user.id, company.id, %{
+          date_from: "2026-01-01",
+          date_to: "2026-01-31"
+        })
+
+      assert batch.date_field == :issue
+    end
+
+    test "create_export/3 persists a sale-date export", %{user: user, company: company} do
+      {:ok, batch} =
+        Exports.create_export(user.id, company.id, %{
+          date_from: "2026-01-01",
+          date_to: "2026-01-31",
+          date_field: "sales"
+        })
+
+      assert batch.date_field == :sales
+    end
+
+    test "counts by issue date by default", %{user: user, company: company} do
+      insert(:invoice,
+        company: company,
+        issue_date: ~D[2026-01-15],
+        sales_date: ~D[2025-12-31],
+        type: :expense,
+        expense_approval_status: :approved
+      )
+
+      insert(:invoice,
+        company: company,
+        issue_date: ~D[2025-12-20],
+        sales_date: ~D[2026-01-10],
+        type: :expense,
+        expense_approval_status: :approved
+      )
+
+      count =
+        Exports.count_exportable_invoices(company.id, %{
+          date_from: ~D[2026-01-01],
+          date_to: ~D[2026-01-31],
+          invoice_type: nil,
+          only_new: false,
+          user_id: user.id
+        })
+
+      assert count == 1
+    end
+
+    test "counts by sale date when date_field is :sales", %{user: user, company: company} do
+      insert(:invoice,
+        company: company,
+        issue_date: ~D[2026-01-15],
+        sales_date: ~D[2025-12-31],
+        type: :expense,
+        expense_approval_status: :approved
+      )
+
+      insert(:invoice,
+        company: company,
+        issue_date: ~D[2025-12-20],
+        sales_date: ~D[2026-01-10],
+        type: :expense,
+        expense_approval_status: :approved
+      )
+
+      count =
+        Exports.count_exportable_invoices(company.id, %{
+          date_from: ~D[2026-01-01],
+          date_to: ~D[2026-01-31],
+          date_field: :sales,
+          invoice_type: nil,
+          only_new: false,
+          user_id: user.id
+        })
+
+      assert count == 1
+    end
+
+    test "sale-date range falls back to the issue date when sales_date is missing", %{
+      user: user,
+      company: company
+    } do
+      insert(:invoice,
+        company: company,
+        issue_date: ~D[2026-01-15],
+        sales_date: nil,
+        type: :expense,
+        expense_approval_status: :approved
+      )
+
+      count =
+        Exports.count_exportable_invoices(company.id, %{
+          date_from: ~D[2026-01-01],
+          date_to: ~D[2026-01-31],
+          date_field: :sales,
+          invoice_type: nil,
+          only_new: false,
+          user_id: user.id
+        })
+
+      assert count == 1
+    end
+
+    test "list_exportable_invoices/1 honours the batch's date column", %{
+      user: user,
+      company: company
+    } do
+      sold_in_january =
+        insert(:invoice,
+          company: company,
+          issue_date: ~D[2025-12-20],
+          sales_date: ~D[2026-01-10],
+          type: :expense,
+          expense_approval_status: :approved
+        )
+
+      insert(:invoice,
+        company: company,
+        issue_date: ~D[2026-01-15],
+        sales_date: ~D[2025-12-31],
+        type: :expense,
+        expense_approval_status: :approved
+      )
+
+      batch =
+        insert(:export_batch,
+          user: user,
+          company: company,
+          date_from: ~D[2026-01-01],
+          date_to: ~D[2026-01-31],
+          date_field: :sales
+        )
+
+      assert [invoice] = Exports.list_exportable_invoices(batch)
+      assert invoice.id == sold_in_january.id
+    end
+  end
+
+  describe "export_filename/1" do
+    test "keeps the plain name for issue-date batches", %{user: user, company: company} do
+      batch =
+        insert(:export_batch,
+          user: user,
+          company: company,
+          date_from: ~D[2026-08-01],
+          date_to: ~D[2026-08-31],
+          date_field: :issue
+        )
+
+      assert Exports.export_filename(batch) == "invoices_2026-08-01_2026-08-31.zip"
+    end
+
+    test "marks sale-date batches so the two do not collide", %{user: user, company: company} do
+      batch =
+        insert(:export_batch,
+          user: user,
+          company: company,
+          date_from: ~D[2026-08-01],
+          date_to: ~D[2026-08-31],
+          date_field: :sales
+        )
+
+      assert Exports.export_filename(batch) == "invoices_sale_2026-08-01_2026-08-31.zip"
+    end
+  end
+
+  describe "export ordering" do
+    test "sale-date batches are ordered by the effective sale date", %{
+      user: user,
+      company: company
+    } do
+      insert(:invoice,
+        company: company,
+        type: :expense,
+        expense_approval_status: :approved,
+        invoice_number: "issued-first",
+        issue_date: ~D[2026-07-20],
+        sales_date: ~D[2026-08-28]
+      )
+
+      insert(:invoice,
+        company: company,
+        type: :expense,
+        expense_approval_status: :approved,
+        invoice_number: "sold-first",
+        issue_date: ~D[2026-08-05],
+        sales_date: ~D[2026-08-10]
+      )
+
+      batch =
+        insert(:export_batch,
+          user: user,
+          company: company,
+          date_from: ~D[2026-08-01],
+          date_to: ~D[2026-08-31],
+          date_field: :sales
+        )
+
+      assert ["sold-first", "issued-first"] =
+               batch |> Exports.list_exportable_invoices() |> Enum.map(& &1.invoice_number)
+    end
+
+    test "issue-date batches stay ordered by issue date", %{user: user, company: company} do
+      insert(:invoice,
+        company: company,
+        type: :expense,
+        expense_approval_status: :approved,
+        invoice_number: "issued-second",
+        issue_date: ~D[2026-08-20],
+        sales_date: ~D[2026-08-01]
+      )
+
+      insert(:invoice,
+        company: company,
+        type: :expense,
+        expense_approval_status: :approved,
+        invoice_number: "issued-first",
+        issue_date: ~D[2026-08-05],
+        sales_date: ~D[2026-08-31]
+      )
+
+      batch =
+        insert(:export_batch,
+          user: user,
+          company: company,
+          date_from: ~D[2026-08-01],
+          date_to: ~D[2026-08-31],
+          date_field: :issue
+        )
+
+      assert ["issued-first", "issued-second"] =
+               batch |> Exports.list_exportable_invoices() |> Enum.map(& &1.invoice_number)
+    end
+  end
+
   describe "list_batches/2" do
     test "returns batches for user in company", %{user: user, company: company} do
       insert(:export_batch, user: user, company: company)

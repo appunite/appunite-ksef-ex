@@ -75,10 +75,10 @@ defmodule KsefHub.Invoices.Queries do
         apply_payment_status_filter(q, ps)
 
       {:date_from, %Date{} = date}, q ->
-        where(q, [i], i.issue_date >= ^date)
+        apply_date_bound(q, :from, date, filters[:date_field])
 
       {:date_to, %Date{} = date}, q ->
-        where(q, [i], i.issue_date <= ^date)
+        apply_date_bound(q, :to, date, filters[:date_field])
 
       {:billing_date_from, %Date{} = date}, q ->
         where(q, [i], i.billing_date_to >= ^date)
@@ -132,6 +132,24 @@ defmodule KsefHub.Invoices.Queries do
   # -------------------------------------------------------------------
   # Private helpers
   # -------------------------------------------------------------------
+
+  # A date range applies to the issue date by default, or to the sale date when
+  # `:date_field` is `:sales`. The sale date is coalesced to the issue date
+  # because a sizeable share of invoices arrive without one — dropping those
+  # rows from a sale-date range would silently understate an accounting period.
+  @spec apply_date_bound(Ecto.Queryable.t(), :from | :to, Date.t(), atom() | nil) ::
+          Ecto.Query.t()
+  defp apply_date_bound(query, :from, date, :sales),
+    do: where(query, [i], coalesce(i.sales_date, i.issue_date) >= ^date)
+
+  defp apply_date_bound(query, :to, date, :sales),
+    do: where(query, [i], coalesce(i.sales_date, i.issue_date) <= ^date)
+
+  defp apply_date_bound(query, :from, date, _date_field),
+    do: where(query, [i], i.issue_date >= ^date)
+
+  defp apply_date_bound(query, :to, date, _date_field),
+    do: where(query, [i], i.issue_date <= ^date)
 
   # Handles all status-based filtering: approval status, duplicate, incomplete
   # (extraction_status :partial/:failed), and excluded (is_excluded).

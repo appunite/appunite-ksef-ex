@@ -43,6 +43,7 @@ defmodule KsefHubWeb.ExportLive.Index do
        page_title: "Exports",
        date_from: Date.to_iso8601(first_of_month),
        date_to: Date.to_iso8601(today),
+       date_field: "issue",
        invoice_type: "expense",
        only_new: true,
        category_id: nil,
@@ -70,6 +71,7 @@ defmodule KsefHubWeb.ExportLive.Index do
      |> assign(
        date_from: params["date_from"] || socket.assigns.date_from,
        date_to: params["date_to"] || socket.assigns.date_to,
+       date_field: normalize_date_field(params["date_field"] || socket.assigns.date_field),
        invoice_type: invoice_type,
        only_new: params["only_new"] == "true",
        category_id: category_id
@@ -91,6 +93,7 @@ defmodule KsefHubWeb.ExportLive.Index do
       |> assign(
         date_from: params["date_from"] || socket.assigns.date_from,
         date_to: params["date_to"] || socket.assigns.date_to,
+        date_field: normalize_date_field(params["date_field"] || socket.assigns.date_field),
         invoice_type: invoice_type,
         only_new: params["only_new"] == "true",
         category_id: category_id
@@ -114,6 +117,7 @@ defmodule KsefHubWeb.ExportLive.Index do
           filters = %{
             date_from: date_from,
             date_to: date_to,
+            date_field: date_field_atom(socket.assigns.date_field),
             invoice_type: normalize_type(socket.assigns.invoice_type),
             only_new: socket.assigns.only_new,
             user_id: socket.assigns.current_user.id,
@@ -151,6 +155,7 @@ defmodule KsefHubWeb.ExportLive.Index do
     params = %{
       date_from: socket.assigns.date_from,
       date_to: socket.assigns.date_to,
+      date_field: socket.assigns.date_field,
       invoice_type: normalize_type(socket.assigns.invoice_type),
       only_new: socket.assigns.only_new,
       category_id: socket.assigns.category_id
@@ -221,13 +226,16 @@ defmodule KsefHubWeb.ExportLive.Index do
 
           <form phx-change="update_form" phx-submit="export" class="space-y-4">
             <div class="space-y-1">
-              <label class="label"><span class="text-sm font-medium">Issue Date Range</span></label>
+              <label class="label"><span class="text-sm font-medium">Date Range</span></label>
               <.date_range_picker
                 id="export-date-range"
                 from_name="date_from"
                 to_name="date_to"
                 from_value={@date_from}
                 to_value={@date_to}
+                field_name="date_field"
+                field_value={@date_field}
+                field_options={[{"Issued", "issue"}, {"Sale", "sales"}]}
                 size="default"
               />
             </div>
@@ -328,6 +336,9 @@ defmodule KsefHubWeb.ExportLive.Index do
               <div class="flex-1 min-w-0">
                 <div class="font-medium text-sm">
                   {batch.date_from} &mdash; {batch.date_to}
+                  <.badge :if={batch.date_field == :sales} variant="default" class="ml-1">
+                    sale date
+                  </.badge>
                   <.badge :if={batch.invoice_type} variant="default" class="ml-1">
                     {batch.invoice_type}
                   </.badge>
@@ -383,6 +394,16 @@ defmodule KsefHubWeb.ExportLive.Index do
     </.settings_layout>
     """
   end
+
+  # The export ranges over the issue date unless the user picks the sale date.
+  # The form keeps the choice as a string; the query layer wants the atom.
+  @spec normalize_date_field(String.t() | atom() | nil) :: String.t()
+  defp normalize_date_field(field) when field in ["sales", :sales], do: "sales"
+  defp normalize_date_field(_field), do: "issue"
+
+  @spec date_field_atom(String.t() | atom() | nil) :: :issue | :sales
+  defp date_field_atom(field) when field in ["sales", :sales], do: :sales
+  defp date_field_atom(_field), do: :issue
 
   @spec normalize_type(String.t()) :: String.t() | nil
   defp normalize_type(""), do: nil
