@@ -171,6 +171,23 @@ defmodule KsefHubWeb.InvoiceComponentsTest do
     end
   end
 
+  describe "project_tag_badge/1" do
+    test "renders the tag in a pill" do
+      html = render_component(&InvoiceComponents.project_tag_badge/1, tag: "Allegro Design")
+
+      assert html =~ "Allegro Design"
+      assert html =~ ~s(title="Allegro Design")
+      assert html =~ "rounded-md"
+    end
+
+    test "renders a dash when the invoice has no project tag" do
+      html = render_component(&InvoiceComponents.project_tag_badge/1, tag: nil)
+
+      assert html =~ "-"
+      refute html =~ "rounded-md"
+    end
+  end
+
   describe "invoice_kind_badge/1" do
     test "renders muted badge for :vat" do
       html = render_component(&InvoiceComponents.invoice_kind_badge/1, kind: :vat)

@@ -274,6 +274,13 @@ defmodule KsefHubWeb.InvoiceLive.Index do
     Invoices.count_invoices_by_type(company_id, role: role, user_id: user_id)
   end
 
+  # Expense rows are classified by category, income rows by project tag — one
+  # column, two meanings, so the header has to follow the active tab.
+  @spec classification_column_label(atom() | nil) :: String.t()
+  defp classification_column_label(:expense), do: "Category"
+  defp classification_column_label(:income), do: "Project"
+  defp classification_column_label(_type), do: ""
+
   @spec counterparty_nip(map(), atom() | nil) :: String.t() | nil
   defp counterparty_nip(invoice, :income), do: invoice.buyer_nip
   defp counterparty_nip(invoice, _type), do: invoice.seller_nip
@@ -538,10 +545,10 @@ defmodule KsefHubWeb.InvoiceLive.Index do
         <:col :let={inv} label="Kind" class="w-24">
           <.invoice_kind_badge kind={inv.invoice_kind} />
         </:col>
-        <%!-- Category: shown on expense, empty spacer on income (keeps layout balanced) --%>
+        <%!-- Classification: category on expense, project tag on income --%>
         <:col
           :let={inv}
-          label={if @filters[:type] == :expense, do: "Category", else: ""}
+          label={classification_column_label(@filters[:type])}
           class={if @filters[:type] == :income, do: "w-40", else: nil}
         >
           <.category_badge
@@ -550,6 +557,7 @@ defmodule KsefHubWeb.InvoiceLive.Index do
             confidence={inv.prediction_expense_category_confidence}
             prediction_status={inv.prediction_status}
           />
+          <.project_tag_badge :if={@filters[:type] == :income} tag={inv.project_tag} />
         </:col>
         <%!-- Status: shown on expense, empty spacer on income (keeps layout balanced) --%>
         <:col :let={inv} label={if @filters[:type] == :expense, do: "Status", else: ""} class="w-32">

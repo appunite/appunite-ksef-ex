@@ -280,6 +280,28 @@ defmodule KsefHubWeb.InvoiceLive.IndexTest do
       refute html =~ "Issued In June"
     end
 
+    test "income tab shows the project tag column", %{conn: conn, company: company} do
+      insert(:invoice,
+        type: :income,
+        company: company,
+        buyer_name: "Tagged Buyer",
+        project_tag: "Allegro Design"
+      )
+
+      {:ok, view, html} = live(conn, ~p"/c/#{company.id}/invoices?type=income")
+
+      assert has_element?(view, "th", "Project")
+      refute has_element?(view, "th", "Category")
+      assert html =~ "Allegro Design"
+    end
+
+    test "expense tab keeps the category column", %{conn: conn, company: company} do
+      {:ok, view, _html} = live(conn, ~p"/c/#{company.id}/invoices?type=expense")
+
+      assert has_element?(view, "th", "Category")
+      refute has_element?(view, "th", "Project")
+    end
+
     test "clear_filters preserves type param", %{conn: conn, company: company} do
       {:ok, view, _html} =
         live(

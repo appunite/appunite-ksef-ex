@@ -414,6 +414,28 @@ defmodule KsefHubWeb.InvoiceComponents do
     """
   end
 
+  @doc """
+  Renders an invoice's project tag as a pill, or "-" when it has none.
+
+  Shares `category_badge/1`'s shape so the two read as the same kind of column
+  cell — expense rows carry a category there, income rows a project tag.
+  """
+  @spec project_tag_badge(map()) :: Phoenix.LiveView.Rendered.t()
+  attr :tag, :string, default: nil
+
+  def project_tag_badge(assigns) do
+    ~H"""
+    <span
+      :if={@tag}
+      class="inline-flex items-center px-2 py-0.5 rounded-md border border-border bg-muted/50 text-xs text-foreground whitespace-nowrap max-w-[200px]"
+      title={@tag}
+    >
+      <span class="truncate">{@tag}</span>
+    </span>
+    <span :if={!@tag} class="text-muted-foreground">-</span>
+    """
+  end
+
   @doc "Renders a list of tag badges, or \"-\" when empty."
   @spec tag_list(map()) :: Phoenix.LiveView.Rendered.t()
   attr :tags, :list, default: []
