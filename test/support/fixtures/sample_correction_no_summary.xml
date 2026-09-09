@@ -1,0 +1,87 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  Correction that restates the sale date only, with no P_13_*/P_14_* summary
+  block at all — the shape emitted by some issuers. The two FaWiersz rows carry
+  the before/after state and net to zero, which matches P_15.
+-->
+<Faktura xmlns="http://crd.gov.pl/wzor/2025/06/25/13775/">
+  <Naglowek>
+    <KodFormularza kodSystemowy="FA (3)" wersjaSchemy="1-0E">FA</KodFormularza>
+    <WariantFormularza>3</WariantFormularza>
+    <DataWytworzeniaFa>2026-09-08T13:21:35Z</DataWytworzeniaFa>
+    <SystemInfo>KSeF Hub Test</SystemInfo>
+  </Naglowek>
+  <Podmiot1>
+    <DaneIdentyfikacyjne>
+      <NIP>1234567890</NIP>
+      <Nazwa>Testowa Firma Sp. z o.o.</Nazwa>
+    </DaneIdentyfikacyjne>
+    <Adres>
+      <KodKraju>PL</KodKraju>
+      <AdresL1>ul. Testowa 1, 00-001 Warszawa</AdresL1>
+    </Adres>
+  </Podmiot1>
+  <Podmiot2>
+    <DaneIdentyfikacyjne>
+      <NIP>0987654321</NIP>
+      <Nazwa>Kupujący S.A.</Nazwa>
+    </DaneIdentyfikacyjne>
+    <Adres>
+      <KodKraju>PL</KodKraju>
+      <AdresL1>ul. Kupna 5, 00-002 Kraków</AdresL1>
+    </Adres>
+  </Podmiot2>
+  <Fa>
+    <KodWaluty>PLN</KodWaluty>
+    <P_1>2026-09-08</P_1>
+    <P_2>K2/9/2026</P_2>
+    <P_6>2026-08-31</P_6>
+    <P_15>0</P_15>
+    <Adnotacje>
+      <P_16>2</P_16>
+      <P_17>2</P_17>
+      <P_18>2</P_18>
+      <P_18A>2</P_18A>
+      <Zwolnienie>
+        <P_19N>1</P_19N>
+      </Zwolnienie>
+      <NoweSrodkiTransportu>
+        <P_22N>1</P_22N>
+      </NoweSrodkiTransportu>
+      <P_23>2</P_23>
+      <PMarzy>
+        <P_PMarzyN>1</P_PMarzyN>
+      </PMarzy>
+    </Adnotacje>
+    <RodzajFaktury>KOR</RodzajFaktury>
+    <PrzyczynaKorekty>Zmiana ustaleń z kontrahentem.</PrzyczynaKorekty>
+    <DaneFaKorygowanej>
+      <DataWystFaKorygowanej>2026-09-07</DataWystFaKorygowanej>
+      <NrFaKorygowanej>A1/9/2026</NrFaKorygowanej>
+      <NrKSeF>1</NrKSeF>
+      <NrKSeFFaKorygowanej>1234567890-20260907-4241FEC00002-57</NrKSeFFaKorygowanej>
+    </DaneFaKorygowanej>
+    <P_15ZK>0</P_15ZK>
+    <FaWiersz>
+      <NrWierszaFa>1</NrWierszaFa>
+      <P_7>Usługi programowania zgodnie z umową</P_7>
+      <P_8A>szt.</P_8A>
+      <P_8B>1.000000</P_8B>
+      <P_9A>33000</P_9A>
+      <P_11>33000</P_11>
+      <P_11Vat>7590</P_11Vat>
+      <P_12>23</P_12>
+      <StanPrzed>1</StanPrzed>
+    </FaWiersz>
+    <FaWiersz>
+      <NrWierszaFa>1</NrWierszaFa>
+      <P_7>Usługi programowania zgodnie z umową</P_7>
+      <P_8A>szt.</P_8A>
+      <P_8B>1.000000</P_8B>
+      <P_9A>33000.00</P_9A>
+      <P_11>33000.00</P_11>
+      <P_11Vat>7590</P_11Vat>
+      <P_12>23</P_12>
+    </FaWiersz>
+  </Fa>
+</Faktura>

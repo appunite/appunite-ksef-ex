@@ -42,12 +42,15 @@ defmodule KsefHub.Invoices.Parser do
        #   P_13_5  — special proc.     P_13_8   — supply outside PL
        #   P_13_9  — EU services       P_13_10  — reverse charge
        #   P_13_11 — margin scheme
+       # All of P_13_* are optional, and some issuers omit the whole block on
+       # corrections — fall back to the line items, which still carry the
+       # amounts. The summary fields win whenever they are present.
        net_amount:
          sum_decimal_fields(
            doc,
            ~w[P_13_1 P_13_2 P_13_3 P_13_4 P_13_5 P_13_6_1 P_13_6_2 P_13_6_3
               P_13_7 P_13_8 P_13_9 P_13_10 P_13_11]
-         ),
+         ) || net_amount_from_line_items(doc),
        gross_amount: xpath(doc, ~x"//*[local-name()='P_15']/text()"s) |> parse_decimal(),
        currency: xpath(doc, ~x"//*[local-name()='KodWaluty']/text()"s) |> default_currency(),
        purchase_order: extract_purchase_order(doc),
@@ -242,6 +245,44 @@ defmodule KsefHub.Invoices.Parser do
         vat_rate: xpath(item, ~x"./*[local-name()='P_12']/text()"s) |> parse_decimal()
       }
     end)
+  end
+
+  # Derives the net amount from FaWiersz rows, for invoices whose P_13_* summary
+  # block is missing.
+  #
+  # On a correction each row is tagged with the state it describes: rows marked
+  # <StanPrzed>1</StanPrzed> are the state *before* the correction, untagged
+  # rows the state after. The amount a correction actually books is the
+  # difference between the two, which is why the "before" rows are subtracted —
+  # a correction that only restates non-financial data (a sale date, say) has
+  # matching rows on both sides and correctly nets to zero.
+  #
+  # A regular invoice has no tagged rows, so this is simply the sum of its
+  # lines. Returns nil when there is nothing to sum, keeping "no amount in the
+  # document" distinct from "the amount is zero".
+  @spec net_amount_from_line_items(term()) :: Decimal.t() | nil
+  defp net_amount_from_line_items(doc) do
+    doc
+    |> xpath(~x"//*[local-name()='FaWiersz']"l)
+    |> Enum.map(&signed_row_amount/1)
+    |> Enum.reject(&is_nil/1)
+    |> case do
+      [] -> nil
+      amounts -> Enum.reduce(amounts, Decimal.new(0), &Decimal.add/2)
+    end
+  end
+
+  @spec signed_row_amount(term()) :: Decimal.t() | nil
+  defp signed_row_amount(row) do
+    case xpath(row, ~x"./*[local-name()='P_11']/text()"s) |> parse_decimal() do
+      nil -> nil
+      amount -> if correction_before_state?(row), do: Decimal.negate(amount), else: amount
+    end
+  end
+
+  @spec correction_before_state?(term()) :: boolean()
+  defp correction_before_state?(row) do
+    xpath(row, ~x"./*[local-name()='StanPrzed']/text()"s) == "1"
   end
 
   @spec sum_decimal_fields(term(), [String.t()]) :: Decimal.t() | nil
