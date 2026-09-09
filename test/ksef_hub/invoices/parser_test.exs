@@ -591,6 +591,127 @@ defmodule KsefHub.Invoices.ParserTest do
     """
   end
 
+  describe "parse/1 net amount without the P_13 summary block" do
+    @fa_head """
+    <?xml version="1.0" encoding="UTF-8"?>
+    <Faktura xmlns="http://crd.gov.pl/wzor/2025/06/25/13775/">
+      <Naglowek>
+        <KodFormularza kodSystemowy="FA (3)" wersjaSchemy="1-0E">FA</KodFormularza>
+        <WariantFormularza>3</WariantFormularza>
+        <DataWytworzeniaFa>2026-09-08T10:30:00</DataWytworzeniaFa>
+        <SystemInfo>Test</SystemInfo>
+      </Naglowek>
+      <Podmiot1><DaneIdentyfikacyjne><NIP>1234567890</NIP><Nazwa>Seller</Nazwa></DaneIdentyfikacyjne></Podmiot1>
+      <Podmiot2><DaneIdentyfikacyjne><NIP>0987654321</NIP><Nazwa>Buyer</Nazwa></DaneIdentyfikacyjne></Podmiot2>
+    """
+
+    defp build_fa(body) do
+      @fa_head <>
+        """
+          <Fa>
+            <KodWaluty>PLN</KodWaluty>
+            <P_1>2026-09-08</P_1>
+            <P_2>K1/9/2026</P_2>
+        #{body}
+          </Fa>
+        </Faktura>
+        """
+    end
+
+    test "derives the net amount from line items for a real-world correction" do
+      xml = File.read!(Path.join(@fixtures_path, "sample_correction_no_summary.xml"))
+
+      assert {:ok, invoice} = Parser.parse(xml)
+
+      # The correction only moves the sale date; the before/after rows carry the
+      # same amount, so nothing is booked.
+      assert invoice.invoice_kind == "correction"
+      assert invoice.sales_date == ~D[2026-08-31]
+      assert Decimal.equal?(invoice.net_amount, Decimal.new("0"))
+      assert Decimal.equal?(invoice.gross_amount, Decimal.new("0"))
+    end
+
+    test "nets a correction down to the difference between before and after rows" do
+      xml =
+        build_fa("""
+            <RodzajFaktury>KOR</RodzajFaktury>
+            <P_15>615.00</P_15>
+            <FaWiersz><NrWierszaFa>1</NrWierszaFa><P_11>1000.00</P_11><P_12>23</P_12><StanPrzed>1</StanPrzed></FaWiersz>
+            <FaWiersz><NrWierszaFa>1</NrWierszaFa><P_11>1500.00</P_11><P_12>23</P_12></FaWiersz>
+        """)
+
+      assert {:ok, invoice} = Parser.parse(xml)
+      assert Decimal.equal?(invoice.net_amount, Decimal.new("500.00"))
+    end
+
+    test "goes negative when a correction lowers the amount" do
+      xml =
+        build_fa("""
+            <RodzajFaktury>KOR</RodzajFaktury>
+            <FaWiersz><NrWierszaFa>1</NrWierszaFa><P_11>1000.00</P_11><P_12>23</P_12><StanPrzed>1</StanPrzed></FaWiersz>
+            <FaWiersz><NrWierszaFa>1</NrWierszaFa><P_11>400.00</P_11><P_12>23</P_12></FaWiersz>
+        """)
+
+      assert {:ok, invoice} = Parser.parse(xml)
+      assert Decimal.equal?(invoice.net_amount, Decimal.new("-600.00"))
+    end
+
+    test "subtracts every before-state row across a multi-line correction" do
+      xml =
+        build_fa("""
+            <RodzajFaktury>KOR</RodzajFaktury>
+            <FaWiersz><NrWierszaFa>1</NrWierszaFa><P_11>100.00</P_11><P_12>23</P_12><StanPrzed>1</StanPrzed></FaWiersz>
+            <FaWiersz><NrWierszaFa>2</NrWierszaFa><P_11>200.00</P_11><P_12>23</P_12><StanPrzed>1</StanPrzed></FaWiersz>
+            <FaWiersz><NrWierszaFa>1</NrWierszaFa><P_11>150.00</P_11><P_12>23</P_12></FaWiersz>
+            <FaWiersz><NrWierszaFa>2</NrWierszaFa><P_11>250.00</P_11><P_12>23</P_12></FaWiersz>
+        """)
+
+      assert {:ok, invoice} = Parser.parse(xml)
+      # (150 + 250) - (100 + 200) = 100
+      assert Decimal.equal?(invoice.net_amount, Decimal.new("100.00"))
+    end
+
+    test "sums the line items of a regular invoice that omits the summary block" do
+      xml =
+        build_fa("""
+            <FaWiersz><NrWierszaFa>1</NrWierszaFa><P_11>1000.00</P_11><P_12>23</P_12></FaWiersz>
+            <FaWiersz><NrWierszaFa>2</NrWierszaFa><P_11>250.50</P_11><P_12>23</P_12></FaWiersz>
+        """)
+
+      assert {:ok, invoice} = Parser.parse(xml)
+      assert Decimal.equal?(invoice.net_amount, Decimal.new("1250.50"))
+    end
+
+    test "prefers the summary block over the line items when both are present" do
+      xml =
+        build_fa("""
+            <P_13_1>8000.00</P_13_1>
+            <FaWiersz><NrWierszaFa>1</NrWierszaFa><P_11>9999.00</P_11><P_12>23</P_12></FaWiersz>
+        """)
+
+      assert {:ok, invoice} = Parser.parse(xml)
+      assert Decimal.equal?(invoice.net_amount, Decimal.new("8000.00"))
+    end
+
+    test "leaves the net amount nil when the document carries no amount at all" do
+      xml = build_fa("      <P_15>0</P_15>")
+
+      assert {:ok, invoice} = Parser.parse(xml)
+      # nil, not zero — the document simply does not say.
+      assert invoice.net_amount == nil
+    end
+
+    test "ignores rows with no P_11 rather than treating them as zero" do
+      xml =
+        build_fa("""
+            <FaWiersz><NrWierszaFa>1</NrWierszaFa><P_7>Rabat opisowy</P_7><P_12>23</P_12></FaWiersz>
+        """)
+
+      assert {:ok, invoice} = Parser.parse(xml)
+      assert invoice.net_amount == nil
+    end
+  end
+
   describe "determine_type/2" do
     test "returns income when our NIP is seller" do
       invoice = %{seller_nip: "1234567890", buyer_nip: "9999999999"}
